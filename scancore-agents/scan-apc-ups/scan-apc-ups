@@ -195,16 +195,8 @@ if (($anvil->data->{scancore}{'scan-apc-ups'}{disable}) && (not $anvil->data->{s
 	$anvil->nice_exit({exit_code => 0});
 }
 
-# These are the tables used by this agent. The order matters as it controls to order the tables are created 
-# and sync'ed. For purges, this array is walked backwards.
-$anvil->data->{scancore}{'scan-apc-ups'}{tables} = ["scan_apc_upses", "scan_apc_ups_batteries", "scan_apc_ups_input", "scan_apc_ups_output"];
-
 # Handle start-up tasks
-my $problem = $anvil->ScanCore->agent_startup({
-	debug  => 3,
-	agent  => $THIS_FILE,
-	tables => $anvil->data->{scancore}{'scan-apc-ups'}{tables},
-});
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});
@@ -213,9 +205,10 @@ if ($problem)
 if ($anvil->data->{switches}{purge})
 {
 	# This can be called when doing bulk-database purges.
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
 	$anvil->Database->purge_data({
 		debug  => 2,
-		tables => $anvil->data->{scancore}{'scan-apc-ups'}{tables},
+		tables => $anvil->Database->get_tables_from_schema({schema_file => $schema_file}),
 	});
 	$anvil->nice_exit({exit_code => 0});
 }
@@ -393,13 +386,7 @@ INSERT INTO
 				last_transfer_reason  => "#!string!scan_apc_ups_last_xfer_".sprintf("%04d", $scan_apc_ups_last_transfer_reason)."!#",
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0002", variables => $variables});
-			$anvil->Alert->register({
-				alert_level       => "warning", 
-				message           => "scan_apc_pdu_message_0002", 
-				message_variables => $variables, 
-				set_by            => $THIS_FILE, 
-				sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
-			});
+			$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0002", message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
 			
 			# Add any batteries.
 			foreach my $battery_number (sort {$a cmp $b} keys %{$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}})
@@ -1434,7 +1421,7 @@ WHERE
 							$message_key = "scan_apc_ups_message_0011";
 						}
 						
-						my $sort_position = $level eq "warning" ? $anvil->data->{'scan-apc-pdu'}{alert_sort}++ : 1;
+						my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
 						my $variables     = {
 							ups_name       => $scan_apc_ups_name,
 							battery_number => $battery_number,
@@ -1580,7 +1567,7 @@ LIMIT 1
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sent => $alert_sent }});
 						if (not $alert_sent)
 						{
-							my $sort_position = $level eq "warning" ? $anvil->data->{'scan-apc-pdu'}{alert_sort}++ : 1;
+							my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => $variables});
 							$anvil->Alert->register({alert_level => $level, message => $message_key, message_variables => $variables, sort_position => $sort_position, set_by => $THIS_FILE});
 						}
@@ -1644,7 +1631,7 @@ LIMIT 1
 							$clear_alert = 1;
 						}
 						
-						my $sort_position = $level eq "warning" ? $anvil->data->{'scan-apc-pdu'}{alert_sort}++ : 1;
+						my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
 						my $variables     = {
 							ups_name       => $scan_apc_ups_name,
 							new_value      => "#!string!scan_apc_ups_battery_state_".sprintf("%04d", $say_scan_apc_ups_battery_state)."!#",

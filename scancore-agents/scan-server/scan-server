@@ -64,14 +64,8 @@ if (($anvil->data->{scancore}{'scan-server'}{disable}) && (not $anvil->data->{sw
 	$anvil->nice_exit({exit_code => 0});
 }
 
-# This scan agent only uses core tables (server and definitions).
-$anvil->data->{scancore}{'scan-server'}{tables} = [];
-
 # Handle start-up tasks
-my $problem = $anvil->ScanCore->agent_startup({
-	agent  => $THIS_FILE,
-	tables => $anvil->data->{scancore}{'scan-server'}{tables},
-});
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});

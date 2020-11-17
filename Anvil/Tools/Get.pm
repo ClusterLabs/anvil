@@ -1003,7 +1003,7 @@ sub free_memory
 
 This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
 
- my $type = $anvil->System->host_type();
+ my $type = $anvil->Get->host_type();
 
 First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
 

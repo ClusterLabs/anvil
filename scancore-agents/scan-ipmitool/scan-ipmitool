@@ -1,0 +1,2488 @@
+#!/usr/bin/perl
+# 
+# This software was created by Alteeve's Niche! Inc. and has been released under the terms of the GNU GPL 
+# version 2.
+#
+# ScanCore Scan Agent for 'ipmitool' to query IPMI data.
+#
+# https://alteeve.com
+# 
+# Exit Codes:
+# 0   - Success
+# 1   - Passed in host name was not found in the database.
+# 2   - Bad number of scan_ipmitool_value_uuid's returned for the given 
+# 
+# 255 - The host's UUID isn't in the hosts table yet, ScanCore itself hasn't been run.
+# 
+# TODO:
+# - Decide if we should parse 'ipmitool sel list'
+# - Detect a hung BMC by trying to talk to ourselves and, if that fails, send 'ipmitool bmc reset cold'. 
+#   Possibly try pinging the IPMI from the peer as it is not always possible to ping our own interface when
+#   the IPMI and eth device share the same physical connector.
+# - Update the string processing from the '!!x!name=a,value=b,units=c!!' method to the new method here:
+#   https://alteeve.com/w/ScanCore#Unit_Parsing
+# - Change 'scan_ipmitool_value_uuid' to 'scan_ipmitool_value_uuid'.
+# - Monitor / Alert on RPM, wattage, voltage, etc 
+#
+# - A PSU wattage dropping to '0 Watts', in conjunction with it's fan dropping to '0' RPMs, is the sign that 
+#   input power was lost and should set a health score of ~5.
+# 
+# NOTE: 
+# - Health values
+#   - IPMI BMC    - Hung       = 10
+#   - Temperature - Critical   = 2
+#   - Temperature - Warning    = 1
+#   - Fan         - Failed     = 5
+#   - PSU         - Lost Input = 5
+=pod
+
+A Hung/crashed BMC will fail to reset with this:
+====
+[root@nr-c03n01 ~]# time ipmitool bmc reset cold
+Get Device ID command failed: 0xff Unspecified error
+Sent cold reset command to MC
+
+real	3m52.860s
+user	0m0.000s
+sys	0m0.002s
+====
+
+Seeing this, we need to ask the peer to power-cycle us (/shared/status/.node.helpme -> 'task = power_cycle')
+and set the health to 'warning'. We will call anvil-safe-stop.
+
+The peer, on seeing (/shared/status/.node.helpme -> 'task = power_cycle'), will start pinging the peer on the
+BCN and SN. Once there is no response, we will start a 60 second counter, then cut power to the PDUs for 60
+seconds, then restore power. We will then start pinging the IPMI interface. Once it responds, we will wait 60
+seconds and then try to power it back on.
+
+---------
+
+Change/set thresholds:
+
+From: https://forums.freenas.org/index.php?threads/how-to-change-sensor-thresholds-with-ipmi-using-ipmitool.23571/
+
+Lower Non-Recoverable
+Lower Critical
+Lower Non-Critical
+
+Upper Non-Critical
+Upper Critical
+Upper Non-Recoverable
+
+ipmitool sensor thresh "*sensor name*" lower *lnr* *lcr* *lnc*
+
+ipmitool sensor thresh "*sensor name*" upper *unc* *ucr* *unr*
+=cut
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Socket;
+no warnings 'recursion';
+
+# Disable buffering
+$| = 1;
+
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({exit_code => 1});
+}
+
+### TODO: Rework this whole agent...
+# Get the handle to the AN::Tools and preset some variables I will use.
+$anvil->data->{'scan-ipmitool'} = {
+	disable				=>	0,
+	# It will be marked as 'clear' when the temperature drops this many °C below the 
+	# critical temperature.
+	machine				=>	{},
+	alert_sort			=>	0,
+	# These are used when no other limits are set for a given sensor.
+	thresholds			=>	{
+		'default'			=>	{
+			high_warning			=>	50,
+			high_critical			=>	55,
+			low_warning			=>	5,
+			low_critical			=>	0,
+			jump				=>	5,
+			### TODO: Some sensors define their hysteresis which we can read using: 
+			###       ipmitool ... sensor get "Ambient"
+			buffer				=>	2,
+			weight				=>	1,
+		},
+		# If the user wants to assign manual values for a given sensor, they can do 
+		# so by creating an entry hear where the key is the IPMI-returned sensor 
+		# name.
+		#ie:
+		# ===========================================================================
+		#'Ambient'			=>	{
+		#	high_warning			=>	50,
+		#	high_critical			=>	55,
+		#	low_warning			=>	5,
+		#	low_critical			=>	0,
+		#	jump				=>	5,
+		#	buffer				=>	2,
+		#	weight				=>	1,
+		#},
+		# ===========================================================================
+		# CPUs tend to jump around wildly under sudden load, so we extend their jump
+		# range so we don't get spurious warnings all the time.
+		'CPU'				=>	{
+			jump				=>	25,
+		},
+		'CPU1'				=>	{
+			jump				=>	25,
+		},
+		'CPU2'				=>	{
+			jump				=>	25,
+		},
+		'CPU3'				=>	{
+			jump				=>	25,
+		},
+		'CPU4'				=>	{
+			jump				=>	25,
+		},
+		'CPU5'				=>	{
+			jump				=>	25,
+		},
+		'CPU6'				=>	{
+			jump				=>	25,
+		},
+		'CPU7'				=>	{
+			jump				=>	25,
+		},
+		'CPU8'				=>	{
+			jump				=>	25,
+		},
+		# The ROC on LSI controllers can just dramatically
+		'RAID Controller'		=>	{
+			jump				=>	15,
+		},
+	},
+	# TODO: Remove this and have Striker pull the list of thermal sensors read in the 
+	#       last $timestamp.
+	offline_sensor_list		=>	"Ambient,Systemboard",
+	local_lock_active		=>	0,
+	scanning_myself			=>	0,
+	queries				=>	[],
+	health				=>	{
+		old				=>	{},
+		new				=>	{},
+	},
+};
+
+$anvil->Storage->read_config();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1 , key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches
+$anvil->data->{switches}{force} = 0;
+$anvil->data->{switches}{purge} = 0;
+$anvil->Get->switches;
+
+# If we're disabled and '--force' wasn't used, exit.
+if (($anvil->data->{scancore}{'scan-ipmitool'}{disable}) && (not $anvil->data->{switches}{force}))
+{
+	# Exit.
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
+if ($problem)
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
+if ($anvil->data->{switches}{purge})
+{
+	# This can be called when doing bulk-database purges.
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
+	$anvil->Database->purge_data({
+		debug  => 2,
+		tables => $anvil->Database->get_tables_from_schema({schema_file => $schema_file}),
+	});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# This calls anvil-report-ipmi-details to find IPMI devices to scan. It also handles any user-defined IPMI 
+# devices set in striker.conf.
+if (not find_ipmi_targets($anvil))
+{
+	# No targets found. 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_message_0001"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Query IPMI targets. Unreachable targets will simply be ignored.
+query_ipmi_targets($anvil);
+
+# Look for changes.
+find_changes($anvil);
+
+# Finally, process health weights.
+process_health($anvil);
+
+# Update the database
+$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+
+# Clean up and go away.
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This reads in all health wieghts previously set, alters ones as needed, INSERTs new ones and DELETEs old
+# ones.
+sub process_health
+{
+	my ($anvil) = @_;
+	
+	# This will hold our updates.
+	$anvil->data->{'scan-ipmitool'}{queries} = [];
+	
+	# Read in previous health values.
+	my $query = "
+SELECT 
+    health_uuid,
+    health_source_name,
+    health_source_weight 
+FROM 
+    health 
+WHERE 
+    health_host_uuid  = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    health_agent_name = ".$anvil->Database->quote($THIS_FILE)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { results => $results }});
+	foreach my $row (@{$results})
+	{
+		my $health_uuid          = $row->[0]; 
+		my $health_source_name   = $row->[1]; 
+		my $health_source_weight = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			health_uuid          => $health_uuid, 
+			health_source_name   => $health_source_name, 
+			health_source_weight => $health_source_weight, 
+		}});
+		
+		$anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{uuid}  = $health_uuid;
+		$anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{value} = $health_source_weight;
+	}
+	
+	# Read in the new ones
+	foreach my $health_source_name (sort {$a cmp $b} keys %{$anvil->data->{'scan-ipmitool'}{health}{new}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"health::new::$health_source_name" => $anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name}, 
+		}});
+		if (exists $anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name})
+		{
+			# We've seen this before. Has it changed?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"health::old::${health_source_name}::value" => $anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{value}, 
+			}});
+			
+			if ($anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name} ne $anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{value})
+			{
+				# It has changed, update it.
+				my $query = "
+UPDATE 
+    health 
+SET 
+    health_source_weight = ".$anvil->Database->quote($anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name}).", 
+    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    health_uuid          = ".$anvil->Database->quote($anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{uuid})."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+			}
+			
+			# Delete the new old key, regardless of whether it has changed now.
+			delete $anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name};
+		}
+		else
+		{
+			# New entry, INSERT it.
+			my $query = "
+INSERT INTO 
+    health
+(
+    health_uuid,
+    health_host_uuid,
+    health_agent_name,
+    health_source_name,
+    health_source_weight,
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($anvil->Get->uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($THIS_FILE).", 
+    ".$anvil->Database->quote($health_source_name).", 
+    ".$anvil->Database->quote($anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name}).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+		}
+	}
+	
+	# Delete any old entries that are left.
+	foreach my $health_source_name (sort {$a cmp $b} keys %{$anvil->data->{'scan-ipmitool'}{health}{old}})
+	{
+		# Well set the source name to 'DELETED'.
+		my $query = "
+UPDATE 
+    health 
+SET 
+    health_source_name = 'DELETED', 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    health_uuid        = ".$anvil->Database->quote($anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{uuid})."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+		
+		$query = "
+DELETE FROM 
+    health 
+WHERE 
+    health_uuid        = ".$anvil->Database->quote($anvil->data->{'scan-ipmitool'}{health}{old}{$health_source_name}{uuid})."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+	}
+	
+	# Now commit the changes.
+	$anvil->Database->write({query => $anvil->data->{'scan-ipmitool'}{queries}, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
+}
+
+# This reads in the last scan data from one of the databases and compares it against the just-read data. If 
+# anything changed, register an alert.
+sub find_changes
+{
+	my ($anvil) = @_;
+	
+	# Loop through each machine
+	foreach my $machine (sort {$a cmp $b} keys %{$anvil->data->{ipmi}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
+		
+		# This returns the number of read sensors already in the DB for this machine recorded by us 
+		# previously.
+		if (read_last_scan($anvil, $machine))
+		{
+			### Existing machine, UPDATE or INSERT as needed.
+			foreach my $scan_ipmitool_sensor_name (sort {$a cmp $b} keys %{$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}})
+			{
+				# Put the new values into variables
+				my $new_scan_ipmitool_value_sensor_value   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value};
+				my $new_scan_ipmitool_sensor_units         = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_units};
+				my $new_scan_ipmitool_sensor_status        = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_status};
+				my $new_scan_ipmitool_sensor_high_critical = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical};
+				my $new_scan_ipmitool_sensor_high_warning  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning};
+				my $new_scan_ipmitool_sensor_low_critical  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical};
+				my $new_scan_ipmitool_sensor_low_warning   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					new_scan_ipmitool_value_sensor_value   => $new_scan_ipmitool_value_sensor_value, 
+					new_scan_ipmitool_sensor_units         => $new_scan_ipmitool_sensor_units, 
+					new_scan_ipmitool_sensor_status        => $new_scan_ipmitool_sensor_status, 
+					new_scan_ipmitool_sensor_high_critical => $new_scan_ipmitool_sensor_high_critical, 
+					new_scan_ipmitool_sensor_high_warning  => $new_scan_ipmitool_sensor_high_warning, 
+					new_scan_ipmitool_sensor_low_critical  => $new_scan_ipmitool_sensor_low_critical, 
+					new_scan_ipmitool_sensor_low_warning   => $new_scan_ipmitool_sensor_low_warning, 
+				}});
+				
+				# If the new value is 'na', we failed to read it. Skip.
+				if ($new_scan_ipmitool_value_sensor_value eq "na")
+				{
+					delete $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
+					next;
+				}
+				
+				### NOTE: These were added to debug duplicate scan_ipmitool_values entries.
+				if (not $new_scan_ipmitool_sensor_units)
+				{
+					my $variables = {
+						machine => $machine,
+						sensor  => $scan_ipmitool_sensor_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_message_0002", variables => $variables});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_ipmitool_message_0002", message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+					next;
+				}
+				if (not $new_scan_ipmitool_value_sensor_value)
+				{
+					my $variables = {
+						machine => $machine,
+						sensor  => $scan_ipmitool_sensor_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_message_0003", variables => $variables});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_ipmitool_message_0003", message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+					next;
+				}
+				
+				# If the value is "" and it's a digit-based value, switch it to '0'
+				if ((($new_scan_ipmitool_sensor_units eq "C") or ($new_scan_ipmitool_sensor_units eq "F") or ($new_scan_ipmitool_sensor_units eq "RPM")) && ($new_scan_ipmitool_value_sensor_value eq ""))
+				{
+					$new_scan_ipmitool_value_sensor_value = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value }});
+				}
+				
+				# Have I seen this sensor before?
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"ref(sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name})" => ref($anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}), 
+				}});
+				if (ref($anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}))
+				{
+					### Existing record, update it if needed.
+					# Put the old values into variables
+					my $scan_ipmitool_uuid                     = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid};
+					my $old_scan_ipmitool_value_sensor_value   = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value};
+					my $old_scan_ipmitool_sensor_units         = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_units};
+					my $old_scan_ipmitool_sensor_status        = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_status};
+					my $old_scan_ipmitool_sensor_high_critical = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical};
+					my $old_scan_ipmitool_sensor_high_warning  = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning};
+					my $old_scan_ipmitool_sensor_low_critical  = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical};
+					my $old_scan_ipmitool_sensor_low_warning   = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						scan_ipmitool_uuid                     => $scan_ipmitool_uuid, 
+						old_scan_ipmitool_value_sensor_value   => $old_scan_ipmitool_value_sensor_value, 
+						old_scan_ipmitool_sensor_units         => $old_scan_ipmitool_sensor_units, 
+						old_scan_ipmitool_sensor_status        => $old_scan_ipmitool_sensor_status, 
+						old_scan_ipmitool_sensor_high_critical => $old_scan_ipmitool_sensor_high_critical, 
+						old_scan_ipmitool_sensor_high_warning  => $old_scan_ipmitool_sensor_high_warning, 
+						old_scan_ipmitool_sensor_low_critical  => $old_scan_ipmitool_sensor_low_critical, 
+						old_scan_ipmitool_sensor_low_warning   => $old_scan_ipmitool_sensor_low_warning, 
+					}});
+					
+					# If the value is "" and it's a digit-based value, switch it to '0'
+					if ((($old_scan_ipmitool_sensor_units eq "C") or ($old_scan_ipmitool_sensor_units eq "F") or ($old_scan_ipmitool_sensor_units eq "RPM")) && ($old_scan_ipmitool_value_sensor_value eq ""))
+					{
+						$old_scan_ipmitool_value_sensor_value = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_scan_ipmitool_value_sensor_value => $old_scan_ipmitool_value_sensor_value }});
+					}
+					
+					# In some odd cases, there is no old sensor value
+					$old_scan_ipmitool_value_sensor_value = "" if not defined $old_scan_ipmitool_value_sensor_value;
+					
+					# These will be used in alert messages, if needed.
+					my $sensor_name      = "name=$scan_ipmitool_sensor_name:units=$new_scan_ipmitool_sensor_units";
+					my $new_sensor_value = "value=$new_scan_ipmitool_value_sensor_value:units=$new_scan_ipmitool_sensor_units";
+					my $old_sensor_value = "value=$old_scan_ipmitool_value_sensor_value:units=$old_scan_ipmitool_sensor_units";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						scan_ipmitool_sensor_name => $scan_ipmitool_sensor_name, 
+						sensor_name               => $sensor_name, 
+						new_sensor_value          => $new_sensor_value, 
+						old_sensor_value          => $old_sensor_value, 
+					}});
+					
+					### TODO: We can remove this, I think.
+					### Look for changes
+					# NOTE: If the new sensor has a state of 'na' and the old state 
+					#       wasn't 'na', we ignore it. It happens not uncommonly and it's
+					#       never been an indication of a real problem before.
+# 					if ($new_scan_ipmitool_sensor_status eq "na")
+# 					{
+# 						# This is usually harmless, so we simple log this and move on
+# 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_log_0004", variables => { sensor_name => $scan_ipmitool_sensor_name }});
+# 						
+# 						# We loop out now because the rest of the values will look 
+# 						# really bad (ie: temps down to 0c) and we don't want to 
+# 						# trigger preventative actions on bad data.
+# 						delete $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
+# 						next;
+# 					}
+# 					elsif (($new_scan_ipmitool_sensor_status ne "na") && ($old_scan_ipmitool_sensor_status eq "na"))
+# 					{
+# 						# It disappeared in a previous sweep, now it's back. We 
+# 						# continue normal processing to handle those rare occassions
+# 						# where a sensor was lost back when we cared, and returned 
+# 						# after updating to this version when we stopped caring.
+# 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_log_0005", variables => { sensor_name => $scan_ipmitool_sensor_name }});
+# 					}
+					
+					# Sensor value:
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value, 
+						old_scan_ipmitool_value_sensor_value => $old_scan_ipmitool_value_sensor_value, 
+					}});
+					if ($new_scan_ipmitool_value_sensor_value ne $old_scan_ipmitool_value_sensor_value)
+					{
+						# Update (no surprise ...)
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							machine                              => $machine, 
+							sensor_name                          => $sensor_name, 
+							new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value, 
+							old_scan_ipmitool_value_sensor_value => $old_scan_ipmitool_value_sensor_value, 
+						}});
+						my $query = "
+UPDATE 
+    scan_ipmitool_values 
+SET
+    scan_ipmitool_value_sensor_value       = ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).", 
+    modified_date                          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    scan_ipmitool_value_scan_ipmitool_uuid = ".$anvil->Database->quote($scan_ipmitool_uuid)."
+;
+";
+						$query =~ s/'NULL'/NULL/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+						
+						### NOTE: These are set in 'process_temperature_change()' as 
+						###       well, so change the values there if you change it 
+						###       here, too.
+						# This is an info-level alert, provided it is not gone above
+						# or below tolerances.
+						my $level       = "info";
+						my $message_key = "scan_ipmitool_message_0004";
+						
+						# If this is a temperature, see if we need to trigger an 
+						# alarm and set/clear the 'temperature' table entry. 
+						# TODO: For the rest of the sensors, we just log the changes.
+						#       If a sensor goes bad, for now we'll catch errors on 
+						#       the sensor status  change. We'll add better checks 
+						#       later.
+						if ($new_scan_ipmitool_sensor_units eq "C")
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								machine                              => $machine, 
+								sensor_name                          => $sensor_name, 
+								new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value, 
+								old_scan_ipmitool_value_sensor_value => $old_scan_ipmitool_value_sensor_value, 
+							}});
+							($level, $message_key) = process_temperature_change($anvil, $machine, $scan_ipmitool_sensor_name);
+							
+							my $variables = {
+								sensor_name       => $sensor_name,
+								new_sensor_value  => $new_sensor_value,
+								new_sensor_status => $new_scan_ipmitool_sensor_status,
+								new_high_critical => $new_scan_ipmitool_sensor_high_critical eq "" ? "--" : $new_scan_ipmitool_sensor_high_critical,
+								new_low_critical  => $new_scan_ipmitool_sensor_low_critical  eq "" ? "--" : $new_scan_ipmitool_sensor_low_critical,
+								new_high_warning  => $new_scan_ipmitool_sensor_high_warning  eq "" ? "--" : $new_scan_ipmitool_sensor_high_warning,
+								new_low_warning   => $new_scan_ipmitool_sensor_low_warning   eq "" ? "--" : $new_scan_ipmitool_sensor_low_warning,
+								old_sensor_value  => $old_sensor_value, 
+								old_sensor_status => $old_scan_ipmitool_sensor_status,
+								old_high_critical => $old_scan_ipmitool_sensor_high_critical eq "" ? "--" : $old_scan_ipmitool_sensor_high_critical,
+								old_low_critical  => $old_scan_ipmitool_sensor_low_critical  eq "" ? "--" : $old_scan_ipmitool_sensor_low_critical,
+								old_high_warning  => $old_scan_ipmitool_sensor_high_warning  eq "" ? "--" : $old_scan_ipmitool_sensor_high_warning,
+								old_low_warning	  => $old_scan_ipmitool_sensor_low_warning   eq "" ? "--" : $old_scan_ipmitool_sensor_low_warning,
+							};
+							my $sort_position = (($level eq "warning") or ($level eq "critical")) ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+							my $log_level     = (($level eq "warning") or ($level eq "critical")) ? 1 : 2;
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
+							$anvil->Alert->register({alert_level => $level, message => $message_key, message_variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
+						}
+						else
+						{
+							# TODO: Add the checks of variables against the 
+							#       high/low warning/critical thresholds here
+							#       (like RPM, wattage, voltage, etc).
+							my $variables = {
+								sensor_name      => $sensor_name,
+								new_sensor_value => $new_sensor_value,
+								old_sensor_value => $old_sensor_value
+							};
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => $variables});
+							$anvil->Alert->register({alert_level => $level, message => $message_key, message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+						}
+					}
+					else
+					{
+						# No change.
+						$anvil->Log->entry({log_level => 2, message_key => "scancore_log_0047", file => $THIS_FILE, line => __LINE__});
+					}
+					
+					# Everything else
+					if (($new_scan_ipmitool_sensor_units         ne $old_scan_ipmitool_sensor_units) or 
+					    ($new_scan_ipmitool_sensor_status        ne $old_scan_ipmitool_sensor_status) or 
+					    ($new_scan_ipmitool_sensor_high_critical ne $old_scan_ipmitool_sensor_high_critical) or 
+					    ($new_scan_ipmitool_sensor_high_warning  ne $old_scan_ipmitool_sensor_high_warning) or 
+					    ($new_scan_ipmitool_sensor_low_critical  ne $old_scan_ipmitool_sensor_low_critical) or 
+					    ($new_scan_ipmitool_sensor_low_warning   ne $old_scan_ipmitool_sensor_low_warning))
+					{
+						# Huh, interesting. Well, update
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							new_scan_ipmitool_sensor_units => $new_scan_ipmitool_sensor_units, 
+							new_scan_ipmitool_sensor_status => $new_scan_ipmitool_sensor_status, 
+							new_scan_ipmitool_sensor_high_critical => $new_scan_ipmitool_sensor_high_critical, 
+							new_scan_ipmitool_sensor_high_warning => $new_scan_ipmitool_sensor_high_warning, 
+							new_scan_ipmitool_sensor_low_critical => $new_scan_ipmitool_sensor_low_critical, 
+							new_scan_ipmitool_sensor_low_warning => $new_scan_ipmitool_sensor_low_warning, 
+							old_scan_ipmitool_sensor_units => $old_scan_ipmitool_sensor_units, 
+							old_scan_ipmitool_sensor_status => $old_scan_ipmitool_sensor_status, 
+							old_scan_ipmitool_sensor_high_critical => $old_scan_ipmitool_sensor_high_critical, 
+							old_scan_ipmitool_sensor_high_warning => $old_scan_ipmitool_sensor_high_warning, 
+							old_scan_ipmitool_sensor_low_critical => $old_scan_ipmitool_sensor_low_critical, 
+							old_scan_ipmitool_sensor_low_warning => $old_scan_ipmitool_sensor_low_warning, 
+						}});
+						
+						### NOTE: These were added to debug duplicate scan_ipmitool_values entries.
+						if (not $new_scan_ipmitool_sensor_units)
+						{
+							my $variables = {
+								machine => $machine,
+								sensor  => $scan_ipmitool_sensor_name,
+							};
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_message_0015", variables => $variables});
+							$anvil->Alert->register({alert_level => "notice", message => "scan_ipmitool_message_0015", message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+							next;
+						}
+						
+						my $query = "
+UPDATE 
+    scan_ipmitool 
+SET
+    scan_ipmitool_sensor_units         = ".$anvil->Database->quote($new_scan_ipmitool_sensor_units).", 
+    scan_ipmitool_sensor_status        = ".$anvil->Database->quote($new_scan_ipmitool_sensor_status).", 
+    scan_ipmitool_sensor_high_critical = ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_critical).", 
+    scan_ipmitool_sensor_high_warning  = ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_warning).", 
+    scan_ipmitool_sensor_low_critical  = ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_critical).", 
+    scan_ipmitool_sensor_low_warning   = ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_warning).", 
+    modified_date                      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    scan_ipmitool_sensor_host          = ".$anvil->Database->quote($machine)."
+AND 
+    scan_ipmitool_uuid                 = ".$anvil->Database->quote($scan_ipmitool_uuid)."
+;";
+						$query =~ s/'NULL'/NULL/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+						
+						# If this is a status change, set a 'warning' level alert 
+						# unless the change is to/from 'ns'.
+						my $level       = "notice";
+						my $message_key = "scan_ipmitool_message_0016";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							level       => $level, 
+							message_key => $message_key, 
+						}});
+						if (($new_scan_ipmitool_sensor_status ne $old_scan_ipmitool_sensor_status) && 
+						    ($new_scan_ipmitool_sensor_status ne "ns") &&
+						    ($old_scan_ipmitool_sensor_status ne "ns"))
+						{
+							$level = "warning";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { level => $level }});
+						}
+						my $variables = {
+							sensor_name       => $sensor_name,
+							new_sensor_value  => $new_sensor_value,
+							old_sensor_value  => $old_sensor_value, 
+							new_sensor_status => $new_scan_ipmitool_sensor_status, 
+							old_sensor_status => $old_scan_ipmitool_sensor_status, 
+							new_high_critical => $new_scan_ipmitool_sensor_high_critical eq "" ? "--" : $new_scan_ipmitool_sensor_high_critical." ".$new_scan_ipmitool_sensor_units,
+							new_high_warning  => $new_scan_ipmitool_sensor_high_warning  eq "" ? "--" : $new_scan_ipmitool_sensor_high_warning." ".$new_scan_ipmitool_sensor_units, 
+							new_low_critical  => $new_scan_ipmitool_sensor_low_critical  eq "" ? "--" : $new_scan_ipmitool_sensor_low_critical." ".$new_scan_ipmitool_sensor_units, 
+							new_low_warning   => $new_scan_ipmitool_sensor_low_warning   eq "" ? "--" : $new_scan_ipmitool_sensor_low_warning." ".$new_scan_ipmitool_sensor_units, 
+							old_high_critical => $old_scan_ipmitool_sensor_high_critical eq "" ? "--" : $old_scan_ipmitool_sensor_high_critical." ".$old_scan_ipmitool_sensor_units,
+							old_high_warning  => $old_scan_ipmitool_sensor_high_warning  eq "" ? "--" : $old_scan_ipmitool_sensor_high_warning." ".$old_scan_ipmitool_sensor_units, 
+							old_low_critical  => $old_scan_ipmitool_sensor_low_critical  eq "" ? "--" : $old_scan_ipmitool_sensor_low_critical." ".$old_scan_ipmitool_sensor_units, 
+							old_low_warning	  => $old_scan_ipmitool_sensor_low_warning   eq "" ? "--" : $old_scan_ipmitool_sensor_low_warning." ".$old_scan_ipmitool_sensor_units, 
+						};
+						
+						my $sort_position = (($level eq "warning") or ($level eq "critical")) ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+						my $log_level     = (($level eq "warning") or ($level eq "critical")) ? 1 : 2;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
+						$anvil->Alert->register({alert_level => $level, message => $message_key, message_variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
+					}
+					
+					# Delete the old key so that I can check to see what sensors 
+					# vanished.
+					delete $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
+				}
+				else
+				{
+					### NOTE: If the new value is 'na', we ignore it as it is likely a 
+					###       sensor that doesn't actually exist.
+					if ($anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value} eq "")
+					{
+						# Ignore it.
+						$anvil->Log->entry({log_level => 3, message_key => "scan_ipmitool_log_0005", message_variables => { sensor_name => $scan_ipmitool_sensor_name }, file => $THIS_FILE, line => __LINE__});
+						delete $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
+						next;
+					}
+					
+					### New record, INSERT it and sent an 'notice' level alert.
+					# Generate a new UUID for this ipmi target.
+					my $scan_ipmitool_uuid = $anvil->Get->uuid();
+					
+					# Record the new UUID
+					$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid} = $scan_ipmitool_uuid;
+					
+					### NOTE: These were added to debug duplicate scan_ipmitool_values entries.
+					if (not $new_scan_ipmitool_sensor_units)
+					{
+						my $variables = {
+							machine => $machine,
+							sensor  => $scan_ipmitool_sensor_name,
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_message_0017", variables => $variables});
+						$anvil->Alert->register({alert_level => "notice", message => "scan_ipmitool_message_0017", message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+						next;
+					}
+					if (not $new_scan_ipmitool_value_sensor_value)
+					{
+						my $variables = {
+							machine => $machine,
+							sensor  => $scan_ipmitool_sensor_name,
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_message_0018", variables => $variables});
+						$anvil->Alert->register({alert_level => "notice", message => "scan_ipmitool_message_0018", message_variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+						next;
+					}
+					
+					# Save the new sensor.
+					my $query = "
+INSERT INTO 
+    scan_ipmitool 
+(
+    scan_ipmitool_uuid, 
+    scan_ipmitool_host_uuid, 
+    scan_ipmitool_sensor_host, 
+    scan_ipmitool_sensor_name, 
+    scan_ipmitool_sensor_units, 
+    scan_ipmitool_sensor_status, 
+    scan_ipmitool_sensor_high_critical, 
+    scan_ipmitool_sensor_high_warning, 
+    scan_ipmitool_sensor_low_critical, 
+    scan_ipmitool_sensor_low_warning, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_ipmitool_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($machine).", 
+    ".$anvil->Database->quote($scan_ipmitool_sensor_name).", 
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_units).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_status).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_critical).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_warning).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_critical).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_warning).",  
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+					$query =~ s/'NULL'/NULL/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+					
+					# Now INSERT the sensor value.
+					my $scan_ipmitool_value_uuid = $anvil->Get->uuid();
+					   $query                    = "
+INSERT INTO 
+    scan_ipmitool_values 
+(
+    scan_ipmitool_value_uuid, 
+    scan_ipmitool_value_scan_ipmitool_uuid, 
+    scan_ipmitool_value_sensor_value, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_ipmitool_value_uuid).", 
+    ".$anvil->Database->quote($scan_ipmitool_uuid).", 
+    ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).",  
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+					$query =~ s/'NULL'/NULL/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+					
+					# TODO: Use the following variable/value pairs to have the sensor 
+					#       name and value translated/converted to imperial as needed.
+					my $sensor_name  = "name=$scan_ipmitool_sensor_name:units=$new_scan_ipmitool_sensor_units";
+					my $sensor_value = "value=$new_scan_ipmitool_value_sensor_value:units=$new_scan_ipmitool_sensor_units";
+					my $message_key  = "scan_ipmitool_message_0019";
+					my $level        = "notice";
+					my $variables = {
+						machine       => $machine,
+						sensor_name   => $sensor_name,
+						sensor_value  => $sensor_value,
+						sensor_status => $new_scan_ipmitool_sensor_status, 
+						high_critical => $new_scan_ipmitool_sensor_high_critical eq "" ? "--" : $new_scan_ipmitool_sensor_high_critical." ".$new_scan_ipmitool_sensor_units,
+						high_warning  => $new_scan_ipmitool_sensor_high_warning  eq "" ? "--" : $new_scan_ipmitool_sensor_high_warning." ".$new_scan_ipmitool_sensor_units, 
+						low_critical  => $new_scan_ipmitool_sensor_low_critical  eq "" ? "--" : $new_scan_ipmitool_sensor_low_critical." ".$new_scan_ipmitool_sensor_units, 
+						low_warning   => $new_scan_ipmitool_sensor_low_warning   eq "" ? "--" : $new_scan_ipmitool_sensor_low_warning." ".$new_scan_ipmitool_sensor_units, 
+					};
+					
+					if ($new_scan_ipmitool_sensor_status ne "ok")
+					{
+						# Alert cleared.
+						$message_key = "scan_ipmitool_message_0020";
+						$level       = "warning";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							message_key => $message_key,
+							level       => $level, 
+						}});
+					}
+					
+					my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+					my $log_level     = $level eq "warning" ? 1 : 2;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "scan_ipmitool_message_0019", variables => $variables});
+					$anvil->Alert->register({alert_level => $level, message => "scan_ipmitool_message_0019", message_variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
+				}
+			}
+		}
+		else
+		{
+			# New machine, INSERT everything.
+			foreach my $scan_ipmitool_sensor_name (sort {$a cmp $b} keys %{$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_ipmitool_sensor_name => $scan_ipmitool_sensor_name }});
+				
+				### NOTE: If the new value is 'na', we ignore it as it is likely a sensor 
+				###       that doesn't actually exist.
+				if ($anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value} eq "")
+				{
+					# Ignore it.
+					$anvil->Log->entry({log_level => 3, message_key => "scan_ipmitool_log_0005", message_variables => { sensor_name => $scan_ipmitool_sensor_name }, file => $THIS_FILE, line => __LINE__});
+					delete $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
+					next;
+				}
+				
+				# Generate the UUID.
+				my $scan_ipmitool_uuid = $anvil->Get->uuid() or $anvil->Alert->error({title_key => "error_title_0020", message_key => "error_message_0024", code => 2, file => $THIS_FILE, line => __LINE__});
+				
+				# Record it.
+				$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid} = $scan_ipmitool_uuid;
+				
+				my $new_scan_ipmitool_value_sensor_value   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value};
+				my $new_scan_ipmitool_sensor_units         = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_units};
+				my $new_scan_ipmitool_sensor_status        = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_status};
+				my $new_scan_ipmitool_sensor_high_critical = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical};
+				my $new_scan_ipmitool_sensor_high_warning  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning};
+				my $new_scan_ipmitool_sensor_low_critical  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical};
+				my $new_scan_ipmitool_sensor_low_warning   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_ipmitool_uuid                     => $scan_ipmitool_uuid, 
+					new_scan_ipmitool_sensor_units         => $new_scan_ipmitool_sensor_units, 
+					new_scan_ipmitool_sensor_status        => $new_scan_ipmitool_sensor_status, 
+					new_scan_ipmitool_sensor_high_critical => $new_scan_ipmitool_sensor_high_critical, 
+					new_scan_ipmitool_sensor_high_warning  => $new_scan_ipmitool_sensor_high_warning, 
+					new_scan_ipmitool_sensor_low_critical  => $new_scan_ipmitool_sensor_low_critical, 
+					new_scan_ipmitool_sensor_low_warning   => $new_scan_ipmitool_sensor_low_warning, 
+				}});
+				
+				# If the new value is 'na', we failed to read it. Skip.
+				if ($new_scan_ipmitool_value_sensor_value eq "na")
+				{
+					delete $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
+					next;
+				}
+				
+				### TODO: Make this ia log entry
+				die "No IPMI units for sensor: [".$scan_ipmitool_sensor_name."]."            if not $new_scan_ipmitool_sensor_units;
+				die "No IPMI value for sensor: [".$new_scan_ipmitool_value_sensor_value."]." if not $new_scan_ipmitool_value_sensor_value;
+				
+				# If the value is "" and it's a digit-based value, switch it to '0'
+				if ((($new_scan_ipmitool_sensor_units eq "C") or ($new_scan_ipmitool_sensor_units eq "F") or ($new_scan_ipmitool_sensor_units eq "RPM")) && ($new_scan_ipmitool_value_sensor_value eq ""))
+				{
+					$new_scan_ipmitool_value_sensor_value = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value }});
+				}
+				
+				my $query = "
+INSERT INTO 
+    scan_ipmitool 
+(
+    scan_ipmitool_uuid, 
+    scan_ipmitool_host_uuid, 
+    scan_ipmitool_sensor_name, 
+    scan_ipmitool_sensor_host, 
+    scan_ipmitool_sensor_units, 
+    scan_ipmitool_sensor_status, 
+    scan_ipmitool_sensor_high_critical, 
+    scan_ipmitool_sensor_high_warning, 
+    scan_ipmitool_sensor_low_critical, 
+    scan_ipmitool_sensor_low_warning, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_ipmitool_uuid).",
+    ".$anvil->Database->quote($anvil->Get->host_uuid).",
+    ".$anvil->Database->quote($scan_ipmitool_sensor_name).",  
+    ".$anvil->Database->quote($machine).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_units).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_status).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_critical).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_warning).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_critical).",  
+    ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_warning).",  
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+				
+				# Now INSERT the sensor value.
+				my $scan_ipmitool_value_uuid = $anvil->Get->uuid();
+				   $query                    = "
+INSERT INTO 
+    scan_ipmitool_values 
+(
+    scan_ipmitool_value_uuid, 
+    scan_ipmitool_value_scan_ipmitool_uuid, 
+    scan_ipmitool_value_sensor_value, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_ipmitool_value_uuid).", 
+    ".$anvil->Database->quote($scan_ipmitool_uuid).",
+    ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).",  
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+				
+				# We need to let ScanCore translate the sensor data into a string for each 
+				# user and their prefered language and units. As such, we're going to use a 
+				# couple special variable strings for this.
+				my $sensor_name  = "name=$scan_ipmitool_sensor_name:units=$new_scan_ipmitool_sensor_units";
+				my $sensor_value = "value=$new_scan_ipmitool_value_sensor_value:units=$new_scan_ipmitool_sensor_units";
+				
+				# If the sensor is not 'ok', set a warning level alert.
+				my $level       = "notice";
+				my $message_key = "scan_ipmitool_message_0019";
+				if ($new_scan_ipmitool_sensor_status ne "ok")
+				{
+					$level       = "warning";
+					$message_key = "scan_ipmitool_message_0020";
+				}
+				
+				my $variables = {
+					machine       => $machine,
+					sensor        => $scan_ipmitool_sensor_name,
+					sensor_value  => $sensor_value,
+					sensor_status => $new_scan_ipmitool_sensor_status, 
+					high_critical => $new_scan_ipmitool_sensor_high_critical eq "" ? "--" : $new_scan_ipmitool_sensor_high_critical." ".$new_scan_ipmitool_sensor_units,
+					high_warning  => $new_scan_ipmitool_sensor_high_warning  eq "" ? "--" : $new_scan_ipmitool_sensor_high_warning." ".$new_scan_ipmitool_sensor_units, 
+					low_critical  => $new_scan_ipmitool_sensor_low_critical  eq "" ? "--" : $new_scan_ipmitool_sensor_low_critical." ".$new_scan_ipmitool_sensor_units, 
+					low_warning   => $new_scan_ipmitool_sensor_low_warning   eq "" ? "--" : $new_scan_ipmitool_sensor_low_warning." ".$new_scan_ipmitool_sensor_units, 
+				};
+				my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+				my $log_level     = $level eq "warning" ? 1 : 2;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "scan_ipmitool_message_0019", variables => $variables});
+				$anvil->Alert->register({alert_level => $level, message => "scan_ipmitool_message_0019", message_variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
+			}
+		}
+		
+		# If I am scanning myself and if I see problems, I will set the health accordingly.
+		if (($machine eq $anvil->Get->host_name) or ($machine eq $anvil->Get->short_host_name))
+		{
+			$anvil->data->{sys}{scanning_myself} = 1;
+		}
+		else
+		{
+			$anvil->data->{sys}{scanning_myself} = 0;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::scanning_myself" => $anvil->data->{sys}{scanning_myself} }});
+		
+		### Now add, update and delete 'temperature' entries.
+		process_temperature($anvil, $machine);
+		
+		# Now look for any sensors that are in a bad state and set the health accordingly.
+		check_sensor_health($anvil, $machine);
+	}
+	
+	# Now commit the changes.
+	$anvil->Database->write({query => $anvil->data->{'scan-ipmitool'}{queries}, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
+}
+
+# This looks at various sensors, except temperature (handled in process_temperature() below) and sets the 
+# health table as needed for sensors out of scope.
+sub check_sensor_health
+{
+	my ($anvil, $machine) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
+	
+	foreach my $scan_ipmitool_sensor_name (sort {$a cmp $b} keys %{$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}})
+	{
+		# Put the new values into variables
+		my $scan_ipmitool_value_sensor_value   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value};
+		my $scan_ipmitool_sensor_units         = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_units};
+		my $scan_ipmitool_sensor_status        = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_status};
+		my $scan_ipmitool_sensor_high_critical = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical};
+		my $scan_ipmitool_sensor_high_warning  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning};
+		my $scan_ipmitool_sensor_low_critical  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical};
+		my $scan_ipmitool_sensor_low_warning   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_ipmitool_sensor_name          => $scan_ipmitool_sensor_name, 
+			scan_ipmitool_value_sensor_value   => $scan_ipmitool_value_sensor_value, 
+			scan_ipmitool_sensor_units         => $scan_ipmitool_sensor_units, 
+			scan_ipmitool_sensor_status        => $scan_ipmitool_sensor_status, 
+			scan_ipmitool_sensor_high_critical => $scan_ipmitool_sensor_high_critical, 
+			scan_ipmitool_sensor_high_warning  => $scan_ipmitool_sensor_high_warning, 
+			scan_ipmitool_sensor_low_critical  => $scan_ipmitool_sensor_low_critical, 
+			scan_ipmitool_sensor_low_warning   => $scan_ipmitool_sensor_low_warning, 
+		}});
+		
+		if ((lc($scan_ipmitool_sensor_units) eq "c") or (lc($scan_ipmitool_sensor_units) eq "f"))
+		{
+			# Temperatures will be handled in process_temperature().
+			next;
+		}
+		if ($scan_ipmitool_sensor_status ne "ok")
+		{
+			my $health_source_name = $scan_ipmitool_sensor_units.":".$scan_ipmitool_sensor_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_source_name => $health_source_name }});
+			if (lc($scan_ipmitool_sensor_units) eq "v")
+			{
+				$health_source_name = "voltage:".$scan_ipmitool_sensor_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_source_name => $health_source_name }});
+			}
+			elsif (lc($scan_ipmitool_sensor_units) eq "w")
+			{
+				$health_source_name = "wattage:".$scan_ipmitool_sensor_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_source_name => $health_source_name }});
+			}
+			elsif (lc($scan_ipmitool_sensor_units) eq "rpm")
+			{
+				$health_source_name = "fan:".$scan_ipmitool_sensor_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_source_name => $health_source_name }});
+			}
+			elsif ($scan_ipmitool_sensor_units eq "%")
+			{
+				$health_source_name = "percentage:".$scan_ipmitool_sensor_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_source_name => $health_source_name }});
+			}
+			
+			# Record it, if we're scanning ourselves.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::scanning_myself" => $anvil->data->{sys}{scanning_myself} }});
+			if ($anvil->data->{sys}{scanning_myself})
+			{
+				# Set this to the user's requested weight, if set. Otherwise, use the default.
+				my $weight = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{weight};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { weight => $weight }});
+				if (exists $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight})
+				{
+					# If it a number?
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::weight" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight}, 
+					}});
+					if (($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight} =~ /^\d+$/) or ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight} =~ /^\d+\.\d+$/))
+					{
+						$weight = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { weight => $weight }});
+					}
+				}
+				
+				# Default to '1' if not set.
+				$weight = 1 if not $weight;
+				
+				$anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name} = $weight;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"health::new::$health_source_name" => $anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name}, 
+				}});
+			}
+		}
+	}
+	
+	return(0);
+}
+
+# This takes the temperature sensors and feeds them into the 'temperature' table, deleting stale entries as needed.
+sub process_temperature
+{
+	my ($anvil, $machine) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
+	
+	# First, read in all existing entries. We'll compare and UPDATE or INSERT as needed and DELETE any 
+	# stale entries.
+	my $query = "
+SELECT 
+    temperature_uuid, 
+    temperature_sensor_name, 
+    temperature_value_c,
+    temperature_weight, 
+    temperature_state,
+    temperature_is
+FROM 
+    temperature 
+WHERE 
+    temperature_host_uuid   = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+AND 
+    temperature_agent_name  = ".$anvil->Database->quote($THIS_FILE)." 
+AND
+    temperature_sensor_host = ".$anvil->Database->quote($machine)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	
+	# One or more records were found.
+	foreach my $row (@{$results})
+	{
+		my $scan_ipmitool_sensor_name = $row->[1];
+		$anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid}    = $row->[0];
+		$anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c} = $row->[2];
+		$anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_weight}  = $row->[3];
+		$anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}   = $row->[4];
+		$anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}      = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_uuid"    => $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid}, 
+			"old::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+			"old::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_weight"  => $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_weight}, 
+			"old::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+			"old::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+		}});
+	}
+	
+	# Look at the new values.
+	foreach my $scan_ipmitool_sensor_name (sort {$a cmp $b} keys %{$anvil->data->{new}{$machine}{temperature}})
+	{
+		my $new_temperature_uuid    = $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid};
+		my $new_temperature_value_c = $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c};
+		my $new_temperature_state   = $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state};
+		my $new_temperature_is      = $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan_ipmitool_sensor_name" => $scan_ipmitool_sensor_name, 
+			"new_temperature_uuid"      => $new_temperature_uuid, 
+			"new_temperature_value_c"   => $new_temperature_value_c, 
+			"new_temperature_state"     => $new_temperature_state, 
+			"new_temperature_is"        => $new_temperature_is, 
+		}});
+		
+		if ($new_temperature_value_c eq "na")
+		{
+			delete $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name};
+			next;
+		}
+		
+		# If the state is 'warning', set  a health weight of 1 and set critical to 2.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::scanning_myself" => $anvil->data->{sys}{scanning_myself} }});
+		my $new_temperature_weight = 1;
+		if ($anvil->data->{sys}{scanning_myself})
+		{
+			# What weight will we apply to this sensor?
+			$new_temperature_weight = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{weight};
+			if (exists $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_weight})
+			{
+				$new_temperature_weight = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_weight};
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_temperature_weight => $new_temperature_weight }});
+			if (exists $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight})
+			{
+				# If it a number?
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::weight" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight}, 
+				}});
+				if (($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight} =~ /^\d+$/) or ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight} =~ /^\d+\.\d+$/))
+				{
+					$new_temperature_weight = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{weight};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_temperature_weight => $new_temperature_weight }});
+				}
+			}
+			
+			# Default to '1' if not set.
+			$new_temperature_weight = 1 if not $new_temperature_weight;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_temperature_weight => $new_temperature_weight }});
+			
+			# If it's not OK, set the weight
+			if ($new_temperature_state ne "ok")
+			{
+				my $health_source_name                              = "temperature:".$scan_ipmitool_sensor_name;
+				   $anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name} = $new_temperature_weight;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"health::new::$health_source_name" => $anvil->data->{'scan-ipmitool'}{health}{new}{$health_source_name}, 
+				}});
+			}
+		}
+		
+		# Now see if the variable was seen before and, if so, if it changed.
+		if (ref($anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}))
+		{
+			# Update the existing entry, if needed.
+			my $old_temperature_uuid    = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid};
+			my $old_temperature_value_c = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c};
+			my $old_temperature_weight  = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_weight};
+			my $old_temperature_state   = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state};
+			my $old_temperature_is      = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_temperature_uuid     => $old_temperature_uuid, 
+				old_temperature_value_c  => $old_temperature_value_c, 
+				old_temperature_weight   => $old_temperature_weight, 
+				old_temperature_state    => $old_temperature_state, 
+				old_temperature_is       => $old_temperature_is, 
+			}});
+			
+			if (($new_temperature_value_c ne $old_temperature_value_c) or
+			    ($new_temperature_weight  ne $old_temperature_weight)  or 
+			    ($new_temperature_state   ne $old_temperature_state)   or
+			    ($new_temperature_is      ne $old_temperature_is))
+			{
+				my $query = "
+UPDATE 
+    temperature 
+SET 
+    temperature_value_c = ".$anvil->Database->quote($new_temperature_value_c).", 
+    temperature_weight  = ".$anvil->Database->quote($new_temperature_weight).", 
+    temperature_state   = ".$anvil->Database->quote($new_temperature_state).", 
+    temperature_is      = ".$anvil->Database->quote($new_temperature_is).", 
+    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    temperature_uuid    = ".$anvil->Database->quote($old_temperature_uuid).";
+";
+				push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					name1 => "query", value1 => $query
+				}});
+			}
+			
+			# We still want this value, so delete it from the hash so it doesn't get deleted in 
+			# the next step.
+			delete $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name};
+		}
+		else
+		{
+			### New entry
+			# Generate and store the UUID.
+			my $scan_ipmitool_uuid = $anvil->Get->uuid() or $anvil->Alert->error({title_key => "error_title_0020", message_key => "error_message_0024", code => 2, file => $THIS_FILE, line => __LINE__});;
+			$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid} = $scan_ipmitool_uuid;
+			my $query         = "
+INSERT INTO 
+    temperature 
+(
+    temperature_uuid, 
+    temperature_host_uuid, 
+    temperature_sensor_host, 
+    temperature_sensor_name, 
+    temperature_agent_name, 
+    temperature_value_c, 
+    temperature_weight, 
+    temperature_state, 
+    temperature_is, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_ipmitool_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($machine).", 
+    ".$anvil->Database->quote($scan_ipmitool_sensor_name).", 
+    ".$anvil->Database->quote($THIS_FILE).", 
+    ".$anvil->Database->quote($new_temperature_value_c).", 
+    ".$anvil->Database->quote($new_temperature_weight).", 
+    ".$anvil->Database->quote($new_temperature_state).", 
+    ".$anvil->Database->quote($new_temperature_is).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+			push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		}
+	}
+
+	# Now, if any undeleted old entries remain, delete them from the database.
+	foreach my $scan_ipmitool_sensor_name (sort {$a cmp $b} keys %{$anvil->data->{old}{$machine}{temperature}})
+	{
+		my $temperature_uuid        = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid};
+		my $old_temperature_value_c = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c};
+		my $old_temperature_state   = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state};
+		my $old_temperature_is      = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			temperature_uuid        => $temperature_uuid, 
+			old_temperature_value_c => $old_temperature_value_c, 
+			old_temperature_state   => $old_temperature_state, 
+			old_temperature_is      => $old_temperature_is, 
+		}});
+		
+		# Mark the sensor as DELETEd.
+		my $query = "
+UPDATE 
+    temperature 
+SET 
+    temperature_state = 'DELETED', 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    temperature_uuid  = ".$anvil->Database->quote($temperature_uuid)."
+;";
+		push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$query = "
+DELETE FROM 
+    temperature 
+WHERE
+    temperature_uuid = ".$anvil->Database->quote($temperature_uuid)."
+";
+		push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	}
+	
+	return(0);
+}
+
+# This logs thermal sensor values that are outside nominal ranges
+sub log_abnormal_temperatures
+{
+	my ($anvil, $machine, $scan_ipmitool_sensor_name) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		machine                   => $machine,
+		scan_ipmitool_sensor_name => $scan_ipmitool_sensor_name, 
+	}});
+	
+	my $new_scan_ipmitool_value_sensor_value   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value};
+	my $new_scan_ipmitool_sensor_high_critical = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical};
+	my $new_scan_ipmitool_sensor_high_warning  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning};
+	my $new_scan_ipmitool_sensor_low_critical  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical};
+	my $new_scan_ipmitool_sensor_low_warning   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		machine                              => $machine, 
+		scan_ipmitool_sensor_name            => $scan_ipmitool_sensor_name, 
+		new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value, 
+	}});
+	
+	# If the sensor value is 'na' or '', ignore it.
+	if (($new_scan_ipmitool_value_sensor_value eq "") or ($new_scan_ipmitool_value_sensor_value eq "na"))
+	{
+		return(0);
+	}
+	
+	### High Warning
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::high_warning"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_warning}, 
+		new_scan_ipmitool_sensor_high_warning                                   => $new_scan_ipmitool_sensor_high_critical, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::high_warning" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning}, 
+	}});
+	
+	my $high_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_warning};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning}) && 
+	    (        $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning} =~ /^\d/))
+	{
+		$high_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_warning => $high_warning }});
+	}
+	elsif ($new_scan_ipmitool_sensor_high_critical =~ /^\d/)
+	{
+		$high_warning = $new_scan_ipmitool_sensor_high_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_warning => $high_warning }});
+	}
+	
+	### High Critical
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::high_critical"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_critical}, 
+		new_scan_ipmitool_sensor_high_critical                                   => $new_scan_ipmitool_sensor_high_critical, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::high_critical" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical}, 
+	}});
+	
+	my $high_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_critical};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical}) && 
+	    (        $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical} =~ /^\d/))
+	{
+		$high_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_critical => $high_critical }});
+	}
+	elsif ($new_scan_ipmitool_sensor_high_critical =~ /^\d/)
+	{
+		$high_critical = $new_scan_ipmitool_sensor_high_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_critical => $high_critical }});
+	}
+	
+	### Low Warning
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::low_warning"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_warning}, 
+		new_scan_ipmitool_sensor_low_warning                                   => $new_scan_ipmitool_sensor_low_warning, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::low_warning" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning}, 
+	}});
+	
+	my $low_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_warning};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning}) && 
+	    (        $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning} =~ /^\d/))
+	{
+		$low_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_warning => $low_warning }});
+	}
+	elsif ($new_scan_ipmitool_sensor_low_critical =~ /^\d/)
+	{
+		$low_warning = $new_scan_ipmitool_sensor_low_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_warning => $low_warning }});
+	}
+	
+	### Low Critical
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::low_critical"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_critical}, 
+		new_scan_ipmitool_sensor_low_critical                                   => $new_scan_ipmitool_sensor_low_critical, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::low_critical" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical}, 
+	}});
+	my $low_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_critical};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical}) && 
+	    (        $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical} =~ /^\d/))
+	{
+		$low_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_critical => $low_critical }});
+	}
+	elsif ($new_scan_ipmitool_sensor_low_critical =~ /^\d/)
+	{
+		$low_critical = $new_scan_ipmitool_sensor_low_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_critical => $low_critical }});
+	}
+	
+	# Record the levels
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		machine                              => $machine, 
+		scan_ipmitool_sensor_name            => $scan_ipmitool_sensor_name, 
+		high_warning                         => $high_warning, 
+		high_critical                        => $high_critical, 
+		low_warning                          => $low_warning, 
+		low_critical                         => $low_critical, 
+		new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value, 
+	}});
+	
+	# Record the temperatures.
+	if ($new_scan_ipmitool_value_sensor_value < $low_critical)
+	{
+		# Setup the 'temperature' entry.
+		$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name} = {
+			temperature_value_c => $new_scan_ipmitool_value_sensor_value,
+			temperature_state   => 'critical',
+			temperature_is      => 'low',
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+		}});
+	}
+	elsif ($new_scan_ipmitool_value_sensor_value < $low_warning)
+	{
+		# Setup the 'temperature' entry.
+		$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name} = {
+			temperature_value_c	=>	$new_scan_ipmitool_value_sensor_value,
+			temperature_state	=>	'warning',
+			temperature_is		=>	'low',
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+		}});
+	}
+	elsif ($new_scan_ipmitool_value_sensor_value > $high_critical)
+	{
+		# Setup the 'temperature' entry.
+		$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name} = {
+			temperature_value_c	=>	$new_scan_ipmitool_value_sensor_value,
+			temperature_state	=>	'critical',
+			temperature_is		=>	'high',
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+		}});
+	}
+	elsif ($new_scan_ipmitool_value_sensor_value > $high_warning)
+	{
+		# Setup the 'temperature' entry.
+		$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name} = {
+			temperature_value_c	=>	$new_scan_ipmitool_value_sensor_value,
+			temperature_state	=>	'warning',
+			temperature_is		=>	'high',
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+		}});
+	}
+	else
+	{
+		$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name} = {
+			temperature_value_c	=>	$new_scan_ipmitool_value_sensor_value,
+			temperature_state	=>	'ok',
+			temperature_is		=>	'nominal',
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+		}});
+	}
+	
+	### NOTE: Recording all temps now, so this might not be needed
+	# When the dashboard scans a node, it needs to know about the Ambient and Systemboard temperatures in
+	# order to decide whether the node is safe too boot back up or not. So if this machine is a 
+	# dashboard, log the 'Ambient' and 'Systemboard' temperatures (or whatever the user defined) as 
+	# 'good', if they're not already in the 'new::temperature::x' hash.
+	my $host_type = $anvil->Get->host_type();
+	foreach my $sensor (split/,/, $anvil->data->{'scan-ipmitool'}{offline_sensor_list})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			sensor                    => $sensor, 
+			scan_ipmitool_sensor_name => $scan_ipmitool_sensor_name, 
+			host_type                 => $host_type, 
+		}});
+		if (($scan_ipmitool_sensor_name eq $sensor)   && 
+		    ($host_type                 eq "striker") && 
+		    (not exists $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}))
+		{
+			$anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name} = {
+				temperature_value_c => $new_scan_ipmitool_value_sensor_value,
+				temperature_state   => 'ok',
+				temperature_is      => 'nominal',
+			};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_value_c" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_value_c}, 
+				"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_state"   => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_state}, 
+				"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_is"      => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_is}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+# This processes a temperature sensor, handling changes and recording values that are in a warning or 
+# critical state.
+sub process_temperature_change
+{
+	my ($anvil, $machine, $scan_ipmitool_sensor_name) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		machine                   => $machine, 
+		scan_ipmitool_sensor_name => $scan_ipmitool_sensor_name, 
+	}});
+	
+	# This is a repeat of some variables set before this function was called, but setting them here again
+	# saves passing in a pile of variables.
+	my $level       = "info";
+	my $message_key = "scan_ipmitool_message_0005";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		level       => $level, 
+		message_key => $message_key, 
+	}});
+	
+	# New values
+	my $new_scan_ipmitool_value_sensor_value   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value};
+	my $new_scan_ipmitool_sensor_high_critical = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical};
+	my $new_scan_ipmitool_sensor_high_warning  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning};
+	my $new_scan_ipmitool_sensor_low_critical  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical};
+	my $new_scan_ipmitool_sensor_low_warning   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		new_scan_ipmitool_value_sensor_value   => $new_scan_ipmitool_value_sensor_value, 
+		new_scan_ipmitool_sensor_high_critical => $new_scan_ipmitool_sensor_high_critical, 
+		new_scan_ipmitool_sensor_high_warning  => $new_scan_ipmitool_sensor_high_warning, 
+		new_scan_ipmitool_sensor_low_critical  => $new_scan_ipmitool_sensor_low_critical, 
+		new_scan_ipmitool_sensor_low_warning   => $new_scan_ipmitool_sensor_low_warning, 
+	}});
+	
+	# If the value is "" and it's a digit-based value, switch it to '0'
+	if ($new_scan_ipmitool_value_sensor_value eq "")
+	{
+		$new_scan_ipmitool_value_sensor_value = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value }});
+	}
+	
+	# Old value, if it exists.
+	my $old_scan_ipmitool_value_sensor_value = $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value} ? $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_value_sensor_value" => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value}, 
+		old_scan_ipmitool_value_sensor_value                                                                         => $old_scan_ipmitool_value_sensor_value, 
+	}});
+	
+	### Buffer, used for clearing all alerts.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::buffer"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{buffer}, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::buffer" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{buffer}, 
+	}});
+	my $buffer = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{buffer} ? $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{buffer} : $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{buffer};
+	
+	### High Warning
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::high_warning"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_warning}, 
+		new_scan_ipmitool_sensor_high_warning                                   => $new_scan_ipmitool_sensor_high_critical, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::high_warning" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning}, 
+	}});
+	my $high_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_warning};
+	
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning}) && 
+	    ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning} =~ /^\d/))
+	{
+		$high_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_warning};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_warning => $high_warning }});
+	}
+	elsif ($new_scan_ipmitool_sensor_high_critical =~ /^\d/)
+	{
+		$high_warning = $new_scan_ipmitool_sensor_high_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_warning => $high_warning }});
+	}
+	
+	### High Critical
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::high_critical"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_critical}, 
+		new_scan_ipmitool_sensor_high_critical                                   => $new_scan_ipmitool_sensor_high_critical, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::high_critical" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical}, 
+	}});
+	my $high_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{high_critical};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical}) && 
+	    ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical} =~ /^\d/))
+	{
+		$high_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{high_critical};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_critical => $high_critical }});
+	}
+	elsif ($new_scan_ipmitool_sensor_high_critical =~ /^\d/)
+	{
+		$high_critical = $new_scan_ipmitool_sensor_high_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { high_critical => $high_critical }});
+	}
+	
+	### Low Warning
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::low_warning"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_warning}, 
+		new_scan_ipmitool_sensor_low_warning                                   => $new_scan_ipmitool_sensor_low_warning, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::low_warning" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning}, 
+	}});
+	my $low_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_warning};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning}) && 
+	    ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning} =~ /^\d/))
+	{
+		$low_warning = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_warning};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_warning => $low_warning }});
+	}
+	elsif ($new_scan_ipmitool_sensor_low_critical =~ /^\d/)
+	{
+		$low_warning = $new_scan_ipmitool_sensor_low_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_warning => $low_warning }});
+	}
+	
+	### Low Critical
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::low_critical"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_critical}, 
+		new_scan_ipmitool_sensor_low_critical                                   => $new_scan_ipmitool_sensor_low_critical, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::low_critical" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical}, 
+	}});
+	my $low_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{low_critical};
+	if ((defined $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical}) && 
+	    ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical} =~ /^\d/))
+	{
+		$low_critical = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{low_critical};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_critical => $low_critical }});
+	}
+	elsif ($new_scan_ipmitool_sensor_low_critical =~ /^\d/)
+	{
+		$low_critical = $new_scan_ipmitool_sensor_low_critical;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { low_critical => $low_critical }});
+	}
+	
+	### Jump delta
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-ipmitool::thresholds::defaults::jump"                     => $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{jump}, 
+		"scan-ipmitool::thresholds::${scan_ipmitool_sensor_name}::jump" => $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{jump}, 
+	}});
+	my $jump = $anvil->data->{'scan-ipmitool'}{thresholds}{'default'}{jump};
+	if ($anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{jump})
+	{
+		$jump = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{jump};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump => $jump }});
+	}
+	
+	# Final levels
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		machine                   => $machine, 
+		scan_ipmitool_sensor_name => $scan_ipmitool_sensor_name, 
+		high_warning              => $high_warning, 
+		high_critical             => $high_critical, 
+		low_warning               => $low_warning, 
+		low_critical              => $low_critical, 
+		jump                      => $jump, 
+		buffer                    => $buffer, 
+	}});
+	
+	# Now, has the value climbed, fallen or stayed the same? Pretend it is rising if it is a new sensor.
+	if (($new_scan_ipmitool_value_sensor_value > $old_scan_ipmitool_value_sensor_value) || (not $old_scan_ipmitool_value_sensor_value))
+	{
+		### Rising.
+		# 
+		# If it is over the high critical level, clear the 'warning', set the 'critical' and, if 
+		# needed, add the entry to 'temperature'.
+		# 
+		# If it is over the high warning, check and set the warning.
+		# 
+		# If it is over the low warning, check and clear both critical and warning, and clear the
+		# 'temperature' entry, if needed.
+		#
+		# If it is over the low critical, but not low warning, clear the critical and set the warning.
+		# Clear the 'temperature' entry, if it exists.
+		# 
+		# If the temperature jumped above the set per-cycle change limit, trigger an alarm no matter
+		# what.
+		if ($new_scan_ipmitool_value_sensor_value > $high_critical)
+		{
+			# We've gone critical. If it was previously 'warning', clear them.
+			foreach my $type ("temperature_high_warning", "temperature_low_warning", "temperature_low_critical")
+			{
+				my $record_locator = $machine.":".$scan_ipmitool_sensor_name.":".$type;
+				my $changed        = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $record_locator, set_by => $THIS_FILE});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					record_locator => $record_locator, 
+					changed        => $changed, 
+				}});
+			}
+			
+			# Set the critical warning.
+			my $changed = $anvil->Alert->check_alert_sent({record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_high_critical", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			
+			# If set, alert the user and register with 'temperature'.
+			if ($changed)
+			{
+				# This is the first time we climbed. Send an alert and then register the 
+				# entry in the database's 'temperature' table.
+				$level       = "critical";
+				$message_key = "scan_ipmitool_message_0006";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		elsif ($new_scan_ipmitool_value_sensor_value > $high_warning)
+		{
+			# The temp is rising, so the 'high_critical' should not be set, but check/clear it 
+			# anyway to be safe.
+			              $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_high_critical", set_by => $THIS_FILE});
+			my $changed = $anvil->Alert->check_alert_sent({clear => 0, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_high_warning", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Tell the user that the temperature is rising.
+				$level       = "warning";
+				$message_key = "scan_ipmitool_message_0007";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		elsif ($new_scan_ipmitool_value_sensor_value > ($low_warning + $buffer))
+		{
+			# If there was a 'low_warning' or 'low_critical', clear it and tell the user that 
+			# we're OK now.
+			my $clear_critical = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_critical", set_by => $THIS_FILE});
+			my $clear_warning  = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_warning", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				clear_critical => $clear_critical, 
+				clear_warning  => $clear_warning, 
+			}});
+			if (($clear_critical) or ($clear_warning))
+			{
+				# Tell the user we're OK again. Whether this is a 'critical' or 'warning' 
+				# level alert depends on what it was before. We want people who only get 
+				# critical alerts to know we're OK if they got the critical alarm.
+				$level       = $clear_critical ? "critical" : "warning";
+				$message_key = "scan_ipmitool_message_0008";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		elsif ($new_scan_ipmitool_value_sensor_value > ($low_critical + $buffer))
+		{
+			# It has risen above critically low levels.
+			my $clear_critical = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_critical", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { clear_critical  => $clear_critical }});
+			if ($clear_critical)
+			{
+				# Tell the user we're getting better.
+				$level       = "critical";
+				$message_key = "scan_ipmitool_message_0009";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		else
+		{
+			# it is floating in the safe area.
+		}
+		
+		# Check for a jump now, if we have an old value.
+		if ($old_scan_ipmitool_value_sensor_value)
+		{
+			my $delta = ($new_scan_ipmitool_value_sensor_value - $old_scan_ipmitool_value_sensor_value);
+			if ($delta > $jump)
+			{
+				# Temperature jumped. This is a stand-alone 'warning' level alarm.
+				my $sensor_name      = "name=$scan_ipmitool_sensor_name:units=C";
+				my $new_sensor_value = "value=$new_scan_ipmitool_value_sensor_value:units=C";
+				my $old_sensor_value = "value=$old_scan_ipmitool_value_sensor_value:units=C";
+				my $variables        = {
+					sensor_name      => $sensor_name,
+					new_sensor_value => $new_sensor_value,
+					old_sensor_value => $old_sensor_value
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_ipmitool_message_0010", variables => $variables});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_ipmitool_message_0010", message_variables => $variables, sort_position => 1, set_by => $THIS_FILE});
+			}
+		}
+	}
+	elsif ($new_scan_ipmitool_value_sensor_value < $old_scan_ipmitool_value_sensor_value)
+	{
+		### Falling.
+		#
+		# If it is below the high critical, but not high warning, clear the critical and set the 
+		# warning. Clear the 'temperature' entry, if it exists.
+		# 
+		# If it is below the high warning, check and clear both critical and warning, and clear the
+		# 'temperature' entry, if needed.
+		# 
+		# If it is below the low critical level, clear the 'warning', set the 'critical' and, if 
+		# needed, add the entry to 'temperature'.
+		# 
+		# If it is below the low warning, check and set the warning.
+		if ($new_scan_ipmitool_value_sensor_value < $low_critical)
+		{
+			# We've gone critical. Clear previous alerts...
+			foreach my $type ("temperature_high_critical", "temperature_high_warning", "temperature_low_warning")
+			{
+				my $record_locator = $machine.":".$scan_ipmitool_sensor_name.":".$type;
+				my $changed        = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $record_locator, set_by => $THIS_FILE});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					record_locator => $record_locator, 
+					changed        => $changed, 
+				}});
+			}
+			
+			# Now set the critical warning.
+			my $changed = $anvil->Alert->check_alert_sent({record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_critical", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# This is the first time we climbed. Send an alert and then register the 
+				# entry in the database's 'temperature' table.
+				$level       = "critical";
+				$message_key = "scan_ipmitool_message_0011";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		elsif ($new_scan_ipmitool_value_sensor_value < $low_warning)
+		{
+			# The temp is dropping, so the 'low_critical' should not be set, but check/clear it 
+			# anyway to be safe.
+			              $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_critical", set_by => $THIS_FILE});
+			my $changed = $anvil->Alert->check_alert_sent({clear => 0, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_warning", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Tell the user that the temperature is rising.
+				$level       = "warning";
+				$message_key = "scan_ipmitool_message_0012";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		elsif ($new_scan_ipmitool_value_sensor_value < ($high_warning - $buffer))
+		{
+			# If there was a 'high_warning' or 'high_critical', clear it and tell the user that 
+			# we're OK now.
+			my $clear_critical = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_high_critical", set_by => $THIS_FILE});
+			my $clear_warning  = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_high_warning", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				clear_critical => $clear_critical, 
+				clear_warning  => $clear_warning, 
+			}});
+			if (($clear_critical) or ($clear_warning))
+			{
+				# Tell the user we're OK again. Whether this is a 'critical' or 'warning' 
+				# level alert depends on what it was before. We want people who only get 
+				# critical alerts to know we're OK if they got the critical alarm.
+				$level       = $clear_critical ? "critical" : "warning";
+				$message_key = "scan_ipmitool_message_0013";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		elsif ($new_scan_ipmitool_value_sensor_value < ($high_critical - $buffer))
+		{
+			# It is below critically high levels.
+			my $clear_critical = $anvil->Alert->check_alert_sent({clear => 1, record_locator => $machine.":".$scan_ipmitool_sensor_name.":temperature_low_critical", set_by => $THIS_FILE});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { clear_critical => $clear_critical }});
+			if ($clear_critical)
+			{
+				# Tell the user we're OK again.
+				$level       = "critical";
+				$message_key = "scan_ipmitool_message_0014";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					level       => $level, 
+					message_key => $message_key, 
+				}});
+			}
+		}
+		else
+		{
+			# it is floating in the safe area.
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		level       => $level, 
+		message_key => $message_key, 
+	}});
+	return($level, $message_key);
+}
+
+# This reads in the last scan's data.
+sub read_last_scan
+{
+	my ($anvil, $machine) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
+	
+	# Make sure I don't have any stray data for this machine.
+	if (exists $anvil->data->{sql}{$machine})
+	{
+		delete $anvil->data->{sql}{$machine};
+	}
+	
+	# Read in existing data, if any.
+	my $query = "
+SELECT 
+    a.scan_ipmitool_uuid, 
+    a.scan_ipmitool_sensor_name, 
+    a.scan_ipmitool_sensor_units, 
+    a.scan_ipmitool_sensor_status, 
+    a.scan_ipmitool_sensor_high_critical, 
+    a.scan_ipmitool_sensor_high_warning, 
+    a.scan_ipmitool_sensor_low_critical, 
+    a.scan_ipmitool_sensor_low_warning, 
+    b.scan_ipmitool_value_sensor_value 
+FROM 
+    scan_ipmitool a, 
+    scan_ipmitool_values b 
+WHERE 
+    a.scan_ipmitool_uuid        = b.scan_ipmitool_value_scan_ipmitool_uuid
+AND 
+    a.scan_ipmitool_sensor_host = ".$anvil->Database->quote($machine)." 
+AND 
+    a.scan_ipmitool_host_uuid   = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	# One or more records were found.
+	foreach my $row (@{$results})
+	{
+		my $scan_ipmitool_uuid                 = $row->[0];
+		my $scan_ipmitool_sensor_name          = $row->[1];
+		my $scan_ipmitool_sensor_units         = $row->[2];
+		my $scan_ipmitool_sensor_status        = $row->[3];
+		my $scan_ipmitool_sensor_high_critical = $row->[4];
+		my $scan_ipmitool_sensor_high_warning  = $row->[5];
+		my $scan_ipmitool_sensor_low_critical  = $row->[6];
+		my $scan_ipmitool_sensor_low_warning   = $row->[7];
+		my $scan_ipmitool_value_sensor_value   = $row->[8];
+		
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid}                 = $scan_ipmitool_uuid;
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_units}         = $scan_ipmitool_sensor_units;
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_status}        = $scan_ipmitool_sensor_status;
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical} = $scan_ipmitool_sensor_high_critical ? $scan_ipmitool_sensor_high_critical : "";
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning}  = $scan_ipmitool_sensor_high_warning  ? $scan_ipmitool_sensor_high_warning  : "";
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical}  = $scan_ipmitool_sensor_low_critical  ? $scan_ipmitool_sensor_low_critical  : "";
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning}   = $scan_ipmitool_sensor_low_warning   ? $scan_ipmitool_sensor_low_warning   : "";
+		$anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value}   = $scan_ipmitool_value_sensor_value;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_uuid"                 => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_sensor_units"         => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_units}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_sensor_status"        => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_status}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_sensor_high_critical" => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_critical}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_sensor_high_warning"  => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_high_warning}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_sensor_low_critical"  => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_critical}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_sensor_low_warning"   => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_sensor_low_warning}, 
+			"sql::${machine}::scan_ipmitool_sensor_name::${scan_ipmitool_sensor_name}::scan_ipmitool_value_sensor_value"   => $anvil->data->{sql}{$machine}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value}, 
+		}});
+	}
+	
+	return($count);
+}
+
+# Query IPMI targets. Unreachable targets will simply be ignored.
+sub query_ipmi_targets
+{
+	my ($anvil) = @_;
+	
+	foreach my $machine (sort {$a cmp $b} keys %{$anvil->data->{'scan-ipmitool'}{machine}})
+	{
+		my $ipmitool_command = $anvil->data->{'scan-ipmitool'}{machine}{$machine}{ipmitool_command};
+		my $ipmi_password         = $anvil->data->{'scan-ipmitool'}{machine}{$machine}{ipmi_password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			machine          => $machine, 
+			ipmitool_command => $ipmitool_command, 
+			ipmi_password    => $anvil->Log->is_secure($ipmi_password), 
+		}});
+		
+		# If there is a password, write it to a temp file.
+		my $temp_file = "";
+		if ($ipmi_password)
+		{
+			# Write the password to a temp file.
+			$temp_file = "/tmp/scan-ipmitool";
+			$anvil->Storage->write_file({
+				body      => $ipmi_password,
+				secure    => 1,
+				file      => $temp_file,
+				overwrite => 1,
+			});
+		}
+		
+		# Time the call.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_log_0001", variables => { machine => $machine }});
+		
+		my $read_start_time = time;
+		
+		# Call with a timeout in case the call hangs.
+		my $psu_count  = 0;
+		my $shell_call = $ipmitool_command." sensor list all";
+		if ($ipmi_password)
+		{
+			$shell_call = $ipmitool_command." -f ".$temp_file." sensor list all";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({timeout => 30, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> line" => $line }});
+			
+			# Clean up the output
+			$line =~ s/^\s+//;
+			$line =~ s/\s+$//;
+			$line =~ s/\s+\|/|/g;
+			$line =~ s/\|\s+/|/g;
+			
+			### TODO: If we determine that the IPMI BMC is hung, set the health to '10'
+			###       $anvil->data->{'scan-ipmitool'}{health}{new}{'ipmi:bmc_controller'} = 10;
+			# Catch errors:
+			if ($line =~ /Activate Session command failed/)
+			{
+				# Failed to connect.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_log_0002", variables => { 
+					machine => $machine, 
+					call    => $ipmitool_command, 
+				}});
+			}
+			next if $line !~ /\|/;
+			
+			#     high fail -------------------------------------.
+			# high critical ---------------------------------.   |
+			#  high warning -----------------------------.   |   |
+			#   low warning -------------------------.   |   |   |
+			#  low critical ---------------------.   |   |   |   |
+			#      low fail -----------------.   |   |   |   |   |
+			#        status -------------.   |   |   |   |   |   |
+			#         units ---------.   |   |   |   |   |   |   |
+			# current value -----.   |   |   |   |   |   |   |   |
+			#   sensor name -.   |   |   |   |   |   |   |   |   |
+			# Columns:       |   |   |   |   |   |   |   |   |   |
+			#                x | x | x | x | x | x | x | x | x | x 
+			my ($sensor_name, 
+				$current_value, 
+				$units, 
+				$status, 
+				$low_fail, 
+				$low_critical, 
+				$low_warning, 
+				$high_warning, 
+				$high_critical, 
+				$high_fail) = split /\|/, $line;
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				sensor_name   => $sensor_name, 
+				current_value => $current_value, 
+				units         => $units, 
+				status        => $status, 
+				low_fail      => $low_fail, 
+				low_critical  => $low_critical, 
+				low_warning   => $low_warning, 
+				high_warning  => $high_warning, 
+				high_critical => $high_critical, 
+				high_fail     => $high_fail, 
+			}});
+			
+			next if not $sensor_name;
+			next if not $status;
+			next if not $units;
+			next if $units =~ /discrete/;
+			
+			$units = "C" if $units =~ /degrees C/i;
+			$units = "F" if $units =~ /degrees F/i;
+			$units = "%" if $units =~ /percent/i;
+			$units = "W" if $units =~ /watt/i;
+			$units = "V" if $units =~ /volt/i;
+			
+			# The BBU and RAID Controller, as reported by IPMI, is flaky and redundant. We 
+			# monitor it via storcli/hpacucli (or OEM variant of), so we ignore it here.
+			next if $sensor_name eq "BBU";
+			next if $sensor_name eq "RAID Controller";
+			
+			# HP seems to stick 'XX-' in front of some sensor names.
+			$sensor_name =~ s/^\d\d-//;
+			
+			# Single PSU hosts often call their PSU just that, without a suffix integer. We'll 
+			# add '1' in such cases.
+			if ($sensor_name eq "PSU")
+			{
+				$sensor_name = "PSU1";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+			}
+			if ($sensor_name =~ /^PSU(\d+)/)
+			{
+				my $this_psu = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_psu => $this_psu }});
+				if ($this_psu > $psu_count)
+				{
+					$psu_count = $this_psu;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { psu_count => $psu_count }});
+				}
+			}
+			
+			# Thresholds that are 'na' need to be converted to numeric
+			$low_fail      = -99 if $low_fail      eq "na";
+			$low_critical  = -99 if $low_critical  eq "na";
+			$low_warning   = -99 if $low_warning   eq "na";
+			$high_warning  = 999 if $high_warning  eq "na";
+			$high_critical = 999 if $high_critical eq "na";
+			$high_fail     = 999 if $high_fail     eq "na";
+			
+			# Values in the DB that are 'double precision' must be '' if not set.
+			$current_value = '' if not $current_value;
+			$low_fail      = '' if not $low_fail;
+			$low_critical  = '' if not $low_critical;
+			$low_warning   = '' if not $low_warning;
+			$high_warning  = '' if not $high_warning;
+			$high_critical = '' if not $high_critical;
+			$high_fail     = '' if not $high_fail;
+			
+			# Some values list 'inf' on some machines (HP...). Convert these to ''.
+			$current_value = '' if $current_value eq "inf";
+			$low_fail      = '' if $low_fail      eq "inf";
+			$low_critical  = '' if $low_critical  eq "inf";
+			$low_warning   = '' if $low_warning   eq "inf";
+			$high_warning  = '' if $high_warning  eq "inf";
+			$high_critical = '' if $high_critical eq "inf";
+			$high_fail     = '' if $high_fail     eq "inf";
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				sensor_name   => $sensor_name, 
+				current_value => $current_value, 
+				units         => $units, 
+				status        => $status, 
+				low_fail      => $low_fail, 
+				low_critical  => $low_critical, 
+				low_warning   => $low_warning, 
+				high_warning  => $high_warning, 
+				high_critical => $high_critical, 
+				high_fail     => $high_fail, 
+			}});
+			
+			if ($units eq "F")
+			{
+				# Convert to 'C'
+				$high_critical = $anvil->Convert->fahrenheit_to_celsius({temperature => $high_critical}) if $high_critical ne "";
+				$high_warning  = $anvil->Convert->fahrenheit_to_celsius({temperature => $high_warning})  if $high_warning  ne "";
+				$low_critical  = $anvil->Convert->fahrenheit_to_celsius({temperature => $low_critical})  if $low_critical  ne "";
+				$low_warning   = $anvil->Convert->fahrenheit_to_celsius({temperature => $low_warning})   if $low_warning   ne "";
+				$units         = "C";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					low_critical  => $low_critical, 
+					low_warning   => $low_warning, 
+					high_warning  => $high_warning, 
+					high_critical => $high_critical, 
+					units         => $units, 
+				}});
+			}
+			
+			### TODO: It looks like the PSU state and the PSU temperature are called, simply, 
+			###       'PSUx'... If so, change the temperature to 'PSUx Temperature'
+			if (($units eq "C") && ($sensor_name =~ /^PSU\d/i))
+			{
+				$sensor_name .= " Temperature";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+			}
+			
+			# Similarly, 'PSUx Power' is used for power status and wattage....
+			if (($units eq "W") && ($sensor_name =~ /PSU\d Power/i))
+			{
+				$sensor_name =~ s/Power/Wattage/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+			}
+			
+			# And again, 'FAN PSUx' is used for both RPM and state...
+			if (($units eq "RPM") && ($sensor_name =~ /^FAN PSU\d/i))
+			{
+				$sensor_name .= " RPM";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+			}
+			
+			# Record
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value}   = $current_value;
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units}         = $units;
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status}        = $status;
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_critical} = $high_critical;
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_warning}  = $high_warning;
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_critical}  = $low_critical;
+			$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_warning}   = $low_warning;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_value_sensor_value"   => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value}, 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_units"         => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units}, 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_status"        => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status}, 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_high_critical" => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_critical}, 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_high_warning"  => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_warning}, 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_low_critical"  => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_critical}, 
+				"ipmi::${machine}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_low_warning"   => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_warning}, 
+			}});
+			
+			# If this is a temperature, check to see if it is outside its nominal range and, if
+			# so, record it into a hash for loading into ScanCore's 'temperature' table.
+			if ($units eq "C")
+			{
+				log_abnormal_temperatures($anvil, $machine, $sensor_name);
+			}
+		}
+		
+		# Delete the temp file.
+		#unlink $temp_file;
+		
+		# Record how long it took.
+		my $sensor_read_time = $anvil->Convert->time({'time' => (time - $read_start_time)});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_log_0003", variables => { 
+			machine => $machine, 
+			'time'  => $sensor_read_time
+		}});
+		
+		# If a PSU is OK, but its wattage is 0, input power was lost. We'll switch the PSU state to 
+		# ensure this sets a health value. We'll check for five PSUs, though very very few should 
+		# have more than 2.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { psu_count => $psu_count }});
+		foreach my $i (1..$psu_count)
+		{
+			my $psu_key = "PSU".$i;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				i       => $i, 
+				psu_key => $psu_key, 
+			}});
+			
+			if (exists $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$psu_key})
+			{
+				# TODO: Is this the key for HP machines, too?
+				my $wattage_key = $psu_key." Power";
+				my $psu_value   = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$psu_key}{scan_ipmitool_value_sensor_value};
+				my $psu_status  = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$psu_key}{scan_ipmitool_sensor_status};
+				my $psu_wattage = $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$wattage_key}{scan_ipmitool_value_sensor_value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					wattage_key => $wattage_key, 
+					psu_value   => $psu_value, 
+					psu_status  => $psu_status, 
+					psu_wattage => $psu_wattage, 
+				}});
+				
+				if ((lc($psu_status) eq "ok") && (lc($psu_wattage) eq "no reading"))
+				{
+					# Change the status to 'no signal'
+					$anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$psu_key}{scan_ipmitool_sensor_status} = "ns";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"ipmi::${machine}::scan_ipmitool_sensor_name::${psu_key}::scan_ipmitool_sensor_status" => $anvil->data->{ipmi}{$machine}{scan_ipmitool_sensor_name}{$psu_key}{scan_ipmitool_sensor_status}, 
+					}});
+				}
+			}
+			else
+			{
+				# This PSU doesn't exist, we're done.
+				last;
+			}
+		}
+	}
+	
+	return(0);
+}
+
+# This looks for IPMI targets to scan.
+sub find_ipmi_targets
+{
+	my ($anvil) = @_;
+	
+	# This will keep track of how many IPMI targets we find.
+	my $ipmi_targets = 0;
+
+	# If I am a node, I will only scan myself.
+	my $host_type = $anvil->Get->host_type();
+	my $hostname  = $anvil->Get->host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_type => $host_type, 
+		hostname  => $hostname, 
+	}});
+	
+	# Do I have local IPMI access?
+	if ((-e '/dev/ipmi0') or (-e '/dev/ipmi/0') or (-e '/dev/ipmidev/0'))
+	{
+		my ($output, $return_code) = $anvil->System->call({timeout => 30, shell_call => $anvil->data->{path}{exe}{ipmitool}." chassis power status"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if (not $return_code)
+		{
+			# We're good.
+			   $ipmi_targets++;
+			my $host_name                                                             = $anvil->Get->host_name();
+			   $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{host_ipmi}        = "";
+			   $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmitool_command} = $anvil->data->{path}{exe}{ipmitool};
+			   $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmi_password}    = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"scan-ipmitool::machine::${host_name}::host_ipmi"        => $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{host_ipmi}, 
+				"scan-ipmitool::machine::${host_name}::ipmitool_command" => $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmitool_command}, 
+				"scan-ipmitool::machine::${host_name}::ipmi_password"    => $anvil->Log->is_secure($anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmi_password}), 
+			}});
+		}
+	}
+	
+	# Find all known hosts (except ourself) with a host_ipmi value set.
+	my $query = "
+SELECT 
+    host_name, 
+    host_uuid, 
+    host_ipmi 
+FROM 
+    hosts 
+WHERE 
+    host_ipmi != ''
+AND 
+    host_uuid != ".$anvil->Database->quote($anvil->Get->host_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_hardware' table, so now we'll look for data in the node and 
+		# services tables.
+		my $host_name = $row->[0]; 
+		my $host_uuid = $row->[1]; 
+		my $host_ipmi = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_name => $host_name, 
+			host_uuid => $host_uuid, 
+			host_ipmi => $anvil->Log->is_secure($host_ipmi),
+		}});
+		
+		# Get the ipaddress and see if I can ping the target. If I can't, there is no sense in 
+		# recording this entry.
+		my $access = 0;
+		my $target = "";
+		if (($host_ipmi =~ /-a (.*?) /) or ($host_ipmi =~ /-ip (.*?) /))
+		{
+			$target = $1;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+		if ($target)
+		{
+			($access) = $anvil->Network->ping({ping => $target});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+		}
+		next if not $access;
+		$ipmi_targets++;
+		
+		# Convert to an 'ipmitool' call.
+		my $ipmitool_command = $anvil->data->{path}{exe}{ipmitool};
+		my $ipmi_password    = "";
+		if (($host_ipmi =~ /-A (.*?) /) or ($host_ipmi =~ /-auth (.*?) /))
+		{
+			# IPMI Lan Auth type (md5, password, or none)
+			$ipmitool_command .= " -A ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmitool_command => $ipmitool_command }});
+		}
+		if (($host_ipmi =~ /-a (.*?) /) or ($host_ipmi =~ /-ip (.*?) /))
+		{
+			# IPMI Lan IP to talk to
+			$ipmitool_command .= " -H ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmitool_command => $ipmitool_command }});
+		}
+		if (($host_ipmi =~ /-P /) or ($host_ipmi =~ /-lanplus /))
+		{
+			# Use Lanplus to improve security of connection
+			$ipmitool_command .= " -I lanplus";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmitool_command => $ipmitool_command }});
+		}
+		if (($host_ipmi =~ /-l (.*?) /) or ($host_ipmi =~ /-username (.*?) /))
+		{
+			# Username/Login (if required) to control power on IPMI device
+			$ipmitool_command .= " -U ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmitool_command => $ipmitool_command }});
+		}
+		if (($host_ipmi =~ /-C (.*?) /) or ($host_ipmi =~ /-cipher (.*?) /))
+		{
+			# Ciphersuite to use (same as ipmitool -C parameter)
+			$ipmitool_command .= " -C ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmitool_command => $ipmitool_command }});
+		}
+		if (($host_ipmi =~ /-L (.*?) /) or ($host_ipmi =~ /-privlvl (.*?) /))
+		{
+			# Privilege level on IPMI device
+			$ipmitool_command .= " -L ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmitool_command => $ipmitool_command }});
+		}
+		if (($host_ipmi =~ /-p (.*?) -/) or ($host_ipmi =~ /-password (.*?) -/) or ($host_ipmi =~ /-password '(.*?)'/))
+		{
+			# Password (if required) to control power on IPMI device
+			$ipmi_password = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { ">> ipmi_password" => $ipmi_password }});
+			$ipmi_password =~ s/^'(.*?)'$/$1/;
+			$ipmi_password =~ s/\\'/'/g;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { "<< ipmi_password" => $ipmi_password }});
+		}
+		
+		$anvil->data->{'scan-ipmitool'}{machine}{$host_name}{host_ipmi}        = $host_ipmi;
+		$anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmitool_command} = $ipmitool_command;
+		$anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmi_password}    = $ipmi_password;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan-ipmitool::machine::${host_name}::host_ipmi"        => $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{host_ipmi}, 
+			"scan-ipmitool::machine::${host_name}::ipmitool_command" => $anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmitool_command}, 
+			"scan-ipmitool::machine::${host_name}::ipmi_password"    => $anvil->Log->is_secure($anvil->data->{'scan-ipmitool'}{machine}{$host_name}{ipmi_password}), 
+		}});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmi_targets => $ipmi_targets }});
+	return($ipmi_targets);
+}

@@ -62,16 +62,8 @@ if (($anvil->data->{scancore}{'scan-cluster'}{disable}) && (not $anvil->data->{s
 	$anvil->nice_exit({exit_code => 0});
 }
 
-# These are the tables used by this agent. The order matters as it controls to order the tables are created 
-# and sync'ed. For purges, this array is walked backwards.
-$anvil->data->{scancore}{'scan-cluster'}{tables} = ["scan_cluster", "scan_cluster_nodes"];
-
 # Handle start-up tasks
-my $problem = $anvil->ScanCore->agent_startup({
-	debug  => 3,
-	agent  => $THIS_FILE,
-	tables => $anvil->data->{scancore}{'scan-cluster'}{tables},
-});
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});

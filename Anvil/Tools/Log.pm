@@ -963,5 +963,14 @@ sub _adjust_log_level
 		$anvil->data->{sys}{'log'}{level} = "-vvvv";
 	}
 	
+	if ($anvil->data->{switches}{'log-secure'})
+	{
+		$anvil->Log->secure({set => 1});
+	}
+	if ($anvil->data->{switches}{'log-db'})
+	{
+		$anvil->data->{sys}{database}{log_transactions} = 1;
+	}
+	
 	return(0);
 }

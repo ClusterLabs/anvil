@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_ipmitool_log_0001'.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
+		
+		<!-- Messages entries -->
+		<key name="scan_ipmitool_message_0001">No IPMI BMC found on this host nor where any other machines with IPMI found or where accessible. Nothing to do.</key>
+		<key name="scan_ipmitool_message_0002">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0003">There was no IPMI sensor value set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0004">
+The sensor: [#!variable!sensor_name!#] has changed.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+		</key>
+		<key name="scan_ipmitool_message_0005">
+The sensor: [#!variable!sensor_name!#] has changed.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+- [#!variable!old_sensor_status!#] -> [#!variable!new_sensor_status!#]
+- Thresholds:
+  - High critical: [#!variable!old_high_critical!#] -> [#!variable!new_high_critical!#]
+  - High warning:  [#!variable!old_high_warning!#] -> [#!variable!new_high_warning!#]
+  - Low warning:   [#!variable!old_low_warning!#] -> [#!variable!new_low_warning!#]
+  - Low critical:  [#!variable!old_low_critical!#] -> [#!variable!new_low_critical!#]
+		</key>
+		<key name="scan_ipmitool_message_0006">
+The temperature sensor: [#!variable!sensor_name!#] has gone critically high!
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+  Note: If enough sensors go critical, this node will withdraw and power off!
+		</key>
+		<key name="scan_ipmitool_message_0007">
+The temperature sensor: [#!variable!sensor_name!#] has entered a high warning state!
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+  Note: If both nodes have enough thermal sensors go into 'warning' state, and 
+	if load shedding is enabled, a node will power off to reduce thermal 
+	output. If enough sensors reach critical levels, the node will withdraw
+	and power off.
+		</key>
+		<key name="scan_ipmitool_message_0008">
+The temperature sensor: [#!variable!sensor_name!#] has returned to normal levels.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+		</key>
+		<key name="scan_ipmitool_message_0009">
+The temperature sensor: [#!variable!sensor_name!#] has risen above critically low levels, but it is still in a warning state.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+  Note: If you are listening to 'critical' level alerts only, you will not get the alert telling you when the temperature is back to normal.
+		</key>
+		<key name="scan_ipmitool_message_0010">
+The temperature sensor: [#!variable!sensor_name!#] has jumped a large amount in a short period of time!
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+		</key>
+		<key name="scan_ipmitool_message_0011">
+The temperature sensor: [#!variable!sensor_name!#] has gone critically low!
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+  Note: If enough sensors go critical, this node will withdraw and power off!
+		</key>
+		<key name="scan_ipmitool_message_0012">
+The temperature sensor: [#!variable!sensor_name!#] has entered a low warning state!
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+  Note: If the temperature continues to drop, the sensor will go critical. If enough sensors go critical, the node will withdraw and power off.
+		</key>
+		<key name="scan_ipmitool_message_0013">
+The temperature sensor: [#!variable!sensor_name!#] has returned to normal levels.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+		</key>
+		<key name="scan_ipmitool_message_0014">
+The temperature sensor: [#!variable!sensor_name!#] has risen blow critically high levels, but it is still in a warning state.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+  Note: If you are listening to 'critical' level alerts only, you will not get the alert telling you when the temperature is back to normal.
+		</key>
+		<key name="scan_ipmitool_message_0015">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0016">
+The sensor: [#!variable!sensor_name!#] has changed.
+- [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
+- [#!variable!old_sensor_status!#] -> [#!variable!new_sensor_status!#]
+- Thresholds:
+  - High critical: [#!variable!old_high_critical!#] -> [#!variable!new_high_critical!#]
+  - High warning:  [#!variable!old_high_warning!#] -> [#!variable!new_high_warning!#]
+  - Low warning:   [#!variable!old_low_warning!#] -> [#!variable!new_low_warning!#]
+  - Low critical:  [#!variable!old_low_critical!#] -> [#!variable!new_low_critical!#]
+		</key>
+		<key name="scan_ipmitool_message_0017">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0018">There was no IPMI sensor value set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0019">
+The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!variable!machine!#].
+- Value: [#!variable!sensor_value!#], Status: [#!variable!sensor_status!#]
+- Thresholds:
+  - High critical: [#!variable!high_critical!#]
+  - High warning:  [#!variable!high_warning!#]
+  - Low warning:   [#!variable!low_warning!#]
+  - Low critical:  [#!variable!low_critical!#]
+		</key>
+		<key name="scan_ipmitool_message_0020">
+The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!variable!machine!#].
+  Warning: It is not in an OK state!
+- Value: [#!variable!sensor_value!#], Status: [#!variable!sensor_status!#]
+- Thresholds:
+  - High critical: [#!variable!high_critical!#]
+  - High warning:  [#!variable!high_warning!#]
+  - Low warning:   [#!variable!low_warning!#]
+  - Low critical:  [#!variable!low_critical!#]
+		</key>
+
+		<!-- Log entries -->
+		<key name="scan_ipmitool_log_0001">Starting to read the IPMI sensor values for: [#!variable!machine!#]</key>
+		<key name="scan_ipmitool_log_0002">Failed to query node: [#!variable!machine!#]'s IPMI interface using the call: [#!variable!call!#]. Is the password correct?</key>
+		<key name="scan_ipmitool_log_0003">IPMI sensor values read from: [#!variable!machine!#] in: [#!variable!time!#].</key>
+		<key name="scan_ipmitool_log_0004">The sensor named: [#!variable!sensor_name!#] appears to have vanished, but this is the first scan that it vanished. This is generally harmless and just a sensor read issue.</key>
+		<key name="scan_ipmitool_log_0005">The sensor named: [#!variable!sensor_name!#] has returned.</key>
+		
+	</language>
+</words>

@@ -171,16 +171,8 @@ if (($anvil->data->{scancore}{'scan-apc-pdu'}{disable}) && (not $anvil->data->{s
 	$anvil->nice_exit({exit_code => 0});
 }
 
-# These are the tables used by this agent. The order matters as it controls to order the tables are created 
-# and sync'ed. For purges, this array is walked backwards.
-$anvil->data->{scancore}{'scan-apc-pdu'}{tables} = ["scan_apc_pdus", "scan_apc_pdu_phases", "scan_apc_pdu_outlets", "scan_apc_pdu_variables"];
-
 # Handle start-up tasks
-my $problem = $anvil->ScanCore->agent_startup({
-	debug  => 3,
-	agent  => $THIS_FILE,
-	tables => $anvil->data->{scancore}{'scan-apc-pdu'}{tables},
-});
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});
@@ -189,9 +181,10 @@ if ($problem)
 if ($anvil->data->{switches}{purge})
 {
 	# This can be called when doing bulk-database purges.
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
 	$anvil->Database->purge_data({
 		debug  => 2,
-		tables => $anvil->data->{scancore}{'scan-apc-pdu'}{tables},
+		tables => $anvil->Database->get_tables_from_schema({schema_file => $schema_file}),
 	});
 	$anvil->nice_exit({exit_code => 0});
 }

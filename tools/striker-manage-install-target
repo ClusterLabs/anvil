@@ -2337,6 +2337,7 @@ sub load_packages
 			"perl-Sub-Install.noarch",
 			"perl-Sub-Quote.noarch", 
 			"perl-Sys-Syslog.x86_64",
+			"perl-Sys-Virt.x86_64",
 			"perl-Term-ANSIColor.noarch",
 			"perl-Term-Cap.noarch",
 			"perl-Text-Balanced.noarch",

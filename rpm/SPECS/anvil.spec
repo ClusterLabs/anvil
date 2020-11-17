@@ -43,6 +43,9 @@ Requires:       gpm
 Requires:       hdparm
 Requires:       htop
 Requires:       iproute
+Requires:       kernel-core
+Requires:       kernel-devel
+Requires:       kernel-headers
 Requires:       lsscsi
 Requires:       mailx
 Requires:       mlocate 
@@ -70,6 +73,7 @@ Requires:       perl-Net-OpenSSH
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Proc-Simple
 Requires:       perl-Sys-Syslog
+Requires:       perl-Sys-Virt
 Requires:       perl-Text-Diff
 Requires:       perl-Time-HiRes
 Requires:       perl-UUID-Tiny
@@ -111,7 +115,6 @@ Requires:       gcc
 Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
-Requires:       kernel-core
 Requires:       nmap
 Requires:       perl-CGI 
 Requires:       postgresql-server 
