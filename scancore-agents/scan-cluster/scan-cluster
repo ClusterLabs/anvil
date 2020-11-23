@@ -151,7 +151,7 @@ WHERE
 				old_cluster_name => $old_cluster_name, 
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0002", variables => $variables});
-			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0002", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0002", variables => $variables, set_by => $THIS_FILE});
 		}
 	}
 	else
@@ -177,7 +177,7 @@ INSERT INTO
 		
 		my $variables = { cluster_name => $cluster_name };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0001", variables => $variables});
-		$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0001", message_variables => $variables, set_by => $THIS_FILE});
+		$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0001", variables => $variables, set_by => $THIS_FILE});
 	}
 	
 	$anvil->Database->get_anvils();
@@ -230,7 +230,7 @@ INSERT INTO
 					old_node_name => $old_scan_cluster_node_name, 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0008", variables => $variables});
-				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0009", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0009", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_cluster_node_pacemaker_id ne $old_scan_cluster_node_pacemaker_id)
 			{
@@ -243,7 +243,7 @@ INSERT INTO
 					old_pacemaker_id => $old_scan_cluster_node_pacemaker_id ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0004", variables => $variables});
-				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0004", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0004", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_cluster_node_in_ccm ne $old_scan_cluster_node_in_ccm)
 			{
@@ -256,7 +256,7 @@ INSERT INTO
 					old_in_ccm => $old_scan_cluster_node_in_ccm ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0005", variables => $variables});
-				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0005", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0005", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_cluster_node_crmd_member ne $old_scan_cluster_node_crmd_member)
 			{
@@ -269,7 +269,7 @@ INSERT INTO
 					old_crmd_member => $old_scan_cluster_node_crmd_member ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0006", variables => $variables});
-				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0006", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0006", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_cluster_node_cluster_member ne $old_scan_cluster_node_cluster_member)
 			{
@@ -282,7 +282,7 @@ INSERT INTO
 					old_cluster_member => $old_scan_cluster_node_cluster_member ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0007", variables => $variables});
-				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0007", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0007", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_cluster_node_maintenance_mode ne $old_scan_cluster_node_maintenance_mode)
 			{
@@ -295,7 +295,7 @@ INSERT INTO
 					old_maintenance_mode => $old_scan_cluster_node_maintenance_mode ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0008", variables => $variables});
-				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0008", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0008", variables => $variables, set_by => $THIS_FILE});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
@@ -365,7 +365,7 @@ INSERT INTO
 				maintenance_mode => $scan_cluster_node_maintenance_mode ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0003", variables => $variables});
-			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0003", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0003", variables => $variables, set_by => $THIS_FILE});
 		}
 	}
 	
@@ -530,7 +530,7 @@ sub collect_data
 			# Register an alert.
 			my $variables = { host_name => $anvil->Get->host_name() };
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0010", variables => $variables});
-			$anvil->Alert->register({alert_level => "warning", message => "scan_cluster_alert_0010", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "warning", message => "scan_cluster_alert_0010", variables => $variables, set_by => $THIS_FILE});
 		
 			# See if I need to mark us as out of the cluster. Normally, our peer would do this, 
 			# but if we went down at the same time as our peer, both of us might not update the 
@@ -606,7 +606,7 @@ WHERE
 			# Register an alert.
 			my $variables = { host_name => $anvil->Get->host_name() };
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0011", variables => $variables});
-			$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_cluster_alert_0011", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_cluster_alert_0011", variables => $variables, set_by => $THIS_FILE});
 		}
 	}
 	

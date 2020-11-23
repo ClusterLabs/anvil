@@ -763,6 +763,14 @@ Would generate a sorted log entry that looks like:
 
 All other key names are left alone and output is sorted alphabetically.
 
+=head3 prefix (optional)
+
+If set, this string will be prefixed to all variable names. The string passed will be separated from variable names by a space-padded hyphen. 
+
+For example, if C<< prefix >> is set to C<< foo >>, and the variables in the list are C<< bar >> and C<< baz >>, the logged variables will be C<< foo - bar >> and C<< foo - baz >>.
+
+B<< Note >>: If the list is short enough to be displayed on one line (three or less keys), the prefix is prepended to the list, not each variable name.
+
 =cut
 sub variables
 {
@@ -777,6 +785,7 @@ sub variables
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $list      = defined $parameter->{list}      ? $parameter->{list}      : {};
 	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $anvil->data->{defaults}{'log'}{facility};
+	my $prefix    = defined $parameter->{prefix}    ? $parameter->{prefix}    : "";
 	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
 	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $anvil->data->{defaults}{'log'}{server};
@@ -827,6 +836,10 @@ sub variables
 		if ($entries <= 3)
 		{
 			# Put all the entries on one line.
+			if ($prefix)
+			{
+				$raw = $prefix." - ";
+			}
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
 				print $THIS_FILE." ".__LINE__."; key: [".$key."]\n" if $test;
@@ -866,7 +879,11 @@ sub variables
 				# Strip a leading 'sX:' in case the user is sorting the output.
 				my $say_key =  $key;
 				   $say_key =~ s/^s(\d+)://;
-				   $say_key .= ":";
+				if ($prefix)
+				{
+					$say_key = $prefix." - ".$say_key;
+				}
+				$say_key .= ":";
 				my $difference = $length - length($say_key);
 				print $THIS_FILE." ".__LINE__."; say_key: [".$say_key."], difference: [".$difference."]\n" if $test;
 				if ($difference)

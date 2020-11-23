@@ -589,11 +589,11 @@ sub find_changes
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0006", variables => $variables});
 					$anvil->Alert->register({
-						alert_level       => "warning", 
-						message           => "scan_apc_pdu_message_0006", 
-						message_variables => $variables, 
-						set_by            => $THIS_FILE, 
-						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						alert_level   => "warning", 
+						message       => "scan_apc_pdu_message_0006", 
+						variables     => $variables, 
+						set_by        => $THIS_FILE, 
+						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 					});
 				}
 				else
@@ -605,11 +605,11 @@ sub find_changes
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0007", variables => $variables});
 					$anvil->Alert->register({
-						alert_level       => "warning", 
-						message           => "scan_apc_pdu_message_0007", 
-						message_variables => $variables, 
-						set_by            => $THIS_FILE, 
-						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						alert_level   => "warning", 
+						message       => "scan_apc_pdu_message_0007", 
+						variables     => $variables, 
+						set_by        => $THIS_FILE, 
+						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 					});
 				}
 			}
@@ -620,17 +620,17 @@ sub find_changes
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
 				my $variables = {
-					name             => $pdu_host_name,
+					name              => $pdu_host_name,
 					old_serial_number => $old_scan_apc_pdu_serial_number,
 					new_serial_number => $new_scan_apc_pdu_serial_number,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0008", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0008", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0008", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_manufacture_date ne $old_scan_apc_pdu_manufacture_date)
@@ -646,11 +646,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0009", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0009", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0009", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_firmware_version ne $old_scan_apc_pdu_firmware_version)
@@ -666,11 +666,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0010", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0010", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0010", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_hardware_version ne $old_scan_apc_pdu_hardware_version)
@@ -686,11 +686,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0011", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0011", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0011", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_ipv4_address ne $old_scan_apc_pdu_ipv4_address)
@@ -706,11 +706,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0012", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0012", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0012", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_mac_address ne $old_scan_apc_pdu_mac_address)
@@ -726,11 +726,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0013", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0013", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0013", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_mtu_size ne $old_scan_apc_pdu_mtu_size)
@@ -740,17 +740,17 @@ sub find_changes
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
 				my $variables = {
-						name			=>	$pdu_host_name,
-						old_mtu_size		=>	$old_scan_apc_pdu_mtu_size,
-						new_mtu_size		=>	$new_scan_apc_pdu_mtu_size,
+					name         => $pdu_host_name,
+					old_mtu_size => $old_scan_apc_pdu_mtu_size,
+					new_mtu_size => $new_scan_apc_pdu_mtu_size,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0014", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0014", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0014", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_link_speed ne $old_scan_apc_pdu_link_speed)
@@ -777,11 +777,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0015", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0015", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0015", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_phase_count ne $old_scan_apc_pdu_phase_count)
@@ -797,11 +797,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0016", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0016", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0016", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			if ($new_scan_apc_pdu_outlet_count ne $old_scan_apc_pdu_outlet_count)
@@ -817,11 +817,11 @@ sub find_changes
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0017", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0017", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0017", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			
@@ -885,11 +885,11 @@ WHERE
 						# Normal, info-level
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0018", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "info", 
-							message           => "scan_apc_pdu_message_0018", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "info", 
+							message       => "scan_apc_pdu_message_0018", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					elsif (($new_uptime < $old_uptime) && ($new_uptime < 300))
@@ -898,11 +898,11 @@ WHERE
 						# the NIC rebooting and doesn't interfere with power.
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0019", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "warning", 
-							message           => "scan_apc_pdu_message_0019", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "warning", 
+							message       => "scan_apc_pdu_message_0019", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 				}
@@ -935,11 +935,11 @@ WHERE
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0009", variables => $variables});
 					$anvil->Alert->register({
-						alert_level       => "warning", 
-						message           => "scan_apc_pdu_message_0009", 
-						message_variables => $variables, 
-						set_by            => $THIS_FILE, 
-						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						alert_level   => "warning", 
+						message       => "scan_apc_pdu_message_0009", 
+						variables     => $variables, 
+						set_by        => $THIS_FILE, 
+						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 					});
 					
 					update_variables($anvil, $scan_apc_pdu_variable_uuid, "total_wattage_draw", $new_total_wattage_draw);
@@ -991,11 +991,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0021", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "warning", 
-							message           => "scan_apc_pdu_message_0021", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "warning", 
+							message       => "scan_apc_pdu_message_0021", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					
@@ -1014,11 +1014,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0022", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "warning", 
-							message           => "scan_apc_pdu_message_0022", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "warning", 
+							message       => "scan_apc_pdu_message_0022", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					if ($old_scan_apc_pdu_phase_current_amperage ne $new_scan_apc_pdu_phase_current_amperage)
@@ -1037,11 +1037,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0023", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "info", 
-							message           => "scan_apc_pdu_message_0023", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "info", 
+							message       => "scan_apc_pdu_message_0023", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 						
 						# Cheack for low alerts to set or high alerts to clear
@@ -1065,11 +1065,11 @@ WHERE
 								};
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0024", variables => $variables});
 								$anvil->Alert->register({
-									alert_level       => "warning", 
-									message           => "scan_apc_pdu_message_0024", 
-									message_variables => $variables, 
-									set_by            => $THIS_FILE, 
-									sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+									alert_level   => "warning", 
+									message       => "scan_apc_pdu_message_0024", 
+									variables     => $variables, 
+									set_by        => $THIS_FILE, 
+									sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 								});
 							}
 							
@@ -1163,11 +1163,11 @@ WHERE
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0030", variables => $variables});
 					$anvil->Alert->register({
-						alert_level       => "warning", 
-						message           => "scan_apc_pdu_message_0030", 
-						message_variables => $variables, 
-						set_by            => $THIS_FILE, 
-						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						alert_level   => "warning", 
+						message       => "scan_apc_pdu_message_0030", 
+						variables     => $variables, 
+						set_by        => $THIS_FILE, 
+						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 					});
 				}
 			}
@@ -1213,11 +1213,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0031", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "warning", 
-							message           => "scan_apc_pdu_message_0031", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "warning", 
+							message       => "scan_apc_pdu_message_0031", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					if ($new_scan_apc_pdu_outlet_name ne $old_scan_apc_pdu_outlet_name)
@@ -1234,11 +1234,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0032", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "notice", 
-							message           => "scan_apc_pdu_message_0032", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "notice", 
+							message       => "scan_apc_pdu_message_0032", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					if ($new_scan_apc_pdu_outlet_on_phase ne $old_scan_apc_pdu_outlet_on_phase)
@@ -1255,11 +1255,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0033", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "warning", 
-							message           => "scan_apc_pdu_message_0033", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "warning", 
+							message       => "scan_apc_pdu_message_0033", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					if ($new_scan_apc_pdu_outlet_state ne $old_scan_apc_pdu_outlet_state)
@@ -1276,11 +1276,11 @@ WHERE
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0034", variables => $variables});
 						$anvil->Alert->register({
-							alert_level       => "warning", 
-							message           => "scan_apc_pdu_message_0034", 
-							message_variables => $variables, 
-							set_by            => $THIS_FILE, 
-							sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+							alert_level   => "warning", 
+							message       => "scan_apc_pdu_message_0034", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 						});
 					}
 					
@@ -1331,11 +1331,11 @@ WHERE
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0035", variables => $variables});
 					$anvil->Alert->register({
-						alert_level       => "warning", 
-						message           => "scan_apc_pdu_message_0035", 
-						message_variables => $variables, 
-						set_by            => $THIS_FILE, 
-						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						alert_level   => "warning", 
+						message       => "scan_apc_pdu_message_0035", 
+						variables     => $variables, 
+						set_by        => $THIS_FILE, 
+						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 					});
 				}
 				
@@ -1377,11 +1377,11 @@ WHERE
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0036", variables => $variables});
 					$anvil->Alert->register({
-						alert_level       => "warning", 
-						message           => "scan_apc_pdu_message_0036", 
-						message_variables => $variables, 
-						set_by            => $THIS_FILE, 
-						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						alert_level   => "warning", 
+						message       => "scan_apc_pdu_message_0036", 
+						variables     => $variables, 
+						set_by        => $THIS_FILE, 
+						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 					});
 				}
 			}
@@ -1485,11 +1485,11 @@ INSERT INTO
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0037", variables => $variables});
 			$anvil->Alert->register({
-				alert_level       => "warning", 
-				message           => "scan_apc_pdu_message_0037", 
-				message_variables => $variables, 
-				set_by            => $THIS_FILE, 
-				sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+				alert_level   => "warning", 
+				message       => "scan_apc_pdu_message_0037", 
+				variables     => $variables, 
+				set_by        => $THIS_FILE, 
+				sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 			});
 			
 			# Insert the phase data
@@ -1529,11 +1529,11 @@ INSERT INTO
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0038", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0038", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0038", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 			
@@ -1573,11 +1573,11 @@ INSERT INTO
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0039", variables => $variables});
 				$anvil->Alert->register({
-					alert_level       => "warning", 
-					message           => "scan_apc_pdu_message_0039", 
-					message_variables => $variables, 
-					set_by            => $THIS_FILE, 
-					sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0039", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 				});
 			}
 		}
@@ -1620,11 +1620,11 @@ WHERE
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0040", variables => $variables});
 			$anvil->Alert->register({
-				alert_level       => "warning", 
-				message           => "scan_apc_pdu_message_0040", 
-				message_variables => $variables, 
-				set_by            => $THIS_FILE, 
-				sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+				alert_level   => "warning", 
+				message       => "scan_apc_pdu_message_0040", 
+				variables     => $variables, 
+				set_by        => $THIS_FILE, 
+				sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
 			});
 		}
 	}
@@ -2385,7 +2385,7 @@ sub gather_pdu_data
 			if ($changed)
 			{
 				# Register an alert.
-				$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0002", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0002", variables => $variables, set_by => $THIS_FILE});
 			}
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -2403,7 +2403,7 @@ sub gather_pdu_data
 			{
 				# Register an alert.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_pdu_message_0003", variables => $variables});
-				$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_pdu_message_0003", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_pdu_message_0003", variables => $variables, set_by => $THIS_FILE});
 			}
 		}
 		# Now read the phase data
@@ -2453,7 +2453,7 @@ sub gather_pdu_data
 			if ($changed)
 			{
 				# Register an alert.
-				$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0004", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0004", variables => $variables, set_by => $THIS_FILE});
 			}
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -2471,7 +2471,7 @@ sub gather_pdu_data
 			{
 				# Register an alert.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_pdu_message_0005", variables => $variables});
-				$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_pdu_message_0005", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_pdu_message_0005", variables => $variables, set_by => $THIS_FILE});
 			}
 		}
 		# Now read the outlet data

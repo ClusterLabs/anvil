@@ -1601,12 +1601,12 @@ sub connect
 # 			if ($cleared)
 # 			{
 # 				$anvil->Alert->register({
-# 					debug             => $debug, 
-# 					level             => "warning", 
-# 					agent_name        => "Anvil!",
-# 					title_key         => "an_title_0006",
-# 					message_key       => "cleared_log_0055",
-# 					message_variables => {
+# 					debug      => $debug, 
+# 					level      => "warning", 
+# 					agent_name => "Anvil!",
+# 					title_key  => "an_title_0006",
+# 					message    => "cleared_log_0055",
+# 					variables  => {
 # 						name => $database_name,
 # 						host => $anvil->data->{database}{$uuid}{host},
 # 						port => defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
@@ -5785,6 +5785,16 @@ If there is a problem, an empty string is returned. Otherwise, the C<< health_uu
 
 parameters;
 
+=head3 cache (optional)
+
+If this is passed an array reference, SQL queries will be pushed into the array instead of actually committed to databases. It will be up to the caller to commit the queries.
+
+=head3 delete (optional, default '0')
+
+If set, the associated C<< health_uuid >> will be deleted.
+
+B<< Note >>: If set, C<< health_uuid >> becomes required and no other parameter is required.
+
 =head3 health_uuid (optional)
 
 Is passed, the specific entry will be updated.
@@ -5819,6 +5829,8 @@ sub insert_or_update_health
 	my $uuid                 = defined $parameter->{uuid}                 ? $parameter->{uuid}                 : "";
 	my $file                 = defined $parameter->{file}                 ? $parameter->{file}                 : "";
 	my $line                 = defined $parameter->{line}                 ? $parameter->{line}                 : "";
+	my $cache                = defined $parameter->{cache}                ? $parameter->{cache}                : "";
+	my $delete               = defined $parameter->{'delete'}             ? $parameter->{'delete'}             : "";
 	my $health_uuid          = defined $parameter->{health_uuid}          ? $parameter->{health_uuid}          : "";
 	my $health_host_uuid     = defined $parameter->{health_host_uuid}     ? $parameter->{health_host_uuid}     : $anvil->Get->host_uuid;
 	my $health_agent_name    = defined $parameter->{health_agent_name}    ? $parameter->{health_agent_name}    : "";
@@ -5828,6 +5840,7 @@ sub insert_or_update_health
 		uuid                 => $uuid, 
 		file                 => $file, 
 		line                 => $line, 
+		'delete'             => $delete,
 		health_uuid          => $health_uuid,
 		health_host_uuid     => $health_host_uuid,
 		health_agent_name    => $health_agent_name,
@@ -5835,17 +5848,49 @@ sub insert_or_update_health
 		health_source_weight => $health_source_weight,
 	}});
 	
-	if (not $health_agent_name)
+	if ($delete)
 	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_agent_name" }});
-		return("");
+		if (not $health_uuid)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_uuid" }});
+			return("");
+		}
+		my $query = "
+UPDATE 
+    health 
+SET 
+    health_source_name = 'DELETED', 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    health_uuid        = ".$anvil->Database->quote($health_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		
+		$query = "
+DELETE FROM 
+    health 
+WHERE 
+    health_uuid        = ".$anvil->Database->quote($health_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
-	if (not $health_source_name)
+	else
 	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_source_name" }});
-		return("");
+		if (not $health_agent_name)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_agent_name" }});
+			return("");
+		}
+		if (not $health_source_name)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_source_name" }});
+			return("");
+		}
 	}
 	
 	# If we don't have a health UUID, see if we can find one.
@@ -5936,7 +5981,14 @@ WHERE
     health_uuid          = ".$anvil->Database->quote($health_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			if (ref($cache) eq "ARRAY")
+			{
+				push @{$cache}, $query;
+			}
+			else
+			{
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
 		}
 	}
 	else
@@ -5963,7 +6015,14 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		if (ref($cache) eq "ARRAY")
+		{
+			push @{$cache}, $query;
+		}
+		else
+		{
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
 	}
 	
 	return($health_uuid);
@@ -10430,6 +10489,10 @@ If there is a problem, an empty string is returned. Otherwise, the C<< temperatu
 
 parameters;
 
+=head3 cache (optional)
+
+If this is passed an array reference, SQL queries will be pushed into the array instead of actually committed to databases. It will be up to the caller to commit the queries.
+
 =head3 temperature_uuid (optional)
 
 Is passed, the specific entry will be updated.
@@ -10484,6 +10547,7 @@ sub insert_or_update_temperature
 	my $uuid                    = defined $parameter->{uuid}                    ? $parameter->{uuid}                    : "";
 	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
 	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
+	my $cache                   = defined $parameter->{cache}                   ? $parameter->{cache}                   : "";
 	my $temperature_uuid        = defined $parameter->{temperature_uuid}        ? $parameter->{temperature_uuid}        : "";
 	my $temperature_host_uuid   = defined $parameter->{temperature_host_uuid}   ? $parameter->{temperature_host_uuid}   : $anvil->Get->host_uuid;
 	my $temperature_agent_name  = defined $parameter->{temperature_agent_name}  ? $parameter->{temperature_agent_name}  : "";
@@ -10671,14 +10735,21 @@ WHERE
     temperature_uuid        = ".$anvil->Database->quote($temperature_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			if (ref($cache) eq "ARRAY")
+			{
+				push @{$cache}, $query;
+			}
+			else
+			{
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
 		}
 	}
 	else
 	{
 		# INSERT
 		   $temperature_uuid = $anvil->Get->uuid();
-		my $query       = "
+		my $query            = "
 INSERT INTO 
     temperature 
 (
@@ -10706,7 +10777,14 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		if (ref($cache) eq "ARRAY")
+		{
+			push @{$cache}, $query;
+		}
+		else
+		{
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
 	}
 	
 	return($temperature_uuid);

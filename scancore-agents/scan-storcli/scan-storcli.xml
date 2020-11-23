@@ -1,0 +1,1011 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_storcli_log_0001'.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent for LSI (Broadcom) based RAID controllers (Dell, Fujitsu, Cisco, etc).">
+		
+		<!-- Strings that can change by rebranding -->
+		<key name="scan_storcli_brand_0001">Broadcom (LSI) RAID controller scan agent using the 'storcli64' or 'perccli64' tool.</key>
+		
+		<!-- Log strings -->
+		<key name="scan_storcli_log_0001">Found: [#!variable!count!#] controller(s).</key>
+		<key name="scan_storcli_log_0002">The thermal sensor named: [#!variable!sensor_name!#], on: [#!variable!sensor_host!#] has not changed.</key>
+		
+		<!-- Notices -->
+		<key name="scan_storcli_note_0001">A new Broadcom (AVAGO/LSI) Storage controller has been found.
+- Model: ....... [#!variable!model!#]
+- Serial Number: [#!variable!serial_number!#]
+- Cache Size: .. [#!variable!say_cache_size!#]
+- Alarm State: . [#!variable!alarm_state!#]
+
+Other detected variables:
+		</key>
+		<key name="scan_storcli_note_0002">- #!variable!name!#: [#!variable!value!#]</key>
+		<key name="scan_storcli_note_0003">A new Broadcom (AVAGO/LSI) Storage controller Battery Backup Unit (BBU) has been found.
+- On Controller: .... [#!variable!on_controller!#]
+- Model: ............ [#!variable!model!#]
+- Serial Number: .... [#!variable!serial_number!#]
+- Type: ............. [#!variable!type!#]
+- State: ............ [#!variable!state!#]
+- Design Capacity: .. [#!variable!design_capacity!#]
+- Manufacture Date: . [#!variable!manufacture_date!#] (yyyy/mm/dd)
+- Replacement Needed? [#!variable!replacement_needed!#]
+
+Other detected variables:
+</key>
+		<key name="scan_storcli_note_0004">A new Broadcom (AVAGO/LSI) Storage controller Virtual Drive (VD) has been found.
+- On Controller: .... [#!variable!on_controller!#]
+- ID String: ........ [#!variable!id_string!#]
+- Creation Date: .... [#!variable!creation_date!#]
+- Data Protection: .. [#!variable!data_protection!#]
+- Disk Cache Policy:  [#!variable!disk_cache_policy!#]
+- Emulation Type: ... [#!variable!emulation_type!#]
+- Encryption: ....... [#!variable!encryption!#]
+- Blocks: ........... [#!variable!blocks!#]
+- Strip Size: ....... [#!variable!strip_size!#]
+- Drives Per Span: .. [#!variable!drives_per_span!#]
+- Span Depth: ....... [#!variable!span_depth!#]
+- SCSI NAA ID: ...... [#!variable!scsi_naa_id!#] (https://en.wikipedia.org/wiki/ISCSI#Addressing)
+
+Other detected variables:
+</key>
+		<key name="scan_storcli_note_0005">A new Broadcom (AVAGO/LSI) Storage controller Drive Group (DG) has been found.
+- On Controller: ............. [#!variable!on_controller!#]
+- ID String: ................. [#!variable!id_string!#]
+- Access: .................... [#!variable!access!#]
+- RAID Level: ................ [#!variable!raid_type!#]
+- Array Size: ................ [#!variable!array_size!#]
+- Array State: ............... [#!variable!array_state!#]
+- Consistent: ................ [#!variable!consistent!#]
+- Write Cache: ............... [#!variable!write_cache!#]
+- Read Cache: ................ [#!variable!read_cache!#]
+- Disk Cache: ................ [#!variable!disk_cache!#]
+- CacheCade: ................. [#!variable!cachecade!#]
+- Scheduled Consistency Check: [#!variable!scheduled_cc!#]
+- Raw Cache String: .......... [#!variable!cache!#]
+
+Other detected variables:
+</key>
+		<key name="scan_storcli_note_0006">A new Physical Drive, connected to a Broadcom (AVAGO/LSI) Storage controller, has been found.
+- On Controller: ....... [#!variable!on_controller!#]
+- Virtual Drive: ....... [#!variable!virtual_drive!#]
+- Drive Group: ......... [#!variable!drive_group!#]
+- Vendor: .............. [#!variable!vendor!#]
+- Model: ............... [#!variable!model!#]
+- Serial Number: ....... [#!variable!serial_number!#]
+- Capacity: ............ [#!variable!size!#]
+- Sector Size: ......... [#!variable!sector_size!#]
+- Self-Encrypting Drive? [#!variable!self_encrypting_drive!#]
+
+Other detected variables:
+</key>
+		<key name="scan_storcli_note_0007">A new Broadcom (AVAGO/LSI) Storage controller Cachevault (FBU) has been found.
+- On Controller: .... [#!variable!on_controller!#]
+- Model: ............ [#!variable!model!#]
+- Serial Number: .... [#!variable!serial_number!#]
+- Type: ............. [#!variable!type!#]
+- State: ............ [#!variable!state!#]
+- Design Capacity: .. [#!variable!design_capacity!#]
+- Manufacture Date: . [#!variable!manufacture_date!#]
+- Replacement Needed? [#!variable!replacement_needed!#]
+
+Other detected variables:
+</key>
+		<key name="scan_storcli_note_0008">
+The temperature of the physical drive: [#!variable!serial_number!#] has risen above the critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0009">
+The temperature of the physical drive: [#!variable!serial_number!#] has risen above the warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0010">
+The temperature of the physical drive: [#!variable!serial_number!#] has dropped below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0011">
+The temperature of the physical drive: [#!variable!serial_number!#] has dropped the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0012">
+The temperature of the physical drive: [#!variable!serial_number!#] is above the critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0013">
+The temperature of the physical drive: [#!variable!serial_number!#] is above the warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0014">
+The temperature of the physical drive: [#!variable!serial_number!#] is below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0015">
+The temperature of the physical drive: [#!variable!serial_number!#] is below the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0016">
+The temperature of the physical drive: [#!variable!serial_number!#] has risen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0017">
+The temperature of the physical drive: [#!variable!serial_number!#] has risen back above the critical low threshold, but it is still in a warning state. It will be marked clear when it rises above: [#!variable!low_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0018">
+The temperature of the physical drive: [#!variable!serial_number!#] has jumped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0019">
+The temperature of the physical drive: [#!variable!serial_number!#] has fallen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0020">
+The temperature of the physical drive: [#!variable!serial_number!#] has dropped back below the critical high threshold, but it is still in a warning state. It will be marked clear when it drops below: [#!variable!high_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0021">
+The temperature of the physical drive: [#!variable!serial_number!#] has dropped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0022">
+The temperature of the RAID controller: [#!variable!serial_number!#] is above the high critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0023">
+The temperature of the RAID controller: [#!variable!serial_number!#] is above the high warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0024">
+The temperature of the RAID controller: [#!variable!serial_number!#] is below the low critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0025">
+The temperature of the RAID controller: [#!variable!serial_number!#] is below the low warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0026">
+The temperature of the RAID controller: [#!variable!serial_number!#] has risen above the high critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0027">
+The temperature of the RAID controller: [#!variable!serial_number!#] has risen above the high warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0028">
+The temperature of the RAID controller: [#!variable!serial_number!#] has risen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0029">
+The temperature of the RAID controller: [#!variable!serial_number!#] has risen back above the critical low threshold, but it is still in a warning state. It will be marked clear when it rises above: [#!variable!low_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0030">
+The temperature of the RAID controller: [#!variable!serial_number!#] has jumped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0031">
+The temperature of the RAID controller: [#!variable!serial_number!#] has dropped below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0032">
+The temperature of the RAID controller: [#!variable!serial_number!#] has dropped the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0033">
+The temperature of the RAID controller: [#!variable!serial_number!#] has fallen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0034">
+The temperature of the RAID controller: [#!variable!serial_number!#] has dropped back below the critical high threshold, but it is still in a warning state. It will be marked clear when it drops below: [#!variable!high_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0035">
+The temperature of the RAID controller: [#!variable!serial_number!#] has dropped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0036">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] is above the critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0037">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] is above the warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0038">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] is below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0039">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] is below the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0040">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has risen above the critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0041">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has risen above the warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0042">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has risen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0043">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has risen back above the critical low threshold, but it is still in a warning state. It will be marked clear when it rises above: [#!variable!low_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0044">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has jumped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0045">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has dropped below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0046">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has dropped the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0047">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has fallen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0048">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has dropped back below the critical high threshold, but it is still in a warning state. It will be marked clear when it drops below: [#!variable!high_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0049">
+The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has dropped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0050">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] is above the critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0051">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] is above the warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0052">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] is below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0053">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] is below the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!value!# °C]
+		</key>
+		<key name="scan_storcli_note_0054">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has risen above the critical temperature of: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0055">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has risen above the warning temperature of: [#!variable!high_warning_temperature!# °C]. It will go critical at: [#!variable!high_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0056">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has risen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0057">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has risen back above the critical low threshold, but it is still in a warning state. It will be marked clear when it rises above: [#!variable!low_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0058">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has jumped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0059">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has dropped below the critical temperature of: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0060">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has dropped the warning temperature of: [#!variable!low_warning_temperature!# °C]. It will go critical at: [#!variable!low_critical_temperature!# °C]!:
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0061">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has fallen back into a safe temperature range.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0062">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has dropped back below the critical high threshold, but it is still in a warning state. It will be marked clear when it drops below: [#!variable!high_warning_temperature!#].
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0063">
+The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] has dropped more than: [#!variable!jump!# °C] since the last scan.
+- #!variable!name!#: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]
+		</key>
+		<key name="scan_storcli_note_0064">- The temperature of the physical drive: [#!variable!serial_number!#] has changed: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]</key>
+		<key name="scan_storcli_note_0065">- The temperature of the Cachevault (FBU): [#!variable!serial_number!#] has changed: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]</key>
+		<key name="scan_storcli_note_0066">- The temperature of the BBU: [#!variable!serial_number!#] has changed: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]</key>
+		<key name="scan_storcli_note_0067">- The temperature of the controller: [#!variable!serial_number!#] has changed: [#!variable!old_value!# °C] -> [#!variable!new_value!# °C]</key>
+		<key name="scan_storcli_note_0068">- The Virtual Drive: [#!variable!id_string!#]: is performing a background initialization, which is now: [#!variable!new_value!#] complete.</key>
+		<key name="scan_storcli_note_0069">- The Virtual Drive: [#!variable!id_string!#]: has completed its background initialization operation.</key>
+		<key name="scan_storcli_note_0070">
+- Controller: [#!variable!serial_number!#]: '#!variable!name!#' has changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  NOTE: This is expected and is no reason for concern.
+		</key>
+
+		
+		<!-- Warnings -->
+		<key name="scan_storcli_warning_0001">While processing data from adapter: [#!variable!adapter!#], which has the serial number: [#!variable!serial_number!#], the drive in virtual drive: [#!variable!virtual_disk!#] in the enclosure: [#!variable!enclosure_id!#] at slot number: [#!variable!slot_number!#] in span: [#!variable!span!#] at row: [#!variable!row!#] initially was found in drive group: [#!variable!old_drive_group!#] but the variable 'Drive position' reports it as being in drive group: [#!variable!new_drive_group!#]. This might be a program error in parsing the output of: [#!variable!shell_call!#]. Please report this error along with the output of that shell call so that we can improve this scan agent.</key>
+		<key name="scan_storcli_warning_0002">The RAID controller's properties have changed:
+- Model: ....... [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Cache Size: .. [#!variable!old_say_cache_size!#] -> [#!variable!new_say_cache_size!#]
+- Alarm State: . [#!variable!old_alarm_state!#] -> [#!variable!new_alarm_state!#]
+</key>
+		<key name="scan_storcli_warning_0003">- Controller: [#!variable!serial_number!#]: '#!variable!name!#' has changed: [#!variable!old_value!#] -> [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0004">- Controller: [#!variable!serial_number!#]: New variable found; #!variable!name!#: [#!variable!value!#]</key>
+		<key name="scan_storcli_warning_0005">Processed an invalid drive group: [#!variable!drive_group!#] from the line: [#!variable!line!#]!</key>
+		<key name="scan_storcli_warning_0006">- Controller: [#!variable!serial_number!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0007">- Controller: [#!variable!serial_number!#]: '#!variable!name!#' has vanished!</key>
+		<key name="scan_storcli_warning_0008">The controller: [#!variable!model!#] with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_storcli_warning_0009">The RAID controller has returned:
+- Model: ....... [#!variable!new_model!#]
+- Serial Number: [#!variable!new_serial_number!#]
+- Cache Size: .. [#!variable!new_say_cache_size!#]
+- Alarm State: . [#!variable!new_alarm_state!#]
+</key>
+		<key name="scan_storcli_warning_0010">The RAID controller's Battery Backup Unit (BBU) properties have changed:
+- On Controller: .... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- Model: ............ [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: .... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Type: ............. [#!variable!old_type!#] -> [#!variable!new_type!#]
+- State: ............ [#!variable!old_state!#] -> [#!variable!new_state!#]
+- Design Capacity: .. [#!variable!old_design_capacity!#] -> [#!variable!new_design_capacity!#]
+- Manufacture Date: . [#!variable!old_manufacture_date!#] -> [#!variable!new_manufacture_date!#] (yyyy/mm/dd)
+- Replacement Needed? [#!variable!old_replacement_needed!#] -> [#!variable!new_replacement_needed!#]
+</key>
+		<key name="scan_storcli_warning_0011">The RAID controller's Battery Backup Unit (BBU) has returned:
+- On Controller: .... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- Model: ............ [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: .... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Type: ............. [#!variable!old_type!#] -> [#!variable!new_type!#]
+- State: ............ [#!variable!old_state!#] -> [#!variable!new_state!#]
+- Design Capacity: .. [#!variable!old_design_capacity!#] -> [#!variable!new_design_capacity!#]
+- Manufacture Date: . [#!variable!old_manufacture_date!#] -> [#!variable!new_manufacture_date!#] (yyyy/mm/dd)
+- Replacement Needed? [#!variable!old_replacement_needed!#] -> [#!variable!new_replacement_needed!#]
+</key>
+		<key name="scan_storcli_warning_0012">- The BBU: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0013">- The BBU: [#!variable!serial_number!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0014">- The BBU: [#!variable!serial_number!#]: '#!variable!name!#' has vanished!</key>
+		<key name="scan_storcli_warning_0015">- A new variable was found on the BBU: [#!variable!serial_number!#] = [#!variable!value!#]</key>
+		<key name="scan_storcli_warning_0016">- The BBU: [#!variable!bbu_serial_number!#] on the RAID controller: [#!variable!controller_serial_number!#] has vanished!</key>
+		<key name="scan_storcli_warning_0017">The RAID controller's Virtual Drive (VD) properties have changed:
+- On Controller: .... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- ID String: ........ [#!variable!old_id_string!#] -> [#!variable!new_id_string!#]
+- Creation Date: .... [#!variable!old_creation_date!#] -> [#!variable!new_creation_date!#]
+- Data Protection: .. [#!variable!old_data_protection!#] -> [#!variable!new_data_protection!#]
+- Disk Cache Policy:  [#!variable!old_disk_cache_policy!#] -> [#!variable!new_disk_cache_policy!#]
+- Emulation Type: ... [#!variable!old_emulation_type!#] -> [#!variable!new_emulation_type!#]
+- Encryption: ....... [#!variable!old_encryption!#] -> [#!variable!new_encryption!#]
+- Blocks: ........... [#!variable!old_blocks!#] -> [#!variable!new_blocks!#]
+- Strip Size: ....... [#!variable!old_strip_size!#] -> [#!variable!new_strip_size!#]
+- Drives Per Span: .. [#!variable!old_drives_per_span!#] -> [#!variable!new_drives_per_span!#]
+- Span Depth: ....... [#!variable!old_span_depth!#] -> [#!variable!new_span_depth!#]
+- SCSI NAA ID: ...... [#!variable!old_scsi_naa_id!#] -> [#!variable!new_scsi_naa_id!#]
+</key>
+		<key name="scan_storcli_warning_0018">The RAID controller's Virtual Drive (VD) has returned:
+- On Controller: .... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- ID String: ........ [#!variable!old_id_string!#] -> [#!variable!new_id_string!#]
+- Creation Date: .... [#!variable!old_creation_date!#] -> [#!variable!new_creation_date!#]
+- Data Protection: .. [#!variable!old_data_protection!#] -> [#!variable!new_data_protection!#]
+- Disk Cache Policy:  [#!variable!old_disk_cache_policy!#] -> [#!variable!new_disk_cache_policy!#]
+- Emulation Type: ... [#!variable!old_emulation_type!#] -> [#!variable!new_emulation_type!#]
+- Encryption: ....... [#!variable!old_encryption!#] -> [#!variable!new_encryption!#]
+- Blocks: ........... [#!variable!old_blocks!#] -> [#!variable!new_blocks!#]
+- Strip Size: ....... [#!variable!old_strip_size!#] -> [#!variable!new_strip_size!#]
+- Drives Per Span: .. [#!variable!old_drives_per_span!#] -> [#!variable!new_drives_per_span!#]
+- Span Depth: ....... [#!variable!old_span_depth!#] -> [#!variable!new_span_depth!#]
+- SCSI NAA ID: ...... [#!variable!old_scsi_naa_id!#] -> [#!variable!new_scsi_naa_id!#]
+		</key>
+		<key name="scan_storcli_warning_0019">- The Virtual Drive: [#!variable!id_string!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0020">- The Virtual Drive: [#!variable!id_string!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0021">- The Virtual Drive: [#!variable!id_string!#]: '#!variable!name!#' has vanished!</key>
+		<key name="scan_storcli_warning_0022">- A new variable was found on the Virtual Drive: [#!variable!id_string!#] = [#!variable!value!#]</key>
+		<key name="scan_storcli_warning_0023">The Virtual Drive: [#!variable!id_string!#] on the RAID controller: [#!variable!controller_serial_number!#] has vanished!</key>
+		<key name="scan_storcli_warning_0024">The RAID controller's Drive Group (DG) properties have changed:
+- ID String: ................. [#!variable!old_id_string!#] -> [#!variable!new_id_string!#]
+- Access: .................... [#!variable!old_access!#] -> [#!variable!new_access!#]
+- RAID Level: ................ [#!variable!old_raid_type!#] -> [#!variable!new_raid_type!#]
+- Array Size: ................ [#!variable!old_array_size!#] -> [#!variable!new_array_size!#]
+- Array State: ............... [#!variable!old_array_state!#] -> [#!variable!new_array_state!#]
+- Consistent: ................ [#!variable!old_consistent!#] -> [#!variable!new_consistent!#]
+- Write Cache: ............... [#!variable!old_write_cache!#] -> [#!variable!new_write_cache!#]
+- Read Cache: ................ [#!variable!old_read_cache!#] -> [#!variable!new_read_cache!#]
+- Disk Cache: ................ [#!variable!old_disk_cache!#] -> [#!variable!new_disk_cache!#]
+- CacheCade: ................. [#!variable!old_cachecade!#] -> [#!variable!new_cachecade!#]
+- Scheduled Consistency Check: [#!variable!old_scheduled_cc!#] -> [#!variable!new_scheduled_cc!#]
+- Raw Cache String: .......... [#!variable!old_cache!#] -> [#!variable!new_cache!#]
+		</key>
+		<key name="scan_storcli_warning_0025">The RAID controller's Drive Group (DG) has returned:
+- ID String: ................. [#!variable!old_id_string!#] -> [#!variable!new_id_string!#]
+- Access: .................... [#!variable!old_access!#] -> [#!variable!new_access!#]
+- RAID Level: ................ [#!variable!old_raid_type!#] -> [#!variable!new_raid_type!#]
+- Array Size: ................ [#!variable!old_array_size!#] -> [#!variable!new_array_size!#]
+- Array State: ............... [#!variable!old_array_state!#] -> [#!variable!new_array_state!#]
+- Consistent: ................ [#!variable!old_consistent!#] -> [#!variable!new_consistent!#]
+- Write Cache: ............... [#!variable!old_write_cache!#] -> [#!variable!new_write_cache!#]
+- Read Cache: ................ [#!variable!old_read_cache!#] -> [#!variable!new_read_cache!#]
+- Disk Cache: ................ [#!variable!old_disk_cache!#] -> [#!variable!new_disk_cache!#]
+- CacheCade: ................. [#!variable!old_cachecade!#] -> [#!variable!new_cachecade!#]
+- Scheduled Consistency Check: [#!variable!old_scheduled_cc!#] -> [#!variable!new_scheduled_cc!#]
+- Raw Cache String: .......... [#!variable!old_cache!#] -> [#!variable!new_cache!#]
+		</key>
+		<key name="scan_storcli_warning_0026">- The Drive Group: [#!variable!id_string!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0027">- The Drive Group: [#!variable!id_string!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0028">- The Drive Group: [#!variable!id_string!#]: '#!variable!name!#' has vanished!</key>
+		<key name="scan_storcli_warning_0029">The Physical Drive (PD) properties have changed:
+- On Controller: ....... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- Virtual Drive: ....... [#!variable!old_virtual_drive!#] -> [#!variable!new_virtual_drive!#]
+- Drive Group: ......... [#!variable!old_drive_group!#] -> [#!variable!new_drive_group!#]
+- Enclosure ID: ........ [#!variable!old_enclosure_id!#] -> [#!variable!new_enclosure_id!#]
+- Slot Number: ......... [#!variable!old_slot_number!#] -> [#!variable!new_slot_number!#]
+- Vendor: .............. [#!variable!old_vendor!#] -> [#!variable!new_vendor!#]
+- Model: ............... [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: ....... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Capacity: ............ [#!variable!old_size!#] -> [#!variable!new_size!#]
+- Sector Size: ......... [#!variable!old_sector_size!#] -> [#!variable!new_sector_size!#]
+- Self-Encrypting Drive? [#!variable!old_self_encrypting_drive!#] -> [#!variable!new_self_encrypting_drive!#]
+		</key>
+		<key name="scan_storcli_warning_0030">The Physical Drive (PD) has returned:
+- On Controller: ....... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- Virtual Drive: ....... [#!variable!old_virtual_drive!#] -> [#!variable!new_virtual_drive!#]
+- Drive Group: ......... [#!variable!old_drive_group!#] -> [#!variable!new_drive_group!#]
+- Enclosure ID: ........ [#!variable!old_enclosure_id!#] -> [#!variable!new_enclosure_id!#]
+- Slot Number: ......... [#!variable!old_slot_number!#] -> [#!variable!new_slot_number!#]
+- Vendor: .............. [#!variable!old_vendor!#] -> [#!variable!new_vendor!#]
+- Model: ............... [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: ....... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Capacity: ............ [#!variable!old_size!#] -> [#!variable!new_size!#]
+- Sector Size: ......... [#!variable!old_sector_size!#] -> [#!variable!new_sector_size!#]
+- Self-Encrypting Drive? [#!variable!old_self_encrypting_drive!#] -> [#!variable!new_self_encrypting_drive!#]
+		</key>
+		<key name="scan_storcli_warning_0031">- The Physical Drive (PD): [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0032">- The Physical Drive (PD): [#!variable!serial_number!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0033">- A new variable was found on the Physical Drive (PD): [#!variable!serial_number!#] = [#!variable!value!#]</key>
+		<key name="scan_storcli_warning_0034">- Physical Drive: [#!variable!serial_number!#]: '#!variable!name!#' has vanished!</key>
+		<key name="scan_storcli_warning_0035">- The Physical Drive: [#!variable!physical_disk_serial_number!#] on the RAID controller: [#!variable!controller_serial_number!#] has vanished!</key>
+		<key name="scan_storcli_warning_0036">The RAID controller's Cachevault (FBU) properties have changed:
+- On Controller: .... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- Model: ............ [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: .... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Type: ............. [#!variable!old_type!#] -> [#!variable!new_type!#]
+- State: ............ [#!variable!old_state!#] -> [#!variable!new_state!#]
+- Design Capacity: .. [#!variable!old_design_capacity!#] -> [#!variable!new_design_capacity!#]
+- Manufacture Date: . [#!variable!old_manufacture_date!#] -> [#!variable!new_manufacture_date!#] (yyyy/mm/dd)
+- Replacement Needed? [#!variable!old_replacement_needed!#] -> [#!variable!new_replacement_needed!#]
+		</key>
+		<key name="scan_storcli_warning_0037">The RAID controller's Cachevault (FBU) has returned:
+- On Controller: .... [#!variable!old_on_controller!#] -> [#!variable!new_on_controller!#]
+- Model: ............ [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: .... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Type: ............. [#!variable!old_type!#] -> [#!variable!new_type!#]
+- State: ............ [#!variable!old_state!#] -> [#!variable!new_state!#]
+- Design Capacity: .. [#!variable!old_design_capacity!#] -> [#!variable!new_design_capacity!#]
+- Manufacture Date: . [#!variable!old_manufacture_date!#] -> [#!variable!new_manufacture_date!#] (yyyy/mm/dd)
+- Replacement Needed? [#!variable!old_replacement_needed!#] -> [#!variable!new_replacement_needed!#]
+		</key>
+		<key name="scan_storcli_warning_0038">- The Cachevault (FBU): [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0039">- The Cachevault (FBU): [#!variable!serial_number!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0040">- The Cachevault (FBU): [#!variable!serial_number!#]: '#!variable!name!#' has vanished!</key>
+		<key name="scan_storcli_warning_0041">- A new variable was found on the Cachevault (FBU): [#!variable!serial_number!#] = [#!variable!value!#]</key>
+		<key name="scan_storcli_warning_0042">- The Cachevault (FBU): [#!variable!cachevault_serial_number!#] on the RAID controller: [#!variable!controller_serial_number!#] has vanished!</key>
+		<key name="scan_storcli_warning_0043">- The Drive Group: [#!variable!id_string!#]: '#!variable!name!#' has been found: [#!variable!new_value!#]</key>
+		<key name="scan_storcli_warning_0044">
+- The Physical Drive (PD): [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  If this ticks up by '1', and this hasn't changed recently before, it is generally safe to ignore. 
+  However, if the error count jumps by more than one, or increments more than once a month, or climbs above 5 or 6, then the drive may be in the early stages of failing.
+  If this is the case and your hardware vendor allows for pre-failure replacement, you may with to request a replacement.
+		</key>
+		<key name="scan_storcli_warning_0045">
+- The Physical Drive (PD): [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  The error counters generally shouldn't change. Please investigate the cause of the error and replace the drive, if necessary.
+  NOTE: Unless another alert indicates otherwise, the drive has *not* failed.
+		</key>
+		<key name="scan_storcli_warning_0046">
+- The RAID controller: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  Correctable errors should be very rare, and though they don't pose an immediate threat, should be investigated as soon as possible.
+		</key>
+		<key name="scan_storcli_warning_0047">
+- The RAID controller: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  Uncorrectable errors are likely an indication that the controller is failing. 
+  Please contact your hardware vendor and plan to replace the controller at your earliest opportunity.
+  Servers should be migrated to the peer as soon as possible.
+		</key>
+		<key name="scan_storcli_warning_0048">
+- The RAID controller: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  The severity of this alert depends on the new state. if the new state is 'Optimal', then there is no cause for concern.
+  Most other states are likely worth investigating as soon as possible as the controller state should never change under normal conditions.
+		</key>
+		<key name="scan_storcli_warning_0049">
+- The BBU: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  The battery should never go into an over-charge state. This may indicate the pack is about to fail.
+  Please investigate and replace, if necessary, at your earliest convenience.
+  NOTE: If the pack fails, write performance will be impacted!
+		</key>
+		<key name="scan_storcli_warning_0050">
+- The BBU: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  If there is a known over temperature event, then this may indicate that the battery has heated up along with other components.
+  If the battery pack is the only device to get hot, then it may indicate that the pack is failing.
+  Please investigate and replace, if necessary, at your earliest convenience.
+  NOTE: If the pack fails, write performance will be impacted!
+		</key>
+		<key name="scan_storcli_warning_0051">
+- The BBU: [#!variable!serial_number!#]: '#!variable!name!#' changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
+  Please investigate and replace, if necessary, at your earliest convenience.
+  NOTE: If the pack fails, write performance will be impacted!
+		</key>
+		<key name="scan_storcli_warning_0052">
+- The RAID controller: [#!variable!serial_number!#] is in the database: [#!variable!count!#] times. This shouldn't happen. 
+  NOTE: Existing controller information will be purged. The installed controller (if it still exists) will be in detected 
+        and recorded in the comming scan.
+		</key>
+		
+		<!-- Errors -->
+		<key name="scan_storcli_error_0001">The 'storcli64' program was not found at: [#!variable!path!#], exiting.</key>
+		<key name="scan_storcli_error_0002">The 'storcli64' program was found at: [#!variable!path!#], but it is not executable. exiting.</key>
+		<key name="scan_storcli_error_0003">No LSI-based RAID controllers were found, exiting.</key>
+		<key name="scan_storcli_error_0004">#!free!#</key>
+		<key name="scan_storcli_error_0005">#!free!#</key>
+		<key name="scan_storcli_error_0006">Failed to find the serial number for the adapter: [#!variable!adapter!#]. Please check the output of '#!data!path::storcli64!# #!data!sys::arguments::controller_info!#' and look for the 'Serial Number = X' string. Exiting.</key>
+		<key name="scan_storcli_error_0007">The battery backup unit (BBU) with the serial number: [#!variable!serial_number!#] didn't have a reported host controller serial number. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0008">The controller with serial number: [#!variable!serial_number!#] could not be converted to a controller UUID. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0009">The Cachevault (FBU) with the serial number: [#!variable!serial_number!#] didn't have a reported host controller serial number. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0010">The virtual drive (VD) with the ID string: [#!variable!id_string!#] didn't have a reported host controller serial number. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0011">The drive group (DG) with the ID string: [#!variable!id_string!#] didn't have a reported host controller serial number. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0012">The physical drive (PV) with the serial number: [#!variable!serial_number!#] didn't have a reported host controller serial number. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0013">Failed to find the serial number for the physical drive (PV) in the virtual drive: [#!variable!virtual_drive!#] and drive group: [#!variable!drive_group!#] in enclosure: [#!variable!enclosure_id!#] in slot: [#!variable!slot_number!#]. This is probably a program error, sorry about that.</key>
+		<key name="scan_storcli_error_0014">Old UUID for drive group: [#!variable!drive_group!#] found. This is likely a program error.</key>
+		<key name="scan_storcli_error_0015">Controller UUID for the drive group with UUID: [#!variable!drive_group_uuid!#] not found. This is likely a program error.</key>
+		<key name="scan_storcli_error_0016">Non-numeric value in a numeric variable; virtual drive blocks: [#!variable!virtual_drive_blocks!#], drives per span: [#!variable!drives_per_span!#], or span depth: [#!variable!span_depth!#]. This is likely a program error.</key>
+		
+		<!-- Storcli Agent-specific messages -->
+		<key name="scan_storcli_message_0001">Starting #!string!scan_storcli_brand_0001!#:</key>
+		
+		<!-- Units -->
+		<key name="scan_storcli_unit_0001">Bytes</key>
+		<key name="scan_storcli_unit_0002">Hours</key>
+		<key name="scan_storcli_unit_0003">Hour</key>
+		<key name="scan_storcli_unit_0004">Minutes</key>
+		<key name="scan_storcli_unit_0005">Minute</key>
+		<key name="scan_storcli_unit_0006">Seconds</key>
+		<key name="scan_storcli_unit_0007">Second</key>
+		<key name="scan_storcli_unit_0008">N/A</key>			<!-- Not Available -->
+		<key name="scan_storcli_unit_0009">Always Write-Back</key>
+		<key name="scan_storcli_unit_0010">Write-Back</key>
+		<key name="scan_storcli_unit_0011">Write-Through</key>
+		<key name="scan_storcli_unit_0012">Sectors</key>
+		<key name="scan_storcli_unit_0013">Gbps</key>
+		
+		<!-- This translates raw variable names into a given language's version of the same. -->
+		<!-- Controller Options -->
+		<key name="access_policy">Access Policy</key>
+		<key name="alarm">Alarm</key>
+		<key name="allow_boot_with_preserved_cache">Allow Boot With Preserved Cache?</key>
+		<key name="allow_controller_encryption">Allow Controller Encryption?</key>
+		<key name="allow_mixed_redundancy_on_array">Allow Mixed Redundancy On An Array?</key>
+		<key name="any_offline_virtual_disk_cache_preserved">Any Offline VD Cache Preserved?</key>
+		<key name="at_least_one_premium_feature_key_exists_in_nvram">One Or More Premium Features Enabled?</key>
+		<key name="auto_detect_backplane">Autodetect Backplane</key>
+		<key name="auto_rebuild">Automatic Rebuild</key>
+		<key name="backend_port_count">Backend Port Count</key>
+		<key name="background_initialization_rate_percent">Background Initialization Rate (Percent)</key>
+		<key name="battery_learn_reoccurrence">Battery Relearn Interval</key>
+		<key name="battery_warning">Battery Warning Enabled</key>
+		<key name="bbu_connected">BBU/FBU Connected?</key>
+		<key name="bbu_status">BBU/FBU Status</key>
+		<key name="bbu_supported">BBU/FBU Supported?</key>
+		<key name="bios_enumerate_virtual_disks">Virtual Drives Presented to BIOS</key>
+		<key name="bios_version">Controller BIOS Version</key>
+		<key name="bios_was_not_detected_during_boot">Failed To Detect Controller BIOS At Boot?</key>
+		<key name="boot_block_version">Controller Boot Block Version</key>
+		<key name="boot_volume_capable">Boot Volume Capable?</key>
+		<key name="boot_volume_supported">Boot Volume Supported?</key>
+		<key name="bootloader_version">Controller Boot Loader Version</key>
+		<key name="bus_number">Mainboard BUS Number</key>
+		<key name="cachevault_flash_size">Cachevault (FBU) Flash Size</key>	<!-- Also used in cachevaults -->
+		<key name="chip_revision">Controller ASIC Revision</key>
+		<key name="cluster_active">Controller Cluster Active?</key>
+		<key name="cluster_permitted">Controller Cluster Permitted?</key>
+		<key name="cluster_support">Controller Cluster Supported?</key>
+		<key name="configurable_abort_consistency_check_on_error">User Configurable "Abort Consistency Check on Error"?</key>
+		<key name="configurable_alarm_control">User Configurable "Alarm Control"?</key>
+		<key name="configurable_background_initialization_rate">User Configurable "Background Initialization Rate"?</key>
+		<key name="configurable_block_ssd_write_disk_cache_change">User Configurable "Block SSD Write Disk Cache Change"?</key>
+		<key name="configurable_consistency_check_rate">User Configurable "Consistency Check Rate"?</key>
+		<key name="configurable_patrol_read_rate">User Configurable "Patrol Read Rate"?</key>
+		<key name="configurable_rebuild_rate">User Configurable "Rebuild Rate"?</key>
+		<key name="configurable_reconstruct_rate">User Configurable "Reconstruction Rate"?</key>
+		<key name="consistency_check_rate_percent">Consistency Check Rate (Percent)</key>
+		<key name="consistency_check_reoccurrence">Consistency Check Interval</key>
+		<key name="controller">Controller Number</key>
+		<key name="controller_has_booted_into_safe_mode">Controller Has Booted Into Safe-Mode?</key>
+		<key name="controller_reboot_required_for_security_operation">Controller Reboot Required For Security Operation?</key>
+		<key name="controller_status">Controller Status</key>
+		<key name="current_size_of_cachecade">Cachecade Size</key>
+		<key name="current_size_of_firmware_cache">Current Size Of Firmware Cache</key>
+		<key name="dedicated_hot_spare_supported">Dedicated Hot-Spare Supported?</key>
+		<key name="dedicated_hotspares_limited">Dedicated Hot-Spare Limited?</key>
+		<key name="default_auto_enhanced_import">Automatic Enhanced Import Default Setting</key>
+		<key name="default_break_mirror_raid_support">Break Mirror RAID Support Default Setting</key>
+		<key name="default_cache_when_bbu_bad">Write-Back Caching With Bad BBU/FBU Default Setting</key>
+		<key name="default_cached_io">Cached IO Enabled By Default</key>
+		<key name="default_coercion_mode">Default Coercion Mode Setting</key>
+		<key name="default_direct_physical_disk_mapping">Direct Physical Disk Mapping Default Setting</key>
+		<key name="default_dirty_led_shows_drive_activity">Dirty Activity LED Default Setting</key>
+		<key name="default_disable_human_interface_infrastructure">Disable "Human Interface Infrastructure (HII)" Default Setting</key>
+		<key name="default_disable_join_mirror">Disable "Join Mirror" Default Setting</key>
+		<key name="default_disable_online_controller_reset_default">Disable "Online Reset Controller To Defaults" Default Setting</key>
+		<key name="default_disable_puncturing">Disable "Puncturing" Default Setting</key>
+		<key name="default_enable_crash_dump">"Enable Crash Dump" Default Setting</key>
+		<key name="default_enable_led_header">"Enable LED Header" Default Setting</key>
+		<key name="default_enable_logical_device_bbm">Logical Device Bad Block Management Enabled By Default</key>
+		<key name="default_enable_shield_state">Enable Shield State Default Setting</key>
+		<key name="default_expose_enclosure_devices_default">Expose Enclosure Device Default Setting</key>
+		<key name="default_led_show_drive_activity">Drive Activity LED Enabled By Default</key>
+		<key name="default_maintain_physical_disk_fail_history_default">Maintain Physical Disk Fail History Default Setting</key>
+		<key name="default_max_chained_enclosures">Maximum Chained Enclosures Default Setting</key>
+		<key name="default_physical_layer_polarity">Physical Layer Polarity Default Setting</key>
+		<key name="default_physical_layer_polarity_split">Physical Layer Polarity Split Default Setting</key>
+		<key name="default_power_saving_option">Power Saving Option Default Setting</key>
+		<key name="default_read_policy">Default Read Policy</key>
+		<key name="default_restore_hot_spare_on_insertion">Restore Hot-Spare On Physical Disk Insertion Default Setting</key>
+		<key name="default_smart_mode">Default SMART Mode</key>
+		<key name="default_spin_down_time">Default Disk Spin-Down Time</key>
+		<key name="default_strip_size">Default Strip Size</key>
+		<key name="default_terminal_log_in_flash">"Terminal Log In Flash" Default Setting</key>
+		<key name="default_treat_single_span_raid_1e_as_raid_10">"Treat Single Span RAID 1E As RAID 10" Default Setting</key>
+		<key name="default_un_certified_hard_disk_drives">Default Uncertified Hard Disk Drive Policy</key>
+		<key name="default_virtual_disk_power_save_policy">Default Virtual Drive Power Save Policy</key>
+		<key name="default_write_policy">Default Write Cache Policy</key>
+		<key name="default_zero_based_enclosure_enumeration">Default "Zero-Based Enclosure Enumeration" Policy</key>
+		<key name="default_zero_channel_raid_config">Default Zero-Channel RAID Configuration</key>
+		<key name="delay_among_spinup_groups">Delay Between Spin-Up Groups</key>
+		<key name="delay_during_post">Delay during POST (seconds)</key>
+		<key name="deny_clear">Deny "Clear"?</key>
+		<key name="deny_consistency_check">Deny "Consistency Check"?</key>
+		<key name="deny_force_failed">Deny "Force Failed"?</key>
+		<key name="deny_force_good_or_bad">Deny "Force Good/Bad"?</key>
+		<key name="deny_missing_replace">Deny "Missing Replace"?</key>
+		<key name="deny_physical_disk_locate">Deny "Physical Disk Locate"?</key>
+		<key name="deny_scsi_passthrough">Deny "SCSI Pass-Through"?</key>
+		<key name="deny_serial_ata_tunneling_protocol_passthrough">Deny "SATA Tunneling Protocol Pass-Through"?</key>
+		<key name="deny_serial_management_protocol_passthrough">Deny "Serial Management Protocol Pass-Through"?</key>
+		<key name="deny_virtual_disk_locate">Deny "Virtual Drive Locate"?</key>
+		<key name="device_interface">Controller Interface</key>
+		<key name="device_number">Controller Device Number</key>
+		<key name="direct_attached_drives_spun_up_per_minute">Direct-Connect Drives Spun-Up Per Minute</key>
+		<key name="disable_online_controller_reset_policy">Disable "Online Controller Reset Policy"?</key>
+		<key name="disable_online_premium_feature_key_change">Disable "Premium Feature Key (PFK) Change"?</key>
+		<key name="disk_cache_policy">Virtual Drive Cache Policy Supported?</key>	<!-- Also used in virtual drives -->
+		<key name="drive_coercion_mode">Drive Coercion Mode</key>
+		<key name="drive_groups">Number Of Drive Groups</key>
+		<key name="driver_name">Linux Driver</key>
+		<key name="driver_version">Linux Driver Version</key>
+		<key name="ecc_bucket_count">ECC Bucket Count</key>
+		<key name="ecc_bucket_leak_rate">ECC Bucket Leak Rate</key>
+		<key name="ecc_bucket_size">ECC Bucket Size</key>
+		<key name="enable_bios">Enable BIOS?</key>
+		<key name="enable_controller_r">Enable 'Ctrl + R' Utility?</key>
+		<key name="enable_jbod">Enable JBOD Arrays?</key>
+		<key name="enable_preboot_cli">Enable Pre-boot Command Line Interface?</key>
+		<key name="enable_web_bios">Enable WebBIOS Utility?</key>
+		<key name="expose_enclosure_devices_policy">Expose Enclosure Device Policy?</key>
+		<key name="extended_logical_device">Extended Logical Device Supported?</key>
+		<key name="failed_to_get_lock_key_on_bootup">Failed To Get Lock Key On Bootup?</key>
+		<key name="firmware_package_build">Firmware Package Build</key>
+		<key name="firmware_version">Firmware Version</key>
+		<key name="flash_size">Flash Size</key>
+		<key name="flush_time">Flush Time</key>
+		<key name="force_offline">Force Offline Supported?</key>
+		<key name="force_online">Force Online Supported?</key>
+		<key name="force_rebuild">Force Rebuild Supported?</key>
+		<key name="foreign_config_import_supported">Foreign Config Import Supported?</key>
+		<key name="front_end_port_count">Front-End (External) Port Count</key>
+		<key name="function_number">Function Number</key>
+		<key name="fw_and_event_time_in_gmt">Timestamps in GMT?</key>
+		<key name="global_hot_spares">Global Hot Spares Supported?</key>
+		<key name="headless_mode">Headless Mode Supported?</key>
+		<key name="host_interface">Controller to Mainboard Interface</key>
+		<key name="image_name">Image Name Pending Write</key>
+		<key name="io_policy">User-Configurable IO Policy?</key>
+		<key name="load_balance_mode">Load Balancing Mode</key>
+		<key name="lock_key_assigned">Lock Key Assigned?</key>
+		<key name="lock_key_has_not_been_backed_up">Lock Key Has Not Been Backed Up?</key>
+		<key name="maintain_physical_disk_fail_history_policy">Maintain Physical Disk Fail History Policy</key>
+		<key name="manufacture_date">Controller Manufacture Date</key>
+		<key name="max_arms_per_virtual_disk">Maximum Arms Per Virtual Drive</key>
+		<key name="max_arrays">Maximum Number Of Arrays</key>
+		<key name="max_configurable_cachecade_size">Maximum Configurable Cachecade Size</key>
+		<key name="max_data_transfer_size">Maximum Data Transfer Size</key>
+		<key name="max_drives_to_spinup_at_one_time">Maximum Number of Drives To Spin-Up At A Time</key>
+		<key name="max_number_of_virtual_disks">Maximum Number Of Virtual Drives</key>
+		<key name="max_parallel_commands">Maximum Number Of Parallel Commands</key>
+		<key name="max_scatter_gather_element_count">Maximum Scatter-Gather Element Count</key>
+		<key name="max_spans_per_virtual_disk">Maximum Spans Per Virtual Drive</key>
+		<key name="max_strip_size">Maximum Strip Size</key>
+		<key name="max_strips_per_io">Maximum Strips Per IO</key>
+		<key name="max_transportable_virtual_disks">Maximum Transportable Virtual Drives</key>
+		<key name="max_virtual_disk_per_array">Maximum Virtual Drives Per Array</key>
+		<key name="memory_correctable_errors">Memory Correctable Error Count</key>
+		<key name="memory_uncorrectable_errors">Memory Uncorrectable Error Count</key>
+		<key name="min_strip_size">Minimum Strip Size</key>
+		<key name="mix_in_enclosure">Mix Drive Types In Enclosure?</key>
+		<key name="mix_of_sas_or_sata_of_hdd_type_in_virtual_disk">Mixing SAS and SATA Platter-Based Drives In Virtual Drive?</key>
+		<key name="mix_of_sas_or_sata_of_ssd_type_in_virtual_disk">Mixing SAS and SATA Solid State Drives In Virtual Drive?</key>
+		<key name="mix_of_ssd_or_hdd_in_virtual_disk">Mixing SSDs And HDDs In Virtual Drive</key>
+		<key name="model">Controller Model</key>
+		<key name="native_command_queuing">Physical Disk Native Command Queuing Supported?</key>
+		<key name="next_battery_learn">Next Schedule Battery Learn Cycle Start</key>
+		<key name="next_consistency_check_launch">Next Consistency Check Start</key>
+		<key name="next_patrol_read_launch">Next Patrol Read Start</key>
+		<key name="nvdata_version">NV Data Version</key>
+		<key name="nvram_size">NV RAM Size</key>
+		<key name="oemid">Controller OEM Identification</key>
+		<key name="on_board_expander">On-Board Expander?</key>
+		<key name="on_board_memory_size">On-Board RAM Size</key>
+		<key name="patrol_read_rate_percent">Patrol Read Rate (Percent)</key>
+		<key name="patrol_read_reoccurrence">Patrol Read Interval</key>
+		<key name="pci_address">PCI Bus Address</key>
+		<key name="performance_metrics">Virtual Drive Performance Metrics Supported?</key>
+		<key name="performance_mode">Performance Mode</key>
+		<key name="point_in_time_progress">Point In Time Progress?</key>
+		<key name="power_savings">Power Saving?</key>
+		<key name="preboot_cli_version">Preboot Command Line Interface Utility Version</key>
+		<key name="raid_level_supported">RAID Levels Supported</key>
+		<key name="real_time_scheduler">Real-Time Scheduler?</key>
+		<key name="rebuild_rate_percent">Rebuild Rate (Percent)</key>
+		<key name="reconstruction">Virtual Drive Reconstruction Supported?</key>
+		<key name="reorder_host_requests">Optimize/Reorder Host Requests?</key>
+		<key name="restore_hotspare_on_insertion">Restore Hot-Spare on Insertion?</key>
+		<key name="revertible_hot_spares">Hot-Spares Can Be Reverted?</key>
+		<key name="rework_date">Controller Rework Date</key>
+		<key name="roll_back_operation_in_progress">Roll-Back Operation In Progress</key>
+		<key name="safe_id">Safe ID</key>
+		<key name="sas_address">SAS Address</key>
+		<key name="sas_disable">SAS Disabled?</key>
+		<key name="security_key_assigned">Security Key Assigned?</key>
+		<key name="security_subsystem_class_policy_is_write_back">Security Subsystem Class Policy Is Write-Back?</key>
+		<key name="self_diagnostic_supported">Self-Diagnostics Supported?</key>
+		<key name="serial_debugger">Serial Debugger?</key>
+		<key name="set_power_state_for_config">Set Power State For Configuration?</key>
+		<key name="snapshot_enabled">Snapshot Enabled?</key>
+		<key name="spanning_supported">Spanning Supported?</key>
+		<key name="spin_down_mode">Spin-Down Mode</key>
+		<key name="stop_bios_on_error">Stop BIOS On Error?</key>
+		<key name="subdevice_id">Sub-Device ID</key>
+		<key name="subvendor_id">Sub-Vendor ID</key>
+		<key name="support_allowed_operations">Support Allowed Operations?</key>
+		<key name="support_boot_time_premium_feature_key_change">Boot-Time Premium Feature Key Change Supported?</key>
+		<key name="support_break_mirror">Break Mirror Supported?</key>
+		<key name="support_complex_programmable_logic_device_update">Support Complex Programmable Logic Device (CPLD) Update?</key>
+		<key name="support_config_auto_balance">Support Configure Auto-Balance?</key>
+		<key name="support_config_page_model">Support Configure Page Model?</key>
+		<key name="support_diagnostic_results">Support Diagnostics Results?</key>
+		<key name="support_disable_immediate_io">Support Disable Immediate IO?</key>
+		<key name="support_discard_cache_during_logical_disk_delete">Support Discard Cache During Logical Disk Delete?</key>
+		<key name="support_drive_activity_led_setting">Support Drive Activity LED Settings?</key>
+		<key name="support_emergency_spares">Support Emergency Spares?</key>
+		<key name="support_emulated_drives">Support Emulated Spares?</key>
+		<key name="support_enclosure_enumeration">Support Enclosure Enumeration?</key>
+		<key name="support_enhanced_foreign_import">Support Enhanced Foreign Configuration Import?</key>
+		<key name="support_external_enclosure">Support External Enclosures?</key>
+		<key name="support_external_key_management">Support External Security Key Management?</key>
+		<key name="support_fastpath">Support "Fast Path" Premium Feature?</key>
+		<key name="support_flush_write_verify">Support "Flush Write Verify"?</key>
+		<key name="support_force_flash">Support Force Flash?</key>
+		<key name="support_force_to_512e">Support Forcing 512-Byte Emulated Sector Sizes?</key>
+		<key name="support_jbod">Support JBOD Arrays?</key>
+		<key name="support_jbod_write_cache">Support JBOD Write-Cache?</key>
+		<key name="support_large_io_support">Large IO Supported?</key>
+		<key name="support_large_queue_depth_support">Large Queue Depth Supported?</key>
+		<key name="support_logical_device_bad_block_management_info">Support Logical Device Bad Block Management Information?</key>
+		<key name="support_logical_disk_protection_information_type1">Support Logical Disk Protection Information, Type 1</key>
+		<key name="support_logical_disk_protection_information_type2">Support Logical Disk Protection Information, Type 2</key>
+		<key name="support_logical_disk_protection_information_type3">Support Logical Disk Protection Information, Type 3</key>
+		<key name="support_maintenance_mode">"Maintenance Mode" Supported?</key>
+		<key name="support_max_rate_sata">Support "Maximum Rate SATA"?</key>
+		<key name="support_more_than_8_physical_layers">Support More Than 8 Physical Layers?</key>
+		<key name="support_multipath">Support Multipath?</key>
+		<key name="support_odd_and_even_drive_count_in_raid_1e">Support Odd And Even Drive Count In RAID 1E?</key>
+		<key name="support_performance_tuning">Performance Tuning Supported?</key>
+		<key name="support_physical_disk_firmware_download">Physical Disk Firmware Download Supported?</key>
+		<key name="support_power_save_max_with_cache">Maximum Power Save With Cache Supported?</key>
+		<key name="support_power_state">Power Save Supported?</key>
+		<key name="support_premium_feature_key">Premium Feature Keys Supported?</key>
+		<key name="support_protection_information">Support "Protection Information"?</key>
+		<key name="support_reset_now">Support "Reset Now"?</key>
+		<key name="support_scsi_enclosure_service_monitoring">Support SCSI Enclosure Service Monitoring?</key>
+		<key name="support_security">Support Security?</key>
+		<key name="support_security_on_jbod">Support Security On JBOD?</key>
+		<key name="support_security_subsystem_class_association">Support Security Subsystem Class Association?</key>
+		<key name="support_security_subsystem_class_writeback">Support Security Subsystem Class Write-Back?</key>
+		<key name="support_set_link_speed">Support Setting Link Speed?</key>
+		<key name="support_shield_state">Support Shield State?</key>
+		<key name="support_ssd_patrolread">Support SSD Patrol Read?</key>
+		<key name="support_suspend_resume_bg_ops">Support Suspect/Resume of Background Operations?</key>
+		<key name="support_t10_power_state">Support T10 Power States?</key>
+		<key name="support_temperature">Temperature Supported?</key>
+		<key name="support_the_online_capacity_expansion_without_adding_drives">Support Online Capacity Expansion Without Adding Drives?</key>
+		<key name="support_uneven_span">Support Uneven Spans?</key>
+		<key name="support_virtual_disk_cache_bypass">Support Virtual Drive Cache Bypass?</key>
+		<key name="support_virtual_disk_discard_cache_during_logical_disk_delete">Support Virtual Drive Discard Cache During Logical Disk Deletion?</key>
+		<key name="support_virtual_disk_hide">Support "Virtual Drive Hide"?</key>
+		<key name="supported_drives">Supported Drive Types?</key>
+		<key name="temperature_sensor_for_controller">Temperature Sensor For Controller?</key>
+		<key name="temperature_sensor_for_roc">Temperature Sensor For "RAID On Chip" (ROC) Processor?</key>
+		<key name="topology_type">Topology Type</key>
+		<key name="trusted_platform_module">Trusted Platform Module (TPM)</key>
+		<key name="upgradable_cpld">Upgradable Complex Programmable Logic Device (CPLD)</key>
+		<key name="upgrade_key">Upgrade Key</key>
+		<key name="use_drive_activity_for_locate">Use Drive Activity LED For Locate?</key>
+		<key name="vendor_id">Vendor ID</key>
+		<key name="virtual_disk_read_policy">Virtual Drive Read Policy</key>
+		<key name="virtual_disk_write_policy">Virtual Drive Write Policy</key>
+		<key name="webbios_version">WebBIOS Version</key>
+		<key name="roc_temperature">RAID On Chip (ROC) Temperature</key>
+		
+		<!-- BBU Strings -->
+		<key name="absolute_state_of_charge">Absolute State Of Charge (Percent)</key>
+		<key name="app_data">Application Data</key>
+		<key name="auto_learn_mode">Automatic Learning Mode</key>	<!-- Also used in cachevaults -->
+		<key name="auto_learn_period">Automatic Learning Interval</key>	<!-- Also used in cachevaults -->
+		<key name="average_time_to_empty">Average Time To Empty</key>
+		<key name="average_time_to_full">Average Time To Full</key>
+		<key name="battery_backup_charge_time">Battery Backup Charge (Hold-Up) Time</key>
+		<key name="battery_fru">Battery Field Replaceable Unit (FRU) Number</key>	<!-- Also used in the controller section -->
+		<key name="battery_pack_missing">Battery Missing?</key>
+		<key name="battery_state">Battery State</key>
+		<key name="cache_offload_premium_feature_required">"Cache Offload" Premium Feature Required?</key>
+		<key name="charger_system_ctrl">Charger System Controller</key>
+		<key name="charger_system_state">Charger System State</key>
+		<key name="charging_current">Charging Current</key>
+		<key name="charging_status">Charging Status</key>
+		<key name="charging_terminated">Charging Terminated?</key>
+		<key name="current">Current</key>
+		<key name="cycle_count">Charge/Discharge Cycle Count</key>
+		<key name="date_of_manufacture">Date Manufactured</key>		<!-- Also used in cachevaults -->
+		<key name="design_capacity">Design Capacity</key>		<!-- Also used in cachevaults -->
+		<key name="design_voltage">Design Voltage</key>
+		<key name="device_chemistry">Battery Chemistry</key>
+		<key name="device_name">Device Name</key>			<!-- Also used in cachevaults -->
+		<key name="discharging">Discharging?</key>
+		<key name="full_charge_capacity">Full Charge Capacity</key>
+		<key name="fully_charged">Fully Charged?</key>
+		<key name="fully_discharged">Fully Discharged?</key>
+		<key name="i2c_errors_detected">i2c Errors Detected?</key>
+		<key name="initialized">Initialized?</key>
+		<key name="learn_cycle_active">Learn Cycle Active?</key>
+		<key name="learn_cycle_requested">Learn Cycle Requested?</key>
+		<key name="learn_cycle_status">Learn Cycle Status</key>
+		<key name="learn_cycle_timeout">Learn Cycle Timeout?</key>
+		<key name="learn_delay_interval">Learn Cycle Delay Interval</key>	<!-- Also used in cachevaults -->
+		<key name="manufacture_name">Manufacturer Model Name</key>		<!-- Also used in cachevaults -->
+		<key name="max_error">Maximum Errors</key>
+		<key name="module_microcode_update_required">Module Microcode Update Required?</key>	<!-- Also used in cachevaults -->
+		<key name="next_learn_time">Next Scheduled Learn Cycle</key>		<!-- Also used in cachevaults -->
+		<key name="no_space_to_cache_offload">No Space To Cache Offload?</key>	<!-- Also used in cachevaults -->
+		<key name="over_charged">Over Charged?</key>	<!-- Warning -->
+		<key name="over_temperature">Over Temperature?</key>	<!-- Warning -->
+		<key name="pack_is_about_to_fail_and_should_be_replaced">Battery Unit Is About To Fail?</key>	<!-- Warning -->
+		<key name="pack_stat_configuration">Battery Unit Statistics Configuration</key>
+		<key name="periodic_learn_required">Learn Cycle Required?</key>
+		<key name="relative_state_of_charge">Relative State Of Charge</key>
+		<key name="remaining_capacity">Remaining Capacity</key>
+		<key name="remaining_capacity_alarm">Remaining Capacity Alarm</key>
+		<key name="remaining_capacity_low">Remaining Capacity Low?</key>	<!-- Warning -->
+		<key name="remaining_time_alarm_status">Remaining Time Alarm?</key>
+		<key name="remaining_time_alarm">Remaining Time Alarm Threshold</key>
+		<key name="replacement_required">Replacement Required?</key>	<!-- Warning -->	<!-- Also used in cachevaults -->
+		<key name="run_time_to_empty">Runtime To Empty</key>
+		<key name="specification_info">Specification Information</key>
+		<key name="temperature_status">Temperature Status</key>	<!-- Warning -->
+		<key name="terminate_discharge_alarm">Terminate Discharge Alarm?</key>
+		<key name="transparent_learn">Transparent Learn</key>
+		<key name="type">Type</key>	<!-- Also used in cachevaults -->
+		<key name="voltage">Voltage Status</key>
+		
+		<!-- Cachevault Strings -->
+		<key name="capacitance">Capacitance (Percent)</key>
+		<key name="pack_energy">Cachevault Pack Energy</key>
+		<key name="remaining_reserve_space">Remaining Reserve Space</key>
+		<key name="tmmfru">TMM Field Replaceable Unit Number</key>
+		
+		<!-- Virtual Drive -->
+		<key name="active_operations">Active Operations</key>
+		<key name="creation_date">Creation Date</key>
+		<key name="creation_time">Creation Time</key>
+		<key name="data_protection">Data Protection?</key>
+		<key name="emulation_type">Emulation Type</key>
+		<key name="encryption">Encryption</key>
+		<key name="exposed_to_os">Exposed To The Operating System?</key>
+		<key name="is_ld_ready_for_os_requests">Logical Disk Is Ready For Operating System Requests?</key>
+		<key name="number_of_blocks">Number Of Blocks</key>
+		<key name="number_of_drives_per_span">Number Of Drives Per Span</key>
+		<key name="on_controller">On Controller With Serial Number</key>
+		<key name="scsi_naa_id">SCSI Network Address Authority (NAA) ID</key>
+		<key name="span_depth">Span Depth</key>
+		<key name="strip_size">Strip Size</key>
+		<key name="initial_write_cache_setting">Initial Write-Cache Setting</key>
+		
+		<!-- Drive groups -->
+		<key name="access">Access</key>
+		<key name="array_size">Array Size</key>
+		<key name="array_state">Array State</key>
+		<key name="cache">Raw Cache Value String</key>
+		<key name="cachecade">Cachecade Enabled?</key>
+		<key name="consistent">Consistent?</key>
+		<key name="disk_cache">Disk Cache</key>
+		<key name="raid_type">RAID Type</key>
+		<key name="read_cache">Read Cache</key>
+		<key name="scheduled_consistency_check">Scheduled Consistency Check?</key>
+		<key name="write_cache">Write Cache</key>	<!-- Also used in Physical Disks -->
+		
+		<!-- Physical Disk -->
+		<key name="bbm_error_count">Bad Block Management (BBM) Error Count</key>
+		<key name="certified">Vendor Certified Drive?</key>
+		<key name="coerced_size">Coerced Size</key>
+		<key name="commissioned_spare">Commissioned Spare?</key>
+		<key name="connected_port_number">Connected Port Number</key>
+		<key name="connector_name">Connector Name</key>
+		<key name="device_id">Device ID</key>		<!-- Also used in the controller -->
+		<key name="device_speed">Drive Link Speed</key>
+		<key name="drive_media">Drive Type</key>
+		<key name="drive_model">Drive Model Number</key>
+		<key name="drive_size">Drive Capacity</key>
+		<key name="emergency_spare">Emergency Spare?</key>
+		<key name="enclosure_position">Enclosure Position</key>
+		<key name="firmware_release_number">Firmware Release Number</key>
+		<key name="firmware_revision">Firmware Revision</key>
+		<key name="interface">Interface Type</key>
+		<key name="last_predictive_failure_event_sequence_number">Last "Predictive Failure" Event Sequence Number</key>	<!-- Warning -->
+		<key name="link_speed">Interface Link Speed</key>
+		<key name="locked">Drive Is Locked?</key>
+		<key name="manufacturer_identification">Drive Manufacturer</key>
+		<key name="media_error_count">Media Error Count</key>	<!-- Warning -->
+		<key name="model_number">Drive Model Number</key>
+		<key name="nand_vendor">Flash (NAND) Vendor</key>
+		<key name="needs_external_key_management_attention">Needs External Key Management Attention?</key>
+		<key name="non_coerced_size">Non-Coerced Size</key>
+		<key name="other_error_count">"Other" Error Count</key>	<!-- Warning -->
+		<key name="predictive_failure_count">Predictive Failure Count</key>	<!-- Warning -->
+		<key name="protection_info">Protection Information</key>
+		<key name="protection_information_eligible">Protection Information Eligible?</key>
+		<key name="raw_size">Raw Size</key>
+		<key name="row">Row</key>
+		<key name="sas_port_0_link_speed">SAS Port #0 Interface Speed</key>
+		<key name="sas_port_0_port_status">SAS Port #0 Port Status</key>
+		<key name="sas_port_0_sas_address">SAS Port #0 SAS Address</key>
+		<key name="sas_port_1_link_speed">SAS Port #1 Interface Speed</key>
+		<key name="sas_port_1_port_status">SAS Port #1 Port Status</key>
+		<key name="sas_port_1_sas_address">SAS Port #1 SAS Address</key>
+		<key name="sector_size">Sector Size</key>
+		<key name="secured">Drive Encrypted?</key>
+		<key name="sed_capable">Self-Encrypting Drive (SED) Capable?</key>
+		<key name="sed_enabled">Self-Encrypting Drive (SED) Enabled?</key>
+		<key name="self_encrypting_drive">Self-Encrypting Drive (SED)?</key>
+		<key name="sequence_number">Sequence Number</key>
+		<key name="serial_number">Drive Serial Number</key>
+		<key name="shield_counter">Shield Counter</key>
+		<key name="smart_alert_flagged_by_drive">SMART Alert Flagged By Drive?</key>	<!-- Warning -->
+		<key name="span">Span</key>
+		<key name="spun_up">Spun-Up?</key>
+		<key name="state">State</key>			<!-- Also used in cachevaults -->
+		<key name="successful_diagnostics_completion_on">Successful Diagnostics Completion On Date?</key>
+		<key name="wide_port_capable">Wide Port Capable?</key>
+		<key name="world_wide_name">World Wide Name (WWN)</key>
+		<key name="drive_temperature">Drive's Temperature</key>
+		
+	</language>
+</words>

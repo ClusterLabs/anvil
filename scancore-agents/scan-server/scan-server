@@ -255,7 +255,7 @@ DELETED   - Marks a server as no longer existing
 					definition => $virsh_definition,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0006", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0006", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0006", variables => $variables, set_by => $THIS_FILE});
 			}
 			
 			$anvil->data->{'scan-server'}{server_name}{$server_name}{server_uuid}           = $server_uuid;
@@ -366,7 +366,7 @@ DELETED   - Marks a server as no longer existing
 					new_definition   => $database_definition,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0001", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0001", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0001", variables => $variables, set_by => $THIS_FILE});
 			}
 			else
 			{
@@ -383,7 +383,7 @@ DELETED   - Marks a server as no longer existing
 					new_definition   => $on_disk_definition,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0002", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0002", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0002", variables => $variables, set_by => $THIS_FILE});
 			}
 			
 			# In either case, update the virsh definition from the disk now (either to load the 
@@ -413,7 +413,7 @@ DELETED   - Marks a server as no longer existing
 				new_definition  => $virsh_definition,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0003", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0003", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0003", variables => $variables, set_by => $THIS_FILE});
 		}
 		
 		my ($virsh_live_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server_name, source => $THIS_FILE, line => __LINE__});
@@ -472,7 +472,7 @@ DELETED   - Marks a server as no longer existing
 				new_name => $server_name,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0004", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0004", message_variables => $variables, set_by => $THIS_FILE });
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0004", variables => $variables, set_by => $THIS_FILE });
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -485,7 +485,7 @@ DELETED   - Marks a server as no longer existing
 				new_state => $server_state,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0005", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0005", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0005", variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 			
@@ -511,7 +511,7 @@ DELETED   - Marks a server as no longer existing
 				new_boot_time_epoch => $anvil->Convert->add_commas({number => $server_boot_time}),
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0008", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0008", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0008", variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -526,7 +526,7 @@ DELETED   - Marks a server as no longer existing
 				new_anvil_uuid => $server_anvil_uuid,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0009", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0009", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0009", variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -536,7 +536,7 @@ DELETED   - Marks a server as no longer existing
 			my $say_user_stop = $server_user_stop eq "TRUE" ? "scan_server_alert_0010" : "scan_server_alert_0011";
 			my $variables     = { server => $server_name };
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_user_stop, variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => $say_user_stop, message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => $say_user_stop, variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -551,7 +551,7 @@ DELETED   - Marks a server as no longer existing
 				new_host_uuid => $server_host_uuid,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0012", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0012", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0012", variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -567,7 +567,7 @@ DELETED   - Marks a server as no longer existing
 				new_ram_in_use_bytes => $anvil->Convert->add_commas({number => $old_server_ram_in_use}),
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0013", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0013", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0013", variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -584,7 +584,7 @@ DELETED   - Marks a server as no longer existing
 				new_configured_ram_bytes => $anvil->Convert->add_commas({number => $old_server_configured_ram}),
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_ram, variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => $say_ram, message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => $say_ram, variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update => $update }});
 		}
@@ -720,7 +720,7 @@ WHERE
 			# Now register an alert.
 			my $variables  = { server => $server_name };
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0007", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0007", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0007", variables => $variables, set_by => $THIS_FILE});
 		}
 	}
 	

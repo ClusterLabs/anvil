@@ -174,7 +174,7 @@ sub find_changes_in_lvs
 						lv_name => $scan_lvm_lv_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0021", variables => $variables});
-					$anvil->Alert->register({debug => 3, clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0021", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0021", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
@@ -185,7 +185,7 @@ sub find_changes_in_lvs
 						old_lv_name => $old_scan_lvm_lv_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0022", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0022", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0022", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_lv_attributes ne $old_scan_lvm_lv_attributes)
@@ -200,7 +200,7 @@ sub find_changes_in_lvs
 					old_attributes => $old_scan_lvm_lv_attributes,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0023", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0023", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0023", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_lvm_lv_on_vg ne $old_scan_lvm_lv_on_vg)
 			{
@@ -214,7 +214,7 @@ sub find_changes_in_lvs
 					old_lv_on_vg => $old_scan_lvm_lv_on_vg,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0024", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0024", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0024", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_lvm_lv_size ne $old_scan_lvm_lv_size)
 			{
@@ -233,13 +233,13 @@ sub find_changes_in_lvs
 				{
 					# Grew, probably added a new PV
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0025", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0025", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0025", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
 					# Shrank, 
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0026", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0026", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0026", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_lv_path ne $old_scan_lvm_lv_path)
@@ -254,7 +254,7 @@ sub find_changes_in_lvs
 					old_lv_path => $old_scan_lvm_lv_path,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0027", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0027", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0027", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_lvm_lv_on_pvs ne $old_scan_lvm_lv_on_pvs)
 			{
@@ -267,7 +267,7 @@ sub find_changes_in_lvs
 					old_lv_on_pvs => $old_scan_lvm_lv_path,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0028", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0028", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0028", variables => $variables, set_by => $THIS_FILE});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
@@ -308,7 +308,7 @@ WHERE
 				lv_on_pvs     => $scan_lvm_lv_on_pvs, 
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0029", variables => $variables});
-			$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0029", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0029", variables => $variables, set_by => $THIS_FILE});
 			
 			my $scan_lvm_lv_uuid = $anvil->Get->uuid();
 			my $query            = "
@@ -360,7 +360,7 @@ INSERT INTO
 			lv_name => $old_scan_lvm_lv_name,
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0031", variables => $variables});
-		$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0031", message_variables => $variables, set_by => $THIS_FILE});
+		$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0031", variables => $variables, set_by => $THIS_FILE});
 		
 		# Update it PV name to be 'DELTED'
 		my $query = "
@@ -431,7 +431,7 @@ sub find_changes_in_vgs
 						vg_name => $scan_lvm_vg_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0011", variables => $variables});
-					$anvil->Alert->register({debug => 3, clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0011", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0011", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
@@ -442,7 +442,7 @@ sub find_changes_in_vgs
 						old_vg_name => $old_scan_lvm_vg_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0012", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0012", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0012", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_vg_attributes ne $old_scan_lvm_vg_attributes)
@@ -457,7 +457,7 @@ sub find_changes_in_vgs
 					old_attributes => $old_scan_lvm_vg_attributes,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0013", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0013", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0013", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_lvm_vg_extent_size ne $old_scan_lvm_vg_extent_size)
 			{
@@ -473,7 +473,7 @@ sub find_changes_in_vgs
 					old_vg_extent_size_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_extent_size}),
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0014", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0014", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0014", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_lvm_vg_size ne $old_scan_lvm_vg_size)
 			{
@@ -492,13 +492,13 @@ sub find_changes_in_vgs
 				{
 					# Grew, probably added a new PV
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0015", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0015", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0015", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
 					# Shrank, wat?
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0016", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0016", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0016", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_vg_free ne $old_scan_lvm_vg_free)
@@ -518,13 +518,13 @@ sub find_changes_in_vgs
 				{
 					# Likely a new LV was created or an existing one was extended.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0017", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0017", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0017", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
 					# An old LV was probably removed.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0018", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0018", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0018", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			
@@ -566,7 +566,7 @@ WHERE
 				vg_free_bytes     => $anvil->Convert->add_commas({number => $scan_lvm_vg_free}),
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0020", variables => $variables});
-			$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0020", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0020", variables => $variables, set_by => $THIS_FILE});
 			
 			my $scan_lvm_vg_uuid = $anvil->Get->uuid();
 			my $query            = "
@@ -616,7 +616,7 @@ INSERT INTO
 			vg_name => $old_scan_lvm_vg_name,
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0030", variables => $variables});
-		$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0030", message_variables => $variables, set_by => $THIS_FILE});
+		$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0030", variables => $variables, set_by => $THIS_FILE});
 		
 		# Update it PV name to be 'DELTED'
 		my $query = "
@@ -686,7 +686,7 @@ sub find_changes_in_pvs
 						pv_name => $scan_lvm_pv_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0001", variables => $variables});
-					$anvil->Alert->register({debug => 3, clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0001", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0001", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
@@ -697,7 +697,7 @@ sub find_changes_in_pvs
 						old_pv_name => $old_scan_lvm_pv_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0002", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0002", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0002", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_pv_used_by_vg ne $old_scan_lvm_pv_used_by_vg)
@@ -714,7 +714,7 @@ sub find_changes_in_pvs
 						vg_name => $scan_lvm_pv_used_by_vg,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0004", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0004", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0004", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
@@ -726,7 +726,7 @@ sub find_changes_in_pvs
 						old_vg_name => $old_scan_lvm_pv_used_by_vg,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0005", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0005", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0005", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_pv_attributes ne $old_scan_lvm_pv_attributes)
@@ -741,7 +741,7 @@ sub find_changes_in_pvs
 					old_attributes => $old_scan_lvm_pv_attributes,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0006", variables => $variables});
-				$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0006", message_variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0006", variables => $variables, set_by => $THIS_FILE});
 			}
 			if ($scan_lvm_pv_size ne $old_scan_lvm_pv_size)
 			{
@@ -760,13 +760,13 @@ sub find_changes_in_pvs
 				{
 					# Yup
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0007", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0007", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0007", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
 					# Uhhhh... We'll make this a warning as it shouldn't happen.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0008", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0008", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0008", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			if ($scan_lvm_pv_free ne $old_scan_lvm_pv_free)
@@ -786,13 +786,13 @@ sub find_changes_in_pvs
 				{
 					# Yup
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0009", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0009", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0009", variables => $variables, set_by => $THIS_FILE});
 				}
 				else
 				{
 					# Uhhhh... We'll make this a warning as it shouldn't happen.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0010", variables => $variables});
-					$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0010", message_variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0010", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
 			
@@ -833,7 +833,7 @@ WHERE
 				pv_free_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_free}),
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0019", variables => $variables});
-			$anvil->Alert->register({debug => 3, alert_level => "notice", message => "scan_lvm_alert_0019", message_variables => $variables, set_by => $THIS_FILE});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0019", variables => $variables, set_by => $THIS_FILE});
 			
 			my $scan_lvm_pv_uuid = $anvil->Get->uuid();
 			my $query            = "
@@ -883,7 +883,7 @@ INSERT INTO
 			pv_name => $old_scan_lvm_pv_name,
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0003", variables => $variables});
-		$anvil->Alert->register({debug => 3, alert_level => "warning", message => "scan_lvm_alert_0003", message_variables => $variables, set_by => $THIS_FILE});
+		$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0003", variables => $variables, set_by => $THIS_FILE});
 		
 		# Update it PV name to be 'DELTED'
 		my $query = "

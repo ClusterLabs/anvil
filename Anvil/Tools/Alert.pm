@@ -405,11 +405,7 @@ This is the message body of the alert. It is expected to be in the format C<< <s
 Example with a message alone; C<< foo_0001 >>.
 Example with two variables; C<< foo_0002,!!bar!abc!!,!!baz!123!! >>.
 
-B<< Note >>: See C<< message_variables >> for an alternate method of passing variables
-
-=head3 message_variables (optional)
-
-This can be set as a hash reference containing key / variable pairs to inject into the message key. the C<< variable => value >> pairs will be appended to the C<< message >> key automatically. This is meant to simplify when an alert is also being longed, or when a large number of variables are being injected into the string.
+B<< Note >>: See C<< variables >> for an alternate method of passing variables
 
 =head3 set_by (required)
 
@@ -442,6 +438,10 @@ This is the title of the alert. It is expected to be in the format C<< <string_k
 Example with a message alone; C<< foo_0001 >>.
 Example with two variables; C<< foo_0002,!!bar!abc!!,!!baz!123!! >>.
 
+=head3 variables (optional)
+
+This can be set as a hash reference containing key / variable pairs to inject into the message key. the C<< variable => value >> pairs will be appended to the C<< message >> key automatically. This is meant to simplify when an alert is also being longed, or when a large number of variables are being injected into the string.
+
 =cut
 sub register
 {
@@ -451,23 +451,23 @@ sub register
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Alert->register()" }});
 	
-	my $alert_level       = defined $parameter->{alert_level}       ? $parameter->{alert_level}       : 0;
-	my $clear_alert       = defined $parameter->{clear_alert}       ? $parameter->{clear_alert}       : 0;
-	my $message           = defined $parameter->{message}           ? $parameter->{message}           : "";
-	my $message_variables = defined $parameter->{message_variables} ? $parameter->{message_variables} : "",
-	my $set_by            = defined $parameter->{set_by}            ? $parameter->{set_by}            : "";
-	my $show_header       = defined $parameter->{show_header}       ? $parameter->{show_header}       : 1;
-	my $sort_position     = defined $parameter->{sort_position}     ? $parameter->{sort_position}     : 9999;
-	my $title             = defined $parameter->{title}             ? $parameter->{title}             : "";
+	my $alert_level   = defined $parameter->{alert_level}   ? $parameter->{alert_level}   : 0;
+	my $clear_alert   = defined $parameter->{clear_alert}   ? $parameter->{clear_alert}   : 0;
+	my $message       = defined $parameter->{message}       ? $parameter->{message}       : "";
+	my $set_by        = defined $parameter->{set_by}        ? $parameter->{set_by}        : "";
+	my $show_header   = defined $parameter->{show_header}   ? $parameter->{show_header}   : 1;
+	my $sort_position = defined $parameter->{sort_position} ? $parameter->{sort_position} : 9999;
+	my $title         = defined $parameter->{title}         ? $parameter->{title}         : "";
+	my $variables     = defined $parameter->{variables}     ? $parameter->{variables}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		show_header       => $show_header,
-		clear_alert       => $clear_alert, 
-		alert_level       => $alert_level, 
-		message           => $message, 
-		message_variables => ref($message_variables), 
-		set_by            => $set_by,
-		sort_position     => $sort_position, 
-		title             => $title, 
+		show_header   => $show_header,
+		clear_alert   => $clear_alert, 
+		alert_level   => $alert_level, 
+		message       => $message, 
+		set_by        => $set_by,
+		sort_position => $sort_position, 
+		title         => $title, 
+		variables     => ref($variables), 
 	}});
 	
 	# Missing parameters?
@@ -487,11 +487,11 @@ sub register
 		return("!!error!!");
 	}
 	
-	if (ref($message_variables) eq "HASH")
+	if (ref($variables) eq "HASH")
 	{
-		foreach my $variable (sort {$a cmp $b} keys %{$message_variables})
+		foreach my $variable (sort {$a cmp $b} keys %{$variables})
 		{
-			my $value   =  defined $message_variables->{$variable} ? $message_variables->{$variable} : "undefined:".$variable;
+			my $value   =  defined $variables->{$variable} ? $variables->{$variable} : "undefined:".$variable;
 			   $message .= ",!!".$variable."!".$value."!!";
 		}
 	}

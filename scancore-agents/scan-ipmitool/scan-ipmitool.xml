@@ -11,7 +11,7 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_ipmitool_l
 <words>
 	<meta version="3.0.0" languages="en_CA,jp"/>
 	<!-- Canadian English -->
-	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors sensors available via IPMI BMCs.">
 		
 		<!-- Messages entries -->
 		<key name="scan_ipmitool_message_0001">No IPMI BMC found on this host nor where any other machines with IPMI found or where accessible. Nothing to do.</key>
