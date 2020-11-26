@@ -1174,6 +1174,21 @@ AND
 			"new::${machine}::temperature::${scan_ipmitool_sensor_name}::temperature_uuid" => $anvil->data->{new}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid},
 		}});
 	}
+
+	# Now, if any undeleted old entries remain, delete them from the database.
+	foreach my $ipmitool_sensor_name (sort {$a cmp $b} keys %{$anvil->data->{old}{$machine}{temperature}})
+	{
+		my $temperature_uuid = $anvil->data->{old}{$machine}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
+		
+		$temperature_uuid = $anvil->Database->insert_or_update_temperature({
+			cache            => $anvil->data->{'scan-ipmitool'}{queries}, 
+			debug            => 2,
+			'delete'         => 1,
+			temperature_uuid => $temperature_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
+	}
 	
 	# Now commit the changes.
 	$anvil->Database->write({query => $anvil->data->{'scan-ipmitool'}{queries}, source => $THIS_FILE, line => __LINE__});

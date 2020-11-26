@@ -110,7 +110,12 @@ sub check_config
 	# known server.
 	$anvil->Database->get_mail_servers({debug => $debug});
 	my ($oldest_message) = $anvil->Email->check_queue({debug => $debug});
-	if ($oldest_message > 600)
+	if ($oldest_message eq "!!error!!")
+	{
+		# Something went wrong, but the problem would already be logged, so just return.
+		$problem = 1;
+	}
+	elsif ($oldest_message > 600)
 	{
 		# Switch out mail servers. If there's only one mail server, this just checks the existing 
 		# config.
@@ -190,7 +195,7 @@ sub check_config
 
 =head2 check_queue
 
-This method looks to see how many email messages are in the send queue and how long they've been there. The age of the older queued message is returned (in seconds).
+This method looks to see how many email messages are in the send queue and how long they've been there. The age of the older queued message is returned (in seconds). If there is a problem, C<< !!error!! >> is returned.
 
 This method takes no parameters.
 
@@ -204,11 +209,18 @@ sub check_queue
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->check_queue()" }});
 	
 	my $oldest_message        = 0;
-	my ($queue, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{postqueue}." -j"});
+	my ($queue, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{postqueue}." -j"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		queue       => $queue,
 		return_code => $return_code,
 	}});
+	
+	if ($queue =~ /^postqueue: warning:/)
+	{
+		# Something is up, we can't proceed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0069", variables => { output => $queue }});
+		return("!!error!!");
+	}
 	
 	# This is empty if there is nothing in the queue.
 	foreach my $email (split/\n/, $queue)
@@ -1171,6 +1183,9 @@ sub _configure_for_server
 			variable_description  => "striker_0276",
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+		
+		# In some cases, postfix will already be running, but won't be enabled. 
+		my $enable_return_code = $anvil->System->enable_daemon({daemon => "postfix.service"});
 		
 		# Start the daemon
 		if (not $postfix_started)

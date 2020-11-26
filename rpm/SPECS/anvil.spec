@@ -87,6 +87,7 @@ Requires:       screen
 Requires:       smartmontools
 Requires:       syslinux
 Requires:       tmux
+Requires:       unzip
 Requires:       usbutils
 Requires:       vim 
 Requires:       wget
@@ -101,7 +102,7 @@ Common base libraries required for the Anvil! system.
 
 %package striker
 Summary:        Alteeve's Anvil! Striker dashboard package
-Requires:       anvil-core
+Requires:       anvil-core == %{version}-%{release}
 Requires:       anvil-striker-extra
 Requires:       bpg-dejavu-sans-fonts
 Requires:       createrepo
@@ -135,7 +136,7 @@ NOTE: This installs and enables Gnome desktop.
 
 %package node 
 Summary:        Alteeve's Anvil! node package
-Requires:	anvil-core
+Requires:	anvil-core == %{version}-%{release}
 Requires:       drbd90-utils 
 Requires:       kmod-drbd90
 Requires:       libvirt 
@@ -165,7 +166,7 @@ NOTE: LINBIT customers must have access to the LINBIT repositories configured.
 
 %package dr
 Summary:        Alteeve's Anvil! DR host package
-Requires:	anvil-core
+Requires:	anvil-core == %{version}-%{release}
 Requires:       drbd90-utils 
 Requires:       kmod-drbd90
 Requires:       libvirt 

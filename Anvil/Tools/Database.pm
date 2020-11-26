@@ -1065,6 +1065,13 @@ Once connected to the database, a query is made to see if the database needs to 
 If you set this table manually, it will be checked and if the table doesn't exist on a connected database, the database will be initialized with the C<< sql_file >> parameter's file.
 
 =cut
+### TODO: Have anvil-daemon look up all IPs available for a database (SELECT ip_address_address, 
+###       ip_address_subnet_mask FROM ip_addresses WHERE ip_address_host_uuid = '<host_uuid>' AND 
+###       ip_address_note != 'DELETED';) and append any found IPs to the anvil.conf entry. Then, in the order
+###       they're found in the anvil.conf, try to connect. This should speed up showing link state changes 
+###       when mapping the network of a node or DR host as the client can fairly quickly cycle through 
+###       networks to find and update the database). On connect, move the host/IP that worked to the front of
+###       the list.
 sub connect
 {
 	my $self      = shift;
@@ -1145,7 +1152,7 @@ sub connect
 		$anvil->data->{database}{$uuid}{password} = ""                                  if not defined $anvil->data->{database}{$uuid}{password}; 
 		
 		my $driver   = "DBI:Pg";
-		my $host     = $anvil->data->{database}{$uuid}{host}; # This should fail
+		my $host     = $anvil->data->{database}{$uuid}{host}; # This should fail if not set
 		my $port     = $anvil->data->{database}{$uuid}{port};
 		my $name     = $anvil->data->{database}{$uuid}{name};
 		my $user     = $anvil->data->{database}{$uuid}{user};
@@ -1174,7 +1181,7 @@ sub connect
 		}
 		
 		# Make sure the user didn't specify the same target twice.
-		my $target_host = "$host:$port";
+		my $target_host = $host.":".$port;
 		my $duplicate   = 0;
 		foreach my $existing_host (sort {$a cmp $b} @{$seen_connections})
 		{
@@ -1204,7 +1211,7 @@ sub connect
 		
 		### TODO: Can we do a telnet port ping with a short timeout instead of a shell ping call?
 		# Assemble my connection string
-		my $db_connect_string = "$driver:dbname=$name;host=$host;port=$port";
+		my $db_connect_string = $driver.":dbname=".$name.";host=".$host.";port=".$port;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			db_connect_string         => $db_connect_string, 
 			"database::${uuid}::ping" => $anvil->data->{database}{$uuid}{ping},
@@ -4258,9 +4265,9 @@ WHERE
 	}
 	
 	# NULL values can't be quoted
-	my $say_anvil_node1_host_uuid = $anvil_node1_host_uuid eq "NULL" ? "NULL" : $anvil->Database->quote($anvil_node1_host_uuid);
-	my $say_anvil_node2_host_uuid = $anvil_node2_host_uuid eq "NULL" ? "NULL" : $anvil->Database->quote($anvil_node2_host_uuid);
-	my $say_anvil_dr1_host_uuid   = $anvil_dr1_host_uuid   eq "NULL" ? "NULL" : $anvil->Database->quote($anvil_dr1_host_uuid);
+	my $say_anvil_node1_host_uuid = $anvil_node1_host_uuid eq "" ? "NULL" : $anvil->Database->quote($anvil_node1_host_uuid);
+	my $say_anvil_node2_host_uuid = $anvil_node2_host_uuid eq "" ? "NULL" : $anvil->Database->quote($anvil_node2_host_uuid);
+	my $say_anvil_dr1_host_uuid   = $anvil_dr1_host_uuid   eq "" ? "NULL" : $anvil->Database->quote($anvil_dr1_host_uuid);
 
 	
 	# If I still don't have an anvil_uuid, we're INSERT'ing .
@@ -6717,7 +6724,7 @@ sub insert_or_update_jobs
 	my $job_data             = defined $parameter->{job_data}             ? $parameter->{job_data}             : "";
 	my $job_picked_up_by     = defined $parameter->{job_picked_up_by}     ? $parameter->{job_picked_up_by}     : 0;
 	my $job_picked_up_at     = defined $parameter->{job_picked_up_at}     ? $parameter->{job_picked_up_at}     : 0;
-	my $job_updated          = defined $parameter->{job_updated}          ? $parameter->{job_updated}          : time;
+	my $job_updated          = defined $parameter->{job_updated}          ? $parameter->{job_updated}          : "";
 	my $job_name             = defined $parameter->{job_name}             ? $parameter->{job_name}             : "";
 	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : "";
 	my $job_title            = defined $parameter->{job_title}            ? $parameter->{job_title}            : "";
@@ -6744,6 +6751,7 @@ sub insert_or_update_jobs
 		update_progress_only => $update_progress_only, 
 		clear_status         => $clear_status, 
 	}});
+	
 	
 	# If I have a job_uuid and update_progress_only is true, I only need the progress.
 	my $problem = 0;
@@ -6802,6 +6810,12 @@ sub insert_or_update_jobs
 	if ($problem)
 	{
 		return("");
+	}
+	
+	if (not $job_updated)
+	{
+		$job_updated = time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_updated => $job_updated }});
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given job name.
@@ -10493,6 +10507,10 @@ parameters;
 
 If this is passed an array reference, SQL queries will be pushed into the array instead of actually committed to databases. It will be up to the caller to commit the queries.
 
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, the associated C<< temperature_uuid >> will be deleted. When set, only C<< temperature_uuid >> is required.
+
 =head3 temperature_uuid (optional)
 
 Is passed, the specific entry will be updated.
@@ -10547,7 +10565,8 @@ sub insert_or_update_temperature
 	my $uuid                    = defined $parameter->{uuid}                    ? $parameter->{uuid}                    : "";
 	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
 	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
-	my $cache                   = defined $parameter->{cache}                   ? $parameter->{cache}                   : "";
+	my $cache                   = defined $parameter->{cache}                   ? $parameter->{cache}                   : 0;
+	my $delete                  = defined $parameter->{'delete'}                ? $parameter->{'delete'}                : 0;
 	my $temperature_uuid        = defined $parameter->{temperature_uuid}        ? $parameter->{temperature_uuid}        : "";
 	my $temperature_host_uuid   = defined $parameter->{temperature_host_uuid}   ? $parameter->{temperature_host_uuid}   : $anvil->Get->host_uuid;
 	my $temperature_agent_name  = defined $parameter->{temperature_agent_name}  ? $parameter->{temperature_agent_name}  : "";
@@ -10561,6 +10580,8 @@ sub insert_or_update_temperature
 		uuid                    => $uuid, 
 		file                    => $file, 
 		line                    => $line, 
+		cache                   => $cache,
+		'delete'                => $delete,
 		temperature_uuid        => $temperature_uuid,
 		temperature_host_uuid   => $temperature_host_uuid,
 		temperature_agent_name  => $temperature_agent_name,
@@ -10572,59 +10593,63 @@ sub insert_or_update_temperature
 		temperature_weight      => $temperature_weight, 
 	}});
 	
-	# Pointy end up?
-	if ($temperature_state eq "norminal")
-	{
-		$temperature_state = "nominal";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_state => $temperature_state }});
-	}
 	
-	if (not $temperature_agent_name)
+	# Pointy end up?
+	if (not $delete)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_agent_name" }});
-		return("");
-	}
-	if (not $temperature_sensor_host)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_sensor_host" }});
-		return("");
-	}
-	if (not $temperature_sensor_name)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_sensor_name" }});
-		return("");
-	}
-	if ($temperature_value_c eq "")
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_value_c" }});
-		return("");
-	}
-	if (not $temperature_state)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_state" }});
-		return("");
-	}
-	elsif (($temperature_state ne "ok") && ($temperature_state ne "warning") && ($temperature_state ne "critical"))
-	{
-		# Invalid value.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0546", variables => { temperature_state => $temperature_state }});
-		return("");
-	}
-	if (not $temperature_is)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_is" }});
-		return("");
-	}
-	elsif (($temperature_is ne "nominal") && ($temperature_is ne "warning") && ($temperature_is ne "critical"))
-	{
-		# Invalid value.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0547", variables => { temperature_is => $temperature_is }});
-		return("");
-	}
-	if ($temperature_weight eq "")
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_weight" }});
-		return("");
+		if ($temperature_state eq "norminal")
+		{
+			$temperature_state = "nominal";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_state => $temperature_state }});
+		}
+		
+		if (not $temperature_agent_name)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_agent_name" }});
+			return("");
+		}
+		if (not $temperature_sensor_host)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_sensor_host" }});
+			return("");
+		}
+		if (not $temperature_sensor_name)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_sensor_name" }});
+			return("");
+		}
+		if ($temperature_value_c eq "")
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_value_c" }});
+			return("");
+		}
+		if (not $temperature_state)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_state" }});
+			return("");
+		}
+		elsif (($temperature_state ne "ok") && ($temperature_state ne "warning") && ($temperature_state ne "critical"))
+		{
+			# Invalid value.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0546", variables => { temperature_state => $temperature_state }});
+			return("");
+		}
+		if (not $temperature_is)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_is" }});
+			return("");
+		}
+		elsif (($temperature_is ne "nominal") && ($temperature_is ne "warning") && ($temperature_is ne "critical"))
+		{
+			# Invalid value.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0547", variables => { temperature_is => $temperature_is }});
+			return("");
+		}
+		if ($temperature_weight eq "")
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_weight" }});
+			return("");
+		}
 	}
 	
 	# If we don't have a temperature UUID, see if we can find one.
@@ -10655,6 +10680,51 @@ AND
 			$temperature_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_uuid => $temperature_uuid }});
 		}
+	}
+	
+	if ($delete)
+	{
+		if (not $temperature_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_uuid" }});
+			return("");
+		}
+		
+		my $query = "
+UPDATE 
+    temperature 
+SET 
+    temperature_state  = 'DELETED', 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    temperature_uuid   = ".$anvil->Database->quote($temperature_uuid).";
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		if (ref($cache) eq "ARRAY")
+		{
+			push @{$cache}, $query;
+		}
+		else
+		{
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+		
+		$query = "
+DELETE FROM 
+    temperature 
+WHERE
+    temperature_uuid   = ".$anvil->Database->quote($temperature_uuid).";
+";
+		push @{$anvil->data->{'scan-hpacucli'}{queries}}, $query;
+		if (ref($cache) eq "ARRAY")
+		{
+			push @{$cache}, $query;
+		}
+		else
+		{
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+		return($temperature_uuid);
 	}
 	
 	# If we have a temperature UUID now, look up the previous value and see if it has changed. If not, INSERT 

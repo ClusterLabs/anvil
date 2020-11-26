@@ -1574,3 +1574,8 @@ ip link set <dev> mtu 9000
 netsh interface ipv4 set subinterface "Local Area Connection" mtu=nnnn store=persistent
 
 yum install kernel-2.6.32-754.27.1.el6.x86_64 kernel-devel-2.6.32-754.27.1.el6.x86_64 kernel-headers-2.6.32-754.27.1.el6.x86_64
+
+
+DRBD Notes;
+* c-max-rate is default 100M. Detect when the SN is 10Gbps and up to 750M
+* drbdsetup show <resource> --show-defaults <- shows defaults

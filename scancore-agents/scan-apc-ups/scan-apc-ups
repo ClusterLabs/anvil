@@ -14,6 +14,8 @@
 # - Support UPSes with extended runtime batteries
 # - Pick a battery temperature where the UPS will automatically shut down if it passes over.
 # - Add support for sudden temperature jumps in process_temperature().
+# - It might be possible that a battery goes over temp, then is removed and not replaced, the UPS could keep 
+#   reporting a temp anomoly.
 # 
 
 # Use my modules.

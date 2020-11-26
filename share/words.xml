@@ -1897,6 +1897,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 #!variable!xml!#
 ========
 		</key>
+		<key name="warning_0069">[ Warning ] - Checking the mail queue appears to have failed. Output received was: [#!variable!output!#].</key>
 		
 	</language>
 	<!-- 日本語 -->

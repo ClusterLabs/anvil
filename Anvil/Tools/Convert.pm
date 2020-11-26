@@ -755,7 +755,7 @@ sub format_mmddyy_to_yymmdd
 	
 	if (not $date)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->host_name_to_ip()", parameter => "host_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->format_mmddyy_to_yymmdd()", parameter => "host_name" }});
 		return("!!error!!");
 	}
 	

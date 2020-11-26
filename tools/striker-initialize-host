@@ -648,7 +648,7 @@ EOF
 	undef $error;
 	undef $return_code;
 	($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => 3,
+		debug       => 2,
 		shell_call  => $anvil->data->{path}{exe}{'dnf'}." list installed ".$package,
 		password    => $anvil->data->{data}{password}, 
 		port        => $anvil->data->{data}{ssh_port}, 

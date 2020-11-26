@@ -515,7 +515,7 @@ AND
 		}
 		$health_uuid = $anvil->Database->insert_or_update_health({
 			debug                => 2,
-			cache                => $anvil->data->{'scan-ipmitool'}{queries}, 
+			cache                => $anvil->data->{'scan-storcli'}{queries}, 
 			health_uuid          => $health_uuid,
 			health_host_uuid     => $anvil->Get->host_uuid,
 			health_agent_name    => $THIS_FILE,
@@ -531,7 +531,7 @@ AND
 		# Well set the source name to 'DELETED'.
 		my $health_uuid = $anvil->Database->insert_or_update_health({
 			debug       => 2,
-			cache       => $anvil->data->{'scan-ipmitool'}{queries}, 
+			cache       => $anvil->data->{'scan-storcli'}{queries}, 
 			'delete'    => 1,
 			health_uuid => $anvil->data->{health}{old}{$health_source_name}{uuid},
 		});
@@ -636,15 +636,15 @@ AND
 				}});
 			}
 			
-			### TODO: Left off here.
 			# Store
 			my $temperature_uuid = "";
 			if (exists $anvil->data->{old}{temperature}{$variable}{$serial_number})
 			{
 				$temperature_uuid = $anvil->data->{old}{temperature}{$variable}{$serial_number}{temperature_uuid};
+				delete $anvil->data->{old}{temperature}{$variable}{$serial_number};
 			}
 			$temperature_uuid = $anvil->Database->insert_or_update_temperature({
-				cache                   => $anvil->data->{'scan-ipmitool'}{queries}, 
+				cache                   => $anvil->data->{'scan-storcli'}{queries}, 
 				debug                   => 2,
 				temperature_uuid        => $temperature_uuid, 
 				temperature_host_uuid   => $anvil->Get->host_uuid,
@@ -658,6 +658,21 @@ AND
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
 		}
+	}
+
+	# Now, if any undeleted old entries remain, delete them from the database.
+	foreach my $serial_number (sort {$a cmp $b} keys %{$anvil->data->{old}{temperature}{$variable}})
+	{
+		my $temperature_uuid = $anvil->data->{old}{temperature}{$variable}{$serial_number}{temperature_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
+		
+		$temperature_uuid = $anvil->Database->insert_or_update_temperature({
+			cache            => $anvil->data->{'scan-storcli'}{queries}, 
+			debug            => 2,
+			'delete'         => 1,
+			temperature_uuid => $temperature_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
 	}
 	
 	# Commit the queries.
@@ -745,12 +760,12 @@ sub process_drive_groups
 		if (not $host_controller_serial_number)
 		{
 			# Error!
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0011", variables => { id_string => $scan_storcli_virtual_drive_id_string }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0011", variables => { id_string => $scan_storcli_virtual_drive_id_string }});
 			$anvil->nice_exit({exit_code => 11});
 		}
 		if (not $controller_uuid)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
 			$anvil->nice_exit({exit_code => 8});
 		}
 		
@@ -931,7 +946,7 @@ sub process_drive_groups
 				alert_level   => "notice", 
 				message       => "scan_storcli_note_0005", 
 				variables     => $variables, 
-				sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+				sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 				set_by        => $THIS_FILE, 
 			});
 			
@@ -1003,7 +1018,7 @@ INSERT INTO
 						message       => "scan_storcli_note_0002", 
 						show_header   => 0, 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 						set_by        => $THIS_FILE, 
 					});
 					
@@ -1086,7 +1101,7 @@ INSERT INTO
 			
 			if (not defined $old_drive_group_virtual_drive_uuid)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0014", variables => { drive_group => $drive_group }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0014", variables => { drive_group => $drive_group }});
 				$anvil->nice_exit({exit_code => 14});
 			}
 			
@@ -1148,7 +1163,7 @@ INSERT INTO
 					message       => $message_key, 
 					show_header   => 0, 
 					variables     => $variables, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 					set_by        => $THIS_FILE, 
 				});
 				$main_table_changed = 1;
@@ -1234,7 +1249,7 @@ WHERE
 								message       => $message_key, 
 								show_header   => $main_table_changed ? 0 : 1, 
 								variables     => $variables, 
-								sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+								sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 								set_by        => $THIS_FILE, 
 							});
 							
@@ -1267,7 +1282,7 @@ WHERE
 							message       => "scan_storcli_warning_0043", 
 							show_header   => $main_table_changed ? 0 : 1, 
 							variables     => $variables, 
-							sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+							sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 							set_by        => $THIS_FILE, 
 						});
 						
@@ -1337,7 +1352,7 @@ INSERT INTO
 						message       => "scan_storcli_warning_0028", 
 						show_header   => $main_table_changed ? 0 : 1, 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 						set_by        => $THIS_FILE, 
 					});
 					
@@ -1402,12 +1417,12 @@ sub process_virtual_drives
 		if (not $host_controller_serial_number)
 		{
 			# Error!
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0010", variables => { id_string => $scan_storcli_virtual_drive_id_string }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0010", variables => { id_string => $scan_storcli_virtual_drive_id_string }});
 			$anvil->nice_exit({exit_code => 10});
 		}
 		if (not $controller_uuid)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
 			$anvil->nice_exit({exit_code => 8});
 		}
 		
@@ -1632,7 +1647,7 @@ sub process_virtual_drives
 				alert_level   => "notice", 
 				message       => "scan_storcli_note_0004", 
 				variables     => $variables, 
-				sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+				sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 				set_by        => $THIS_FILE, 
 			});
 			
@@ -1702,7 +1717,7 @@ INSERT INTO
 						show_header   => 0, 
 						message       => "scan_storcli_note_0002", 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 						set_by        => $THIS_FILE, 
 					});
 					
@@ -1850,7 +1865,7 @@ INSERT INTO
 					clear_alert   => $cleared, 
 					message       => $message_key, 
 					variables     => $variables, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 					set_by        => $THIS_FILE, 
 				});
 				$main_table_changed = 1;
@@ -1969,7 +1984,7 @@ WHERE
 								show_header   => $main_table_changed ? 0 : 1, 
 								message       => $message_key, 
 								variables     => $variables, 
-								sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+								sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 								set_by        => $THIS_FILE, 
 							});
 							
@@ -2003,7 +2018,7 @@ WHERE
 							show_header   => $main_table_changed ? 0 : 1, 
 							message       => "scan_storcli_warning_0022", 
 							variables     => $variables, 
-							sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+							sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 							set_by        => $THIS_FILE, 
 						});
 						
@@ -2074,7 +2089,7 @@ INSERT INTO
 						show_header   => $main_table_changed ? 0 : 1, 
 						message       => "scan_storcli_warning_0021", 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 						set_by        => $THIS_FILE, 
 					});
 					
@@ -2145,7 +2160,7 @@ WHERE
 			show_header   => 1, 
 			message       => "scan_storcli_warning_0023", 
 			variables     => $variables, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 			set_by        => $THIS_FILE, 
 		});
 		
@@ -2202,7 +2217,7 @@ WHERE
 		# If I still don't have a controller UUID, then something serious went wrong.
 		if (not $controller_uuid)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0015", variables => { drive_group_uuid => $scan_storcli_drive_group_uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0015", variables => { drive_group_uuid => $scan_storcli_drive_group_uuid }});
 			$anvil->nice_exit({exit_code => 15});
 		}
 		
@@ -2235,7 +2250,7 @@ WHERE
 			show_header   => 1, 
 			message       => "scan_storcli_warning_0028", 
 			variables     => $variables, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 			set_by        => $THIS_FILE, 
 		});
 		
@@ -2328,7 +2343,7 @@ sub process_physical_disks
 			show_header   => 1,
 			message       => "scan_storcli_warning_0035", 
 			variables     => $variables, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 			set_by        => $THIS_FILE, 
 		});
 		
@@ -2378,7 +2393,7 @@ sub process_a_physical_disk
 	else
 	{
 		# Error!
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0013", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0013", variables => { 
 			virtual_drive => $scan_storcli_virtual_drive_id_string,
 			drive_group   => $drive_group,
 			enclosure_id  => $enclosure_id,
@@ -2394,7 +2409,7 @@ sub process_a_physical_disk
 	if (not $anvil->data->{virtual_drive}{$scan_storcli_virtual_drive_id_string}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{variable}{on_controller})
 	{
 		# Error!
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0012", variables => { serial_number => $scan_storcli_physical_drive_serial_number }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0012", variables => { serial_number => $scan_storcli_physical_drive_serial_number }});
 		$anvil->nice_exit({exit_code => 12});
 	}
 	
@@ -2404,7 +2419,7 @@ sub process_a_physical_disk
 	# Now make sure I can translate this to a UUID.
 	if (not $anvil->data->{'scan-storcli'}{controllers}{by_serial}{$host_controller_serial_number})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
 		$anvil->nice_exit({exit_code => 8});
 	}
 	my $controller_uuid = $anvil->data->{'scan-storcli'}{controllers}{by_serial}{$host_controller_serial_number};
@@ -2538,7 +2553,7 @@ sub process_a_physical_disk
 			show_header   => 1,
 			message       => "scan_storcli_note_0006", 
 			variables     => $variables, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 			set_by        => $THIS_FILE, 
 		});
 		
@@ -2713,7 +2728,7 @@ INSERT INTO
 					show_header   => 0,
 					message       => $message_key, 
 					variables     => $variables, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 					set_by        => $THIS_FILE, 
 				});
 				
@@ -2847,7 +2862,7 @@ INSERT INTO
 				show_header   => 0,
 				message       => $message_key, 
 				variables     => $variables, 
-				sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+				sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 				set_by        => $THIS_FILE, 
 			});
 			$main_table_changed = 1;
@@ -3273,7 +3288,7 @@ WHERE
 							show_header   => $main_table_changed ? 0 : 1, 
 							message       => $message_key, 
 							variables     => $variables, 
-							sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+							sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 							set_by        => $THIS_FILE, 
 						});
 						
@@ -3306,7 +3321,7 @@ WHERE
 						show_header   => $main_table_changed ? 0 : 1, 
 						message       => "scan_storcli_warning_0033", 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 						set_by        => $THIS_FILE, 
 					});
 					
@@ -3377,7 +3392,7 @@ INSERT INTO
 					show_header   => $main_table_changed ? 0 : 1, 
 					message       => "scan_storcli_warning_0034", 
 					variables     => $variables, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 					set_by        => $THIS_FILE, 
 				});
 				
@@ -3473,7 +3488,7 @@ sub process_cachevaults
 		if (not $anvil->data->{cachevault}{serial_number}{$cachevault_serial_number}{host_controller_serial_number})
 		{
 			# Error!
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_storcli_error_0009", variables => { serial_number => $cachevault_serial_number }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0009", variables => { serial_number => $cachevault_serial_number }});
 			$anvil->nice_exit({exit_code => 9});
 		}
 		my $host_controller_serial_number = $anvil->data->{cachevault}{serial_number}{$cachevault_serial_number}{host_controller_serial_number};
@@ -3481,7 +3496,7 @@ sub process_cachevaults
 		
 		if (not $anvil->data->{'scan-storcli'}{controllers}{by_serial}{$host_controller_serial_number})
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
 			$anvil->nice_exit({exit_code => 8});
 		}
 		my $controller_uuid = $anvil->data->{'scan-storcli'}{controllers}{by_serial}{$host_controller_serial_number};
@@ -3574,7 +3589,7 @@ sub process_cachevaults
 				alert_level   => "notice", 
 				message       => "scan_storcli_note_0007", 
 				variables     => $variables, 
-				sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+				sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 				set_by        => $THIS_FILE, 
 			});
 			
@@ -3745,7 +3760,7 @@ INSERT INTO
 						message       => $message_key, 
 						variables     => $variables, 
 						show_header   => 0, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 						set_by        => $THIS_FILE,
 					});
 					
@@ -3872,7 +3887,7 @@ INSERT INTO
 					message       => $message_key, 
 					variables     => $variables, 
 					show_header   => 0, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 					set_by        => $THIS_FILE,
 				});
 				$main_table_changed = 1;
@@ -4293,7 +4308,7 @@ WHERE
 								message       => $message_key, 
 								variables     => $variables, 
 								show_header   => $main_table_changed ? 0 : 1, 
-								sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+								sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 								set_by        => $THIS_FILE,
 							});
 							
@@ -4326,7 +4341,7 @@ WHERE
 							message       => "scan_storcli_warning_0041", 
 							variables     => $variables, 
 							show_header   => $main_table_changed ? 0 : 1, 
-							sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+							sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 							set_by        => $THIS_FILE,
 						});
 						
@@ -4397,7 +4412,7 @@ INSERT INTO
 						message       => "scan_storcli_warning_0040", 
 						variables     => $variables, 
 						show_header   => $main_table_changed ? 0 : 1, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 						set_by        => $THIS_FILE,
 					});
 					
@@ -4460,7 +4475,7 @@ WHERE
 			message       => "scan_storcli_warning_0042", 
 			variables     => $variables, 
 			show_header   => 1, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 			set_by        => $THIS_FILE,
 		});
 		
@@ -4579,7 +4594,7 @@ sub process_bbus
 		if (not $anvil->data->{bbu}{serial_number}{$bbu_serial_number}{host_controller_serial_number})
 		{
 			# Error!
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_storcli_error_0007", variables => { serial_number => $bbu_serial_number }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0007", variables => { serial_number => $bbu_serial_number }});
 			$anvil->nice_exit({exit_code => 7});
 		}
 		my $host_controller_serial_number = $anvil->data->{bbu}{serial_number}{$bbu_serial_number}{host_controller_serial_number};
@@ -4587,7 +4602,7 @@ sub process_bbus
 		
 		if (not $anvil->data->{'scan-storcli'}{controllers}{by_serial}{$host_controller_serial_number})
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0008", variables => { serial_number => $host_controller_serial_number }});
 			$anvil->nice_exit({exit_code => 8});
 		}
 		my $controller_uuid = $anvil->data->{'scan-storcli'}{controllers}{by_serial}{$host_controller_serial_number};
@@ -4680,7 +4695,7 @@ sub process_bbus
 				alert_level   => "notice", 
 				message       => "scan_storcli_note_0003", 
 				variables     => $variables, 
-				sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+				sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 				set_by        => $THIS_FILE, 
 			});
 			
@@ -4849,7 +4864,7 @@ INSERT INTO
 						alert_level   => $alert_level, 
 						message       => $message_key, 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 						set_by        => $THIS_FILE,
 					});
 					
@@ -4974,7 +4989,7 @@ INSERT INTO
 					message       => $message_key, 
 					variables     => $variables, 
 					show_header   => 0, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 					set_by        => $THIS_FILE,
 				});
 
@@ -5421,7 +5436,7 @@ WHERE
 								message       => $message_key, 
 								variables     => $variables, 
 								show_header   => $show_header, 
-								sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+								sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 								set_by        => $THIS_FILE,
 							});
 							
@@ -5455,7 +5470,7 @@ WHERE
 							message       => "scan_storcli_warning_0015", 
 							variables     => $variables, 
 							show_header   => $show_header, 
-							sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+							sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 							set_by        => $THIS_FILE,
 						});
 						
@@ -5526,7 +5541,7 @@ INSERT INTO
 						message       => "scan_storcli_warning_0014", 
 						variables     => $variables, 
 						show_header   => $show_header, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 						set_by        => $THIS_FILE,
 					});
 					
@@ -5588,7 +5603,7 @@ WHERE
 			message       => "scan_storcli_warning_0016", 
 			variables     => $variables, 
 			show_header   => 1, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 			set_by        => $THIS_FILE,
 		});
 		
@@ -5751,7 +5766,7 @@ sub process_controllers
 				alert_level   => "notice", 
 				message       => "scan_storcli_note_0001", 
 				variables     => $variables, 
-				sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++,
+				sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++,
 				set_by        => $THIS_FILE, 
 			});
 			
@@ -5905,7 +5920,7 @@ INSERT INTO
 						alert_level   => $alert_level, 
 						message       => $message_key, 
 						variables     => $variables, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 						set_by        => $THIS_FILE,
 					});
 					
@@ -5996,7 +6011,7 @@ INSERT INTO
 					alert_level   => "warning", 
 					message       => $message_key, 
 					variables     => $variables, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 					set_by        => $THIS_FILE});
 				
 				   $main_table_changed = 1;
@@ -6455,7 +6470,7 @@ AND
 								message       => $message_key, 
 								variables     => $variables, 
 								show_header   => $alert_header, 
-								sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+								sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 								set_by        => $THIS_FILE,
 							});
 							
@@ -6489,7 +6504,7 @@ WHERE
 							message       => "scan_storcli_warning_0004", 
 							variables     => $variables, 
 							show_header   => $alert_header, 
-							sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+							sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 							set_by        => $THIS_FILE,
 						});
 						
@@ -6560,7 +6575,7 @@ INSERT INTO
 						message       => "scan_storcli_warning_0007", 
 						variables     => $variables, 
 						show_header   => $alert_header, 
-						sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+						sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 						set_by        => $THIS_FILE,
 					});
 					
@@ -6622,7 +6637,7 @@ WHERE
 			message       => "scan_storcli_warning_0008", 
 			variables     => $variables, 
 			show_header   => 1, 
-			sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+			sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 			set_by        => $THIS_FILE,
 		});
 		
@@ -6737,7 +6752,7 @@ WHERE
 					show_header   => 1,
 					message       => "scan_storcli_warning_0052", 
 					variables     => $variables, 
-					sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++, 
+					sort_position => $anvil->data->{'scan-storcli'}{alert_sort}++, 
 					set_by        => $THIS_FILE, 
 				});
 				
@@ -9617,7 +9632,7 @@ sub get_controller_info
 	if (not $serial_number)
 	{
 		# Error out.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1 , key => "scan_storcli_error_0006", variables => { adapter => $adapter }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1 , key => "scan_storcli_error_0006", variables => { adapter => $adapter }});
 		$anvil->nice_exit({exit_code => 6});
 	}
 	
@@ -10026,14 +10041,14 @@ sub find_lsi_controllers
 	if (not -e $anvil->data->{path}{exe}{storcli64})
 	{
 		# Nope, exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_storcli_error_0001", variables => { path => $anvil->data->{path}{exe}{storcli64} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0001", variables => { path => $anvil->data->{path}{exe}{storcli64} }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	# Make sure it is executable
 	if (not -x $anvil->data->{path}{exe}{storcli64})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_storcli_error_0002", variables => { path => $anvil->data->{path}{exe}{storcli64} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0002", variables => { path => $anvil->data->{path}{exe}{storcli64} }});
 		$anvil->nice_exit({exit_code => 2});
 	}
 	
@@ -10065,10 +10080,9 @@ sub find_lsi_controllers
 	}
 	else
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_storcli_error_0003", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0003", variables => { 
 			path => $anvil->data->{path}{exe}{storcli64}, 
 		}});
-		
 		$anvil->nice_exit({exit_code => 3});
 	}
 	
