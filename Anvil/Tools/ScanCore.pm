@@ -145,6 +145,15 @@ sub agent_startup
 		}
 	}
 	
+	if ((ref($tables) ne "ARRAY") && (@{$tables} > 0))
+	{
+		# Append our tables 
+		foreach my $table (@{$tables})
+		{
+			push @{$anvil->data->{sys}{database}{check_tables}}, $table;
+		}
+	}
+	
 	# Connect to DBs.
 	$anvil->Database->connect({debug => $debug});
 	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
@@ -161,16 +170,11 @@ sub agent_startup
 	# It's possible that some agents don't have a database (or use core database tables only)
 	if (@{$tables} > 0)
 	{
-		# Append our tables 
-		foreach my $table (@{$tables})
-		{
-			push @{$anvil->data->{sys}{database}{check_tables}}, $table;
-		}
-
 		# Make sure our schema is loaded.
 		$anvil->Database->check_agent_data({
-			debug => $debug,
-			agent => $agent,
+			debug  => $debug,
+			agent  => $agent,
+			tables => $tables, 
 		});
 	}
 

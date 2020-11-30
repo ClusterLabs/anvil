@@ -1125,6 +1125,7 @@ sub _set_paths
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
+				blockdev			=>	"/usr/sbin/blockdev",
 				bridge				=>	"/usr/sbin/bridge",
 				bzip2				=>	"/usr/bin/bzip2",
 				'call_striker-get-peer-data'	=>	"/usr/sbin/call_striker-get-peer-data",

@@ -1,37 +1,29 @@
 #!/usr/bin/perl
 # 
  
-use warnings;
 use strict;
- 
-my $sysstat_directory   = "/var/log/sa/";
-my $hostname            = `hostname | cut -f 1 -d .`;
- 
-opendir(my $directory_handle, $sysstat_directory) || die "Can't locate ".$sysstat_directory."\n";
- 
-my @file_list           = grep { /^sa[0-9]./ } readdir($directory_handle);
- 
-printf "Hostname is ... ".$hostname."\n";
-foreach my $filename (sort {$a cmp $b} @file_list)
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
 {
-        #printf "Filepath: ....".$sysstat_directory.$filepath."\n"
-        my $shell_call  = "sadf -dht ".$sysstat_directory.$filename." -- -S -u -r -p -q -n DEV";
-        printf "Shell Call - ...  ".$shell_call."\n";
-        open(my $file_handle, "$shell_call 2>&1 |") || die "Failed to parse output of [".$shell_call."].\n";
-        while (<$file_handle>)
-        {
-                chomp;
-                my $csv_line            = $_;
- 
-                if ($csv_line =~ /$hostname/)
-                {
-                        #printf "CSV Line...  ".$csv_line."\n";
-                        printf "Variable Match!\n";
-                }
-                if ($csv_line =~ 'thinkpad-06HCV0')
-                {
-                        printf "String Match!\n";
-                }
-        }
- 
+	$running_directory =~ s/^\./$ENV{PWD}/;
 }
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->Get->switches;
+
+# Connect to the database(s).
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+
+$anvil->nice_exit({exit_code => 0});

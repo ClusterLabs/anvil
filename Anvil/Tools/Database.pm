@@ -377,6 +377,10 @@ Parameters;
 
 This is the name of the calling scan agent. The name is used to find the schema file under C<< <path::directories::scan_agents>/<agent>/<agent>.sql >>. 
 
+=head3 tables (required)
+
+This is the array reference of tables used to check if any databases are behind and need a resync.
+
 =cut
 sub check_agent_data
 {
@@ -387,13 +391,20 @@ sub check_agent_data
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_agent_data()" }});
 	
 	my $agent  = defined $parameter->{agent}  ? $parameter->{agent}  : "";
+	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		agent  => $agent, 
+		tables => $tables, 
 	}});
 	
 	if (not $agent)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_agent_data()", parameter => "agent" }});
+		return("!!error!!");
+	}
+	if (ref($tables) ne "ARRAY")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_agent_data()", parameter => "tables" }});
 		return("!!error!!");
 	}
 	
@@ -421,14 +432,16 @@ sub check_agent_data
 			{
 				# Log and register an alert. This should never happen, so we set it as a 
 				# warning level alert.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0181", variables => {
+				my $variables = {
 					agent_name => $agent,
 					file       => $schema_file,
-				}});
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0181", variables => $variables});
 				$anvil->Alert->register({
 					debug       => 2,
 					alert_level => "warning",
-					message     => "message_0181,!!agent_name!".$agent."!!,!!file!".$schema_file."!!",
+					message     => "message_0181",
+					variables   => $variables, 
 					set_by      => $agent,
 				});
 			}
@@ -446,16 +459,17 @@ sub check_agent_data
 			if ($changed)
 			{
 				# Register an alert cleared message.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0182", variables => {
+				my $variables = {
 					agent_name => $agent,
 					file       => $schema_file,
-					
-				}});
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0182", variables => $variables});
 				$anvil->Alert->register({
 					debug       => $debug,
 					alert_level => "warning",
 					clear_alert => 1,
-					message     => "message_0182,!!agent_name!".$agent."!!,!!file!".$schema_file."!!",
+					message     => "message_0182",
+					variables   => $variables, 
 					set_by      => $agent,
 				});
 			}
@@ -480,6 +494,7 @@ sub check_agent_data
 		$anvil->Database->_find_behind_databases({
 			debug  => $debug, 
 			source => $agent, 
+			tables => $tables, 
 		});
 	}
 	

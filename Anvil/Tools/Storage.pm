@@ -24,6 +24,7 @@ my $THIS_FILE = "Storage.pm";
 # get_file_stats
 # make_directory
 # move_file
+# parse_lsblk
 # read_config
 # read_file
 # read_mode
@@ -1929,6 +1930,61 @@ fi";
 	
 	return(0);
 }
+
+
+=head2 parse_lsblk
+
+This calls C<< lsblk >> (in json format) and parses the output. Data is stored as:
+
+ * lsblk::<target>::...
+
+Parameters;
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made..
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 target (optional)
+
+If set, C<< lsblk >> read from the target machine. This must be either an IP address or a resolvable host name. 
+
+B<< Note >>: If not set, the short host name of this system is used in C<< lsblk::<short_host_name>::: >>.
+
+=cut
+sub parse_lsblk
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->parse_lsblk()" }});
+	
+	# Setup default values
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->is_secure($password),
+		port        => $port, 
+		remote_user => $remote_user,
+		target      => $target, 
+	}});
+	
+	my $shell_call = $anvil->data->{path}{exe}{lsblk}." --all --bytes --json";
+
+	
+	return(0);
+}
+
 
 =head2 read_config
 
