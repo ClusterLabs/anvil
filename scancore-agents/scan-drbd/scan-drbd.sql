@@ -266,16 +266,16 @@ CREATE TABLE scan_drbd_peers (
     scan_drbd_peer_uuid                      uuid                        not null    primary key,
     scan_drbd_peer_host_uuid                 uuid                        not null, 
     scan_drbd_peer_scan_drbd_volume_uuid     uuid                        not null, 
-    scan_drbd_peer_peer_host_name            text                        not null,                -- The host name for this peer, as recorded in the config
+    scan_drbd_peer_host_name                 text                        not null,                -- The host name for this peer, as recorded in the config
     scan_drbd_peer_connection_state          text                        not null,                -- The connection state to the peer. See "Connection States" and "Replication States" above.
     scan_drbd_peer_local_disk_state          text                        not null,                -- The local disk state of the peer, see "Disk States" above.
-    scan_drbd_peer_peer_disk_state           text                        not null,                -- The local disk state of the peer, see "Disk States" above.
+    scan_drbd_peer_disk_state                text                        not null,                -- The local disk state of the peer, see "Disk States" above.
     scan_drbd_peer_local_role                text                        not null,                -- The current local role of the peer. 
-    scan_drbd_peer_peer_role                 text                        not null,                -- The current peer role of the peer. 
+    scan_drbd_peer_role                      text                        not null,                -- The current peer role of the peer. 
     scan_drbd_peer_out_of_sync_size          numeric                     not null,                -- This is the number of "out of sync" bytes. Set to '0' when both sides are UpToDate.
     scan_drbd_peer_replication_speed         numeric                     not null,                -- This is how many bytes per second are being copied. Set to '0' when not synchronizing.
     scan_drbd_peer_estimated_time_to_sync    numeric                     not null,                -- This is the number of second that is *estimated* remaining in the resync. Set to '0' when both sides are UpToDate.
-    scan_drbd_peer_peer_ip_address           text                        not null,                -- The (SN) IP address used for this peer.
+    scan_drbd_peer_ip_address                text                        not null,                -- The (SN) IP address used for this peer.
     scan_drbd_peer_tcp_port                  numeric                     not null,                -- This is the port number used for this peer.
     scan_drbd_peer_protocol                  text                        not null,                -- This is 'A' for async peers (to DR, usually) or 'C' to sync peers (node peer and sometimes DR)
     scan_drbd_peer_fencing                   text                        not null,                -- Set to 'resource-and-stonith' for node peers and 'dont-care' for DR hosts.
@@ -291,16 +291,16 @@ CREATE TABLE history.scan_drbd_peers (
     scan_drbd_peer_uuid                      uuid,
     scan_drbd_peer_host_uuid                 uuid,
     scan_drbd_peer_scan_drbd_volume_uuid     uuid,
-    scan_drbd_peer_peer_host_name            text, 
+    scan_drbd_peer_host_name                 text, 
     scan_drbd_peer_connection_state          text, 
     scan_drbd_peer_local_disk_state          text, 
-    scan_drbd_peer_peer_disk_state           text, 
+    scan_drbd_peer_disk_state                text, 
     scan_drbd_peer_local_role                text, 
-    scan_drbd_peer_peer_role                 text, 
+    scan_drbd_peer_role                      text, 
     scan_drbd_peer_out_of_sync_size          numeric, 
     scan_drbd_peer_replication_speed         numeric, 
     scan_drbd_peer_estimated_time_to_sync    numeric, 
-    scan_drbd_peer_peer_ip_address           text, 
+    scan_drbd_peer_ip_address                text, 
     scan_drbd_peer_tcp_port                  numeric, 
     scan_drbd_peer_protocol                  text, 
     scan_drbd_peer_fencing                   text, 
@@ -318,16 +318,16 @@ BEGIN
         (scan_drbd_peer_uuid, 
          scan_drbd_peer_host_uuid, 
          scan_drbd_peer_scan_drbd_volume_uuid, 
-         scan_drbd_peer_peer_host_name, 
+         scan_drbd_peer_host_name, 
          scan_drbd_peer_connection_state, 
          scan_drbd_peer_local_disk_state, 
-         scan_drbd_peer_peer_disk_state, 
+         scan_drbd_peer_disk_state, 
          scan_drbd_peer_local_role, 
-         scan_drbd_peer_peer_role, 
+         scan_drbd_peer_role, 
          scan_drbd_peer_out_of_sync_size, 
          scan_drbd_peer_replication_speed, 
          scan_drbd_peer_estimated_time_to_sync, 
-         scan_drbd_peer_peer_ip_address, 
+         scan_drbd_peer_ip_address, 
          scan_drbd_peer_tcp_port, 
          scan_drbd_peer_protocol, 
          scan_drbd_peer_fencing, 
@@ -336,16 +336,16 @@ BEGIN
         (history_scan_drbd_peers.scan_drbd_peer_uuid,
          history_scan_drbd_peers.scan_drbd_peer_host_uuid, 
          history_scan_drbd_peers.scan_drbd_peer_scan_drbd_volume_uuid, 
-         history_scan_drbd_peers.scan_drbd_peer_peer_host_name, 
+         history_scan_drbd_peers.scan_drbd_peer_host_name, 
          history_scan_drbd_peers.scan_drbd_peer_connection_state, 
          history_scan_drbd_peers.scan_drbd_peer_local_disk_state, 
-         history_scan_drbd_peers.scan_drbd_peer_peer_disk_state, 
+         history_scan_drbd_peers.scan_drbd_peer_disk_state, 
          history_scan_drbd_peers.scan_drbd_peer_local_role, 
-         history_scan_drbd_peers.scan_drbd_peer_peer_role, 
+         history_scan_drbd_peers.scan_drbd_peer_role, 
          history_scan_drbd_peers.scan_drbd_peer_out_of_sync_size, 
          history_scan_drbd_peers.scan_drbd_peer_replication_speed, 
          history_scan_drbd_peers.scan_drbd_peer_estimated_time_to_sync, 
-         history_scan_drbd_peers.scan_drbd_peer_peer_ip_address, 
+         history_scan_drbd_peers.scan_drbd_peer_ip_address, 
          history_scan_drbd_peers.scan_drbd_peer_tcp_port, 
          history_scan_drbd_peers.scan_drbd_peer_protocol, 
          history_scan_drbd_peers.scan_drbd_peer_fencing, 

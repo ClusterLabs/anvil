@@ -113,70 +113,88 @@ sub find_changes
 	my ($anvil) = @_;
 	
 	#print Dumper $anvil->data->{new};
-	print __LINE__."; new::scan_drbd:\n";
-	foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{scan_drbd}})
-	{
-		next if $option eq "scan_drbd_common_xml";
-		print __LINE__."; - ".$option.": [".$anvil->data->{new}{scan_drbd}{$option}."]\n";
-	}
+	my $new_scan_drbd_common_xml       = $anvil->data->{new}{scan_drbd}{scan_drbd_common_xml};
+	my $new_scan_drbd_flush_disk       = $anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk};
+	my $new_scan_drbd_flush_md         = $anvil->data->{new}{scan_drbd}{scan_drbd_flush_md};
+	my $new_scan_drbd_timeout          = $anvil->data->{new}{scan_drbd}{scan_drbd_timeout};
+	my $new_scan_drbd_total_sync_speed = $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		"s1:new_scan_drbd_flush_disk"       => $new_scan_drbd_flush_disk, 
+		"s2:new_scan_drbd_flush_md"         => $new_scan_drbd_flush_md, 
+		"s3:new_scan_drbd_timeout"          => $new_scan_drbd_timeout, 
+		"s4:new_scan_drbd_total_sync_speed" => $new_scan_drbd_total_sync_speed." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_total_sync_speed})."/s)", 
+		"s5:new_scan_drbd_common_xml"       => $new_scan_drbd_common_xml, 
+	}});
 	
-	print __LINE__."; Resources:\n";
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
 	{
-		print __LINE__."; - ".$resource."\n";
-		foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}})
-		{
-			next if $option eq "volume";
-			next if $option eq "peer";
-			next if $option eq "xml";
-			print __LINE__.";  |- ".$option.": [".$anvil->data->{new}{resource}{$resource}{$option}."]\n";
-		}
-		foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{peer}})
-		{
-			print __LINE__.";  |- peer: [".$peer."]\n";
-			foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{peer}{$peer}})
-			{
-				print __LINE__.";  | |- ".$option.": [".$anvil->data->{new}{resource}{$resource}{peer}{$peer}{$option}."]\n";
-			}
-		}
+		my $scan_drbd_resource_name    = $resource; 
+		my $new_scan_drbd_resource_up  = $anvil->data->{new}{resource}{$resource}{up};
+		my $new_scan_drbd_resource_xml = $anvil->data->{new}{resource}{$resource}{xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"s1:scan_drbd_resource_name"    => $new_scan_drbd_flush_disk, 
+			"s2:new_scan_drbd_resource_up"  => $new_scan_drbd_flush_md, 
+			"s3:new_scan_drbd_resource_xml" => $new_scan_drbd_resource_xml, 
+		}});
+
 		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
 		{
-			print __LINE__.";  |- volume: [".$volume."]\n";
-			foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}})
+			my $scan_drbd_volume_number           = $volume;
+			my $new_scan_drbd_volume_device_path  = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path};
+			my $new_scan_drbd_volume_device_minor = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor};
+			my $new_scan_drbd_volume_size         = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				"s1:scan_drbd_volume_number"           => $scan_drbd_volume_number, 
+				"s2:new_scan_drbd_volume_device_path"  => $new_scan_drbd_volume_device_path, 
+				"s3:new_scan_drbd_volume_device_minor" => $new_scan_drbd_volume_device_minor, 
+				"s4:new_scan_drbd_volume_size"         => $new_scan_drbd_volume_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_volume_size}).")",
+			}});
+		}
+		
+		foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{peer}})
+		{
+			# These are common across all volumes
+			my $scan_drbd_peer_host_name      = $peer;
+			my $new_scan_drbd_peer_ip_address = $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address};
+			my $new_scan_drbd_peer_tcp_port   = $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port};
+			my $new_scan_drbd_peer_protocol   = $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol};
+			my $new_scan_drbd_peer_fencing    = $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				"s1:scan_drbd_peer_host_name"      => $scan_drbd_peer_host_name, 
+				"s2:new_scan_drbd_peer_ip_address" => $new_scan_drbd_peer_ip_address, 
+				"s3:new_scan_drbd_peer_tcp_port"   => $new_scan_drbd_peer_tcp_port, 
+				"s4:new_scan_drbd_peer_protocol"   => $new_scan_drbd_peer_protocol,
+				"s5:new_scan_drbd_peer_fencing"    => $new_scan_drbd_peer_fencing,
+			}});
+			
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
 			{
-				next if $option eq "peer";
-				print __LINE__.";  | |- ".$option.": [".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{$option}."]\n";
-				foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}})
-				{
-					print __LINE__.";  | | |- ".$peer.";\n";
-					foreach my $peer_option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}})
-					{
-						print __LINE__.";  | | | |- ".$peer_option.": [".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{$peer_option}."]\n";
-						if (($peer_option eq "out_of_sync_size")                                                   && 
-						    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{$peer_option}) && 
-						    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state} =~ /sync/))
-						{
-							my $resource_size    = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size};
-							my $say_res_size     = $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size});
-							my $bytes_to_sync    = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{$peer_option};
-							my $say_to_sync      = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_to_sync});
-							my $bytes_in_sync    = $resource_size - $bytes_to_sync;
-							my $say_in_sync      = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_in_sync});
-							my $percent_complete = $anvil->Convert->round({
-								number => (($bytes_in_sync / $resource_size) * 100),
-								places => 2, 
-							});
-							
-							### NOTE: So, if we're a node and the peer is Sync'ing from DR, we'll see the OOS drop and can calculate the % sync change, but we don't see the ETA. 
-							###       Also, it appears to be random which peer a node decides to sync from. 
-							###       So what we'll need to do when generating the JSON for the UI is to see which peers are SyncSource and SyncTarget and pull the ETA from them.
-# 							print __LINE__."; Resource size: [".$say_res_size." (".$resource_size.")]\n";
-# 							print __LINE__."; Bytes in Sync: [".$say_in_sync." (".$bytes_in_sync.")]\n";
-# 							print __LINE__."; Bytes to Sync: [".$say_to_sync." (".$bytes_to_sync.")]\n";
-							print __LINE__.";  | | | |  \\- Sync'ed: [".$percent_complete."%] (".$say_in_sync." of ".$say_res_size." sync'ed, ".$say_to_sync." remaining)\n";
-						}
-					}
-				}
+				### NOTE: Volume needs to be volume_uuid by this point
+				### NOTE: So, if we're a node and the peer is Sync'ing from DR, we'll see the
+				###       OOS drop and can calculate the % sync change, but we don't see the 
+				###       ETA. Also, it appears to be random which peer a node decides to 
+				###       sync from. So what we'll need to do when generating the JSON for 
+				###       the UI is to see which peers are SyncSource and SyncTarget and pull
+				###       the ETA from them.
+				my $new_scan_drbd_peer_connection_state       = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state};
+				my $new_scan_drbd_peer_local_disk_state       = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state};
+				my $new_scan_drbd_peer_disk_state             = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state};
+				my $new_scan_drbd_peer_local_role             = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role};
+				my $new_scan_drbd_peer_role                   = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role};
+				my $new_scan_drbd_peer_out_of_sync_size       = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size};
+				my $new_scan_drbd_peer_replication_speed      = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed};
+				my $new_scan_drbd_peer_estimated_time_to_sync = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					"s1:volume"                                    => $volume, 
+					"s2:new_scan_drbd_peer_connection_state"       => $new_scan_drbd_peer_connection_state, 
+					"s3:new_scan_drbd_peer_local_disk_state"       => $new_scan_drbd_peer_local_disk_state, 
+					"s4:new_scan_drbd_peer_disk_state"             => $new_scan_drbd_peer_disk_state, 
+					"s5:new_scan_drbd_peer_local_role"             => $new_scan_drbd_peer_local_role, 
+					"s6:new_scan_drbd_peer_role"                   => $new_scan_drbd_peer_role, 
+					"s7:new_scan_drbd_peer_out_of_sync_size"       => $new_scan_drbd_peer_out_of_sync_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_peer_out_of_sync_size}).")", 
+					"s8:new_scan_drbd_peer_replication_speed"      => $new_scan_drbd_peer_replication_speed." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_peer_replication_speed})."/s)", 
+					"s9:new_scan_drbd_peer_estimated_time_to_sync" => $new_scan_drbd_peer_estimated_time_to_sync." (".$anvil->Convert->time({'time' => $new_scan_drbd_peer_estimated_time_to_sync, long => 1, translate => 1}).")", 
+				}});
 			}
 		}
 	}
@@ -220,7 +238,6 @@ sub gather_data
 			# Successful parse!
 			### TODO: Might be best to config these default values by calling/parsing 
 			###       'drbdsetup show <resource> --show-defaults'.
-			$anvil->data->{new}{scan_drbd}{scan_drbd_host_uuid}        = $anvil->Get->host_uuid;
 			$anvil->data->{new}{scan_drbd}{scan_drbd_common_xml}       = $drbd_xml;
 			$anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk}       = 1;
 			$anvil->data->{new}{scan_drbd}{scan_drbd_flush_md}         = 1;
