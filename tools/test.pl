@@ -23,7 +23,16 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 $anvil->Get->switches;
 
 # Connect to the database(s).
-$anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+#$anvil->Database->connect;
+#$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+
+my $hours   = 0;
+my $minutes = 3;
+my $seconds = 24;
+
+print "Hours: [".$hours."], minutes: [".$minutes."], seconds: [".$seconds."]\n";
+
+my $estimated_time_to_sync = (($hours * 3600) + ($minutes * 60) + $seconds);
+print "ETA: [".$estimated_time_to_sync."] (".$anvil->Convert->time({'time' => $estimated_time_to_sync}).")\n";
 
 $anvil->nice_exit({exit_code => 0});

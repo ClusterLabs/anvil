@@ -67,6 +67,7 @@ CREATE TABLE scan_drbd_resources (
     scan_drbd_resource_uuid         uuid                        not null    primary key,
     scan_drbd_resource_host_uuid    uuid                        not null,
     scan_drbd_resource_name         text                        not null,                -- The name of the resource.
+    scan_drbd_resource_up           boolean                     not null,                -- This indicates if the resource is up on this host.
     scan_drbd_resource_xml          text                        not null,                -- This is the raw <common> section of 'drbd_resourceadm dump-xml'.
     modified_date                   timestamp with time zone    not null,
     
@@ -79,6 +80,7 @@ CREATE TABLE history.scan_drbd_resources (
     scan_drbd_resource_uuid         uuid,
     scan_drbd_resource_host_uuid    uuid,
     scan_drbd_resource_name         text,
+    scan_drbd_resource_up           boolean,
     scan_drbd_resource_xml          text,
     modified_date                   timestamp with time zone    not null
 );
@@ -94,12 +96,14 @@ BEGIN
         (scan_drbd_resource_uuid, 
          scan_drbd_resource_host_uuid, 
          scan_drbd_resource_name, 
+         scan_drbd_resource_up, 
          scan_drbd_resource_xml, 
 	 modified_date)
     VALUES
         (history_scan_drbd_resources.scan_drbd_resource_uuid,
          history_scan_drbd_resources.scan_drbd_resource_host_uuid, 
          history_scan_drbd_resources.scan_drbd_resource_name, 
+         history_scan_drbd_resources.scan_drbd_resource_up, 
          history_scan_drbd_resources.scan_drbd_resource_xml, 
          history_scan_drbd_resources.modified_date);
     RETURN NULL;

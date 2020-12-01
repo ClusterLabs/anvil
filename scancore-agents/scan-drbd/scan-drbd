@@ -94,6 +94,8 @@ if (not gather_data($anvil))
 	$anvil->nice_exit({exit_code => 2});
 }
 
+find_changes($anvil);
+
 
 # Update the database
 $anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
@@ -105,6 +107,82 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub find_changes
+{
+	my ($anvil) = @_;
+	
+	#print Dumper $anvil->data->{new};
+	print __LINE__."; new::scan_drbd:\n";
+	foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{scan_drbd}})
+	{
+		next if $option eq "scan_drbd_common_xml";
+		print __LINE__."; - ".$option.": [".$anvil->data->{new}{scan_drbd}{$option}."]\n";
+	}
+	
+	print __LINE__."; Resources:\n";
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+	{
+		print __LINE__."; - ".$resource."\n";
+		foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}})
+		{
+			next if $option eq "volume";
+			next if $option eq "peer";
+			next if $option eq "xml";
+			print __LINE__.";  |- ".$option.": [".$anvil->data->{new}{resource}{$resource}{$option}."]\n";
+		}
+		foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{peer}})
+		{
+			print __LINE__.";  |- peer: [".$peer."]\n";
+			foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{peer}{$peer}})
+			{
+				print __LINE__.";  | |- ".$option.": [".$anvil->data->{new}{resource}{$resource}{peer}{$peer}{$option}."]\n";
+			}
+		}
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+		{
+			print __LINE__.";  |- volume: [".$volume."]\n";
+			foreach my $option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}})
+			{
+				next if $option eq "peer";
+				print __LINE__.";  | |- ".$option.": [".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{$option}."]\n";
+				foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}})
+				{
+					print __LINE__.";  | | |- ".$peer.";\n";
+					foreach my $peer_option (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}})
+					{
+						print __LINE__.";  | | | |- ".$peer_option.": [".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{$peer_option}."]\n";
+						if (($peer_option eq "out_of_sync_size")                                                   && 
+						    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{$peer_option}) && 
+						    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state} =~ /sync/))
+						{
+							my $resource_size    = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size};
+							my $say_res_size     = $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size});
+							my $bytes_to_sync    = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{$peer_option};
+							my $say_to_sync      = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_to_sync});
+							my $bytes_in_sync    = $resource_size - $bytes_to_sync;
+							my $say_in_sync      = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_in_sync});
+							my $percent_complete = $anvil->Convert->round({
+								number => (($bytes_in_sync / $resource_size) * 100),
+								places => 2, 
+							});
+							
+							### NOTE: So, if we're a node and the peer is Sync'ing from DR, we'll see the OOS drop and can calculate the % sync change, but we don't see the ETA. 
+							###       Also, it appears to be random which peer a node decides to sync from. 
+							###       So what we'll need to do when generating the JSON for the UI is to see which peers are SyncSource and SyncTarget and pull the ETA from them.
+# 							print __LINE__."; Resource size: [".$say_res_size." (".$resource_size.")]\n";
+# 							print __LINE__."; Bytes in Sync: [".$say_in_sync." (".$bytes_in_sync.")]\n";
+# 							print __LINE__."; Bytes to Sync: [".$say_to_sync." (".$bytes_to_sync.")]\n";
+							print __LINE__.";  | | | |  \\- Sync'ed: [".$percent_complete."%] (".$say_in_sync." of ".$say_res_size." sync'ed, ".$say_to_sync." remaining)\n";
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
 
 sub gather_data
 {
@@ -203,7 +281,7 @@ sub gather_data
 					's2:conf_file' => $conf_file,
 				}});
 				
-				$anvil->data->{new}{resource}{$resource}{xml} = $name;
+				$anvil->data->{new}{resource}{$resource}{xml} = $name->toString;
 				$anvil->data->{new}{resource}{$resource}{up}  = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"new::resource::${resource}::xml" => $anvil->data->{new}{resource}{$resource}{xml},
@@ -253,10 +331,16 @@ sub gather_data
 							"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
 						}});
 						
+						if (not exists $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol})
+						{
+							$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol}        = "unknown";
+							$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing}         = "unknown";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"s1:new::resource::${resource}::peer::${peer}::protocol"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
+								"s2:new::resource::${resource}::peer::${peer}::fencing"         => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
+							}});
+						}
 						
-						# Setup some default values.
-						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol} = "unknown";
-						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing}  = "unknown";
 						foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
 						{
 							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state}       = "disconnected";
@@ -352,11 +436,11 @@ sub gather_data
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
 				foreach my $line (split/\n/, $file_body)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 
 					if ($line =~ /cs:(.*?) /)
 					{
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state} = $1;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state} = lc($1);
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							"new::resource::${resource}::volume::${volume}::peer::${peer}::connection_state" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state},
 						}});
@@ -390,8 +474,8 @@ sub gather_data
 					}
 					if ($line =~ /ds:(.*?)\/(.*?) /)
 					{
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} = $1;
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state}  = $2; 
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} = lc($1);
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state}  = lc($2); 
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							"new::resource::${resource}::volume::${volume}::peer::${peer}::local_disk_state" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state},
 							"new::resource::${resource}::volume::${volume}::peer::${peer}::peer_disk_state"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state},
@@ -399,9 +483,9 @@ sub gather_data
 					}
 					if ($line =~ /oos:(\d+)/)
 					{
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size} = $1;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size} = $1 * 1024;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"new::resource::${resource}::volume::${volume}::peer::${peer}::out_of_sync_size" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size},
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::out_of_sync_size" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}}).")",
 						}});
 					}
 =cut
@@ -420,14 +504,16 @@ sub gather_data
 	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
 	blocked on activity log: 0/0/0
 =cut					
-					if ($line =~ /sync'ed: (.*?\%)/)
+					if ($line =~ /sync'ed:\s+(\d.*\%)/)
 					{
 						$progress .= $1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { progress => $progress }});
 					}
 					if ($line =~ /speed: (.*?) \(/)
 					{
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} =  ($1 * 1024);
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} =  $1;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} =~ s/,//g;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} *= 1024;
 						$anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}                                += $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed};
 						
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -447,9 +533,9 @@ sub gather_data
 							's3:seconds'   => $seconds,
 						}});
 						
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync} = (($hours ** 3600) + ($minutes ** 60) + $seconds);
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync} = (($hours * 3600) + ($minutes * 60) + $seconds);
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"new::resource::${resource}::volume::${volume}::peer::${peer}::estimated_time_to_sync" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync}." (".$anvil->Convert->time({'time' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync}, long => 1}).")",
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::estimated_time_to_sync" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync}." (".$anvil->Convert->time({'time' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync}, long => 1, translate => 1}).")",
 						}});
 					}
 				}
