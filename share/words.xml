@@ -238,6 +238,7 @@ The error was:
 		<key name="error_0163">The MIB file: [#!variable!mib!#] doesn't exist or can't be read.</key>
 		<key name="error_0164">The date: [#!variable!date!#] is not in either the 'mm/dd/yy' or 'mm/dd/yyyy' formats. Can't convert to 'yyyy/mm/dd'.</key>
 		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid..</key>
+		<key name="error_0166">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, but does not appear to be a valid UUID: [#!variable!uuid!#].</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1348,6 +1349,11 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0186">No RHEL-based nodes are available. Unable to check for updated packages under the High Availability entitlement.</key>
 		<key name="message_0187">Downloaded and copied HA packages that started with the letter: [#!variable!letter!#].</key>
 		<key name="message_0188">Finished downloading HA packages!</key>
+		<key name="message_0189">
+	# The following line was added to track this resource UUID in the Anvil! database.
+	# Please do edit or remove it.
+	# scan_drbd_resource_uuid = #!variable!uuid!#
+		</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

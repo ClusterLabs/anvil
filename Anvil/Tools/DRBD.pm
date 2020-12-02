@@ -19,6 +19,7 @@ my $THIS_FILE = "DRBD.pm";
 # get_status
 # manage_resource
 # reload_defaults
+# resource_uuid
 # update_global_common
 # 
 
@@ -970,6 +971,138 @@ sub reload_defaults
 	
 	return($return_code);
 }
+
+
+=head2 resource_uuid
+
+This method reads the C<< scan_drbd_resource_uuid >> from a DRBD resource file. If no UUID is found (and C<< new_resource_uuid >> isn't set), an empty string is returned. If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 new_resource_uuid (optional)
+
+If this is set to a UUID, and no existing UUID is found, this UUID will be added to the resource config file.
+
+=head3 resource_ (required)
+
+This is the name of resource whose UUID we're looking for.
+
+=head3 resource_file (required)
+
+This is the full path to the resource configuration file that the UUID will be read from, if possible.
+
+=cut
+sub resource_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->resource_uuid()" }});
+	
+	my $new_resource_uuid = defined $parameter->{new_resource_uuid} ? $parameter->{new_resource_uuid} : 0;
+	my $resource          = defined $parameter->{resource}          ? $parameter->{resource}          : "";
+	my $resource_file     = defined $parameter->{resource_file}     ? $parameter->{resource_file}     : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		new_resource_uuid => $new_resource_uuid, 
+		resource_file     => $resource_file,
+	}});
+	
+	if (not $resource)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->resource_uuid()", parameter => "resource" }});
+		return('!!error!!');
+	}
+	if (not $resource_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->resource_uuid()", parameter => "resource_file" }});
+		return('!!error!!');
+	}
+	
+	my $scan_drbd_resource_uuid = "";
+	my $in_resource             = 0;
+	my $resource_config         = $anvil->Storage->read_file({file => $resource_file});
+	if ($resource_config eq "!!error!!")
+	{
+		# Something went wrong.
+		return('!!error!!');
+	}
+	foreach my $line (split/\n/, $resource_config)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^resource (.*?) /)
+		{
+			my $this_resource = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_resource => $this_resource }});
+			if ($this_resource eq $resource)
+			{
+				$in_resource = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_resource => $in_resource }});
+			}
+			else
+			{
+				$in_resource = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_resource => $in_resource }});
+			}
+		}
+		
+		if (($in_resource) && ($line =~ /# scan_drbd_resource_uuid = (.*)$/))
+		{
+			$scan_drbd_resource_uuid =  $1;
+			$scan_drbd_resource_uuid =~ s/^\s+//;
+			$scan_drbd_resource_uuid =~ s/\s.*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan_drbd_resource_uuid => $scan_drbd_resource_uuid }});
+			
+			if (not $anvil->Validate->uuid({uuid => $scan_drbd_resource_uuid}))
+			{
+				# Found, but not valid.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0166", variables => { 
+					resource => $resource, 
+					file     => $resource_file, 
+					uuid     => $scan_drbd_resource_uuid,
+				}});
+				return('!!error!!');
+			}
+		}
+	}
+	
+	if ((not $scan_drbd_resource_uuid) && ($anvil->Validate->uuid({uuid => $new_resource_uuid})))
+	{
+		# Didn't find the resource UUID and we've been asked to add it.
+		my $injected            = 0;
+		my $new_resource_config = "";
+		foreach my $line (split/\n/, $resource_config)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /^resource $resource /)
+			{
+				$injected                =  1;
+				$scan_drbd_resource_uuid =  $new_resource_uuid;
+				$new_resource_config     .= $line."\n";
+				$new_resource_config     .= $anvil->Words->string({key => "message_0189", variables => { uuid => $scan_drbd_resource_uuid }})."\n";
+				next;
+			}
+			$new_resource_config .= $line."\n";
+		}
+		
+		if ($injected)
+		{
+			my $error = $anvil->Storage->write_file({
+				debug     => $debug,
+				body      => $new_resource_config,
+				file      => $resource_file,
+				user      => "root",
+				group     => "root", 
+				mode      => "0644",
+				overwrite => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+		}
+	}
+	
+	return($scan_drbd_resource_uuid);
+}
+
 
 =head2 update_global_common
 

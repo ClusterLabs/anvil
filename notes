@@ -1102,3 +1102,27 @@ yum install kernel-2.6.32-754.27.1.el6.x86_64 kernel-devel-2.6.32-754.27.1.el6.x
 DRBD Notes;
 * c-max-rate is default 100M. Detect when the SN is 10Gbps and up to 750M
 * drbdsetup show <resource> --show-defaults <- shows defaults
+
+When a node comes online, and the peer and DR Host are both UpToDate, manually run the commands so that the 
+restarting node connects to the DR first, so that it will sync from DR and minimize IO load on the peer node.
+The sequence of commands needed to up a resource are exposed by 'drbdadm up -d <res>'. Ie:
+
+[root@el8-a01n02 ~]# drbdadm -d up srv02-hi
+drbdsetup new-resource srv02-hi 1 --auto-promote=yes
+drbdsetup new-minor srv02-hi 2 0
+drbdsetup new-peer srv02-hi 0 --_name=el8-a01n01 --allow-two-primaries=no --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --timeout=100 --protocol=C --fencing=resource-and-stonith
+drbdsetup new-peer srv02-hi 2 --_name=el8-a01dr01 --allow-two-primaries=no --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --timeout=100 --protocol=A --fencing=dont-care
+drbdsetup new-path srv02-hi 0 ipv4:10.101.10.2:7791 ipv4:10.101.10.1:7791
+drbdsetup new-path srv02-hi 2 ipv4:10.101.10.2:7793 ipv4:10.101.10.3:7793
+drbdmeta 2 v09 /dev/node_8da3d2fe/srv02-hi_0 internal apply-al
+drbdsetup attach 2 /dev/node_8da3d2fe/srv02-hi_0 /dev/node_8da3d2fe/srv02-hi_0 internal --disk-flushes=no --md-flushes=no
+drbdsetup connect srv02-hi 0
+drbdsetup connect srv02-hi 2
+
+Manual split brain recovery;
+# Both nodes;
+drbdadm disconnect <res>
+# Node to discard;
+drbdadm connect --discard-my-data <res>
+# Node to save data on;
+drbdadm connect <res>

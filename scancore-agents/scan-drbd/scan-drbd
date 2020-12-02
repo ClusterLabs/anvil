@@ -19,6 +19,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use Text::Diff;
 
 # Disable buffering
 $| = 1;
@@ -41,6 +42,8 @@ $anvil->Log->secure({set => 1});
 $anvil->data->{'scan-drbd'} = {
 	resource_status		=>	"/sys/kernel/debug/drbd/resources",
 	config_directory	=>	"/etc/drbd.d",
+	alert_sort		=>	2,
+	queries                 =>	[],
 };
 
 # Make sure we're running as 'root'
@@ -94,6 +97,8 @@ if (not gather_data($anvil))
 	$anvil->nice_exit({exit_code => 2});
 }
 
+read_last_scan($anvil);
+
 find_changes($anvil);
 
 
@@ -107,6 +112,448 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This reads in the last scan's data.
+sub read_last_scan
+{
+	my ($anvil) = @_;
+	
+	# This is used to determine if there's an entry in scan_drbd directly.
+	$anvil->data->{old}{scan_drbd_uuid} = "";
+	
+	# This calls up the entry for this host. There will only be one.
+	my $query = "
+SELECT 
+    scan_drbd_uuid, 
+    scan_drbd_common_xml, 
+    scan_drbd_flush_disk, 
+    scan_drbd_flush_md, 
+    scan_drbd_timeout, 
+    scan_drbd_total_sync_speed 
+FROM 
+    scan_drbd 
+WHERE 
+    scan_drbd_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_uuid = $row->[0]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_uuid => $scan_drbd_uuid }});
+		
+		# Store the old data now.
+		$anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml}       = $row->[1];
+		$anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_disk}       = $row->[2];
+		$anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md}         = $row->[3];
+		$anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_timeout}          = $row->[4];
+		$anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_total_sync_speed} = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::scan_drbd::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_common_xml"       => $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml},
+			"old::scan_drbd::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_flush_disk"       => $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_disk},
+			"old::scan_drbd::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_flush_md"         => $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md},
+			"old::scan_drbd::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_timeout"          => $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_timeout},
+			"old::scan_drbd::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_total_sync_speed" => $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_total_sync_speed},
+		}});
+		
+		# Record the drbd_uuid in an easy to find place for later when looking for changes.
+		$anvil->data->{old}{scan_drbd_uuid} = $scan_drbd_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "old::scan_drbd_uuid" => $anvil->data->{old}{scan_drbd_uuid} }});
+	}
+	undef $count;
+	undef $results;
+	
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_drbd_resource_uuid, 
+    scan_drbd_resource_name, 
+    scan_drbd_resource_up, 
+    scan_drbd_resource_xml
+FROM 
+    scan_drbd_resources 
+WHERE 
+    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd_resources' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_resource_uuid = $row->[0]; 
+		my $scan_drbd_resource_name = $row->[1]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_drbd_resource_uuid => $scan_drbd_resource_uuid,
+			scan_drbd_resource_name => $scan_drbd_resource_name,
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_name} = $scan_drbd_resource_name;
+		$anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_up}   = $row->[2];
+		$anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_xml}  = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::scan_drbd_resource::scan_drbd_resource_uuid::${scan_drbd_resource_uuid}::scan_drbd_resource_name" => $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_name},
+			"old::scan_drbd_resource::scan_drbd_resource_uuid::${scan_drbd_resource_uuid}::scan_drbd_resource_up"   => $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_up},
+			"old::scan_drbd_resource::scan_drbd_resource_uuid::${scan_drbd_resource_uuid}::scan_drbd_resource_xml"  => $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_xml},
+		}});
+		
+		# Record the scan_drbd_resource_uuid in an easy to find place for later when looking for changes.
+		$anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name}{uuid} = $scan_drbd_resource_uuid;
+		$anvil->data->{old}{uuid_to_resource}{$scan_drbd_resource_uuid}{name} = $scan_drbd_resource_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::resource_to_uuid::${scan_drbd_resource_name}::uuid" => $anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name}{uuid}, 
+			"old::uuid_to_resource::${scan_drbd_resource_uuid}::name" => $anvil->data->{old}{uuid_to_resource}{$scan_drbd_resource_uuid}{name}, 
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_drbd_volume_uuid, 
+    scan_drbd_volume_scan_drbd_resource_uuid, 
+    scan_drbd_volume_number, 
+    scan_drbd_volume_device_path, 
+    scan_drbd_volume_device_minor, 
+    scan_drbd_volume_size
+FROM 
+    scan_drbd_volumes 
+WHERE 
+    scan_drbd_volume_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd_volumes' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_volume_uuid                    = $row->[0]; 
+		my $scan_drbd_volume_scan_drbd_resource_uuid = $row->[1]; 
+		my $scan_drbd_volume_number                  = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_drbd_volume_uuid                    => $scan_drbd_volume_uuid,
+			scan_drbd_volume_scan_drbd_resource_uuid => $scan_drbd_volume_scan_drbd_resource_uuid,
+			scan_drbd_volume_number                  => $scan_drbd_volume_number, 
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_device_path}  = $row->[3];
+		$anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_device_minor} = $row->[4];
+		$anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_size}         = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::scan_drbd_volume::scan_drbd_volume_uuid::${scan_drbd_volume_uuid}::scan_drbd_volume_device_path"  => $anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_device_path},
+			"old::scan_drbd_volume::scan_drbd_volume_uuid::${scan_drbd_volume_uuid}::scan_drbd_volume_device_minor" => $anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_device_minor},
+			"old::scan_drbd_volume::scan_drbd_volume_uuid::${scan_drbd_volume_uuid}::scan_drbd_volume_xml"          => $anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_volume_uuid}{scan_drbd_volume_size}}).")",
+		}});
+		
+		# Record the scan_drbd_volume_uuid in an easy to find place for later when looking for changes.
+		$anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name}{volume}{$scan_drbd_volume_number}{uuid}                = $scan_drbd_volume_uuid;
+		$anvil->data->{old}{uuid_to_volume}{$scan_drbd_volume_scan_drbd_resource_uuid}{volume}{$scan_drbd_volume_uuid}{number} = $scan_drbd_volume_number;
+		$anvil->data->{old}{volume_to_uuid}{$scan_drbd_volume_uuid}{number}                                                    = $scan_drbd_volume_number;
+		$anvil->data->{old}{volume_to_uuid}{$scan_drbd_volume_uuid}{on_resource}                                               = $scan_drbd_volume_scan_drbd_resource_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::resource_to_uuid::${scan_drbd_resource_name}::volume::${scan_drbd_volume_number}::uuid"                => $anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name}{volume}{$scan_drbd_volume_number}{uuid}, 
+			"old::uuid_to_volume::${scan_drbd_volume_scan_drbd_resource_uuid}::volume::${scan_drbd_volume_uuid}::number" => $anvil->data->{old}{uuid_to_volume}{$scan_drbd_volume_scan_drbd_resource_uuid}{volume}{$scan_drbd_volume_uuid}{number}, 
+			"old::volume_to_uuid::${scan_drbd_volume_uuid}::number"                                                      => $anvil->data->{old}{volume_to_uuid}{$scan_drbd_volume_uuid}{number}, 
+			"old::volume_to_uuid::${scan_drbd_volume_uuid}::on_resource"                                                 => $anvil->data->{old}{volume_to_uuid}{$scan_drbd_volume_uuid}{on_resource}, 
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_drbd_peer_uuid, 
+    scan_drbd_peer_scan_drbd_volume_uuid, 
+    scan_drbd_peer_host_name, 
+    scan_drbd_peer_connection_state, 
+    scan_drbd_peer_local_disk_state, 
+    scan_drbd_peer_disk_state, 
+    scan_drbd_peer_local_role, 
+    scan_drbd_peer_role, 
+    scan_drbd_peer_out_of_sync_size, 
+    scan_drbd_peer_replication_speed, 
+    scan_drbd_peer_estimated_time_to_sync, 
+    scan_drbd_peer_ip_address, 
+    scan_drbd_peer_tcp_port, 
+    scan_drbd_peer_protocol, 
+    scan_drbd_peer_fencing 
+FROM 
+    scan_drbd_peers 
+WHERE 
+    scan_drbd_peer_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd_peers' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_peer_uuid                  = $row->[0]; 
+		my $scan_drbd_peer_scan_drbd_volume_uuid = $row->[1]; 
+		my $scan_drbd_peer_host_name             = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_drbd_peer_uuid                  => $scan_drbd_peer_uuid,
+			scan_drbd_peer_scan_drbd_volume_uuid => $scan_drbd_peer_scan_drbd_volume_uuid,
+			scan_drbd_peer_host_name             => $scan_drbd_peer_host_name, 
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_scan_drbd_volume_uuid}  = $scan_drbd_peer_scan_drbd_volume_uuid;
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_host_name}              = $scan_drbd_peer_host_name;
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_connection_state}       = $row->[3];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_local_disk_state}       = $row->[4];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_disk_state}             = $row->[5];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_local_role}             = $row->[6];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_role}                   = $row->[7];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_out_of_sync_size}       = $row->[8];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_replication_speed}      = $row->[9];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_estimated_time_to_sync} = $row->[10];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_ip_address}             = $row->[11];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_tcp_port}               = $row->[12];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_protocol}               = $row->[13];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_fencing}                = $row->[14];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_scan_drbd_volume_uuid"  => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_scan_drbd_volume_uuid},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_host_name"              => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_host_name},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_connection_state"       => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_connection_state},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_local_disk_state"       => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_local_disk_state},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_role"                   => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_role},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_disk_state"             => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_disk_state},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_local_role"             => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_local_role},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_role"                   => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_role},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_out_of_sync_size"       => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_out_of_sync_size}." ("..")",
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_replication_speed"      => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_replication_speed}." ("..")",
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_estimated_time_to_sync" => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_estimated_time_to_sync}." ("..")",
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_ip_address"             => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_ip_address},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_tcp_port"               => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_tcp_port},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_protocol"               => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_protocol},
+			"old::scan_drbd_peer::scan_drbd_peer_uuid::${scan_drbd_peer_uuid}::scan_drbd_peer_fencing"                => $anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_fencing},
+		}});
+		
+		# Record the scan_drbd_peer_uuid in an easy to find place for later when looking for changes.
+		my $volume_number    = $anvil->data->{old}{volume_to_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{number};
+		my $on_resource_uuid = $anvil->data->{old}{volume_to_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{on_resource};
+		my $on_resource_name = $anvil->data->{old}{uuid_to_resource}{$scan_drbd_resource_uuid}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			volume_number    => $volume_number,
+			on_resource_uuid => $on_resource_uuid, 
+			on_resource_name => $on_resource_name, 
+		}});
+		
+		$anvil->data->{old}{resource_to_uuid}{$on_resource_name}{volume}{$volume_number}{peer}{$scan_drbd_peer_host_name}{uuid} = $scan_drbd_peer_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::resource_to_uuid::${scan_drbd_resource_name}::volume::${volume_number}::peer::${scan_drbd_peer_host_name}::uuid" => $anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name}{volume}{$volume_number}{peer}{$scan_drbd_peer_host_name}{uuid}, 
+		}});
+	}
+	
+	return(0);
+}
+
+sub process_drbd
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{old}{scan_drbd_uuid})
+	{
+		# Existing, any changes?
+		my $scan_drbd_uuid                 = $anvil->data->{old}{scan_drbd_uuid};
+		my $new_scan_drbd_common_xml       = $anvil->data->{new}{scan_drbd}{scan_drbd_common_xml};
+		my $old_scan_drbd_common_xml       = $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml};
+		my $scan_drbd_common_xml_diff      = diff \$old_scan_drbd_common_xml, \$new_scan_drbd_common_xml, { STYLE => 'Unified' },
+		my $new_scan_drbd_flush_disk       = $anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk};
+		my $old_scan_drbd_flush_disk       = $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_disk};
+		my $new_scan_drbd_flush_md         = $anvil->data->{new}{scan_drbd}{scan_drbd_flush_md};
+		my $old_scan_drbd_flush_md         = $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md};
+		my $new_scan_drbd_timeout          = $anvil->data->{new}{scan_drbd}{scan_drbd_timeout};
+		my $old_scan_drbd_timeout          = $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_timeout};
+		my $new_scan_drbd_total_sync_speed = $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed};
+		my $old_scan_drbd_total_sync_speed = $anvil->data->{old}{scan_drbd}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_total_sync_speed};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"s1:new_scan_drbd_common_xml" => $new_scan_drbd_common_xml, 
+			"s2:old_scan_drbd_common_xml" => $old_scan_drbd_common_xml, 
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"s01:scan_drbd_uuid"                 => $new_scan_drbd_flush_disk, 
+			"s02:scan_drbd_common_xml_diff"      => $new_scan_drbd_flush_md, 
+			"s03:new_scan_drbd_flush_disk"       => $new_scan_drbd_flush_disk, 
+			"s04:old_scan_drbd_flush_disk"       => $old_scan_drbd_flush_disk, 
+			"s05:new_scan_drbd_flush_md"         => $new_scan_drbd_flush_md, 
+			"s06:old_scan_drbd_flush_md"         => $old_scan_drbd_flush_md, 
+			"s07:new_scan_drbd_timeout"          => $new_scan_drbd_timeout, 
+			"s08:old_scan_drbd_timeout"          => $old_scan_drbd_timeout, 
+			"s09:new_scan_drbd_total_sync_speed" => $new_scan_drbd_total_sync_speed." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_total_sync_speed})."/s)", 
+			"s10:old_scan_drbd_total_sync_speed" => $old_scan_drbd_total_sync_speed." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_drbd_total_sync_speed})."/s)", 
+		}});
+		
+		my $update = 0;
+		if ($new_scan_drbd_flush_disk ne $old_scan_drbd_flush_disk)
+		{
+			   $update    = 1;
+			my $variables = {
+				old_value => $new_scan_drbd_flush_disk ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
+				new_value => $old_scan_drbd_flush_disk ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0002", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0002", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+			
+		}
+		if ($new_scan_drbd_flush_md ne $old_scan_drbd_flush_md)
+		{
+			   $update    = 1;
+			my $variables = {
+				old_value => $new_scan_drbd_flush_md ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
+				new_value => $old_scan_drbd_flush_md ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0003", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0003", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+			
+		}
+		if ($new_scan_drbd_timeout ne $old_scan_drbd_timeout)
+		{
+			   $update    = 1;
+			my $variables = {
+				old_value => $new_scan_drbd_timeout, 
+				new_value => $old_scan_drbd_timeout, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0004", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0004", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+			
+		}
+		if ($new_scan_drbd_total_sync_speed ne $old_scan_drbd_total_sync_speed)
+		{
+			# This changes _constantly_ during a resync, so it's info-level.
+			   $update    = 1;
+			my $variables = {
+				old_value => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_total_sync_speed}), 
+				new_value => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_drbd_total_sync_speed}), 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0005", variables => $variables});
+			$anvil->Alert->register({alert_level => "info", message => "scan_drbd_message_0005", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+			
+		}
+		if ($scan_drbd_common_xml_diff)
+		{
+			   $update    = 1;
+			my $variables = {
+				difference => $scan_drbd_common_xml_diff, 
+				new_config => $new_scan_drbd_common_xml, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0006", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0006", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+		}
+		
+		if ($update)
+		{
+			# UPDATE!
+			my $query = "
+UPDATE 
+    scan_drbd 
+SET
+    scan_drbd_common_xml       = ".$anvil->Database->quote($new_scan_drbd_common_xml).", 
+    scan_drbd_flush_disk       = ".$anvil->Database->quote($new_scan_drbd_flush_disk).", 
+    scan_drbd_flush_md         = ".$anvil->Database->quote($new_scan_drbd_flush_md).", 
+    scan_drbd_timeout          = ".$anvil->Database->quote($new_scan_drbd_timeout).", 
+    scan_drbd_total_sync_speed = ".$anvil->Database->quote($new_scan_drbd_total_sync_speed).", 
+    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    scan_drbd_uuid             = ".$anvil->Database->quote($scan_drbd_uuid)."
+;
+";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	else
+	{
+		# New, INSERT.
+		my $scan_drbd_uuid                 = $anvil->Get->uuid();
+		my $new_scan_drbd_common_xml       = $anvil->data->{new}{scan_drbd}{scan_drbd_common_xml};
+		my $new_scan_drbd_flush_disk       = $anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk};
+		my $new_scan_drbd_flush_md         = $anvil->data->{new}{scan_drbd}{scan_drbd_flush_md};
+		my $new_scan_drbd_timeout          = $anvil->data->{new}{scan_drbd}{scan_drbd_timeout};
+		my $new_scan_drbd_total_sync_speed = $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed};
+		my $say_scan_drbd_total_sync_speed = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}})."/#!string!scan_drbd_unit_0003!#";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"s1:scan_drbd_uuid"                 => $scan_drbd_uuid, 
+			"s2:new_scan_drbd_flush_disk"       => $new_scan_drbd_flush_disk, 
+			"s3:new_scan_drbd_flush_md"         => $new_scan_drbd_flush_md, 
+			"s4:new_scan_drbd_timeout"          => $new_scan_drbd_timeout, 
+			"s5:new_scan_drbd_total_sync_speed" => $new_scan_drbd_total_sync_speed, 
+			"s6:say_scan_drbd_total_sync_speed" => $say_scan_drbd_total_sync_speed, 
+			"s7:new_scan_drbd_common_xml"       => $new_scan_drbd_common_xml, 
+		}});
+		
+		$anvil->data->{old}{scan_drbd_uuid} = $scan_drbd_uuid;
+		
+		my $variables = {
+			new_scan_drbd_flush_disk       => $new_scan_drbd_flush_disk ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
+			new_scan_drbd_flush_md         => $new_scan_drbd_flush_md   ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
+			new_scan_drbd_timeout          => $new_scan_drbd_timeout, 
+			say_scan_drbd_total_sync_speed => $say_scan_drbd_total_sync_speed, 
+			new_scan_drbd_common_xml       => $new_scan_drbd_common_xml, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0001", variables => $variables});
+		$anvil->Alert->register({alert_level => "warning", message => "scan_drbd_message_0001", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+		
+		my $query = "
+INSERT INTO 
+    scan_drbd
+(
+    scan_drbd_uuid, 
+    scan_drbd_host_uuid, 
+    scan_drbd_common_xml, 
+    scan_drbd_flush_disk, 
+    scan_drbd_flush_md, 
+    scan_drbd_timeout, 
+    scan_drbd_total_sync_speed, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_drbd_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($new_scan_drbd_common_xml).", 
+    ".$anvil->Database->quote($new_scan_drbd_flush_disk).", 
+    ".$anvil->Database->quote($new_scan_drbd_flush_md).", 
+    ".$anvil->Database->quote($new_scan_drbd_timeout).", 
+    ".$anvil->Database->quote($new_scan_drbd_total_sync_speed).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+		# Now record the query in the array
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
 
 sub find_changes
 {
@@ -126,15 +573,19 @@ sub find_changes
 		"s5:new_scan_drbd_common_xml"       => $new_scan_drbd_common_xml, 
 	}});
 	
+	process_scan_drbd($anvil);
+	
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
 	{
+		my $scan_drbd_resource_uuid    = $anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid};
 		my $scan_drbd_resource_name    = $resource; 
 		my $new_scan_drbd_resource_up  = $anvil->data->{new}{resource}{$resource}{up};
 		my $new_scan_drbd_resource_xml = $anvil->data->{new}{resource}{$resource}{xml};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			"s1:scan_drbd_resource_name"    => $new_scan_drbd_flush_disk, 
-			"s2:new_scan_drbd_resource_up"  => $new_scan_drbd_flush_md, 
-			"s3:new_scan_drbd_resource_xml" => $new_scan_drbd_resource_xml, 
+			"s1:scan_drbd_resource_uuid"    => $scan_drbd_resource_uuid, 
+			"s2:scan_drbd_resource_name"    => $new_scan_drbd_flush_disk, 
+			"s3:new_scan_drbd_resource_up"  => $new_scan_drbd_flush_md, 
+			"s4:new_scan_drbd_resource_xml" => $new_scan_drbd_resource_xml, 
 		}});
 
 		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
@@ -298,10 +749,23 @@ sub gather_data
 					's2:conf_file' => $conf_file,
 				}});
 				
-				$anvil->data->{new}{resource}{$resource}{xml} = $name->toString;
 				$anvil->data->{new}{resource}{$resource}{up}  = 0;
+				$anvil->data->{new}{resource}{$resource}{xml} = $name->toString;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"new::resource::${resource}::xml" => $anvil->data->{new}{resource}{$resource}{xml},
+				}});
+				
+				# See if there's a scan_drbd_resource_uuid in the config file.
+				my $scan_drbd_resource_uuid = $anvil->DRBD->resource_uuid({
+					debug         => 2,
+					resource      => $resource,
+					resource_file => $conf_file, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_resource_uuid => $scan_drbd_resource_uuid }});
+				
+				$anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid} = $scan_drbd_resource_uuid eq "!!error!!" ? "" : $scan_drbd_resource_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					"new::resource::${resource}::scan_drbd_resource_uuid" => $anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid},
 				}});
 				
 				foreach my $host ($name->findnodes('./host'))
