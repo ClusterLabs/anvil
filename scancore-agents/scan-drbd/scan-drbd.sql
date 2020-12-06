@@ -68,7 +68,7 @@ CREATE TABLE scan_drbd_resources (
     scan_drbd_resource_host_uuid    uuid                        not null,
     scan_drbd_resource_name         text                        not null,                -- The name of the resource.
     scan_drbd_resource_up           boolean                     not null,                -- This indicates if the resource is up on this host.
-    scan_drbd_resource_xml          text                        not null,                -- This is the raw <common> section of 'drbd_resourceadm dump-xml'.
+    scan_drbd_resource_xml          text                        not null,                -- This is the raw <common> section of 'drbd_resourceadm dump-xml'. This gets set to DELETED when the resource disappears.
     modified_date                   timestamp with time zone    not null,
     
     FOREIGN KEY(scan_drbd_resource_host_uuid) REFERENCES hosts(host_uuid)
@@ -117,93 +117,13 @@ CREATE TRIGGER trigger_scan_drbd_resources
     FOR EACH ROW EXECUTE PROCEDURE history_scan_drbd_resources();
 
 
--- Volumes under resources.
--- 
--- Disk States;
--- Diskless     - No local block device has been assigned to the DRBD driver. This may mean that the resource
---                has never attached to its backing device, that it has been manually detached using drbdadm 
---                detach, or that it automatically detached after a lower-level I/O error.
--- Inconsistent - The data is inconsistent. This status occurs immediately upon creation of a new resource, 
---                on both nodes (before the initial full sync). Also, this status is found in one node (the 
---                synchronization target) during synchronization.
--- Outdated     - Resource data is consistent, but outdated.
--- DUnknown     - This state is used for the peer disk if no network connection is available.
--- Consistent   - Consistent data of a node without connection. When the connection is established, it is 
---                decided whether the data is UpToDate or Outdated.
--- UpToDate     - Consistent, up-to-date state of the data. This is the normal state
--- 
--- NOTE: Transient states are not recorded, but are below for completeness sake
--- Attaching    - Transient state while reading meta data.
--- Detaching    - Transient state while detaching and waiting for ongoing IOs to complete.
--- Failed       - Transient state following an I/O failure report by the local block device. Next state: 
---                Diskless.
--- Negotiating  - Transient state when an Attach is carried out on an already-Connected DRBD device.
--- 
--- Resource Roles ;
--- Primary   - The resource is currently in the primary role, and may be read from and written to. This role 
---             only occurs on one of the two nodes, unless dual-primary mode is enabled.
--- Secondary - The resource is currently in the secondary role. It normally receives updates from its peer 
---             (unless running in disconnected mode), but may neither be read from nor written to. This role 
---             may occur on one or both nodes.
--- Unknown   - The resource’s role is currently unknown. The local resource role never has this status. It is
---             only displayed for the peer’s resource role, and only in disconnected mode.
---             
--- Replication states;
--- Off           - The volume is not replicated over this connection, since the connection is not Connected.
--- Established   - All writes to that volume are replicated online. This is the normal state.
--- StartingSyncS - Full synchronization, initiated by the administrator, is just starting. The next possible 
---                 states are: SyncSource or PausedSyncS.
--- StartingSyncT - Full synchronization, initiated by the administrator, is just starting. Next state: 
---                 WFSyncUUID.
--- WFBitMapS     - Partial synchronization is just starting. Next possible states: SyncSource or PausedSyncS.
--- WFBitMapT     - Partial synchronization is just starting. Next possible state: WFSyncUUID.
--- WFSyncUUID    - Synchronization is about to begin. Next possible states: SyncTarget or PausedSyncT.
--- SyncSource    - Synchronization is currently running, with the local node being the source of 
---                 synchronization.
--- SyncTarget    - Synchronization is currently running, with the local node being the target of 
---                 synchronization.
--- PausedSyncS   - The local node is the source of an ongoing synchronization, but synchronization is 
---                 currently paused. This may be due to a dependency on the completion of another 
---                 synchronization process, or due to synchronization having been manually interrupted by 
---                 drbdadm pause-sync.
--- PausedSyncT   - The local node is the target of an ongoing synchronization, but synchronization is 
---                 currently paused. This may be due to a dependency on the completion of another 
---                 synchronization process, or due to synchronization having been manually interrupted by 
---                 drbdadm pause-sync.
--- VerifyS       - On-line device verification is currently running, with the local node being the source of
---                 verification.
--- VerifyT       - On-line device verification is currently running, with the local node being the target of
---                 verification.
--- Ahead         - Data replication was suspended, since the link can not cope with the load. This state is
---                 enabled by the configuration on-congestion option (see Configuring congestion policies and
---                 suspended replication).
--- Behind        - Data replication was suspended by the peer, since the link can not cope with the load. 
---                 This state is enabled by the configuration on-congestion option on the peer node (see 
---                 Configuring congestion policies and suspended replication).
--- 
--- Connection States; 
--- 
--- StandAlone     - No network configuration available. The resource has not yet been connected, or has been administratively disconnected (using drbdadm disconnect), or has dropped its connection due to failed authentication or split brain.
--- Connecting     - This node is waiting until the peer node becomes visible on the network.
--- Connected      - A DRBD connection has been established, data mirroring is now active. This is the normal state.
--- 
--- NOTE: Temporary states are not recorded, but are below for completeness sake
--- Disconnecting  - Temporary state during disconnection. The next state is StandAlone.
--- Unconnected    - Temporary state, prior to a connection attempt. Possible next states: Connecting.
--- Timeout        - Temporary state following a timeout in the communication with the peer. Next state: 
---                  Unconnected.
--- BrokenPipe     - Temporary state after the connection to the peer was lost. Next state: Unconnected.
--- NetworkFailure - Temporary state after the connection to the partner was lost. Next state: Unconnected.
--- ProtocolError  - Temporary state after the connection to the partner was lost. Next state: Unconnected.
--- TearDown       - Temporary state. The peer is closing the connection. Next state: Unconnected.
-
 -- NOTE: This table stores the information about this volume on the local host. 
 CREATE TABLE scan_drbd_volumes (
     scan_drbd_volume_uuid                       uuid                        not null    primary key,
     scan_drbd_volume_host_uuid                  uuid                        not null, 
     scan_drbd_volume_scan_drbd_resource_uuid    uuid                        not null, 
     scan_drbd_volume_number                     numeric                     not null,                -- The name of the volume.
-    scan_drbd_volume_device_path                text                        not null,                -- This is the device path to the DRBD resource
+    scan_drbd_volume_device_path                text                        not null,                -- This is the device path to the DRBD resource. This gets set to DELETED when the volume disappears.
     scan_drbd_volume_device_minor               numeric                     not null,                -- This is the device minor number, which translates to '/dev/drbd<minor>' 
     scan_drbd_volume_size                       numeric                     not null,                -- This is size of the DRBD device (in bytes)
     modified_date                               timestamp with time zone    not null,
@@ -267,7 +187,7 @@ CREATE TABLE scan_drbd_peers (
     scan_drbd_peer_host_uuid                 uuid                        not null, 
     scan_drbd_peer_scan_drbd_volume_uuid     uuid                        not null, 
     scan_drbd_peer_host_name                 text                        not null,                -- The host name for this peer, as recorded in the config
-    scan_drbd_peer_connection_state          text                        not null,                -- The connection state to the peer. See "Connection States" and "Replication States" above.
+    scan_drbd_peer_connection_state          text                        not null,                -- The connection state to the peer. See "Connection States" and "Replication States" above. This gets set to DELETED when the peer disappears from the configuration.
     scan_drbd_peer_local_disk_state          text                        not null,                -- The local disk state of the peer, see "Disk States" above.
     scan_drbd_peer_disk_state                text                        not null,                -- The local disk state of the peer, see "Disk States" above.
     scan_drbd_peer_local_role                text                        not null,                -- The current local role of the peer. 
@@ -281,7 +201,7 @@ CREATE TABLE scan_drbd_peers (
     scan_drbd_peer_fencing                   text                        not null,                -- Set to 'resource-and-stonith' for node peers and 'dont-care' for DR hosts.
     modified_date                            timestamp with time zone    not null,
     
-    FOREIGN KEY(scan_drbd_peer_scan_drbd_volume_uuid) REFERENCES scan_drbd_resources(scan_drbd_resource_uuid), 
+    FOREIGN KEY(scan_drbd_peer_scan_drbd_volume_uuid) REFERENCES scan_drbd_volumes(scan_drbd_volume_uuid), 
     FOREIGN KEY(scan_drbd_peer_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE scan_drbd_peers OWNER TO admin;

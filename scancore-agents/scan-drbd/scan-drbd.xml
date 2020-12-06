@@ -70,11 +70,237 @@ The full new config is:
 #!variable!new_config!#
 ========
 		</key>
+		<key name="scan_drbd_message_0007">
+A new DRBD resource has been found on this host.
+- Resource Name: ...... [#!variable!resource_name!#]
+- Resource State: ..... [#!variable!resource_state!#]
+
+Raw resource XML:
+========
+#!variable!resource_xml!#
+========
+		</key>
+		<key name="scan_drbd_message_0008">
+A resource was found with a resource UUID that isn't valid on this host. An attempt to find a valid database entry was made but no candidate was found. Adding the resource to the database as if it were new, and generating a new resource UUID for the resource configuration file.
+- Resource Name: ...... [#!variable!resource_name!#]
+- Resource State: ..... [#!variable!resource_state!#]
+
+Raw resource XML:
+========
+#!variable!resource_xml!#
+========
+		</key>
+		<key name="scan_drbd_message_0009">The resource config: [#!variable!resource_name!#] has been deleted. The backing storage may or may not have been removed.</key>
+		<key name="scan_drbd_message_0010">The resource: [#!variable!old_value!#] has been renamed to: [#!variable!new_value!#].</key>
+		<key name="scan_drbd_message_0011">The resource: [#!variable!resource_name!#] state has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_drbd_message_0012">
+The resource: [#!variable!resource_name!#] has returned.
+
+The new config is:
+========
+#!variable!new_config!#
+========
+		</key>
+		<key name="scan_drbd_message_0013">
+The resource: [#!variable!resource_name!#]'s XML configuration (as reported by 'drbdadm dump-xml' has changed. The change is:
+========
+#!variable!difference!#
+========
+
+The new config is:
+========
+#!variable!new_config!#
+========
+		</key>
+		<key name="scan_drbd_message_0014">
+A new DRBD resource volume has been found on this host.
+- On resouce: .. [#!variable!resource_name!#]
+- Volume Number: [#!variable!volume_number!#]
+- Device Path: . [#!variable!device_path!#]
+- Minor Number:  [#!variable!minor_number!#]
+- Volume Size: . [#!variable!volume_size!#]
+
+Note: The "minor number" translates to the base '/dev/drbdX' where 'X' is the minor number. The 'device_path' is a convenient symlink to the base 'drbdX' device.
+Note: The volume size is always a bit less than the backing LVM logical volume size. Some space is used by the internal DRBD metadata. The size of the metadata is explained here: https://www.linbit.com/drbd-user-guide/drbd-guide-9_0-en/#s-meta-data-size
+		</key>
+		<key name="scan_drbd_message_0015">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] has been deleted. The backing storage may or may not have been removed.</key>
+		<key name="scan_drbd_message_0016">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] has returned.</key>
+		<key name="scan_drbd_message_0017">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] device path has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_drbd_message_0018">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] device minot number changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. This relates to the '/dev/drbdX' device path assignment used behind the device path symlink.</key>
+		<key name="scan_drbd_message_0019">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] size has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_drbd_message_0020">
+A new peer connection has been found for the resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#];
+- Peer Name: ............... [#!variable!peer_name!#]
+- Connection State: ........ [#!variable!connection_state!#]
+- Local disk state: ........ [#!variable!local_disk_state!#]
+- Peer disk state: ......... [#!variable!disk_state!#]
+- Local Role: .............. [#!variable!local_role!#
+- Peer Role: ............... [#!variable!peer_role!#]
+- Out of sync size: ........ [#!variable!out_of_sync_size!#]
+- Current replication speed: [#!variable!replication_speed!#/sec]
+- Estimated time to sync: .. [#!variable!estimated_time_to_sync!#]
+- Peer's storage IP:Port: .. [#!variable!peer_ip_address!#:#!variable!peer_tcp_port!#]
+- Replication Protocol: .... [#!variable!peer_protocol!#]
+- Peer fencing policy: ..... [#!variable!peer_fencing!#]
+
+Note: Node peers should always use protocol C and fencing set to 'resource-and-stonith'. DR Host peers can use either protocol A or C, and fencing should always be set to 'dont-care'.
+
+Protocol A is suitable for DR hosts with higher latency connections, but the DR host will be allowed to fall slightly behind the nodes. Protocol C ensures that the DR host is never behind, but could hurt storage performance.
+		</key>
+		<key name="scan_drbd_message_0021">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] connection state to: [#!variable!peer_name!#] has changed from: [#!variable!old_connection_state!#] to: [#!variable!new_connection_state!#].
+
+========
+#!variable!old_connection_state!# - #!variable!old_connection_state_explain!#
+#!variable!new_connection_state!# - #!variable!new_connection_state_explain!#
+========
+		</key>
+		<key name="scan_drbd_message_0022">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] local disk state relative to: [#!variable!peer_name!#] has changed from: [#!variable!old_local_disk_state!#] to: [#!variable!new_local_disk_state!#].
+
+========
+#!variable!old_local_disk_state!# - #!variable!old_local_disk_state_explain!#
+#!variable!new_local_disk_state!# - #!variable!new_local_disk_state_explain!#
+========
+		</key>
+		<key name="scan_drbd_message_0023">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] disk state has changed from: [#!variable!old_disk_state!#] to: [#!variable!new_disk_state!#].
+
+========
+#!variable!old_disk_state!# - #!variable!old_disk_state_explain!#
+#!variable!new_disk_state!# - #!variable!new_disk_state_explain!#
+========
+		</key>
+		<key name="scan_drbd_message_0024">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] local role relative to: [#!variable!peer_name!#] has changed from: [#!variable!old_local_role!#] to: [#!variable!new_local_role!#].
+
+========
+#!variable!old_local_role!# - #!variable!old_local_role_explain!#
+#!variable!new_local_role!# - #!variable!new_local_role_explain!#
+========
+		</key>
+		<key name="scan_drbd_message_0025">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] role has changed from: [#!variable!old_role!#] to: [#!variable!new_role!#].
+
+========
+#!variable!old_role!# - #!variable!old_role_explain!#
+#!variable!new_role!# - #!variable!new_role_explain!#
+========
+		</key>
+		<key name="scan_drbd_message_0026">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#]'s out-of-sync size has changed from: [#!variable!old_out_of_sync_size!#] to: [#!variable!new_out_of_sync_size!#].</key>
+		<key name="scan_drbd_message_0027">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#]'s replication speed has changed from: [#!variable!old_replication_speed!#/sec] to: [#!variable!new_replication_speed!#/sec].</key>
+		<key name="scan_drbd_message_0028">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#]'s time to resync changed from: [#!variable!old_estimated_time_to_sync!#] to: [#!variable!new_estimated_time_to_sync!#].</key>
+		<key name="scan_drbd_message_0029">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] IP address/port used to replicate with the peer: [#!variable!peer_name!#] has changed from: [#!variable!old_ip_address!#:#!variable!old_tcp_port!#] to: [#!variable!new_ip_address!#:#!variable!new_tcp_port!#].</key>
+		<key name="scan_drbd_message_0030">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] replication protocol used to sync with the peer: [#!variable!peer_name!#] has changed from: [#!variable!old_protocol!#] to: [#!variable!new_protocol!#].
+
+Note: Protocol A is OK when replicating to a DR host. When used, it allows the DR host to fall behind the nodes, which helps avoids a performance hit when the network latency / speed to the DR host is higher than tolerable. Between nodes, protocol C must always be used, which ensures synchronous replication.
+		</key>
+		<key name="scan_drbd_message_0031">
+The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] fencing policy towards the peer: [#!variable!peer_name!#] has changed from: [#!variable!old_fencing!#] to: [#!variable!new_fencing!#].
+
+Note: The fencing policy 'resource-and-stonith' must always be used between nodes. The fencing policy 'dont-care' must be used between nodes and DR hosts.
+		</key>
+		<key name="scan_drbd_message_0032">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] has been deleted.</key>
+		<key name="scan_drbd_message_0033">
+The DRBD resource was not found in the database, but appears to have been in the past. Re-adding it.
+- Resource Name: ...... [#!variable!resource_name!#]
+- Resource State: ..... [#!variable!resource_state!#]
+
+Raw resource XML:
+========
+#!variable!resource_xml!#
+========
+		</key>
 		
 		<!-- Units -->
 		<key name="scan_drbd_unit_0001">Enabled</key>
 		<key name="scan_drbd_unit_0002">Disabled</key>
 		<key name="scan_drbd_unit_0003">s</key>		<!-- Used in XiB/second -->
+		<key name="scan_drbd_unit_0004">Up</key>
+		<key name="scan_drbd_unit_0005">Down</key>
+		
+		<!-- States - Note: All of this copy is taken from the official DRBD 9.0 documentation (as of 2020-12-03) - https://www.linbit.com/drbd-user-guide/drbd-guide-9_0-en/#s-connection-states -->
+		<!-- Connection States -->
+		<key name="scan_drbd_state_standalone_name">StandAlone</key>
+		<key name="scan_drbd_state_standalone_explain">No network configuration available. The resource has not yet been connected, or has been administratively disconnected (using drbdadm disconnect), or has dropped its connection due to failed authentication or split brain.</key>
+		<key name="scan_drbd_state_connecting_name">Connecting</key>
+		<key name="scan_drbd_state_connecting_explain">This node is waiting until the peer node becomes visible on the network.</key>
+		<key name="scan_drbd_state_connected_name">Connected</key>
+		<key name="scan_drbd_state_connected_explain">A DRBD connection has been established, data mirroring is now active. This is the normal state.</key>
+		<key name="scan_drbd_state_disconnecting_name">Disconnecting</key>
+		<key name="scan_drbd_state_disconnecting_explain">Temporary state during disconnection. The next state is StandAlone.</key>
+		<key name="scan_drbd_state_unconnected_name">Unconnected</key>
+		<key name="scan_drbd_state_unconnected_explain">Temporary state, prior to a connection attempt. Possible next states: Connecting.</key>
+		<key name="scan_drbd_state_timeout_name">Timeout</key>
+		<key name="scan_drbd_state_timeout_explain">Temporary state following a timeout in the communication with the peer. Next state: Unconnected.</key>
+		<key name="scan_drbd_state_brokenpipe_name">BrokenPipe</key>
+		<key name="scan_drbd_state_brokenpipe_explain">Temporary state after the connection to the peer was lost. Next state: Unconnected.</key>
+		<key name="scan_drbd_state_networkfailure_name">NetworkFailure</key>
+		<key name="scan_drbd_state_networkfailure_explain">Temporary state after the connection to the partner was lost. Next state: Unconnected.</key>
+		<key name="scan_drbd_state_protocolerror_name">ProtocolError</key>
+		<key name="scan_drbd_state_protocolerror_explain">Temporary state after the connection to the partner was lost. Next state: Unconnected.</key>
+		<key name="scan_drbd_state_teardown_name">TearDown</key>
+		<key name="scan_drbd_state_teardown_explain">Temporary state. The peer is closing the connection. Next state: Unconnected.</key>
+		<!-- Replication States -->
+		<key name="scan_drbd_state_off_name">Off</key>
+		<key name="scan_drbd_state_off_explain">The volume is not replicated over this connection, since the connection is not Connected.</key>
+		<key name="scan_drbd_state_established_name">Established</key>
+		<key name="scan_drbd_state_established_explain">All writes to that volume are replicated online. This is the normal state.</key>
+		<key name="scan_drbd_state_startingsyncs_name">StartingSyncS</key>
+		<key name="scan_drbd_state_startingsyncs_explain">Full synchronization, initiated by the administrator, is just starting. The next possible states are: SyncSource or PausedSyncS.</key>
+		<key name="scan_drbd_state_startingsynct_name">StartingSyncT</key>
+		<key name="scan_drbd_state_startingsynct_explain">Full synchronization, initiated by the administrator, is just starting. Next state: WFSyncUUID.</key>
+		<key name="scan_drbd_state_wfbitmaps_name">WFBitMapS</key>
+		<key name="scan_drbd_state_wfbitmaps_explain">Partial synchronization is just starting. Next possible states: SyncSource or PausedSyncS.</key>
+		<key name="scan_drbd_state_wfbitmapt_name">WFBitMapT</key>
+		<key name="scan_drbd_state_wfbitmapt_explain">Partial synchronization is just starting. Next possible state: WFSyncUUID.</key>
+		<key name="scan_drbd_state_wfsyncuuid_name">WFSyncUUID</key>
+		<key name="scan_drbd_state_wfsyncuuid_explain">Synchronization is about to begin. Next possible states: SyncTarget or PausedSyncT.</key>
+		<key name="scan_drbd_state_syncsource_name">SyncSource</key>
+		<key name="scan_drbd_state_syncsource_explain">Synchronization is currently running, with the local node being the source of synchronization.</key>
+		<key name="scan_drbd_state_synctarget_name">SyncTarget</key>
+		<key name="scan_drbd_state_synctarget_explain">Synchronization is currently running, with the local node being the target of synchronization.</key>
+		<key name="scan_drbd_state_pausedsyncs_name">PausedSyncS</key>
+		<key name="scan_drbd_state_pausedsyncs_explain">The local node is the source of an ongoing synchronization, but synchronization is currently paused. This may be due to a dependency on the completion of another synchronization process, or due to synchronization having been manually interrupted by drbdadm pause-sync.</key>
+		<key name="scan_drbd_state_pausedsynct_name">PausedSyncT</key>
+		<key name="scan_drbd_state_pausedsynct_explain">The local node is the target of an ongoing synchronization, but synchronization is currently paused. This may be due to a dependency on the completion of another synchronization process, or due to synchronization having been manually interrupted by drbdadm pause-sync.</key>
+		<key name="scan_drbd_state_verifys_name">VerifyS</key>
+		<key name="scan_drbd_state_verifys_explain">On-line device verification is currently running, with the local node being the source of verification.</key>
+		<key name="scan_drbd_state_verifyt_name">VerifyT</key>
+		<key name="scan_drbd_state_verifyt_explain">On-line device verification is currently running, with the local node being the target of verification.</key>
+		<key name="scan_drbd_state_ahead_name">Ahead</key>
+		<key name="scan_drbd_state_ahead_explain">Data replication was suspended, since the link can not cope with the load. This state is enabled by the configuration on-congestion option (see Configuring congestion policies and suspended replication).</key>
+		<key name="scan_drbd_state_behind_name">Behind</key>
+		<key name="scan_drbd_state_behind_explain">Data replication was suspended by the peer, since the link can not cope with the load. This state is enabled by the configuration on-congestion option on the peer node (see Configuring congestion policies and suspended replication).</key>
+		<!-- Disk States -->
+		<key name="scan_drbd_state_diskless_name">Diskless</key>
+		<key name="scan_drbd_state_diskless_explain">No local block device has been assigned to the DRBD driver. This may mean that the resource has never attached to its backing device, that it has been manually detached using drbdadm detach, or that it automatically detached after a lower-level I/O error.</key>
+		<key name="scan_drbd_state_inconsistent_name">Inconsistent</key>
+		<key name="scan_drbd_state_inconsistent_explain">The data is inconsistent. This status occurs immediately upon creation of a new resource, on both nodes (before the initial full sync). Also, this status is found in one node (the synchronization target) during synchronization.</key>
+		<key name="scan_drbd_state_outdated_name">Outdated</key>
+		<key name="scan_drbd_state_outdated_explain">Resource data is consistent, but outdated.</key>
+		<key name="scan_drbd_state_dunknown_name">DUnknown</key>
+		<key name="scan_drbd_state_dunknown_explain">This state is used for the peer disk if no network connection is available.</key>
+		<key name="scan_drbd_state_consistent_name">Consistent</key>
+		<key name="scan_drbd_state_consistent_explain">Consistent data of a node without connection. When the connection is established, it is decided whether the data is UpToDate or Outdated.</key>
+		<key name="scan_drbd_state_uptodate_name">UpToDate</key>
+		<key name="scan_drbd_state_uptodate_explain">Consistent, up-to-date state of the data. This is the normal state</key>
+		<key name="scan_drbd_state_attaching_name">Attaching</key>
+		<key name="scan_drbd_state_attaching_explain">Transient state while reading meta data.</key>
+		<key name="scan_drbd_state_detaching_name">Detaching</key>
+		<key name="scan_drbd_state_detaching_explain">Transient state while detaching and waiting for ongoing IOs to complete.</key>
+		<key name="scan_drbd_state_failed_name">Failed</key>
+		<key name="scan_drbd_state_failed_explain">Transient state following an I/O failure report by the local block device. Next state: Diskless. Note: Despite the name, this is rarely an actual issue.</key>
+		<key name="scan_drbd_state_negotiating_name">Negotiating</key>
+		<key name="scan_drbd_state_negotiating_explain">Transient state when an Attach is carried out on an already-Connected DRBD device.</key>
+		<!-- Resource Roles -->
+		<key name="scan_drbd_state_primary_name">Primary</key>
+		<key name="scan_drbd_state_primary_explain">The resource is currently in the primary role, and may be read from and written to. This role only occurs on one of the two nodes, unless dual-primary mode is enabled.</key>
+		<key name="scan_drbd_state_secondary_name">Secondary</key>
+		<key name="scan_drbd_state_secondary_explain">The resource is currently in the secondary role. It normally receives updates from its peer (unless running in disconnected mode), but may neither be read from nor written to. This role may occur on one or both nodes.</key>
+		<key name="scan_drbd_state_unknown_name">Unknown</key>
+		<key name="scan_drbd_state_unknown_explain">The resource’s role is currently unknown. The local resource role never has this status. It is only displayed for the peer’s resource role, and only in disconnected mode.</key>
 		
 	</language>
 </words>

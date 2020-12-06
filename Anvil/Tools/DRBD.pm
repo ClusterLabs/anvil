@@ -983,7 +983,11 @@ Parameters;
 
 If this is set to a UUID, and no existing UUID is found, this UUID will be added to the resource config file.
 
-=head3 resource_ (required)
+=head3 replace (optional, default 0)
+
+If this is set along with C<< new_resource_uuid >> is also set, the UUID will replace an existing UUID if one is found. Otherwise, it's added like no UUID was found.
+
+=head3 resource (required)
 
 This is the name of resource whose UUID we're looking for.
 
@@ -992,6 +996,7 @@ This is the name of resource whose UUID we're looking for.
 This is the full path to the resource configuration file that the UUID will be read from, if possible.
 
 =cut
+### NOTE: This is not used at this time. 
 sub resource_uuid
 {
 	my $self      = shift;
@@ -1001,10 +1006,13 @@ sub resource_uuid
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->resource_uuid()" }});
 	
 	my $new_resource_uuid = defined $parameter->{new_resource_uuid} ? $parameter->{new_resource_uuid} : 0;
+	my $replace           = defined $parameter->{replace}           ? $parameter->{replace}           : "";
 	my $resource          = defined $parameter->{resource}          ? $parameter->{resource}          : "";
 	my $resource_file     = defined $parameter->{resource_file}     ? $parameter->{resource_file}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		new_resource_uuid => $new_resource_uuid, 
+		replace           => $replace, 
+		resource          => $resource, 
 		resource_file     => $resource_file,
 	}});
 	
@@ -1066,11 +1074,60 @@ sub resource_uuid
 		}
 	}
 	
+	my $injected            = 0;
+	my $new_resource_config = "";
+	if ($replace)
+	{
+		if ((not $new_resource_uuid) or (not $anvil->Validate->uuid({uuid => $new_resource_uuid})))
+		{
+			# We can't do this.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0167", variables => { 
+				resource => $resource, 
+				file     => $resource_file, 
+				uuid     => $scan_drbd_resource_uuid,
+			}});
+			return('!!error!!');
+		}
+		
+		my $in_resource = 0;
+		foreach my $line (split/\n/, $resource_config)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /^resource $resource /)
+			{
+				$in_resource = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_resource => $in_resource }});
+			}
+			elsif ($line =~ /^resource /)
+			{
+				$in_resource = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_resource => $in_resource }});
+			}
+			if ($in_resource)
+			{
+				if ($line =~ /# scan_drbd_resource_uuid = (.*)$/)
+				{
+					my $old_uuid = $1;
+					if ($old_uuid ne $new_resource_uuid)
+					{
+						$line                    =~ s/# scan_drbd_resource_uuid = .*$/# scan_drbd_resource_uuid = $new_resource_uuid/;
+						$injected                =  1;
+						$scan_drbd_resource_uuid =  $new_resource_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							line                    => $line, 
+							injected                => $injected,
+							scan_drbd_resource_uuid => $scan_drbd_resource_uuid, 
+						}});
+					}
+				}
+			}
+			$new_resource_config .= $line."\n";
+		}
+	}
+	
 	if ((not $scan_drbd_resource_uuid) && ($anvil->Validate->uuid({uuid => $new_resource_uuid})))
 	{
 		# Didn't find the resource UUID and we've been asked to add it.
-		my $injected            = 0;
-		my $new_resource_config = "";
 		foreach my $line (split/\n/, $resource_config)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -1079,25 +1136,25 @@ sub resource_uuid
 				$injected                =  1;
 				$scan_drbd_resource_uuid =  $new_resource_uuid;
 				$new_resource_config     .= $line."\n";
-				$new_resource_config     .= $anvil->Words->string({key => "message_0189", variables => { uuid => $scan_drbd_resource_uuid }})."\n";
+				$new_resource_config     .= $anvil->Words->string({key => "message_0189", variables => { uuid => $scan_drbd_resource_uuid }});
 				next;
 			}
 			$new_resource_config .= $line."\n";
 		}
-		
-		if ($injected)
-		{
-			my $error = $anvil->Storage->write_file({
-				debug     => $debug,
-				body      => $new_resource_config,
-				file      => $resource_file,
-				user      => "root",
-				group     => "root", 
-				mode      => "0644",
-				overwrite => 1,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
-		}
+	}
+	
+	if ($injected)
+	{
+		my $error = $anvil->Storage->write_file({
+			debug     => $debug,
+			body      => $new_resource_config,
+			file      => $resource_file,
+			user      => "root",
+			group     => "root", 
+			mode      => "0644",
+			overwrite => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
 	}
 	
 	return($scan_drbd_resource_uuid);
@@ -1791,7 +1848,7 @@ sub update_global_common
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0517", variables => { 
 			file => $anvil->data->{path}{configs}{'global-common.conf'},
-			diff => diff \$old_global_common, \$new_global_common, { STYLE => 'Unified' },, 
+			diff => diff \$old_global_common, \$new_global_common, { STYLE => 'Unified' },
 		}});
 
 		my $failed = $anvil->Storage->write_file({

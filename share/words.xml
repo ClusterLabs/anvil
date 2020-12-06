@@ -239,6 +239,7 @@ The error was:
 		<key name="error_0164">The date: [#!variable!date!#] is not in either the 'mm/dd/yy' or 'mm/dd/yyyy' formats. Can't convert to 'yyyy/mm/dd'.</key>
 		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid..</key>
 		<key name="error_0166">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, but does not appear to be a valid UUID: [#!variable!uuid!#].</key>
+		<key name="error_0167">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, and we were asked to replace the 'scan_drbd_resource_uuid' but the new UUID: [#!variable!uuid!#] is not a valud UUID.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1353,7 +1354,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 	# The following line was added to track this resource UUID in the Anvil! database.
 	# Please do edit or remove it.
 	# scan_drbd_resource_uuid = #!variable!uuid!#
-		</key>
+		</key>	<!-- Translation note: The format of [# scan_drbd_resource_uuid = #!variable!uuid!#] is important, don't alter it. -->
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

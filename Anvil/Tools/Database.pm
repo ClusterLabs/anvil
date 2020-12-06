@@ -3799,7 +3799,7 @@ sub get_tables_from_schema
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_tables_from_schema()" }});
 	
 	my $tables      = [];
-	my $schema_file = defined $parameter->{schema_file} ? $parameter->{schema_file} : 0;
+	my $schema_file = defined $parameter->{schema_file} ? $parameter->{schema_file} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		schema_file => $schema_file, 
 	}});
@@ -3811,8 +3811,8 @@ sub get_tables_from_schema
 		return("!!error!!");
 	}
 	
-	my $schema = $anvil->Storage->read_file({file => $schema_file});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema_file => $schema_file }});
+	my $schema = $anvil->Storage->read_file({debug => $debug, file => $schema_file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
 	
 	if ($schema eq "!!error!!")
 	{
@@ -3832,6 +3832,9 @@ sub get_tables_from_schema
 			push @{$tables}, $table;
 		}
 	}
+	
+	my $table_count = @{$tables};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table_count => $table_count }});
 	
 	return($tables);
 }
@@ -12775,10 +12778,11 @@ sub purge_data
 		return("!!error!!");
 	}
 	
-	my $count = \@{$tables};
+	my $count = @{$tables};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 		my $vacuum = 0;
 		foreach my $table (reverse @{$tables})
 		{
