@@ -1,0 +1,159 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Term::Cap;
+
+my $t = Term::Cap->Tgetent;
+
+my $root_directory = "/sys/kernel/debug/drbd/resources/";
+while(1)
+{
+	system('clear');
+	print $t->Tgoto("cm", 0, 0);
+
+	my $vms                = {};
+	my $longest_resource   = 3; # Res
+	my $longest_connection = 2; # To
+	my $longest_volume     = 3; # Vol
+	my $total_transfer     = 0;
+
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $root_directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $full_path = $root_directory."/".$file;
+		if (-d $full_path)
+		{
+			my $resource = $file;
+			if (length($resource) > $longest_resource)
+			{
+				$longest_resource = length($resource);
+			}
+			$vms->{resource}{$resource} = {};
+			#print "Resource found: [".$resource."]\n";
+		}
+	}
+	closedir(DIRECTORY);
+	
+	foreach my $resource (sort {$a cmp $b} keys %{$vms->{resource}})
+	{
+		my $directory = $root_directory."/".$resource."/connections";
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file eq ".";
+			next if $file eq "..";
+			my $full_path = $directory."/".$file;
+			if (-d $full_path)
+			{
+				my $connection = $file;
+				if (length($connection) > $longest_connection)
+				{
+					$longest_connection = length($connection);
+				}
+				#print "Found connection: [".$resource."] -> [".$connection."]\n";
+				$vms->{resource}{$resource}{connection}{$connection} = {};
+			}
+		}
+		closedir(DIRECTORY);
+	
+		foreach my $connection (sort {$a cmp $b} keys %{$vms->{resource}{$resource}{connection}})
+		{
+			my $directory = $root_directory."/".$resource."/connections/".$connection;
+			local(*DIRECTORY);
+			opendir(DIRECTORY, $directory);
+			while(my $file = readdir(DIRECTORY))
+			{
+				next if $file eq ".";
+				next if $file eq "..";
+				my $full_path = $directory."/".$file."/proc_drbd";
+				if (-r $full_path)
+				{
+					my $volume = $file;
+					if (length($volume) > $longest_volume)
+					{
+						$longest_volume = length($volume);
+					}
+					#print "Found volume: [".$resource."] -> [".$connection."] -> [".$volume."]\n";
+					$vms->{resource}{$resource}{connection}{$connection}{volume}{$volume}{proc_drbd} = $full_path;
+				}
+			}
+			closedir(DIRECTORY);
+		}
+	}
+
+	print "Sync progress:\n";
+	print "  ".sprintf("%-${longest_resource}s", "Res")."    ".sprintf("%-${longest_connection}s", "To")."    Vol\n";
+	foreach my $resource (sort {$a cmp $b} keys %{$vms->{resource}})
+	{
+		foreach my $connection (sort {$a cmp $b} keys %{$vms->{resource}{$resource}{connection}})
+		{
+			foreach my $volume (sort {$a cmp $b} keys %{$vms->{resource}{$resource}{connection}{$connection}{volume}})
+			{
+				my $local_role = "";
+				my $peer_role  = "";
+				my $local_disk = "";
+				my $peer_disk  = "";
+				my $proc_file  = $vms->{resource}{$resource}{connection}{$connection}{volume}{$volume}{proc_drbd};
+				my $progress = "";
+				open (my $file_handle, "<", $proc_file) or die "Failed to read: [".$proc_file."], error: $!\n";
+				while(<$file_handle>)
+				{
+					chomp;
+					my $line = $_;
+					if ($line =~ /ds:(.*?)\/(.*?) /)
+					{
+						$local_disk = $1;
+						$peer_disk  = $2;
+						if (($local_disk eq "UpToDate") && ($peer_disk eq "UpToDate"))
+						{
+							$progress = "(UpToDate)";
+						}
+					}
+					if ($line =~ /ro:(.*?)\/(.*?) /)
+					{
+						$local_role = $1;
+						$peer_role  = $2;
+						if ($peer_role eq "Unknown")
+						{
+							$progress = "(Disconnected)";
+						}
+					}
+
+					if ($line =~ /(\[.*?\])/)
+					{
+						$progress = $1." ";
+					}
+					if ($line =~ /sync'ed: (.*?\%)/)
+					{
+						$progress .= $1." ";
+					}
+					if ($line =~ /speed: (.*?) \(/)
+					{
+						my $speed          =  $1;
+						   $progress       .= $speed." KiB/Sec ";
+						   $speed          =~ s/\D//g;
+						   $total_transfer += $speed;
+					}
+					if ($line =~ /finish: (.*?) speed/)
+					{
+						$progress .= "(ETA ".$1.")";
+					}
+				}
+				close $file_handle;
+				my $say_resource   = sprintf("%-${longest_resource}s", $resource);
+				my $say_connection = sprintf("%${longest_connection}s", $connection);
+				my $say_volume     = sprintf("%${longest_volume}s", $volume);
+				print "- ".$say_resource." -> ".$say_connection." -> ".$say_volume.": ".$progress." //  ds:".$local_disk."/".$peer_disk.", ro:".$local_role."/".$peer_role."\n";
+			}
+		}
+	}
+	my $say_speed = $total_transfer / 1024;
+	   $say_speed =~ s/^(\d+\.\d{3})\d+/$1/;
+	print "* Total transfer speed is about: [".$say_speed." MiB/sec]\n";
+	sleep 2;
+}
