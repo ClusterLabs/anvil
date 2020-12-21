@@ -15,8 +15,8 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_ipmitool_l
 		
 		<!-- Messages entries -->
 		<key name="scan_ipmitool_message_0001">No IPMI BMC found on this host nor where any other machines with IPMI found or where accessible. Nothing to do.</key>
-		<key name="scan_ipmitool_message_0002">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
-		<key name="scan_ipmitool_message_0003">There was no IPMI sensor value set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0002">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!host_name!#].</key>
+		<key name="scan_ipmitool_message_0003">There was no IPMI sensor value set for sensor: [#!variable!sensor!#] on the machine: [#!variable!host_name!#].</key>
 		<key name="scan_ipmitool_message_0004">
 The sensor: [#!variable!sensor_name!#] has changed.
 - [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
@@ -76,7 +76,7 @@ The temperature sensor: [#!variable!sensor_name!#] has risen blow critically hig
 - [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
   Note: If you are listening to 'critical' level alerts only, you will not get the alert telling you when the temperature is back to normal.
 		</key>
-		<key name="scan_ipmitool_message_0015">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0015">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!host_name!#].</key>
 		<key name="scan_ipmitool_message_0016">
 The sensor: [#!variable!sensor_name!#] has changed.
 - [#!variable!old_sensor_value!#] -> [#!variable!new_sensor_value!#]
@@ -87,10 +87,10 @@ The sensor: [#!variable!sensor_name!#] has changed.
   - Low warning:   [#!variable!old_low_warning!#] -> [#!variable!new_low_warning!#]
   - Low critical:  [#!variable!old_low_critical!#] -> [#!variable!new_low_critical!#]
 		</key>
-		<key name="scan_ipmitool_message_0017">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
-		<key name="scan_ipmitool_message_0018">There was no IPMI sensor value set for sensor: [#!variable!sensor!#] on the machine: [#!variable!machine!#].</key>
+		<key name="scan_ipmitool_message_0017">There was no IPMI sensor value units set for sensor: [#!variable!sensor!#] on the machine: [#!variable!host_name!#].</key>
+		<key name="scan_ipmitool_message_0018">There was no IPMI sensor value set for sensor: [#!variable!sensor!#] on the machine: [#!variable!host_name!#].</key>
 		<key name="scan_ipmitool_message_0019">
-The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!variable!machine!#].
+The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!variable!host_name!#].
 - Value: [#!variable!sensor_value!#], Status: [#!variable!sensor_status!#]
 - Thresholds:
   - High critical: [#!variable!high_critical!#]
@@ -99,7 +99,7 @@ The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!var
   - Low critical:  [#!variable!low_critical!#]
 		</key>
 		<key name="scan_ipmitool_message_0020">
-The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!variable!machine!#].
+The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!variable!host_name!#].
   Warning: It is not in an OK state!
 - Value: [#!variable!sensor_value!#], Status: [#!variable!sensor_status!#]
 - Thresholds:
@@ -110,9 +110,9 @@ The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!var
 		</key>
 
 		<!-- Log entries -->
-		<key name="scan_ipmitool_log_0001">Starting to read the IPMI sensor values for: [#!variable!machine!#]</key>
-		<key name="scan_ipmitool_log_0002">Failed to query node: [#!variable!machine!#]'s IPMI interface using the call: [#!variable!call!#]. Is the password correct?</key>
-		<key name="scan_ipmitool_log_0003">IPMI sensor values read from: [#!variable!machine!#] in: [#!variable!time!#].</key>
+		<key name="scan_ipmitool_log_0001">Starting to read the IPMI sensor values for: [#!variable!host_name!#]</key>
+		<key name="scan_ipmitool_log_0002">Failed to query node: [#!variable!host_name!#]'s IPMI interface using the call: [#!variable!call!#]. Is the password correct?</key>
+		<key name="scan_ipmitool_log_0003">IPMI sensor values read from: [#!variable!host_name!#] in: [#!variable!time!#].</key>
 		<key name="scan_ipmitool_log_0004">The sensor named: [#!variable!sensor_name!#] appears to have vanished, but this is the first scan that it vanished. This is generally harmless and just a sensor read issue.</key>
 		<key name="scan_ipmitool_log_0005">The sensor named: [#!variable!sensor_name!#] has returned.</key>
 		

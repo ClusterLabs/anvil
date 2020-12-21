@@ -13,6 +13,9 @@
 # - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
 # - Examine limits in: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#LimitCPU=
 # - Use 'nvme-cli' to write a scan-nvme scan agent, can get thermal and wear data
+# - Record how long a server's migration took in the past, and use that to determine which node to evacuate 
+#   during load shed. Also, track how long it takes for servers to stop to determine when to initiate a total
+#   shutdown.
 # - 
 
 use strict;
@@ -50,6 +53,9 @@ $anvil->data->{scancore} = {
 		warning_temperature => 5,
 		warning_critical    => 5,
 	},
+	power     => {
+		safe_boot_percentage => 35,
+	},
 };
 
 $anvil->Storage->read_config();
@@ -67,6 +73,9 @@ wait_for_database($anvil);
 
 # If we're not configured, sleep.
 wait_until_configured($anvil);
+
+# Startup tasks.
+startup_tasks($anvil);
 
 # Load the strings from all the agents we know about before we process alerts so that we can include their 
 # messages in any emails we're going to send.
@@ -92,7 +101,10 @@ while(1)
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
-		call_agents($anvil);
+		$anvil->ScanCore->call_agents({debug => 2});
+		
+		# Do post-scan analysis.
+		$anvil->ScanCore->post_scan_analysis({debug => 2});
 	}
 	else
 	{
@@ -140,91 +152,6 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
-
-# This invokes all scan agents found in 'path::directories::scan_agents'
-sub call_agents
-{
-	my ($anvil) = @_;
-	
-	# Get the current list of scan agents on this system.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"path::directories::scan_agents" => $anvil->data->{path}{directories}{scan_agents},
-	}});
-	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
-	
-	# Now loop through the agents I found and call them.
-	my $timeout = 30;
-	if ((exists $anvil->data->{scancore}{timing}{agent_runtime}) && ($anvil->data->{scancore}{timing}{agent_runtime} =~ /^\d+$/))
-	{
-		$timeout = $anvil->data->{scancore}{timing}{agent_runtime};
-	}
-	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
-	{
-		my $agent_path  = $anvil->data->{scancore}{agent}{$agent_name};
-		my $agent_words = $agent_path.".xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			agent_name  => $agent_name,
-			agent_path  => $agent_path, 
-			agent_words => $agent_words, 
-		}});
-		
-		if ((-e $agent_words) && (-r $agent_words))
-		{
-			# Read the words file so that we can generate alerts later.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
-				agent_name => $agent_name,
-				file       => $agent_words,
-			}});
-			$anvil->Words->read({file => $agent_words});
-		}
-		
-		# Set the timeout.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			agent_name                         => $agent_name,
-			"scancore::${agent_name}::timeout" => $anvil->data->{scancore}{$agent_name}{timeout},
-		}});
-		
-		# Now call the agent.
-		my $start_time = time;
-		if (($anvil->data->{scancore}{$agent_name}{timeout}) && ($anvil->data->{scancore}{$agent_name}{timeout} =~ /^\d+$/))
-		{
-			$timeout = $anvil->data->{scancore}{$agent_name}{timeout};
-		}
-		my $shell_call = $agent_path;
-		if ($anvil->data->{sys}{'log'}{level})
-		{
-			$shell_call .= " ".$anvil->data->{sys}{'log'}{level};
-		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		# Tell the user this agent is about to run...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0252", variables => {
-			agent_name => $agent_name,
-			timeout    => $timeout,
-		}});
-		my ($output, $return_code) = $anvil->System->call({timeout => $timeout, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
-		foreach my $line (split/\n/, $output)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0557", variables => {
-			agent_name  => $agent_name,
-			runtime     => (time - $start_time),
-			return_code => $return_code,
-		}});
-		
-		# If the return code is '124', timeout popped.
-		if ($return_code eq "124")
-		{
-			### TODO: Check if this alert was set so it only goes out once.
-			# Register an alert...
-			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "message_0180,!!agent_name!".$agent_name."!!,!!timeout!".$timeout."!!"});
-		}
-	}
-	
-	return(0);
-}
 
 # This cleans things up after a scan run has completed.
 sub cleanup_after_run
@@ -309,47 +236,6 @@ sub prepare_for_run
 	return(0);
 }
 
-# This looks in the passed-in directory for scan agents or sub-directories (which will in turn be scanned).
-sub scan_directory
-{
-	my ($anvil, $directory) = @_;
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
-	local(*DIRECTORY);
-	opendir(DIRECTORY, $directory);
-	while(my $file = readdir(DIRECTORY))
-	{
-		next if $file eq ".";
-		next if $file eq "..";
-		my $full_path = $directory."/".$file;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			file      => $file,
-			full_path => $full_path,
-		}});
-		# If we're looking at a directory, scan it. Otherwise, see if it's an executable and that it
-		# starts with 'scan-*'.
-		if (-d $full_path)
-		{
-			# This is a directory, dive into it.
-			scan_directory($anvil, $full_path);
-		}
-		elsif (-x $full_path)
-		{
-			# Now I only want to know if the file starts with 'scan-'
-			next if $file !~ /^scan-/;
-			
-			# If I am still alive, I am looking at a scan agent!
-			$anvil->data->{scancore}{agent}{$file} = $full_path;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"scancore::agent::${file}" => $anvil->data->{scancore}{agent}{$file},
-			}});
-		}
-	}
-	closedir(DIRECTORY);
-	
-	return(0);
-}
-
 # This loops until it can connect to at least one database.
 sub wait_for_database
 {
@@ -424,6 +310,28 @@ sub wait_until_configured
 			exit_if_sums_changed($anvil);
 		}
 	}
+	
+	return(0);
+}
+
+# Things we need to do at startup.
+sub startup_tasks
+{
+	my ($anvil) = @_;
+	
+	# Make sure our stop reason is cleared.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0572"});
+	my $variable_uuid = $anvil->Database->insert_or_update_variables({
+		debug                 => 2,
+		variable_name         => 'system::stop_reason', 
+		variable_value        => '', 
+		variable_default      => '', 
+		variable_description  => 'striker_0279', 
+		variable_section      => 'system', 
+		variable_source_uuid  => '4c4c4544-0043-4210-8042-c3c04f523533', 
+		variable_source_table => 'hosts', 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	
 	return(0);
 }

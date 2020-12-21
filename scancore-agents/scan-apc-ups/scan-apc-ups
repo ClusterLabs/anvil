@@ -1496,7 +1496,7 @@ SELECT
 FROM 
     scan_apc_ups_input
 WHERE 
-    scan_apc_ups_uuid                           = ".$anvil->Database->quote($scan_apc_ups_uuid)." 
+    scan_apc_ups_input_scan_apc_ups_uuid        = ".$anvil->Database->quote($scan_apc_ups_uuid)." 
 AND 
     scan_apc_ups_input_1m_minimum_input_voltage < ".$low_limit." 
 ORDER BY 
@@ -2092,8 +2092,11 @@ sub gather_ups_data
 		}
 		
 		# Can I ping it? This returns '1' if it was pingable, '0' if not.
-		my ($pinged) = $anvil->Network->ping({ping => $ups_ip});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pinged => $pinged }});
+		my ($pinged, $average_time) = $anvil->Network->ping({ping => $ups_ip});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			pinged       => $pinged,
+			average_time => $average_time, 
+		}});
 		
 		if (not $pinged)
 		{

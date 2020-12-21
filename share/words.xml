@@ -240,6 +240,7 @@ The error was:
 		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid..</key>
 		<key name="error_0166">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, but does not appear to be a valid UUID: [#!variable!uuid!#].</key>
 		<key name="error_0167">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, and we were asked to replace the 'scan_drbd_resource_uuid' but the new UUID: [#!variable!uuid!#] is not a valud UUID.</key>
+		<key name="error_0168">The 'fence_ipmilan' command: [#!variable!command!#] does not appear to be valid.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1071,6 +1072,24 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 ====
 		</key>
 		<key name="log_0557">Scan agent: [#!variable!agent_name!#] exited after: [#!variable!runtime!#] seconds with the return code: [#!variable!return_code!#].</key>
+		<key name="log_0558">I'm not on the same network as: [#!variable!host_name!#]. Unable to check the power state.</key>
+		<key name="log_0559">The host: [#!variable!host_name!#] appears to be off, but there's no IPMI information, so unable to check the power state or power on the machine.</key>
+		<key name="log_0560">The host: [#!variable!host_name!#] has no IPMI information. Wouldn't be able to boot it, even if it's off, so skipping it.</key>
+		<key name="log_0561">The host: [#!variable!host_name!#] will be checked to see if it needs to be booted or not.</key>
+		<key name="log_0562">The host: [#!variable!host_name!#] is up, no need to check if it needs booting.</key>
+		<key name="log_0563">The host: [#!variable!host_name!#] couldn't be reached directly, but IPMI reports that it is up. Could the IPMI BMC be hung or unplugged?</key>
+		<key name="log_0564">The host: [#!variable!host_name!#] is off. Will check now if it should be booted.</key>
+		<key name="log_0565">The host: [#!variable!host_name!#] has no stop reason, so we'll leave it off.</key>
+		<key name="log_0566">The host: [#!variable!host_name!#] was stopped by the user, so we'll leave it off.</key>
+		<key name="log_0567">The host: [#!variable!host_name!#] was powered off because of power loss. Checking to see if it is now safe to restart it.</key>
+		<key name="log_0568">The host: [#!variable!host_name!#] was powered off because of thermal issues. Checking to see if it is now safe to restart it.</key>
+		<key name="log_0569">Unable to find an install manifest for the Anvil! [#!variable!anvil_name!#]. As such, unable to determine what UPSes power the machine: [#!variable!host_name!#]. Unable to determine if the power feeding this node is OK or not.</key>
+		<key name="log_0570">Unable to parse the install manifest uuid: [#!variable!manifest_uuid!#] for the Anvil! [#!variable!anvil_name!#]. As such, unable to determine what UPSes power the machine: [#!variable!host_name!#]. Unable to determine if the power feeding this node is OK or not.</key>
+		<key name="log_0571">The UPS referenced by the 'power_uuid': [#!variable!power_uuid!#] under the host: [#!variable!host_name!#] has no record of being on mains power, so we can't determine how long it's been on batteries. Setting the "shortest time on batteries" to zero seconds.</key>
+		<key name="log_0572">Clearing the host's stop reason.</key>
+		<key name="log_0573">The host: [#!variable!host_name!#] is off, but there appears to be a problem translating the 'fence_ipmilan' into a workable 'ipmitool' command. Unable to check the thermal data of the host, and so, unable to determine if it's safe to boot the node.</key>
+		<key name="log_0574">The host: [#!variable!host_name!#] was powered off because of power loss. Power is back and the UPSes are sufficiently charged. Booting it back up now.</key>
+		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1662,6 +1681,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0276">This tracks the last time a given mail server was configured for use. It allows for a round-robin switching of mail servers when one mail server stops working and two or more mail servers have been configured.</key>
 		<key name="striker_0277">No UPSes</key>
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
+		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

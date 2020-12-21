@@ -308,7 +308,7 @@ sub check_internet
 			next;
 		}
 		
-		my $pinged = $anvil->Network->ping({
+		my ($pinged, $average_time) = $anvil->Network->ping({
 			debug       => $debug, 
 			target      => $target,
 			port        => $port,
@@ -317,7 +317,10 @@ sub check_internet
 			ping        => $domain, 
 			count       => 3,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			pinged       => $pinged,
+			average_time => $average_time,
+		}});
 		if ($pinged)
 		{
 			$access = 1;
@@ -2058,13 +2061,13 @@ This method will attempt to ping a target, by host name or IP, and returns C<< 1
 Example;
 
  # Test access to the internet. Allow for three attempts to account for network jitter.
- my $pinged = $anvil->Network->ping({
+ my ($pinged, $average_time) = $anvil->Network->ping({
  	ping  => "google.ca", 
  	count => 3,
  });
  
  # Test 9000-byte jumbo-frame access to a target over the BCN.
- my $jumbo_to_peer = $anvil->Network->ping({
+ my ($jumbo_to_peer, $average_time) = $anvil->Network->ping({
  	ping     => "an-a01n02.bcn", 
  	count    => 1, 
  	payload  => 9000, 
@@ -2072,7 +2075,7 @@ Example;
  });
  
  # Check to see if an Anvil! node has internet access
- my $pinged = $anvil->Network->ping({
+ my ($pinged, $average_time) = $anvil->Network->ping({
  	target      => "an-a01n01.alteeve.com",
  	port        => 22,
 	password    => "super secret", 
@@ -2181,7 +2184,7 @@ sub ping
 	{
 		$shell_call = $anvil->data->{path}{exe}{timeout}." $timeout ";
 	}
-	$shell_call .= $anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
+	$shell_call .= $anvil->data->{path}{exe}{'ping'}." -W 1 -n ".$ping." -c 1";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	if (not $fragment)
 	{
@@ -2199,8 +2202,8 @@ sub ping
 	my $average_ping_time = 0;
 	foreach my $try (1..$count)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count, try => $try }});
 		last if $pinged;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count, try => $try }});
 		
 		my $output = "";
 		my $error  = "";
@@ -2249,6 +2252,7 @@ sub ping
 					# Contact!
 					$pinged = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
+					last;
 				}
 				else
 				{

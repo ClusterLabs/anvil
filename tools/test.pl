@@ -23,16 +23,39 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 $anvil->Get->switches;
 
 # Connect to the database(s).
-#$anvil->Database->connect;
-#$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
-my $hours   = 0;
-my $minutes = 3;
-my $seconds = 24;
+if (0)
+{
+	foreach my $uuid ("4c4c4544-0043-4210-8043-c3c04f523533", "4c4c4544-0043-4210-8042-c3c04f523533", "30343536-3138-5355-4534-3238324b4842", "b4e46faf-0ebe-e211-a0d6-00262d0ca874", "4ba42b4e-9bf7-e311-a889-899427029de4")
+	{
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			debug                 => 2,
+			variable_name         => 'system::stop_reason', 
+			variable_value        => 'thermal', 
+			variable_default      => '', 
+			variable_description  => 'striker_0279', 
+			variable_section      => 'system', 
+			variable_source_uuid  => $uuid, 
+			variable_source_table => 'hosts', 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+	}
+}
 
-print "Hours: [".$hours."], minutes: [".$minutes."], seconds: [".$seconds."]\n";
+if (1)
+{
+	$anvil->ScanCore->post_scan_analysis({debug => 3});
+}
 
-my $estimated_time_to_sync = (($hours * 3600) + ($minutes * 60) + $seconds);
-print "ETA: [".$estimated_time_to_sync."] (".$anvil->Convert->time({'time' => $estimated_time_to_sync}).")\n";
+if (0)
+{
+	my $problem = $anvil->Striker->load_manifest({
+		debug         => 2, 
+		manifest_uuid => "006ee2cb-1fbd-4ea6-89d6-96cf3bc94940",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+}
 
 $anvil->nice_exit({exit_code => 0});

@@ -27,6 +27,7 @@ my $THIS_FILE = "System.pm";
 # check_ssh_keys
 # check_memory
 # check_storage
+# collect_ipmi_data
 # configure_ipmi
 # disable_daemon
 # enable_daemon
@@ -1195,6 +1196,309 @@ sub check_storage
 	
 	return(0);
 }
+
+
+=head2 collect_ipmi_data
+
+This takes an C<< ipmitool >> command (for access, not including ending command or password!) and calls thae target IPMI BMC. The returned data is collected and parsed.
+
+If failed to access, C<< 1 >> is returned. If there is a problem, C<< !!error!! >> is returned. If data is collected, C<< 0 >> is returned. 
+
+Recorded data is stored as:
+
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_value_sensor_value
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_units
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_status
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_high_critical
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_high_warning
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_low_critical
+ ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_low_warning
+
+parameters;
+
+=head3 host_name (required)
+
+This is the name used to store the target's information. Generally, this should be the C<< host_name >> value for the target machine, as stored in C<< hosts >>.
+
+=head3 ipmitool_command (required)
+
+This is the C<< ipmitool >> command used to authenticate against and access the target BMC. This must not contain the password, or the command to run on the BMC. Those parts are handled by this method.
+
+=head3 ipmi_password (optional)
+
+If the target BMC requires a password (and they usually do...), the password will be written to a temporary file, and C<< -f <temp_file > >> will be used as part of the final C<< ipmitool >> command call. As soon as the call returns, the temp file is deleted.
+
+=cut
+sub collect_ipmi_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->collect_ipmi_data()" }});
+	
+	my $host_name        = defined $parameter->{host_name}        ? $parameter->{host_name}        : "";
+	my $ipmitool_command = defined $parameter->{ipmitool_command} ? $parameter->{ipmitool_command} : "";
+	my $ipmi_password    = defined $parameter->{ipmi_password}    ? $parameter->{ipmi_password}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_name        => $host_name,
+		ipmitool_command => $ipmitool_command, 
+		ipmi_password    => $anvil->Log->is_secure($ipmi_password), 
+	}});
+	
+	if (not $host_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->collect_ipmi_data()", parameter => "host_name" }});
+		return('!!error!!');
+	}
+	if (not $ipmitool_command)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->collect_ipmi_data()", parameter => "ipmitool_command" }});
+		return('!!error!!');
+	}
+	
+	my $read_start_time = time;
+	
+	# If there is a password, write it to a temp file.
+	my $problem   = 1;
+	my $temp_file = "";
+	if ($ipmi_password)
+	{
+		# Write the password to a temp file.
+		$temp_file = "/tmp/scancore.".$anvil->Get->uuid({short => 1});
+		$anvil->Storage->write_file({
+			body      => $ipmi_password,
+			secure    => 1,
+			file      => $temp_file,
+			overwrite => 1,
+		});
+	}
+	
+	# Call with a timeout in case the call hangs.
+	my $shell_call = $ipmitool_command." sensor list all";
+	if ($ipmi_password)
+	{
+		$shell_call = $ipmitool_command." -f ".$temp_file." sensor list all";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 30, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	# Delete the temp file.
+	unlink $temp_file;
+	
+	my $temp_count = 1;
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> line" => $line }});
+		
+		# Clean up the output
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$line =~ s/\s+\|/|/g;
+		$line =~ s/\|\s+/|/g;
+		
+		### TODO: If we determine that the IPMI BMC is hung, set the health to '10'
+		###       $anvil->data->{'scan-ipmitool'}{health}{new}{'ipmi:bmc_controller'} = 10;
+		# Catch errors:
+		if ($line =~ /Activate Session command failed/)
+		{
+			# Failed to connect.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_log_0002", variables => { 
+				host_name => $host_name, 
+				call      => $ipmitool_command, 
+			}});
+		}
+		next if $line !~ /\|/;
+		
+		if ($problem)
+		{
+			$problem = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {problem => $problem }});
+		}
+		
+		#     high fail -------------------------------------.
+		# high critical ---------------------------------.   |
+		#  high warning -----------------------------.   |   |
+		#   low warning -------------------------.   |   |   |
+		#  low critical ---------------------.   |   |   |   |
+		#      low fail -----------------.   |   |   |   |   |
+		#        status -------------.   |   |   |   |   |   |
+		#         units ---------.   |   |   |   |   |   |   |
+		# current value -----.   |   |   |   |   |   |   |   |
+		#   sensor name -.   |   |   |   |   |   |   |   |   |
+		# Columns:       |   |   |   |   |   |   |   |   |   |
+		#                x | x | x | x | x | x | x | x | x | x 
+		my ($sensor_name, 
+			$current_value, 
+			$units, 
+			$status, 
+			$low_fail, 
+			$low_critical, 
+			$low_warning, 
+			$high_warning, 
+			$high_critical, 
+			$high_fail) = split /\|/, $line;
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			sensor_name   => $sensor_name, 
+			current_value => $current_value, 
+			units         => $units, 
+			status        => $status, 
+			low_fail      => $low_fail, 
+			low_critical  => $low_critical, 
+			low_warning   => $low_warning, 
+			high_warning  => $high_warning, 
+			high_critical => $high_critical, 
+			high_fail     => $high_fail, 
+		}});
+		
+		next if not $sensor_name;
+		next if not $status;
+		next if not $units;
+		next if $units =~ /discrete/;
+		
+		$units = "C" if $units =~ /degrees C/i;
+		$units = "F" if $units =~ /degrees F/i;
+		$units = "%" if $units =~ /percent/i;
+		$units = "W" if $units =~ /watt/i;
+		$units = "V" if $units =~ /volt/i;
+		
+		# The BBU and RAID Controller, as reported by IPMI, is flaky and redundant. We 
+		# monitor it via storcli/hpacucli (or OEM variant of), so we ignore it here.
+		next if $sensor_name eq "BBU";
+		next if $sensor_name eq "RAID Controller";
+		
+		# HP seems to stick 'XX-' in front of some sensor names.
+		$sensor_name =~ s/^\d\d-//;
+		
+		# Single PSU hosts often call their PSU just that, without a suffix integer. We'll 
+		# add '1' in such cases.
+		if ($sensor_name eq "PSU")
+		{
+			$sensor_name = "PSU1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+		}
+		
+		# Dells have two sensors called simply "Temp". 
+		if ($sensor_name eq "Temp")
+		{
+			$sensor_name = "Temp".$temp_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+		}
+		
+		# Thresholds that are 'na' need to be converted to numeric
+		$low_fail      = -99 if $low_fail      eq "na";
+		$low_critical  = -99 if $low_critical  eq "na";
+		$low_warning   = -99 if $low_warning   eq "na";
+		$high_warning  = 999 if $high_warning  eq "na";
+		$high_critical = 999 if $high_critical eq "na";
+		$high_fail     = 999 if $high_fail     eq "na";
+		
+		# Values in the DB that are 'double precision' must be '' if not set.
+		$current_value = '' if not $current_value;
+		$low_fail      = '' if not $low_fail;
+		$low_critical  = '' if not $low_critical;
+		$low_warning   = '' if not $low_warning;
+		$high_warning  = '' if not $high_warning;
+		$high_critical = '' if not $high_critical;
+		$high_fail     = '' if not $high_fail;
+		
+		# Some values list 'inf' on some machines (HP...). Convert these to ''.
+		$current_value = '' if $current_value eq "inf";
+		$low_fail      = '' if $low_fail      eq "inf";
+		$low_critical  = '' if $low_critical  eq "inf";
+		$low_warning   = '' if $low_warning   eq "inf";
+		$high_warning  = '' if $high_warning  eq "inf";
+		$high_critical = '' if $high_critical eq "inf";
+		$high_fail     = '' if $high_fail     eq "inf";
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			sensor_name   => $sensor_name, 
+			current_value => $current_value, 
+			units         => $units, 
+			status        => $status, 
+			low_fail      => $low_fail, 
+			low_critical  => $low_critical, 
+			low_warning   => $low_warning, 
+			high_warning  => $high_warning, 
+			high_critical => $high_critical, 
+			high_fail     => $high_fail, 
+		}});
+		
+		if ($units eq "F")
+		{
+			# Convert to 'C'
+			$high_critical = $anvil->Convert->fahrenheit_to_celsius({temperature => $high_critical}) if $high_critical ne "";
+			$high_warning  = $anvil->Convert->fahrenheit_to_celsius({temperature => $high_warning})  if $high_warning  ne "";
+			$low_critical  = $anvil->Convert->fahrenheit_to_celsius({temperature => $low_critical})  if $low_critical  ne "";
+			$low_warning   = $anvil->Convert->fahrenheit_to_celsius({temperature => $low_warning})   if $low_warning   ne "";
+			$units         = "C";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				low_critical  => $low_critical, 
+				low_warning   => $low_warning, 
+				high_warning  => $high_warning, 
+				high_critical => $high_critical, 
+				units         => $units, 
+			}});
+		}
+		
+		### TODO: It looks like the PSU state and the PSU temperature are called, simply, 
+		###       'PSUx'... If so, change the temperature to 'PSUx Temperature'
+		if (($units eq "C") && ($sensor_name =~ /^PSU\d/i))
+		{
+			$sensor_name .= " Temperature";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+		}
+		
+		# Similarly, 'PSUx Power' is used for power status and wattage....
+		if (($units eq "W") && ($sensor_name =~ /PSU\d Power/i))
+		{
+			$sensor_name =~ s/Power/Wattage/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+		}
+		
+		# And again, 'FAN PSUx' is used for both RPM and state...
+		if (($units eq "RPM") && ($sensor_name =~ /^FAN PSU\d/i))
+		{
+			$sensor_name .= " RPM";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+		}
+		
+		# Record
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value}   = $current_value;
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units}         = $units;
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status}        = $status;
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_critical} = $high_critical;
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_warning}  = $high_warning;
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_critical}  = $low_critical;
+		$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_warning}   = $low_warning;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_value_sensor_value"   => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value}, 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_units"         => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units}, 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_status"        => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status}, 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_high_critical" => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_critical}, 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_high_warning"  => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_warning}, 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_low_critical"  => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_critical}, 
+			"ipmi::${host_name}::scan_ipmitool_sensor_name::${sensor_name}::scan_ipmitool_sensor_low_warning"   => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_warning}, 
+		}});
+	}
+	
+	# Record how long it took.
+	my $sensor_read_time = $anvil->Convert->time({'time' => (time - $read_start_time)});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_log_0003", variables => { 
+		host_name => $host_name, 
+		'time'    => $sensor_read_time
+	}});
+	
+	
+	return($problem);
+}
+
 
 =head2 configure_ipmi
 

@@ -17,6 +17,7 @@ my $THIS_FILE = "Convert.pm";
 # celsius_to_fahrenheit
 # cidr
 # fahrenheit_to_celsius
+# fence_ipmilan_to_ipmitool
 # format_mmddyy_to_yymmdd
 # host_name_to_ip
 # human_readable_to_bytes
@@ -723,6 +724,100 @@ sub fahrenheit_to_celsius
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_temperature => $new_temperature }});
 	
 	return($new_temperature);
+}
+
+
+=head2 fence_ipmilan_to_ipmitool
+
+This takes a C<< fence_ipmilan >> command and converts it into an C<< ipmitool >> command. The C<< action >> is ignored, as this method is meant to be called when one machine wants to check the health of another machine.
+
+On error, C<< !!error!! >> is returned. Otherwise, a shell call and the user password will be returned as two values.
+
+Parameters;
+
+=head3 fence_ipmilan_command (required)
+
+This is the C<< fence_ipmilan >> command to be translated.
+
+=cut
+sub fence_ipmilan_to_ipmitool
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->fence_ipmilan_to_ipmitool()" }});
+	
+	my $fence_ipmilan_command = defined $parameter->{fence_ipmilan_command} ? $parameter->{fence_ipmilan_command} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		fence_ipmilan_command => $fence_ipmilan_command, 
+	}});
+	
+	if (not $fence_ipmilan_command)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->fence_ipmilan_to_ipmitool()", parameter => "fence_ipmilan_to_ipmitool" }});
+		return("!!error!!", "!!error!!");
+	}
+	elsif ($fence_ipmilan_command !~ /fence_ipmilan /)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0168", variables => { command => $fence_ipmilan_command }});
+		return("!!error!!", "!!error!!");
+	}
+	
+	my $ipmitool_command = $anvil->data->{path}{exe}{ipmitool};
+	my $ipmi_password    = "";
+	if (($fence_ipmilan_command =~ /-A (.*?) /) or ($fence_ipmilan_command =~ /-auth (.*?) /))
+	{
+		# IPMI Lan Auth type (md5, password, or none)
+		$ipmitool_command .= " -A ".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ipmitool_command => $ipmitool_command }});
+	}
+	if (($fence_ipmilan_command =~ /-a (.*?) /) or ($fence_ipmilan_command =~ /-ip (.*?) /))
+	{
+		# IPMI Lan IP to talk to
+		$ipmitool_command .= " -H ".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ipmitool_command => $ipmitool_command }});
+	}
+	if (($fence_ipmilan_command =~ /-P /) or ($fence_ipmilan_command =~ /-lanplus /))
+	{
+		# Use Lanplus to improve security of connection
+		$ipmitool_command .= " -I lanplus";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ipmitool_command => $ipmitool_command }});
+	}
+	if (($fence_ipmilan_command =~ /-l (.*?) /) or ($fence_ipmilan_command =~ /-username (.*?) /))
+	{
+		# Username/Login (if required) to control power on IPMI device
+		$ipmitool_command .= " -U ".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ipmitool_command => $ipmitool_command }});
+	}
+	if (($fence_ipmilan_command =~ /-C (.*?) /) or ($fence_ipmilan_command =~ /-cipher (.*?) /))
+	{
+		# Ciphersuite to use (same as ipmitool -C parameter)
+		$ipmitool_command .= " -C ".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ipmitool_command => $ipmitool_command }});
+	}
+	if (($fence_ipmilan_command =~ /-L (.*?) /) or ($fence_ipmilan_command =~ /-privlvl (.*?) /))
+	{
+		# Privilege level on IPMI device
+		$ipmitool_command .= " -L ".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ipmitool_command => $ipmitool_command }});
+	}
+	if (($fence_ipmilan_command =~ /-p (.*?) -/) or ($fence_ipmilan_command =~ /-password (.*?) -/) or ($fence_ipmilan_command =~ /-password '(.*?)'/) or ($fence_ipmilan_command =~ /-password (.*)$/))
+	{
+		# Password (if required) to control power on IPMI device
+		$ipmi_password = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { ">> ipmi_password" => $ipmi_password }});
+		
+		$ipmi_password =~ s/^'(.*?)'$/$1/;
+		$ipmi_password =~ s/\\'/'/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { "<< ipmi_password" => $ipmi_password }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmitool_command => $ipmitool_command, 
+		ipmi_password    => $anvil->Log->is_secure($ipmi_password),
+	}});
+	return($ipmitool_command, $ipmi_password);
 }
 
 

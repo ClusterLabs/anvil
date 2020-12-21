@@ -1889,8 +1889,11 @@ sub gather_pdu_data
 		}
 		
 		# Can I ping it? This returns '1' if it was pingable, '0' if not.
-		my ($pinged) = $anvil->Network->ping({ping => $pdu_ip});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pinged => $pinged }});
+		my ($pinged, $average_time) = $anvil->Network->ping({ping => $pdu_ip});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			pinged       => $pinged,
+			average_time => $average_time, 
+		}});
 		
 		if (not $pinged)
 		{

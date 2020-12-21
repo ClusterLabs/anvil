@@ -1251,14 +1251,15 @@ ORDER BY
 				{
 					foreach my $interface (sort {$a cmp $b} keys %{$match->{$short_host_name}})
 					{
-						my $remote_ip = $match->{$short_host_name}{$interface}{ip};
-						my $pinged    = $anvil->Network->ping({
+						my $remote_ip               = $match->{$short_host_name}{$interface}{ip};
+						my ($pinged, $average_time) = $anvil->Network->ping({
 							ping  => $remote_ip, 
 							count => 1,
 						});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							remote_ip => $remote_ip, 
-							pinged    => $pinged,
+							remote_ip    => $remote_ip, 
+							pinged       => $pinged,
+							average_time => $average_time,
 						}});
 						if ($pinged)
 						{
@@ -1473,6 +1474,7 @@ sub load_packages
 			"adwaita-icon-theme.noarch",
 			"alsa-lib.x86_64",
 			"alteeve-el8-repo.noarch", 
+			"annobin.x86_64",
 			"anvil-core.noarch",
 			"anvil-dr.noarch",
 			"anvil-node.noarch",
@@ -1562,6 +1564,7 @@ sub load_packages
 			"cronie.x86_64",
 			"crontabs.noarch",
 			"crypto-policies.noarch",
+			"crypto-policies-scripts.noarch",
 			"cryptsetup-libs.x86_64",
 			"cups-libs.x86_64",
 			"cups-pk-helper.x86_64",
@@ -1611,13 +1614,17 @@ sub load_packages
 			"dracut.x86_64",
 			"drbd90-utils.x86_64",
 			"drpm.x86_64",
+			"dwz.x86_64", 
 		],
 		e	=>	[
 			"e2fsprogs-libs.x86_64",
 			"e2fsprogs.x86_64",
 			"edk2-ovmf.noarch",
+			"efi-srpm-macros.noarch",
+			"elfutils.x86_64",
 			"elfutils-default-yama-scope.noarch",
 			"elfutils-libelf.x86_64",
+			"elfutils-libelf-devel.x86_64",
 			"elfutils-libs.x86_64",
 			"emacs-filesystem.noarch",
 			"enchant.x86_64",
@@ -1689,8 +1696,10 @@ sub load_packages
 		g	=>	[
 			"gawk.x86_64",
 			"GConf2.x86_64",
+			"gc.x86_64",
 			"gcc.x86_64", 
 			"gcr.x86_64",
+			"gdb-headless.x86_64",
 			"gdbm-libs.x86_64",
 			"gdbm.x86_64",
 			"gdisk.x86_64",
@@ -1705,6 +1714,7 @@ sub load_packages
 			"geolite2-country.noarch",
 			"gettext-libs.x86_64",
 			"gettext.x86_64",
+			"ghc-srpm-macros.noarch",
 			"gjs.x86_64",
 			"glib-networking.x86_64",
 			"glib2.x86_64",
@@ -1741,6 +1751,7 @@ sub load_packages
 			"gnutls-dane.x86_64",
 			"gnutls-utils.x86_64",
 			"gnutls.x86_64",
+			"go-srpm-macros.noarch",
 			"gobject-introspection.x86_64",
 			"gpgme.x86_64",
 			"gpm-libs.x86_64",
@@ -1766,6 +1777,7 @@ sub load_packages
 			"gtk-vnc2.x86_64",
 			"gtk2.x86_64",
 			"gtk3.x86_64",
+			"guile.x86_64",
 			"gvfs.x86_64",
 			"gvfs-client.x86_64",
 			"gvnc.x86_64",
@@ -1862,7 +1874,6 @@ sub load_packages
 			"krb5-libs.x86_64",
 		],
 		l	=>	[
-
 			"langpacks-en.noarch",
 			"lcms2.x86_64",
 			"less.x86_64",
@@ -1897,7 +1908,9 @@ sub load_packages
 			"libassuan.x86_64",
 			"libasyncns.x86_64",
 			"libatasmart.x86_64",
+			"libatomic_ops.x86_64",
 			"libattr.x86_64",
+			"libbabeltrace.x86_64",
 			"libbasicobjects.x86_64",
 			"libblkid.x86_64",
 			"libbytesize.x86_64",
@@ -1963,6 +1976,7 @@ sub load_packages
 			"libimobiledevice.x86_64",
 			"libini_config.x86_64",
 			"libinput.x86_64",
+			"libipt.x86_64",
 			"libiscsi.x86_64",
 			"libjpeg-turbo.x86_64",
 			"libkcapi-hmaccalc.x86_64",
@@ -2129,6 +2143,7 @@ sub load_packages
 		'm'	=>	[
 			"mailcap.noarch",
 			"mailx.x86_64",
+			"make.x86_64",
 			"man-db.x86_64",
 			"mcpp.x86_64",
 			"mdadm.x86_64",
@@ -2173,16 +2188,18 @@ sub load_packages
 			"nmap.x86_64",
 			"npth.x86_64",
 			"nspr.x86_64",
+			"nss.x86_64",
 			"nss-softokn-freebl.x86_64",
 			"nss-softokn.x86_64",
 			"nss-sysinit.x86_64",
 			"nss-util.x86_64",
-			"nss.x86_64",
 			"numactl-libs.x86_64",
 			"numad.x86_64",
 			"nvme-cli.x86_64", 
 		],
 		o	=>	[
+			"ocaml-srpm-macros.noarch",
+			"openblas-srpm-macros.noarch",
 			"openldap.x86_64",
 			"openssh-clients.x86_64",
 			"openssh-server.x86_64",
@@ -2207,6 +2224,7 @@ sub load_packages
 			"pango.x86_64",
 			"parted.x86_64",
 			"passwd.x86_64",
+			"patch.x86_64",
 			"pciutils-libs.x86_64",
 			"pciutils.x86_64",
 			"pcre.x86_64",
@@ -2214,6 +2232,7 @@ sub load_packages
 			"perl-aliased.noarch", 
 			"perl-Algorithm-C3.noarch", 
 			"perl-Algorithm-Diff.noarch",
+			"perl-Authen-SASL.noarch",
 			"perl-B-Hooks-EndOfScope.noarch",
 			"perl-CGI.noarch",
 			"perl-Capture-Tiny.noarch", 
@@ -2223,6 +2242,7 @@ sub load_packages
 			"perl-Class-Method-Modifiers.noarch",
 			"perl-Compress-Raw-Bzip2.x86_64",
 			"perl-Compress-Raw-Zlib.x86_64",
+			"perl-Convert-ASN1.noarch",
 			"perl-Curses.x86_64", 
 			"perl-Curses-UI.noarch", 
 			"perl-DBD-Pg.x86_64",
@@ -2266,6 +2286,7 @@ sub load_packages
 			"perl-Filter-Simple.noarch", 
 			"perl-Future.noarch", 
 			"perl-Getopt-Long.noarch",
+			"perl-GSSAPI.x86_64",
 			"perl-HTML-FromText.noarch",
 			"perl-HTML-Parser.x86_64",
 			"perl-HTML-Strip.x86_64",
@@ -2285,6 +2306,7 @@ sub load_packages
 			"perl-IPC-SysV.x86_64",
 			"perl-JSON.noarch",
 			"perl-JSON-PP.noarch",
+			"perl-LDAP.noarch", 
 			"perl-LWP-MediaTypes.noarch",
 			"perl-Log-Contextual.noarch",
 			"perl-Log-Dispatch-FileRotate.noarch",
@@ -2337,6 +2359,7 @@ sub load_packages
 			"perl-Socket.x86_64",
 			"perl-Socket6.x86_64",
 			"perl-Specio.noarch",
+			"perl-srpm-macros.noarch",
 			"perl-Storable.x86_64",
 			"perl-strictures.noarch", 
 			"perl-String-ShellQuote.noarch",
@@ -2354,7 +2377,9 @@ sub load_packages
 			"perl-Test-Simple.noarch",
 			"perl-Text-Diff.noarch",
 			"perl-Text-ParseWords.noarch",
+			"perl-Text-Soundex.x86_64",
 			"perl-Text-Tabs+Wrap.noarch",
+			"perl-Text-Unidecode.noarch",
 			"perl-Time-HiRes.x86_64",
 			"perl-Time-Local.noarch",
 			"perl-TimeDate.noarch",
@@ -2418,7 +2443,7 @@ sub load_packages
 			"pulseaudio-libs.x86_64",
 			"pulseaudio-module-bluetooth.x86_64",
 			"pulseaudio.x86_64",
-			#"python3-IPy.noarch",
+			"python-srpm-macros.noarch",
 			"python3-asn1crypto.noarch",
 			"python3-audit.x86_64",
 			"python3-argcomplete.noarch",
@@ -2468,8 +2493,10 @@ sub load_packages
 			"python3-pyparsing.noarch", 
 			"python3-pysocks.noarch",
 			"python3-pyudev.noarch",
+			"python3-pyyaml.x86_64",
 			"python3-requests.noarch",
 			"python3-rpm.x86_64",
+			"python3-rpm-macros.noarch",
 			"python3-schedutils.x86_64",
 			"python3-setools.x86_64",
 			"python3-setuptools.noarch",
@@ -2498,6 +2525,7 @@ sub load_packages
 			"qemu-kvm-common.x86_64",
 			"qemu-kvm-core.x86_64",
 			"qemu-kvm.x86_64",
+			"qt5-srpm-macros.noarch",
 			"quota-nls.noarch",
 			"quota.x86_64",
 		],
@@ -2505,10 +2533,13 @@ sub load_packages
 			"radvd.x86_64",
 			"rdma-core.x86_64",
 			"readline.x86_64",
+			"redhat-rpm-config.noarch",
 			"rest.x86_64",
 			"rootfiles.noarch",
 			"rpcbind.x86_64",
+			"rpm-build.x86_64",
 			"rpm-build-libs.x86_64",
+			"rpmdevtools.noarch",
 			"rpm-libs.x86_64",
 			"rpm-plugin-selinux.x86_64",
 			"rpm-plugin-systemd-inhibit.x86_64",
@@ -2527,6 +2558,7 @@ sub load_packages
 			"rubygem-psych.x86_64",
 			"rubygem-rdoc.noarch",
 			"rubygems.noarch",
+			"rust-srpm-macros.noarch",
 		],
 		's'	=>	[
 			"samba-client-libs.x86_64",
@@ -2622,8 +2654,6 @@ sub load_packages
 		w	=>	[
 			"webkit2gtk3.x86_64",
 			"webkit2gtk3-jsc.x86_64",
-			"webkit2gtk3-plugin-process-gtk2.x86_64",
-			"webkit2gtk3.x86_64",
 			"webrtc-audio-processing.x86_64",
 			"wget.x86_64", 
 			"which.x86_64",
@@ -2654,9 +2684,11 @@ sub load_packages
 		],
 		z	=>	[
 			"zlib.x86_64",
+			"zlib-devel.x86_64",
+			"zstd.x86_64",
 		],
 	};
-	
+
 	# These packages can't be downloaded on RHEL Striker dashboads as they usually are not entitled to 
 	$anvil->data->{ha_packages} = {
 		c	=>	[
@@ -2692,6 +2724,7 @@ sub load_packages
 			"resource-agents.x86_64",
 		],
 	};
+
 	
 	my ($os_type, $os_arch) = $anvil->Get->os_type();
 	if ($os_type eq "rhel8")
@@ -2709,8 +2742,7 @@ sub load_packages
 		push @{$anvil->data->{packages}{c}}, "centos-indexhtml.noarch";
 		push @{$anvil->data->{packages}{c}}, "centos-logos-httpd.noarch";
 		push @{$anvil->data->{packages}{c}}, "centos-logos.x86_64";
-		push @{$anvil->data->{packages}{c}}, "centos-release.x86_64";
-		push @{$anvil->data->{packages}{c}}, "centos-repos.x86_64";
+		push @{$anvil->data->{packages}{c}}, "centos-linux-release.noarch";
 		
 		# While we're here, we will need to rename /var/www/html/rhel8 to /var/www/html/rhel8, as
 		# 'centos8' and '/var/lib/tftpboot/rhel8' as 'centos8', as is used by anvil-striker-extra.

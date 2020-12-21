@@ -39,6 +39,7 @@ my $THIS_FILE = "Database.pm";
 # get_servers
 # get_ssh_keys
 # get_tables_from_schema
+# get_power
 # get_upses
 # initialize
 # insert_or_update_anvils
@@ -1234,17 +1235,20 @@ sub connect
 		if ((not $no_ping) && ($anvil->data->{database}{$uuid}{ping}))
 		{
 			# Can I ping?
-			my ($pinged) = $anvil->Network->ping({
+			my ($pinged, $average_time) = $anvil->Network->ping({
 				debug   => $debug, 
 				ping    => $host, 
 				count   => 1,
 				timeout => $anvil->data->{database}{$uuid}{ping},
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				pinged       => $pinged,
+				average_time => $average_time, 
+			}});
 			
 			my $ping_time = tv_interval ($start_time, [gettimeofday]);
 			#print "[".$ping_time."] - Pinged: [$host:$port:$name:$user]\n";
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
 			if (not $pinged)
 			{
 				# Didn't ping and 'database::<uuid>::ping' not set. Record this 
@@ -2015,27 +2019,33 @@ WHERE
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_name} = $anvil_name;
 			$anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_uuid} = $anvil_uuid;
+			$anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{role}       = "node1";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::host_uuid::${anvil_node1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_name}, 
 				"anvils::host_uuid::${anvil_node1_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_uuid}, 
+				"anvils::host_uuid::${anvil_node1_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{role}, 
 			}});
 		}
 		if ($anvil_node2_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name} = $anvil_name;
 			$anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_uuid} = $anvil_uuid;
+			$anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{role}       = "node2";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name}, 
 				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_uuid}, 
+				"anvils::host_uuid::${anvil_node2_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{role}, 
 			}});
 		}
 		if ($anvil_dr1_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name} = $anvil_name;
 			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid} = $anvil_uuid;
+			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{role}       = "dr1";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name}, 
 				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid}, 
+				"anvils::host_uuid::${anvil_dr1_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{role}, 
 			}});
 		}
 	}
@@ -2368,12 +2378,16 @@ sub get_hosts_info
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts_info()" }});
 	
+	# Load anvil data so we can find passwords.
+	$anvil->Database->get_anvils({debug => $debug});
+	
 	my $query = "
 SELECT 
     host_uuid, 
     host_name, 
     host_type, 
-    host_key 
+    host_key, 
+    host_ipmi 
 FROM 
     hosts
 ;";
@@ -2391,20 +2405,51 @@ FROM
 		my $host_name = $row->[1];
 		my $host_type = $row->[2];
 		my $host_key  = $row->[3];
+		my $host_ipmi = $row->[4];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host_uuid => $host_uuid, 
 			host_name => $host_name, 
 			host_type => $host_type, 
 			host_key  => $host_key, 
+			host_ipmi => $anvil->Log->is_secure($host_ipmi), 
 		}});
 		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name} = $host_name;
 		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type} = $host_type;
 		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}  = $host_key;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi} = $host_ipmi;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"machine::host_uuid::${host_uuid}::hosts::host_name" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}, 
 			"machine::host_uuid::${host_uuid}::hosts::host_type" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}, 
 			"machine::host_uuid::${host_uuid}::hosts::host_key"  => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_ipmi" => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}), 
 		}});
+		
+		# If this is an Anvil! member, pull it's IP.
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name} = "";
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid} = "";
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role} = "";
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{password}    = "";
+		if (exists $anvil->data->{anvils}{host_uuid}{$host_uuid})
+		{
+			my $anvil_uuid                                                 = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_uuid};
+			   $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name} = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_name};
+			   $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid} = $anvil_uuid;
+			   $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role} = $anvil->data->{anvils}{host_uuid}{$host_uuid}{role};
+			   $anvil->data->{machine}{host_uuid}{$host_uuid}{password}    = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"machine::host_uuid::${host_uuid}::anvil::name" => $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name}, 
+				"machine::host_uuid::${host_uuid}::anvil::uuid" => $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid}, 
+				"machine::host_uuid::${host_uuid}::anvil::role" => $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role}, 
+				"machine::host_uuid::${host_uuid}::password"    => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{password}), 
+			}});
+		}
+		elsif (exists $anvil->data->{database}{$host_uuid})
+		{
+			$anvil->data->{machine}{host_uuid}{$host_uuid}{password} = $anvil->data->{database}{$host_uuid}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"machine::host_uuid::${host_uuid}::password"    => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{password}), 
+			}});
+		}
 		
 		# Read in the variables.
 		my $query = "
@@ -2436,8 +2481,9 @@ AND
 			}});
 		}
 		
-		# Read in the IP addresses and network information.
-		
+		# Read in the IP addresses and network information. Data is loaded under 
+		# 'network::host_uuid::x'.
+		$anvil->Network->load_interfces({debug => $debug, host_uuid => $host_uuid});
 	}
 	
 	return(0);
@@ -3840,6 +3886,111 @@ sub get_tables_from_schema
 }
 
 
+=head2 get_power
+
+This loads the special C<< power >> table, which complements the C<< upses >> table. This helps ScanCore determine when nodes need to shut down or can be power back up during power events.
+
+* power::power_uuid::<power_uuid>::power_ups_uuid
+* power::power_uuid::<power_uuid>::power_on_battery
+* power::power_uuid::<power_uuid>::power_seconds_left
+* power::power_uuid::<power_uuid>::power_charge_percentage
+* power::power_uuid::<power_uuid>::modified_date_unix
+
+And, to allow for lookup by name;
+
+* power::power_ups_uuid::<power_ups_uuid>::power_uuid
+* power::power_ups_uuid::<power_ups_uuid>::power_on_battery
+* power::power_ups_uuid::<power_ups_uuid>::power_seconds_left
+* power::power_ups_uuid::<power_ups_uuid>::power_charge_percentage
+* power::power_ups_uuid::<power_ups_uuid>::modified_date_unix
+
+B<< Note >>: The C<< modified_date >> is cast as a unix time stamp.
+
+If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+
+This method takes no parameters.
+
+=cut
+sub get_power
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_power()" }});
+	
+	if (exists $anvil->data->{power})
+	{
+		delete $anvil->data->{power};
+	}
+	
+	my $query = "
+SELECT 
+    power_uuid, 
+    power_ups_uuid, 
+    power_on_battery, 
+    power_seconds_left, 
+    power_charge_percentage, 
+    round(extract(epoch from modified_date)) 
+FROM 
+    power 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $power_uuid              = $row->[0];
+		my $power_ups_uuid          = $row->[1];
+		my $power_on_battery        = $row->[2];
+		my $power_seconds_left      = $row->[3]; 
+		my $power_charge_percentage = $row->[4];
+		my $modified_date_unix      = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			power_uuid              => $power_uuid, 
+			power_ups_uuid          => $power_ups_uuid, 
+			power_on_battery        => $power_on_battery, 
+			power_seconds_left      => $power_seconds_left, 
+			power_charge_percentage => $power_charge_percentage, 
+			modified_date_unix      => $modified_date_unix, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{power}{power_uuid}{$power_uuid}{power_ups_uuid}          = $power_ups_uuid;
+		$anvil->data->{power}{power_uuid}{$power_uuid}{power_on_battery}        = $power_on_battery;
+		$anvil->data->{power}{power_uuid}{$power_uuid}{power_seconds_left}      = $power_seconds_left;
+		$anvil->data->{power}{power_uuid}{$power_uuid}{power_charge_percentage} = $power_charge_percentage;
+		$anvil->data->{power}{power_uuid}{$power_uuid}{modified_date_unix}      = $modified_date_unix;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"power::power_uuid::${power_uuid}::power_ups_uuid"          => $anvil->data->{power}{power_uuid}{$power_uuid}{power_ups_uuid}, 
+			"power::power_uuid::${power_uuid}::power_on_battery"        => $anvil->data->{power}{power_uuid}{$power_uuid}{power_on_battery}, 
+			"power::power_uuid::${power_uuid}::power_seconds_left"      => $anvil->data->{power}{power_uuid}{$power_uuid}{power_seconds_left}, 
+			"power::power_uuid::${power_uuid}::power_charge_percentage" => $anvil->data->{power}{power_uuid}{$power_uuid}{power_charge_percentage}, 
+			"power::power_uuid::${power_uuid}::modified_date_unix"      => $anvil->data->{power}{power_uuid}{$power_uuid}{modified_date_unix}, 
+		}});
+		
+		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_uuid}              = $power_uuid;
+		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_on_battery}        = $power_on_battery;
+		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_seconds_left}      = $power_seconds_left;
+		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_charge_percentage} = $power_charge_percentage;
+		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{modified_date_unix}      = $modified_date_unix;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"power::power_ups_uuid::${power_ups_uuid}::power_uuid"              => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_uuid}, 
+			"power::power_ups_uuid::${power_ups_uuid}::power_on_battery"        => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_on_battery}, 
+			"power::power_ups_uuid::${power_ups_uuid}::power_seconds_left"      => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_seconds_left}, 
+			"power::power_ups_uuid::${power_ups_uuid}::power_charge_percentage" => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_charge_percentage}, 
+			"power::power_ups_uuid::${power_ups_uuid}::modified_date_unix"      => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{modified_date_unix}, 
+		}});
+	}
+
+	return(0);
+}
+
+
 =head2 get_upses
 
 This loads the known UPSes (uninterruptible power supplies) into the C<< anvil::data >> hash at:
@@ -3848,6 +3999,7 @@ This loads the known UPSes (uninterruptible power supplies) into the C<< anvil::
 * upses::ups_uuid::<ups_uuid>::ups_agent
 * upses::ups_uuid::<ups_uuid>::ups_ip_address
 * upses::ups_uuid::<ups_uuid>::modified_date
+* upses::ups_uuid::<ups_uuid>::power_uuid
 
 And, to allow for lookup by name;
 
@@ -3855,10 +4007,13 @@ And, to allow for lookup by name;
 * upses::ups_name::<ups_name>::ups_agent
 * upses::ups_name::<ups_name>::ups_ip_address
 * upses::ups_name::<ups_name>::modified_date
+* upses::ups_name::<ups_name>::power_uuid
 
 If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
 
 B<<Note>>: Deleted devices (ones where C<< ups_ip_address >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+
+B<< Note>>: If a scan agent has scanned this UPS, it's power state information will be stored in the C<< power >> table. If a matching record is found, the C<< power_uuid >> will be stored in the C<< ...::power_uuid >> hash references. For this linking to work, this method will call C<< Database->get_power >>.
 
 Parameters;
 
@@ -3884,6 +4039,9 @@ sub get_upses
 	{
 		delete $anvil->data->{upses};
 	}
+	
+	# Load the power data.
+	$anvil->Database->get_power({debug => $debug});
 	
 	my $query = "
 SELECT 
@@ -3929,6 +4087,7 @@ WHERE
 		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}      = $ups_agent;
 		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address} = $ups_ip_address;
 		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}  = $modified_date;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{power_uuid}     = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"upses::ups_uuid::${ups_uuid}::ups_name"       => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}, 
 			"upses::ups_uuid::${ups_uuid}::ups_agent"      => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}, 
@@ -3940,12 +4099,27 @@ WHERE
 		$anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}      = $ups_agent;
 		$anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address} = $ups_ip_address;
 		$anvil->data->{upses}{ups_name}{$ups_name}{modified_date}  = $modified_date;
+		$anvil->data->{upses}{ups_name}{$ups_name}{power_uuid}     = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"upses::ups_name::${ups_name}::ups_uuid"       => $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}, 
 			"upses::ups_name::${ups_name}::ups_agent"      => $anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}, 
 			"upses::ups_name::${ups_name}::ups_ip_address" => $anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address}, 
 			"upses::ups_name::${ups_name}::modified_date"  => $anvil->data->{upses}{ups_name}{$ups_name}{modified_date}, 
 		}});
+		
+		# Collect power information from 'power'.
+		if (exists $anvil->data->{power}{power_ups_uuid}{$ups_uuid})
+		{
+			my $power_uuid = $anvil->data->{power}{power_ups_uuid}{$ups_uuid}{power_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { power_uuid => $power_uuid }});
+			
+			$anvil->data->{upses}{ups_uuid}{$ups_uuid}{power_uuid} = $power_uuid;
+			$anvil->data->{upses}{ups_name}{$ups_name}{power_uuid} = $power_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"upses::ups_uuid::${ups_uuid}::power_ups_uuid" => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{power_ups_uuid}, 
+				"upses::ups_name::${ups_name}::power_ups_uuid" => $anvil->data->{upses}{ups_name}{$ups_name}{power_ups_uuid}, 
+			}});
+		}
 	}
 
 	return(0);
