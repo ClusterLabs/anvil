@@ -231,6 +231,7 @@ sub generate_manifest
 	return($manifest_uuid, $anvil_name);
 }
 
+
 =head2 get_fence_data
 
 This parses the unified metadata file from the avaialable fence_devices on this host. If the unified file (location stored in C<< path::data::fences_unified_metadata >>, default is C<< /tmp/fences_unified_metadata.xml >> is not found or fails to parse, C<< 1 >> is returned. If the file is successfully parsed. C<< 0 >> is returned.

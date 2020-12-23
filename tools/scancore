@@ -66,7 +66,7 @@ $anvil->data->{switches}{'run-once'} = "";
 $anvil->Get->switches;
 
 # Calculate my sum so that we can exit if it changes later.
-$anvil->Storage->record_md5sums;
+$anvil->Storage->record_md5sums();
 
 # Connect to DBs.
 wait_for_database($anvil);
@@ -79,11 +79,11 @@ startup_tasks($anvil);
 
 # Load the strings from all the agents we know about before we process alerts so that we can include their 
 # messages in any emails we're going to send.
-load_agent_strings($anvil);
+$anvil->Words->load_agent_strings();
 
 # Send a startup message immediately
 $anvil->Email->check_config();
-$anvil->Alert->register({alert_level => "notice", message => "message_0179", set_by => $THIS_FILE});
+$anvil->Alert->register({alert_level => "notice", message => "message_0179", set_by => $THIS_FILE, sort_position => 0});
 $anvil->Email->send_alerts();
 
 # Disconnect. We'll reconnect inside the loop
@@ -95,13 +95,14 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level 
 while(1)
 {
 	# Do the various pre-run tasks.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'sys::log::level' => $anvil->data->{sys}{'log'}{level} }});
 	prepare_for_run($anvil);
 	
 	# Do we have at least one database?
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
-		$anvil->ScanCore->call_agents({debug => 2});
+		$anvil->ScanCore->call_scan_agents({debug => 2});
 		
 		# Do post-scan analysis.
 		$anvil->ScanCore->post_scan_analysis({debug => 2});
@@ -121,6 +122,11 @@ while(1)
 		next;
 	}
 	
+	### TODO: Left off here 
+	###       - Agents are timing out?
+	# Send alerts.
+	$anvil->Email->send_alerts({debug => 2});
+	
 	# Exit if 'run-once' selected.
 	if ($anvil->data->{switches}{'run-once'})
 	{
@@ -139,7 +145,7 @@ while(1)
 	{
 		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
 	}
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0249", variables => { run_interval => $run_interval }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { run_interval => $run_interval }});
 	sleep($run_interval);
 	
 	# In case something has changed, exit.
@@ -169,6 +175,8 @@ sub cleanup_after_run
 	# Disconnect from the database(s) and sleep now.
 	$anvil->Database->disconnect();
 	
+	exit_if_sums_changed($anvil);
+	
 	# Now delete all the remaining agent data.
 	delete $anvil->data->{scancore}{agent};
 }
@@ -178,41 +186,13 @@ sub exit_if_sums_changed
 {
 	my ($anvil) = @_;
 	
-	if ($anvil->Storage->check_md5sums)
+	my $changed = $anvil->Storage->check_md5sums();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+	if ($changed)
 	{
 		# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "message_0014"});
 		$anvil->nice_exit({exit_code => 0});
-	}
-	
-	return(0);
-}
-
-# This loads the strings from all the agents we know about.
-sub load_agent_strings
-{
-	my ($anvil) = @_;
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"path::directories::scan_agents" => $anvil->data->{path}{directories}{scan_agents},
-	}});
-	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
-	
-	# Now loop through the agents I found and call them.
-	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
-	{
-		my $agent_words = $anvil->data->{scancore}{agent}{$agent_name}.".xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { agent_words => $agent_words }});
-		
-		if ((-e $agent_words) && (-r $agent_words))
-		{
-			# Read the words file.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
-				agent_name => $agent_name,
-				file       => $agent_words,
-			}});
-			$anvil->Words->read({file => $agent_words});
-		}
 	}
 	
 	return(0);
@@ -226,6 +206,7 @@ sub prepare_for_run
 	$anvil->_set_paths();
 	$anvil->_set_defaults();
 	$anvil->Storage->read_config();
+	$anvil->Get->switches();
 	$anvil->Words->read();
 	$anvil->Database->connect();
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});

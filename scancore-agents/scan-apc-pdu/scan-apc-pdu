@@ -933,10 +933,10 @@ WHERE
 						old_total_wattage_draw => $old_total_wattage_draw,
 						new_total_wattage_draw => $new_total_wattage_draw, 
 					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0009", variables => $variables});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0020", variables => $variables});
 					$anvil->Alert->register({
-						alert_level   => "warning", 
-						message       => "scan_apc_pdu_message_0009", 
+						alert_level   => "notice", 
+						message       => "scan_apc_pdu_message_0020", 
 						variables     => $variables, 
 						set_by        => $THIS_FILE, 
 						sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,

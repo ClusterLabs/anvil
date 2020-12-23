@@ -24,6 +24,7 @@ my $THIS_FILE = "Database.pm";
 # disconnect
 # get_alerts
 # get_anvils
+# get_bridges
 # get_fences
 # get_host_from_uuid
 # get_hosts
@@ -2054,6 +2055,115 @@ WHERE
 }
 
 
+=head2 get_bridges
+
+This loads the known bridge devices into the C<< anvil::data >> hash at:
+
+* bridges::bridge_host_uuid::<host_uuid>::bridge_uuid::<bridge_uuid>::bridge_name
+* bridges::bridge_host_uuid::<host_uuid>::bridge_uuid::<bridge_uuid>::bridge_id
+* bridges::bridge_host_uuid::<host_uuid>::bridge_uuid::<bridge_uuid>::bridge_mac_address
+* bridges::bridge_host_uuid::<host_uuid>::bridge_uuid::<bridge_uuid>::bridge_mtu
+* bridges::bridge_host_uuid::<host_uuid>::bridge_uuid::<bridge_uuid>::bridge_stp_enabled
+* bridges::bridge_host_uuid::<host_uuid>::bridge_uuid::<bridge_uuid>::modified_date
+
+And, to allow for lookup by name;
+
+* bridges::bridge_host_uuid::<host_uuid>::bridge_name::<bridge_name>::bridge_uuid
+
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
+
+B<<Note>>: Deleted bridges (ones where C<< bridge_id >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted bridges are included when loading the data. When C<< 0 >> is set, the default, any bridges with C<< bridge_id >> set to C<< DELETED >> are ignored.
+
+=cut
+sub get_bridges
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_bridges()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	if (exists $anvil->data->{bridges})
+	{
+		delete $anvil->data->{bridges};
+	}
+	
+	my $query = "
+SELECT 
+    bridge_uuid, 
+    bridge_host_uuid, 
+    bridge_name, 
+    bridge_id, 
+    bridge_mac_address, 
+    bridge_mtu,  
+    bridge_stp_enabled, 
+    modified_date 
+FROM 
+    bridges ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    bridge_id != 'DELETED'";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $bridge_uuid        = $row->[0];
+		my $bridge_host_uuid   = $row->[1];
+		my $bridge_name        = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			bridge_uuid      => $bridge_uuid, 
+			bridge_host_uuid => $bridge_host_uuid, 
+			bridge_name      => $bridge_name, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_name}        = $bridge_name;
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_id}          = $row->[3];
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_mac_address} = $row->[4];
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_mtu}         = $row->[5];
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_stp_enabled} = $row->[6];
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{modified_date}      = $row->[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_name"        => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_name}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_id"          => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_id}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_mac_address" => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_mac_address}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_mtu"         => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_mtu}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_stp_enabled" => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_stp_enabled}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::modified_date"      => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{modified_date}, 
+		}});
+		
+		# Make it easier to look up by bridge name.
+		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_name}{$bridge_name}{bridge_uuid} = $bridge_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_name::${bridge_name}::bridge_uuid" => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_name}{$bridge_name}{bridge_uuid}, 
+		}});
+	}
+
+	return(0);
+}
+
+
 =head2 get_fences
 
 This loads the known fence devices into the C<< anvil::data >> hash at:
@@ -2070,7 +2180,7 @@ And, to allow for lookup by name;
 * fences::fence_name::<fence_name>::fence_arguments
 * fences::fence_name::<fence_name>::modified_date
 
-If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
 
 B<<Note>>: Deleted devices (ones where C<< fence_arguments >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
 
@@ -3224,7 +3334,7 @@ And, to allow for lookup by name;
 * manifests::manifest_name::<manifest_name>::manifest_note
 * manifests::manifest_name::<manifest_name>::modified_date
 
-If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
 
 B<<Note>>: Deleted devices (ones where C<< manifest_note >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
 
@@ -3906,7 +4016,7 @@ And, to allow for lookup by name;
 
 B<< Note >>: The C<< modified_date >> is cast as a unix time stamp.
 
-If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
 
 This method takes no parameters.
 
@@ -4009,7 +4119,7 @@ And, to allow for lookup by name;
 * upses::ups_name::<ups_name>::modified_date
 * upses::ups_name::<ups_name>::power_uuid
 
-If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
 
 B<<Note>>: Deleted devices (ones where C<< ups_ip_address >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
 

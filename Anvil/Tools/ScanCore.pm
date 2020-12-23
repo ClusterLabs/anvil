@@ -117,14 +117,10 @@ sub agent_startup
 		tables => $tables, 
 	}});
 	
-	if (not $agent)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "agent" }});
-		return("!!error!!");
-	}
 	if ((not $tables) or (ref($tables) ne "ARRAY"))
 	{
 		my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".sql";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema_file => $schema_file }});
 		if (-e $schema_file)
 		{
 			$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => $schema_file});
@@ -136,6 +132,7 @@ sub agent_startup
 		}
 		else
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { schema_file => $schema_file }});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
 			return("!!error!!");
 		}
@@ -254,6 +251,7 @@ sub call_scan_agents
 			$timeout = $anvil->data->{scancore}{$agent_name}{timeout};
 		}
 		my $shell_call = $agent_path;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::log::level' => $anvil->data->{sys}{'log'}{level} }});
 		if ($anvil->data->{sys}{'log'}{level})
 		{
 			$shell_call .= " ".$anvil->data->{sys}{'log'}{level};
@@ -261,7 +259,7 @@ sub call_scan_agents
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		# Tell the user this agent is about to run...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0252", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0252", variables => {
 			agent_name => $agent_name,
 			timeout    => $timeout,
 		}});
@@ -271,7 +269,7 @@ sub call_scan_agents
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0557", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0557", variables => {
 			agent_name  => $agent_name,
 			runtime     => (time - $start_time),
 			return_code => $return_code,

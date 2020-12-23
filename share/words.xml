@@ -241,6 +241,7 @@ The error was:
 		<key name="error_0166">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, but does not appear to be a valid UUID: [#!variable!uuid!#].</key>
 		<key name="error_0167">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, and we were asked to replace the 'scan_drbd_resource_uuid' but the new UUID: [#!variable!uuid!#] is not a valud UUID.</key>
 		<key name="error_0168">The 'fence_ipmilan' command: [#!variable!command!#] does not appear to be valid.</key>
+		<key name="error_0169">The Anvil! UUID: [#!variable!anvil_uuid!#] doesn't appear to exist in the database.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1035,9 +1036,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0522">The 'libvirtd' daemon is not running. It may be starting up, will wait: [#!variable!wait_time!#] seconds...</key>
 		<key name="log_0523">Found the server to be running using it's PID. The state of the server can't be determined, however. Please start the 'libvirtd' daemon!</key>
 		<key name="log_0524">No PID for the server was found. It is not running on this host.</key>
-		<key name="log_0525">The server is shutting down. Will wait for it to finish...</key>
-		<key name="log_0526">The server is off.</key>
-		<key name="log_0527">The server is running (state is: [#!variable!state!#]).</key>
+		<key name="log_0525">The server: [#!variable!server_name!#] is shutting down. Will wait for it to finish...</key>
+		<key name="log_0526">The server: [#!variable!server_name!#] is off.</key>
+		<key name="log_0527">The server: [#!variable!server_name!#] is running (state is: [#!variable!state!#]).</key>
 		<key name="log_0528">We've been asked to migrating the server: [#!variable!server!#] to: [#!variable!target_host!#].</key>
 		<key name="log_0529">Checking server state after: [#!variable!server!#] was migrated to this host.</key>
 		<key name="log_0530">Updating the postfix relay password file: [#!data!path::configs::postfix_relay_password!#].</key>
@@ -1071,7 +1072,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 #!variable!difference!#
 ====
 		</key>
-		<key name="log_0557">Scan agent: [#!variable!agent_name!#] exited after: [#!variable!runtime!#] seconds with the return code: [#!variable!return_code!#].</key>
+		<key name="log_0557">- Scan agent: [#!variable!agent_name!#] exited after: [#!variable!runtime!#] seconds with the return code: [#!variable!return_code!#].</key>
 		<key name="log_0558">I'm not on the same network as: [#!variable!host_name!#]. Unable to check the power state.</key>
 		<key name="log_0559">The host: [#!variable!host_name!#] appears to be off, but there's no IPMI information, so unable to check the power state or power on the machine.</key>
 		<key name="log_0560">The host: [#!variable!host_name!#] has no IPMI information. Wouldn't be able to boot it, even if it's off, so skipping it.</key>
@@ -1802,6 +1803,13 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0030">Down</key>
 		<key name="unit_0031">Mbps</key>
 		<key name="unit_0032">waiting for job output...</key>
+		<key name="unit_0033">Volts</key>
+		<key name="unit_0034">Watts</key>
+		<key name="unit_0035">RPM</key>
+		<key name="unit_0036">Celsius</key>
+		<key name="unit_0037">Fahrenheit</key>
+		<key name="unit_0038">%</key>
+		<key name="unit_0039">Amps</key>
 		
 		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
 		     are used when adding UPSes to the system for use in Install Manifests.

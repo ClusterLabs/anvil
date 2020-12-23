@@ -1143,7 +1143,7 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 					{
 						# Wait.
 						$loop = 1;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0525"});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0525", variables => { server_name => $server }});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { loop => $loop }});
 						
 						sleep 2;
@@ -1152,13 +1152,16 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 					elsif ($state eq "shut off")
 					{
 						# Exit with OCF_NOT_RUNNING (rc: 7);
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0526"});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0526", variables => { server_name => $server }});
 						$anvil->nice_exit({exit_code => 7});
 					}
 					else
 					{
 						# In some fashion or another, the server is running. Exit with OCF_SUCCESS (rc: 0)
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0527", variables => { 'state' => $state }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0527", variables => { 
+							'state'     => $state,
+							server_name => $server, 
+						}});
 						$anvil->nice_exit({exit_code => 0});
 					}
 				}
@@ -1168,7 +1171,7 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 			if (not $found)
 			{
 				# Exit with OCF_NOT_RUNNING (rc: 7);
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0526"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0526", variables => { server_name => $server }});
 				$anvil->nice_exit({exit_code => 7});
 			}
 		}

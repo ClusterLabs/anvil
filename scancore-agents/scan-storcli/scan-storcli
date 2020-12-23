@@ -661,18 +661,21 @@ AND
 	}
 
 	# Now, if any undeleted old entries remain, delete them from the database.
-	foreach my $serial_number (sort {$a cmp $b} keys %{$anvil->data->{old}{temperature}{$variable}})
+	foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{old}{temperature}})
 	{
-		my $temperature_uuid = $anvil->data->{old}{temperature}{$variable}{$serial_number}{temperature_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
-		
-		$temperature_uuid = $anvil->Database->insert_or_update_temperature({
-			cache            => $anvil->data->{'scan-storcli'}{queries}, 
-			debug            => 2,
-			'delete'         => 1,
-			temperature_uuid => $temperature_uuid, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
+		foreach my $serial_number (sort {$a cmp $b} keys %{$anvil->data->{old}{temperature}{$variable}})
+		{
+			my $temperature_uuid = $anvil->data->{old}{temperature}{$variable}{$serial_number}{temperature_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
+			
+			$temperature_uuid = $anvil->Database->insert_or_update_temperature({
+				cache            => $anvil->data->{'scan-storcli'}{queries}, 
+				debug            => 2,
+				'delete'         => 1,
+				temperature_uuid => $temperature_uuid, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
+		}
 	}
 	
 	# Commit the queries.

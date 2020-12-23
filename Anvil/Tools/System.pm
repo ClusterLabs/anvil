@@ -1267,6 +1267,7 @@ sub collect_ipmi_data
 		# Write the password to a temp file.
 		$temp_file = "/tmp/scancore.".$anvil->Get->uuid({short => 1});
 		$anvil->Storage->write_file({
+			debug     => 2,
 			body      => $ipmi_password,
 			secure    => 1,
 			file      => $temp_file,

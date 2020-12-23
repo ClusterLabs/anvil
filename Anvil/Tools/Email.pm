@@ -386,8 +386,9 @@ sub send_alerts
 	}
 	
 	# Load the alerts
-	$anvil->Database->get_alerts({debug => 2});
-	$anvil->Database->get_recipients({debug => 2});
+	$anvil->Database->get_alerts({debug => $debug});
+	$anvil->Database->get_recipients({debug => $debug});
+	
 	my $host_uuid = $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	foreach my $alert_uuid (keys %{$anvil->data->{alerts}{alert_uuid}})
@@ -447,10 +448,14 @@ sub send_alerts
 					key_string => $alert_message, 
 					
 				});
+				# A lot of multi-line strings start with an opening new line. This removes that.
+				$message =~ s/^\n//;
+				$message =~ s/\n$//s;
+				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message }});
 				if ($alert_title)
 				{
-					my $title = $anvil->Words->parse_banged_string({
+					my $title = "[ ".$alert_set_by." ] ".$anvil->Words->parse_banged_string({
 						language   => $recipient_language, 
 						key_string => $alert_title, 
 						
@@ -528,7 +533,6 @@ sub send_alerts
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { footer => $footer }});
 		
-		### TODO: Determine if any of the sorts need to be reversed
 		# Build the message body now.
 		my $body = "";
 		foreach my $alert_sort_position (sort {$a cmp $b} keys %{$anvil->data->{alerts}{queue}{$recipient_uuid}})

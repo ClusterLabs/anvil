@@ -22,6 +22,7 @@ my $THIS_FILE = "Words.pm";
 # key
 # language
 # language_list
+# load_agent_strings
 # parse_banged_string
 # read
 # shorten_string
@@ -315,6 +316,50 @@ sub language_list
 	return(9);
 }
 
+=head2 load_agent_strings
+
+This loads the strings from all the ScanCore scan agents on this system.
+
+The method takes no parameters.
+
+=cut
+sub load_agent_strings
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"path::directories::scan_agents" => $anvil->data->{path}{directories}{scan_agents},
+	}});
+	$anvil->Storage->scan_directory({
+		debug     => $debug, 
+		directory => $anvil->data->{path}{directories}{scan_agents},
+		recursive => 1,
+	});
+	
+	# Now loop through the agents I found and call them.
+	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+	{
+		my $agent_words = $anvil->data->{scancore}{agent}{$agent_name}.".xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { agent_words => $agent_words }});
+		
+		if ((-e $agent_words) && (-r $agent_words))
+		{
+			# Read the words file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
+				agent_name => $agent_name,
+				file       => $agent_words,
+			}});
+			$anvil->Words->read({file => $agent_words});
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 parse_banged_string
 
 This takes a string (usually from a DB record) in the format C<< <string_key>[,!!var1!value1!!,!!var2!value2!!,...,!!varN!valueN!! >> and converts it into an actual string.
@@ -459,6 +504,29 @@ sub parse_banged_string
 				}
 				else
 				{
+					### TODO: If we ever decide to support imperial measurements or other
+					###       forms of hyrogliphics, here's where we'll do it.
+					# Some variables are encoded with 'value=X:units=Y'. In those cases, 
+					if ($value =~ /value=(.*?):units=(.*)$/)
+					{
+						my $this_value = $1;
+						my $this_unit  = $2;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							this_value => $this_value,
+							this_unit  => $this_unit, 
+						}});
+						
+						if    ((uc($this_unit) eq "V") or ($this_unit =~ /Volt/i)) { $value = $this_value." #!string!unit_0033!#"; }
+						elsif ((uc($this_unit) eq "W") or ($this_unit =~ /Watt/i)) { $value = $this_value." #!string!unit_0034!#"; }
+						elsif  (uc($this_unit) eq "RPM")                           { $value = $this_value." #!string!unit_0035!#"; }
+						elsif  (uc($this_unit) eq "C")                             { $value = $this_value." #!string!unit_0036!#"; }
+						elsif  (uc($this_unit) eq "F")                             { $value = $this_value." #!string!unit_0037!#"; }
+						elsif  ($this_unit eq "%")                                 { $value = $this_value." #!string!unit_0038!#"; }
+						elsif ((uc($this_unit) eq "A") or ($this_unit =~ /Amp/i))  { $value = $this_value." #!string!unit_0039!#"; }
+						else                                                       { $value = $this_value." ".$this_unit; }
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+					}
+					
 					# Record the variable/value pair
 					$variables->{$variable} = $value;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "variables->$variable" => $variables->{$variable} }});

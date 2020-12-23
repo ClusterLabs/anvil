@@ -374,7 +374,7 @@ sub change_mode
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		mode        => $mode,
 		path        => $path,
 		port        => $port, 
@@ -383,56 +383,52 @@ sub change_mode
 		remote_user => $remote_user, 
 	}});
 	
-	my $error = 0;
+	# This is often called without a mode, just return if that's the case.
+	if (not $mode)
+	{
+		return(0);
+	}
+	
 	if (not $path)
 	{
 		# No path...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "path" }});
-		$error = 1;
+		return('!!error!!');
 	}
-	if (not $mode)
-	{
-		# No mode...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "mode" }});
-		$error = 1;
-	}
-	elsif (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/) && ($mode !~ /^\w\+\w$/) && ($mode !~ /^\w\-\w$/))
+	if (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/) && ($mode !~ /^\w\+\w$/) && ($mode !~ /^\w\-\w$/))
 	{
 		# Invalid mode
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0038", variables => { mode => $mode }});
-		$error = 1;
+		return('!!error!!');
 	}
 	
-	if (not $error)
+	my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $path";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
+	if ($anvil->Network->is_local({host => $target}))
 	{
-		my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $path";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
-		if ($anvil->Network->is_local({host => $target}))
-		{
-			# Local call
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				output      => $output,
-				return_code => $return_code,
-			}});
-		}
-		else
-		{
-			# Remote call.
-			my ($output, $error, $return_code) = $anvil->Remote->call({
-				debug       => $debug, 
-				shell_call  => $shell_call, 
-				target      => $target,
-				port        => $port, 
-				password    => $password,
-				remote_user => $remote_user, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				error       => $error,
-				output      => $output,
-				return_code => $return_code,
-			}});
-		}
+		# Local call
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
+	{
+		# Remote call.
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code,
+		}});
 	}
 	
 	return(0);
@@ -596,17 +592,17 @@ sub check_md5sums
 	# Have we changed?
 	$anvil->data->{md5sum}{$caller}{now} = $anvil->Get->md5sum({file => $0});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"md5sum::${caller}::start_time" => $anvil->data->{md5sum}{$caller}{start_time},
-		"md5sum::${caller}::now"        => $anvil->data->{md5sum}{$caller}{now},
+		"md5sum::${caller}::at_start" => $anvil->data->{md5sum}{$caller}{at_start},
+		"md5sum::${caller}::now"      => $anvil->data->{md5sum}{$caller}{now},
 	}});
 	
-	if ($anvil->data->{md5sum}{$caller}{start_time} ne $anvil->data->{md5sum}{$caller}{now})
+	if ($anvil->data->{md5sum}{$caller}{at_start} ne $anvil->data->{md5sum}{$caller}{now})
 	{
 		# Exit.
 		$exit = 1;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0250", variables => { 
 			file    => $0,
-			old_sum => $anvil->data->{md5sum}{$caller}{start_time},
+			old_sum => $anvil->data->{md5sum}{$caller}{at_start},
 			new_sum => $anvil->data->{md5sum}{$caller}{now},
 		}});
 	}
@@ -624,26 +620,26 @@ sub check_md5sums
 		}});
 		
 		# Is this the first time I've seen this module?
-		if (not defined $anvil->data->{md5sum}{$module_file}{start_time})
+		if (not defined $anvil->data->{md5sum}{$module_file}{at_start})
 		{
 			# New one!
-			$anvil->data->{md5sum}{$module_file}{start_time} = $module_sum;
+			$anvil->data->{md5sum}{$module_file}{at_start} = $module_sum;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time},
+				"md5sum::${module_file}::at_start" => $anvil->data->{md5sum}{$module_file}{at_start},
 			}});
 		}
 		$anvil->data->{md5sum}{$module_file}{now} = $module_sum;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time},
-			"md5sum::${module_file}::now"        => $anvil->data->{md5sum}{$module_file}{now},
+			"md5sum::${module_file}::at_start" => $anvil->data->{md5sum}{$module_file}{at_start},
+			"md5sum::${module_file}::now"      => $anvil->data->{md5sum}{$module_file}{now},
 		}});
-		if ($anvil->data->{md5sum}{$module_file}{start_time} ne $anvil->data->{md5sum}{$module_file}{now})
+		if ($anvil->data->{md5sum}{$module_file}{at_start} ne $anvil->data->{md5sum}{$module_file}{now})
 		{
 			# Changed.
 			$exit = 1;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0250", variables => { 
 				file    => $module_file,
-				old_sum => $anvil->data->{md5sum}{$module_file}{start_time},
+				old_sum => $anvil->data->{md5sum}{$module_file}{at_start},
 				new_sum => $anvil->data->{md5sum}{$module_file}{now},
 			}});
 		}
@@ -660,15 +656,15 @@ sub check_md5sums
 		
 		$anvil->data->{md5sum}{$file}{now} = $words_sum;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"md5sum::${file}::start_time" => $anvil->data->{md5sum}{$file}{start_time}, 
-			"md5sum::${file}::now"        => $anvil->data->{md5sum}{$file}{now}, 
+			"md5sum::${file}::at_start" => $anvil->data->{md5sum}{$file}{at_start}, 
+			"md5sum::${file}::now"      => $anvil->data->{md5sum}{$file}{now}, 
 		}});
-		if ($anvil->data->{md5sum}{$file}{start_time} ne $anvil->data->{md5sum}{$file}{now})
+		if ($anvil->data->{md5sum}{$file}{at_start} ne $anvil->data->{md5sum}{$file}{now})
 		{
 			$exit = 1;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0250", variables => { 
 				file    => $file,
-				old_sum => $anvil->data->{md5sum}{$file}{start_time},
+				old_sum => $anvil->data->{md5sum}{$file}{at_start},
 				new_sum => $anvil->data->{md5sum}{$file}{now},
 			}});
 		}
@@ -2410,9 +2406,9 @@ sub record_md5sums
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->record_md5sums()" }});
 	
 	# Record the caller's MD5 sum
-	my $caller = $0;
-	$anvil->data->{md5sum}{$caller}{start_time} = $anvil->Get->md5sum({file => $0});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${caller}::start_time" => $anvil->data->{md5sum}{$caller}{start_time} }});
+	my $caller                                   = $0;
+	   $anvil->data->{md5sum}{$caller}{at_start} = $anvil->Get->md5sum({file => $0});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${caller}::at_start" => $anvil->data->{md5sum}{$caller}{at_start} }});
 	
 	# Record the sums of our perl modules.
 	foreach my $module (sort {$a cmp $b} keys %INC)
@@ -2425,8 +2421,8 @@ sub record_md5sums
 			module_sum  => $module_sum,
 		}});
 		
-		$anvil->data->{md5sum}{$module_file}{start_time} = $module_sum;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time} }});
+		$anvil->data->{md5sum}{$module_file}{at_start} = $module_sum;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${module_file}::at_start" => $anvil->data->{md5sum}{$module_file}{at_start} }});
 	}
 	
 	# Record sum(s) for the words file(s).
@@ -2438,8 +2434,8 @@ sub record_md5sums
 			words_sum => $words_sum, 
 		}});
 		
-		$anvil->data->{md5sum}{$file}{start_time} = $words_sum;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${file}::start_time" => $anvil->data->{md5sum}{$file}{start_time} }});
+		$anvil->data->{md5sum}{$file}{at_start} = $words_sum;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${file}::at_start" => $anvil->data->{md5sum}{$file}{at_start} }});
 	}
 	
 	return(0);
@@ -2697,6 +2693,10 @@ If the file is an actual file, the following information is set;
  scan::directories::<parent_directory>::mimetype   = <mimetype, as returned by File::MimeInfo->mimetype>
  scan::directories::<parent_directory>::executable = '0' or '1'
 
+B<< Note >>: If the directory being scanned in the scan agent directory, and the file is executable and starts with c<< scan- >>, the file will be treated as a scan agent and stored in the special hash:
+
+* scancore::agent::<file> = <full_path>
+
 Parameters;
 
 =head3 directory (required)
@@ -2738,6 +2738,9 @@ sub scan_directory
 		recursive  => $recursive, 
 		search_for => $search_for, 
 	}});
+	
+	# This is used for storing scan agents we've found, when appropriate.
+	my $scan_agent_directory = $anvil->data->{path}{directories}{scan_agents};
 	
 	# Setup the search variable, if needed.
 	$anvil->data->{scan}{searched} = "" if not exists $anvil->data->{scan}{searched};
@@ -2838,6 +2841,16 @@ sub scan_directory
 				"scan::directories::${full_path}::mimetype"   => $anvil->data->{scan}{directories}{$full_path}{mimetype}, 
 				"scan::directories::${full_path}::executable" => $anvil->data->{scan}{directories}{$full_path}{executable}, 
 			}});
+			
+			# If this is a scan agent, we'll store info about it in a special hash.
+			if ((-x $full_path) && ($file =~ /^scan-/) && ($full_path =~ /^$scan_agent_directory/))
+			{
+				# Found a scan agent.
+				$anvil->data->{scancore}{agent}{$file} = $full_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"scancore::agent::${file}" => $anvil->data->{scancore}{agent}{$file}, 
+				}});
+			}
 		}
 	}
 	closedir(DIRECTORY);

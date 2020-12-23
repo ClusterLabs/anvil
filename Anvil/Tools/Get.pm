@@ -18,6 +18,7 @@ my $THIS_FILE = "Get.pm";
 ### Methods;
 # anvil_name_from_uuid
 # anvil_version
+# available_resources
 # bridges
 # cgi
 # date_and_time
@@ -310,6 +311,107 @@ fi;
 	
 	return($version);
 }
+
+
+=head2 available_resources
+
+
+Parameters;
+
+=head3 anvil_uuid (required)
+
+This is the Anvil! UUID for which we're getting available resources from.
+
+=cut
+sub available_resources
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->available_resources()" }});
+	
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	
+	if (not $anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->available_resources()", parameter => "anvil_uuid" }});
+		return("!!error!!");
+	}
+	
+	# Get the node UUIDs for this anvil.
+	my $query = "
+SELECT 
+    anvil_name, 
+    anvil_node1_host_uuid, 
+    anvil_node2_host_uuid, 
+    anvil_dr1_host_uuid 
+FROM 
+    anvils 
+WHERE 
+    anvil_uuid = ".$anvil->Database->quote($anvil_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if (not $count)
+	{
+		# Not found.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0169", variables => { anvil_uuid => $anvil_uuid }});
+		return("!!error!!");
+	}
+	
+	# Load data
+	$anvil->Database->get_hosts({debug => $debug});
+	$anvil->Database->get_bridges({debug => $debug});
+	
+	# Get the details.
+	my $anvil_name      = $results->[0]->[0];
+	my $node1_host_uuid = $results->[0]->[1];
+	my $node2_host_uuid = $results->[0]->[2];
+	my $dr1_host_uuid   = $results->[0]->[3];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_name      => $anvil_name,
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+		dr1_host_uuid   => $dr1_host_uuid, 
+	}});
+	
+	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	{
+		# Start collecting data.
+		my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_uuid => $host_uuid,
+			host_name => $host_name, 
+		}});
+		
+		# Gather bridge data.
+		foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridges}{bridge_host_uuid}{$host_uuid}{bridge_name}})
+		{
+			my $bridge_uuid = $anvil->data->{bridges}{bridge_host_uuid}{$host_uuid}{bridge_name}{$bridge_name}{bridge_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bridge_uuid => $bridge_uuid,
+				bridge_name => $bridge_name, 
+			}});
+			
+			if (not exists $anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name})
+			{
+				$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on} = [];
+			}
+			push @{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}}, $host_uuid;
+		}
+		
+		# Get the CPU and RAM data 
+	}
+	
+	return(0);
+}
+
 
 =head2 bridges
 

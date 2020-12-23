@@ -733,10 +733,8 @@ INSERT INTO
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 					push @{$anvil->data->{'scan-ipmitool'}{queries}}, $query;
 					
-					# TODO: Use the following variable/value pairs to have the sensor 
-					#       name and value translated/converted to imperial as needed.
-					my $sensor_name  = "name=$scan_ipmitool_sensor_name:units=$new_scan_ipmitool_sensor_units";
-					my $sensor_value = "value=$new_scan_ipmitool_value_sensor_value:units=$new_scan_ipmitool_sensor_units";
+					my $sensor_name  = "name=".$scan_ipmitool_sensor_name.":units=".$new_scan_ipmitool_sensor_units;
+					my $sensor_value = "value=".$new_scan_ipmitool_value_sensor_value.":units=".$new_scan_ipmitool_sensor_units;
 					my $message_key  = "scan_ipmitool_message_0019";
 					my $level        = "notice";
 					my $variables = {
@@ -763,8 +761,8 @@ INSERT INTO
 					
 					my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-ipmitool'}{alert_sort}++;
 					my $log_level     = $level eq "warning" ? 1 : 2;
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "scan_ipmitool_message_0019", variables => $variables});
-					$anvil->Alert->register({alert_level => $level, message => "scan_ipmitool_message_0019", variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
+					$anvil->Alert->register({alert_level => $level, message => $message_key, variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
 				}
 			}
 		}
@@ -881,8 +879,8 @@ INSERT INTO
 				# We need to let ScanCore translate the sensor data into a string for each 
 				# user and their prefered language and units. As such, we're going to use a 
 				# couple special variable strings for this.
-				my $sensor_name  = "name=$scan_ipmitool_sensor_name:units=$new_scan_ipmitool_sensor_units";
-				my $sensor_value = "value=$new_scan_ipmitool_value_sensor_value:units=$new_scan_ipmitool_sensor_units";
+				my $sensor_name  = "name=".$scan_ipmitool_sensor_name.":units=".$new_scan_ipmitool_sensor_units;
+				my $sensor_value = "value=".$new_scan_ipmitool_value_sensor_value.":units=".$new_scan_ipmitool_sensor_units;
 				
 				# If the sensor is not 'ok', set a warning level alert.
 				my $level       = "notice";
@@ -895,7 +893,7 @@ INSERT INTO
 				
 				my $variables = {
 					host_name     => $host_name,
-					sensor        => $scan_ipmitool_sensor_name,
+					sensor_name   => $scan_ipmitool_sensor_name,
 					sensor_value  => $sensor_value,
 					sensor_status => $new_scan_ipmitool_sensor_status, 
 					high_critical => $new_scan_ipmitool_sensor_high_critical eq "" ? "--" : $new_scan_ipmitool_sensor_high_critical." ".$new_scan_ipmitool_sensor_units,
@@ -905,8 +903,8 @@ INSERT INTO
 				};
 				my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-ipmitool'}{alert_sort}++;
 				my $log_level     = $level eq "warning" ? 1 : 2;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "scan_ipmitool_message_0019", variables => $variables});
-				$anvil->Alert->register({alert_level => $level, message => "scan_ipmitool_message_0019", variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
+				$anvil->Alert->register({alert_level => $level, message => $message_key, variables => $variables, set_by => $THIS_FILE, sort_position => $sort_position});
 			}
 		}
 		
@@ -921,15 +919,16 @@ INSERT INTO
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::scanning_myself" => $anvil->data->{sys}{scanning_myself} }});
 		
+		# Now commit the changes.
+		$anvil->Database->write({debug => 2, query => $anvil->data->{'scan-ipmitool'}{queries}, source => $THIS_FILE, line => __LINE__});
+		$anvil->data->{'scan-ipmitool'}{queries} = [];
+		
 		### Now add, update and delete 'temperature' entries.
 		process_temperature($anvil, $host_name);
 		
 		# Now look for any sensors that are in a bad state and set the health accordingly.
 		check_sensor_health($anvil, $host_name);
 	}
-	
-	# Now commit the changes.
-	$anvil->Database->write({query => $anvil->data->{'scan-ipmitool'}{queries}, source => $THIS_FILE, line => __LINE__});
 	
 	return(0);
 }
