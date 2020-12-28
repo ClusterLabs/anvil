@@ -204,5 +204,3 @@ ALTER FUNCTION history_scan_lvm_lvs() OWNER TO admin;
 CREATE TRIGGER trigger_scan_lvm_lvs
     AFTER INSERT OR UPDATE ON scan_lvm_lvs
     FOR EACH ROW EXECUTE PROCEDURE history_scan_lvm_lvs();
-
-

@@ -1247,22 +1247,6 @@ fi";
 	return(0);
 }
 
-=head2 create_lv
-
-This creates a logical volume on the local host.
-
-=cut
-sub create_lv
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->create_lv()" }});
-	
-	
-	return(0);
-}
 
 =head2 find
 

@@ -1683,6 +1683,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0277">No UPSes</key>
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
+		<key name="striker_0280">Storage Pool #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1933,6 +1934,8 @@ Read UUID: .... [#!variable!read_uuid!#]
 ========
 		</key>
 		<key name="warning_0069">[ Warning ] - Checking the mail queue appears to have failed. Output received was: [#!variable!output!#].</key>
+		<key name="warning_0070">[ Warning ] - Unable to report the available resources for the Anvil! [#!variable!anvil_name!#] as it looks like ScanCore has not yet run. Please try again after starting the 'scancore' daemon on the nodes.</key>
+		<key name="warning_0071">[ Warning ] - We were asked to create a new storage group called: [#!variable!name!#] but that name is already used by the group with UUID: [#!variable!uuid!#].</key>
 		
 	</language>
 	<!-- 日本語 -->

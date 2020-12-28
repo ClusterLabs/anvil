@@ -66,6 +66,8 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_sessions
 # insert_or_update_ssh_keys
 # insert_or_update_states
+# insert_or_update_storage_groups
+# insert_or_update_storage_group_members
 # insert_or_update_temperature
 # insert_or_update_updated
 # insert_or_update_upses
@@ -3844,6 +3846,95 @@ FROM
 			"server_definitions::server_definition_server_uuid::${server_definition_server_uuid}::$server_definition_uuid" => $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{server_definition_uuid}, 
 			"server_definitions::server_definition_server_uuid::${server_definition_server_uuid}::server_definition_xml"   => $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{server_definition_xml}, 
 			"server_definitions::server_definition_server_uuid::${server_definition_server_uuid}::unix_modified_time"      => $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{unix_modified_time}, 
+		}});
+	}
+	
+	return(0);
+}
+
+
+=head2 storage_group_data
+
+This loads the C<< storage_groups >> and C<< storage_group_members >> data. 
+
+The group name is stored as:
+
+* storage_groups::anvil_uuid::<anvil_uuid>::storage_group_uuid::<storage_group_uuid>::group_name
+
+And group members are stored as:
+
+* storage_groups::anvil_uuid::<anvil_uuid>::storage_group_uuid::<storage_group_uuid>::host_uuid::<host_uuid>::vg_uuid::<vg_uuid>::storage_group_member_uuid
+
+B<< Note >>: The C<< vg_uuid >> is the UUID stored in the volume group itself. This is called a 'UUID', but it is not a valid UUID format string. So be sure to treat it as a unique text string, and not a UUID proper.
+
+To simplify finding if a VG is in a group, the following hash is also set;
+
+* storage_groups::vg_uuid::<vg_uuid>::storage_group_uuid
+
+This method takes no parameters.
+
+=cut
+sub storage_group_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->storage_group_data()" }});
+
+	my $query     = "
+SELECT 
+    a.storage_group_uuid, 
+    a.storage_group_anvil_uuid,
+    a.storage_group_name,  
+    b.storage_group_member_uuid, 
+    b.storage_group_member_host_uuid, 
+    b.storage_group_member_vg_uuid 
+FROM 
+    storage_groups a, 
+    storage_group_members b 
+WHERE 
+    a.storage_group_uuid = b.storage_group_member_storage_group_uuid 
+ORDER BY 
+    a.storage_group_anvil_uuid ASC
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $storage_group_uuid             = $row->[0];
+		my $storage_group_anvil_uuid       = $row->[1];
+		my $storage_group_name             = $row->[2];
+		my $storage_group_member_uuid      = $row->[3];
+		my $storage_group_member_host_uuid = $row->[4];
+		my $storage_group_member_vg_uuid   = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			storage_group_uuid             => $storage_group_uuid, 
+			storage_group_anvil_uuid       => $storage_group_anvil_uuid, 
+			storage_group_name             => $storage_group_name, 
+			storage_group_member_uuid      => $storage_group_member_uuid, 
+			storage_group_member_host_uuid => $storage_group_member_host_uuid, 
+			storage_group_member_vg_uuid   => $storage_group_member_vg_uuid, 
+		}});
+		
+		# Store the data
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name}                                                                                                    = $storage_group_name;
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_member_uuid} = $storage_group_member_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::group_name"                                                                                                        => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name}, 
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_uuid::${storage_group_member_vg_uuid}::storage_group_member_uuid" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_member_uuid},
+		}});
+		
+		# Make it easier to use the VG UUID to find the storage_group_uuid.
+		$anvil->data->{storage_groups}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_uuid} = $storage_group_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage_groups::vg_uuid::${storage_group_member_vg_uuid}::storage_group_uuid" => $anvil->data->{storage_groups}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_uuid},
 		}});
 	}
 	
@@ -10792,6 +10883,398 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 	return($state_uuid);
+}
+
+
+=head2 insert_or_update_storage_groups
+
+This method creates or renames a storage group. On success, the new C<< storage_group_uuid >> is returned. If there is a problem, C<< !!error!! >> is returned.
+
+B<< Note >>: If C<< storage_group_name >> is set to C<< IGNORE >>. the storage group is not shown during server provisioning.
+
+Parameters;
+
+=head3 storage_group_anvil_uuid (required)
+
+This is the Anvil! UUID that the storage group belongs to.
+
+=head3 storage_group_name (optional)
+
+This is the name of the new storage group, as shown to the user when they provision servers. If this is not set, the word string 'striker_0280' is used with increasing integer until a unique name is found.
+
+If this is set and the given name is already in use, C<< !!error!! >> is returned.
+
+=head3 storage_group_uuid (optional)
+
+If set, the specific storage group will be updated. 
+
+=cut
+sub insert_or_update_storage_groups
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_storage_groups()" }});
+	
+	# Check my parameters.
+	my $uuid                     = defined $parameter->{uuid}                     ? $parameter->{uuid}                     : "";
+	my $file                     = defined $parameter->{file}                     ? $parameter->{file}                     : "";
+	my $line                     = defined $parameter->{line}                     ? $parameter->{line}                     : "";
+	my $storage_group_anvil_uuid = defined $parameter->{storage_group_anvil_uuid} ? $parameter->{storage_group_anvil_uuid} : "";
+	my $storage_group_name       = defined $parameter->{storage_group_name}       ? $parameter->{storage_group_name}       : "";
+	my $storage_group_uuid       = defined $parameter->{storage_group_uuid}       ? $parameter->{storage_group_uuid}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		uuid                     => $uuid, 
+		file                     => $file, 
+		line                     => $line, 
+		storage_group_anvil_uuid => $storage_group_anvil_uuid, 
+		storage_group_name       => $storage_group_name, 
+		storage_group_uuid       => $storage_group_uuid, 
+	}});
+	
+	if (not $storage_group_anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_storage_groups()", parameter => "storage_group_anvil_uuid" }});
+		return('!!error!!');
+	}
+	
+	if ($storage_group_name)
+	{
+		# Make sure the name isn't already used.
+		my $query     = "
+SELECT 
+    storage_group_uuid 
+FROM 
+    storage_groups 
+WHERE 
+    storage_group_anvil_uuid = ".$anvil->Database->quote($storage_group_anvil_uuid)." 
+AND 
+    storage_group_name       = ".$anvil->Database->quote($storage_group_name)."
+;";
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		
+		if ($count)
+		{
+			# Name collision
+			my $storage_group_uuid = $results->[0]->[0];
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0071", variables => { 
+				name => $storage_group_name,
+				uuid => $storage_group_uuid, 
+			}});
+			return('!!error!!');
+		}
+	}
+	else
+	{
+		my $vg_group_number = 0;
+		my $storage_group_name   = "";
+		until ($storage_group_name)
+		{
+			$vg_group_number++; 
+			my $test_name = $anvil->Words->string({debug => $debug, key => "striker_0280", variables => { number => $vg_group_number }});
+			my $query     = "
+SELECT 
+    COUNT(*) 
+FROM 
+    storage_groups 
+WHERE 
+    storage_group_anvil_uuid = ".$anvil->Database->quote($storage_group_anvil_uuid)." 
+AND 
+    storage_group_name       = ".$anvil->Database->quote($test_name)."
+;";
+			my $count  = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+			
+			if (not $count)
+			{
+				# We can use this name.
+				$storage_group_name = $test_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_name => $storage_group_name }});
+			}
+		}
+	}
+	
+	# INSERT or UPDATE?
+	if (not $storage_group_uuid)
+	{
+		# INSERT
+		$storage_group_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    storage_groups 
+(
+    storage_group_uuid, 
+    storage_group_anvil_uuid, 
+    storage_group_name, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($storage_group_uuid).", 
+    ".$anvil->Database->quote($storage_group_anvil_uuid).", 
+    ".$anvil->Database->quote($storage_group_name).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name} = $storage_group_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::group_name" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name},
+		}});
+	}
+	else
+	{
+		# UPDATE, if the name has changed.
+		my $query     = "
+SELECT 
+    storage_group_name 
+FROM 
+    storage_groups 
+WHERE 
+    storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)." 
+;";
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		
+		my $old_storage_group_name = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_storage_group_name => $old_storage_group_name }});
+		
+		if ($old_storage_group_name ne $storage_group_name)
+		{
+			# It's changed, update it.
+			my $query = "
+UPDATE
+    storage_groups 
+SET 
+    storage_group_name = ".$anvil->Database->quote($storage_group_name).", 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE  
+    storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	
+	return($storage_group_uuid);
+}
+
+
+=head2 insert_or_update_storage_group_members
+
+This adds a volume group on a given host to a storage group on it's Anvil!. 
+
+If there is a problem, C<< !!error!! >> is returned. Otherwise, the C<< storage_group_member_uuid >> is returned.
+
+Parameters;
+
+=head3 delete (optional, default 0)
+
+This will remove the VG from the storage group.
+
+If set, C<< storage_group_member_uuid >> is required and it is the only required attribute. 
+
+=head3 storage_group_member_uuid (optional)
+
+If set, a specific storage group member is updated or deleted. 
+
+=head3 storage_group_member_storage_group_uuid (required, unless delete is set)
+
+This is the storage group the VG will belong to.
+
+=head3 storage_group_member_host_uuid (required, unless delete is set)
+
+This is the host UUID this VG is on.
+
+=head3 storage_group_member_vg_uuid (required, unless delete is set)
+
+This is the volume group's B<< internal >> UUID (which, to be clear, isn't a valid UUID formatted string, so it's treated as a string internally). 
+
+=cut
+sub insert_or_update_storage_group_members
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_storage_group_members()" }});
+	
+	# Check my parameters.
+	my $uuid                                    = defined $parameter->{uuid}                                    ? $parameter->{uuid}                                    : "";
+	my $file                                    = defined $parameter->{file}                                    ? $parameter->{file}                                    : "";
+	my $line                                    = defined $parameter->{line}                                    ? $parameter->{line}                                    : "";
+	my $delete                                  = defined $parameter->{'delete'}                                ? $parameter->{'delete'}                                : 0;
+	my $storage_group_member_uuid               = defined $parameter->{storage_group_member_uuid}               ? $parameter->{storage_group_member_uuid}               : "";
+	my $storage_group_member_storage_group_uuid = defined $parameter->{storage_group_member_storage_group_uuid} ? $parameter->{storage_group_member_storage_group_uuid} : "";
+	my $storage_group_member_host_uuid          = defined $parameter->{storage_group_member_host_uuid}          ? $parameter->{storage_group_member_host_uuid}          : "";
+	my $storage_group_member_vg_uuid            = defined $parameter->{storage_group_member_vg_uuid}            ? $parameter->{storage_group_member_vg_uuid}            : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		uuid                                    => $uuid, 
+		file                                    => $file, 
+		line                                    => $line, 
+		'delete'                                => $delete, 
+		storage_group_member_uuid               => $storage_group_member_uuid, 
+		storage_group_member_storage_group_uuid => $storage_group_member_storage_group_uuid, 
+		storage_group_member_host_uuid          => $storage_group_member_host_uuid, 
+		storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
+	}});
+	
+	if ($delete)
+	{
+		if (not $storage_group_member_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_storage_group_members()", parameter => "storage_group_member_uuid" }});
+			return('!!error!!');
+		}
+		else
+		{
+			my $query = "
+UPDATE 
+    storage_group_members 
+SET 
+    storage_group_member_vg_uuid = 'DELETED', 
+    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE  
+    storage_group_member_uuid    = ".$anvil->Database->quote($storage_group_member_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+    
+			$query = "DELETE FROM storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	else
+	{
+		if (not $storage_group_member_storage_group_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_storage_group_members()", parameter => "storage_group_member_storage_group_uuid" }});
+			return('!!error!!');
+		}
+		if (not $storage_group_member_host_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_storage_group_members()", parameter => "storage_group_member_host_uuid" }});
+			return('!!error!!');
+		}
+		if (not $storage_group_member_vg_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_storage_group_members()", parameter => "storage_group_member_vg_uuid" }});
+			return('!!error!!');
+		}
+	}
+	
+	if (not $storage_group_member_uuid)
+	{
+		# See if we've seen this VG by searching for it's UUID.
+		my $query = "
+SELECT 
+    storage_group_member_uuid 
+FROM 
+    storage_group_members 
+WHERE 
+    storage_group_member_vg_uuid = ".$anvil->Database->quote($storage_group_member_vg_uuid)."
+;";
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$storage_group_member_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
+		}
+	}
+	
+	# INSERT or UPDATE?
+	if (not $storage_group_member_uuid)
+	{
+		# INSERT
+		my $storage_group_member_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    storage_group_members 
+(
+    storage_group_member_uuid, 
+    storage_group_member_storage_group_uuid, 
+    storage_group_member_host_uuid, 
+    storage_group_member_vg_uuid, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($storage_group_member_uuid).", 
+    ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
+    ".$anvil->Database->quote($storage_group_member_host_uuid).", 
+    ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+};";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# UPDATE, if something has changed.
+		my $query = "
+SELECT 
+    storage_group_member_storage_group_uuid, 
+    storage_group_member_host_uuid, 
+    storage_group_member_vg_uuid 
+FROM 
+    storage_group_members 
+WHERE 
+    storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid)."
+;";
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		my $old_storage_group_member_storage_group_uuid = $results->[0]->[0];
+		my $old_storage_group_member_host_uuid          = $results->[0]->[1];
+		my $old_storage_group_member_vg_uuid            = $results->[0]->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			old_storage_group_member_storage_group_uuid => $old_storage_group_member_storage_group_uuid, 
+			old_storage_group_member_host_uuid          => $old_storage_group_member_host_uuid, 
+			old_storage_group_member_vg_uuid            => $old_storage_group_member_vg_uuid, 
+		}});
+		
+		if (($old_storage_group_member_storage_group_uuid ne $storage_group_member_storage_group_uuid) or 
+		    ($old_storage_group_member_host_uuid          ne $storage_group_member_host_uuid)          or 
+		    ($old_storage_group_member_vg_uuid            ne $storage_group_member_vg_uuid))
+		{
+			# Something changed, UPDATE
+			my $query = "
+UPDATE 
+    storage_group_members 
+SET 
+    storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
+    storage_group_member_host_uuid          = ".$anvil->Database->quote($storage_group_member_host_uuid).", 
+    storage_group_member_vg_uuid            = ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
+    modified_date                           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE
+    storage_group_member_uuid               = ".$anvil->Database->quote($storage_group_member_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	
+	return($storage_group_member_uuid);
 }
 
 

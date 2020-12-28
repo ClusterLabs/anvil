@@ -1642,6 +1642,107 @@ CREATE TRIGGER trigger_upses
     FOR EACH ROW EXECUTE PROCEDURE history_upses();
 
 
+-- This stores information on which LVM VGs across nodes (and dr hosts) are "grouped". Specifically, when a 
+-- DRBD resource is to be created, the linked VGs are checked to see how much free space is available to 
+-- offer up. Generally, a "VG Group" should be matched in size and storage technology.
+CREATE TABLE storage_groups (
+    storage_group_uuid          uuid                        not null    primary key, 
+    storage_group_anvil_uuid    uuid                        not null,                -- The Anvil! this group belongs to.
+    storage_group_name          text                        not null,                -- This is a field that can be set to indicate the storage tech, purpose or other string a user finds useful.
+    modified_date               timestamp with time zone    not null, 
+    
+    FOREIGN KEY(storage_group_anvil_uuid) REFERENCES anvils(anvil_uuid) 
+);
+ALTER TABLE storage_groups OWNER TO admin;
+
+CREATE TABLE history.storage_groups (
+    history_id                  bigserial,
+    storage_group_uuid          uuid,
+    storage_group_anvil_uuid    uuid,
+    storage_group_name          text,
+    modified_date               timestamp with time zone    not null 
+);
+ALTER TABLE history.storage_groups OWNER TO admin;
+
+CREATE FUNCTION history_storage_groups() RETURNS trigger
+AS $$
+DECLARE
+    history_storage_groups RECORD;
+BEGIN
+    SELECT INTO history_storage_groups * FROM storage_groups WHERE storage_group_uuid = new.storage_group_uuid;
+    INSERT INTO history.storage_groups
+        (storage_group_uuid, 
+         storage_group_anvil_uuid,
+         storage_group_name, 
+         modified_date)
+    VALUES
+        (history_storage_groups.storage_group_uuid, 
+         history_storage_groups.storage_group_anvil_uuid,
+         history_storage_groups.storage_group_name, 
+         history_storage_groups.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_storage_groups() OWNER TO admin;
+
+CREATE TRIGGER trigger_storage_groups
+    AFTER INSERT OR UPDATE ON storage_groups
+    FOR EACH ROW EXECUTE PROCEDURE history_storage_groups();
+
+
+-- This links specific VGs with a give storage group
+CREATE TABLE storage_group_members (
+    storage_group_member_uuid                  uuid                        not null    primary key, 
+    storage_group_member_storage_group_uuid    uuid
+    storage_group_member_host_uuid             uuid                        not null,                -- The host this VG comes from.
+    storage_group_member_vg_uuid               text                        not null,                -- This is the VG's internal "uuid". It's not a valid UUID string format, but it's what LVM calls a 'uuid'.
+    modified_date                              timestamp with time zone    not null, 
+    
+    FOREIGN KEY(storage_group_member_storage_group_uuid) REFERENCES storage_groups(storage_group_uuid) 
+    FOREIGN KEY(storage_group_member_anvil_uuid) REFERENCES anvils(anvil_uuid) 
+);
+ALTER TABLE storage_group_members OWNER TO admin;
+
+CREATE TABLE history.storage_group_members (
+    history_id                                 bigserial,
+    storage_group_member_uuid                  uuid,
+    storage_group_member_storage_group_uuid    uuid
+    storage_group_member_host_uuid             uuid,
+    storage_group_member_vg_uuid               text,
+    modified_date                              timestamp with time zone    not null 
+);
+ALTER TABLE history.storage_group_members OWNER TO admin;
+
+CREATE FUNCTION history_storage_group_members() RETURNS trigger
+AS $$
+DECLARE
+    history_storage_group_members RECORD;
+BEGIN
+    SELECT INTO history_storage_group_members * FROM storage_group_members WHERE storage_group_member_uuid = new.storage_group_member_uuid;
+    INSERT INTO history.storage_group_members
+        (storage_group_member_uuid, 
+         storage_group_member_storage_group_uuid, 
+         storage_group_member_host_uuid, 
+         storage_group_member_vg_uuid, 
+         modified_date)
+    VALUES
+        (history_storage_group_members.storage_group_member_uuid, 
+	 history_storage_group_members.storage_group_member_storage_group_uuid, 
+         history_storage_group_members.storage_group_member_host_uuid, 
+         history_storage_group_members.storage_group_member_vg_uuid, 
+         history_storage_group_members.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_storage_group_members() OWNER TO admin;
+
+CREATE TRIGGER trigger_storage_group_members
+    AFTER INSERT OR UPDATE ON storage_group_members
+    FOR EACH ROW EXECUTE PROCEDURE history_storage_group_members();
+
+
 -- This is used to indicate the power state of UPSes. It is used to determine when the system needs to be 
 -- powered off. All UPS-type scan agents must use this table. The linkage between this and the 'upses' table
 -- will be sorted out automatically based on the scan agent used and the UPS host name / IP address.

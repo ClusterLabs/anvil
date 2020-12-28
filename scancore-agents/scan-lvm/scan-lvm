@@ -1048,8 +1048,6 @@ WHERE
 			"sql::scan_lvm_lvs::scan_lvm_lv_internal_uuid::${scan_lvm_lv_internal_uuid}::scan_lvm_lv_on_pvs"     => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_on_pvs},
 		}});
 	}
-	undef $count;
-	undef $results;
 	
 	return(0);
 }

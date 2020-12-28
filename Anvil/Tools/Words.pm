@@ -313,7 +313,7 @@ sub language_list
 		}
 	}
 	
-	return(9);
+	return(0);
 }
 
 =head2 load_agent_strings
