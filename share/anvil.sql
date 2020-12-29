@@ -1694,22 +1694,22 @@ CREATE TRIGGER trigger_storage_groups
 -- This links specific VGs with a give storage group
 CREATE TABLE storage_group_members (
     storage_group_member_uuid                  uuid                        not null    primary key, 
-    storage_group_member_storage_group_uuid    uuid
+    storage_group_member_storage_group_uuid    uuid                        not null, 
     storage_group_member_host_uuid             uuid                        not null,                -- The host this VG comes from.
     storage_group_member_vg_uuid               text                        not null,                -- This is the VG's internal "uuid". It's not a valid UUID string format, but it's what LVM calls a 'uuid'.
     modified_date                              timestamp with time zone    not null, 
     
-    FOREIGN KEY(storage_group_member_storage_group_uuid) REFERENCES storage_groups(storage_group_uuid) 
-    FOREIGN KEY(storage_group_member_anvil_uuid) REFERENCES anvils(anvil_uuid) 
+    FOREIGN KEY(storage_group_member_storage_group_uuid) REFERENCES storage_groups(storage_group_uuid), 
+    FOREIGN KEY(storage_group_member_host_uuid) REFERENCES hosts(host_uuid) 
 );
 ALTER TABLE storage_group_members OWNER TO admin;
 
 CREATE TABLE history.storage_group_members (
     history_id                                 bigserial,
-    storage_group_member_uuid                  uuid,
-    storage_group_member_storage_group_uuid    uuid
-    storage_group_member_host_uuid             uuid,
-    storage_group_member_vg_uuid               text,
+    storage_group_member_uuid                  uuid, 
+    storage_group_member_storage_group_uuid    uuid, 
+    storage_group_member_host_uuid             uuid, 
+    storage_group_member_vg_uuid               text, 
     modified_date                              timestamp with time zone    not null 
 );
 ALTER TABLE history.storage_group_members OWNER TO admin;

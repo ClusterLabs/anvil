@@ -10973,14 +10973,13 @@ AND
 	else
 	{
 		my $vg_group_number = 0;
-		my $storage_group_name   = "";
 		until ($storage_group_name)
 		{
 			$vg_group_number++; 
 			my $test_name = $anvil->Words->string({debug => $debug, key => "striker_0280", variables => { number => $vg_group_number }});
 			my $query     = "
 SELECT 
-    COUNT(*) 
+    storage_group_uuid 
 FROM 
     storage_groups 
 WHERE 
@@ -10988,9 +10987,41 @@ WHERE
 AND 
     storage_group_name       = ".$anvil->Database->quote($test_name)."
 ;";
-			my $count  = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
 			
+			if ($count)
+			{
+				# Are there any members of this group? If not, we'll use it.
+				my $storage_group_uuid = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
+				
+				my $query = "
+SELECT 
+    COUNT(*) 
+FROM 
+    storage_group_members 
+WHERE 
+    storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)." 
+;";
+				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				
+				if (not $count)
+				{
+					# No members yet, and it's an auto-generated 
+					$storage_group_name = $test_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_name => $storage_group_name }});
+				}
+			}
 			if (not $count)
 			{
 				# We can use this name.
@@ -11221,7 +11252,7 @@ INSERT INTO
     ".$anvil->Database->quote($storage_group_member_host_uuid).", 
     ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
-};";
+);";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}

@@ -26,7 +26,10 @@ $anvil->Get->switches;
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
-$anvil->Words->load_agent_strings({debug => 2});
+$anvil->Get->available_resources({
+	debug      => 2,
+	anvil_uuid => '2ac4dbcb-25d2-44b2-ae07-59707b0551ca',
+});
 
 
 $anvil->nice_exit({exit_code => 0});

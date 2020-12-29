@@ -332,6 +332,9 @@ sub available_resources
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->available_resources()" }});
 	
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid=> $anvil_uuid,
+	}});
 	
 	if (not $anvil_uuid)
 	{
@@ -376,21 +379,6 @@ WHERE
 		node2_host_uuid => $node2_host_uuid, 
 		dr1_host_uuid   => $dr1_host_uuid, 
 	}});
-	
-	# Make sure scancore has run. We do this by looking for the 'scan_lvm_vg_groups' table.
-	undef $query;
-	undef $count;
-	$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='scan_lvm_vg_groups' AND schemaname='public';";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	$count = $anvil->Database->query({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-	
-	if ($count < 1)
-	{
-		# Not ready yes.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0070", variables => { anvil_name => $anvil_name }});
-		return('!!error!!');
-	}
 	
 	# Load hosts, Network bridge, and Storages group data
 	$anvil->Database->get_hosts({debug => $debug});
@@ -470,14 +458,16 @@ ORDER BY
 			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_uuid}          = $row->[0];
 			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_name}          = $row->[1];
 			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}   = $row->[2];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}          = $row->[3];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid} = $row->[4];
+			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_size}          = $row->[3];
+			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}          = $row->[4];
+			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid} = $row->[5];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"ungrouped_vg_count::${this_is}"                                                => $anvil->data->{ungrouped_vg_count}{$this_is},
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::count"            => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{count}, 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_uuid"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_uuid}, 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_name"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_name}, 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_extent_size"   => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}}).")", 
+				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_size"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_size}}).")", 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_free"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}}).")", 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_internal_uuid" => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid}, 
 			}});
@@ -493,7 +483,7 @@ ORDER BY
 		if (($count == 2) or ($count == 3))
 		{
 			# Create the volume group ... group. First we need a group number
-			my $storage_group_uuid = $anvil->Database->create_storage_group({
+			my $storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
 				debug                    => $debug,
 				storage_group_anvil_uuid => $anvil_uuid, 
 			});
@@ -507,7 +497,9 @@ ORDER BY
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_is => $this_is }});
 				
 				my $storage_group_member_vg_uuid = $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid};
-				my $storage_group_member_uuid    = $anvil->Database->insert_or_update_storage_group_members({
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_vg_uuid => $storage_group_member_vg_uuid }});
+				
+				my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
 					debug                                   => $debug, 
 					storage_group_member_storage_group_uuid => $storage_group_uuid, 
 					storage_group_member_host_uuid          => $host_uuid, 

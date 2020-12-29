@@ -984,7 +984,7 @@ sub _adjust_log_level
 	{
 		$anvil->Log->secure({set => 1});
 	}
-	if ($anvil->data->{switches}{'log-db'})
+	if (($anvil->data->{switches}{'log-db'}) or ($anvil->data->{switches}{'log-db-transactions'}))
 	{
 		$anvil->data->{sys}{database}{log_transactions} = 1;
 	}

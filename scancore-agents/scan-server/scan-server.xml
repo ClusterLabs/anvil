@@ -59,7 +59,7 @@ The definition for the server: [#!variable!server!#] was edited outside of the A
 ==[ Database ]========
 #!variable!db_difference!#
 ==[ New Definition ]==
-#!variable!new_difference!#
+#!variable!new_definition!#
 ======================
 		</key>
 		<key name="scan_server_alert_0004">The name of the server: [#!variable!old_name!#] has changed to: [#!variable!new_name!#]</key>

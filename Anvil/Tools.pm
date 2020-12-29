@@ -267,6 +267,9 @@ sub new
 	# Read in any command line switches.
 	$anvil->Get->switches({debug => $debug});
 	
+	# Populate the core_tables array reference from the main anvil.sql file.
+	$anvil->data->{sys}{database}{core_tables} = $anvil->Database->get_tables_from_schema({schema_file => $anvil->data->{path}{sql}{'anvil.sql'}});
+	
 	# Read in the local Anvil! version.
 	#...
 	
@@ -862,43 +865,6 @@ sub _set_defaults
 				trigger				=>	100000,
 			},
 			connections				=>	0,
-			### WARNING: The order the tables are resync'ed is important! Any table that has a 
-			###          foreign key needs to resync *AFTER* the tables with the primary keys.
-			# NOTE: Check that this list is complete with;
-			#       grep 'CREATE TABLE' share/anvil.sql | grep -v history. | awk '{print $3}'
-			core_tables			=>	[
-									"hosts",		# Always has to be first.
-									"health",
-									"power",
-									"temperature",
-									"ssh_keys",
-									"users", 
-									"host_variable", 
-									"sessions", 		# Has to come after users and hosts
-									"anvils", 
-									"alerts",
-									"recipients", 
-									"notifications", 
-									"mail_servers", 
-									"variables",
-									"jobs",
-									"bridges",
-									"bonds",
-									"network_interfaces",
-									"ip_addresses", 
-									"files", 
-									"file_locations", 
-									"servers", 
-									"definitions", 
-									"oui",
-									"mac_to_ip", 
-									"updated",
-									"alert_sent",
-									"states",
-									"manifests", 
-									"fences", 
-									"upses",
-								],
 			failed_connection_log_level	=>	1,
 			local_lock_active		=>	0,
 			local_uuid			=>	"",
