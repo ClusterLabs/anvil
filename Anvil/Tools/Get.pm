@@ -383,7 +383,7 @@ WHERE
 	# Load hosts, Network bridge, and Storages group data
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->get_bridges({debug => $debug});
-	$anvil->Database->storage_group_data({debug => $debug});
+	$anvil->Database->get_storage_group_data({debug => $debug});
 	
 	# This will store the available resources based on the least of the nodes.
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
@@ -574,7 +574,7 @@ ORDER BY
 	
 	if ($reload_storage_groups)
 	{
-		$anvil->Database->storage_group_data({debug => $debug});
+		$anvil->Database->get_storage_group_data({debug => $debug});
 	}
 
 	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
@@ -698,12 +698,28 @@ WHERE
 	
 	foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
 	{
-		my $group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name}      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}       = 0;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = 0;
 		
-		foreach my $host_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}})
+		if ((exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}) && 
+		    (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}))
 		{
-			#$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_uuid}{$vg_uuid}{storage_group_member_uuid} = $storage_group_member_uuid;
+			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free};
+			if ($anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free} < $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free})
+			{
+				$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free};
+			}
 		}
+		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::group_name"      => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name}, 
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::free_size"       => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::available_on_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}}).")",
+		}});
 	}
 	
 	return(0);
