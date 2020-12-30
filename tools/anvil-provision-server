@@ -1,0 +1,354 @@
+#!/usr/bin/perl
+# 
+# This provisions a new virtual machine server. It handles creating the logical volumes, DRBD resources, 
+# verifies the needed files are ready, creates the provision script, begins the installation, and adds the 
+# new server to pacemaker.
+# 
+# Exit codes;
+# 0 = Normal exit.
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+use Term::Cap;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{'anvil-uuid'} = "";
+$anvil->data->{switches}{cpu}          = "";
+$anvil->data->{switches}{'job-uuid'}   = "";
+$anvil->data->{switches}{name}         = "";
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::anvil-uuid' => $anvil->data->{switches}{'anvil-uuid'},
+	'switches::cpu'        => $anvil->data->{switches}{cpu},
+	'switches::job-uuid'   => $anvil->data->{switches}{'job-uuid'},
+	'switches::name'       => $anvil->data->{switches}{name},
+}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# If we don't have a job UUID, try to find one.
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->data->{switches}{job_uuid} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+}
+
+# If we still don't have a job-uuit, go into interactive mode.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->Job->clear();
+	$anvil->Job->get_job_details();
+	$anvil->Job->update_progress({
+		progress => 1,
+		message  => "message_0190", 
+	});
+	
+	# Job data will be in $anvil->data->{jobs}{job_data}
+}
+else
+{
+	# Interactive!
+	interactive_question($anvil);
+	
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# Go through a series of questions to ask the user how they want to build their server.
+sub interactive_question
+{
+	my ($anvil) = @_;
+	
+	# Do we know or can we find the Anvil! UUID?
+	$anvil->data->{new_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";
+	$anvil->data->{new_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'} ? $anvil->data->{switches}{'anvil-name'} : "";
+	
+	if ((not $anvil->data->{new_server}{anvil_uuid}) && (not $anvil->data->{new_server}{anvil_name}))
+	{
+		# Nothing given. Is this host a node, perhaps?
+		my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+		
+		if ($anvil_uuid)
+		{
+			$anvil->data->{new_server}{anvil_uuid} = $anvil_uuid;
+			$anvil->data->{new_server}{anvil_name} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::anvil_name" => $anvil->data->{new_server}{anvil_name},
+				"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
+			}});
+		}
+	}
+	elsif (not $anvil->data->{new_server}{anvil_uuid})
+	{
+		$anvil->data->{new_server}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({anvil_name => $anvil->data->{new_server}{anvil_name}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid} }});
+	}
+	elsif (not $anvil->data->{new_server}{anvil_name})
+	{
+		$anvil->data->{new_server}{anvil_name} = $anvil->Cluster->get_anvil_name({anvil_uuid => $anvil->data->{new_server}{anvil_uuid}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "new_server::anvil_name" => $anvil->data->{new_server}{anvil_name} }});
+	}
+	
+	$anvil->data->{new_server}{name} = $anvil->data->{switches}{name} ? $anvil->data->{switches}{name} : "";
+	
+	# If this is a node, load the anvil_uuid automatically.
+	
+	my $termios = new POSIX::Termios;
+	$termios->getattr;
+	my $ospeed = $termios->getospeed;
+	
+	my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	$terminal->Trequire(qw/ce ku kd/);
+	
+	interactive_ask_anvil_name($anvil, $terminal);
+	interactive_ask_server_name($anvil, $terminal);
+	interactive_ask_server_cpu($anvil, $terminal);
+	
+	
+	return(0);
+}
+
+sub interactive_ask_anvil_name
+{
+	my ($anvil, $terminal) = @_;
+	
+	$anvil->Database->get_anvils();
+	
+	my $retry = 0;
+	while(1)
+	{
+		my $default_anvil = $anvil->data->{new_server}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_anvil => $default_anvil }});
+		if (not $default_anvil)
+		{
+			my $known_anvils = keys %{$anvil->data->{anvils}{anvil_name}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { known_anvils => $known_anvils }});
+			if (not $known_anvils)
+			{
+				print "There are no known Anvil! systems at this time. Please setup an Anvil! and try again later.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			elsif ($known_anvils == 1)
+			{
+				foreach my $anvil_name (keys %{$anvil->data->{anvils}{anvil_name}})
+				{
+					$default_anvil = $anvil_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_anvil => $default_anvil }});
+				}
+			}
+		}
+		print $terminal->Tputs('cl');
+		print "Provision a new server menu:\n";
+		print "Anvil name: [".$default_anvil."]\n\n\n";
+		
+		# Show all the current server names.
+		if ($retry)
+		{
+			print "* That was not a recognized Anvil! name. please try again.\n\n";
+		}
+		print "-=] Existing Anvil! systems [=-\n";
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			print "- ".$anvil_name.": - ".$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}."\n";
+		}
+		
+		print $terminal->Tgoto('cm', 0, 2);
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ((not $answer) && ($default_anvil))
+		{
+			$answer = $default_anvil;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		}
+		
+		# Reload in case a new anvil! was saved while we waited.
+		$anvil->Database->get_anvils();
+		if (exists $anvil->data->{anvils}{anvil_name}{$answer})
+		{
+			# Valid.
+			$anvil->data->{new_server}{anvil_name} = $answer;
+			$anvil->data->{new_server}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({anvil_name => $answer});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::anvil_name" => $anvil->data->{new_server}{anvil_name},
+				"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
+			}});
+			
+			print "Loading available resources for: [".$anvil->data->{new_server}{anvil_name}."] (".$anvil->data->{new_server}{anvil_uuid}.")\n";
+			$anvil->Get->available_resources({
+				debug      => 2,
+				anvil_uuid => $anvil->data->{new_server}{anvil_uuid},
+			});
+			
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_name
+{
+	my ($anvil, $terminal) = @_;
+	
+	$anvil->Database->get_servers({debug => 2});
+	
+	### TODO: Figure out how many rows we have and break the server list into columns if too long.
+	my $retry = 0;
+	while(1)
+	{
+		my $default = "";
+		if ($anvil->data->{switches}{name})
+		{
+			$default = $anvil->data->{switches}{name};
+		}
+		print $terminal->Tputs('cl');
+		print "Provision a new server menu:\n";
+		print "Anvil name:  [".$anvil->data->{new_server}{anvil_name}."]\n";
+		print "Server name: [".$anvil->data->{new_server}{name}."]\n\n\n";
+		
+		# Show all the current server names.
+		if ($retry)
+		{
+			print "* Please enter a unique server name.\n\n";
+		}
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		print "-=] Existing Servers on the Anvil! [".$anvil->data->{new_server}{anvil_name}."] [=-\n";
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+		{
+			print "- ".$server_name."\n";
+		}
+		
+		print $terminal->Tgoto('cm', 0, 3);
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ((not $answer) && ($default))
+		{
+			$answer = $default;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		}
+		
+		# Reload in case a new anvil! was saved while we waited.
+		$anvil->Database->get_servers();
+		if (($answer) && (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}))
+		{
+			# Valid.
+			$anvil->data->{new_server}{name} = $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::name" => $anvil->data->{new_server}{name},
+			}});
+			
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_cpu
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Database->get_anvils();
+		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		
+		my $default_cpu = $anvil->data->{switches}{cpu};
+		if (not $default_cpu)
+		{
+			# Default to 2, unless only one core is available.
+			$default_cpu = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} == 1 ? 1 : 2;
+		}
+		
+		print $terminal->Tputs('cl');
+		print "Provision a new server menu:\n";
+		print "Anvil name:  [".$anvil->data->{new_server}{anvil_name}."]\n";
+		print "Server name: [".$anvil->data->{new_server}{name}."]\n";
+		print "CPU Cores: . [".$default_cpu."]\n\n\n";
+		
+		if ($retry)
+		{
+			print "* Please enter a number between 1 and ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}.".\n\n";
+		}
+		print "-=] Available cores / threads: [".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}." / ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."]\n";
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+
+		print " - Node 1 CPU Model: [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model}."]\n";
+		print " - Node 2 CPU Model: [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{cpu}{model}."]\n";
+		
+		print $terminal->Tgoto('cm', 0, 4);
+		my $answer = <STDIN>;
+		chomp $answer;
+		
+		if ($answer eq "")
+		{
+			$answer = $default_cpu; 
+		}
+		if (($answer) && ($answer =~ /^\d+$/) && ($answer <= $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}))
+		{
+			# Valid.
+			$anvil->data->{new_server}{cpu} = $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::cpu" => $anvil->data->{new_server}{cpu},
+			}});
+			
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}

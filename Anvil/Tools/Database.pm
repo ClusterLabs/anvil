@@ -3758,6 +3758,12 @@ FROM
 			"servers::server_uuid::${server_uuid}::server_updated_by_user"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}, 
 			"servers::server_uuid::${server_uuid}::server_boot_time"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
 		}});
+		
+		# Store the servers in a hash under each Anvil!, sortable.
+		$anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid} = $server_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"servers::anvil_uuid::${server_anvil_uuid}::server_name::${server_name}::server_uuid" => $anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid}, 
+		}});
 	}
 	
 	return(0);

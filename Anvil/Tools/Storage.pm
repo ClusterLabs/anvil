@@ -99,6 +99,7 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+
 =head2 backup
 
 This will create a copy of the file under the C<< path::directories::backups >> directory with the datestamp as a suffix. The path is preserved under the backup directory. The path and file name are returned.

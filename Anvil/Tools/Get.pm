@@ -385,202 +385,20 @@ WHERE
 		"anvil_resources::${anvil_uuid}::has_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr},
 	}});
 	
-	# Load hosts, Network bridge, and Storages group data
+	# Load hosts and network bridges
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->get_bridges({debug => $debug});
-	$anvil->Database->get_storage_group_data({debug => $debug});
+	
+	# This both loads storage group data and assembles ungrouped VGs into storage groups, when possible.
+	$anvil->Cluster->assemble_storage_groups({
+		debug      => $debug,
+		anvil_uuid => $anvil_uuid, 
+	});
 	
 	# This will store the available resources based on the least of the nodes.
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}  = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = 0;
-	
-	# Before we see how much disk space is available, look for ungrouped VGs and see if we can group them
-	# by matching identical sizes together.
-	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
-	{
-		# If DR isn't defined, it'll be blank.
-		next if not $host_uuid;
-		my $this_is = "node1";
-		if ($host_uuid eq $node2_host_uuid)  { $this_is = "node2"; }
-		elsif ($host_uuid eq $dr1_host_uuid) { $this_is = "dr1";   }
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_is => $this_is }});
-		
-		$anvil->data->{ungrouped_vg_count}{$this_is} = 0;
-		
-		my $query = "
-SELECT 
-    scan_lvm_vg_uuid, 
-    scan_lvm_vg_name, 
-    scan_lvm_vg_extent_size, 
-    scan_lvm_vg_size, 
-    scan_lvm_vg_free, 
-    scan_lvm_vg_internal_uuid 
-FROM 
-    scan_lvm_vgs 
-WHERE 
-    scan_lvm_vg_host_uuid = ".$anvil->Database->quote($host_uuid)."
-ORDER BY 
-    scan_lvm_vg_size ASC;
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		
-		foreach my $row (@{$results})
-		{
-			my $scan_lvm_vg_size          = $row->[3];
-			my $scan_lvm_vg_internal_uuid = $row->[5];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				scan_lvm_vg_size          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
-				scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
-			}});
-		
-			# Skip VGs that are in a group already.
-			if ((exists $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}) && 
-			    ($anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid}))
-			{
-				# Already in a group, we can skip it. We log this data for debugging reasons
-				# only.
-				my $storage_group_uuid        = $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid};
-				my $group_name                = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
-				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_member_uuid};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					anvil_uuid                => $anvil_uuid, 
-					host_uuid                 => $host_uuid, 
-					storage_group_uuid        => $storage_group_uuid, 
-					scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
-					storage_group_member_uuid => $storage_group_member_uuid, 
-				}});
-				next;
-			}
-			
-			$anvil->data->{ungrouped_vg_count}{$this_is}++;
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_uuid}          = $row->[0];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_name}          = $row->[1];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}   = $row->[2];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_size}          = $row->[3];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}          = $row->[4];
-			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid} = $row->[5];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"ungrouped_vg_count::${this_is}"                                                => $anvil->data->{ungrouped_vg_count}{$this_is},
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::count"            => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{count}, 
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_uuid"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_uuid}, 
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_name"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_name}, 
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_extent_size"   => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}}).")", 
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_size"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_size}}).")", 
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_free"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_free}}).")", 
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_internal_uuid" => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid}, 
-			}});
-		}
-	}
-	
-	# Fing ungrouped VGs and see if we can pair them
-	my $reload_storage_groups = 0;
-	foreach my $scan_lvm_vg_size (sort {$a cmp $b} keys %{$anvil->data->{ungrouped_vgs}})
-	{
-		# If there are two or three VGs, we can create a group.
-		my $count = keys %{$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}};
-		if (($count == 2) or ($count == 3))
-		{
-			# Create the volume group ... group. First we need a group number
-			my $storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
-				debug                    => $debug,
-				storage_group_anvil_uuid => $anvil_uuid, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
-			
-			foreach my $host_uuid (keys %{$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}})
-			{
-				my $this_is = "node1";
-				if ($host_uuid eq $node2_host_uuid)  { $this_is = "node2"; }
-				elsif ($host_uuid eq $dr1_host_uuid) { $this_is = "dr1";   }
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_is => $this_is }});
-				
-				my $storage_group_member_vg_uuid = $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_vg_uuid => $storage_group_member_vg_uuid }});
-				
-				my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
-					debug                                   => $debug, 
-					storage_group_member_storage_group_uuid => $storage_group_uuid, 
-					storage_group_member_host_uuid          => $host_uuid, 
-					storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
-				});
-				
-				$anvil->data->{ungrouped_vg_count}{$this_is}--;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"ungrouped_vg_count::${this_is}" => $anvil->data->{ungrouped_vg_count}{$this_is},
-				}});
-			}
-			
-			# Reload storage group data
-			$reload_storage_groups = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload_storage_groups => $reload_storage_groups }});
-		}
-	}
-	
-	# If there's only one VG on each node that is ungrouped, group them even though they're not the same 
-	# size. If DR also has only 1 VG ungrouped, it'll be added, too.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"ungrouped_vg_count::node1" => $anvil->data->{ungrouped_vg_count}{node1},
-		"ungrouped_vg_count::node2" => $anvil->data->{ungrouped_vg_count}{node2},
-		"ungrouped_vg_count::dr1"   => $anvil->data->{ungrouped_vg_count}{dr1},
-	}});
-	if (($anvil->data->{ungrouped_vg_count}{node1} == 1) && ($anvil->data->{ungrouped_vg_count}{node2} == 1))
-	{
-		# We do!
-		my $storage_group_uuid = $anvil->Database->create_storage_group({
-			debug                    => $debug,
-			storage_group_anvil_uuid => $anvil_uuid, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
-		
-		my $hosts = [$node1_host_uuid, $node2_host_uuid];
-		if ($anvil->data->{ungrouped_vg_count}{dr1} == 1)
-		{
-			push @{$hosts}, $dr1_host_uuid;
-		}
-		foreach my $host_uuid (@{$hosts})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
-		
-			# I need to find the size of VG UUID without knowing it's size. 
-			my $storage_group_member_vg_uuid = "";
-			foreach my $scan_lvm_vg_size (sort {$a cmp $b} keys %{$anvil->data->{ungrouped_vgs}})
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					scan_lvm_vg_size => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")",
-				}});
-				if ((exists $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}) &&
-				    ($anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid}))
-				{
-					# Found it.
-					$storage_group_member_vg_uuid = $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_vg_uuid => $storage_group_member_vg_uuid }});
-				}
-			}
-			my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
-				debug                                   => $debug, 
-				storage_group_member_storage_group_uuid => $storage_group_uuid, 
-				storage_group_member_host_uuid          => $host_uuid, 
-				storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
-			
-			# Reload storage group data
-			$reload_storage_groups = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload_storage_groups => $reload_storage_groups }});
-		}
-	}
-	
-	if ($reload_storage_groups)
-	{
-		$anvil->Database->get_storage_group_data({debug => $debug});
-	}
 
 	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
 	{
@@ -691,18 +509,6 @@ WHERE
 				}});
 			}
 		}
-		
-		# Now read in the LVM VG data.
-		undef $query;
-		undef $results;
-		undef $count;
-		
-		# TODO: Left off here; We'll now look for unassigned VGs. Ones that aren't, if we find a 
-		#       matching size one on both nodes / DR, we'll group them automatically. If only one VG 
-		#       is unassigned on each node / dr host, they will be grouped as well.
-		#       After this, we'll look at groups and track which has the least free space per group,
-		#       ignoring DR for now as it's feasible a user builds a lesser-spec'ed DR for a subset
-		#       of VMs
 	}
 	
 	# Read in the amount of RAM allocated to servers and subtract it from the RAM available.
@@ -808,6 +614,8 @@ ORDER BY
 =head2 bridges
 
 This finds a list of bridges on the host. Bridges that are found are stored is '
+
+This method takes no parameters.
 
 =cut
 sub bridges

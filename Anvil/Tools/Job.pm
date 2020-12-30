@@ -102,6 +102,12 @@ sub clear
 	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
 	
+	if ((not $job_uuid) && ($anvil->data->{switches}{'job-uuid'}))
+	{
+		$job_uuid = $anvil->data->{switches}{'job-uuid'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+	}
+	
 	# Return if we don't have a program name.
 	if ($job_uuid eq "")
 	{

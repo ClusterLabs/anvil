@@ -1375,6 +1375,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 	# Please do edit or remove it.
 	# scan_drbd_resource_uuid = #!variable!uuid!#
 		</key>	<!-- Translation note: The format of [# scan_drbd_resource_uuid = #!variable!uuid!#] is important, don't alter it. -->
+		<key name="message_0190">Preparing to provision a new server.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
