@@ -2149,11 +2149,11 @@ WHERE
 		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{modified_date}      = $row->[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_name"        => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_name}, 
-			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_id"          => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_id}, 
-			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_mac_address" => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_mac_address}, 
-			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_mtu"         => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_mtu}, 
-			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_stp_enabled" => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{bridge_stp_enabled}, 
-			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::modified_date"      => $anvil->data->{bridges}{bridge_uuid}{$bridge_uuid}{modified_date}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_id"          => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_id}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_mac_address" => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_mac_address}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_mtu"         => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_mtu}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::bridge_stp_enabled" => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{bridge_stp_enabled}, 
+			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_uuid::${bridge_uuid}::modified_date"      => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_uuid}{$bridge_uuid}{modified_date}, 
 		}});
 		
 		# Make it easier to look up by bridge name.

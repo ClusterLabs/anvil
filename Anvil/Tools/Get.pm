@@ -369,15 +369,20 @@ WHERE
 	}
 	
 	# Get the details.
-	my $anvil_name      = $results->[0]->[0];
-	my $node1_host_uuid = $results->[0]->[1];
-	my $node2_host_uuid = $results->[0]->[2];
-	my $dr1_host_uuid   = $results->[0]->[3];
+	my $anvil_name      =         $results->[0]->[0];
+	my $node1_host_uuid =         $results->[0]->[1];
+	my $node2_host_uuid =         $results->[0]->[2];
+	my $dr1_host_uuid   = defined $results->[0]->[3] ? $results->[0]->[3] : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_name      => $anvil_name,
 		node1_host_uuid => $node1_host_uuid, 
 		node2_host_uuid => $node2_host_uuid, 
 		dr1_host_uuid   => $dr1_host_uuid, 
+	}});
+	
+	$anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} = $dr1_host_uuid ? 1 : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvil_resources::${anvil_uuid}::has_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr},
 	}});
 	
 	# Load hosts, Network bridge, and Storages group data
@@ -602,11 +607,10 @@ ORDER BY
 				bridge_name => $bridge_name, 
 			}});
 			
-			if (not exists $anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name})
-			{
-				$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on} = [];
-			}
-			push @{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}}, $host_uuid;
+			$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$host_uuid} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::bridges::${bridge_name}::on::${host_uuid}" => $bridge_name, 
+			}});
 		}
 		
 		# Get the CPU and RAM data 
@@ -614,6 +618,7 @@ ORDER BY
 SELECT 
     scan_hardware_cpu_cores, 
     scan_hardware_cpu_threads, 
+    scan_hardware_cpu_model, 
     scan_hardware_ram_total 
 FROM 
     scan_hardware 
@@ -637,20 +642,24 @@ WHERE
 		
 		my $scan_hardware_cpu_cores   = $results->[0]->[0];
 		my $scan_hardware_cpu_threads = $results->[0]->[1];
-		my $scan_hardware_ram_total   = $results->[0]->[2];
+		my $scan_hardware_cpu_model   = $results->[0]->[2];
+		my $scan_hardware_ram_total   = $results->[0]->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			scan_hardware_cpu_cores   => $scan_hardware_cpu_cores,
 			scan_hardware_cpu_threads => $scan_hardware_cpu_threads, 
+			scan_hardware_cpu_model   => $scan_hardware_cpu_model, 
 			scan_hardware_ram_total   => $scan_hardware_ram_total, 
 		}});
 		
-		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores}    = $scan_hardware_cpu_cores;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{threads}  = $scan_hardware_cpu_threads;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware} = $scan_hardware_ram_total;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores}     = $scan_hardware_cpu_cores;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{threads}   = $scan_hardware_cpu_threads;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{model}     = $scan_hardware_cpu_model;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}  = $scan_hardware_ram_total;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::cpu::cores"    => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores},
-			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::cpu::threads"  => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{threads},
-			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::ram::hardware" => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}}).")",
+			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::cpu::cores"     => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores},
+			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::cpu::threads"   => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{threads},
+			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::cpu::model"     => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{model},
+			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::ram::hardware"  => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}}).")",
 		}});
 		
 		# For available resources, we only care about nodes.
@@ -673,12 +682,12 @@ WHERE
 					"anvil_resources::${anvil_uuid}::cpu::threads" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
 				}});
 			}
-			if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}) or 
-			    ($scan_hardware_cpu_threads < $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
+			if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}) or 
+			    ($scan_hardware_ram_total < $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
 			{
-				$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = $scan_hardware_cpu_threads;
+				$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = $scan_hardware_ram_total;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"anvil_resources::${anvil_uuid}::ram::hardware" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}}).")",
+					"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
 				}});
 			}
 		}
@@ -696,29 +705,99 @@ WHERE
 		#       of VMs
 	}
 	
+	# Read in the amount of RAM allocated to servers and subtract it from the RAM available.
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
+	
+	$query = "
+SELECT 
+    server_name, 
+    server_ram_in_use 
+FROM 
+    servers 
+WHERE 
+    server_anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." 
+ORDER BY 
+    server_name ASC;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $server_name = $row->[0];
+		my $ram_in_use  = $row->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:server_name" => $server_name,
+			"s2:ram_in_use"  => $ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_in_use}).")",
+		}});
+		
+		$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $ram_in_use;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+		}});
+	}
+
+	# Take 4 GiB off the available RAM for the host
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= (4*(2**30));
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+	}});
+	
+	# process bridges now
+	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}})
+	{
+		$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes} = 0;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr}    = 0;
+		if (($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$node1_host_uuid}) && 
+		    ($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$node2_host_uuid}))
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::bridges::${bridge_name}::on_nodes" => $anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes},
+			}});
+		}
+		if ($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$dr1_host_uuid})
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::bridges::${bridge_name}::on_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr},
+			}});
+		}
+	}
+	
 	foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
 	{
 		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name}      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}         = 0;
 		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}       = 0;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   = 0;
 		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = 0;
 		
 		if ((exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}) && 
 		    (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}))
 		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_size};
 			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free};
 			if ($anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free} < $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free})
 			{
+				$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_size};
 				$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free};
 			}
 		}
 		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
 		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_size};
 			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
 		}
+		
+		# Make it easy to sort by group name
+		my $storage_group_name = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::group_name"      => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name}, 
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::free_size"       => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")",
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::available_on_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 		}});
 	}
 	
