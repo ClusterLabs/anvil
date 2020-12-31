@@ -342,6 +342,11 @@ sub available_resources
 		return("!!error!!");
 	}
 	
+	if (exists $anvil->data->{anvil_resources}{$anvil_uuid})
+	{
+		delete $anvil->data->{anvil_resources}{$anvil_uuid};
+	}
+	
 	# Get the node UUIDs for this anvil.
 	my $query = "
 SELECT 
@@ -512,7 +517,8 @@ WHERE
 	}
 	
 	# Read in the amount of RAM allocated to servers and subtract it from the RAM available.
-	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated} =  0;
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}  = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
 	
 	$query = "
 SELECT 
@@ -540,15 +546,19 @@ ORDER BY
 			"s2:ram_in_use"  => $ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_in_use}).")",
 		}});
 		
-		$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $ram_in_use;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated} += $ram_in_use;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+			"anvil_resources::${anvil_uuid}::ram::allocated" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}}).")",
 		}});
 	}
 
 	# Take 4 GiB off the available RAM for the host
-	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= (4*(2**30));
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}  =  (4*(2**30));	# Reserve 4 GiB
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved};
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvil_resources::${anvil_uuid}::ram::allocated" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}}).")",
+		"anvil_resources::${anvil_uuid}::ram::reserved"  => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}}).")",
 		"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
 	}});
 	

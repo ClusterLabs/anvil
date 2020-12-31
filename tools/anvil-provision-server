@@ -30,16 +30,22 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->data->{switches}{'anvil-uuid'} = "";
-$anvil->data->{switches}{cpu}          = "";
-$anvil->data->{switches}{'job-uuid'}   = "";
-$anvil->data->{switches}{name}         = "";
+$anvil->data->{switches}{'anvil-uuid'}    = "";
+$anvil->data->{switches}{cpu}             = "";
+$anvil->data->{switches}{'job-uuid'}      = "";
+$anvil->data->{switches}{name}            = "";
+$anvil->data->{switches}{ram}             = "";
+$anvil->data->{switches}{'storage-group'} = "";
+$anvil->data->{switches}{'storage-size'}  = "";
 $anvil->Get->switches;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::anvil-uuid' => $anvil->data->{switches}{'anvil-uuid'},
-	'switches::cpu'        => $anvil->data->{switches}{cpu},
-	'switches::job-uuid'   => $anvil->data->{switches}{'job-uuid'},
-	'switches::name'       => $anvil->data->{switches}{name},
+	'switches::anvil-uuid'    => $anvil->data->{switches}{'anvil-uuid'},
+	'switches::cpu'           => $anvil->data->{switches}{cpu},
+	'switches::job-uuid'      => $anvil->data->{switches}{'job-uuid'},
+	'switches::name'          => $anvil->data->{switches}{name},
+	'switches::ram'           => $anvil->data->{switches}{ram},
+	'switches::storage-group' => $anvil->data->{switches}{'storage-group'},
+	'switches::storage-size'  => $anvil->data->{switches}{'storage-size'},
 }});
 
 $anvil->Database->connect();
@@ -138,7 +144,9 @@ sub interactive_question
 	interactive_ask_anvil_name($anvil, $terminal);
 	interactive_ask_server_name($anvil, $terminal);
 	interactive_ask_server_cpu($anvil, $terminal);
-	
+	interactive_ask_server_ram($anvil, $terminal);
+	interactive_ask_server_storage_group($anvil, $terminal);
+	interactive_ask_server_storage_size($anvil, $terminal);
 	
 	return(0);
 }
@@ -174,7 +182,7 @@ sub interactive_ask_anvil_name
 		}
 		print $terminal->Tputs('cl');
 		print "Provision a new server menu:\n";
-		print "Anvil name: [".$default_anvil."]\n\n\n";
+		print "Anvil name: .. [".$default_anvil."]\n\n\n";
 		
 		# Show all the current server names.
 		if ($retry)
@@ -187,7 +195,7 @@ sub interactive_ask_anvil_name
 			print "- ".$anvil_name.": - ".$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}."\n";
 		}
 		
-		print $terminal->Tgoto('cm', 0, 2);
+		print $terminal->Tgoto('cm', 0, 2)."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -224,6 +232,19 @@ sub interactive_ask_anvil_name
 		}
 	}
 	
+	# Verify that the Anvil! has enough RAM and disk space.
+	my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+	}});
+	if ($anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} < (1**20))
+	{
+		print "There is not enough RAM available on this Anvil! to provision new servers.\n";
+		print " - Available RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."]\n";
+		$anvil->nice_exit({exit_code => 2});
+	}
+
+	
 	return(0);
 }
 
@@ -259,7 +280,7 @@ sub interactive_ask_server_name
 			print "- ".$server_name."\n";
 		}
 		
-		print $terminal->Tgoto('cm', 0, 3);
+		print $terminal->Tgoto('cm', 0, 3)."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -311,9 +332,9 @@ sub interactive_ask_server_cpu
 		
 		print $terminal->Tputs('cl');
 		print "Provision a new server menu:\n";
-		print "Anvil name:  [".$anvil->data->{new_server}{anvil_name}."]\n";
-		print "Server name: [".$anvil->data->{new_server}{name}."]\n";
-		print "CPU Cores: . [".$default_cpu."]\n\n\n";
+		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
+		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
+		print "CPU Cores: ... [".$default_cpu."]\n\n\n";
 		
 		if ($retry)
 		{
@@ -322,11 +343,17 @@ sub interactive_ask_server_cpu
 		print "-=] Available cores / threads: [".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}." / ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."]\n";
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 
 		print " - Node 1 CPU Model: [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model}."]\n";
 		print " - Node 2 CPU Model: [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{cpu}{model}."]\n";
 		
-		print $terminal->Tgoto('cm', 0, 4);
+		if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
+		{
+			print " - DR Host CPU: .... [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model}."], [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{cpu}{cores}."c]/[".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{cpu}{threads}."t]\n";
+		}
+		
+		print $terminal->Tgoto('cm', 0, 4)."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		
@@ -343,6 +370,304 @@ sub interactive_ask_server_cpu
 			}});
 			
 			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_ram
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Database->get_anvils();
+		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+		}});
+		
+		my $default_ram = $anvil->data->{switches}{ram};
+		if (not $default_ram)
+		{
+			# Default to 2, unless only one core is available.
+			my $say_2g = (2*(2**30));
+			if ($anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} > $say_2g)
+			{
+				$default_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $say_2g});
+			}
+			else
+			{
+				$default_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}});
+			}
+		}
+		
+		print $terminal->Tputs('cl');
+		print "Provision a new server menu:\n";
+		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
+		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
+		print "CPU Cores: ... [".$anvil->data->{new_server}{cpu}."]\n";
+		print "RAM: ......... [".$default_ram."]\n\n\n";
+		
+		if ($retry)
+		{
+			print "* Please enter a valid amount up to: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."].\n\n";
+		}
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
+		
+		print "-=] Available RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."]  (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}, unit => "M"}).")\n";
+		print " - Reserved by host: ... [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}})."]\n";
+		print " - Allocated to servers: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}, unit => "M"}).")\n";
+		print " - Node 1 RAM (total): . [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{ram}{hardware}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{ram}{hardware}, unit => "M"}).")\n";
+		print " - Node 2 RAM (total): . [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{ram}{hardware}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{ram}{hardware}, unit => "M"}).")\n";
+		if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
+		{
+			print " - DR Host RAM (total):  [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{ram}{hardware}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{ram}{hardware}, unit => "M"}).")\n";
+		}
+		
+		print $terminal->Tgoto('cm', 0, 5)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		
+		if ($answer eq "")
+		{
+			$answer = $default_ram; 
+		}
+		if ($answer)
+		{
+			# Convert to bytes.
+			my $answer_bytes = $anvil->Convert->human_readable_to_bytes({
+				base2 => 1,
+				size  => $answer, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer_bytes => $answer_bytes }});
+			if (($answer_bytes eq "!!error!!") or 
+			    (not $answer_bytes)            or 
+			    ($answer_bytes < (640*1024))   or 
+			    ($answer_bytes > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}))
+			{
+				# Invalid
+				$retry = 1;
+			}
+			else
+			{
+				# Valid.
+				$anvil->data->{new_server}{ram} = $answer_bytes;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_server::ram" => $anvil->data->{new_server}{ram},
+				}});
+				
+				last;
+			}
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_storage_group
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Database->get_anvils();
+		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+		}});
+		
+		# I need a list of Storage groups,
+		my $storage_groups        = [""];
+		my $show_list             = "";
+		my $position              = 0;
+		my $default_storage_group = 1;
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
+		{
+			   $position++;
+			my $storage_group_uuid = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+			my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+			my $vg_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+			my $dr_size            = 0;
+			my $dr_free            = 0;
+			if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
+			{
+				$dr_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
+				$dr_free = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
+			}
+			
+			if ($anvil->data->{switches}{'storage-group'})
+			{
+				if (($anvil->data->{switches}{'storage-group'} eq $storage_group_uuid) or 
+				    ($anvil->data->{switches}{'storage-group'} eq $storage_group_name))
+				{
+					$default_storage_group = $position;
+				}
+			}
+			push @{$storage_groups}, $storage_group_uuid;
+			$show_list .= " - ".$position.") ".$storage_group_name." (".$storage_group_uuid.")\n";
+			$show_list .= "      Available on Anvil!: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."], Total: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size})."]\n";
+			if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
+			{
+				$show_list .= "      Available on DR: ... [".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free})."], Total: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size})."]\n";
+			}
+			else
+			{
+				$show_list .= "      Available on DR: ... [--], Total: [--]\n";
+			}
+		}
+		
+		if (not $default_storage_group)
+		{
+			# Default to 2, unless only one core is available.
+			$default_storage_group = 1;
+		}
+		
+		print $terminal->Tputs('cl');
+		print "Provision a new server menu:\n";
+		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
+		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
+		print "CPU Cores: ... [".$anvil->data->{new_server}{cpu}."]\n";
+		print "RAM: ......... [".$anvil->data->{new_server}{ram}."]\n";
+		print "Storage Group: [".$default_storage_group."]\n\n\n";
+		
+		if ($retry)
+		{
+			print "* Please enter a number beside the storage group you want to use.\n\n";
+		}
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
+		
+		print "-=] Storage groups\n";
+		print $show_list."\n";
+		
+		print $terminal->Tgoto('cm', 0, 6)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		
+		if ($answer eq "")
+		{
+			$answer = $default_storage_group; 
+		}
+		if (($answer) && ($answer =~ /^\d+$/) && (exists $storage_groups->[$answer]) && ($storage_groups->[$answer]))
+		{
+			# Valid.
+			$anvil->data->{new_server}{storage_group} = $storage_groups->[$answer];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::storage_group" => $anvil->data->{new_server}{storage_group},
+			}});
+			
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_storage_size
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Database->get_anvils();
+		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		
+		# I need a list of Storage groups,
+		my $default_storage_size = 0;
+		my $storage_group_uuid   = $anvil->data->{new_server}{storage_group};
+		my $vg_free              = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+		   $default_storage_size = $anvil->data->{switches}{'storage-size'};
+		if (not $default_storage_size)
+		{
+			if ($vg_free < (80 * (2**30)))
+			{
+				# Too small for default
+				$default_storage_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
+			}
+			else
+			{
+				$default_storage_size = "80 GiB";
+			}
+		}
+		
+		my $say_storage_group = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		print $terminal->Tputs('cl');
+		print "Provision a new server menu:\n";
+		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
+		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
+		print "CPU Cores: ... [".$anvil->data->{new_server}{cpu}."]\n";
+		print "RAM: ......... [".$anvil->data->{new_server}{ram}."]\n";
+		print "Storage Group: [".$say_storage_group."]\n";
+		print "Storage Size:  [".$default_storage_size."]\n\n\n";
+		
+		if ($retry)
+		{
+			print "* Please enter a size up to: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."].\n\n";
+		}
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
+		
+		print "-=] Storage group: [".$say_storage_group."], Available Space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."]\n";
+		print " - Note: You can add additional drives later.\n";
+		
+		print $terminal->Tgoto('cm', 0, 7)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		
+		if ($answer eq "")
+		{
+			$answer = $default_storage_size; 
+		}
+		if ($answer) 
+		{
+			# Is the size sensible?
+			my $answer_bytes = $anvil->Convert->human_readable_to_bytes({
+				base2 => 1,
+				size  => $answer, 
+			});
+			# Make sure they've asked for at least 10 MiB
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer_bytes => $answer_bytes }});
+			if (($answer_bytes eq "!!error!!") or 
+			    (not $answer_bytes)            or 
+			    ($answer_bytes < (10*(2**20))) or 
+			    ($answer_bytes > $vg_free))
+			{
+				# Invalid
+				$retry = 1;
+			}
+			else
+			{
+				$anvil->data->{new_server}{storage_size} = $answer_bytes;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_server::storage_size" => $anvil->data->{new_server}{storage_size},
+				}});
+				
+				last;
+			}
 		}
 		else
 		{

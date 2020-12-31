@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+# 
+# This runs on striker dashboards and syncs files under /mnt/shared on all known systems. It reaches out and 
+# pulls over any files under /mnt/shared/files/ to the same on the local system. It then pushes files out to
+# all members of the same Anvil!. 
+# 
+# NOTE: This file is NOT responsible for sync'ing definition files! That is handles in scan-server.
+# 
+# TODO:
+# - Handle deleting files by user input, or if a given file that was on an Anvil! has been removed for both
+#   nodes and DR, where applicable.
+# - 
+ 
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->Get->switches;
+
+# Connect to the database(s).
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+
+
+$anvil->nice_exit({exit_code => 0});
+
