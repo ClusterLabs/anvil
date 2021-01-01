@@ -1106,7 +1106,7 @@ CREATE TABLE files (
     file_directory   text                        not null,                   -- This is the directory that the file is in.
     file_size        numeric                     not null,                   -- This is the file's size in bytes. If it recorded as a quick way to determine if a file has changed on disk.
     file_md5sum      text                        not null,                   -- This is the sum as calculated when the file is first uploaded. Once recorded, it can't change.
-    file_type        text                        not null,                   -- This is the file's type/purpose. The expected values are 'iso', 'rpm', 'script', 'disk-image', or 'other'. 
+    file_type        text                        not null,                   -- This is the file's type/purpose. The expected values are 'iso', 'rpm', 'script', 'disk-image', or 'other'. If set to 'DELETED', the file will be removed from disk.
     file_mtime       numeric                     not null,                   -- If the same file exists on different machines and differ md5sums/sizes, the one with the most recent mtime will be used to update the others.
     modified_date    timestamp with time zone    not null
 );
@@ -1160,51 +1160,26 @@ CREATE TRIGGER trigger_files
     FOR EACH ROW EXECUTE PROCEDURE history_files();
 
 
--- NOTE: When an entry is made here, the next time files are checked on a machine and an entry doesn't exist 
---       on disk, the file fill be found (if possible) and copied to the houst. Only machines on the same 
---       subnet are searched. Of course, if a URL is given (or a file is uploaded over a browser), the file
---       will be sourced accordingly. The search pattern is; 
---       Nodes;   1. Check for the file on the peer.
---                2. Check for the file on Strikers, in alphabetical order.
---                3. Check for the file on DR host, if available.
---                4. Check other nodes, in alphabetical order.
---                5. Check other DR hosts, in alphabetical order.
---       Striker; 1. Check for the file on other Strikers, in alphabetical order.
---                2. Check for the file on DR hosts, if available
---                3. Check for the file on Anvil! nodes.
---       DR Host; 1. Check for the file on Strikers, in alphabetical order.
---                2. Check for the file on Anvil! nodes.
---       * If a file can't be found, it will try again every so often until it is found.
---       * When a file is found, it is copied to '/mnt/shared/incoming'. Only when the file has arrived and 
---         the md5sum matches. At this point, it is moved into the proper directory.
---       How new files are handled;
---       * When uploading a file from a Striker web interface, or when creating an ISO from physical media,
---         it will be dropped into /mnt/shared/incoming. Once there, the user will have the option of pushing
---         the file to an Anvil! system. ISOs and scripts will go to both nodes (and the DR host, when 
---         needed).
---       * Repo RPMs are sync'ed to all peer'ed dashboards, but not sent to hosts (they are used during the
---         initial host setup).
---       * Special Note: Definition files are stored in the database and written out as needed to the 
---                       nodes/DR host.
---       
--- This tracks which files should be on which machines.
+-- This tracks which files on Strikers should be on Anvils!
 CREATE TABLE file_locations (
-    file_location_uuid         uuid                        not null    primary key,
-    file_location_file_uuid    uuid                        not null,                   -- This is file to be moved to (or restored to) this machine.
-    file_location_host_uuid    uuid                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
-    modified_date              timestamp with time zone    not null,
+    file_location_uuid          uuid                        not null    primary key,
+    file_location_file_uuid     uuid                        not null,                   -- This is file to be moved to (or restored to) this machine.
+    file_location_anvil_uuid    uuid                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
+    file_location_active        boolean                     not null    default TRUE,   -- This is set to true when the file should be on Anvil! machines, triggering rsyncs when needed. When set to false, the file will be deleted from members, if they exist.
+    modified_date               timestamp with time zone    not null,
     
     FOREIGN KEY(file_location_file_uuid) REFERENCES files(file_uuid), 
-    FOREIGN KEY(file_location_host_uuid) REFERENCES hosts(host_uuid)
+    FOREIGN KEY(file_location_anvil_uuid) REFERENCES anvils(anvil_uuid)
 );
 ALTER TABLE file_locations OWNER TO admin;
 
 CREATE TABLE history.file_locations (
-    history_id                 bigserial,
-    file_location_uuid         uuid,
-    file_location_file_uuid    text,
-    file_location_host_uuid    text,
-    modified_date              timestamp with time zone    not null
+    history_id                  bigserial,
+    file_location_uuid          uuid,
+    file_location_file_uuid     text,
+    file_location_anvil_uuid    uuid,
+    file_location_active        boolean,
+    modified_date               timestamp with time zone    not null
 );
 ALTER TABLE history.file_locations OWNER TO admin;
 
@@ -1217,12 +1192,14 @@ BEGIN
     INSERT INTO history.file_locations
         (file_location_uuid,
          file_location_file_uuid,
-         file_location_host_uuid, 
+         file_location_anvil_uuid, 
+         file_location_active, 
          modified_date)
     VALUES
         (history_file_locations.file_location_uuid, 
          history_file_locations.file_location_file_uuid,
-         history_file_locations.file_location_host_uuid, 
+         history_file_locations.file_location_anvil_uuid, 
+         history_file_locations.file_location_active, 
          history_file_locations.modified_date);
     RETURN NULL;
 END;

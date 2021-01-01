@@ -74,8 +74,10 @@ if ($anvil->data->{switches}{'job-uuid'})
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
 	$anvil->Job->update_progress({
-		progress => 1,
-		message  => "message_0190", 
+		progress         => 1,
+		job_picked_up_by => $$, 
+		job_picked_up_at => time, 
+		message          => "message_0190", 
 	});
 	
 	# Job data will be in $anvil->data->{jobs}{job_data}

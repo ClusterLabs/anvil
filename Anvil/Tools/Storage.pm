@@ -1345,6 +1345,7 @@ Collected information is stored as (see C<< perldoc -f stat >> for details):
  file_stat::<file_path>::inode_change_time
  file_stat::<file_path>::block_size
  file_stat::<file_path>::blocks
+ file_stat::<file_path>::mimetype
 
 Parameters;
 
@@ -1427,6 +1428,7 @@ sub get_file_stats
 	$anvil->data->{file_stat}{$file_path}{inode_change_time}   = $inode_change_time;
 	$anvil->data->{file_stat}{$file_path}{block_size}          = $block_size;
 	$anvil->data->{file_stat}{$file_path}{blocks}              = $blocks;
+	$anvil->data->{file_stat}{$file_path}{mimetype}            = mimetype($file_path);
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"s1:file_stat::${file_path}::device_number"       => $anvil->data->{file_stat}{$file_path}{device_number}, 
@@ -1445,6 +1447,7 @@ sub get_file_stats
 		"s14:file_stat::${file_path}::inode_change_time"  => $anvil->data->{file_stat}{$file_path}{inode_change_time},
 		"s15:file_stat::${file_path}::block_size"         => $anvil->data->{file_stat}{$file_path}{block_size},
 		"s16:file_stat::${file_path}::blocks"             => $anvil->data->{file_stat}{$file_path}{blocks},
+		"s17:file_stat::${file_path}::mimetype"           => $anvil->data->{file_stat}{$file_path}{mimetype},
 	}});
 
 	return(0);
@@ -2440,7 +2443,7 @@ Parameters;
 
 =head3 destination (required)
 
-This is the source being copied. Be careful with the closing C<< / >>! Generally you will always want to have the destination end in a closing slash, to ensure the files go B<< under >> the estination directory. The same as is the case when using C<< rsync >> directly.
+This is the destination being copied to. Be careful with the closing C<< / >>! Generally you will always want to have the destination end in a closing slash, to ensure the files go B<< under >> the estination directory. The same as is the case when using C<< rsync >> directly.
 
 =head3 password (optional)
 
@@ -2452,9 +2455,11 @@ This is the TCP port used to connect to the target machine.
 
 =head3 source (required)
 
+This is the file to copy via rsync.
+	
 The source can be a directory, or end in a wildcard (ie: C<< .../* >>) to copy multiple files/directories at the same time.
 
-=head3 switches (optional, default -av)
+=head3 switches (optional, default -avS)
 
 These are the switches to pass to C<< rsync >>. If you specify this and you still want C<< -avS >>, be sure to include it. This parameter replaces the default.
 

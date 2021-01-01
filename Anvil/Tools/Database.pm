@@ -5763,7 +5763,7 @@ INSERT INTO
 
 This updates (or inserts) a record in the 'file_locations' table. The C<< file_location_uuid >> referencing the database row will be returned.
 
-This table is used to track which of the files in the database are on a given host.
+This table is used to track which files on Striker dashboards need to be on given Anvil! members.
 
 If there is an error, an empty string is returned.
 
@@ -5771,21 +5771,21 @@ Parameters;
 
 =head3 file_location_uuid (optional)
 
-The record to update, when passed.
-
-If not passed, a check will be made to see if an existing entry is found for C<< file_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
+If not passed, a check will be made to see if an existing entry is found for C<< file_location_file_uuid >>. If found, that entry will be updated. If not found, a new record will be inserted.
 
 =head3 file_location_file_uuid (required)
 
-This is the C<< files >> -> C<< file_uuid >> referenced by this record.
+This is the C<< files >> -> C<< file_uuid >> being referenced.
 
-=head3 file_location_host_uuid (optional, default 'sys::host_uuid')
+=head3 file_location_anvil_uuid (required)
 
-This is the C<< hosts >> -> C<< host_uuid >> referenced by this record.
+This is the C<< anvils >> -> C<< anvil_uuid >> being referenced.
 
-=head3 uuid (optional)
+=head3 file_location_active (required)
 
-If set, only the corresponding database will be written to.
+This is set to C<< 1 >> or C<< 0 >>, and indicates if the file should be on the Anvil! member machines or not. 
+
+When set to C<< 1 >>, the file will be copied by the Anvil! member machines (by the member machines, they pull the files using rsync). If set to C<< 0 >>, the file is marked as inactive. If the file exists on the Anvil! members, it will be deleted.
 
 =cut
 sub insert_or_update_file_locations
@@ -5796,17 +5796,21 @@ sub insert_or_update_file_locations
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_file_locations()" }});
 	
-	my $uuid                    = defined $parameter->{uuid}                    ? $parameter->{uuid}                    : "";
-	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
-	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
-	my $file_location_uuid      = defined $parameter->{file_location_uuid}      ? $parameter->{file_location_uuid}      : "";
-	my $file_location_file_uuid = defined $parameter->{file_location_file_uuid} ? $parameter->{file_location_file_uuid} : "";
-	my $file_location_host_uuid = defined $parameter->{file_location_host_uuid} ? $parameter->{file_location_host_uuid} : $anvil->data->{sys}{host_uuid};
+	my $uuid                     = defined $parameter->{uuid}                     ? $parameter->{uuid}                     : "";
+	my $file                     = defined $parameter->{file}                     ? $parameter->{file}                     : "";
+	my $line                     = defined $parameter->{line}                     ? $parameter->{line}                     : "";
+	my $file_location_uuid       = defined $parameter->{file_location_uuid}       ? $parameter->{file_location_uuid}       : "";
+	my $file_location_file_uuid  = defined $parameter->{file_location_file_uuid}  ? $parameter->{file_location_file_uuid}  : "";
+	my $file_location_anvil_uuid = defined $parameter->{file_location_anvil_uuid} ? $parameter->{file_location_anvil_uuid} : "";
+	my $file_location_active     = defined $parameter->{file_location_active}     ? $parameter->{file_location_active}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid                    => $uuid, 
-		file_location_uuid      => $file_location_uuid, 
-		file_location_file_uuid => $file_location_file_uuid, 
-		file_location_host_uuid => $file_location_host_uuid, 
+		uuid                     => $uuid, 
+		file                     => $file,
+		line                     => $line,
+		file_location_uuid       => $file_location_uuid, 
+		file_location_file_uuid  => $file_location_file_uuid, 
+		file_location_anvil_uuid => $file_location_anvil_uuid, 
+		file_location_active     => $file_location_active, 
 	}});
 	
 	if (not $file_location_file_uuid)
@@ -5815,15 +5819,18 @@ sub insert_or_update_file_locations
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_file_uuid" }});
 		return("");
 	}
-	if (not $file_location_host_uuid)
+	if (not $file_location_anvil_uuid)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_host_uuid" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_anvil_uuid" }});
 		return("");
 	}
-	
-	# Made sure the file_uuuid and host_uuid are valid
-	### TODO
+	if (($file_location_active ne "0") && ($file_location_active ne "1"))
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_active" }});
+		return("");
+	}
 	
 	# If we don't have a UUID, see if we can find one for the given md5sum.
 	if (not $file_location_uuid)
@@ -5834,9 +5841,9 @@ SELECT
 FROM 
     file_locations 
 WHERE 
-    file_location_file_uuid = ".$anvil->Database->quote($file_location_file_uuid)." 
-AND
-    file_location_host_uuid = ".$anvil->Database->quote($file_location_host_uuid)." 
+    file_location_file_uuid  = ".$anvil->Database->quote($file_location_file_uuid)." 
+AND 
+    file_location_anvil_uuid = ".$anvil->Database->quote($file_location_anvil_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -5857,28 +5864,6 @@ AND
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 	if (not $file_location_uuid)
 	{
-		# It's possible that this is called before the host is recorded in the database. So to be
-		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts({debug => $debug});
-		my $found = 0;
-		foreach my $hash_ref (@{$hosts})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
-				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
-			}});
-			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
-			{
-				$found = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
-			}
-		}
-		if (not $found)
-		{
-			# We're out.
-			return("");
-		}
-		
 		# INSERT
 		$file_location_uuid = $anvil->Get->uuid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
@@ -5889,13 +5874,15 @@ INSERT INTO
 (
     file_location_uuid, 
     file_location_file_uuid, 
-    file_location_host_uuid, 
+    file_location_anvil_uuid, 
+    file_location_active, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($file_location_uuid).", 
     ".$anvil->Database->quote($file_location_file_uuid).", 
-    ".$anvil->Database->quote($file_location_host_uuid).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($file_location_anvil_uuid).", 
+    ".$anvil->Database->quote($file_location_active).", 
+   ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -5907,7 +5894,8 @@ INSERT INTO
 		my $query = "
 SELECT 
     file_location_file_uuid, 
-    file_location_host_uuid 
+    file_location_anvil_uuid, 
+    file_location_active, 
 FROM 
     file_locations 
 WHERE 
@@ -5929,27 +5917,31 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_file_location_file_uuid = $row->[0];
-			my $old_file_location_host_uuid = $row->[1];
+			my $old_file_location_file_uuid  = $row->[0];
+			my $old_file_location_anvil_uuid = $row->[1];
+			my $old_file_location_active     = $row->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_file_location_file_uuid => $old_file_location_file_uuid, 
-				old_file_location_host_uuid => $old_file_location_host_uuid, 
+				old_file_location_file_uuid  => $old_file_location_file_uuid, 
+				old_file_location_anvil_uuid => $old_file_location_anvil_uuid, 
+				old_file_location_active     => $old_file_location_active, 
 			}});
 			
 			# Anything change?
-			if (($old_file_location_file_uuid ne $file_location_file_uuid) or 
-			    ($old_file_location_host_uuid ne $file_location_host_uuid))
+			if (($old_file_location_file_uuid  ne $file_location_file_uuid)      or 
+			    ($old_file_location_anvil_uuid ne $file_location_anvil_uuid) or 
+			    ($old_file_location_active     ne $file_location_active))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
     file_locations 
 SET 
-    file_location_file_uuid = ".$anvil->Database->quote($file_location_file_uuid).", 
-    file_location_host_uuid = ".$anvil->Database->quote($file_location_host_uuid).", 
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    file_location_file_uuid  = ".$anvil->Database->quote($file_location_file_uuid).", 
+    file_location_anvil_uuid = ".$anvil->Database->quote($file_location_anvil_uuid).", 
+    file_location_active     = ".$anvil->Database->quote($file_location_active).", 
+    modified_date            = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    file_location_uuid      = ".$anvil->Database->quote($file_location_uuid)." 
+    file_location_uuid       = ".$anvil->Database->quote($file_location_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -6079,6 +6071,8 @@ SELECT
 FROM 
     files 
 WHERE 
+    file_name   = ".$anvil->Database->quote($file_name)." 
+AND 
     file_md5sum = ".$anvil->Database->quote($file_md5sum)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -6100,6 +6094,7 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
 	if (not $file_uuid)
 	{
+=cut	Not sure why this is here...
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
 		my $hosts = $anvil->Database->get_hosts({debug => $debug});
@@ -6121,6 +6116,7 @@ WHERE
 			# We're out.
 			return("");
 		}
+=cut
 		
 		# INSERT
 		$file_uuid = $anvil->Get->uuid();
@@ -6186,10 +6182,10 @@ WHERE
 		{
 			my $old_file_name      = $row->[0];
 			my $old_file_directory = $row->[1];
-			my $old_file_size      = $row->[1];
-			my $old_file_md5sum    = $row->[2]; 
-			my $old_file_type      = $row->[3]; 
-			my $old_file_mtime     = $row->[4]; 
+			my $old_file_size      = $row->[2];
+			my $old_file_md5sum    = $row->[3]; 
+			my $old_file_type      = $row->[4]; 
+			my $old_file_mtime     = $row->[5]; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_file_name      => $old_file_name, 
 				old_file_directory => $old_file_directory, 

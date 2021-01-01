@@ -30,6 +30,13 @@ my $cgi = CGI->new;
 print "Content-type: text/html; charset=utf-8\n\n";
 print $anvil->Template->get({file => "files.html", name => "upload_header"})."\n";
 
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
 my $lightweight_fh = $cgi->upload('field_name');
 # undef may be returned if it's not a valid file handle
 if ($cgi->param())
@@ -37,19 +44,30 @@ if ($cgi->param())
 	my $start    = time;
 	my $filename = $cgi->upload('upload_file');
 	my $out_file = $anvil->data->{path}{directories}{shared}{incoming}."/".$filename;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_file => $out_file }});
 	if (-e $out_file)
 	{
 		# Don't overwrite
 		$out_file .= "_".$anvil->Get->date_and_time({file_name => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_file => $out_file }});
 		
 		# If this exists (somehow), we'll append a short UUID
 		if (-e $out_file)
 		{
 			$out_file .= "_".$anvil->Get->uuid({short => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_file => $out_file }});
 		}
 	}
+	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0259", variables => { file => $out_file }});
-	my $cgi_file_handle = $cgi->param('upload_file');
+	my $cgi_file_handle = $cgi->upload('upload_file');
+	my $file            = $cgi_file_handle;
+	my $mimetype        = $cgi->uploadInfo($file)->{'Content-Type'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		cgi_file_handle => $cgi_file_handle,
+		file            => $file, 
+		mimetype        => $mimetype, 
+	}});
 	open(my $file_handle, ">$out_file") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0016", variables => { shell_call => $out_file, error => $! }});
 	while(<$cgi_file_handle>)
 	{
@@ -57,8 +75,23 @@ if ($cgi->param())
 	}
 	close $file_handle;
 	
-	# TODO: Call anvil-manage-files as a backgroup process, use the logic below and move the 
-	$anvil->System->call({debug => 2, background => 1, shell_call => $anvil->data->{path}{exe}{'anvil-update-files'}});
+	# Register a job to call striker-sync-shared 
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		file            => $THIS_FILE, 
+		line            => __LINE__, 
+		job_command     => $anvil->data->{path}{exe}{'striker-sync-shared'}, 
+		job_data        => "file=".$out_file, 
+		job_name        => "upload::move_incoming", 
+		job_title       => "job_0132", 
+		job_description => "job_0133", 
+		job_progress    => 0,
+		job_host_uuid   => $anvil->data->{sys}{host_uuid},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
+	
+	
+	#$anvil->System->call({debug => 2, background => 1, shell_call => $anvil->data->{path}{exe}{'striker-sync-shared'}});
 	
 	### NOTE: The timing is a guide only. The AJAX does a lot of work before this script is invoked. It 
 	###       might be better to just remove the timing stuff entirely...
@@ -71,7 +104,6 @@ if ($cgi->param())
 	my $bytes_per_second = $anvil->Convert->round({number => ($size / $took), places => 0});
 	my $say_rate         = $anvil->Words->string({key => "suffix_0001", variables => { number => $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_per_second}) }});
 	my $file_sum         = $anvil->Get->md5sum({file => $out_file});
-	my $mimetype         = mimetype($out_file);
 	my $executable       = -x $out_file ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		size             => $size,
@@ -87,13 +119,13 @@ if ($cgi->param())
 	}});
 	
 	# Determine the type (guess) from the mimetype
-	my $ype = "other";
+	my $type = "other";
 	if ($mimetype =~ /cd-image/)
 	{
 		$type = "iso";
 	}
 	# This will need to be expanded over time
-	elsif (($executable) or (($mimetype =~ /perl/) or ($mimetype =~ /python/))
+	elsif (($executable) or ($mimetype =~ /perl/) or ($mimetype =~ /python/))
 	{
 		$type = "script";
 	}
@@ -118,13 +150,13 @@ if ($cgi->param())
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Add to files
-		my ($file_uuid) = $anvil->Database->insert_or_update_files({
-			debug       => 2,
-			file_name   => $file_name, 
-			file_size   => $size, 
-			file_md5sum => $file_sum, 
-			file_type   => $file_type, 
-		})
+# 		my ($file_uuid) = $anvil->Database->insert_or_update_files({
+# 			debug       => 2,
+# 			file_name   => $file_name, 
+# 			file_size   => $size, 
+# 			file_md5sum => $file_sum, 
+# 			file_type   => $file_type, 
+# 		})
 	}
 }
 else
@@ -133,4 +165,4 @@ else
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0261", variables => { file => $THIS_FILE }});
 }
 
-exit(0);
+$anvil->nice_exit({exit_code => 0});
