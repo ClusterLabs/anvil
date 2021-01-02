@@ -267,9 +267,6 @@ sub new
 	# Read in any command line switches.
 	$anvil->Get->switches({debug => $debug});
 	
-	# Populate the core_tables array reference from the main anvil.sql file.
-	$anvil->data->{sys}{database}{core_tables} = $anvil->Database->get_tables_from_schema({schema_file => $anvil->data->{path}{sql}{'anvil.sql'}});
-	
 	# Read in the local Anvil! version.
 	#...
 	
@@ -1088,6 +1085,7 @@ sub _set_paths
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
 				'anvil-parse-fence-agents'	=>	"/usr/sbin/anvil-parse-fence-agents",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
+				'anvil-sync-shared'		=>	"/usr/sbin/anvil-sync-shared",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
@@ -1180,7 +1178,6 @@ sub _set_paths
 				'striker-parse-oui'		=>	"/usr/sbin/striker-parse-oui",
 				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",
 				'striker-scan-network'		=>	"/usr/sbin/striker-scan-network",
-				'striker-sync-shared'		=>	"/usr/sbin/striker-sync-shared",
 				stty				=>	"/usr/bin/stty",
 				su				=>	"/usr/bin/su",
 				'subscription-manager'		=>	"/usr/sbin/subscription-manager",
@@ -1196,6 +1193,7 @@ sub _set_paths
 				virsh				=>	"/usr/bin/virsh",
 				vgs				=>	"/usr/sbin/vgs",
 				vgscan				=>	"/usr/sbin/vgscan",
+				wc				=>	"/usr/bin/wc",
 				wget				=>	"/usr/bin/wget",
 			},
 			json			=>	{

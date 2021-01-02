@@ -23,8 +23,10 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 $anvil->Get->switches;
 
 # Connect to the database(s).
-$anvil->Database->connect;
+$anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+
+exit;
 
 my $anvil_uuid = $anvil->data->{switches}{'anvil-uuid'};
 print "Anvil! UUID: [".$anvil_uuid."]\n";

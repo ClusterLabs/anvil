@@ -26,6 +26,8 @@ my $THIS_FILE = "Database.pm";
 # get_anvils
 # get_bridges
 # get_fences
+# get_file_locations
+# get_files
 # get_host_from_uuid
 # get_hosts
 # get_hosts_info
@@ -1120,7 +1122,7 @@ sub connect
 	# If I wasn't passed an array reference of tables, use the core tables.
 	if (not $tables)
 	{
-		$tables = $anvil->data->{sys}{database}{core_tables};
+		$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => $anvil->data->{path}{sql}{'anvil.sql'}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 	}
 	
@@ -2279,6 +2281,217 @@ WHERE
 }
 
 
+=head2 get_file_locations
+
+This loads the known install file_locations into the C<< anvil::data >> hash at:
+
+* file_locations::file_location_uuid::<file_location_uuid>::file_location_file_uuid
+* file_locations::file_location_uuid::<file_location_uuid>::file_location_anvil_uuid
+* file_locations::file_location_uuid::<file_location_uuid>::file_location_active
+* file_locations::file_location_uuid::<file_location_uuid>::modified_date
+
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
+
+This method takes no parameters.
+
+=cut
+sub get_file_locations
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_file_locations()" }});
+	
+	if (exists $anvil->data->{file_locations})
+	{
+		delete $anvil->data->{file_locations};
+	}
+	
+	my $query = "
+SELECT 
+    file_location_uuid, 
+    file_location_file_uuid, 
+    file_location_anvil_uuid, 
+    file_location_active, 
+    modified_date 
+FROM 
+    file_locations 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $file_location_uuid       = $row->[0];
+		my $file_location_file_uuid  = $row->[1];
+		my $file_location_anvil_uuid = $row->[2];
+		my $file_location_active     = $row->[3]; 
+		my $modified_date            = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			file_location_uuid       => $file_location_uuid, 
+			file_location_file_uuid  => $file_location_file_uuid, 
+			file_location_anvil_uuid => $file_location_anvil_uuid, 
+			file_location_active     => $file_location_active, 
+			modified_date            => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid}  = $file_location_file_uuid;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} = $file_location_anvil_uuid;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}     = $file_location_active;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}            = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_file_uuid"  => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_anvil_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"     => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::modified_date"            => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}, 
+		}});
+	}
+
+	return(0);
+}
+
+
+=head2 get_files
+
+This loads all know files into the following hashes;
+
+* files::file_uuid::<file_uuid>::file_name
+* files::file_uuid::<file_uuid>::file_directory
+* files::file_uuid::<file_uuid>::file_size
+* files::file_uuid::<file_uuid>::file_md5sum
+* files::file_uuid::<file_uuid>::file_type
+* files::file_uuid::<file_uuid>::file_mtime
+* files::file_uuid::<file_uuid>::modified_date
+
+And;
+
+* files::file_name::<file_name>::file_uuid
+* files::file_name::<file_name>::file_directory
+* files::file_name::<file_name>::file_size
+* files::file_name::<file_name>::file_md5sum
+* files::file_name::<file_name>::file_type
+* files::file_name::<file_name>::file_mtime
+* files::file_name::<file_name>::modified_date
+
+Parameters;
+
+=head3 include_deleted (optional, default '0')
+
+Normalling, files with C<< file_type >> set to C<< DELETED >> are ignored. Setting this to C<< 1 >> will include them.
+
+=cut
+sub get_files
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_files()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	if (exists $anvil->data->{files})
+	{
+		delete $anvil->data->{files};
+	}
+	
+	my $query = "
+SELECT 
+    file_uuid, 
+    file_name, 
+    file_directory, 
+    file_size, 
+    file_md5sum, 
+    file_type, 
+    file_mtime,    
+    modified_date 
+FROM 
+    files ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    file_type != 'DELETED'";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $file_uuid      = $row->[0];
+		my $file_name      = $row->[1];
+		my $file_directory = $row->[2];
+		my $file_size      = $row->[3]; 
+		my $file_md5sum    = $row->[4]; 
+		my $file_type      = $row->[5]; 
+		my $file_mtime     = $row->[6];
+		my $modified_date  = $row->[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			file_uuid      => $file_uuid, 
+			file_name      => $file_name, 
+			file_directory => $file_directory, 
+			file_size      => $file_size, 
+			file_md5sum    => $file_md5sum, 
+			file_type      => $file_type,
+			file_mtime     => $file_mtime,
+			modified_date  => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{files}{file_uuid}{$file_uuid}{file_name}      = $file_name;
+		$anvil->data->{files}{file_uuid}{$file_uuid}{file_directory} = $file_directory;
+		$anvil->data->{files}{file_uuid}{$file_uuid}{file_size}      = $file_size;
+		$anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum}    = $file_md5sum;
+		$anvil->data->{files}{file_uuid}{$file_uuid}{file_type}      = $file_type;
+		$anvil->data->{files}{file_uuid}{$file_uuid}{file_mtime}     = $file_mtime;
+		$anvil->data->{files}{file_uuid}{$file_uuid}{modified_date}  = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"files::file_uuid::${file_uuid}::file_name"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_name}, 
+			"files::file_uuid::${file_uuid}::file_directory" => $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory}, 
+			"files::file_uuid::${file_uuid}::file_size"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_size}, 
+			"files::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum}, 
+			"files::file_uuid::${file_uuid}::file_type"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_type}, 
+			"files::file_uuid::${file_uuid}::file_mtime"     => $anvil->data->{files}{file_uuid}{$file_uuid}{file_mtime}, 
+			"files::file_uuid::${file_uuid}::modified_date"  => $anvil->data->{files}{file_uuid}{$file_uuid}{modified_date}, 
+		}});
+		
+		$anvil->data->{files}{file_name}{$file_name}{file_uuid}      = $file_uuid;
+		$anvil->data->{files}{file_name}{$file_name}{file_directory} = $file_directory;
+		$anvil->data->{files}{file_name}{$file_name}{file_size}      = $file_size;
+		$anvil->data->{files}{file_name}{$file_name}{file_md5sum}    = $file_md5sum;
+		$anvil->data->{files}{file_name}{$file_name}{file_type}      = $file_type;
+		$anvil->data->{files}{file_name}{$file_name}{file_mtime}     = $file_mtime;
+		$anvil->data->{files}{file_name}{$file_name}{modified_date}  = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"files::file_name::${file_name}::file_uuid"      => $anvil->data->{files}{file_name}{$file_name}{file_uuid}, 
+			"files::file_name::${file_name}::file_directory" => $anvil->data->{files}{file_name}{$file_name}{file_directory}, 
+			"files::file_name::${file_name}::file_size"      => $anvil->data->{files}{file_name}{$file_name}{file_size}, 
+			"files::file_name::${file_name}::file_md5sum"    => $anvil->data->{files}{file_name}{$file_name}{file_md5sum}, 
+			"files::file_name::${file_name}::file_type"      => $anvil->data->{files}{file_name}{$file_name}{file_type}, 
+			"files::file_name::${file_name}::file_mtime"     => $anvil->data->{files}{file_name}{$file_name}{file_mtime}, 
+			"files::file_name::${file_name}::modified_date"  => $anvil->data->{files}{file_name}{$file_name}{modified_date}, 
+		}});
+	}
+
+	return(0);
+}
+
+
 =head2 get_host_from_uuid
 
 This takes a host UUID and returns the host's name. If there is a problem, or if the host UUID isn't found, an empty string is returned.
@@ -2817,8 +3030,8 @@ AND
 			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}  = $ip_address_subnet_mask;
 			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface} = $on_interface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hosts::host_uuid::${host_uuid}::network::${on_network}::ip_address" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}, 
-				"hosts::host_uuid::${host_uuid}::network::${on_network}::subnet_mask" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}, 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::ip_address"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}, 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::subnet_mask"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}, 
 				"hosts::host_uuid::${host_uuid}::network::${on_network}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface}, 
 			}});
 			
@@ -5795,7 +6008,7 @@ sub insert_or_update_file_locations
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_file_locations()" }});
-	
+
 	my $uuid                     = defined $parameter->{uuid}                     ? $parameter->{uuid}                     : "";
 	my $file                     = defined $parameter->{file}                     ? $parameter->{file}                     : "";
 	my $line                     = defined $parameter->{line}                     ? $parameter->{line}                     : "";
@@ -6094,30 +6307,6 @@ AND
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
 	if (not $file_uuid)
 	{
-=cut	Not sure why this is here...
-		# It's possible that this is called before the host is recorded in the database. So to be
-		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts({debug => $debug});
-		my $found = 0;
-		foreach my $hash_ref (@{$hosts})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
-				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
-			}});
-			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
-			{
-				$found = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
-			}
-		}
-		if (not $found)
-		{
-			# We're out.
-			return("");
-		}
-=cut
-		
 		# INSERT
 		$file_uuid = $anvil->Get->uuid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});

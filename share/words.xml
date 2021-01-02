@@ -245,6 +245,11 @@ The error was:
 		<key name="error_0170">Unable to move an uploaded file from the: [#!data!path::directories::shared::incoming!#] directory as a file name wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
 		<key name="error_0171">Unable to move the uploaded file: [#!variable!file!#], it doesn't appear to exist.</key>
 		<key name="error_0172">Unable to move the uploaded file: [#!variable!file!#] to: [#!variable!target_directory!#]. The cause of the failure should be in the logs.</key>
+		<key name="error_0173">Unable to move pull a file from because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0174">Unable to pull a file as the file UUID: [#!variable!file_uuid!#] is either invalid or doesn't exist in the database.</key>
+		<key name="error_0175">Unable to pull the file: [#!variable!file!#], we're not an Anvil! member.</key>
+		<key name="error_0176">The downloaded file's md5sum: [#!variable!local_md5sum!#] doesn't match what is expected: [#!variable!file_md5sum!#]. The file has been removed. We'll wait for a minute and then exit, and the download will be attempted again.</key>
+		<key name="error_0177">Something went wrong and the file wasn't downloaded. More information should be in the logs. We'll wait for a minute and then exit, and the download will be attempted again.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1096,6 +1101,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0573">The host: [#!variable!host_name!#] is off, but there appears to be a problem translating the 'fence_ipmilan' into a workable 'ipmitool' command. Unable to check the thermal data of the host, and so, unable to determine if it's safe to boot the node.</key>
 		<key name="log_0574">The host: [#!variable!host_name!#] was powered off because of power loss. Power is back and the UPSes are sufficiently charged. Booting it back up now.</key>
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
+		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1388,6 +1394,11 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0195">Copying the file over to: [#!variable!host!#]. Please be patient, this could take a bit for large files.</key>
 		<key name="message_0196">Registering the file to be downloaded to the Anvil!: [#!variable!anvil_name!#]. Anvil! members will sync this file shortly. Member machines that are not online will sync the file when they do return.</key>
 		<key name="message_0197">Upload is complete!</key>
+		<key name="message_0198">Processing the pull of a file from Striker.</key>
+		<key name="message_0199">We're a DR host and there are: [#!variable!strikers!#] dashboards, so we will wait to pull the file until after the nodes are done. We're currently waiting on; Node 1? [#!variable!node1_waiting!#], Node 2? [#!variable!node2_waiting!#]. We'll check again at: [#!variable!wait_until!#].</key>
+		<key name="message_0200">Beginning rsync from: [#!variable!source_file!#] to: [#!variable!target_directory!#], please be patient...</key>
+		<key name="message_0201">Download appears to be complete, calculating md5sum to verify, please be patient...</key>
+		<key name="message_0202">Success! The file has been successfully downloaded.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1949,6 +1960,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0069">[ Warning ] - Checking the mail queue appears to have failed. Output received was: [#!variable!output!#].</key>
 		<key name="warning_0070">[ Warning ] - Unable to report the available resources for the Anvil! [#!variable!anvil_name!#] as it looks like ScanCore has not yet run. Please try again after starting the 'scancore' daemon on the nodes.</key>
 		<key name="warning_0071">[ Warning ] - We were asked to create a new storage group called: [#!variable!name!#] but that name is already used by the group with UUID: [#!variable!uuid!#].</key>
+		<key name="warning_0072">[ Warning ] - The file: [#!variable!file_path!#] was not found on any accessible Striker dashboard (or it isn't the same size as recorded in the database). Will sleep for a minute and exit, then we'll try again.</key>
 		
 	</language>
 	<!-- 日本語 -->

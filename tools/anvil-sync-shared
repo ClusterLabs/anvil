@@ -1,0 +1,818 @@
+#!/usr/bin/perl
+# 
+# This runs on striker dashboards and syncs files under /mnt/shared on all known systems. It reaches out and 
+# pulls over any files under /mnt/shared/files/ to the same on the local system. It then pushes files out to
+# all members of the same Anvil!. 
+# 
+# If this is called with a job-uuid, file-specific tasks will be handled, like moving files uploaded over a
+# browser or deleting / purging a file.
+# 
+# NOTE: This file is NOT responsible for sync'ing definition files! That is handles in scan-server.
+# 
+# TODO:
+# - Handle deleting files by user input, or if a given file that was on an Anvil! has been removed for both
+#   nodes and DR, where applicable.
+# - 
+ 
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->Get->switches;
+
+# Connect to the database(s).
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+
+# If we don't have a job-uuid, look for one.
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+}
+
+# If we still don't have a job-uuit, go into interactive mode.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->Job->get_job_details({debug => 3});
+	$anvil->Job->clear({debug => 3});
+	
+	$anvil->data->{sys}{progress} = 1;
+	if ($anvil->data->{jobs}{job_name} eq "upload::move_incoming")
+	{
+		process_incoming_file($anvil);
+	}
+	if ($anvil->data->{jobs}{job_name} eq "upload::pull_file")
+	{
+		process_pull_file($anvil);
+	}
+	
+	# Job data will be in $anvil->data->{jobs}{job_data}
+}
+else
+{
+	# Do a normal periodic search.
+	### NOTE: When finding new files, check the size, sleep for 30 seconds, and check again. If a file's 
+	###       size changed, skip it, it's likely still being updated.
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub process_incoming_file
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress},
+		message  => "message_0191", 
+	});
+	
+	my $file = ($anvil->data->{jobs}{job_data} =~ /file=(.*)$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+	if (not $file)
+	{
+		# Can't do anything, file wasn't parsed.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0170,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0170", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not -e $file)
+	{
+		# Can't do anything, file doesn't exist
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0171,!!file!".$file."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0171", variables => { file => $file }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Move it over to files.
+	$anvil->data->{sys}{progress} = 10;
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress}, 
+		message  => "message_0192,!!file!".$file."!!", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0192", variables => { file => $file }});
+	
+	$anvil->Storage->move_file({
+		debug       => 2,
+		overwrite   => 1, 
+		source_file => $file,
+		target_file => $anvil->data->{path}{directories}{shared}{files}."/", 
+	});
+
+	
+	my $file_name   = ($file =~ /\/.*\/(.*?)$/)[0];
+	my $target_file = $anvil->data->{path}{directories}{shared}{files}."/".$file_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_name   => $file_name,
+		target_file => $target_file, 
+	}});
+	
+	if (not -e $target_file)
+	{
+		# Failed to move.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0172,!!file!".$file."!!,!!target_directory!".$anvil->data->{path}{directories}{shared}{files}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0171", variables => { file => $file }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Change the owner as it'll be apache, which won't be a valid users on anvil members.
+	$anvil->Storage->change_owner({
+		debug => 2, 
+		path  => $target_file, 
+		user  => "root", 
+		group => "root",
+	});
+	
+	# Calculate the md5sum.
+	$anvil->data->{sys}{progress} = 20;
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress}, 
+		message  => "message_0193", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0193"});
+	
+	my ($string, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{md5sum}." ".$target_file});
+	my $md5sum = ($string =~ /^(.*?)\s/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		string      => $string, 
+		md5sum      => $md5sum,
+		return_code => $return_code,
+	}});
+	
+	# Store the file details!
+	$anvil->data->{sys}{progress} = 30;
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress}, 
+		message  => "message_0194,!!md5sum!".$md5sum."!!", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0194", variables => { md5sum => $md5sum }});
+	
+	$anvil->Storage->get_file_stats({
+		debug     => 2,
+		file_path => $target_file, 
+	});
+	
+	my $file_mimetype = $anvil->data->{file_stat}{$target_file}{mimetype};
+	my $file_size     = $anvil->data->{file_stat}{$target_file}{size};
+	my $file_mtime    = $anvil->data->{file_stat}{$target_file}{modified_time}; 
+	my $executable    = -x $target_file ? 1 : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_mimetype => $file_mimetype, 
+		file_size     => $file_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")",
+		file_mtime    => $file_mtime,
+		executable    => $executable, 
+	}});
+	
+	# This is the file's type/purpose. The expected values are 'iso', 'rpm', 'script', 'disk-image', or 
+	# 'other'. If set to 'DELETED', the file will be removed from disk.
+	my $file_type = "other";
+	if ($file_mimetype =~ /cd-image/)
+	{
+		$file_type = "iso";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_type => $file_type }});
+	}
+	# This will need to be expanded over time
+	elsif (($executable) or ($file_mimetype =~ /perl/) or ($file_mimetype =~ /python/))
+	{
+		$file_type = "script";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_type => $file_type }});
+		
+		# Change the mode to be executable
+		$anvil->Storage->change_mode({
+			debug => 2, 
+			path  => $target_file, 
+			mode  => "0755",
+		});
+	}
+	elsif ($file_mimetype =~ /raw-disk-image/)
+	{
+		$file_type = "image";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_type => $file_type }});
+	}
+	
+	my $file_uuid = $anvil->Database->insert_or_update_files({
+		debug          => 2,
+		file_name      => $file_name, 
+		file_directory => $anvil->data->{path}{directories}{shared}{files}, 
+		file_size      => $file_size, 
+		file_md5sum    => $md5sum, 
+		file_type      => $file_type, 
+		file_mtime     => $file_mtime, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+	
+	# Now copy this to our peers.
+	foreach my $host_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	{
+		# Periodically, autovivication causes and empty key to appear.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+		next if ((not $host_uuid) or (not $anvil->Validate->uuid({uuid => $host_uuid})));
+		next if $host_uuid eq $anvil->Get->host_uuid;
+		
+		my $host     = $anvil->data->{database}{$host_uuid}{host};
+		my $password = $anvil->data->{database}{$host_uuid}{password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host     => $host,
+			password => $anvil->Log->is_secure($password), 
+		}});
+		
+		my $striker_name = $anvil->Get->host_name_from_uuid({host_uuid => $host_uuid});
+		my $say_host     = $striker_name." (".$host.")";
+		
+		# Rsync the file.
+		$anvil->data->{sys}{progress} += 10;
+		$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
+		$anvil->Job->update_progress({
+			progress => $anvil->data->{sys}{progress}, 
+			message  => "message_0195,!!host!".$say_host."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0195", variables => { host => $say_host }});
+		
+		$anvil->Storage->rsync({
+			debug       => 2, 
+			source      => $target_file, 
+			destination => "root\@".$host.":".$anvil->data->{path}{directories}{shared}{files}."/", 
+			try_again   => 1, 
+		});
+	}
+	
+	### TODO: Make is an upload-time option to choose if the uploaded file automatically goes to any given Anvil!
+	# Tell other Anvil! systems to download this file.
+	$anvil->Database->get_anvils({debug => 2});
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
+		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_uuid            => $anvil_uuid, 
+			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
+			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
+			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
+		}});
+		
+		$anvil->data->{sys}{progress} += 5;
+		$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
+		$anvil->Job->update_progress({
+			progress => $anvil->data->{sys}{progress}, 
+			message  => "message_0196,!!anvil_name!".$anvil_name."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0196", variables => { anvil_name => $anvil_name }});
+		
+		my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
+			debug                    => 2, 
+			file_location_file_uuid  => $file_uuid, 
+			file_location_anvil_uuid => $anvil_uuid, 
+			file_location_active     => 1, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
+		
+		### TODO: Register a job for each member to run this file with an 'upload::pull_file' with 
+		###       the job_data being the 'file=$target_file'. Have node1 try the first striker, and 
+		###       node2 from the second striker, if it exists. DR should watch node1 and node2's
+		###       jobs and not download until those jobs hit 100.
+		
+		# Register a job to call anvil-sync-shared 
+		foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid, $anvil_dr1_host_uuid)
+		{
+			next if not $host_uuid;
+			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				file            => $THIS_FILE, 
+				line            => __LINE__, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+				job_data        => "file_uuid=".$file_uuid, 
+				job_name        => "upload::pull_file", 
+				job_title       => "job_0132", 
+				job_description => "job_0133", 
+				job_progress    => 0,
+				job_host_uuid   => $host_uuid,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		}
+	}
+	
+	# Done!
+	$anvil->Job->update_progress({
+		progress => 100, 
+		message  => "message_0197", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0197"});
+	
+	return(0);
+}
+
+# This pulls files from dashboards onto the running host.
+sub process_pull_file
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress},
+		message  => "message_0198", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "message_0198" });
+	
+	# Collect some data
+	$anvil->Database->get_anvils({debug => 3});
+	$anvil->Database->get_files({debug => 3});
+	$anvil->Database->get_file_locations({debug => 3});
+	
+	my $file_uuid  = ($anvil->data->{jobs}{job_data} =~ /file_uuid=(.*)$/)[0];
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid => $anvil_uuid,
+		file_uuid  => $file_uuid, 
+	}});
+	
+	if (not $file_uuid)
+	{
+		# Can't do anything, file wasn't parsed.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0173,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0173", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not exists $anvil->data->{files}{file_uuid}{$file_uuid})
+	{
+		# File UUID doesn't appear to be valid.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0174,!!file_uuid!".$file_uuid."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0174", variables => { file_uuid => $file_uuid }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $file_name      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+	my $file_directory = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+	my $file_path      = $file_directory."/".$file_name;
+	my $file_size      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
+	my $file_md5sum    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:file_name'      => $file_name, 
+		's2:file_directory' => $file_directory, 
+		's3:file_path'      => $file_path, 
+		's4:file_size'      => $file_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")",
+		's5:file_md5sum'    => $file_md5sum, 
+	}});
+	
+	if (not $anvil_uuid)
+	{
+		# Uhhh...
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0175,!!file!".$file_path."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0175", variables => { file => $file_path }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# How many Strikers are up and have the file we're looking for?
+	$anvil->data->{target_strikers} = [];
+	foreach my $host_uuid (keys %{$anvil->data->{database}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+		
+		my $host_name = $anvil->Get->host_name_from_uuid({debug => 2, host_uuid => $host_uuid});
+		my $target    = $anvil->data->{database}{$host_uuid}{host};
+		my $password  = $anvil->data->{database}{$host_uuid}{password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_name => $host_name, 
+			target    => $target,
+			password  => $anvil->Log->is_secure($password), 
+		}});
+		
+		# If the file exists, the return code is '0'. If the file isn't found, '1' is returned.
+		# When found, the size in bytes followed by the file name is returned.
+		my $shell_call = $anvil->data->{path}{exe}{wc}." -c ".$file_path;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => 3, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			password    => $password,
+			remote_user => "root", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output => $output, 
+			error  => $error,
+			output => $output,
+		}});
+		if ($output =~ /^(\d+)\s+$file_path$/)
+		{
+			my $size_on_peer = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				size_on_peer => $size_on_peer." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $size_on_peer}).")"
+			}});
+			
+			# For now, we only do a size check as md5sums can take a long time.
+			if ($size_on_peer eq $file_size)
+			{
+				# We can pull from this striker!
+				push @{$anvil->data->{target_strikers}}, {
+					host_name => $host_name,
+					host_uuid => $host_uuid,
+					target    => $target,
+					password  => $password,
+				};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					host_name => $host_name,
+					host_uuid => $host_uuid,
+					target    => $target,
+					password  => $anvil->Log->is_secure($password),
+				}});
+			}
+			else
+			{
+				# The file doesn't exist or we couldn't contact the Striker, so we'll skip 
+				# it.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0576", variables => { 
+					file_path => $file_path,
+					host_name => $host_name, 
+				}});
+			}
+		}
+	}
+	
+	my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_node1_host_uuid => $anvil_node1_host_uuid, 
+		anvil_node2_host_uuid => $anvil_node2_host_uuid, 
+		anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
+	}});
+	
+	# Where we pull from will depend on which machine we are and how many strikers we have. If we have
+	# one Anvil!, node 1 and 2 download at the same time, and DR waits. If there are two strikers, Each
+	# node will download from a different striker (if possible) and DR waits. If there are 3 or more 
+	# Strikers, DR does not wait, and downloads from a different striker than the striker's nodes use.
+	my $i_am = "node1";
+	if ($anvil->Get->host_uuid eq $anvil_node2_host_uuid)
+	{
+		$i_am = "node2";
+	}
+	elsif ($anvil->Get->host_uuid eq $anvil_dr1_host_uuid)
+	{
+		$i_am = "dr1";
+		
+		# As we're DR, we'll likely be pinging the nodes to seee if they're up when we wait for them
+		# to finish jobs. As such, load their IPs into memory.
+		$anvil->Network->load_ips({debug => 2, host_uuid => $anvil_node1_host_uuid});
+		$anvil->Network->load_ips({debug => 2, host_uuid => $anvil_node2_host_uuid});
+	}
+	
+	my $striker_count = @{$anvil->data->{target_strikers}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		i_am          => $i_am, 
+		striker_count => $striker_count, 
+	}});
+	if (not $striker_count)
+	{
+		# No available Strikers.
+		$anvil->Job->update_progress({
+			progress   => 1,
+			message    => "warning_0072,!!file_path!".$file_path."!!", 
+			job_status => "failed", 
+		});
+		sleep 60;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "warning_0072", variables => { file_path => $file_path }});
+		$anvil->nice_exit({exit_code => 2});
+	}
+	
+	my $use     = 0;
+	my $dr_wait = 1;
+	if ($striker_count >= 3)
+	{
+		$dr_wait = 0;
+		if ($i_am eq "node1")    { $use = 0; }
+		elsif ($i_am eq "node2") { $use = 1; }
+		elsif ($i_am eq "dr1")   { $use = 2; }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'use'   => $use, 
+			dr_wait => $dr_wait,
+		}});
+	}
+	elsif ($striker_count == 2)
+	{
+		# Two strikers, each node will use the other Striker, DR waits for both to be done.
+		if ($i_am eq "node1")    { $use = 0; }
+		elsif ($i_am eq "node2") { $use = 1; }
+		elsif ($i_am eq "dr1")   { $use = 1; }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'use'   => $use, 
+			dr_wait => $dr_wait,
+		}});
+	}
+	elsif ($striker_count == 1)
+	{
+		# Only 1 Striker
+		if ($i_am eq "node1")    { $use = 0; }
+		elsif ($i_am eq "node2") { $use = 0; }
+		elsif ($i_am eq "dr1")   { $use = 0; }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'use'   => $use, 
+			dr_wait => $dr_wait,
+		}});
+	}
+	
+	# If I'm DR and need to wait, look for jobs on node1 and node2 and wait until both are done (or is 
+	# offline).
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		i_am    => $i_am, 
+		dr_wait => $dr_wait,
+	}});
+	if (($i_am eq "dr1") && ($dr_wait))
+	{
+		my $node1_job_uuid = "";
+		my $node1_online   = 1;
+		my $node2_job_uuid = "";
+		my $node2_online   = 1;
+		my $node1_waiting  = 1;
+		my $node2_waiting  = 1;
+		
+		my $query = "
+SELECT 
+    job_uuid, 
+    job_host_uuid 
+FROM 
+    jobs 
+WHERE 
+    job_name = 'upload::pull_file' 
+AND 
+    (
+        job_host_uuid = ".$anvil->Database->quote($anvil_node1_host_uuid)." 
+    OR 
+        job_host_uuid = ".$anvil->Database->quote($anvil_node2_host_uuid)."
+    )
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $job_uuid      = $row->[0];
+			my $job_host_uuid = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				job_uuid      => $job_uuid,
+				job_host_uuid => $job_host_uuid, 
+			}});
+			
+			if ($job_host_uuid eq $anvil_node1_host_uuid)
+			{
+				$node1_job_uuid = $job_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_job_uuid => $node1_job_uuid }});
+			}
+			if ($job_host_uuid eq $anvil_node2_host_uuid)
+			{
+				$node2_job_uuid = $job_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_job_uuid => $node2_job_uuid }});
+			}
+		}
+		
+		my $waiting = 1;
+		while($waiting)
+		{
+			if ($node1_waiting)
+			{
+				if (not $node1_job_uuid)
+				{
+					$node1_waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_waiting => $node1_waiting }});
+				}
+				else
+				{
+					$node1_waiting = wait_on_host($anvil, $anvil_node1_host_uuid, $node1_job_uuid);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_waiting => $node1_waiting }});
+				}
+			}
+			if ($node2_waiting)
+			{
+				if (not $node2_job_uuid)
+				{
+					$node2_waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_waiting => $node2_waiting }});
+				}
+				else
+				{
+					$node2_waiting = wait_on_host($anvil, $anvil_node2_host_uuid, $node2_job_uuid);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_waiting => $node2_waiting }});
+				}
+			}
+			
+			if ((not $node1_waiting) && (not $node2_waiting))
+			{
+				# We can proceed.
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+			else
+			{
+				# Sleep for a bit.
+				my $sleep_time = 30;
+				my $wait_until = $anvil->Get->date_and_time({offset => $sleep_time});
+				
+				$anvil->Job->update_progress({
+					progress   => 1,
+					message    => "message_0199,!!strikers!".$striker_count."!!,!!node1_waiting!".$node1_waiting."!!,!!node2_waiting!".$node2_waiting."!!,!!wait_until!".$wait_until."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0199", variables => { 
+					strikers      => $striker_count,
+					node1_waiting => $node1_waiting, 
+					node2_waiting => $node2_waiting, 
+					wait_until    => $wait_until,
+				}});
+				
+				sleep $sleep_time;
+			}
+		}
+	}
+	
+	# Now proceed with the download!
+	my $target_host_name = $anvil->data->{target_strikers}->[$use]->{host_name};
+	my $target_host_uuid = $anvil->data->{target_strikers}->[$use]->{host_uuid};
+	my $target_host      = $anvil->data->{target_strikers}->[$use]->{target};
+	my $target_password  = $anvil->data->{target_strikers}->[$use]->{password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		target_host_name => $target_host_name,
+		target_host_uuid => $target_host_uuid, 
+		target_host      => $target_host, 
+		target_password  => $anvil->Log->is_secure($target_password),
+	}});
+	
+	# Rsync the file.
+	my $say_source_file  = "root\@".$target_host.":".$file_path;
+	my $target_directory = $file_directory."/";
+	$anvil->Job->update_progress({
+		progress => 50, 
+		message  => "message_0200,!!source_file!".$say_source_file."!!,!!target_directory!".$target_directory."!!", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0200", variables => { 
+		source_file      => $say_source_file, 
+		target_directory => $target_directory, 
+	}});
+	
+	$anvil->Storage->rsync({
+		debug       => 2, 
+		source      => $say_source_file, 
+		destination => $target_directory, 
+		try_again   => 1, 
+	});
+	
+	if (-e $file_path)
+	{
+		# Calculate the md5sum.
+		$anvil->Job->update_progress({
+			progress => 75, 
+			message  => "message_0201", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0201"});
+		
+		my $local_md5sum = $anvil->Get->md5sum({file => $file_path});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0199", variables => { local_md5sum => $local_md5sum }});
+		
+		if ($file_md5sum eq $local_md5sum)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "message_0202", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "message_0202"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			# Unlink the file. The perioding sync call can try again later.
+			unlink $file_path;
+			$anvil->Job->update_progress({
+				progress   => 1,
+				message    => "error_0176,!!local_md5sum!".$local_md5sum."!!,!!file_md5sum!".$file_md5sum."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0176", variables => { 
+				local_md5sum => $local_md5sum,
+				file_md5sum  => $file_md5sum,
+			}});
+			sleep 60;
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	else
+	{
+		# Failed... 
+		$anvil->Job->update_progress({
+			progress   => 1,
+			message    => "error_0177", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0177" });
+		sleep 60;
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	return(0);
+}
+
+# This takes a host and job UUID and determines if we're still waiting on the target.
+sub wait_on_host
+{
+	my ($anvil, $host_uuid, $job_uuid) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid => $host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $host_uuid}).")", 
+		job_uuid  => $job_uuid,
+	}});
+	
+	my $waiting = 1;
+	
+	# Look up the job progress.
+	my $query = "SELECT job_progress FROM jobs WHERE job_uuid = ".$anvil->Database->quote($job_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $progress = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { progress => $progress }});
+	
+	if ($progress == 100)
+	{
+		$waiting = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+	}
+	else
+	{
+		# Can I ping the node?
+		my $pinged = 0;
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_uuid}{interface}})
+		{
+			my $target_ip = $anvil->data->{network}{$host_uuid}{interface}{$interface}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface => $interface, 
+				target_ip => $target_ip,
+			}});
+			
+			($pinged, my $average_time) = $anvil->Network->ping({
+				ping  => $target_ip, 
+				count => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pinged => $pinged }});
+			
+			last if $pinged;
+		}
+		
+		if (not $pinged)
+		{
+			# Stop waiting, it looks to be offline.
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+	return($waiting)
+}

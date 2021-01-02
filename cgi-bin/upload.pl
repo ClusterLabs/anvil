@@ -75,24 +75,6 @@ if ($cgi->param())
 	}
 	close $file_handle;
 	
-	# Register a job to call striker-sync-shared 
-	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-		file            => $THIS_FILE, 
-		line            => __LINE__, 
-		job_command     => $anvil->data->{path}{exe}{'striker-sync-shared'}, 
-		job_data        => "file=".$out_file, 
-		job_name        => "upload::move_incoming", 
-		job_title       => "job_0132", 
-		job_description => "job_0133", 
-		job_progress    => 0,
-		job_host_uuid   => $anvil->data->{sys}{host_uuid},
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-	
-	
-	
-	#$anvil->System->call({debug => 2, background => 1, shell_call => $anvil->data->{path}{exe}{'striker-sync-shared'}});
-	
 	### NOTE: The timing is a guide only. The AJAX does a lot of work before this script is invoked. It 
 	###       might be better to just remove the timing stuff entirely...
 	my $size             = (stat($out_file))[7];
@@ -103,8 +85,6 @@ if ($cgi->param())
 	my $say_took         = $anvil->Convert->add_commas({number => $took});
 	my $bytes_per_second = $anvil->Convert->round({number => ($size / $took), places => 0});
 	my $say_rate         = $anvil->Words->string({key => "suffix_0001", variables => { number => $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_per_second}) }});
-	my $file_sum         = $anvil->Get->md5sum({file => $out_file});
-	my $executable       = -x $out_file ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		size             => $size,
 		say_size_human   => $say_size_human, 
@@ -113,51 +93,21 @@ if ($cgi->param())
 		say_took         => $say_took, 
 		bytes_per_second => $bytes_per_second, 
 		say_rate         => $say_rate, 
-		file_sum         => $file_sum, 
-		mimetype         => $mimetype, 
-		executable       => $executable,
 	}});
 	
-	# Determine the type (guess) from the mimetype
-	my $type = "other";
-	if ($mimetype =~ /cd-image/)
-	{
-		$type = "iso";
-	}
-	# This will need to be expanded over time
-	elsif (($executable) or ($mimetype =~ /perl/) or ($mimetype =~ /python/))
-	{
-		$type = "script";
-	}
-	elsif ($mimetype =~ /raw-disk-image/)
-	{
-		$type = "image";
-	}
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0260", variables => { 
-		file       => $out_file,
-		size_human => $say_size_human,
-		size_bytes => $say_size_comma, 
-		rate       => $say_rate, 
-		took       => $say_took,
-		md5sum     => $file_sum
-	}});
-	
-	# Try to connect to a database.
-	$anvil->Database->connect();
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
-
-	# If I have a database, record this file.
-	if ($anvil->data->{sys}{database}{connections})
-	{
-		# Add to files
-# 		my ($file_uuid) = $anvil->Database->insert_or_update_files({
-# 			debug       => 2,
-# 			file_name   => $file_name, 
-# 			file_size   => $size, 
-# 			file_md5sum => $file_sum, 
-# 			file_type   => $file_type, 
-# 		})
-	}
+	# Register a job to call anvil-sync-shared 
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		file            => $THIS_FILE, 
+		line            => __LINE__, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+		job_data        => "file=".$out_file, 
+		job_name        => "upload::move_incoming", 
+		job_title       => "job_0132", 
+		job_description => "job_0133", 
+		job_progress    => 0,
+		job_host_uuid   => $anvil->data->{sys}{host_uuid},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 }
 else
 {

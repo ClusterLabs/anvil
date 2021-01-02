@@ -375,7 +375,7 @@ sub change_mode
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		mode        => $mode,
 		path        => $path,
 		port        => $port, 
