@@ -32,13 +32,16 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
 
 # Connect to the database(s).
 $anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
 # If we don't have a job-uuid, look for one.
 if (not $anvil->data->{switches}{'job-uuid'})
@@ -664,7 +667,7 @@ AND
 					message    => "message_0199,!!strikers!".$striker_count."!!,!!node1_waiting!".$node1_waiting."!!,!!node2_waiting!".$node2_waiting."!!,!!wait_until!".$wait_until."!!", 
 					job_status => "failed", 
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0199", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0199", variables => { 
 					strikers      => $striker_count,
 					node1_waiting => $node1_waiting, 
 					node2_waiting => $node2_waiting, 
@@ -717,7 +720,7 @@ AND
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0201"});
 		
 		my $local_md5sum = $anvil->Get->md5sum({file => $file_path});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0199", variables => { local_md5sum => $local_md5sum }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0199", variables => { local_md5sum => $local_md5sum }});
 		
 		if ($file_md5sum eq $local_md5sum)
 		{

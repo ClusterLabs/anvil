@@ -112,6 +112,18 @@ body {
 	text-align:  center;
 }
 
+.fixed_width_no_wrap_left {
+	font-family: 'Dejavu Sans Mono', Courier;
+	white-space: nowrap;
+	text-align:  left;
+}
+
+.fixed_width_no_wrap_right {
+	font-family: 'Dejavu Sans Mono', Courier;
+	white-space: nowrap;
+	text-align:  left;
+}
+
 .footer {
 	background: #171717;
 	font-size:  12px;

@@ -293,6 +293,11 @@ The error was:
 		<key name="header_0039">New Hostname</key>
 		<key name="header_0040">#!string!brand_0006!# Description</key>
 		<key name="header_0041">Scan Agent</key>
+		<key name="header_0042">Manage</key>
+		<key name="header_0043">File Name</key>
+		<key name="header_0044">File Type</key>
+		<key name="header_0045">File Size</key>
+		<key name="header_0046">md5sum</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -1708,6 +1713,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
 		<key name="striker_0280">Storage Pool #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
+		<key name="message_0281">Manage this file.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

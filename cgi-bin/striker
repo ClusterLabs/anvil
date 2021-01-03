@@ -1446,15 +1446,48 @@ sub process_file_menu
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
 	
-	if ($anvil->data->{cgi}{task}{value} eq "upload")
+	if ($anvil->data->{cgi}{file_uuid}{value})
 	{
 		#process_upload_page($anvil);
 	}
 	else
 	{
+		### TODO: Left off here. Show the available files and make them clickable. On click, make it 
+		###       possible to select which Anvil! systems should have the files, and offer an option
+		###       to "purge" the file from all systems.
+		
+		# Build the list of existing files.
+		$anvil->Database->get_files({debug => 2});
+		my $file_list = $anvil->Template->get({file => "files.html", name => "open-file-list"});
+		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
+		{
+			my $file_uuid     = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+			my $file_size     = $anvil->data->{files}{file_name}{$file_name}{file_size};
+			my $say_file_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size});
+			my $file_md5sum   = $anvil->data->{files}{file_name}{$file_name}{file_md5sum};
+			my $file_type     = $anvil->data->{files}{file_name}{$file_name}{file_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file_name   => $file_name, 
+				file_uuid   => $file_uuid, 
+				file_size   => $file_size." (".$say_file_size.")", 
+				file_md5sum => $file_md5sum, 
+				file_type   => $file_type, 
+			}});
+			$file_list .= $anvil->Template->get({file => "files.html", name => "file-list-entry", variables => {
+				file_uuid => $file_uuid,
+				file_name => $file_name,
+				file_type => $file_type,
+				file_size => $say_file_size, 
+				md5sum    => $file_md5sum, 
+			}});
+		}
+		$file_list .= $anvil->Template->get({file => "files.html", name => "close-file-list"});
+		
+		
 		# The 'back' goes home
 		$anvil->data->{form}{back_link} = "?";
 		$anvil->data->{form}{body}      = $anvil->Template->get({file => "files.html", name => "main-menu", variables => {
+			file_list => $file_list,
 		}});
 	}
 	

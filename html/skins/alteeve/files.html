@@ -1,32 +1,111 @@
 <!-- start main-menu -->
 		<table align="center" class="anvil_main_menu">
-		<script type="text/javascript" src="#!data!skin::url!#/files.js"></script>
-		<link rel="stylesheet" href="#!data!skin::url!#/files.css">
-		<form method="post" enctype="multipart/form-data">
+			<script type="text/javascript" src="#!data!skin::url!#/files.js"></script>
+			<link rel="stylesheet" href="#!data!skin::url!#/files.css">
+			<form method="post" enctype="multipart/form-data">
 			<tr>
-				<td colspan="2">
-					&nbsp;
-				</td>
-			</tr>
-			<tr>
-				<td colspan="2" class="title">
+				<td colspan="3" class="menu_title" style="text-align: center;" >
 					#!string!striker_0119!#
 				</td>
 			</tr>
 			<tr>
-				<td colspan="2">
+				<td style="width: 30%;">
+					&nbsp;
+				</td>
+				<td style="width: 40%;" >
+					<div id="fileuploader">Upload</div>
+				</td>
+				<td style="width: 30%;">
 					&nbsp;
 				</td>
 			</tr>
 			<tr>
-				<td>
-					Upload
-					<div id="fileuploader">Upload</div>
+				<td colspan="3" style="text-align: center; white-space: nowrap;">
+					#!variable!file_list!#
 				</td>
 			</tr>
-		</form>
+			<tr>
+				<td colspan="3">
+					&nbsp;
+				</td>
+			</tr>
+			</form>
 		</table>
 <!-- end main-menu -->
+
+<!-- start open-file-list --> 
+					<table style="width: 100%; text-align: center;">
+						<tr>
+							<td class="column_header">
+								<!-- Manage -->
+								#!string!header_0042!#
+							</td>
+							<td>
+								&nbsp; 
+							</td>
+							<td class="column_header">
+								<!-- File Name -->
+								#!string!header_0043!#
+							</td>
+							<td>
+								&nbsp; 
+							</td>
+							<td class="column_header">
+								<!-- File Type -->
+								#!string!header_0044!#
+							</td>
+							<td>
+								&nbsp; 
+							</td>
+							<td class="column_header">
+								<!-- File Size -->
+								#!string!header_0045!#
+							</td>
+							<td>
+								&nbsp; &nbsp; &nbsp; 
+							</td>
+							<td class="column_header">
+								<!-- md5sum -->
+								#!string!header_0046!#
+							</td>
+						</tr>
+<!-- end open-file-list --> 
+
+<!-- start close-file-list --> 
+					</table>
+<!-- end close-file-list --> 
+
+<!-- start file-list-entry --> 
+						<tr>
+							<td class="fixed_width_no_wrap">
+								<a href="?files=true&file_uuid=#!variable!file_uuid!#"><img src="#!data!skin::url!#/images/manage_file_32.png" alt="#!string!message_0281!#" style="height: .8em;"></a>
+							</td>
+							<td>
+								&nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap_left">
+								<a href="?files=true&file_uuid=#!variable!file_uuid!#">#!variable!file_name!#</a>
+							</td>
+							<td>
+								&nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								#!variable!file_type!#
+							</td>
+							<td>
+								&nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap_right">
+								#!variable!file_size!#
+							</td>
+							<td>
+								&nbsp; &nbsp; &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap_left">
+								#!variable!md5sum!#
+							</td>
+						</tr>
+<!-- end file-list-entry --> 
 
 <!-- start upload_header -->
 <!DOCTYPE html>

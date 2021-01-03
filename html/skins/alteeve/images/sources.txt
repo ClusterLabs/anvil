@@ -82,3 +82,7 @@ uninterruptible power supply by Denis Shumaylov from the Noun Project (https://t
 
 operation by Adrien Coquet from the Noun Project (https://thenounproject.com/term/operation/2998606/)
  - run.png
+
+service by Gem Designs from the Noun Project (https://thenounproject.com/term/service/2569069/)
+ - manage_file.png
+
