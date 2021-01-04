@@ -1436,60 +1436,181 @@ AND
 	return(0);
 }
 
+# This processes changes to files, including deletions (purges).
+sub process_file_change
+{
+	my ($anvil) = @_;
+	
+	# First, clear the 'save' and 'confirm' buttons.
+	$anvil->data->{cgi}{save}{value}    = "";
+	$anvil->data->{cgi}{confirm}{value} = "";
+	
+	# Are we being asked to purge a file?
+	if ($anvil->data->{cgi}{purge}{value})
+	{
+		# Register jobs on all systems to remove this file.
+		$anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			file            => $THIS_FILE, 
+			line            => __LINE__,
+			job_host_uuid   => "all", 
+			job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+			job_data        => "file_uuid=".$anvil->data->{cgi}{file_uuid}{value}, 
+			job_name        => "storage::purge", 
+			job_title       => "job_0136", 
+			job_description => "job_0137", 
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_job_uuid => $node1_job_uuid }});
+
+	}
+	
+	
+	return(0);
+}
+
 # This handles files.
 sub process_file_menu
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{form}{refresh_link} = "striker?files=true";
+	$anvil->data->{form}{refresh_link}    = "?files=true";
 	#$anvil->data->{form}{back_link}    = "?striker=true";
-	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
-	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{cgi}{task}{value}      = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value}    = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{cgi}{file_uuid}{value} = "" if not defined $anvil->data->{cgi}{file_uuid}{value};
+	$anvil->data->{cgi}{save}{value}      = "" if not defined $anvil->data->{cgi}{save}{value};
+	$anvil->data->{cgi}{confirm}{value}   = "" if not defined $anvil->data->{cgi}{confurm}{value};
 	
-	if ($anvil->data->{cgi}{file_uuid}{value})
+	if (($anvil->data->{cgi}{file_uuid}{value}) && ($anvil->data->{cgi}{save}{value}) && ($anvil->data->{cgi}{confirm}{value}))
 	{
-		#process_upload_page($anvil);
+		process_file_change($anvil);
 	}
-	else
+
+	# Build the list of existing files.
+	$anvil->Database->get_files();
+	my $file_list = $anvil->Template->get({file => "files.html", name => "open-file-list"});
+	foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
 	{
-		### TODO: Left off here. Show the available files and make them clickable. On click, make it 
-		###       possible to select which Anvil! systems should have the files, and offer an option
-		###       to "purge" the file from all systems.
+		my $file_uuid     = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+		my $file_size     = $anvil->data->{files}{file_name}{$file_name}{file_size};
+		my $say_file_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size});
+		my $file_md5sum   = $anvil->data->{files}{file_name}{$file_name}{file_md5sum};
+		my $file_type     = $anvil->data->{files}{file_name}{$file_name}{file_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file_name   => $file_name, 
+			file_uuid   => $file_uuid, 
+			file_size   => $file_size." (".$say_file_size.")", 
+			file_md5sum => $file_md5sum, 
+			file_type   => $file_type, 
+		}});
+		$file_list .= $anvil->Template->get({file => "files.html", name => "file-list-entry", variables => {
+			file_uuid => $file_uuid,
+			file_name => $file_name,
+			file_type => $file_type,
+			file_size => $say_file_size, 
+			md5sum    => $file_md5sum, 
+		}});
 		
-		# Build the list of existing files.
-		$anvil->Database->get_files({debug => 2});
-		my $file_list = $anvil->Template->get({file => "files.html", name => "open-file-list"});
-		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
+		if ($anvil->data->{cgi}{file_uuid}{value} eq $file_uuid)
 		{
-			my $file_uuid     = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
-			my $file_size     = $anvil->data->{files}{file_name}{$file_name}{file_size};
-			my $say_file_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size});
-			my $file_md5sum   = $anvil->data->{files}{file_name}{$file_name}{file_md5sum};
-			my $file_type     = $anvil->data->{files}{file_name}{$file_name}{file_type};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				file_name   => $file_name, 
-				file_uuid   => $file_uuid, 
-				file_size   => $file_size." (".$say_file_size.")", 
-				file_md5sum => $file_md5sum, 
-				file_type   => $file_type, 
-			}});
-			$file_list .= $anvil->Template->get({file => "files.html", name => "file-list-entry", variables => {
-				file_uuid => $file_uuid,
-				file_name => $file_name,
-				file_type => $file_type,
-				file_size => $say_file_size, 
-				md5sum    => $file_md5sum, 
+			$anvil->data->{form}{refresh_link}        = "?files=true&file_uuid=".$anvil->data->{cgi}{file_uuid}{value};
+			$anvil->data->{form}{back_link}           = "?files=true";
+			$anvil->data->{cgi}{new_file_name}{value} = ""         if not defined $anvil->data->{cgi}{new_file_name}{value};
+			$anvil->data->{cgi}{new_file_name}{alert} = ""         if not defined $anvil->data->{cgi}{new_file_name}{alert};
+			$anvil->data->{cgi}{new_file_type}{value} = $file_type if not defined $anvil->data->{cgi}{new_file_type}{value};
+			
+			# Build the file type select 
+			my $file_type_options = [ 
+				"iso#!#".$anvil->Words->string({key => "type_0001"}), 
+				"script#!#".$anvil->Words->string({key => "type_0002"}), 
+				"other#!#".$anvil->Words->string({key => "type_0003"}) 
+			];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_file_type::value" => $anvil->data->{cgi}{new_file_type}{value} }});
+			my $select_file_type = $anvil->Template->select_form({
+				name     => "new_file_type",
+				options  => $file_type_options,
+				blank    => 0,
+				'sort'   => 1,
+				selected => $anvil->data->{cgi}{new_file_type}{value},
+				class    => "input_clear",
+				style    => "",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { select_file_type => $select_file_type }});
+			
+			# Build the anvil list
+			$anvil->Database->get_anvils();
+			$anvil->Database->get_file_locations();
+			
+			my $say_confirm = "&nbsp;";
+			my $anvil_list  = "";
+			if (not exists $anvil->data->{anvils}{anvil_name})
+			{
+				$anvil_list .= $anvil->Template->get({file => "files.html", name => "file-list-manager-no-anvils"});
+			}
+			else
+			{
+				foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+				{
+					my $anvil_uuid         = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+					my $anvil_description  = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+					my $file_location_uuid = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+					my $synced             = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"s1:anvil_name"         => $anvil_name,
+						"s2:anvil_uuid"         => $anvil_uuid, 
+						"s3:anvil_description"  => $anvil_description, 
+						"s4:file_location_uuid" => $file_location_uuid, 
+						"s5:synced"             => $synced, 
+					}});
+					
+					my $true_checked  = "checked";
+					my $false_checked = "";
+					if (not $synced)
+					{
+						$true_checked  = "";
+						$false_checked = "checked";
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"s1:true_checked"  => $true_checked,
+						"s2:false_checked" => $false_checked, 
+					}});
+					
+					if (($anvil->data->{cgi}{save}{value}) && (not $anvil->data->{cgi}{confirm}{value}))
+					{
+						$say_confirm = $anvil->Template->get({file => "files.html", name => "file-list-manager-confirm-button"});
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_confirm => $say_confirm }});
+					
+					$anvil_list .= $anvil->Template->get({file => "files.html", name => "file-list-manager-anvil-entry", variables => {
+						anvil_name        => $anvil_name,
+						anvil_description => $anvil_description, 
+						radio_name        => "anvil_uuid::".$anvil_uuid."::sync", 
+						true_checked      => $true_checked, 
+						false_checked     => $false_checked, 
+					}});
+				}
+			}
+			
+			# Insert the file management section under the file entry.
+			$file_list .= $anvil->Template->get({file => "files.html", name => "file-list-manager", variables => {
+				file_uuid           => $file_uuid,
+				new_file_name       => $anvil->data->{cgi}{new_file_name}{value},
+				new_file_type       => $select_file_type,
+				confirm_button      => $say_confirm, 
+				new_file_name_class => $anvil->data->{cgi}{new_file_name}{alert} ? "input_alert_fixed" : "input_clear_fixed",
+				anvil_list          => $anvil_list, 
 			}});
 		}
-		$file_list .= $anvil->Template->get({file => "files.html", name => "close-file-list"});
-		
-		
-		# The 'back' goes home
-		$anvil->data->{form}{back_link} = "?";
-		$anvil->data->{form}{body}      = $anvil->Template->get({file => "files.html", name => "main-menu", variables => {
-			file_list => $file_list,
-		}});
 	}
+	$file_list .= $anvil->Template->get({file => "files.html", name => "close-file-list"});
+	
+	
+	# The 'back' goes home
+	$anvil->data->{form}{back_link} = "?";
+	$anvil->data->{form}{body}      = $anvil->Template->get({file => "files.html", name => "main-menu", variables => {
+		file_list => $file_list,
+	}});
 	
 	return(0);
 }

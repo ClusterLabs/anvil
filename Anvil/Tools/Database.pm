@@ -2351,6 +2351,12 @@ FROM
 			"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"     => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
 			"file_locations::file_location_uuid::${file_location_uuid}::modified_date"            => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}, 
 		}});
+		
+		# Make it easy to find files by anvil and file UUID.
+		$anvil->data->{file_locations}{anvil_uuid}{$file_location_anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid} = $file_location_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"file_locations::anvil_uuid::${file_location_anvil_uuid}::file_uuid::${file_location_file_uuid}::file_location_uuid" => $anvil->data->{file_locations}{anvil_uuid}{$file_location_anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid},
+		}});
 	}
 
 	return(0);
@@ -7265,6 +7271,8 @@ This updates (or inserts) a record in the 'jobs' table. The C<< job_uuid >> refe
 
 If there is an error, an empty string is returned.
 
+B<< Note >>: if the C<< job_host_uuid >> is set to C<< all >>, a hash reference will be returned where they keys are the C<< host_uuid >> and the value is the C<< job_uuid >>.
+
 Parameters;
 
 =head3 uuid (optional)
@@ -7298,6 +7306,8 @@ Variables can not be passed to this title key.
 =head3 job_host_uuid (optional)
 
 This is the host's UUID that this job entry belongs to. If not passed, C<< sys::host_uuid >> will be used.
+
+B<< Note >>: If this is set to C<< all >>, the job will be recorded once for each host in the C<< hosts >> table.
 
 =head3 job_name (required*)
 
@@ -7445,6 +7455,40 @@ sub insert_or_update_jobs
 	if ($problem)
 	{
 		return("");
+	}
+	
+	# If the job_host_uuid is set to 'all', go into a loop and call ourselves once per host using their host_uuid.
+	if ($job_host_uuid eq "all")
+	{
+		my $job_uuids = {};
+		$anvil->Database->get_hosts({debug => $debug});
+		foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+		{
+			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				host_uuid => $host_uuid,
+				host_name => $host_name, 
+			}});
+			
+			$host_name->{$host_uuid} = $anvil->Database->insert_or_update_jobs({
+				debug                => $debug, 
+				job_command          => $job_command, 
+				job_data             => $job_data, 
+				job_picked_up_by     => $job_picked_up_by, 
+				job_picked_up_at     => $job_picked_up_at, 
+				job_updated          => $job_updated, 
+				job_name             => $job_name, 
+				job_progress         => $job_progress, 
+				job_title            => $job_title, 
+				job_description      => $job_description, 
+				job_status           => $job_status, 
+				update_progress_only => $update_progress_only, 
+				clear_status         => $clear_status, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "host_name->{$host_uuid}" => $host_name->{$host_uuid} }});
+		}
+		
+		return($job_uuids);
 	}
 	
 	if (not $job_updated)

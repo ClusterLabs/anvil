@@ -2,7 +2,6 @@
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="#!data!skin::url!#/files.js"></script>
 			<link rel="stylesheet" href="#!data!skin::url!#/files.css">
-			<form method="post" enctype="multipart/form-data">
 			<tr>
 				<td colspan="3" class="menu_title" style="text-align: center;" >
 					#!string!striker_0119!#
@@ -29,7 +28,6 @@
 					&nbsp;
 				</td>
 			</tr>
-			</form>
 		</table>
 <!-- end main-menu -->
 
@@ -78,7 +76,7 @@
 <!-- start file-list-entry --> 
 						<tr>
 							<td class="fixed_width_no_wrap">
-								<a href="?files=true&file_uuid=#!variable!file_uuid!#"><img src="#!data!skin::url!#/images/manage_file_32.png" alt="#!string!message_0281!#" style="height: .8em;"></a>
+								<a href="?files=true&file_uuid=#!variable!file_uuid!#"><img src="#!data!skin::url!#/images/manage_file_32.png" alt="#!string!striker_0281!#" style="height: .8em;"></a>
 							</td>
 							<td>
 								&nbsp; 
@@ -106,6 +104,165 @@
 							</td>
 						</tr>
 <!-- end file-list-entry --> 
+
+<!-- start file-list-manager --> 
+						<tr>
+							<td colspan="9">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td colspan="9" style="text-align: center; white-space: nowrap;">
+								<form method="post" enctype="multipart/form-data">
+								<table class="manager">
+									<tr>
+										<td colspan="5">
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td class="row_header">
+											<!-- New File Name -->
+											#!string!header_0047!#: &nbsp;
+										</td>
+										<td colspan="3">
+											<input type="text" id="new_file_name" name="new_file_name" placeholder="#!variable!file_name!#" value="#!variable!new_file_name!#" class="#!variable!new_file_name_class!#" />
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td class="row_header">
+											<!-- New File Type -->
+											#!string!header_0048!#: &nbsp;
+										</td>
+										<td colspan="3">
+											#!variable!new_file_type!#
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td class="row_header">
+											<!-- Purge option -->
+											<a href="?files=true&file_uuid=#!variable!file_uuid!#&purge=true"><span class="risky_click">#!string!header_0049!#</span></a> &nbsp;
+										</td>
+										<td colspan="3" style="text-align: left;">
+											#!string!striker_0282!#
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td colspan="5">
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td class="column_header" style="text-align: right;">
+											<!-- Anvil List -->
+											#!string!header_0050!# &nbsp;
+										</td>
+										<td>
+											&nbsp;
+										</td>
+										<td class="column_header" style="text-align: center;">
+											<!-- Synced -->
+											#!string!header_0051!#
+										</td>
+										<td class="column_header" style="text-align: center;">
+											<!-- Remove -->
+											#!string!header_0052!#
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+									#!variable!anvil_list!#
+									<tr>
+										<td colspan="5">
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td style="text-align: left;">
+											<!-- Back -->
+											&nbsp; <a href="?files=true" class="button">#!string!striker_0284!#</a>
+										</td>
+										<td>
+											&nbsp;
+										</td>
+										<td style="text-align: right;">
+											#!variable!confirm_button!#
+										</td>
+										<td style="text-align: right;">
+											<input type="submit" name="save"      id="save"       value="#!string!striker_0067!#" class="button">
+											<input type="hidden" name="files"     id="files"      value="true" />
+											<input type="hidden" name="file_uuid" id="file_uuid"  value="#!variable!file_uuid!#" />
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td colspan="5">
+											&nbsp;
+										</td>
+									</tr>
+								</table>
+								</form>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="9">
+								&nbsp;
+							</td>
+						</tr>
+<!-- end file-list-manager --> 
+
+<!-- start file-list-manager-confirm-button --> 
+											<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#" class="button"> &nbsp;
+											<input type="hidden" name="save" id="save" value="true">
+<!-- end file-list-manager-confirm-button --> 
+
+<!-- start file-list-manager-anvil-entry --> 
+									<tr>
+										<td class="available" style="text-align: right;">
+											#!variable!anvil_name!#: &nbsp;
+										</td>
+										<td style="text-align: left;">
+											#!variable!anvil_description!#
+										</td>
+										<td>
+											<!-- Synced -->
+											<input type="radio" name="#!variable!radio_name!#" id="#!variable!radio_name!#" value="true" class="radio" #!variable!true_checked!#>
+										</td>
+										<td>
+											<!-- Remove -->
+											<input type="radio" name="#!variable!radio_name!#" id="#!variable!radio_name!#" value="false" class="radio" #!variable!false_checked!#>
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+<!-- end file-list-manager-anvil-entry --> 
+
+<!-- start file-list-manager-no-anvils --> 
+									<tr>
+										<td>
+											&nbsp;
+										</td>
+										<td colspan="3" class="subtle_text">
+											#!string!striker_0283!#
+										</td>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+<!-- end file-list-manager-no-anvils --> 
 
 <!-- start upload_header -->
 <!DOCTYPE html>

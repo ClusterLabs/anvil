@@ -250,6 +250,9 @@ The error was:
 		<key name="error_0175">Unable to pull the file: [#!variable!file!#], we're not an Anvil! member.</key>
 		<key name="error_0176">The downloaded file's md5sum: [#!variable!local_md5sum!#] doesn't match what is expected: [#!variable!file_md5sum!#]. The file has been removed. We'll wait for a minute and then exit, and the download will be attempted again.</key>
 		<key name="error_0177">Something went wrong and the file wasn't downloaded. More information should be in the logs. We'll wait for a minute and then exit, and the download will be attempted again.</key>
+		<key name="error_0178">Unable to purge the file because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0179">Unable to purge a file as the file UUID: [#!variable!file_uuid!#] is either invalid or doesn't exist in the database.</key>
+		<key name="error_0180">Failed to delete: [#!variable!file_path!#]. The error returned was: [#!variable!error!#]. There may be more details in the logs.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -298,6 +301,13 @@ The error was:
 		<key name="header_0044">File Type</key>
 		<key name="header_0045">File Size</key>
 		<key name="header_0046">md5sum</key>
+		<key name="header_0047">New File Name</key>
+		<key name="header_0048">New File Type</key>
+		<key name="header_0049">Purge File</key>
+		<key name="header_0050">#!string!brand_0006!# List</key>
+		<key name="header_0051">Synced</key>
+		<key name="header_0052">Remove</key>
+		<key name="header_0053">#!string!brand_0006!# Name</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -437,6 +447,10 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0131">Reconnecting will start a synchonization of the database. This step might take a while to complete, please be patient.</key>
 		<key name="job_0132">Sync Uploaded File</key>
 		<key name="job_0133">This moves an uploaded file from the: [#!data!path::directories::shared::incoming!#] directory to: [#!data!path::directories::shared::files!#] directory, adds it to the Anvil! database, and pushed it out to other systems.</key>
+		<key name="job_0134">Successfully deleted the file: [#!variable!file_path!#].</key>
+		<key name="job_0135">No need to delete the file: [#!variable!file_path!#], it already doesn't exist.</key>
+		<key name="job_0136">Purge File.</key>
+		<key name="job_0137">This askes all systems to delete the associated file from their systems.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1404,6 +1418,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0200">Beginning rsync from: [#!variable!source_file!#] to: [#!variable!target_directory!#], please be patient...</key>
 		<key name="message_0201">Download appears to be complete, calculating md5sum to verify, please be patient...</key>
 		<key name="message_0202">Success! The file has been successfully downloaded.</key>
+		<key name="message_0203">Processing a file purge.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1713,7 +1728,10 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
 		<key name="striker_0280">Storage Pool #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
-		<key name="message_0281">Manage this file.</key>
+		<key name="striker_0281">Manage this file.</key>
+		<key name="striker_0282">This will remove the file from all systems.</key>
+		<key name="striker_0283">There are no #!string!brand_0006!# configured yet. Existing files will automatically sync to new clusters.</key>
+		<key name="striker_0284">Cancel</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1800,6 +1818,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="title_0006">- Warning Cleared!</key>
 		<key name="title_0007">- Notice Cleared!</key>
 		<key name="title_0008">- Info Cleared!</key>
+		
+		<!-- These are used for descriptions of things -->
+		<key name="type_0001">ISO (optical disc)</key>
+		<key name="type_0002">Script (program)</key>
+		<key name="type_0003">Other file type</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

@@ -62,6 +62,13 @@ body {
 	white-space: nowrap;
 }
 
+.row_header {
+	text-align:  right;
+	color:       #9ba0a5;
+	padding:     0.15em;
+	white-space: nowrap;
+}
+
 .column_header_veritcal {
 	text-align:     left;
 	vertical-align: bottom;
@@ -225,6 +232,10 @@ input[type=text].input_alert, input[type=number].input_alert, select.input_alert
 	border: 1px solid #ff3f3f;
 }
 
+input[type=text].input_alert_fixed, input[type=number].input_alert_fixed, select.input_alert_fixed {
+	border: 1px solid #ff3f3f;
+}
+
 .input_required {
 	color: 1px solid #3ed688;
 }
@@ -235,6 +246,11 @@ input[type=text].input_alert, input[type=number].input_alert, select.input_alert
 
 input[type=text].input_clear, input[type=number].input_clear, select.input_clear {
 	border: 1px solid #9ba0a5;
+}
+
+input[type=text].input_clear_fixed, input[type=number].input_clear_fixed, select.input_clear_fixed {
+	border:       1px solid #9ba0a5;
+	font-family: 'Dejavu Sans Mono', Courier;
 }
 
 .login {
@@ -520,9 +536,22 @@ tr.data_row {
 	text-align: center;
 }
 
+.risky_click {
+	color:       #f06075;
+	font-weight: bold;
+}
+
 table.list {
-/*	margin-left:    auto; */
-/* 	margin-right:   auto; */
+	padding-top:    0.2em;
+	padding-bottom: 0.2em;
+	padding-left:   0.4em;
+	padding-right:  0.4em;
+	border:         1px dotted #7f7f7f;
+}
+
+table.manager {
+	width:          100%; 
+	text-align:     center;
 	padding-top:    0.2em;
 	padding-bottom: 0.2em;
 	padding-left:   0.4em;

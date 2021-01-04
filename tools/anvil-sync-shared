@@ -67,6 +67,10 @@ if ($anvil->data->{switches}{'job-uuid'})
 	{
 		process_pull_file($anvil);
 	}
+	if ($anvil->data->{jobs}{job_name} eq "storage::purge")
+	{
+		process_purge_file($anvil);
+	}
 	
 	# Job data will be in $anvil->data->{jobs}{job_data}
 }
@@ -83,6 +87,100 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub process_purge_file
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress},
+		message  => "message_0191", 
+	});
+
+	$anvil->Database->get_files({debug => 3});
+	$anvil->Database->get_file_locations({debug => 3});
+	
+	my $file_uuid = ($anvil->data->{jobs}{job_data} =~ /file_uuid=(.*)$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+	
+	if (not $file_uuid)
+	{
+		# Can't do anything, file wasn't parsed.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0178,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0178", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not exists $anvil->data->{files}{file_uuid}{$file_uuid})
+	{
+		# File UUID doesn't appear to be valid.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0179,!!file_uuid!".$file_uuid."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0179", variables => { file_uuid => $file_uuid }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $file_name      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+	my $file_directory = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+	my $file_path      = $file_directory."/".$file_name;
+	my $file_type      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:file_name'      => $file_name, 
+		's2:file_directory' => $file_directory, 
+		's3:file_path'      => $file_path, 
+		's4:file_type'      => $file_type, 
+	}});
+	
+	# From here, we'll unlink if it exists. If it doesn't exist, we still exit sucessfully.
+	if (-e $file_path)
+	{
+		# Remove it
+		unlink $file_path;
+		if (-e $file_path)
+		{
+			# Failed.
+			my $error = $!;
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0180,!!file_path!".$file_path."!!,!!error!".$error."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0180", variables => { 
+				file_path => $file_path, 
+				error     => $error, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		else
+		{
+			# Success!
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "job_0134,!!file_path!".$file_path."!!", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "job_0134", variables => { file_path => $file_path }});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	else
+	{
+		# Doesn't exist, nothing to do.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "job_0135,!!file_path!".$file_path."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "job_0135", variables => { file_path => $file_path }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
 
 sub process_incoming_file
 {
