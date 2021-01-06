@@ -338,7 +338,7 @@ Parameters;
 
 =head3 mode (required)
 
-This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
+This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits. It also supports the C<< + >> and C<< - >> formats, like C<< a+x >> or C<< g-w >>.
 
 =head3 path (required)
 

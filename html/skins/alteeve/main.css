@@ -228,8 +228,13 @@ input[type=text], input[type=number], input[type=password] {
 	color:            #f7f7f7;
 }
 
-input[type=text].input_alert, input[type=number].input_alert, select.input_alert {
+input[type=text].input_alert, input[type=number].input_alert {
 	border: 1px solid #ff3f3f;
+}
+select.input_alert {
+	border:    1px solid #ff3f3f;
+	font-size: 0.8em;
+	padding:   0.2em;
 }
 
 input[type=text].input_alert_fixed, input[type=number].input_alert_fixed, select.input_alert_fixed {
@@ -244,8 +249,13 @@ input[type=text].input_alert_fixed, input[type=number].input_alert_fixed, select
 	color: #3ed688;
 }
 
-input[type=text].input_clear, input[type=number].input_clear, select.input_clear {
+input[type=text].input_clear, input[type=number].input_clear {
 	border: 1px solid #9ba0a5;
+}
+select.input_clear {
+	border:    1px solid #9ba0a5;
+	font-size: 0.8em;
+	padding:   0.2em;
 }
 
 input[type=text].input_clear_fixed, input[type=number].input_clear_fixed, select.input_clear_fixed {

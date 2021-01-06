@@ -250,9 +250,15 @@ The error was:
 		<key name="error_0175">Unable to pull the file: [#!variable!file!#], we're not an Anvil! member.</key>
 		<key name="error_0176">The downloaded file's md5sum: [#!variable!local_md5sum!#] doesn't match what is expected: [#!variable!file_md5sum!#]. The file has been removed. We'll wait for a minute and then exit, and the download will be attempted again.</key>
 		<key name="error_0177">Something went wrong and the file wasn't downloaded. More information should be in the logs. We'll wait for a minute and then exit, and the download will be attempted again.</key>
-		<key name="error_0178">Unable to purge the file because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0178">Unable to purge the a because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
 		<key name="error_0179">Unable to purge a file as the file UUID: [#!variable!file_uuid!#] is either invalid or doesn't exist in the database.</key>
 		<key name="error_0180">Failed to delete: [#!variable!file_path!#]. The error returned was: [#!variable!error!#]. There may be more details in the logs.</key>
+		<key name="error_0181">Unable to rename a file because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0182">Unable to purge a file as the file UUID: [#!variable!file_uuid!#] is either invalid or doesn't exist in the database.</key>
+		<key name="error_0183">Unable to rename the file: [#!variable!file_name!#] because the new file name wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0184">Moving the file failed. The problem should be logged. We'll sleep for a minute and then exit. We'll try again after that.</key>
+		<key name="error_0185">Unable to check the file mode because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0186">Unable to check the file mode because the file UUID: [#!variable!file_uuid!#] is either invalid or doesn't exist in the database.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -450,7 +456,16 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0134">Successfully deleted the file: [#!variable!file_path!#].</key>
 		<key name="job_0135">No need to delete the file: [#!variable!file_path!#], it already doesn't exist.</key>
 		<key name="job_0136">Purge File.</key>
-		<key name="job_0137">This askes all systems to delete the associated file from their systems.</key>
+		<key name="job_0137">This askes the host to delete the associated file from their system.</key>
+		<key name="job_0138">Rename File.</key>
+		<key name="job_0139">This askes all systems to rename the associated file.</key>
+		<key name="job_0140">No need to rename the file: [#!variable!file_path!#], it doesn't exist on this host.</key>
+		<key name="job_0141">About to rename the old file: [#!variable!old_file!#] to: [#!variable!new_file!#].</key>
+		<key name="job_0142">File renamed successfully.</key>
+		<key name="job_0143">Check File Mode.</key>
+		<key name="job_0144">This is used when a file type changes, setting the executable bits when the type is script, and removing the executable bits when set to another type.</key>
+		<key name="job_0145">The file: [#!variable!file_path!#]'s mode has been set to: [#!variable!new_mode!#].</key>
+		<key name="job_0146">No need to set the mode on the file: [#!variable!file_path!#], it doesn't exist here.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -461,7 +476,7 @@ It is multiple lines with single quotes ['] and double-quotes (") and here are r
 
 It also has replacement variables: [#!variable!first!#] and [#!variable!second!#].
 		</key>
-		<key name="log_0003">This is a test log entry that contains a secret [#!variable!password!#]!</key>
+		<key name="log_0003">This is a test log entry that contains a secret [#!variable!passwaord!#]!</key>
 		<key name="log_0004">This is a test log entry at log level 2.</key>
 		<key name="log_0005">This is a test log entry at log level 3.</key>
 		<key name="log_0006">This is a test log entry at log level 4.</key>
@@ -1419,6 +1434,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0201">Download appears to be complete, calculating md5sum to verify, please be patient...</key>
 		<key name="message_0202">Success! The file has been successfully downloaded.</key>
 		<key name="message_0203">Processing a file purge.</key>
+		<key name="message_0204">Processing an uploaded file.</key>
+		<key name="message_0205">Processing a file mode check.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1432,6 +1449,11 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="ok_0009">The install manifest: [#!variable!name!#] has been successfully saved!</key>
 		<key name="ok_0010">The install manifest: [#!variable!name!#] has been successfully deleted!</key>
 		<key name="ok_0011">The install manifest job has be initiated! Target machines should start configuring momentarily!</key>
+		<key name="ok_0012">The file has been scheduled to purge from all systems.</key>
+		<key name="ok_0013">The file has been scheduled to be renamed on all systems.</key>
+		<key name="ok_0014">The file type been changed.</key>
+		<key name="ok_0015">The Anvil!: [#!variable!anvil_name!#] members will now sync this file.</key>
+		<key name="ok_0016">The Anvil!: [#!variable!anvil_name!#] members will now remove this file.</key>
 
 		<!-- String prefixes -->
 		<key name="prefix_0001">[ Error ]   - </key>

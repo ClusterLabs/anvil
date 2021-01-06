@@ -147,7 +147,7 @@
 									<tr>
 										<td class="row_header">
 											<!-- Purge option -->
-											<a href="?files=true&file_uuid=#!variable!file_uuid!#&purge=true"><span class="risky_click">#!string!header_0049!#</span></a> &nbsp;
+											<a href="?files=true&file_uuid=#!variable!file_uuid!#&purge=true&save=true"><span class="risky_click">#!string!header_0049!#</span></a> &nbsp;
 										</td>
 										<td colspan="3" style="text-align: left;">
 											#!string!striker_0282!#
@@ -156,6 +156,7 @@
 											&nbsp;
 										</td>
 									</tr>
+									#!variable!confirm_purge_button!#
 									<tr>
 										<td colspan="5">
 											&nbsp;
@@ -196,7 +197,7 @@
 											&nbsp;
 										</td>
 										<td style="text-align: right;">
-											#!variable!confirm_button!#
+											#!variable!confirm_save_button!#
 										</td>
 										<td style="text-align: right;">
 											<input type="submit" name="save"      id="save"       value="#!string!striker_0067!#" class="button">
@@ -223,10 +224,22 @@
 						</tr>
 <!-- end file-list-manager --> 
 
-<!-- start file-list-manager-confirm-button --> 
+<!-- start file-list-manager-confirm-save-button --> 
 											<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#" class="button"> &nbsp;
 											<input type="hidden" name="save" id="save" value="true">
-<!-- end file-list-manager-confirm-button --> 
+<!-- end file-list-manager-confirm-save-button --> 
+
+<!-- start file-list-manager-confirm-purge-button --> 
+									<tr>
+										<td class="row_header">
+											<!-- Purge option -->
+											<a href="#!variable!url!#" class="button">#!string!striker_0082!#</a>
+										</td>
+										<td colspan="4">
+											&nbsp;
+										</td>
+									</tr>
+<!-- end file-list-manager-confirm-purge-button --> 
 
 <!-- start file-list-manager-anvil-entry --> 
 									<tr>

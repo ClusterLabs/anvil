@@ -59,17 +59,25 @@ if ($anvil->data->{switches}{'job-uuid'})
 	$anvil->Job->clear({debug => 3});
 	
 	$anvil->data->{sys}{progress} = 1;
-	if ($anvil->data->{jobs}{job_name} eq "upload::move_incoming")
+	if ($anvil->data->{jobs}{job_name} eq "storage::move_incoming")
 	{
 		process_incoming_file($anvil);
 	}
-	if ($anvil->data->{jobs}{job_name} eq "upload::pull_file")
+	if ($anvil->data->{jobs}{job_name} eq "storage::pull_file")
 	{
 		process_pull_file($anvil);
 	}
 	if ($anvil->data->{jobs}{job_name} eq "storage::purge")
 	{
 		process_purge_file($anvil);
+	}
+	if ($anvil->data->{jobs}{job_name} eq "storage::rename")
+	{
+		process_rename_file($anvil);
+	}
+	if ($anvil->data->{jobs}{job_name} eq "storage::check_mode")
+	{
+		process_file_mode($anvil);
 	}
 	
 	# Job data will be in $anvil->data->{jobs}{job_data}
@@ -88,16 +96,242 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+sub process_file_mode
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress},
+		message  => "message_0205", 
+	});
+	
+	# We have to include deleted because purges will already have the file flagged as deleted.
+	$anvil->Database->get_files({debug => 3, include_deleted => 1});
+	$anvil->Database->get_file_locations({debug => 3});
+	
+	my $file_uuid = ($anvil->data->{jobs}{job_data} =~ /file_uuid=(.*)$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+	
+	if (not $file_uuid)
+	{
+		# Can't do anything, file wasn't parsed.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0185,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0185", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not exists $anvil->data->{files}{file_uuid}{$file_uuid})
+	{
+		# File UUID doesn't appear to be valid.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0186,!!file_uuid!".$file_uuid."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0186", variables => { file_uuid => $file_uuid }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $file_name      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+	my $file_directory = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+	my $file_path      = $file_directory."/".$file_name;
+	my $file_type      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:file_name'      => $file_name, 
+		's2:file_directory' => $file_directory, 
+		's3:file_path'      => $file_path, 
+		's4:file_type'      => $file_type, 
+	}});
+	
+	# From here, we'll unlink if it exists. If it doesn't exist, we still exit sucessfully.
+	if (-e $file_path)
+	{
+		# Change the mode, if need it.
+		my $new_mode = "a-x";
+		if ($file_type eq "script")
+		{
+			$new_mode = "a+x";
+		}
+		$anvil->Storage->change_mode({
+			path => $file_path, 
+			mode => $new_mode,
+		});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "job_0145,!!file_path!".$file_path."!!,!!new_mode!".$new_mode."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0145", variables => { 
+			file_path => $file_path,
+			new_mode  => $new_mode, 
+		}});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	else
+	{
+		# Doesn't exist, nothing to do.
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "job_0146,!!file_path!".$file_path."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0146", variables => { file_path => $file_path }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub process_rename_file
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress},
+		message  => "message_0204", 
+	});
+
+	$anvil->Database->get_files({debug => 3});
+	$anvil->Database->get_file_locations({debug => 3});
+	
+	my $file_uuid = "";
+	my $old_name  = "";
+	my $new_name  = "";
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /file_uuid=(.*)$/)
+		{
+			$file_uuid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+		}
+		if ($line =~ /old_name=(.*)$/)
+		{
+			$old_name = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_name => $old_name }});
+		}
+		if ($line =~ /new_name=(.*)$/)
+		{
+			$new_name = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_name => $new_name }});
+		}
+	}
+	
+	if (not $file_uuid)
+	{
+		# Can't do anything, file wasn't parsed.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0181,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0181", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not exists $anvil->data->{files}{file_uuid}{$file_uuid})
+	{
+		# File UUID doesn't appear to be valid.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0182,!!file_uuid!".$file_uuid."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0182", variables => { file_uuid => $file_uuid }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $file_name      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+	my $file_directory = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+	my $old_file_path  = $file_directory."/".$old_name;
+	my $new_file_path  = $file_directory."/".$new_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:file_name'      => $file_name, 
+		's2:file_directory' => $file_directory, 
+		's3:old_file_path'  => $old_file_path, 
+		's4:new_file_path'  => $new_file_path, 
+	}});
+	
+	if (not $new_name)
+	{
+		# Can't do anything, file wasn't parsed.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0183,!!file_name!".$new_file_path."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0183", variables => { 
+			file_name => $new_file_path, 
+			job_uuid  => $anvil->data->{switches}{'job-uuid'},
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# If the file doesn't exist, there's nothing to do (and that's OK).
+	if (-e $old_file_path)
+	{
+		# Move the file.
+		$anvil->Job->update_progress({
+			progress => 50,
+			message  => "job_0141,!!old_file!".$old_file_path."!!,!!new_file!".$new_file_path."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0141", variables => { 
+			old_file => $old_file_path, 
+			new_file => $new_file_path, 
+		}});
+		$anvil->Storage->move_file({
+			source_file => $old_file_path, 
+			target_file => $new_file_path,
+		});
+		
+		if ((not -e $old_file_path) && (-e $new_file_path))
+		{
+			# Success!
+			$anvil->Job->update_progress({
+				progress => 100,
+				message  => "job_0142", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0142"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+		elsif ((-e $old_file_path) && (not -e $new_file_path))
+		{
+			# Move failed
+			$anvil->Job->update_progress({
+				progress   => 1,
+				message    => "error_0184", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0184"});
+			sleep 60;
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	else
+	{
+		# Nothing to do
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "job_0140,!!file_path!".$old_file_path."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0140", variables => { old_file_path => $old_file_path }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
 sub process_purge_file
 {
 	my ($anvil) = @_;
 	
 	$anvil->Job->update_progress({
 		progress => $anvil->data->{sys}{progress},
-		message  => "message_0191", 
+		message  => "message_0203", 
 	});
-
-	$anvil->Database->get_files({debug => 3});
+	
+	# We have to include deleted because purges will already have the file flagged as deleted.
+	$anvil->Database->get_files({debug => 3, include_deleted => 1});
 	$anvil->Database->get_file_locations({debug => 3});
 	
 	my $file_uuid = ($anvil->data->{jobs}{job_data} =~ /file_uuid=(.*)$/)[0];
@@ -161,10 +395,10 @@ sub process_purge_file
 		{
 			# Success!
 			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "job_0134,!!file_path!".$file_path."!!", 
+				progress => 100,
+				message  => "job_0134,!!file_path!".$file_path."!!", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "job_0134", variables => { file_path => $file_path }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0134", variables => { file_path => $file_path }});
 			$anvil->nice_exit({exit_code => 0});
 		}
 	}
@@ -172,10 +406,10 @@ sub process_purge_file
 	{
 		# Doesn't exist, nothing to do.
 		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "job_0135,!!file_path!".$file_path."!!", 
+			progress => 100,
+			message  => "job_0135,!!file_path!".$file_path."!!", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "job_0135", variables => { file_path => $file_path }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0135", variables => { file_path => $file_path }});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -373,7 +607,6 @@ sub process_incoming_file
 		});
 	}
 	
-	### TODO: Make is an upload-time option to choose if the uploaded file automatically goes to any given Anvil!
 	# Tell other Anvil! systems to download this file.
 	$anvil->Database->get_anvils({debug => 2});
 	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
@@ -405,11 +638,6 @@ sub process_incoming_file
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
 		
-		### TODO: Register a job for each member to run this file with an 'upload::pull_file' with 
-		###       the job_data being the 'file=$target_file'. Have node1 try the first striker, and 
-		###       node2 from the second striker, if it exists. DR should watch node1 and node2's
-		###       jobs and not download until those jobs hit 100.
-		
 		# Register a job to call anvil-sync-shared 
 		foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid, $anvil_dr1_host_uuid)
 		{
@@ -419,7 +647,7 @@ sub process_incoming_file
 				line            => __LINE__, 
 				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
 				job_data        => "file_uuid=".$file_uuid, 
-				job_name        => "upload::pull_file", 
+				job_name        => "storage::pull_file", 
 				job_title       => "job_0132", 
 				job_description => "job_0133", 
 				job_progress    => 0,
@@ -448,7 +676,7 @@ sub process_pull_file
 		progress => $anvil->data->{sys}{progress},
 		message  => "message_0198", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "message_0198" });
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0198" });
 	
 	# Collect some data
 	$anvil->Database->get_anvils({debug => 3});
@@ -681,7 +909,7 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_name = 'upload::pull_file' 
+    job_name = 'storage::pull_file' 
 AND 
     (
         job_host_uuid = ".$anvil->Database->quote($anvil_node1_host_uuid)." 
@@ -818,15 +1046,15 @@ AND
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0201"});
 		
 		my $local_md5sum = $anvil->Get->md5sum({file => $file_path});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0199", variables => { local_md5sum => $local_md5sum }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_md5sum => $local_md5sum }});
 		
 		if ($file_md5sum eq $local_md5sum)
 		{
 			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "message_0202", 
+				progress => 100,
+				message  => "message_0202", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "message_0202"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0202"});
 			$anvil->nice_exit({exit_code => 0});
 		}
 		else

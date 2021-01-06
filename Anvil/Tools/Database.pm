@@ -6337,7 +6337,7 @@ INSERT INTO
     ".$anvil->Database->quote($file_md5sum).", 
     ".$anvil->Database->quote($file_type).", 
     ".$anvil->Database->quote($file_mtime).", 
-   ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -7470,9 +7470,10 @@ sub insert_or_update_jobs
 				host_name => $host_name, 
 			}});
 			
-			$host_name->{$host_uuid} = $anvil->Database->insert_or_update_jobs({
+			$job_uuids->{$host_uuid} = $anvil->Database->insert_or_update_jobs({
 				debug                => $debug, 
 				job_command          => $job_command, 
+				job_host_uuid        => $host_uuid, 
 				job_data             => $job_data, 
 				job_picked_up_by     => $job_picked_up_by, 
 				job_picked_up_at     => $job_picked_up_at, 
@@ -7485,7 +7486,7 @@ sub insert_or_update_jobs
 				update_progress_only => $update_progress_only, 
 				clear_status         => $clear_status, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "host_name->{$host_uuid}" => $host_name->{$host_uuid} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "job_uuids->{$host_uuid}" => $job_uuids->{$host_uuid} }});
 		}
 		
 		return($job_uuids);

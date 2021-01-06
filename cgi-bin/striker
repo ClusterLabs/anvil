@@ -1446,8 +1446,37 @@ sub process_file_change
 	$anvil->data->{cgi}{confirm}{value} = "";
 	
 	# Are we being asked to purge a file?
+	$anvil->Database->get_anvils();
+	$anvil->Database->get_files();
+	$anvil->Database->get_file_locations();
+	my $file_uuid = $anvil->data->{cgi}{file_uuid}{value};
+	my $file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+	my $file_type = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_uuid => $file_uuid,
+		file_name => $file_name, 
+		file_type => $file_type, 
+	}});
 	if ($anvil->data->{cgi}{purge}{value})
 	{
+		# Update the file to set the file type to 'DELETED'.
+		my $old_file_type = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_file_type => $old_file_type }});
+		if ($old_file_type ne "DELETED")
+		{
+			my $query = "
+UPDATE 
+    files 
+SET 
+    file_type     = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    file_uuid     = ".$anvil->Database->quote($file_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+		
 		# Register jobs on all systems to remove this file.
 		$anvil->Database->insert_or_update_jobs({
 			debug           => 2,
@@ -1455,16 +1484,191 @@ sub process_file_change
 			line            => __LINE__,
 			job_host_uuid   => "all", 
 			job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
-			job_data        => "file_uuid=".$anvil->data->{cgi}{file_uuid}{value}, 
+			job_data        => "file_uuid=".$file_uuid, 
 			job_name        => "storage::purge", 
 			job_title       => "job_0136", 
 			job_description => "job_0137", 
 			job_progress    => 0,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_job_uuid => $node1_job_uuid }});
-
+		$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => "#!string!ok_0012!#" }});		
 	}
-	
+	else
+	{
+		### Nope, we're doing other things. Possibly multiple things.
+		# Did the file name change?
+		my $ok_messages = "";
+		if (($anvil->data->{cgi}{new_file_name}{value}) && ($anvil->data->{cgi}{new_file_name}{value} ne $file_name))
+		{
+			# Rename the file.
+			my $old_file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+			my $new_file_name = $anvil->data->{cgi}{new_file_name}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_file_name => $old_file_name,
+				new_file_name => $new_file_name, 
+			}});
+			if ($old_file_name ne $new_file_name)
+			{
+				my $query = "
+UPDATE 
+    files 
+SET 
+    file_name     = ".$anvil->Database->quote($new_file_name).", 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    file_uuid     = ".$anvil->Database->quote($file_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			$anvil->Database->insert_or_update_jobs({
+				debug           => 2,
+				file            => $THIS_FILE, 
+				line            => __LINE__,
+				job_host_uuid   => "all", 
+				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+				job_data        => "file_uuid=".$file_uuid."\nold_name=".$file_name."\nnew_name=".$anvil->data->{cgi}{new_file_name}{value}, 
+				job_name        => "storage::rename", 
+				job_title       => "job_0138", 
+				job_description => "job_0139", 
+				job_progress    => 0,
+			});
+			
+			$ok_messages .= "#!string!ok_0013!# ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ok_messages => $ok_messages }});
+		}
+		
+		# Did the file type change?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::new_file_type::value" => $anvil->data->{cgi}{new_file_type}{value},
+			file_type                   => $file_type, 
+		}});
+		if (($anvil->data->{cgi}{new_file_type}{value}) && ($anvil->data->{cgi}{new_file_type}{value} ne $file_type))
+		{
+			# Easy peasy, update the DBey.
+			my $query = "
+UPDATE 
+    files 
+SET 
+    file_type     = ".$anvil->Database->quote($anvil->data->{cgi}{new_file_type}{value}).", 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    file_uuid     = ".$anvil->Database->quote($file_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+			# Register a job on all machines (that have this file) to set the mode.
+			$anvil->Database->insert_or_update_jobs({
+				debug           => 2,
+				file            => $THIS_FILE, 
+				line            => __LINE__,
+				job_host_uuid   => "all", 
+				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+				job_data        => "file_uuid=".$file_uuid, 
+				job_name        => "storage::check_mode", 
+				job_title       => "job_0143", 
+				job_description => "job_0144", 
+				job_progress    => 0,
+			});
+			$ok_messages .= "#!string!ok_0014!# ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ok_messages => $ok_messages }});
+		}
+		
+		# Loop through the Anvil! systems and see if any have changed from sync to remove or vice 
+		# versa.
+		foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{cgi}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable => $variable }});
+			if ($variable =~ /anvil_uuid::(.*?)::sync/)
+			{
+				my $anvil_uuid = $1;
+				my $anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+				my $sync_value = $anvil->data->{cgi}{$variable}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					anvil_uuid => $anvil_uuid,
+					sync_value => $sync_value, 
+				}});
+				
+				# Coming from the CGI, sync will be 'true' or 'false', while the 'active' 
+				# value from the database is '1' or '0'. We'll convert the database version 
+				# for comparison versions.
+				my $file_location_uuid       = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+				my $old_file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active} ? "true" : "falsa";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					file_location_uuid       => $file_location_uuid,
+					old_file_location_active => $old_file_location_active, 
+				}});
+				
+				if ($sync_value ne $old_file_location_active)
+				{
+					# Update the database and create a job for the member nodes to purge 
+					# the file.
+					my $new_active      = "FALSE";
+					my $ok_key          = "ok_0016";
+					my $job_type        = "storage::purge";
+					my $job_title       = "job_0136";
+					my $job_description = "job_0137";
+					if ($sync_value eq "true")
+					{
+						$new_active      = "TRUE";
+						$ok_key          = "ok_0015";
+						$job_type        = "storage::pull_file";
+						$job_title       = "job_0132";
+						$job_description = "job_0133";
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						new_active      => $new_active, 
+						ok_key          => $ok_key, 
+						job_type        => $job_type,
+						job_title       => $job_title, 
+						job_description => $job_description, 
+					}});
+					$ok_messages .= $anvil->Words->string({key => $ok_key, variables => { anvil_name => $anvil_name }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ok_messages => $ok_messages }});
+					
+					my $query = "
+UPDATE 
+    file_locations 
+SET 
+    file_location_active = ".$anvil->Database->quote($new_active).", 
+    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    file_location_uuid   = ".$anvil->Database->quote($file_location_uuid)."
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					# Now create a job for each Anvil! member.
+					my $member_uuids = [];
+					push @{$member_uuids}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+					push @{$member_uuids}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+					if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
+					{
+						push @{$member_uuids}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+					}
+					foreach my $host_uuid (@{$member_uuids})
+					{
+						my $job_uuid = $anvil->Database->insert_or_update_jobs({
+							debug           => 2,
+							file            => $THIS_FILE, 
+							line            => __LINE__,
+							job_host_uuid   => $host_uuid, 
+							job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+							job_data        => "file_uuid=".$file_uuid, 
+							job_name        => $job_type, 
+							job_title       => $job_title, 
+							job_description => $job_description, 
+							job_progress    => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+						
+					}
+				}
+			}
+		}
+		
+		$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_messages }});
+	}
 	
 	return(0);
 }
@@ -1474,21 +1678,30 @@ sub process_file_menu
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{form}{refresh_link}    = "?files=true";
-	#$anvil->data->{form}{back_link}    = "?striker=true";
-	$anvil->data->{cgi}{task}{value}      = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value}    = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{cgi}{confirm}{value}   = "" if not defined $anvil->data->{cgi}{confirm}{value};
 	$anvil->data->{cgi}{file_uuid}{value} = "" if not defined $anvil->data->{cgi}{file_uuid}{value};
+	$anvil->data->{cgi}{purge}{value}     = "" if not defined $anvil->data->{cgi}{purge}{value};
 	$anvil->data->{cgi}{save}{value}      = "" if not defined $anvil->data->{cgi}{save}{value};
-	$anvil->data->{cgi}{confirm}{value}   = "" if not defined $anvil->data->{cgi}{confurm}{value};
+	$anvil->data->{cgi}{task}{value}      = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{form}{refresh_link}    = "?files=true";
 	
+	$anvil->Database->get_files();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::file_uuid::value" => $anvil->data->{cgi}{file_uuid}{value}, 
+		"cgi::save::value"      => $anvil->data->{cgi}{save}{value}, 
+		"cgi::confirm::value"   => $anvil->data->{cgi}{confirm}{value}, 
+	}});
 	if (($anvil->data->{cgi}{file_uuid}{value}) && ($anvil->data->{cgi}{save}{value}) && ($anvil->data->{cgi}{confirm}{value}))
 	{
 		process_file_change($anvil);
 	}
+	
+	# (Re)load the data.
+	$anvil->Database->get_files();
+	$anvil->Database->get_file_locations();
 
 	# Build the list of existing files.
-	$anvil->Database->get_files();
 	my $file_list = $anvil->Template->get({file => "files.html", name => "open-file-list"});
 	foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
 	{
@@ -1504,6 +1717,7 @@ sub process_file_menu
 			file_md5sum => $file_md5sum, 
 			file_type   => $file_type, 
 		}});
+		
 		$file_list .= $anvil->Template->get({file => "files.html", name => "file-list-entry", variables => {
 			file_uuid => $file_uuid,
 			file_name => $file_name,
@@ -1516,7 +1730,7 @@ sub process_file_menu
 		{
 			$anvil->data->{form}{refresh_link}        = "?files=true&file_uuid=".$anvil->data->{cgi}{file_uuid}{value};
 			$anvil->data->{form}{back_link}           = "?files=true";
-			$anvil->data->{cgi}{new_file_name}{value} = ""         if not defined $anvil->data->{cgi}{new_file_name}{value};
+			$anvil->data->{cgi}{new_file_name}{value} = $file_name if not defined $anvil->data->{cgi}{new_file_name}{value};
 			$anvil->data->{cgi}{new_file_name}{alert} = ""         if not defined $anvil->data->{cgi}{new_file_name}{alert};
 			$anvil->data->{cgi}{new_file_type}{value} = $file_type if not defined $anvil->data->{cgi}{new_file_type}{value};
 			
@@ -1542,8 +1756,9 @@ sub process_file_menu
 			$anvil->Database->get_anvils();
 			$anvil->Database->get_file_locations();
 			
-			my $say_confirm = "&nbsp;";
-			my $anvil_list  = "";
+			my $say_save_confirm  = "&nbsp;";
+			my $say_purge_confirm = "&nbsp;";
+			my $anvil_list        = "";
 			if (not exists $anvil->data->{anvils}{anvil_name})
 			{
 				$anvil_list .= $anvil->Template->get({file => "files.html", name => "file-list-manager-no-anvils"});
@@ -1556,17 +1771,32 @@ sub process_file_menu
 					my $anvil_description  = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
 					my $file_location_uuid = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 					my $synced             = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+					my $radio_key          = "anvil_uuid::".$anvil_uuid."::sync";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"s1:anvil_name"         => $anvil_name,
 						"s2:anvil_uuid"         => $anvil_uuid, 
 						"s3:anvil_description"  => $anvil_description, 
 						"s4:file_location_uuid" => $file_location_uuid, 
 						"s5:synced"             => $synced, 
+						"s6:radio_key"          => $radio_key, 
+					}});
+					
+					$anvil->data->{cgi}{$radio_key}{value} = "" if not defined $anvil->data->{cgi}{$radio_key}{value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"cgi::${radio_key}::value" => $anvil->data->{cgi}{$radio_key}{value}, 
 					}});
 					
 					my $true_checked  = "checked";
 					my $false_checked = "";
-					if (not $synced)
+					if ($anvil->data->{cgi}{$radio_key}{value})
+					{
+						if ($anvil->data->{cgi}{$radio_key}{value} eq "false")
+						{
+							$true_checked  = "";
+							$false_checked = "checked";
+						}
+					}
+					elsif (not $synced)
 					{
 						$true_checked  = "";
 						$false_checked = "checked";
@@ -1576,16 +1806,24 @@ sub process_file_menu
 						"s2:false_checked" => $false_checked, 
 					}});
 					
+					if (($anvil->data->{cgi}{purge}{value}) && (not $anvil->data->{cgi}{confirm}{value}))
+					{
+						$say_purge_confirm = $anvil->Template->get({file => "files.html", name => "file-list-manager-confirm-purge-button", variables => { 
+							url => "?files=true&file_uuid=".$file_uuid."&purge=true&&save=true&confirm=true",
+						}});
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_save_confirm => $say_save_confirm }});
+					
 					if (($anvil->data->{cgi}{save}{value}) && (not $anvil->data->{cgi}{confirm}{value}))
 					{
-						$say_confirm = $anvil->Template->get({file => "files.html", name => "file-list-manager-confirm-button"});
+						$say_save_confirm = $anvil->Template->get({file => "files.html", name => "file-list-manager-confirm-save-button"});
 					}
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_confirm => $say_confirm }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_save_confirm => $say_save_confirm }});
 					
 					$anvil_list .= $anvil->Template->get({file => "files.html", name => "file-list-manager-anvil-entry", variables => {
 						anvil_name        => $anvil_name,
 						anvil_description => $anvil_description, 
-						radio_name        => "anvil_uuid::".$anvil_uuid."::sync", 
+						radio_name        => $radio_key, 
 						true_checked      => $true_checked, 
 						false_checked     => $false_checked, 
 					}});
@@ -1594,12 +1832,13 @@ sub process_file_menu
 			
 			# Insert the file management section under the file entry.
 			$file_list .= $anvil->Template->get({file => "files.html", name => "file-list-manager", variables => {
-				file_uuid           => $file_uuid,
-				new_file_name       => $anvil->data->{cgi}{new_file_name}{value},
-				new_file_type       => $select_file_type,
-				confirm_button      => $say_confirm, 
-				new_file_name_class => $anvil->data->{cgi}{new_file_name}{alert} ? "input_alert_fixed" : "input_clear_fixed",
-				anvil_list          => $anvil_list, 
+				file_uuid            => $file_uuid,
+				new_file_name        => $anvil->data->{cgi}{new_file_name}{value},
+				new_file_type        => $select_file_type,
+				confirm_save_button  => $say_save_confirm, 
+				confirm_purge_button => $say_purge_confirm, 
+				new_file_name_class  => $anvil->data->{cgi}{new_file_name}{alert} ? "input_alert_fixed" : "input_clear_fixed",
+				anvil_list           => $anvil_list, 
 			}});
 		}
 	}
