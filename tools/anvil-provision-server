@@ -81,6 +81,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 	});
 	
 	# Job data will be in $anvil->data->{jobs}{job_data}
+	run_jobs($anvil);
 }
 else
 {
@@ -95,6 +96,229 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This actually provisions a VM.
+sub run_jobs
+{
+	my ($anvil) = @_;
+	
+	# If we're here, the job has been assigned to us, so we use our own anvil! uuid.
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Get->available_resources({
+		debug      => 2,
+		anvil_uuid => $anvil_uuid,
+	});
+	
+	$anvil->Database->get_files();
+	$anvil->Database->get_file_locations();
+	
+	my $server_name        = "";
+	my $cpu_cores          = "";
+	my $ram                = "";
+	my $storage_group_uuid = "";
+	my $storage_size       = "";
+	my $install_iso_uuid   = "";
+	my $driver_iso_uuid    = "";
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /server_name=(.*)$/)
+		{
+			$anvil_uuid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+		}
+		if ($line =~ /cpu_cores=(.*)$/)
+		{
+			$cpu_cores = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cpu_cores => $cpu_cores }});
+		}
+		if ($line =~ /ram=(.*)$/)
+		{
+			$ram = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cpu_cores => $cpu_cores }});
+		}
+		if ($line =~ /storage_group_uuid=(.*)$/)
+		{
+			$storage_group_uuid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
+		}
+		if ($line =~ /storage_size=(.*)$/)
+		{
+			$storage_size = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_size => $storage_size }});
+		}
+		if ($line =~ /install_iso=(.*)$/)
+		{
+			$install_iso_uuid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { install_iso_uuid => $install_iso_uuid }});
+		}
+		if ($line =~ /driver_iso=(.*)$/)
+		{
+			$driver_iso_uuid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { driver_iso_uuid => $driver_iso_uuid }});
+		}
+	}
+	
+	if (not $server_name)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0187,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0187", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $cpu_cores)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0188,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0188", variables => { 
+			server_name => $server_name, 
+			job_uuid    => $anvil->data->{switches}{'job-uuid'},
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif ($cpu_cores > $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads})
+	{
+		# Too many cores requested
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0189,!!server_name!".$server_name."!!,!!available_cores!".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."!!,!!requested_cores!".$cpu_cores."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0189", variables => { 
+			server_name     => $server_name, 
+			available_cores => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}, 
+			requested_cores => $cpu_cores, 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $ram)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0190,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0190", variables => { 
+			server_name => $server_name, 
+			job_uuid    => $anvil->data->{switches}{'job-uuid'},
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif ($ram > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available})
+	{
+		# Too many cores requested
+		my $say_available_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")";
+		my $say_requested_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram})." (".$anvil->Convert->add_commas({number => $ram}).")"; 
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0191,!!server_name!".$server_name."!!,!!available_ram!".$say_available_ram."!!,!!requested_ram!".$say_requested_ram."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0191", variables => { 
+			server_name   => $server_name, 
+			available_ram => $say_available_ram, 
+			requested_ram => $say_requested_ram, 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $storage_group_uuid)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0192,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0192", variables => { 
+			server_name => $server_name, 
+			job_uuid    => $anvil->data->{switches}{'job-uuid'},
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $storage_size)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0193,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0193", variables => { 
+			server_name => $server_name, 
+			job_uuid    => $anvil->data->{switches}{'job-uuid'},
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ($storage_size > $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size})
+	{
+		my $say_available_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")";
+		my $say_requested_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_size})." (".$anvil->Convert->add_commas({number => $storage_size}).")";
+		my $say_storage_group  = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0194,!!server_name!".$server_name."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0194", variables => { 
+			server_name   => $server_name, 
+			available_size => $say_available_size, 
+			requested_size => $say_requested_size, 
+			storage_group  => $say_storage_group, 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $install_iso_uuid)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0195,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0195", variables => { 
+			server_name => $server_name, 
+			job_uuid    => $anvil->data->{switches}{'job-uuid'},
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	my $install_iso = $anvil->data->{files}{file_uuid}{$install_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$install_iso_uuid}{file_name};
+	if (not -e $install_iso)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0196,!!server_name!".$server_name."!!,!!install_iso!".$install_iso."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0196", variables => { 
+			server_name => $server_name, 
+			install_iso => $install_iso,
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	# Driver disc is optional.
+	if ($driver_iso_uuid)
+	{
+		my $driver_iso = $anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_name};
+		if (not -e $driver_iso)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0197,!!server_name!".$server_name."!!,!!driver_iso!".$driver_iso."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0197", variables => { 
+				server_name => $server_name, 
+				driver_iso => $driver_iso,
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	return(0);
+}
 
 # Go through a series of questions to ask the user how they want to build their server.
 sub interactive_question
@@ -149,6 +373,9 @@ sub interactive_question
 	interactive_ask_server_ram($anvil, $terminal);
 	interactive_ask_server_storage_group($anvil, $terminal);
 	interactive_ask_server_storage_size($anvil, $terminal);
+	interactive_ask_server_install_media($anvil, $terminal);
+	interactive_ask_server_driver_disc($anvil, $terminal);
+	interactive_ask_server_confirm($anvil, $terminal);
 	
 	return(0);
 }
@@ -170,7 +397,7 @@ sub interactive_ask_anvil_name
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { known_anvils => $known_anvils }});
 			if (not $known_anvils)
 			{
-				print "There are no known Anvil! systems at this time. Please setup an Anvil! and try again later.\n";
+				print $anvil->Words->string({key => "job_0149"})."\n";
 				$anvil->nice_exit({exit_code => 1});
 			}
 			elsif ($known_anvils == 1)
@@ -183,15 +410,15 @@ sub interactive_ask_anvil_name
 			}
 		}
 		print $terminal->Tputs('cl');
-		print "Provision a new server menu:\n";
-		print "Anvil name: .. [".$default_anvil."]\n\n\n";
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $default_anvil }})."\n\n\n";
 		
 		# Show all the current server names.
 		if ($retry)
 		{
-			print "* That was not a recognized Anvil! name. please try again.\n\n";
+			print $anvil->Words->string({key => "job_0152"})."\n\n";
 		}
-		print "-=] Existing Anvil! systems [=-\n";
+		print $anvil->Words->string({key => "job_0153"})."\n";
 		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
 		{
 			print "- ".$anvil_name.": - ".$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}."\n";
@@ -220,7 +447,10 @@ sub interactive_ask_anvil_name
 				"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
 			}});
 			
-			print "Loading available resources for: [".$anvil->data->{new_server}{anvil_name}."] (".$anvil->data->{new_server}{anvil_uuid}.")\n";
+			print $anvil->Words->string({key => "job_0154", variables => { 
+				anvil_name => $anvil->data->{new_server}{anvil_name}, 
+				anvil_uuid => $anvil->data->{new_server}{anvil_uuid}, 
+			}})."\n";
 			$anvil->Get->available_resources({
 				debug      => 2,
 				anvil_uuid => $anvil->data->{new_server}{anvil_uuid},
@@ -241,11 +471,10 @@ sub interactive_ask_anvil_name
 	}});
 	if ($anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} < (1**20))
 	{
-		print "There is not enough RAM available on this Anvil! to provision new servers.\n";
-		print " - Available RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."]\n";
+		print $anvil->Words->string({key => "job_0155"})."\n";
+		print $anvil->Words->string({key => "job_0156", variables => { available_ram => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}) }})."\n";
 		$anvil->nice_exit({exit_code => 2});
 	}
-
 	
 	return(0);
 }
@@ -266,17 +495,17 @@ sub interactive_ask_server_name
 			$default = $anvil->data->{switches}{name};
 		}
 		print $terminal->Tputs('cl');
-		print "Provision a new server menu:\n";
-		print "Anvil name:  [".$anvil->data->{new_server}{anvil_name}."]\n";
-		print "Server name: [".$anvil->data->{new_server}{name}."]\n\n\n";
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n\n\n";
 		
 		# Show all the current server names.
 		if ($retry)
 		{
-			print "* Please enter a unique server name.\n\n";
+			print $anvil->Words->string({key => "job_0159"})."\n\n";
 		}
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
-		print "-=] Existing Servers on the Anvil! [".$anvil->data->{new_server}{anvil_name}."] [=-\n";
+		print $anvil->Words->string({key => "job_0160", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
 		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 		{
 			print "- ".$server_name."\n";
@@ -333,26 +562,33 @@ sub interactive_ask_server_cpu
 		}
 		
 		print $terminal->Tputs('cl');
-		print "Provision a new server menu:\n";
-		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
-		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
-		print "CPU Cores: ... [".$default_cpu."]\n\n\n";
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+		print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $default_cpu }})."\n\n\n";
 		
 		if ($retry)
 		{
-			print "* Please enter a number between 1 and ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}.".\n\n";
+			print $anvil->Words->string({key => "job_0161", variables => { max_cores => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} }})."\n\n";
 		}
-		print "-=] Available cores / threads: [".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}." / ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."]\n";
+		print $anvil->Words->string({key => "job_0162", variables => { 
+			cores   => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores},
+			threads => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+		}})."\n";
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
-
-		print " - Node 1 CPU Model: [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model}."]\n";
-		print " - Node 2 CPU Model: [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{cpu}{model}."]\n";
+	
+		print $anvil->Words->string({key => "job_0163", variables => { core => 1, model => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model} }})."\n";
+		print $anvil->Words->string({key => "job_0163", variables => { core => 2, model => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{cpu}{model} }})."\n";
 		
 		if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
 		{
-			print " - DR Host CPU: .... [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model}."], [".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{cpu}{cores}."c]/[".$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{cpu}{threads}."t]\n";
+			print $anvil->Words->string({key => "job_0164", variables => { 
+				model   => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{cpu}{model},
+				cores   => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{cpu}{cores}, 
+				threads => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{cpu}{threads}, 
+			}})."\n";
 		}
 		
 		print $terminal->Tgoto('cm', 0, 4)."? ";
@@ -412,28 +648,35 @@ sub interactive_ask_server_ram
 		}
 		
 		print $terminal->Tputs('cl');
-		print "Provision a new server menu:\n";
-		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
-		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
-		print "CPU Cores: ... [".$anvil->data->{new_server}{cpu}."]\n";
-		print "RAM: ......... [".$default_ram."]\n\n\n";
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+		print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $anvil->data->{new_server}{cpu} }})."\n";
+		print $anvil->Words->string({key => "job_0165", variables => { ram => $default_ram }})."\n\n\n";
 		
 		if ($retry)
 		{
-			print "* Please enter a valid amount up to: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."].\n\n";
+			print $anvil->Words->string({key => "job_0166", variables => { 
+				ram_total     => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}}),
+				ram_available => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}), 
+			}})."\n\n";
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
-		print "-=] Available RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."]  (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}, unit => "M"}).")\n";
-		print " - Reserved by host: ... [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}})."]\n";
-		print " - Allocated to servers: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}, unit => "M"}).")\n";
-		print " - Node 1 RAM (total): . [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{ram}{hardware}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{ram}{hardware}, unit => "M"}).")\n";
-		print " - Node 2 RAM (total): . [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{ram}{hardware}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{ram}{hardware}, unit => "M"}).")\n";
+		print $anvil->Words->string({key => "job_0167", variables => { 
+			ram_available => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}, unit => "M"}).")", 
+			ram_reserved  => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}}), 
+			ram_allocated => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}, unit => "M"}).")",
+			ram_node1     => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{ram}{hardware}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node1_host_uuid}{ram}{hardware}, unit => "M"}).")",
+			ram_node2     => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{ram}{hardware}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$node2_host_uuid}{ram}{hardware}, unit => "M"}).")",
+		}})."\n";
 		if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
 		{
-			print " - DR Host RAM (total):  [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{ram}{hardware}})."] (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{ram}{hardware}, unit => "M"}).")\n";
+			print $anvil->Words->string({key => "job_0168", variables => { 
+				ram_available => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{ram}{hardware}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$dr1_host_uuid}{ram}{hardware}, unit => "M"}).")",
+			}})."\n";
 		}
 		
 		print $terminal->Tgoto('cm', 0, 5)."? ";
@@ -523,15 +766,12 @@ sub interactive_ask_server_storage_group
 			}
 			push @{$storage_groups}, $storage_group_uuid;
 			$show_list .= " - ".$position.") ".$storage_group_name." (".$storage_group_uuid.")\n";
-			$show_list .= "      Available on Anvil!: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."], Total: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size})."]\n";
-			if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
-			{
-				$show_list .= "      Available on DR: ... [".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free})."], Total: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size})."]\n";
-			}
-			else
-			{
-				$show_list .= "      Available on DR: ... [--], Total: [--]\n";
-			}
+			$show_list .= $anvil->Words->string({key => "job_0169", variables => { 
+				vg_free => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}),
+				vg_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}),
+				dr_free => $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free}) : "--",
+				dr_size => $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size}) : "--",
+			}})."\n";
 		}
 		
 		if (not $default_storage_group)
@@ -541,22 +781,22 @@ sub interactive_ask_server_storage_group
 		}
 		
 		print $terminal->Tputs('cl');
-		print "Provision a new server menu:\n";
-		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
-		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
-		print "CPU Cores: ... [".$anvil->data->{new_server}{cpu}."]\n";
-		print "RAM: ......... [".$anvil->data->{new_server}{ram}."]\n";
-		print "Storage Group: [".$default_storage_group."]\n\n\n";
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+		print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $anvil->data->{new_server}{cpu} }})."\n";
+		print $anvil->Words->string({key => "job_0165", variables => { ram => $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}}) }})."\n";
+		print $anvil->Words->string({key => "job_0170", variables => { storage_group => $default_storage_group }})."\n\n\n";
 		
 		if ($retry)
 		{
-			print "* Please enter a number beside the storage group you want to use.\n\n";
+			print $anvil->Words->string({key => "job_0171"})."\n\n";
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
-		print "-=] Storage groups\n";
+		print $anvil->Words->string({key => "job_0171"})."\n";
 		print $show_list."\n";
 		
 		print $terminal->Tgoto('cm', 0, 6)."? ";
@@ -617,24 +857,26 @@ sub interactive_ask_server_storage_size
 		
 		my $say_storage_group = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
 		print $terminal->Tputs('cl');
-		print "Provision a new server menu:\n";
-		print "Anvil name: .. [".$anvil->data->{new_server}{anvil_name}."]\n";
-		print "Server name: . [".$anvil->data->{new_server}{name}."]\n";
-		print "CPU Cores: ... [".$anvil->data->{new_server}{cpu}."]\n";
-		print "RAM: ......... [".$anvil->data->{new_server}{ram}."]\n";
-		print "Storage Group: [".$say_storage_group."]\n";
-		print "Storage Size:  [".$default_storage_size."]\n\n\n";
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+		print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $anvil->data->{new_server}{cpu} }})."\n";
+		print $anvil->Words->string({key => "job_0165", variables => { ram => $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}}) }})."\n";
+		print $anvil->Words->string({key => "job_0170", variables => { storage_group => $say_storage_group }})."\n";
+		print $anvil->Words->string({key => "job_0173", variables => { storage_size => $default_storage_size }})."\n\n\n";
 		
 		if ($retry)
 		{
-			print "* Please enter a size up to: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."].\n\n";
+			print $anvil->Words->string({key => "job_0174", variables => { max_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}) }})."\n\n";
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
-		print "-=] Storage group: [".$say_storage_group."], Available Space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."]\n";
-		print " - Note: You can add additional drives later.\n";
+		print $anvil->Words->string({key => "job_0175", variables => { 
+			storage_group  => $say_storage_group,
+			available_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}),
+		}})."\n";
 		
 		print $terminal->Tgoto('cm', 0, 7)."? ";
 		my $answer = <STDIN>;
@@ -675,6 +917,273 @@ sub interactive_ask_server_storage_size
 		{
 			$retry = 1;
 		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_install_media
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		$anvil->Database->get_files();
+		$anvil->Database->get_file_locations();
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		
+		# Create an array of install ISOs. 
+		my $install_isos = [""];
+		my $iso_list     = "";
+		my $position     = 0;
+		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
+		{
+			my $file_uuid            = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+			my $file_directory       = $anvil->data->{files}{file_name}{$file_name}{file_directory};
+			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
+			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
+			my $file_path            = $file_directory."/".$file_name;
+			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file_uuid            => $file_uuid, 
+				file_name            => $file_name,
+				file_directory       => $file_directory, 
+				file_size            => $file_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")",
+				file_type            => $file_type, 
+				file_path            => $file_path, 
+				file_location_uuid   => $file_location_uuid, 
+				file_location_active => $file_location_active, 
+			}});
+			
+			next if $file_type ne "iso";
+			next if not $file_location_active;
+			
+			# Still here?
+			$position++;
+			push @{$install_isos}, $file_uuid;
+			$iso_list .= " - ".$position.") ".$file_name." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")\n";
+		}
+		
+		my $storage_group_uuid = $anvil->data->{new_server}{storage_group};
+		my $say_storage_group  = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		my $say_storage_size   = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{storage_size}});
+		
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+		print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $anvil->data->{new_server}{cpu} }})."\n";
+		print $anvil->Words->string({key => "job_0165", variables => { ram => $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}}) }})."\n";
+		print $anvil->Words->string({key => "job_0170", variables => { storage_group => $say_storage_group }})."\n";
+		print $anvil->Words->string({key => "job_0173", variables => { storage_size => $say_storage_size }})."\n";
+		print $anvil->Words->string({key => "job_0176", variables => { install_media => "" }})."\n\n\n";
+		
+		if ($retry)
+		{
+			print $anvil->Words->string({key => "job_0177"})."\n\n";
+		}
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
+		
+		print $anvil->Words->string({key => "job_0178"})."\n";
+		print $iso_list."\n";
+		
+		print $terminal->Tgoto('cm', 0, 8)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		
+		if (($answer) && ($answer =~ /^\d+$/) && (exists $install_isos->[$answer]) && ($install_isos->[$answer]))
+		{
+			# Valid.
+			$anvil->data->{new_server}{install_media} = $install_isos->[$answer];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::install_media" => $anvil->data->{new_server}{install_media},
+			}});
+			
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_driver_disc
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		$anvil->Database->get_files();
+		$anvil->Database->get_file_locations();
+		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		
+		my $storage_group_uuid      = $anvil->data->{new_server}{storage_group};
+		my $say_storage_group       = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		my $say_storage_size        = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{storage_size}});
+		my $install_media_file_uuid = $anvil->data->{new_server}{install_media};
+		my $say_install_media       = $anvil->data->{files}{file_uuid}{$install_media_file_uuid}{file_name};
+		
+		# Create an array of install ISOs. 
+		my $driver_isos = ["none"];
+		my $iso_list     = $anvil->Words->string({key => "job_0179"})."\n";
+		my $position     = 0;
+		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
+		{
+			my $file_uuid            = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+			my $file_directory       = $anvil->data->{files}{file_name}{$file_name}{file_directory};
+			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
+			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
+			my $file_path            = $file_directory."/".$file_name;
+			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file_uuid            => $file_uuid, 
+				file_name            => $file_name,
+				file_directory       => $file_directory, 
+				file_size            => $file_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")",
+				file_type            => $file_type, 
+				file_path            => $file_path, 
+				file_location_uuid   => $file_location_uuid, 
+				file_location_active => $file_location_active, 
+			}});
+			
+			next if $file_type ne "iso";
+			next if not $file_location_active;
+			next if $file_uuid eq $install_media_file_uuid;
+			
+			# Still here?
+			$position++;
+			push @{$driver_isos}, $file_uuid;
+			$iso_list .= " - ".$position.") ".$file_name." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")\n";
+		}
+		
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+		print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $anvil->data->{new_server}{cpu} }})."\n";
+		print $anvil->Words->string({key => "job_0165", variables => { ram => $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}}) }})."\n";
+		print $anvil->Words->string({key => "job_0170", variables => { storage_group => $say_storage_group }})."\n";
+		print $anvil->Words->string({key => "job_0173", variables => { storage_size => $say_storage_size }})."\n";
+		print $anvil->Words->string({key => "job_0176", variables => { install_media => $say_install_media }})."\n";
+		print $anvil->Words->string({key => "job_0180", variables => { driver_disc => "#!string!unit_0005!#" }})."\n\n\n";
+		
+		if ($retry)
+		{
+			print $anvil->Words->string({key => "job_0181"})."\n\n";
+		}
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
+		
+		print $anvil->Words->string({key => "job_0182"})."\n";
+		print $iso_list."\n";
+		
+		print $terminal->Tgoto('cm', 0, 9)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		
+		$answer = 0 if $answer eq "";
+		
+		if (($answer =~ /^\d+$/) && (exists $driver_isos->[$answer]) && ($driver_isos->[$answer]))
+		{
+			# Valid.
+			$anvil->data->{new_server}{driver_disc} = $driver_isos->[$answer];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::driver_disc" => $anvil->data->{new_server}{driver_disc},
+			}});
+			
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_ask_server_confirm
+{
+	my ($anvil, $terminal) = @_;
+	
+	$anvil->Database->get_anvils();
+	$anvil->Database->get_files();
+	$anvil->Database->get_file_locations();
+	my $anvil_uuid      = $anvil->data->{new_server}{anvil_uuid};
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		
+	my $storage_group_uuid      = $anvil->data->{new_server}{storage_group};
+	my $say_storage_group       = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+	my $say_storage_size        = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{storage_size}});
+	my $install_media_file_uuid = $anvil->data->{new_server}{install_media};
+	my $say_install_media       = $anvil->data->{files}{file_uuid}{$install_media_file_uuid}{file_name};
+	my $driver_disc_file_uuid   = $anvil->data->{new_server}{driver_disc};
+	my $say_driver_disc         = $driver_disc_file_uuid eq "none" ? "#!string!unit_0005!#" : $anvil->data->{files}{file_uuid}{$driver_disc_file_uuid}{file_name};
+	
+	print $terminal->Tputs('cl');
+	print $anvil->Words->string({key => "job_0150"})."\n";
+	print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
+	print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{new_server}{name} }})."\n";
+	print $anvil->Words->string({key => "job_0158", variables => { cpu_cores => $anvil->data->{new_server}{cpu} }})."\n";
+	print $anvil->Words->string({key => "job_0165", variables => { ram => $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}}) }})."\n";
+	print $anvil->Words->string({key => "job_0170", variables => { storage_group => $say_storage_group }})."\n";
+	print $anvil->Words->string({key => "job_0173", variables => { storage_size => $say_storage_size }})."\n";
+	print $anvil->Words->string({key => "job_0176", variables => { install_media => $say_install_media }})."\n";
+	print $anvil->Words->string({key => "job_0180", variables => { driver_disc => $say_driver_disc }})."\n";
+	print $anvil->Words->string({key => "message_0206"})." ";
+	my $answer = <STDIN>;
+	chomp $answer;
+	
+	$answer = "y" if $answer eq "";
+	
+	if ($answer =~ /^y/i)
+	{
+		# Valid.
+		my $job_data = "server_name=".$anvil->data->{new_server}{name}."
+cpu_cores=".$anvil->data->{new_server}{cpu}."
+ram=".$anvil->data->{new_server}{ram}."
+storage_group_uuid=".$anvil->data->{new_server}{storage_group}."
+storage_size=".$anvil->data->{new_server}{storage_size}."
+install_iso=".$anvil->data->{new_server}{install_media}."
+driver_iso=".$anvil->data->{new_server}{driver_disc};
+		print $anvil->Words->string({key => "job_0183", variables => { job_data => $job_data }})."\n";
+		
+		# Register the job with the primary node on the Anvil! (or node 1, if neither node is primary).
+		my $target_host_uuid = $anvil->Cluster->get_primary_host_uuid({debug => 2, anvil_uuid => $anvil_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
+		if (not $target_host_uuid)
+		{
+			$target_host_uuid = $node1_host_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
+		}
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}, 
+			job_data        => $job_data, 
+			job_name        => "server::provision", 
+			job_title       => "job_0147", 
+			job_description => "job_0148", 
+			job_progress    => 0,
+			job_host_uuid   => $target_host_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		print $anvil->Words->string({key => "job_0184", variables => { job_uuid => $job_uuid }})."\n";
+	}
+	else
+	{
+		# Abort
+		print $anvil->Words->string({key => "message_0022"})."\n";
 	}
 	
 	return(0);

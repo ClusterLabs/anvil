@@ -20,6 +20,8 @@ my $THIS_FILE = "Cluster.pm";
 # get_anvil_name
 # get_anvil_uuid
 # get_peers
+# get_primary_host_uuid
+# is_primary
 # migrate_server
 # parse_cib
 # shutdown_server
@@ -797,6 +799,364 @@ sub get_peers
 }
 
 
+=head2 get_primary_host_uuid
+
+This takes an Anvil! UUID and returns with node is currently the "primary" node. That is to say, which node has the most servers running on it, by allocated RAM. For example, if node 1 has two servers, each with 8 GiB of RAN and node 2 has one VM with 32 GiB of RAM, node 2 will be considered primary as it would take longest to migrate servers off.
+
+If all is equal, node 1 is considered primary. If only one node is a cluster member, it is considered primary. If neither node is up, an empty string is returned.
+
+Parameters;
+
+=head3 anvil_uuid (optional, default Cluster->get_anvil_uuid)
+
+This is the Anvil! UUID we're looking for the primary node in.
+
+=cut
+sub get_primary_host_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_primary_host_uuid()" }});
+	
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		anvil_uuid => $anvil_uuid,
+	}});
+	
+	if (not $anvil_uuid)
+	{
+		my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { anvil_uuid => $anvil_uuid }});
+	}
+	
+	if (not $anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->get_primary_host_uuid()", parameter => "anvil_uuid" }});
+		return("");
+	}
+	
+	# Get the two node UUIDs. 
+	$anvil->Database->get_anvils({debug => $debug});
+	
+	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		# Invalid Anvil! UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0169", variables => { anvil_uuid => $anvil_uuid }});
+		return("");
+	}
+	
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node1_target_ip = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node1_host_uuid});
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $node2_target_ip = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node2_host_uuid});
+	my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		node1_host_uuid => $node1_host_uuid,
+		node1_target_ip => $node1_target_ip, 
+		node2_host_uuid => $node2_host_uuid, 
+		node2_target_ip => $node2_target_ip, 
+		password        => $anvil->Log->is_secure($password),
+	}});
+	
+	# Are the nodes up?
+	my $node1_access = $anvil->Remote->test_access({
+		debug    => $debug, 
+		target   => $node1_target_ip, 
+		password => $password, 
+	});
+	my $node2_access = $anvil->Remote->test_access({
+		debug    => $debug, 
+		target   => $node2_target_ip, 
+		password => $password, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		node1_access => $node1_access,
+		node2_access => $node2_access, 
+	}});
+	
+	# Can we parse the CIB from node 1? 
+	my $cib_from = "";
+	if ($node1_access)
+	{
+		my $problem = $anvil->Cluster->parse_cib({
+			debug    => $debug,
+			target   => $node1_target_ip, 
+			password => $password, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+		if (not $problem)
+		{
+			$cib_from = "node1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { cib_from => $cib_from }});
+		}
+		elsif ($node2_access)
+		{
+			# Try to read the CIB from node 2.
+			my $problem = $anvil->Cluster->parse_cib({
+				debug    => $debug,
+				target   => $node2_target_ip, 
+				password => $password, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+			if (not $problem)
+			{
+				$cib_from = "node2";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { cib_from => $cib_from }});
+			}
+		}
+	}
+	
+	# If we failed to load the CIB, we're done.
+	if (not $cib_from)
+	{
+		return("");
+	}
+	
+	# Is the node we got the CIB from fully in the cluster?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
+		"cib::parsed::peer::ready"  => $anvil->data->{cib}{parsed}{peer}{ready},
+	}});
+	if (($anvil->data->{cib}{parsed}{'local'}{ready}) && (not $anvil->data->{cib}{parsed}{peer}{ready}))
+	{
+		# The node we got the CIB from is ready, the other node is not.
+		if ($cib_from eq "node1")
+		{
+			# Node 1 is primary
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node1_host_uuid => $node1_host_uuid }});
+			return($node1_host_uuid);
+		}
+		else
+		{
+			# Node 2 is primary
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node2_host_uuid => $node2_host_uuid }});
+			return($node2_host_uuid);
+		}
+	}
+	elsif ((not $anvil->data->{cib}{parsed}{'local'}{ready}) && ($anvil->data->{cib}{parsed}{peer}{ready}))
+	{
+		# Opposite; the other node is ready and the node we read from was not.
+		if ($cib_from eq "node1")
+		{
+			# Node 2 is primary
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node2_host_uuid => $node2_host_uuid }});
+			return($node2_host_uuid);
+		}
+		else
+		{
+			# Node 1 is primary
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node1_host_uuid => $node1_host_uuid }});
+			return($node1_host_uuid);
+		}
+	}
+	
+	# Still alive? Both nodes are in the cluster. Start counting RAM allocated to servers.
+	my $node1_ram_in_use_by_servers = 0;
+	my $node2_ram_in_use_by_servers = 0;
+	
+	# Loop through servers. 
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+	{
+		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			server_name => $server_name,
+			server_uuid => $server_uuid, 
+		}});
+		
+		my $server_host_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+		my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		my $server_ram_in_use = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			server_host_uuid  => $server_host_uuid,
+			server_state      => $server_state, 
+			server_ram_in_use => $server_ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")"
+		}});
+		
+		next if $server_state ne "running";
+		if ($server_host_uuid eq $node1_host_uuid)
+		{
+			$node1_ram_in_use_by_servers += $server_ram_in_use;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				node1_ram_in_use_by_servers => $node1_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node1_ram_in_use_by_servers}).")"
+			}});
+		}
+		elsif ($server_host_uuid eq $node2_host_uuid)
+		{
+			$node2_ram_in_use_by_servers += $server_ram_in_use;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				node2_ram_in_use_by_servers => $node2_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_ram_in_use_by_servers}).")"
+			}});
+		}
+	}
+	
+	# if we're node 1 and have equal RAM, or we have more RAM, we're primary.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		node1_ram_in_use_by_servers => $node1_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node1_ram_in_use_by_servers}).")", 
+		node2_ram_in_use_by_servers => $node2_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_ram_in_use_by_servers}).")", 
+	}});
+	
+	if (($node1_ram_in_use_by_servers == $node2_ram_in_use_by_servers) or 
+	    ($node1_ram_in_use_by_servers > $node2_ram_in_use_by_servers))
+	{
+		# Matching RAM, node 1 wins, or node 1 has more RAM.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node1_host_uuid => $node1_host_uuid }});
+		return($node1_host_uuid);
+	}
+	else
+	{
+		# Node 2 has more RAM in use, it's primary
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node2_host_uuid => $node2_host_uuid }});
+		return($node2_host_uuid);
+	}
+	
+	# This should never be hit
+	return("");
+}
+
+
+=head2 is_primary
+
+This methid returns C<< 1 >> if the caller is the "primary" node in the cluster, C<< 0 >> in all other cases. 
+
+"Primary", in this context, means;
+" The node that is running the servers. 
+" If both nodes are running servers, then the node with the most active RAM (summed from the RAM allocated to running servers) is deemed "primary" (would take the longest to migrate servers off). 
+" If both nodes have no servers, or the amount of RAM allocated to running servers is the same, node 1 is deemed primary.
+" If only one node is up, it is deemed primary.
+
+This method takes no parameters.
+
+=cut
+sub is_primary
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->is_primary()" }});
+	
+	my $host_uuid  = $anvil->Get->host_uuid({debug => $debug});
+	my $host_type  = $anvil->Get->host_type({debug => $debug});
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		host_uuid  => $host_uuid,
+		host_type  => $host_type, 
+		anvil_uuid => $anvil_uuid,
+	}});
+	
+	if ($host_type ne "node")
+	{
+		# Not a node? not primary.
+		return(0);
+	}
+	if (not $anvil_uuid)
+	{
+		# Not an Anvil! member, so, ya...
+		return(0);
+	}
+	
+	# Are we in the cluster? If not, we're not primary.
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Nope.
+		return(0);
+	}
+	
+	# Is this node fully in the cluster?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
+	}});
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		# Nope.
+		return(0);
+	}
+	
+	# Still alive? Excellent! What state is our peer in?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		"cib::parsed::peer::ready" => $anvil->data->{cib}{parsed}{peer}{ready},
+	}});
+	if (not $anvil->data->{cib}{parsed}{peer}{ready})
+	{
+		# Our peer is not ready, so we're primary
+		return(1);
+	}
+	
+	# If we're alive, both we and our peer is online. Who is primary?
+	$anvil->Cluster->get_peers();
+	my $peer_is        = $anvil->data->{sys}{anvil}{peer_is};
+	my $my_host_uuid   = $anvil->Get->host_uuid;
+	my $peer_host_uuid = $peer_is eq "node2" ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid} : $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		peer_is        => $peer_is,
+		my_host_uuid   => $my_host_uuid, 
+		peer_host_uuid => $peer_host_uuid, 
+	}});
+	
+	my $my_ram_in_use_by_servers   = 0;
+	my $peer_ram_in_use_by_servers = 0;
+	
+	# Loop through servers. 
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+	{
+		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			server_name => $server_name,
+			server_uuid => $server_uuid, 
+		}});
+		
+		my $server_host_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+		my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		my $server_ram_in_use = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			server_host_uuid  => $server_host_uuid,
+			server_state      => $server_state, 
+			server_ram_in_use => $server_ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")"
+		}});
+		
+		next if $server_state ne "running";
+		if ($server_host_uuid eq $my_host_uuid)
+		{
+			$my_ram_in_use_by_servers += $server_ram_in_use;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				my_ram_in_use_by_servers => $my_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $my_ram_in_use_by_servers}).")"
+			}});
+		}
+		elsif ($server_host_uuid eq $peer_host_uuid)
+		{
+			$peer_ram_in_use_by_servers += $server_ram_in_use;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				peer_ram_in_use_by_servers => $peer_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_in_use_by_servers}).")"
+			}});
+		}
+	}
+	
+	# if we're node 1 and have equal RAM, or we have more RAM, we're primary.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		my_ram_in_use_by_servers   => $my_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $my_ram_in_use_by_servers}).")", 
+		peer_ram_in_use_by_servers => $peer_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_in_use_by_servers}).")", 
+	}});
+	
+	if (($my_ram_in_use_by_servers == $peer_ram_in_use_by_servers) && ($peer_is eq "node2"))
+	{
+		# Matching RAM and we're node 1, so we're primary.
+		return(1);
+	}
+	elsif ($my_ram_in_use_by_servers > $peer_ram_in_use_by_servers)
+	{
+		# More RAM allocated to us than our peer, we're primary.
+		return(1);
+	}
+	
+	# Any other condition, and we're not primary.
+	return(0);
+}
+
+
 =head2 migrate_server
 
 This manipulates pacemaker's location constraints to trigger a pacemaker-controlled migration of one or more servers.
@@ -984,14 +1344,15 @@ sub migrate_server
 		}
 	}
 	
-	
 	return(0);
 }
 
 
 =head2 parse_cib
 
-This reads in the CIB XML and parses it. On success, it returns C<< 0 >>. On failure (ie: pcsd isn't running), returns C<< 1 >>.
+This reads in the CIB XML and parses it from a local or remote system. On success, it returns C<< 0 >>. On failure (ie: pcsd isn't running), returns C<< 1 >>.
+
+If you call this against a remote machine, the data will be loaded the same as if it had been run locally. As such, if this is used from a Striker, be mindful of if it was called on Node 1 or 2. 
 
 Parameters;
 
@@ -1000,6 +1361,22 @@ Parameters;
 B<< Note >>: Generally this should not be used.
 
 By default, the CIB is read by calling C<< pcs cluster cib >>. However, this parameter can be used to pass in a CIB instead. If this is set, the live CIB is B<< NOT >> read.
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
 
 =cut
 sub parse_cib
@@ -1010,9 +1387,17 @@ sub parse_cib
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_cib()" }});
 	
-	my $cib = defined $parameter->{cib} ? $parameter->{cib} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-		cib => $cib,
+	my $cib         = defined $parameter->{cib}         ? $parameter->{cib}         : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		cib         => $cib,
+		password    => $anvil->Log->is_secure($password),
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
 	}});
 	
 	# If we parsed before, delete it.
@@ -1039,11 +1424,32 @@ sub parse_cib
 		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
 		
-		($cib_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-			cib_data    => $cib_data,
-			return_code => $return_code, 
-		}});
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			# Local call
+			($cib_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				cib_data    => $cib_data,
+				return_code => $return_code,
+			}});
+		}
+		else
+		{
+			# Remote call.
+			($cib_data, my $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error       => $error,
+				cib_data    => $cib_data,
+				return_code => $return_code,
+			}});
+		}
 	}
 	if ($return_code)
 	{
@@ -1376,10 +1782,35 @@ sub parse_cib
 			"cib::parsed::data::node::${node_name}::node_state::ready"            => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}, 
 		}});
 		
-		# Is this me or the peer?
-		if (($node_name eq $anvil->Get->host_name) or ($node_name eq $anvil->Get->short_host_name))
+		# Is this me or the peer? Or if we're being called remotely, is the target (the short host 
+		# name) the same?
+		my $target_host_uuid       = "";
+		my $target_host_name       = "";
+		my $target_short_host_name = "";
+		if ($target)
 		{
-			# Me.
+			($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({
+				debug      => $debug, 
+				ip_address => $target,
+			});
+			$target_short_host_name =  $target_host_name;
+			$target_short_host_name =~ s/\..*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				target_host_uuid       => $target_host_uuid, 
+				target_host_name       => $target_host_name, 
+				target_short_host_name => $target_short_host_name, 
+			}});
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			node_name              => $node_name, 
+			target                 => $target, 
+			target_short_host_name => $target_short_host_name, 
+		}});
+		if (($node_name eq $anvil->Get->host_name)       or 
+		    ($node_name eq $anvil->Get->short_host_name) or 
+		    (($target_short_host_name) && ($node_name =~ /^$target_short_host_name/)))
+		{
+			# Me (or the node the CIB was read from).
 			$anvil->data->{cib}{parsed}{'local'}{ready} = $node_name;
 			$anvil->data->{cib}{parsed}{'local'}{name}  = $node_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
@@ -1540,7 +1971,13 @@ sub parse_cib
 	# Now call 'crm_mon --output-as=xml' to determine which resource are running where. As of the time 
 	# of writting this (late 2020), stopped resources are not displayed. So the principle purpose of this
 	# call is to determine what resources are running, and where they are running.
-	$anvil->Cluster->parse_crm_mon({debug => $debug});
+	$anvil->Cluster->parse_crm_mon({
+		debug       => $debug,
+		password    => $anvil->Log->is_secure($password),
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	});
 	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}})
 	{
 		my $host_name = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_name};
@@ -1655,6 +2092,22 @@ B<< Note >>: At this time, this method only pulls out the host for running serve
 
 Parameters;
 
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
 =head3 xml (optional)
 
 B<< Note >>: Generally this should not be used.
@@ -1670,7 +2123,11 @@ sub parse_crm_mon
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_crm_mon()" }});
 	
-	my $xml = defined $parameter->{xml} ? $parameter->{xml} : "";
+	my $xml         = defined $parameter->{xml}         ? $parameter->{xml}         : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 		xml => $xml,
 	}});
@@ -1688,11 +2145,32 @@ sub parse_crm_mon
 		my $shell_call = $anvil->data->{path}{exe}{crm_mon}." --output-as=xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
 		
-		($crm_mon_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-			crm_mon_data => $crm_mon_data,
-			return_code  => $return_code, 
-		}});
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			# Local call
+			($crm_mon_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				crm_mon_data => $crm_mon_data,
+				return_code  => $return_code,
+			}});
+		}
+		else
+		{
+			# Remote call.
+			($crm_mon_data, my $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error        => $error,
+				crm_mon_data => $crm_mon_data,
+				return_code  => $return_code,
+			}});
+		}
 	}
 	if ($return_code)
 	{

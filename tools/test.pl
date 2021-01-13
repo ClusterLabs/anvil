@@ -26,48 +26,26 @@ $anvil->Get->switches;
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
-exit;
+my $anvil_uuid      = "2ac4dbcb-25d2-44b2-ae07-59707b0551ca";
+my $node1_host_uuid = "92d0106c-8717-45da-a413-663d50323982";
+my $node2_host_uuid = "8da3d2fe-783a-4619-abb5-8ccae58f7bd6";
 
-my $anvil_uuid = $anvil->data->{switches}{'anvil-uuid'};
-print "Anvil! UUID: [".$anvil_uuid."]\n";
-$anvil->Database->get_anvils();
-$anvil->Get->available_resources({
-	debug      => 2,
-	anvil_uuid => $anvil_uuid,
-});
-
-my $has_dr = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? "Yes" : "No";
-print "- Anvil! Name: ..... [".$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}."] available resources;\n";
-print "- Has DR Host? ..... [".$has_dr."]\n";
-print "- CPU Cores/Threads: [".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}." / ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."]\n";
-print "- RAM Total/Free: .. [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})."] (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}})." / ".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")\n";
-print "- Networks;\n";
-foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}})
+my $primary_host_uuid = $anvil->Cluster->get_primary_host_uuid({debug => 2, anvil_uuid => $anvil_uuid});
+if (not $primary_host_uuid)
 {
-	if ($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes})
-	{
-		if ($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr})
-		{
-			print "  - ".$bridge_name."\n";
-		}
-		else
-		{
-			print "  - ".$bridge_name." (not on DR)\n";
-		}
-	}
+	print "Neither node is primary.\n";
 }
-print "- Storage:\n";
-foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
+elsif ($primary_host_uuid eq $node1_host_uuid)
 {
-	my $storage_group_uuid = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
-	my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
-	my $vg_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
-	my $dr_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
-	my $dr_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
-	print "  - Storage group: [".$storage_group_uuid."]\n";
-	print "  |- Name: ....... [".$storage_group_name."]\n";
-	print "  |- Size/Free: .. [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."] (".$anvil->Convert->add_commas({number => $vg_size})." / ".$anvil->Convert->add_commas({number => $vg_free}).")\n";
-	print "  \\- DR Size/Free: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free})."] (".$anvil->Convert->add_commas({number => $dr_size})." / ".$anvil->Convert->add_commas({number => $dr_free}).")\n";
-}	
+	print "Node 1 is primary\n";
+}
+elsif ($primary_host_uuid eq $node2_host_uuid)
+{
+	print "Node 2 is primary\n";
+}
+else
+{
+	print "wtf? [".$primary_host_uuid."]\n";
+}
 
 $anvil->nice_exit({exit_code => 0});

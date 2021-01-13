@@ -17,6 +17,7 @@ my $THIS_FILE = "Network.pm";
 # check_internet
 # download
 # find_matches
+# find_target_ip
 # get_company_from_mac
 # get_ips
 # get_network
@@ -615,6 +616,7 @@ sub download
 	return($save_to);
 }
 
+
 =head2 find_matches
 
 This takes two hash keys from prior C<< Network->get_ips() >> or C<< ->load_ips() >> runs and finds which are on the same network. 
@@ -742,6 +744,89 @@ sub find_matches
 	
 	return($match);
 }
+
+
+=head2 find_target_ip
+
+This uses the IP information for the local machine and a target host UUID, and returns an IP address that can be used to contact it. When multiple networks are shared, the BCN IP is used. If no match is found, an empty string is returned.
+
+Parameters;
+
+=head3 host_uuid (required)
+
+This is the target's C<< host_uuid >> that we're looking to contact.
+
+=cut
+sub find_target_ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_target_ip()" }});
+	
+	my $target_ip = "";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+	}});
+	
+	if (not $host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_target_ip()", parameter => "host_uuid" }});
+		return("");
+	}
+	
+	$anvil->Database->get_hosts();
+	if (not exists $anvil->data->{hosts}{host_uuid}{$host_uuid})
+	{
+		# Unknown host
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0031", variables => { host_uuid => $host_uuid }});
+		return("");
+	}
+	
+	my $target_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	my $short_host_name  = $anvil->Get->short_host_name({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		target_host_name => $target_host_name, 
+		short_host_name  => $short_host_name, 
+	}});
+	
+	$anvil->Network->load_ips({
+		debug     => $debug,
+		host_uuid => $anvil->Get->host_uuid,
+		host      => $short_host_name, 
+		clear     => 1,
+	});
+	
+	$anvil->Network->load_ips({
+		debug     => $debug,
+		host_uuid => $host_uuid,
+		host      => $target_host_name, 
+		clear     => 1,
+	});
+	
+	my ($match) = $anvil->Network->find_matches({
+		debug  => $debug,
+		first  => $short_host_name,
+		second => $target_host_name, 
+	});
+	if ($match)
+	{
+		# Yup!
+		my $match_found = 0;
+		foreach my $interface (sort {$a cmp $b} keys %{$match->{$target_host_name}})
+		{
+			$target_ip = $match->{$target_host_name}{$interface}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
+			last;
+		}
+		
+	}
+	
+	return($target_ip);
+}
+
 
 =head2 load_interfces
 

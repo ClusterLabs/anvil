@@ -259,6 +259,17 @@ The error was:
 		<key name="error_0184">Moving the file failed. The problem should be logged. We'll sleep for a minute and then exit. We'll try again after that.</key>
 		<key name="error_0185">Unable to check the file mode because a file UUID wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
 		<key name="error_0186">Unable to check the file mode because the file UUID: [#!variable!file_uuid!#] is either invalid or doesn't exist in the database.</key>
+		<key name="error_0187">Unable to find the new server name from the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0188">Unable to get the number of CPU cores for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0189">The new server: [#!variable!server_name!#] was asked to have: [#!variable!requested_cores!#] CPU cores, but only: [#!variable!available_cores!#] are available.</key>
+		<key name="error_0190">Unable to get the amount of RAM for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0191">The new server: [#!variable!server_name!#] was asked to have: [#!variable!requested_ram!#] RAM, but only: [#!variable!available_ram!#] is available.</key>
+		<key name="error_0192">Unable to get the storage group UUID for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0193">Unable to get the amount of storage to use for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0194">The new server: [#!variable!server_name!#] was asked to have: [#!variable!requested_size!#] disk space, but only: [#!variable!available_size!#] is available on the requested storage group: [#!variable!storage_group!#].</key>
+		<key name="error_0195">Unable to get the install ISO to use for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0196">The install disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
+		<key name="error_0197">The driver disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -466,6 +477,55 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0144">This is used when a file type changes, setting the executable bits when the type is script, and removing the executable bits when set to another type.</key>
 		<key name="job_0145">The file: [#!variable!file_path!#]'s mode has been set to: [#!variable!new_mode!#].</key>
 		<key name="job_0146">No need to set the mode on the file: [#!variable!file_path!#], it doesn't exist here.</key>
+		<key name="job_0147">Provision a new server</key>
+		<key name="job_0148">This takes the information and creates a new server.</key>
+		<key name="job_0149">There are no known Anvil! systems at this time. Please setup an Anvil! and try again later.</key>
+		<key name="job_0150">Provision a new server menu:</key>
+		<key name="job_0151">Anvil! name: ... [#!variable!anvil_name!#]</key>
+		<key name="job_0152">* That was not a recognized Anvil! name. please try again.</key>
+		<key name="job_0153">-=] Existing Anvil! systems [=-</key>
+		<key name="job_0154">Loading available resources for: [#!variable!anvil_name!#] (#!variable!anvil_uuid!#)</key>
+		<key name="job_0155">There is not enough RAM available on this Anvil! to provision new servers.</key>
+		<key name="job_0156"> - Available RAM: [#!variable!available_ram!#]</key>
+		<key name="job_0157">Server name: ... [#!variable!server_name!#]</key>
+		<key name="job_0158">CPU Cores: ..... [#!variable!cpu_cores!#]</key>
+		<key name="job_0159">* Please enter a unique server name.</key>
+		<key name="job_0160">-=] Existing Servers on the Anvil! [#!variable!anvil_name!#] [=-</key>
+		<key name="job_0161">* Please enter a number between 1 and #!variable!max_cores!#.</key>
+		<key name="job_0162">-=] Available cores / threads: [#!variable!cores!# / #!variable!threads!#]</key>
+		<key name="job_0163"> - Node #!variable!core!# CPU Model: [#!variable!model!#]</key>
+		<key name="job_0164"> - DR Host CPU: .... [#!variable!model!#], [#!variable!cores!#c]/[#!variable!threads!#t]</key>
+		<key name="job_0165">RAM: ........... [#!variable!ram!#]</key>
+		<key name="job_0166">* Please enter a valid amount up to: [#!variable!ram_total!# / #!variable!ram_available!#].</key>
+		<key name="job_0167">-=] Available RAM: [#!variable!ram_available!#]
+ - Reserved by host: ... [#!variable!ram_reserved!#]
+ - Allocated to servers: [#!variable!ram_allocated!#]
+ - Node 1 RAM (total): . [#!variable!ram_node1!#]
+ - Node 2 RAM (total): . [#!variable!ram_node2!#]</key>
+		<key name="job_0168"> - DR Host RAM (total):  [#!variable!ram_available!#]</key>
+		<key name="job_0169">      Available on Anvil!: [#!variable!vg_free!#], Total: [#!variable!vg_size!#]
+      Available on DR: ... [#!variable!dr_free!#], Total: [#!variable!dr_size!#]</key>
+		<key name="job_0170">Storage Group: . [#!variable!storage_group!#]</key>
+		<key name="job_0171">* Please enter a number beside the storage group you want to use.</key>
+		<key name="job_0172">-=] Storage groups</key>
+		<key name="job_0173">Storage Size: .. [#!variable!storage_size!#]</key>
+		<key name="job_0174">* Please enter a size up to: [#!variable!max_size!#].</key>
+		<key name="job_0175">-=] Storage group: [#!variable!storage_group!#], Available Space: [#!variable!available_size!#]
+ - Note: You can add additional drives later.</key>
+		<key name="job_0176">Install Media: . [#!variable!install_media!#]</key>
+		<key name="job_0177">* Please enter a number that corresponds to an install disc.</key>
+		<key name="job_0178">-=] Installation media</key>
+		<key name="job_0179"> - 0) #!string!unit_0005!#</key>
+		<key name="job_0180">Driver Disc: ... [#!variable!driver_disc!#]</key>
+		<key name="job_0181">* Please enter a number that corresponds to a driver disc.</key>
+		<key name="job_0182">-=] Driver disc</key>
+		<key name="job_0183">Saving the job details to create this server. Please wait a few moments.
+Job Data: 
+====
+#!variable!job_data!#
+====</key>
+		<key name="job_0184">The job to create the new server has been registered as job: [#!variable!job_uuid!#].
+It should be provisioned in the next minute or two.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1136,6 +1196,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0574">The host: [#!variable!host_name!#] was powered off because of power loss. Power is back and the UPSes are sufficiently charged. Booting it back up now.</key>
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
+		<key name="log_0577">The job: [#!variable!job_uuid!#] was assigned to our Anvil! and this is the primary node. Assigning the job to this machine.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1158,7 +1219,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0018">What would you like the new password to be?</key>
 		<key name="message_0019">Please enter the password again to confirm.</key>
 		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
-		<key name="message_0021">Proceed? [y/N]</key>
+		<key name="message_0021">Proceed? [y/N]</key> <!-- Default Yes is at message_0206 -->
 		<key name="message_0022">Aborting.</key>
 		<key name="message_0023">Auto-approved by command line switch, proceeding.</key>
 		<key name="message_0024">Updating the Striker user: [#!variable!user!#] password... </key>
@@ -1436,6 +1497,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0203">Processing a file purge.</key>
 		<key name="message_0204">Processing an uploaded file.</key>
 		<key name="message_0205">Processing a file mode check.</key>
+		<key name="message_0206">Proceed? [Y/n]</key>	<!-- Default no is message_0021 -->
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1754,6 +1816,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0282">This will remove the file from all systems.</key>
 		<key name="striker_0283">There are no #!string!brand_0006!# configured yet. Existing files will automatically sync to new clusters.</key>
 		<key name="striker_0284">Cancel</key>
+		<key name="striker_0285">Close</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

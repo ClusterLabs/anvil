@@ -1084,6 +1084,7 @@ sub _set_paths
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
 				'anvil-parse-fence-agents'	=>	"/usr/sbin/anvil-parse-fence-agents",
+				'anvil-provision-server'	=>	"/usr/sbib/anvil-provision-server",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'anvil-sync-shared'		=>	"/usr/sbin/anvil-sync-shared",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",

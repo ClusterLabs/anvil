@@ -24,6 +24,7 @@ my $THIS_FILE = "Get.pm";
 # date_and_time
 # domain_name
 # free_memory
+# host_from_ip_address
 # host_name
 # host_name_from_uuid
 # host_uuid_from_name
@@ -1119,6 +1120,81 @@ sub domain_name
 	   $domain_name =  "" if not defined $domain_name;
 	
 	return($domain_name);
+}
+
+
+=head2 host_from_ip_address
+
+This takes an IP address and looks for the host that has the IP. If the given IP is not in the database (or was but is deleted now), an empty string is returned. Otherwise, the host name and host UUID are returned.
+
+ my ($host_uuid, $host_name) = $anvil->Get->host_from_ip_address({ip_address => "10.201.10.1"});
+
+Parameters;
+
+=head3 host_from_ip_address (required) 
+
+This is the IP address being converted.
+
+=cut
+sub host_from_ip_address
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_from_ip_address()" }});
+	
+	my $host_uuid  = "";
+	my $host_name  = "";
+	my $ip_address = defined $parameter->{ip_address} ? $parameter->{ip_address} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ip_address => $ip_address,
+	}});
+	
+	if (not $ip_address)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->host_from_ip_address()", parameter => "ip_address" }});
+		return($host_uuid, $host_name);
+	}
+	if (not $anvil->Validate->ipv4({ip => $ip_address}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0010", variables => { ip_address => $ip_address }});
+		return($host_uuid, $host_name);
+	}
+	
+	my $query = "
+SELECT 
+    a.host_uuid, 
+    a.host_name 
+FROM 
+    hosts a, 
+    ip_addresses b 
+WHERE 
+    a.host_uuid          =  b.ip_address_host_uuid 
+AND 
+    b.ip_address_note    != 'DELETED' 
+AND 
+    b.ip_address_address =  ".$anvil->Database->quote($ip_address).";
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count == 1)
+	{
+		# Found it
+		$host_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$host_name = defined $results->[0]->[1] ? $results->[0]->[1] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_uuid => $host_uuid,
+			host_name => $host_name,
+		}});
+	}
+	
+	return($host_uuid, $host_name);
 }
 
 

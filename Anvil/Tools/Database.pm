@@ -2664,20 +2664,25 @@ FROM
 			modified_date => $modified_date, 
 		};
 		
+		my $short_host_name =  $host_name;
+		   $short_host_name =~ s/\..*$//;
+
 		# Record the data in the hash, too.
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}  = $host_name;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}  = $host_type;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}   = $host_key;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $host_ipmi;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} = $anvil_name;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid} = $anvil_uuid;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}       = $host_name;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name} = $short_host_name;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}       = $host_type;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}        = $host_key;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}       = $host_ipmi;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}      = $anvil_name;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}      = $anvil_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"hosts::host_uuid::${host_uuid}::host_name"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
-			"hosts::host_uuid::${host_uuid}::host_type"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
-			"hosts::host_uuid::${host_uuid}::host_key"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
-			"hosts::host_uuid::${host_uuid}::host_ipmi"  => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}) : $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
-			"hosts::host_uuid::${host_uuid}::anvil_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
-			"hosts::host_uuid::${host_uuid}::anvil_uuid" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
+			"hosts::host_uuid::${host_uuid}::host_name"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+			"hosts::host_uuid::${host_uuid}::short_host_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name}, 
+			"hosts::host_uuid::${host_uuid}::host_type"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+			"hosts::host_uuid::${host_uuid}::host_key"        => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+			"hosts::host_uuid::${host_uuid}::host_ipmi"       => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}) : $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+			"hosts::host_uuid::${host_uuid}::anvil_name"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
+			"hosts::host_uuid::${host_uuid}::anvil_uuid"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
 		}});
 		
 		# Record the host_uuid in a hash so that the name can be easily retrieved.

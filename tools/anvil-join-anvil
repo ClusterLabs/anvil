@@ -723,15 +723,22 @@ sub configure_pacemaker
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
 				}});
-				foreach my $pair (split/ /, $fence_arguments)
+				while ($fence_arguments =~ /=/)
 				{
 					# Ignore 'delay', we handle that in Cluster->set_delay();
-					my ($argument, $value) = ($pair =~ /^(.*)="(.*?)"$/);
+					my $pair               =  ($fence_arguments =~ /(\S*?=".*?")/)[0];
+					   $fence_arguments    =~ s/$pair//;
+					   $fence_arguments    =~ s/^\s+//;
+					   $fence_arguments    =~ s/\s+$//;
+					my ($argument, $value) =  ($pair =~ /(.*)="(.*)"/);
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						pair     => $pair =~ /passw/ ? $anvil->Log->is_secure($pair) : $pair,
-						argument => $argument,
-						value    => $argument =~ /passw/ ? $anvil->Log->is_secure($value) : $value,
+						's1:fence_arguments' => $fence_arguments, 
+						's2:pair'            => $pair =~ /passw/ ? $anvil->Log->is_secure($pair) : $pair,
+						's3:argument'        => $argument,
+						's4:value'           => $argument =~ /passw/ ? $anvil->Log->is_secure($value) : $value,
 					}});
+					
+					# Ignore 'delay', we handle that in Cluster->set_delay();
 					if (($argument ne "pcmk_off_action") && ($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
 					{
 						next;
@@ -931,6 +938,10 @@ sub configure_pacemaker
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			if ($something_changed->{$node_name})
 			{
+				# Update our view of the cluster.
+				my $problem = $anvil->Cluster->parse_cib({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+				
 				# Delete any existing fence levels
 				if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name})
 				{
