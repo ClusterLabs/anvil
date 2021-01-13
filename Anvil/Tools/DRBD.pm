@@ -514,6 +514,69 @@ sub get_devices
 }
 
 
+=head2 get_next_resource
+
+This returns the next free DRBD minor number and the next free TCP port. The minor number is the first one found to be free. The TCP port is allocated in steps of three. That is to say, if the last used TCP port is '7790', then '7793' is considered the next free port. This is to ensure that if a DR host is added or used, the three adjacent ports are available for use in one resource configuration. 
+
+Minor numbers are not grouped as resources and volumes can be referenced by name, so the DRBD minor number is less important for human users.
+
+ my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({anvil_uuid => "a5ae5242-e9d3-46c9-9ce8-306855aa56db"})
+ 
+If there is a problem, two empty strings will be returned. 
+
+Parameters;
+
+=head3 anvil_uuid (required)
+
+This is the Anvil! in which we're looking for the next free resources.
+
+=cut
+sub get_next_resource
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_next_resource()" }});
+	
+	my $free_minor = "";
+	my $free_port  = "";
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid => $anvil_uuid, 
+	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->get_next_resource()", parameter => "anvil_uuid" }});
+		return($free_minor, $free_port);
+	}
+	
+	$anvil->Database->get_anvils({debug => $debug});
+	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0162", variables => { anvil_uuid => $anvil_uuid }});
+		return($free_minor, $free_port);
+	}
+	
+	# Read in the resource information from both nodes. They _should_ be identical, but that's not 100% 
+	# certain.
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+		dr1_host_uuid   => $dr1_host_uuid, 
+	}});
+	
+	my $query = "
+;";
+	
+	return($free_minor, $free_port);
+}
+
+
 =head2 get_status
 
 This parses the DRBD status on the local or remote system. The data collected is stored in the following hashes;

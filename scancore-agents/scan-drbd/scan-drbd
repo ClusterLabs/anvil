@@ -58,7 +58,7 @@ if (($< != 0) && ($> != 0))
 
 $anvil->data->{scancore}{'scan-drbd'}{disable}         = 0;
 $anvil->data->{scancore}{'scan-drbd'}{'auto-undefine'} = 1;
-$anvil->data->{switches}{force}                          = 0;
+$anvil->data->{switches}{force}                        = 0;
 
 $anvil->Storage->read_config();
 
@@ -73,7 +73,8 @@ if (($anvil->data->{scancore}{'scan-drbd'}{disable}) && (not $anvil->data->{swit
 }
 
 # Handle start-up tasks
-my $problem = $anvil->ScanCore->agent_startup({debug => 2, agent => $THIS_FILE});
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});
@@ -138,8 +139,8 @@ sub process_drbd
 			"s2:old_scan_drbd_common_xml" => $old_scan_drbd_common_xml, 
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			"s01:scan_drbd_uuid"                 => $new_scan_drbd_flush_disk, 
-			"s02:scan_drbd_common_xml_diff"      => $new_scan_drbd_flush_md, 
+			"s01:scan_drbd_uuid"                 => $scan_drbd_uuid, 
+			"s02:scan_drbd_common_xml_diff"      => $scan_drbd_common_xml_diff, 
 			"s03:new_scan_drbd_flush_disk"       => $new_scan_drbd_flush_disk, 
 			"s04:old_scan_drbd_flush_disk"       => $old_scan_drbd_flush_disk, 
 			"s05:new_scan_drbd_flush_md"         => $new_scan_drbd_flush_md, 
@@ -294,20 +295,20 @@ sub process_resource
 {
 	my ($anvil, $resource) = @_;
 	
-	my $new_scan_drbd_resource_name = $resource;
-	my $scan_drbd_resource_uuid     = $anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid};
-	my $new_scan_drbd_resource_up   = $anvil->data->{new}{resource}{$resource}{up};
-	my $new_scan_drbd_resource_xml  = $anvil->data->{new}{resource}{$resource}{xml};
+	my $scan_drbd_resource_uuid    = "";
+	my $scan_drbd_resource_name    = $resource;
+	my $new_scan_drbd_resource_up  = $anvil->data->{new}{resource}{$resource}{up};
+	my $new_scan_drbd_resource_xml = $anvil->data->{new}{resource}{$resource}{xml};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		"s1:scan_drbd_resource_uuid"     => $scan_drbd_resource_uuid, 
-		"s2:new_scan_drbd_resource_name" => $new_scan_drbd_resource_name, 
-		"s3:new_scan_drbd_resource_up"   => $new_scan_drbd_resource_up, 
-		"s4:new_scan_drbd_resource_xml"  => $new_scan_drbd_resource_xml, 
+		"s1:scan_drbd_resource_name"    => $scan_drbd_resource_name, 
+		"s2:new_scan_drbd_resource_up"  => $new_scan_drbd_resource_up, 
+		"s3:new_scan_drbd_resource_xml" => $new_scan_drbd_resource_xml, 
 	}});
 	
-	if (exists $anvil->data->{old}{resource_to_uuid}{$new_scan_drbd_resource_name})
+	if (exists $anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name})
 	{
 		# If there was a UUID from the resource file, it's the one 
+		   $scan_drbd_resource_uuid     = $anvil->data->{old}{resource_to_uuid}{$scan_drbd_resource_name}{uuid};
 		my $old_scan_drbd_resource_name = $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_name};
 		my $old_scan_drbd_resource_up   = $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_up};
 		my $old_scan_drbd_resource_xml  = $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$scan_drbd_resource_uuid}{scan_drbd_resource_xml};
@@ -317,15 +318,18 @@ sub process_resource
 			"s2:old_scan_drbd_resource_up"   => $old_scan_drbd_resource_up,
 			"s3:xml_difference"              => $xml_difference, 
 			"s4:old_scan_drbd_resource_xml"  => $old_scan_drbd_resource_xml,
+			"s5:new_scan_drbd_resource_xml"  => $new_scan_drbd_resource_xml, 
 		}});
 		
+		die if not defined $old_scan_drbd_resource_xml;
+		
 		my $update = 0;
-		if ($new_scan_drbd_resource_name ne $old_scan_drbd_resource_name)
+		if ($scan_drbd_resource_name ne $old_scan_drbd_resource_name)
 		{
 			# Name has changed.
 				$update    = 1;
 			my $variables = {
-				new_value => $new_scan_drbd_resource_name, 
+				new_value => $scan_drbd_resource_name, 
 				old_value => $old_scan_drbd_resource_name, 
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0010", variables => $variables});
@@ -336,7 +340,7 @@ sub process_resource
 			# Resoure state has changed.
 				$update    = 1;
 			my $variables = {
-				resource_name => $new_scan_drbd_resource_name, 
+				resource_name => $scan_drbd_resource_name, 
 				new_value     => $new_scan_drbd_resource_up ? "#!string!scan_drbd_unit_0004!#" : "#!string!scan_drbd_unit_0005!#", 
 				old_value     => $old_scan_drbd_resource_up ? "#!string!scan_drbd_unit_0004!#" : "#!string!scan_drbd_unit_0005!#", 
 			};
@@ -348,7 +352,7 @@ sub process_resource
 			# Resource came back.
 				$update    = 1;
 			my $variables = {
-				resource_name => $new_scan_drbd_resource_name, 
+				resource_name => $scan_drbd_resource_name, 
 				new_config    => $new_scan_drbd_resource_xml, 
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0012", variables => $variables});
@@ -359,7 +363,7 @@ sub process_resource
 			# Resoure state has changed.
 				$update    = 1;
 			my $variables = {
-				resource_name => $new_scan_drbd_resource_name, 
+				resource_name => $scan_drbd_resource_name, 
 				differnce     => $xml_difference, 
 				new_config    => $new_scan_drbd_resource_xml, 
 			};
@@ -372,7 +376,7 @@ sub process_resource
 UPDATE 
     scan_drbd_resources
 SET 
-    scan_drbd_resource_name = ".$anvil->Database->quote($new_scan_drbd_resource_name).", 
+    scan_drbd_resource_name = ".$anvil->Database->quote($scan_drbd_resource_name).", 
     scan_drbd_resource_up   = ".$anvil->Database->quote($new_scan_drbd_resource_up).", 
     scan_drbd_resource_xml  = ".$anvil->Database->quote($new_scan_drbd_resource_xml).", 
     modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
@@ -392,15 +396,17 @@ WHERE
 	else
 	{
 		# New resource.
-		$scan_drbd_resource_uuid = $anvil->DRBD->resource_uuid({
-			resource          => $new_scan_drbd_resource_name,
-			resource_file     => $anvil->data->{new}{resource}{$new_scan_drbd_resource_name}{config_file},
-			new_resource_uuid => $anvil->Get->uuid(), 
-		});
+		### This was the old way
+		#$scan_drbd_resource_uuid = $anvil->DRBD->resource_uuid({
+		#	resource          => $scan_drbd_resource_name,
+		#	resource_file     => $anvil->data->{new}{resource}{$scan_drbd_resource_name}{config_file},
+		#	new_resource_uuid => $anvil->Get->uuid(), 
+		#});
+		$scan_drbd_resource_uuid = $anvil->Get->uuid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_resource_uuid => $scan_drbd_resource_uuid }});
 		
 		my $variables = {
-			resource_name  => $new_scan_drbd_resource_name, 
+			resource_name  => $scan_drbd_resource_name, 
 			resource_state => $new_scan_drbd_resource_up ? "#!string!scan_drbd_unit_0004!#" : "#!string!scan_drbd_unit_0005!#", 
 			resource_xml   => $new_scan_drbd_resource_xml, 
 		};
@@ -420,7 +426,7 @@ INSERT INTO
 ) VALUES (
     ".$anvil->Database->quote($scan_drbd_resource_uuid).", 
     ".$anvil->Database->quote($anvil->Get->host_uuid).", 
-    ".$anvil->Database->quote($new_scan_drbd_resource_name).", 
+    ".$anvil->Database->quote($scan_drbd_resource_name).", 
     ".$anvil->Database->quote($new_scan_drbd_resource_up).", 
     ".$anvil->Database->quote($new_scan_drbd_resource_xml).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
@@ -431,7 +437,7 @@ INSERT INTO
 	}
 	
 	# Now process volumes
-	process_volumes($anvil, $new_scan_drbd_resource_name, $scan_drbd_resource_uuid);
+	process_volumes($anvil, $scan_drbd_resource_name, $scan_drbd_resource_uuid);
 	
 	process_peers($anvil, $resource, $scan_drbd_resource_uuid);
 	
@@ -1190,17 +1196,18 @@ sub gather_data
 					"new::resource::${resource}::config_file" => $anvil->data->{new}{resource}{$resource}{config_file},
 				}});
 				
+				### NOTE: We don't do this anymore.
 				# See if there's a scan_drbd_resource_uuid in the config file.
-				my $scan_drbd_resource_uuid = $anvil->DRBD->resource_uuid({
-					resource      => $resource,
-					resource_file => $conf_file, 
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_resource_uuid => $scan_drbd_resource_uuid }});
-				
-				$anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid} = $scan_drbd_resource_uuid eq "!!error!!" ? "" : $scan_drbd_resource_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					"new::resource::${resource}::scan_drbd_resource_uuid" => $anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid},
-				}});
+				#my $scan_drbd_resource_uuid = $anvil->DRBD->resource_uuid({
+				#	resource      => $resource,
+				#	resource_file => $conf_file, 
+				#});
+				#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_resource_uuid => $scan_drbd_resource_uuid }});
+				#
+				#$anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid} = $scan_drbd_resource_uuid eq "!!error!!" ? "" : $scan_drbd_resource_uuid;
+				#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				#	"new::resource::${resource}::scan_drbd_resource_uuid" => $anvil->data->{new}{resource}{$resource}{scan_drbd_resource_uuid},
+				#}});
 				
 				foreach my $host ($name->findnodes('./host'))
 				{
@@ -1307,24 +1314,31 @@ sub gather_data
 		}
 	}
 	
-	local(*DIRECTORY);
-	opendir(DIRECTORY, $anvil->data->{'scan-drbd'}{resource_status});
-	while(my $file = readdir(DIRECTORY))
+	# If DRBD is stopped, this directory won't exist.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"scan-drbd::resource_status" => $anvil->data->{'scan-drbd'}{resource_status},
+	}});
+	if (-d $anvil->data->{'scan-drbd'}{resource_status})
 	{
-		next if $file eq ".";
-		next if $file eq "..";
-		my $full_path = $anvil->data->{'scan-drbd'}{resource_status}."/".$file;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
-		if (-d $full_path)
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $anvil->data->{'scan-drbd'}{resource_status});
+		while(my $file = readdir(DIRECTORY))
 		{
-			my $resource                                    = $file;
-			   $anvil->data->{new}{resource}{$resource}{up} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"new::resource::${resource}::up" => $anvil->data->{new}{resource}{$resource}{up},
-			}});
+			next if $file eq ".";
+			next if $file eq "..";
+			my $full_path = $anvil->data->{'scan-drbd'}{resource_status}."/".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+			if (-d $full_path)
+			{
+				my $resource                                    = $file;
+				$anvil->data->{new}{resource}{$resource}{up} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new::resource::${resource}::up" => $anvil->data->{new}{resource}{$resource}{up},
+				}});
+			}
 		}
+		closedir(DIRECTORY);
 	}
-	closedir(DIRECTORY);
 
 	#print "Sync progress:\n";
 	#print "  ".sprintf("%-${longest_resource}s", "Res")."    ".sprintf("%-${longest_connection}s", "To")."    Vol\n";

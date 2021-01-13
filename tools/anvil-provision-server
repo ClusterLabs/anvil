@@ -169,6 +169,21 @@ sub run_jobs
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0187", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
 		$anvil->nice_exit({exit_code => 1});
 	}
+	
+	# Is the server name unique?
+	$anvil->Database->get_servers();
+	if (exists $anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name})
+	{
+		# Duplicate name
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0198,!!server_name!".$server_name."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $server_name }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+
 	if (not $cpu_cores)
 	{
 		$anvil->Job->update_progress({
@@ -316,6 +331,9 @@ sub run_jobs
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
+	
+	# Still alive? Ready to go!
+	my $drbd_minor = $anvil->DRBD->get_next_resource({})
 	
 	return(0);
 }
