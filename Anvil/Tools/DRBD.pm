@@ -15,6 +15,7 @@ my $THIS_FILE = "DRBD.pm";
 
 ### Methods;
 # allow_two_primaries
+# gather_data
 # get_devices
 # get_status
 # manage_resource
@@ -233,6 +234,384 @@ sub allow_two_primaries
 	
 	return($return_code);
 }
+
+
+=head2 gather_data
+
+This calls C<< drbdadm >> to collect the configuration of the local system and parses it. This methid is designed for use by C<< scan_drbd >>, but is useful elsewhere. This is note-worthy as the data is stored under a C<< new::... >> hash.
+
+On error, C<< 1 >> is returned. On success, C<< 0 >> is returned.
+
+This method takes no parameters.
+
+=cut
+sub gather_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->gather_data()" }});
+	
+	my ($drbd_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { drbd_xml => $drbd_xml, return_code => $return_code }});
+	if ($return_code)
+	{
+		# Failed to dump the XML.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_error_0002", variables => { return_code => $return_code }});
+		return(1);
+	}
+	else
+	{
+		local $@;
+		my $dom = eval { XML::LibXML->load_xml(string => $drbd_xml); };
+		if ($@)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_error_0003", variables => { 
+				xml   => $drbd_xml,
+				error => $@,
+			}});
+			return(1);
+		}
+		else
+		{
+			# Successful parse!
+			### TODO: Might be best to config these default values by calling/parsing 
+			###       'drbdsetup show <resource> --show-defaults'.
+			$anvil->data->{new}{scan_drbd}{scan_drbd_common_xml}       = $drbd_xml;
+			$anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk}       = 1;
+			$anvil->data->{new}{scan_drbd}{scan_drbd_flush_md}         = 1;
+			$anvil->data->{new}{scan_drbd}{scan_drbd_timeout}          = 6;		# Default is '60', 6 seconds
+			$anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed} = 0;
+			
+			foreach my $name ($dom->findnodes('/config/common/section'))
+			{
+				my $section = $name->{name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { section => $section }});
+				foreach my $option_name ($name->findnodes('./option'))
+				{
+					my $variable = $option_name->{name};
+					my $value    = $option_name->{value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:variable' => $variable, 
+						's2:value'    => $value,
+					}});
+
+					if ($section eq "net")
+					{
+						if ($variable eq "timeout")
+						{
+							$value /= 10;
+							$anvil->data->{new}{scan_drbd}{scan_drbd_timeout} = ($value / 10);
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"new::scan_drbd::scan_drbd_timeout" => $anvil->data->{new}{scan_drbd}{scan_drbd_timeout}, 
+							}});
+						}
+					}
+					if ($section eq "disk")
+					{
+						if ($variable eq "disk-flushes")
+						{
+							$anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk} = $value eq "no" ? 0 : 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"new::scan_drbd::scan_drbd_flush_disk" => $anvil->data->{new}{scan_drbd}{scan_drbd_flush_disk}, 
+							}});
+						}
+						if ($variable eq "md-flushes")
+						{
+							$anvil->data->{new}{scan_drbd}{scan_drbd_flush_md} = $value eq "no" ? 0 : 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"new::scan_drbd::scan_drbd_flush_md" => $anvil->data->{new}{scan_drbd}{scan_drbd_flush_md}, 
+							}});
+						}
+					}
+				}
+			}
+			
+			foreach my $name ($dom->findnodes('/config/resource'))
+			{
+				my $resource  =  $name->{name};
+				my $conf_file =  $name->{'conf-file-line'};
+				   $conf_file =~ s/:\d+$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:resource'  => $resource, 
+					's2:conf_file' => $conf_file,
+				}});
+				
+				$anvil->data->{new}{resource}{$resource}{up}          = 0;
+				$anvil->data->{new}{resource}{$resource}{xml}         = $name->toString;
+				$anvil->data->{new}{resource}{$resource}{config_file} = $conf_file;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"new::resource::${resource}::xml"         => $anvil->data->{new}{resource}{$resource}{xml},
+					"new::resource::${resource}::config_file" => $anvil->data->{new}{resource}{$resource}{config_file},
+				}});
+				
+				foreach my $host ($name->findnodes('./host'))
+				{
+					my $this_host_name = $host->{name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
+					
+					next if (($this_host_name ne $anvil->Get->host_name) && ($this_host_name ne $anvil->Get->short_host_name));
+					foreach my $volume_vnr ($host->findnodes('./volume'))
+					{
+						my $volume    = $volume_vnr->{vnr};
+						my $meta_disk = $volume_vnr->findvalue('./meta-disk');
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:volume'    => $volume,
+							's2:meta_disk' => $meta_disk, 
+						}});
+						
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}    = $volume_vnr->findvalue('./device');
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor}   = $volume_vnr->findvalue('./device/@minor');
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}           = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::volume::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path},
+							"s2:new::resource::${resource}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor},
+						}});
+					}
+				}
+				
+				foreach my $connection ($name->findnodes('./connection'))
+				{
+					my $peer = "";
+					foreach my $host ($connection->findnodes('./host'))
+					{
+						my $this_host_name = $host->{name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
+						
+						next if (($this_host_name eq $anvil->Get->host_name) or ($this_host_name eq $anvil->Get->short_host_name));
+						
+						$peer                                                                  = $this_host_name;
+						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host->findvalue('./address'); 
+						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host->findvalue('./address/@port');; 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
+							"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
+						}});
+						
+						if (not exists $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol})
+						{
+							$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol}        = "unknown";
+							$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing}         = "unknown";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"s1:new::resource::${resource}::peer::${peer}::protocol" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
+								"s2:new::resource::${resource}::peer::${peer}::fencing"  => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
+							}});
+						}
+						
+						foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+						{
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state}       = "disconnected";
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state}       = "down"; 
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state}        = "unknown"; 
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role}             = "down"; 
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role}              = "unknown"; 
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}       = -1; 
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed}      = 0;
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync} = 0; 
+						}
+					}
+					
+					foreach my $name ($connection->findnodes('./section'))
+					{
+						my $section = $name->{name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { section => $section }});
+						
+						foreach my $option_name ($name->findnodes('./option'))
+						{
+							my $variable = $option_name->{name};
+							my $value    = $option_name->{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								's1:variable' => $variable, 
+								's2:value'    => $value,
+							}});
+
+							if ($section eq "net")
+							{
+								if ($variable eq "protocol")
+								{
+									$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol} = $value;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+										"new::resource::${resource}::peer::${peer}::protocol" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
+									}});
+								}
+								if ($variable eq "fencing")
+								{
+									$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing} = $value;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+										"new::resource::${resource}::peer::${peer}::fencing" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
+									}});
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	# If DRBD is stopped, this directory won't exist.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"path::directories::resource_status" => $anvil->data->{path}{directories}{resource_status},
+	}});
+	if (-d $anvil->data->{path}{directories}{resource_status})
+	{
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $anvil->data->{path}{directories}{resource_status});
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file eq ".";
+			next if $file eq "..";
+			my $full_path = $anvil->data->{path}{directories}{resource_status}."/".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+			if (-d $full_path)
+			{
+				my $resource                                    = $file;
+				$anvil->data->{new}{resource}{$resource}{up} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"new::resource::${resource}::up" => $anvil->data->{new}{resource}{$resource}{up},
+				}});
+			}
+		}
+		closedir(DIRECTORY);
+	}
+
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"new::resource::${resource}::up" => $anvil->data->{new}{resource}{$resource}{up},
+		}});
+		
+		# If the resource isn't up, there's won't be a proc file to read.
+		next if not $anvil->data->{new}{resource}{$resource}{up};
+		
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { volume => $volume }});
+			
+			foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}})
+			{
+				my $proc_file = $anvil->data->{path}{directories}{resource_status}."/".$resource."/connections/".$peer."/".$volume."/proc_drbd";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
+				
+				my $file_body = $anvil->Storage->read_file({file => $proc_file});
+				my $progress  = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+				foreach my $line (split/\n/, $file_body)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+
+					if ($line =~ /cs:(.*?) /)
+					{
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state} = lc($1);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::connection_state" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state},
+						}});
+					}
+					if ($line =~ /ro:(.*?)\/(.*?) /)
+					{
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role} = lc($1);
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role}  = lc($2);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::local_role" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role},
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::peer_role"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role},
+						}});
+						
+						# If the peer is secondary, read the device size.
+						if ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role} eq "secondary")
+						{
+							# Get the size of the DRBD device.
+							my ($size, $return_code) = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{blockdev}." --getsize64 /dev/drbd".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor}});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								size        => $size, 
+								return_code => $return_code,
+							}});
+							if (not $return_code)
+							{
+								$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size} = $size;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									"new::resource::${resource}::volume::${volume}::size" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}}).")",
+								}});
+							}
+						}
+					}
+					if ($line =~ /ds:(.*?)\/(.*?) /)
+					{
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} = lc($1);
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state}  = lc($2); 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::local_disk_state" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state},
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::peer_disk_state"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state},
+						}});
+					}
+					if ($line =~ /oos:(\d+)/)
+					{
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size} = $1 * 1024;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::out_of_sync_size" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}}).")",
+						}});
+					}
+=cut
+ 0: cs:Established ro:Secondary/Secondary ds:Inconsistent/Inconsistent C r-----
+    ns:0 nr:0 dw:0 dr:0 al:0 bm:0 lo:0 pe:[0;0] ua:0 ap:[0;0] ep:1 wo:1 oos:0
+	resync: used:0/61 hits:0 misses:0 starving:0 locked:0 changed:0
+	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
+	blocked on activity log: 0/0/0
+
+ 0: cs:SyncTarget ro:Secondary/Primary ds:Inconsistent/UpToDate C r-----
+    ns:0 nr:648960 dw:648728 dr:0 al:0 bm:0 lo:4 pe:[0;1] ua:4 ap:[0;0] ep:1 wo:1 oos:20321476
+	[>....................] sync'ed:  3.2% (19844/20476)M
+	finish: 0:03:39 speed: 92,672 (92,936 -- 92,672) want: 2,880 K/sec
+	  3% sector pos: 1298032/41940408
+	resync: used:1/61 hits:31926 misses:10 starving:0 locked:0 changed:5
+	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
+	blocked on activity log: 0/0/0
+=cut
+					if ($line =~ /sync'ed:\s+(\d.*\%)/)
+					{
+						$progress .= $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { progress => $progress }});
+					}
+					if ($line =~ /speed: (.*?) \(/)
+					{
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} =  $1;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} =~ s/,//g;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed} *= 1024;
+						$anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}                                += $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed};
+						
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::volume::${volume}::peer::${peer}::replication_speed" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed}}).")",
+							"s2:new::scan_drbd::scan_drbd_total_sync_speed"                                      => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}}).")",
+						}});
+						   
+					}
+					if ($line =~ /finish: (\d+):(\d+):(\d+) /)
+					{
+						my $hours   = $1;
+						my $minutes = $2;
+						my $seconds = $3;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:hours'   => $hours,
+							's2:minutes' => $minutes,
+							's3:seconds' => $seconds,
+						}});
+						
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync} = (($hours * 3600) + ($minutes * 60) + $seconds);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"new::resource::${resource}::volume::${volume}::peer::${peer}::estimated_time_to_sync" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync}." (".$anvil->Convert->time({'time' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync}, long => 1, translate => 1}).")",
+						}});
+					}
+				}
+			}
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"new::scan_drbd::scan_drbd_total_sync_speed" => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}}).")",
+	}});
+	
+	return(0);
+}
+
 
 =head2 get_devices
 
@@ -571,8 +950,141 @@ sub get_next_resource
 	}});
 	
 	my $query = "
+SELECT 
+    scan_drbd_resource_host_uuid, 
+    scan_drbd_resource_name, 
+    scan_drbd_resource_xml 
+FROM 
+    scan_drbd_resources 
+WHERE 
+    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)." 
+OR 
+    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." ";
+	if ($dr1_host_uuid)
+	{
+		$query .= "
+OR 
+    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid)." ";
+	}
+	$query .= "
+ORDER BY 
+    scan_drbd_resource_name ASC
 ;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_drbd_resource_host_uuid = $row->[0];
+		my $scan_drbd_resource_name      = $row->[1];
+		my $scan_drbd_resource_xml       = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_drbd_resource_host_uuid => $scan_drbd_resource_host_uuid, 
+			scan_drbd_resource_name      => $scan_drbd_resource_name, 
+			scan_drbd_resource_xml       => $scan_drbd_resource_xml, 
+		}});
+		
+		next if $scan_drbd_resource_xml eq "DELETED";
+		
+		local $@;
+		my $dom = eval { XML::LibXML->load_xml(string => $scan_drbd_resource_xml); };
+		if ($@)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0111", variables => { 
+				xml_body   => $scan_drbd_resource_xml,
+				eval_error => $@,
+			}});
+			next;
+		}
+
+		# Successful parse!
+		foreach my $name ($dom->findnodes('/resource'))
+		{
+			my $resource = $name->{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+			
+			foreach my $host ($name->findnodes('./host'))
+			{
+				my $host_name = $host->{name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+				
+				foreach my $volume_vnr ($host->findnodes('./volume'))
+				{
+					my $volume = $volume_vnr->{vnr};
+					my $minor  = $volume_vnr->findvalue('./device/@minor');
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:host_name' => $host_name." \@ ".$resource."/".$volume,
+						's2:minor'     => $minor, 
+					}});
+					
+					$anvil->data->{drbd}{used_resources}{minor}{$minor}{used} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"drbd::used_resources::minor::${minor}::used" => $anvil->data->{drbd}{used_resources}{minor}{$minor}{used}, 
+					}});
+				}
+			}
+
+			foreach my $connection ($name->findnodes('./connection'))
+			{
+				foreach my $host ($connection->findnodes('./host'))
+				{
+					my $host_name = $host->{name};
+					my $tcp_port  = $host->findvalue('./address/@port');
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						host_name => $host_name,
+						tcp_port  => $tcp_port,
+					}});
+					
+					$anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"drbd::used_resources::tcp_port::${tcp_port}::used" => $anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used}, 
+					}});
+				}
+			}
+		}
+	}	
+	
+	my $looking    = 1;
+	   $free_minor = 0;
+	while($looking)
+	{
+		if (exists $anvil->data->{drbd}{used_resources}{minor}{$free_minor})
+		{
+			$free_minor++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
+		}
+		else
+		{
+			$looking = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+		}
+	}
+	
+	$looking   = 1;
+	$free_port = 7788;
+	while($looking)
+	{
+		if (exists $anvil->data->{drbd}{used_resources}{tcp_port}{$free_port})
+		{
+			$free_port += 3;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
+		}
+		else
+		{
+			$looking = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		free_minor => $free_minor,
+		free_port  => $free_port, 
+	}});
 	return($free_minor, $free_port);
 }
 
@@ -902,7 +1414,6 @@ sub manage_resource
 	}
 	
 	### TODO: Sanity check the resource name and task requested.
-	
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";
 	my $return_code = 255; 
@@ -993,7 +1504,7 @@ sub reload_defaults
 		return($return_code);
 	}
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0355"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => $debug, key => "log_0355"});
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
 	my $output      = "";
 	if ($anvil->Network->is_local({host => $target}))

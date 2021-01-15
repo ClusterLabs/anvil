@@ -1231,6 +1231,8 @@ sub host_name
 
 This takes a host UUID and returns the host name (as recorded in the C<< hosts >> table). If the entry is not found, an empty string is returned.
 
+ my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
+
 Parameters;
 
 =head3 host_uuid (required)

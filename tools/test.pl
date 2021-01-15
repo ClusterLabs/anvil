@@ -27,7 +27,7 @@ $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
 my $anvil_uuid = "a5ae5242-e9d3-46c9-9ce8-306855aa56db";
-my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({anvil_uuid => "a5ae5242-e9d3-46c9-9ce8-306855aa56db"})
+my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({anvil_uuid => "a5ae5242-e9d3-46c9-9ce8-306855aa56db"});
 print "Next free minor: [".$free_minor."], port: [".$free_port."]\n";
 
 $anvil->nice_exit({exit_code => 0});

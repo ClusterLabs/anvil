@@ -63,7 +63,7 @@ if (not $anvil->data->{sys}{database}{connections})
 if (not $anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
-	$anvil->data->{switches}{job_uuid} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
+	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
 }
 
@@ -119,12 +119,15 @@ sub run_jobs
 	my $storage_size       = "";
 	my $install_iso_uuid   = "";
 	my $driver_iso_uuid    = "";
+	my $drbd_minor         = "";
+	my $drbd_tcp_port      = "";
+	my $peer_mode          = 0;
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		if ($line =~ /server_name=(.*)$/)
 		{
-			$anvil_uuid = $1;
+			$server_name = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
 		}
 		if ($line =~ /cpu_cores=(.*)$/)
@@ -157,8 +160,25 @@ sub run_jobs
 			$driver_iso_uuid = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { driver_iso_uuid => $driver_iso_uuid }});
 		}
+		if ($line =~ /peer_mode=true$/)
+		{
+			# We'll ONLY setup our DRBD resource, nothing else.
+			$peer_mode = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_mode => $peer_mode }});
+		}
+		if ($line =~ /drbd_minor=(.*)$/)
+		{
+			$drbd_minor = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_minor => $drbd_minor }});
+		}
+		if ($line =~ /drbd_tcp_port=(.*)$/)
+		{
+			$drbd_tcp_port = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_tcp_port => $drbd_tcp_port }});
+		}
 	}
 	
+	# We need a server name and storage group UUID regardless of which mode we're in.
 	if (not $server_name)
 	{
 		$anvil->Job->update_progress({
@@ -167,79 +187,6 @@ sub run_jobs
 			job_status => "failed", 
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0187", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
-	# Is the server name unique?
-	$anvil->Database->get_servers();
-	if (exists $anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name})
-	{
-		# Duplicate name
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0198,!!server_name!".$server_name."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $server_name }});
-		$anvil->nice_exit({exit_code => 1});
-	}
-
-	if (not $cpu_cores)
-	{
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0188,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0188", variables => { 
-			server_name => $server_name, 
-			job_uuid    => $anvil->data->{switches}{'job-uuid'},
-		}});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	elsif ($cpu_cores > $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads})
-	{
-		# Too many cores requested
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0189,!!server_name!".$server_name."!!,!!available_cores!".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."!!,!!requested_cores!".$cpu_cores."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0189", variables => { 
-			server_name     => $server_name, 
-			available_cores => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}, 
-			requested_cores => $cpu_cores, 
-		}});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	if (not $ram)
-	{
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0190,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0190", variables => { 
-			server_name => $server_name, 
-			job_uuid    => $anvil->data->{switches}{'job-uuid'},
-		}});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	elsif ($ram > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available})
-	{
-		# Too many cores requested
-		my $say_available_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")";
-		my $say_requested_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram})." (".$anvil->Convert->add_commas({number => $ram}).")"; 
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0191,!!server_name!".$server_name."!!,!!available_ram!".$say_available_ram."!!,!!requested_ram!".$say_requested_ram."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0191", variables => { 
-			server_name   => $server_name, 
-			available_ram => $say_available_ram, 
-			requested_ram => $say_requested_ram, 
-		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	if (not $storage_group_uuid)
@@ -268,73 +215,629 @@ sub run_jobs
 		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	if ($storage_size > $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size})
+	
+	# If we're the peer, there's only a few things we need to check.
+	if ($peer_mode)
 	{
-		my $say_available_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")";
-		my $say_requested_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_size})." (".$anvil->Convert->add_commas({number => $storage_size}).")";
-		my $say_storage_group  = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0194,!!server_name!".$server_name."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0194", variables => { 
-			server_name   => $server_name, 
-			available_size => $say_available_size, 
-			requested_size => $say_requested_size, 
-			storage_group  => $say_storage_group, 
-		}});
-		$anvil->nice_exit({exit_code => 1});
+		# The server should already exist on the peer. All we need to do is create our LV, create the
+		# DRBD resource, bring the resource up, and save the XML definition file.
 	}
-	if (not $install_iso_uuid)
+	else
 	{
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0195,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0195", variables => { 
-			server_name => $server_name, 
-			job_uuid    => $anvil->data->{switches}{'job-uuid'},
-		}});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	my $install_iso = $anvil->data->{files}{file_uuid}{$install_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$install_iso_uuid}{file_name};
-	if (not -e $install_iso)
-	{
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0196,!!server_name!".$server_name."!!,!!install_iso!".$install_iso."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0196", variables => { 
-			server_name => $server_name, 
-			install_iso => $install_iso,
-		}});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	# Driver disc is optional.
-	if ($driver_iso_uuid)
-	{
-		my $driver_iso = $anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_name};
-		if (not -e $driver_iso)
+		# Is the server name unique?
+		$anvil->Database->get_servers();
+		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name})
+		{
+			# Duplicate name
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0198,!!server_name!".$server_name."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $server_name }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		if (not $cpu_cores)
 		{
 			$anvil->Job->update_progress({
 				progress   => 100,
-				message    => "error_0197,!!server_name!".$server_name."!!,!!driver_iso!".$driver_iso."!!", 
+				message    => "error_0188,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0197", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0188", variables => { 
 				server_name => $server_name, 
-				driver_iso => $driver_iso,
+				job_uuid    => $anvil->data->{switches}{'job-uuid'},
 			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		elsif ($cpu_cores > $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads})
+		{
+			# Too many cores requested
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0189,!!server_name!".$server_name."!!,!!available_cores!".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."!!,!!requested_cores!".$cpu_cores."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0189", variables => { 
+				server_name     => $server_name, 
+				available_cores => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}, 
+				requested_cores => $cpu_cores, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if (not $ram)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0190,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0190", variables => { 
+				server_name => $server_name, 
+				job_uuid    => $anvil->data->{switches}{'job-uuid'},
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		elsif ($ram > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available})
+		{
+			# Too many cores requested
+			my $say_available_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")";
+			my $say_requested_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram})." (".$anvil->Convert->add_commas({number => $ram}).")"; 
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0191,!!server_name!".$server_name."!!,!!available_ram!".$say_available_ram."!!,!!requested_ram!".$say_requested_ram."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0191", variables => { 
+				server_name   => $server_name, 
+				available_ram => $say_available_ram, 
+				requested_ram => $say_requested_ram, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		if (not $install_iso_uuid)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0195,!!server_name!".$server_name."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0195", variables => { 
+				server_name => $server_name, 
+				job_uuid    => $anvil->data->{switches}{'job-uuid'},
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		my $install_iso = $anvil->data->{files}{file_uuid}{$install_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$install_iso_uuid}{file_name};
+		if (not -e $install_iso)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0196,!!server_name!".$server_name."!!,!!install_iso!".$install_iso."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0196", variables => { 
+				server_name => $server_name, 
+				install_iso => $install_iso,
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		# Driver disc is optional.
+		if ($driver_iso_uuid)
+		{
+			my $driver_iso = $anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_name};
+			if (not -e $driver_iso)
+			{
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0197,!!server_name!".$server_name."!!,!!driver_iso!".$driver_iso."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0197", variables => { 
+					server_name => $server_name, 
+					driver_iso => $driver_iso,
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+	}
+
+	# Read in VG information;
+	my $problem = $anvil->Storage->get_storage_group_details({
+		debug              => 2, 
+		storage_group_uuid => $storage_group_uuid, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Failed to collect storage group data.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0199,!!storage_group_uuid!".$storage_group_uuid."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0197", variables => { storage_group_uuid => $storage_group_uuid }});
+		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	# Still alive? Ready to go!
-	my $drbd_minor = $anvil->DRBD->get_next_resource({})
+	if ((($drbd_minor eq "") or ($drbd_tcp_port eq "")) && (not $peer_mode))
+	{
+		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({anvil_uuid => $anvil_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			free_minor => $free_minor,
+			free_port  => $free_port, 
+		}});
+		
+		if ($drbd_minor eq "")
+		{
+			$drbd_minor = $free_minor;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_minor => $drbd_minor }});
+		}
+		if ($drbd_tcp_port eq "")
+		{
+			$drbd_tcp_port = $free_port;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_tcp_port => $drbd_tcp_port }});
+		}
+	}
 	
+	# If we don't have a DRBD minor or TCP port, we're stuck.
+	if (($drbd_minor eq "") or ($drbd_tcp_port eq ""))
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0200", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0200"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Sanity checks passed
+	$anvil->Job->update_progress({
+		progress   => 10,
+		message    => "job_0185", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0185"});
+	
+	# Who is our peer?
+	$anvil->Database->get_anvils();
+	my $host_uuid       = $anvil->Get->host_uuid();
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $peer_host_uuid  = $host_uuid eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	my $peer_name       = $anvil->Get->host_name_from_uuid({host_uuid => $peer_host_uuid});
+	my $short_host_name = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid       => $host_uuid,
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+		peer_host_uuid  => $peer_host_uuid, 
+		peer_name       => $peer_name, 
+		short_host_name => $short_host_name, 
+	}});
+	
+	# If we're not the peer, create the peer's job.
+	if (not $peer_mode)
+	{
+		my $job_data   =  $anvil->data->{jobs}{job_data}."\n";
+		   $job_data   .= "peer_mode=true\n";
+		   $job_data   .= "drbd_minor=".$drbd_minor."\n";
+		   $job_data   .= "drbd_tcp_port=".$drbd_tcp_port."\n";
+		my ($job_uuid) =  $anvil->Database->insert_or_update_jobs({
+			debug           => 2, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}, 
+			job_data        => $job_data, 
+			job_name        => "server::provision", 
+			job_title       => "job_0147", 
+			job_description => "job_0148", 
+			job_progress    => 0,
+			job_host_uuid   => $peer_host_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		$anvil->Job->update_progress({
+			progress => 20,
+			message  => "job_0188,!!job_uuid!".$job_uuid."!!,!!peer_name!".$peer_name."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0188", variables => {
+			job_uuid  => $job_uuid, 
+			peer_name => $peer_name, 
+		}});
+	}
+	
+	# Report the DRBD minor and TCP port that we'll use.
+	$anvil->Job->update_progress({
+		progress => 30,
+		message  => "job_0186,!!minor!".$drbd_minor."!!,!!port!".$drbd_tcp_port."!!", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0186", variables => {
+		minor => $drbd_minor, 
+		port  => $drbd_tcp_port, 
+	}});
+	
+	# We convert to extents as it ensure clean boundaries and, being based on bytes in both cases, gets 
+	# us as close as we can to what the user asked for. The 'int()' always rounds down, so we don't ever 
+	# ask for one more extent than is available by accident.
+	my $vg_name      = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name};
+	my $extent_size  = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_extent_size};
+	my $extent_count = int($storage_size / $extent_size);
+	my $lv_path      = "/dev/".$vg_name."/".$server_name."_0";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		vg_name      => $vg_name, 
+		extent_size  => $extent_size, 
+		extent_count => $extent_count, 
+		lv_path      => $lv_path, 
+	}});
+	
+	# We need the peer's LVM path for the DRBD config.
+	my $peer_vg_name = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$peer_host_uuid}{vg_name};
+	my $peer_lv_path = "/dev/".$peer_vg_name."/".$server_name."_0";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_lv_path => $peer_lv_path }});
+	
+	# If the LV exists, we won't initialize the DRBD resource. If the LV exists but isn't a DRBD backing 
+	# device, this will cause the resource to not come up, but it's better than risking data loss.
+	my $initialize_drbd = 1;
+	if (-e $lv_path)
+	{
+		# Don't create and don't initialize.
+		$initialize_drbd = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { initialize_drbd => $initialize_drbd }});
+		
+		# Tell the user this might be an issue.
+		$anvil->Job->update_progress({
+			progress => 40,
+			message  => "job_0187,!!lv_path!".$lv_path."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0187", variables => { lv_path => $lv_path }});
+	}
+	else
+	{
+		# Make sure we have enough space.
+		if ($storage_size > $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size})
+		{
+			my $say_available_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")";
+			my $say_requested_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_size})." (".$anvil->Convert->add_commas({number => $storage_size}).")";
+			my $say_storage_group  = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0194,!!server_name!".$server_name."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0194", variables => { 
+				server_name    => $server_name, 
+				available_size => $say_available_size, 
+				requested_size => $say_requested_size, 
+				storage_group  => $say_storage_group, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Create the LV.
+		my $shell_call = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$server_name."_0 ".$vg_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		if (not -e $lv_path)
+		{
+			# Something went wrong.
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0201,!!lv_path!".$lv_path."!!,!!lv_create!".$shell_call."!!,!!return_code!".$return_code."!!,!!output!".$output."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0201", variables => { 
+				lv_path     => $lv_path, 
+				lv_create   => $shell_call, 
+				return_code => $return_code, 
+				output      => $output, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Report 
+		$anvil->Job->update_progress({
+			progress => 35,
+			message  => "job_0189,!!lv_path!".$lv_path."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0189", variables => { lv_path => $lv_path }});
+	}
+	
+	# Create the resource config file now.
+	$anvil->Database->get_hosts();
+	my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		node1_short_host_name => $node1_short_host_name,
+		node2_short_host_name => $node2_short_host_name,
+	}});
+	
+	# Load the IPs so we can find which SN network and IPs to use 
+	my $node1_sn_ip = "";
+	my $node2_sn_ip = "";
+	my $sn_network  = "";
+	$anvil->Network->load_ips({host => $node1_short_host_name, host_uuid => $node1_host_uuid});
+	$anvil->Network->load_ips({host => $node2_short_host_name, host_uuid => $node2_host_uuid});
+	my $match = $anvil->Network->find_matches({
+		first  => $node1_short_host_name,
+		second => $node2_short_host_name, 
+	});
+	my $matched_ips = keys %{$match};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matched_ips => $matched_ips }});
+	foreach my $interface (sort {$a cmp $b} keys %{$match->{$node1_short_host_name}})
+	{
+		if ($interface =~ /sn/)
+		{
+			### TODO: This always chooses SN1 at this time, we need to support (later) VM 
+			###       build-time SN selection when 2+ SNs exist.
+			# Found an SN.
+			$sn_network  = uc(($interface =~ /^(sn\d+)_/)[0]);
+			$node1_sn_ip = $match->{$node1_short_host_name}{$interface}{ip};
+			$node2_sn_ip = $match->{$node2_short_host_name}{$interface}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				sn_network  => $sn_network, 
+				node1_sn_ip => $node1_sn_ip, 
+				node2_sn_ip => $node2_sn_ip, 
+			}});
+		}
+	}
+	
+	# Node 1 and Node 2 are set independent of which node we have.
+	my $node1_lv_path = "";
+	my $node2_lv_path = "";
+	if ($host_uuid eq $node1_host_uuid)
+	{
+		# We're node 1
+		$node1_lv_path = $lv_path;
+		$node2_lv_path = $peer_lv_path;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			node1_lv_path => $node1_lv_path,
+			node2_lv_path => $node2_lv_path,
+		}});
+	}
+	else
+	{
+		# We're node 2
+		$node1_lv_path = $peer_lv_path;
+		$node2_lv_path = $lv_path;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			node1_lv_path => $node1_lv_path,
+			node2_lv_path => $node2_lv_path,
+		}});
+	}
+	
+	my $drbd_res_body = $anvil->Words->string({key => "file_0001", variables => {
+		server           => $server_name, 
+		minor            => $drbd_minor, 
+		tcp_port         => $drbd_tcp_port, 
+		sn_network       => $sn_network,
+		node1_sn_ip      => $node1_sn_ip,
+		node2_sn_ip      => $node2_sn_ip, 
+		node1_short_name => $node1_short_host_name, 
+		node2_short_name => $node2_short_host_name, 
+		node1_lv_path    => $node1_lv_path, 
+		node2_lv_path    => $node2_lv_path, 
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
+	
+	# Write the file, then call drbdadm to validate it.
+	my $drbd_res_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
+	   $drbd_res_file =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
+	
+	$problem = $anvil->Storage->write_file({
+		overwrite => 1, 
+		backup    => 1,
+		file      => $drbd_res_file, 
+		body      => $drbd_res_body, 
+		mode      => "0644",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
+	if (not -e $drbd_res_file)
+	{
+		# Failed to write the config file.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0202,!!drbd_res_file!".$drbd_res_file."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0202", variables => { drbd_res_file => $drbd_res_file }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Call drbdadm and verify it's good.
+	$problem = $anvil->DRBD->gather_data({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+
+	if ((not exists $anvil->data->{new}{resource}{$server_name}) or ($anvil->data->{new}{resource}{$server_name}{config_file} ne $drbd_res_file))
+	{
+		# Failed to load the resource.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0203,!!drbd_res_file!".$drbd_res_file."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0203", variables => { drbd_res_file => $drbd_res_file }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { initialize_drbd => $initialize_drbd }});
+	if ($initialize_drbd)
+	{
+		# Create the DRBD metadata
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." -- --force create-md ".$server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		### Return codes
+		# 0 == Success
+		# 3 == Configuration not found.
+		if ($return_code eq "3")
+		{
+			# Metadata creation failed.
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0204,!!return_code!".$return_code."!!,!!output!".$output."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0204", variables => { 
+				return_code => $return_code,
+				output      => $output, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0579", variables => { resource => $server_name }});
+	}
+	
+	# Check to see if the resource needs to be started. It almost always will.
+	$anvil->DRBD->get_status();
+	my $startup_needed = 1;
+	
+	# Is the current resource up locally already? If it is, we're done. 
+	my $role = defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{role} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{role} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server => $server_name, 
+		role   => $role,
+	}});
+	
+	if ((lc($role) ne "secondary") && (lc($role) ne "primary"))
+	{
+		$startup_needed = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
+	}
+	else
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0434", variables => { 
+			resource => $server_name,
+			role     => $role, 
+		}});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
+	if (not $startup_needed)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0431"});
+	}
+	else
+	{
+		# Bring the drbd resource up.
+		$anvil->DRBD->manage_resource({
+			debug    => 2,
+			resource => $server_name, 
+			task     => "up",
+		});
+		
+		my $waiting = 1;
+		while($waiting)
+		{
+			# Reload the DRBD data 
+			$anvil->DRBD->get_status();
+			
+			my $all_ready = 1;
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{devices}{volume}})
+			{
+				my $disk_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{devices}{volume}{$volume}{'disk-state'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:short_host_name' => $short_host_name, 
+					's2:server_name'     => $server_name, 
+					's3:volume'          => $volume, 
+					's4:disk_state'      => $disk_state,
+				}});
+				
+				# Is the peer isn't connected (directly or by being in Sync), or this volume 
+				# isn't UpToDate, we need to keep waiting.
+				if ((lc($disk_state) ne "uptodate")   && 
+				    (lc($disk_state) ne "consistent") && 
+				    (lc($disk_state) ne "outdated")   && 
+				    (lc($disk_state) ne "inconsistent"))
+				{
+					$all_ready = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
+				}
+				
+				# If we're not initializing DRBD, we'll wait until we're uptodate.
+				if (not $initialize_drbd)
+				{
+					if (lc($disk_state) eq "diskless")
+					{
+						# This happens when the LV existed but there's no meta-data.
+						$anvil->Job->update_progress({
+							progress   => 100,
+							message    => "error_0206,!!resource!".$server_name."!!", 
+							job_status => "failed", 
+						});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0206", variables => { resource => $server_name }});
+						$anvil->nice_exit({exit_code => 1});
+					}
+					if (lc($disk_state) ne "uptodate")
+					{
+						# Log why we're waiting.
+						$all_ready = 0;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0578", variables => { resource => $server_name }});
+					}
+				}
+				
+				# If we're initializing and the resource is 'Inconsistent', force the resource to primary
+				if (($initialize_drbd) && (lc($disk_state) eq "inconsistent"))
+				{
+					# Create the DRBD metadata
+					my $shell_call = $anvil->data->{path}{exe}{drbdadm}." primary ".$server_name." --force";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
+					# Return code of '0' is success.
+					if ($return_code)
+					{
+						# Failed to promote
+						$anvil->Job->update_progress({
+							progress   => 100,
+							message    => "error_0205,!!return_code!".$return_code."!!,!!output!".$output."!!", 
+							job_status => "failed", 
+						});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0205", variables => { 
+							return_code => $return_code,
+							output      => $output, 
+						}});
+						$anvil->nice_exit({exit_code => 1});
+					}
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0580", variables => { resource => $server_name }});
+					
+					### TODO: Should we demote it again? For now, no.
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
+			if ($all_ready)
+			{
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+			
+			if ($waiting)
+			{
+				sleep 1;
+			}
+		}
+	}
+	
+	# If we're here, we can finally craft the 'virt-install' call!.
+
 	return(0);
 }
 

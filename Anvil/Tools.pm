@@ -1048,12 +1048,14 @@ sub _set_paths
 				anvil				=>	"/etc/anvil",
 				backups				=>	"/root/anvil-backups",
 				'cgi-bin'			=>	"/var/www/cgi-bin",
+				drbd_resources			=>	"/etc/drbd.d/",
 				fence_agents			=>	"/usr/sbin",
 				firewalld_services		=>	"/usr/lib/firewalld/services",
 				firewalld_zones_etc		=>	"/etc/firewalld/zones",		# Changes when firewall-cmd ... --permanent is used.
 				firewalld_zones			=>	"/usr/lib/firewalld/zones",
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
+				resource_status			=>	"/sys/kernel/debug/drbd/resources",
 				scan_agents			=>	"/usr/sbin/scancore-agents",
 				shared				=>	{
 					archives			=>	"/mnt/shared/archives",
@@ -1135,6 +1137,7 @@ sub _set_paths
 				ls				=>	"/usr/bin/ls",
 				lsblk				=>	"/usr/bin/lsblk",
 				lvchange			=>	"/usr/sbin/lvchange",
+				lvcreate			=>	"/usr/sbin/lvcreate",
 				lvs				=>	"/usr/sbin/lvs", 
 				lvscan				=>	"/usr/sbin/lvscan", 
 				mailx				=>	"/usr/bin/mailx",

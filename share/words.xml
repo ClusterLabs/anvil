@@ -271,6 +271,64 @@ The error was:
 		<key name="error_0196">The install disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		<key name="error_0197">The driver disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		<key name="error_0198">The new server's name: [#!variable!server_name!#] is already in use. Has this job already run?</key>
+		<key name="error_0199">The storage group UUID: [#!variable!storage_group_uuid!#] wasn't found in the database.</key>
+		<key name="error_0200">The new DRBD resource will need a "minor" number and a TCP port. One or both are not provided or are invalid.</key>
+		<key name="error_0201">Failed to create the logical volume: [#!variable!lv_path!#]. Without this, we can't create the replicated storage backing the server, aborting.
+Command: ... [#!variable!lv_create!#] 
+Return Code: [#!variable!return_code!#]
+Output (if any):
+====
+#!variable!output!#
+====
+</key>
+		<key name="error_0202">Failed to write the DRBD resource file: [#!variable!drbd_res_file!#]. The cause of the failure should be in the logs.</key>
+		<key name="error_0203">Failed to load the DRBD resource file: [#!variable!drbd_res_file!#]. Tried dumping the new DRBD config and the file new resource wasn't found.</key>
+		<key name="error_0204">It appears that creating the DRBD meta data on the new logic volume(s) failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
+		<key name="error_0205">It appears that the initial forced primary role to initialize the new DRBD resource failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
+		<key name="error_0206">The logical volume behind the resource: [#!variable!resource!#] existed, and started the resource has the disk state 'diskless'. This is likely because the LV doesn't have DRBD meta-data. We can't (safely) create it. Please either remove the LV backing this resource or create the meta data manually.</key>
+		
+		<!-- Files templates -->
+		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
+		<!--       comments and which are command lines that can't be changed! -->
+		<key name="file_0001"><![CDATA[# Resource for #!variable!server!#
+resource #!variable!server!# {
+	on #!variable!node1_short_name!# {
+		node-id 0;
+		volume 0 {
+			device    /dev/drbd_#!variable!server!#_0 minor #!variable!minor!#;
+			disk      #!variable!node1_lv_path!#;
+			meta-disk internal;
+		}
+	}
+	
+	on #!variable!node2_short_name!# {
+		node-id 1;
+		volume 0 {
+			device    /dev/drbd_#!variable!server!#_0 minor #!variable!minor!#;
+			disk      #!variable!node2_lv_path!#;
+			meta-disk internal;
+		}
+	}
+	
+	### NOTE: Remember to open the appropriate firewall port!
+	# firewall-cmd --zone=#!variable!sn_network!# --permanent --add-port=#!variable!tcp_port!#/tcp --permanent
+	# firewall-cmd --zone=#!variable!sn_network!# --permanent --add-port=#!variable!tcp_port!#/tcp
+
+	connection {
+		host  #!variable!node1_short_name!#  address  #!variable!node1_sn_ip!#:#!variable!tcp_port!#;
+		host  #!variable!node2_short_name!#  address  #!variable!node2_sn_ip!#:#!variable!tcp_port!#;
+		disk {
+			# Without this, the variable bit rate caps at 100 MiB/sec, and most deployments are
+			# 10 Gbps. So this lets the variable rate climb to 500 MiB/sec
+			c-max-rate 500M;
+		}
+		net {
+			protocol  C;
+                	fencing resource-and-stonith;
+		}
+	}
+}
+]]></key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -527,6 +585,11 @@ Job Data:
 ====</key>
 		<key name="job_0184">The job to create the new server has been registered as job: [#!variable!job_uuid!#].
 It should be provisioned in the next minute or two.</key>
+		<key name="job_0185">Sanity checks complete.</key>
+		<key name="job_0186">The new DRBD resource will use minor number: [#!variable!minor!#] and the base TCP port: [#!variable!port!#].</key>
+		<key name="job_0187">[ Warning ] - The logical volume: [#!variable!lv_path!#] to use for this server already exists. We will NOT initialize it! If the LV does not have DRBD metadata, the server install will fail. If the LV is a DRBD resource, and it is inconsistent or outdated, provisioning will stall until the peer comes online. If the install fails, please determine why (or remove the existing LV) and try again.</key>
+		<key name="job_0188">The peer job: [#!variable!job_uuid!#] has been created for the peer: [#!variable!peer_name!#] to create it's side of the storage.</key>
+		<key name="job_0189">The new logical volume: [#!variable!lv_path!#] has been created. This will back the replicated storage used for the new server.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1198,6 +1261,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
 		<key name="log_0577">The job: [#!variable!job_uuid!#] was assigned to our Anvil! and this is the primary node. Assigning the job to this machine.</key>
+		<key name="log_0578">The LV(s) behind the resource: [#!variable!resource!#] already existed, and the DRBD resource is not in the disk state 'UpToDate'. As such, we'll keep waiting before provisioning the server.</key>
+		<key name="log_0579">The LV(s) behind the resource: [#!variable!resource!#] have had their DRBD metadata created successfully.</key>
+		<key name="log_0580">The LV(s) behind the resource: [#!variable!resource!#] have been forced to primary to initialize the resource.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

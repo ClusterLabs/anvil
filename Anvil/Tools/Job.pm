@@ -370,8 +370,8 @@ AND
 	if ($count == 1)
 	{
 		# Found it
-		$job_uuid                      = defined $results->[0]->[0] ? $results->[0]->[0] : "";
-		$anvil->data->{jobs}{job_uuid} = $job_uuid;
+		$job_uuid                        = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->data->{jobs}{'job-uuid'} = $job_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			job_uuid         => $job_uuid, 
 			"jobs::job-uuid" => $anvil->data->{jobs}{'job-uuid'},

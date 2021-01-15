@@ -22,6 +22,7 @@ my $THIS_FILE = "Storage.pm";
 # copy_file
 # find
 # get_file_stats
+# get_storage_group_details
 # make_directory
 # move_file
 # parse_lsblk
@@ -1450,6 +1451,120 @@ sub get_file_stats
 		"s17:file_stat::${file_path}::mimetype"           => $anvil->data->{file_stat}{$file_path}{mimetype},
 	}});
 
+	return(0);
+}
+
+
+=head2 get_storage_group_details
+
+This takes a C<< storage_group_uuid >> and loads information about members into the following hash;
+
+ storage_groups::storage_group_uuid::<storage_group_uuid>::storage_group_name
+ storage_groups::storage_group_uuid::<storage_group_uuid>::host_uuid::<host_uuid>::vg_internal_uuid
+ storage_groups::storage_group_uuid::<storage_group_uuid>::host_uuid::<host_uuid>::vg_name
+ storage_groups::storage_group_uuid::<storage_group_uuid>::host_uuid::<host_uuid>::vg_size
+ storage_groups::storage_group_uuid::<storage_group_uuid>::host_uuid::<host_uuid>::vg_free
+
+On success, C<< 0 >> is returned. On failure, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 storage_group_uuid (required)
+
+This is the specific C<< storage_groups >> -> C<< storage_group_uuid >> that we're loading data about.
+
+=cut
+sub get_storage_group_details
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->get_storage_group_details()" }});
+	
+	my $storage_group_uuid = defined $parameter->{storage_group_uuid} ? $parameter->{storage_group_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		storage_group_uuid => $storage_group_uuid,
+	}});
+	
+	if (not $storage_group_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->get_storage_group_details()", parameter => "storage_group_uuid" }});
+		return('!!error!!');
+	}
+	
+	my $query = "
+SELECT 
+    a.storage_group_name, 
+    b.storage_group_member_vg_uuid, 
+    c.scan_lvm_vg_name, 
+    c.scan_lvm_vg_size, 
+    c.scan_lvm_vg_free, 
+    c.scan_lvm_vg_extent_size, 
+    c.scan_lvm_vg_host_uuid 
+FROM 
+    storage_groups a, 
+    storage_group_members b, 
+    scan_lvm_vgs c 
+WHERE 
+    a.storage_group_uuid = b.storage_group_member_storage_group_uuid 
+AND 
+    b.storage_group_member_vg_uuid = c.scan_lvm_vg_internal_uuid 
+AND 
+    a.storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	
+	if (not $count)
+	{
+		# Group not found.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0199", variables => { storage_group_uuid => $storage_group_uuid }});
+		return('!!error!!');
+	}
+	
+	foreach my $row (@{$results})
+	{
+		my $storage_group_name = $row->[0];
+		my $vg_internal_uuid   = $row->[1];
+		my $vg_name            = $row->[2];
+		my $vg_size            = $row->[3];
+		my $vg_free            = $row->[4];
+		my $vg_extent_size     = $row->[5];
+		my $host_uuid          = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			storage_group_name => $storage_group_name, 
+			vg_internal_uuid   => $count, 
+			vg_name            => $vg_name, 
+			vg_size            => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
+			vg_free            => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")", 
+			vg_extent_size     => $vg_extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_extent_size}).")", 
+			host_uuid          => $host_uuid, 
+		}});
+		
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_name}                      = $storage_group_name;
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid} = $vg_internal_uuid;
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name}          = $vg_name;
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size}          = $vg_size;
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free}          = $vg_free;
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_extent_size}   = $vg_extent_size;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::storage_group_name"                        => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_name}, 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::host_uuid::${host_uuid}::vg_internal_uuid" => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid}, 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::host_uuid::${host_uuid}::vg_name"          => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name}, 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::host_uuid::${host_uuid}::vg_size"          => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size}}).")", 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::host_uuid::${host_uuid}::vg_free"          => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free}}).")", 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::host_uuid::${host_uuid}::vg_extent_size"   => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_extent_size}}).")", 
+		}});
+	}
+	
 	return(0);
 }
 
