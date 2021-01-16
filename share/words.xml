@@ -286,6 +286,7 @@ Output (if any):
 		<key name="error_0204">It appears that creating the DRBD meta data on the new logic volume(s) failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
 		<key name="error_0205">It appears that the initial forced primary role to initialize the new DRBD resource failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
 		<key name="error_0206">The logical volume behind the resource: [#!variable!resource!#] existed, and started the resource has the disk state 'diskless'. This is likely because the LV doesn't have DRBD meta-data. We can't (safely) create it. Please either remove the LV backing this resource or create the meta data manually.</key>
+		<key name="error_0207">Failed to make the resource: [#!variable!resource!#] disk state to 'UpToDate'. After attempt, the disk state is: [#!variable!disk_state!#].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
