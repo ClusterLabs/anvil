@@ -214,7 +214,7 @@ sub key
 		}
 	}
 	
-	if ($string eq "#!not_found!")
+	if ($string eq "#!not_found!#")
 	{
 		print $THIS_FILE." ".__LINE__."; [ Error ] - Failed to find the string key: [".$key."]!!\n" if $test;
 	}

@@ -905,6 +905,12 @@ sub _set_defaults
 				node				=>	["rhel-8-for-x86_64-highavailability-rpms"],
 			},
 		},
+		servers				=>	{
+			# This is the list of OSes short in the user's short list of OS types to 
+			# optimize for. The full the list is available by running: 
+			# /usr/bin/osinfo-query os
+			os_short_list			=>	"rhel5.11, rhel6.10, rhel7.9, rhel8.3, win10, win2k16, win2k19",
+		},
 		terminal			=>	{
 			columns				=>	80,
 			stty				=>	"",
@@ -1149,6 +1155,7 @@ sub _set_paths
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",
 				openssl				=>	"/usr/bin/openssl", 
+				'osinfo-query'			=>	"/usr/bin/osinfo-query",
 				passwd				=>	"/usr/bin/passwd",
 				pcs				=>	"/usr/sbin/pcs",
 				perccli64			=>	"/opt/MegaRAID/perccli/perccli64",
