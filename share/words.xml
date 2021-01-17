@@ -287,6 +287,12 @@ Output (if any):
 		<key name="error_0205">It appears that the initial forced primary role to initialize the new DRBD resource failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
 		<key name="error_0206">The logical volume behind the resource: [#!variable!resource!#] existed, and started the resource has the disk state 'diskless'. This is likely because the LV doesn't have DRBD meta-data. We can't (safely) create it. Please either remove the LV backing this resource or create the meta data manually.</key>
 		<key name="error_0207">Failed to make the resource: [#!variable!resource!#] disk state to 'UpToDate'. After attempt, the disk state is: [#!variable!disk_state!#].</key>
+		<key name="error_0208">No operating system type was found for the server: [#!variable!server_name!#] in the job: [#!variable!job_uuid!#].</key>
+		<key name="error_0209">The call to create the server appears to have failed. The attempt to parse the server's definition failed. The command was run as a background process so exact error details are not available here. Please check the logs for more details. The call used to create the server was:
+====
+#!variable!shell_call!#
+====</key>
+		<key name="error_0210">The call to create the new server appears to have failed. It hasn't shown up as running after 10 seconds. The status, if any, was last seen as: [#!variable!status!#].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -600,6 +606,15 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0196">-=] OS Short List</key>
 		<key name="job_0197">* Please enter an OS key that is closest to your target OS. Run 'osinfo-query os' for a full list.</key>
 		<key name="job_0198">Optimize for: .. [#!variable!os!#]</key>
+		<key name="job_0199">Ready to provision the server! Please be patient, this could take a moment. The call to create the server will be:
+====
+#!variable!shell_call!#
+====</key>
+		<key name="job_0200">Provision call made, waiting for the server to start...</key>
+		<key name="job_0201">Started! Verifying that it looks good and adding it to the database.</key>
+		<key name="job_0202">Done! The server should now be booting. Connect now and finish the OS install.</key>
+		<key name="job_0203">The resource: [#!variable!resource!#] is now up.</key>
+		<key name="job_0204">We're the peer for this new server, and so we're now done. The other node will complete the server's install momentarily.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

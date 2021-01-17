@@ -255,7 +255,19 @@ sub run_jobs
 	startup_resource($anvil);
 	
 	# If we're here, we can finally craft the 'virt-install' call!.
-	provision_server($anvil);
+	if ($anvil->data->{job}{peer_mode})
+	{
+		# The peer is done, it'll pick up the XML definition when ScanCore runs 
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "job_0204", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0204"});
+	}
+	else
+	{
+		provision_server($anvil);
+	}
 
 	return(0);
 }
@@ -265,8 +277,183 @@ sub provision_server
 {
 	my ($anvil) = @_;
 	
-	my $shell_call = "";
+	# The logic behind this is explained here: https://libvirt.org/formatdomain.html#elementsTime
+	my $server       = $anvil->data->{job}{server_name};
+	my $clock_offset = $anvil->data->{job}{os} =~ /win/i ? "localtime" : "utc";
+	my $say_memory   =  sprintf("%.0f", ($anvil->data->{job}{ram} /= (2 ** 20)));
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		clock_offset => $clock_offset,
+		say_memory   => $say_memory,
+	}});
 	
+	### TODO: Support user-selected IFN. For now, we hard-code it to 'ifn_bridge1'
+	###       Support disk images (ie: sysprep) via '--import'. The device used for booting is the first device specified via "--disk"
+	###       Consider support for TPM, RNG and watchdog devices
+	my $shell_call =  $anvil->data->{path}{exe}{'virt-install'}." --connect qemu:///system \\\n";
+	   $shell_call .= "--name ".$server." \\\n";
+	   $shell_call .= " --os-variant ".$anvil->data->{job}{os}." \\\n";
+	   $shell_call .= " --memory ".$say_memory." \\\n";
+	   $shell_call .= " --events on_poweroff=destroy,on_reboot=restart \\\n";
+	   $shell_call .= " --vcpus ".$anvil->data->{job}{cpu_cores}.",sockets=1,cores=".$anvil->data->{job}{cpu_cores}." \\\n";
+	   $shell_call .= " --cpu host \\\n";
+	   $shell_call .= " --network bridge=ifn1_bridge1,model=virtio \\\n";
+	   $shell_call .= " --graphics spice \\\n";
+	   $shell_call .= " --sound ich9 \\\n";
+	   $shell_call .= " --clock offset=".$clock_offset." \\\n";	# We may want to support ',rtc_tickpolicy=catchup'
+	   $shell_call .= " --boot menu=on \\\n";
+	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0,target.bus=virtio,driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
+	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
+	if ($anvil->data->{job}{driver_iso_path})
+	{
+		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
+	}
+	$shell_call .= " --noautoconsole --wait -1 > /var/log/anvil-server_".$server.".log\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	$anvil->Job->update_progress({
+		progress => 70,
+		message  => "job_0199,!!shell_call!".$shell_call."!!", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0199", variables => { shell_call => $shell_call }});
+	
+	# Call as a background process.
+	my ($handle, $return_code) = $anvil->System->call({
+		background  => 1, 
+		shell_call  => $shell_call,
+		stdout_file => "/var/log/anvil_server_".$server.".stdout",
+		stderr_file => "/var/log/anvil_server_".$server.".stderr", 
+	});
+	my $pid = $handle->pid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		pid         => $pid,
+		return_code => $return_code,
+	}});
+	
+	$anvil->Job->update_progress({
+		progress => 80,
+		message  => "job_0200", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0200"});
+	
+	# Loop for up to 10 seconds waiting to see the server start running.
+	my $wait_until = time + 10;
+	my $waiting    = 1;
+	my $status     = "";
+	while($waiting)
+	{
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /.*?$server\s+(.*)$/)
+			{
+				$status = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
+				if ($status eq "running")
+				{
+					$waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				}
+			}
+			if (($waiting) && (time > $wait_until))
+			{
+				# Didn't boot, give up
+				$waiting = 0;
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0210,!!status!".$status."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0210", variables => { status => $status }});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			sleep 1;
+		}
+	}
+	
+	$anvil->Job->update_progress({
+		progress => 90,
+		message  => "job_0201", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0201"});
+	
+	# Dump the server's XML.
+	(my $server_definition_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_definition_xml => $server_definition_xml,
+		return_code           => $return_code,
+	}});
+
+	my $problem = $anvil->Server->parse_definition({
+		server     => $server, 
+		source     => "from_virsh",
+		definition => $server_definition_xml, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Something went wrong with the provision
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0209,!!shell_call!".$shell_call."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0209", variables => { shell_call => $shell_call }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Write out the definition file.
+	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+	$problem = $anvil->Storage->write_file({
+		overwrite => 1, 
+		backup    => 1,
+		file      => $definition_file, 
+		body      => $server_definition_xml, 
+		mode      => "0644",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+	# Add the server to the 'servers' table
+	my $anvil_uuid      = $anvil->data->{job}{anvil_uuid};
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_uuid     = $anvil->data->{server}{$short_host_name}{$server}{"from_virsh"}{info}{uuid};
+	my $got_server_uuid = $anvil->Database->insert_or_update_servers({
+		server_uuid           => $server_uuid, 
+		server_name           => $server, 
+		server_state          => "running", 
+		server_anvil_uuid     => $anvil_uuid, 
+		server_host_uuid      => $anvil->Get->host_uuid, 
+		server_ram_in_use     => $anvil->data->{job}{ram}, 
+		server_configured_ram => $anvil->data->{job}{ram}, 
+		server_boot_time      => time,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { got_server_uuid => $got_server_uuid }});
+	
+	# Save the definition.
+	my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
+		server_definition_server_uuid => $got_server_uuid, 
+		server_definition_xml         => $server_definition_xml, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
+	
+	# Undefine the server
+	(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." undefine ".$server});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
+	
+	# Done!
+	$anvil->Job->update_progress({
+		progress => 100,
+		message  => "job_0202", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0202"});
 	
 	return(0);
 }
@@ -486,9 +673,9 @@ sub startup_resource
 	
 	$anvil->Job->update_progress({
 		progress => 60,
-		message  => "job_0192,!!resource!".$anvil->data->{job}{server_name}."!!", 
+		message  => "job_0203,!!resource!".$anvil->data->{job}{server_name}."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0192", variables => { resource => $anvil->data->{job}{server_name} }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0203", variables => { resource => $anvil->data->{job}{server_name} }});
 	
 	return(0);
 }
@@ -755,7 +942,7 @@ sub check_drbd_minor_and_port
 			message    => "error_0199,!!storage_group_uuid!".$anvil->data->{job}{storage_group_uuid}."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0197", variables => { storage_group_uuid => $anvil->data->{job}{storage_group_uuid} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0199", variables => { storage_group_uuid => $anvil->data->{job}{storage_group_uuid} }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -862,6 +1049,11 @@ sub parse_job_data
 		{
 			$anvil->data->{job}{drbd_tcp_port} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::drbd_tcp_port' => $anvil->data->{job}{drbd_tcp_port} }});
+		}
+		if ($line =~ /os=(.*)$/)
+		{
+			$anvil->data->{job}{os} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::os' => $anvil->data->{job}{os} }});
 		}
 	}
 	
@@ -1009,7 +1201,14 @@ sub parse_job_data
 			install_iso_uuid => $install_iso_uuid,
 			install_iso      => $install_iso, 
 		}});
-		if (not -e $install_iso)
+		if (-e $install_iso)
+		{
+			$anvil->data->{job}{install_iso_path} = $install_iso;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'job::install_iso_path' => $anvil->data->{job}{install_iso_path}, 
+			}});
+		}
+		else
 		{
 			$anvil->Job->update_progress({
 				progress   => 100,
@@ -1023,11 +1222,19 @@ sub parse_job_data
 			$anvil->nice_exit({exit_code => 1});
 		}
 		# Driver disc is optional.
+		$anvil->data->{new_server}{driver_iso_path} = "";
 		if ($anvil->data->{job}{driver_iso_uuid})
 		{
 			my $driver_iso_uuid = $anvil->data->{job}{driver_iso_uuid};
 			my $driver_iso      = $anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_name};
-			if (not -e $driver_iso)
+			if (-e $driver_iso)
+			{
+				$anvil->data->{job}{driver_iso_path} = $driver_iso;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'job::driver_iso_path' => $anvil->data->{job}{driver_iso_path}, 
+				}});
+			}
+			else
 			{
 				$anvil->Job->update_progress({
 					progress   => 100,
@@ -1040,6 +1247,20 @@ sub parse_job_data
 				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
+		}
+		if (not $anvil->data->{job}{os})
+		{
+			# No requested RAM
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0208,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0208", variables => { 
+				server_name => $anvil->data->{job}{server_name}, 
+				job_uuid    => $anvil->data->{switches}{'job-uuid'},
+			}});
+			$anvil->nice_exit({exit_code => 1});
 		}
 	}
 	
@@ -1847,7 +2068,6 @@ sub interactive_ask_server_os
 {
 	my ($anvil, $terminal) = @_;
 	
-	### TODO: Left off here, use the short list 'sys::servers::os_short_list'
 	my $words_file = $anvil->data->{path}{words}{'words.xml'};
 	my $language   = $anvil->Words->language;
 	my $os_list    = "";

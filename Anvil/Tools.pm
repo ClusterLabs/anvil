@@ -1202,6 +1202,7 @@ sub _set_paths
 				usermod				=>	"/usr/sbin/usermod",
 				uuidgen				=>	"/usr/bin/uuidgen",
 				virsh				=>	"/usr/bin/virsh",
+				'virt-install'			=>	"/usr/bin/virt-install",
 				vgs				=>	"/usr/sbin/vgs",
 				vgscan				=>	"/usr/sbin/vgscan",
 				wc				=>	"/usr/bin/wc",
