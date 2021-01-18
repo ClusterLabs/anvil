@@ -121,6 +121,49 @@ sub collect_data
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { anvil_uuid => $anvil_uuid }});
 	
+	# Look for any servers in the database but not yet written to disk.
+	if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid})
+	{
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+		{
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				's1:server_name'  => $server_name,
+				's2:server_state' => $server_state, 
+				's3:server_uuid'  => $server_uuid, 
+			}});
+			
+			next if $server_state eq "DELETED";
+			
+			# If the definition file doesn't exist at all, create the file.
+			my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { xml_file => $xml_file }});
+			if (not -f $xml_file)
+			{
+				my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
+				if ($server_definition)
+				{
+					# Register an alert.
+					my $variables  = {
+						server     => $server_name,
+						definition => $server_definition,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0016", variables => $variables});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0016", variables => $variables, set_by => $THIS_FILE});
+					
+					my $return = $anvil->Storage->write_file({
+						body      => $server_definition,
+						file      => $xml_file,
+						overwrite => 1,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+				}
+			}
+		}
+	}
+	
 	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all", source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	foreach my $line (split/\n/, $output)
@@ -320,9 +363,13 @@ DELETED   - Marks a server as no longer existing
 		
 		# Get the definitions
 		my $virsh_definition    = get_and_parse_virsh_definition($anvil, $server_name);
-		my $on_disk_definition  = get_and_parse_disk_definition($anvil, $server_name);
 		my $database_definition = get_and_parse_database_definition($anvil, $server_name, $server_uuid);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { on_disk_definition => $on_disk_definition }});
+		my $on_disk_definition  = get_and_parse_disk_definition($anvil, $server_name);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			virsh_definition    => $virsh_definition,
+			database_definition => $database_definition, 
+			on_disk_definition  => $on_disk_definition,
+		}});
 
 		# If the 'server_updated_by_user' value is newer than the file age, and there is a difference in the definition, update the file.
 		my $current_time           = time;
@@ -773,7 +820,7 @@ sub get_and_parse_virsh_definition
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_name => $server_name }});
 
 	my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $virsh_definition, return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
 	
 	$anvil->Server->parse_definition({
 		server     => $server_name,

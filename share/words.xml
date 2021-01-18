@@ -293,6 +293,11 @@ Output (if any):
 #!variable!shell_call!#
 ====</key>
 		<key name="error_0210">The call to create the new server appears to have failed. It hasn't shown up as running after 10 seconds. The status, if any, was last seen as: [#!variable!status!#].</key>
+		<key name="error_0211">Failed to add the server: [#!variable!server_name!#] because we failed to parse the CIB. Is the cluster running?</key>
+		<key name="error_0212">Failed to add the server: [#!variable!server_name!#] because we are not a full cluster member?</key>
+		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
+		<key name="error_0214">Failed to add the server: [#!variable!server_name!#]. After the commands to add it ran, it was still not found in the cluster.</key>
+		<key name="error_0215">It looks like something went wrong while adding the server to the cluster. There should be more information in the logs.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -615,6 +620,9 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0202">Done! The server should now be booting. Connect now and finish the OS install.</key>
 		<key name="job_0203">The resource: [#!variable!resource!#] is now up.</key>
 		<key name="job_0204">We're the peer for this new server, and so we're now done. The other node will complete the server's install momentarily.</key>
+		<key name="job_0205">As we're the peer, we're now going to wait for the new server definition to be added to the database, then write it out to disk.</key>
+		<key name="job_0206">The definition file: [#!variable!file!#] has been saved.</key>
+		<key name="job_0207">Preparing to add the server to the central cluster manager.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1289,13 +1297,15 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0578">#!free!#</key>
 		<key name="log_0579">The LV(s) behind the resource: [#!variable!resource!#] have had their DRBD metadata created successfully.</key>
 		<key name="log_0580">The LV(s) behind the resource: [#!variable!resource!#] have been forced to primary to initialize the resource.</key>
+		<key name="log_0581">Asked to validate that the server: [#!variable!server!#] is able to run.</key>
+		<key name="log_0582">We've been asked to stop the server: [#!variable!server!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
 		<key name="message_0002">The connection to: [#!variable!connection!#] was refused. If you recently booted the target, the network might have started, the ssh daemon might not be running yet.</key>
 		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine (or the interface) up?</key>
 		<key name="message_0004">Timed out while waiting for a reply from: [#!variable!target!#]. Is the machine booting up? If so, please wait a minute or two and try again.</key>
-		<key name="message_0005">There was an unknown error while connecting to: [#!variable!target!#]. The error was: [#!variable!error!#]</key>
+		<key name="message_0005">There was an unknown error while connecting as: [#!variable!user!#] to: [#!variable!remote_user!#@#!variable!target!#]. The error was: [#!variable!error!#]</key>
 		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
 		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
 		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error: [#!variable!error!#].</key>
@@ -2167,6 +2177,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0070">[ Warning ] - Unable to report the available resources for the Anvil! [#!variable!anvil_name!#] as it looks like ScanCore has not yet run. Please try again after starting the 'scancore' daemon on the nodes.</key>
 		<key name="warning_0071">[ Warning ] - We were asked to create a new storage group called: [#!variable!name!#] but that name is already used by the group with UUID: [#!variable!uuid!#].</key>
 		<key name="warning_0072">[ Warning ] - The file: [#!variable!file_path!#] was not found on any accessible Striker dashboard (or it isn't the same size as recorded in the database). Will sleep for a minute and exit, then we'll try again.</key>
+		<key name="warning_0073">[ Warning ] - No databases are available. Some functions of this resource agent will not be available.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

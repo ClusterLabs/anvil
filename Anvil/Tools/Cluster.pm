@@ -14,6 +14,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Cluster.pm";
 
 ### Methods;
+# add_server
 # assemble_storage_groups
 # boot_server
 # check_node_status
@@ -86,6 +87,161 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 add_server
+
+This takes a server name, finds where it is running and then adds it to pacemaker. On success, C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 server_name (required)
+
+This is the name of the server being added.
+
+=cut
+sub add_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->add_server()" }});
+	
+	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server_name => $server_name,
+	}});
+	
+	if (not $server_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->add_server()", parameter => "server_name" }});
+		return("!!error!!");
+	}
+	
+	# Are we in the cluster?
+	my ($problem) = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		# The cluster isn't running, unable to add the server.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0211", variables => { server_name => $server_name }});
+		return("!!error!!");
+	}
+	
+	# Does the server already exist?
+	if (exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type})
+	{
+		# The server already exists
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0213", variables => { server_name => $server_name }});
+		return("!!error!!");
+	}
+	
+	my $local_ready = $anvil->data->{cib}{parsed}{'local'}{ready};
+	my $local_name  = $anvil->data->{cib}{parsed}{'local'}{name};
+	my $peer_name   = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_ready  = $anvil->data->{cib}{parsed}{peer}{ready};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		local_name  => $local_name, 
+		local_ready => $local_ready, 
+		peer_name   => $peer_name, 
+		peer_ready  => $peer_ready, 
+	}});
+	
+	if (not $local_ready)
+	{
+		# Can't add it
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0212", variables => { server_name => $server_name }});
+		return("!!error!!");
+	}
+	
+	# Find where the server is running. First, who is and where is my peer?
+	$anvil->Database->get_anvils({debug => $debug});
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $peer_host_uuid  = $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	my $peer_target_ip  = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
+	my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid      => $anvil_uuid, 
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+		peer_host_uuid  => $peer_host_uuid, 
+		peer_target_ip  => $peer_target_ip, 
+		password        => $anvil->Log->is_secure($password),
+	}});
+	
+	# Verify that the server is here or on the peer. We need to add the command to t
+	$anvil->Server->find({
+		debug  => $debug,
+		server => $server_name, 
+	});
+	$anvil->Server->find({
+		debug    => $debug,
+		refresh  => 0, 
+		password => $password,
+		target   => $peer_target_ip, 
+		server   => $server_name, 
+	});
+	
+	# The host here is the full host name.
+	my $host_name    = $anvil->Get->host_name();
+	my $server_state = $anvil->data->{server}{location}{$server_name}{status};
+	my $server_host  = $anvil->data->{server}{location}{$server_name}{host};
+	my $target_role  = $server_state eq "running" ? "started" : "stopped";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name    => $host_name, 
+		server_state => $server_state, 
+		server_host  => $server_host,
+		target_role  => $target_role, 
+	}});
+	
+	### TODO: If the target_role is 'started' because the server was running, we may need to later do an 
+	###       update to set it to 'stopped' after we've verified it's in the cluster below.
+	my $resource_command = $anvil->data->{path}{exe}{pcs}." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"INFINITY\" on-fail=\"block\" stop timeout=\"INFINITY\" on-fail=\"block\" migrate_to timeout=\"INFINITY\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
+
+	my ($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	my $constraint_command = $anvil->data->{path}{exe}{pcs}." constraint location ".$server_name." prefers ";
+	if (($server_state eq "running") && ($server_host ne $host_name))
+	{
+		# Set the peer as primary.
+		$constraint_command .= $local_name."=100 ".$peer_name."=200";
+	}
+	else
+	{
+		# Set us as primary.
+		$constraint_command .= $local_name."=200 ".$peer_name."=100";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { constraint_command => $constraint_command }});
+
+	undef $output;
+	undef $return_code;
+	($output, $return_code) = $anvil->System->call({shell_call => $constraint_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Reload the CIB
+	($problem) = $anvil->Cluster->parse_cib({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	
+	# Does the server already exist?
+	if (not exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type})
+	{
+		# The server wasn't added
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0214", variables => { server_name => $server_name }});
+		return("!!error!!");
+	}
+	
+	return(0);
+}
 
 
 =head2 assemble_storage_groups
@@ -383,7 +539,7 @@ sub boot_server
 	my $node   = defined $parameter->{node}   ? $parameter->{node}   : "";
 	my $server = defined $parameter->{server} ? $parameter->{server} : "";
 	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node   => $node,
 		server => $server,
 		'wait' => $wait,
@@ -396,7 +552,7 @@ sub boot_server
 	}
 	
 	my $host_type = $anvil->Get->host_type({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { host_type => $host_type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	if ($host_type ne "node")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0146", variables => { server => $server }});
@@ -404,7 +560,7 @@ sub boot_server
 	}
 	
 	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if ($problem)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0145", variables => { server => $server }});
@@ -429,7 +585,7 @@ sub boot_server
 	# Is the server already running? If so, do nothing.
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
 	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
 	}});
@@ -464,7 +620,7 @@ sub boot_server
 	
 	# Now boot the server.
 	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource enable ".$server});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
@@ -482,7 +638,7 @@ sub boot_server
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
 		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 
 		}});
@@ -525,7 +681,7 @@ sub check_node_status
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->check_node_status()" }});
 	
 	my $node_name = defined $parameter->{node_name} ? $parameter->{node_name} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node_name => $node_name,
 	}});
 	
@@ -577,7 +733,7 @@ sub get_anvil_name
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_anvil_name()" }});
 	
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : $anvil->Get->anvil_uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid => $anvil_uuid,
 	}});
 	
@@ -598,7 +754,7 @@ sub get_anvil_name
 		$anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { anvil_name => $anvil_name }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 	return($anvil_name);
 }
 
@@ -629,7 +785,7 @@ sub get_anvil_uuid
 	
 	my $anvil_name = defined $parameter->{anvil_name} ? $parameter->{anvil_name} : "";
 	my $host_uuid  = defined $parameter->{host_uuid}  ? $parameter->{host_uuid}  : $anvil->Get->host_uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_name => $anvil_name, 
 		host_uuid  => $host_uuid,
 	}});
@@ -645,7 +801,7 @@ sub get_anvil_uuid
 		{
 			$anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { anvil_uuid => $anvil_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 		return($anvil_uuid);
 	}
 	
@@ -656,7 +812,7 @@ sub get_anvil_uuid
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_name            => $anvil_name,
 			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
@@ -669,12 +825,12 @@ sub get_anvil_uuid
 		{
 			# Found ot!
 			$member_anvil_uuid = $anvil_uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { member_anvil_uuid => $member_anvil_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { member_anvil_uuid => $member_anvil_uuid }});
 			last;
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { member_anvil_uuid => $member_anvil_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { member_anvil_uuid => $member_anvil_uuid }});
 	return($member_anvil_uuid);
 }
 
@@ -821,14 +977,14 @@ sub get_primary_host_uuid
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_primary_host_uuid()" }});
 	
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid => $anvil_uuid,
 	}});
 	
 	if (not $anvil_uuid)
 	{
 		my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { anvil_uuid => $anvil_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 	}
 	
 	if (not $anvil_uuid)
@@ -852,7 +1008,7 @@ sub get_primary_host_uuid
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_target_ip = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node2_host_uuid});
 	my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node1_host_uuid => $node1_host_uuid,
 		node1_target_ip => $node1_target_ip, 
 		node2_host_uuid => $node2_host_uuid, 
@@ -871,7 +1027,7 @@ sub get_primary_host_uuid
 		target   => $node2_target_ip, 
 		password => $password, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node1_access => $node1_access,
 		node2_access => $node2_access, 
 	}});
@@ -885,11 +1041,11 @@ sub get_primary_host_uuid
 			target   => $node1_target_ip, 
 			password => $password, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 		if (not $problem)
 		{
 			$cib_from = "node1";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { cib_from => $cib_from }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cib_from => $cib_from }});
 		}
 		elsif ($node2_access)
 		{
@@ -899,11 +1055,11 @@ sub get_primary_host_uuid
 				target   => $node2_target_ip, 
 				password => $password, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			if (not $problem)
 			{
 				$cib_from = "node2";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { cib_from => $cib_from }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cib_from => $cib_from }});
 			}
 		}
 	}
@@ -915,7 +1071,7 @@ sub get_primary_host_uuid
 	}
 	
 	# Is the node we got the CIB from fully in the cluster?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
 		"cib::parsed::peer::ready"  => $anvil->data->{cib}{parsed}{peer}{ready},
 	}});
@@ -925,13 +1081,13 @@ sub get_primary_host_uuid
 		if ($cib_from eq "node1")
 		{
 			# Node 1 is primary
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node1_host_uuid => $node1_host_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node1_host_uuid => $node1_host_uuid }});
 			return($node1_host_uuid);
 		}
 		else
 		{
 			# Node 2 is primary
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node2_host_uuid => $node2_host_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_host_uuid => $node2_host_uuid }});
 			return($node2_host_uuid);
 		}
 	}
@@ -941,13 +1097,13 @@ sub get_primary_host_uuid
 		if ($cib_from eq "node1")
 		{
 			# Node 2 is primary
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node2_host_uuid => $node2_host_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_host_uuid => $node2_host_uuid }});
 			return($node2_host_uuid);
 		}
 		else
 		{
 			# Node 1 is primary
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node1_host_uuid => $node1_host_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node1_host_uuid => $node1_host_uuid }});
 			return($node1_host_uuid);
 		}
 	}
@@ -960,7 +1116,7 @@ sub get_primary_host_uuid
 	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 	{
 		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			server_name => $server_name,
 			server_uuid => $server_uuid, 
 		}});
@@ -968,7 +1124,7 @@ sub get_primary_host_uuid
 		my $server_host_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 		my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 		my $server_ram_in_use = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			server_host_uuid  => $server_host_uuid,
 			server_state      => $server_state, 
 			server_ram_in_use => $server_ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")"
@@ -978,21 +1134,21 @@ sub get_primary_host_uuid
 		if ($server_host_uuid eq $node1_host_uuid)
 		{
 			$node1_ram_in_use_by_servers += $server_ram_in_use;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				node1_ram_in_use_by_servers => $node1_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node1_ram_in_use_by_servers}).")"
 			}});
 		}
 		elsif ($server_host_uuid eq $node2_host_uuid)
 		{
 			$node2_ram_in_use_by_servers += $server_ram_in_use;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				node2_ram_in_use_by_servers => $node2_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_ram_in_use_by_servers}).")"
 			}});
 		}
 	}
 	
 	# if we're node 1 and have equal RAM, or we have more RAM, we're primary.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node1_ram_in_use_by_servers => $node1_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node1_ram_in_use_by_servers}).")", 
 		node2_ram_in_use_by_servers => $node2_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_ram_in_use_by_servers}).")", 
 	}});
@@ -1001,13 +1157,13 @@ sub get_primary_host_uuid
 	    ($node1_ram_in_use_by_servers > $node2_ram_in_use_by_servers))
 	{
 		# Matching RAM, node 1 wins, or node 1 has more RAM.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node1_host_uuid => $node1_host_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node1_host_uuid => $node1_host_uuid }});
 		return($node1_host_uuid);
 	}
 	else
 	{
 		# Node 2 has more RAM in use, it's primary
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node2_host_uuid => $node2_host_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_host_uuid => $node2_host_uuid }});
 		return($node2_host_uuid);
 	}
 	
@@ -1040,7 +1196,7 @@ sub is_primary
 	my $host_uuid  = $anvil->Get->host_uuid({debug => $debug});
 	my $host_type  = $anvil->Get->host_type({debug => $debug});
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_uuid  => $host_uuid,
 		host_type  => $host_type, 
 		anvil_uuid => $anvil_uuid,
@@ -1059,7 +1215,7 @@ sub is_primary
 	
 	# Are we in the cluster? If not, we're not primary.
 	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if ($problem)
 	{
 		# Nope.
@@ -1067,7 +1223,7 @@ sub is_primary
 	}
 	
 	# Is this node fully in the cluster?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
 	}});
 	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
@@ -1077,7 +1233,7 @@ sub is_primary
 	}
 	
 	# Still alive? Excellent! What state is our peer in?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"cib::parsed::peer::ready" => $anvil->data->{cib}{parsed}{peer}{ready},
 	}});
 	if (not $anvil->data->{cib}{parsed}{peer}{ready})
@@ -1091,7 +1247,7 @@ sub is_primary
 	my $peer_is        = $anvil->data->{sys}{anvil}{peer_is};
 	my $my_host_uuid   = $anvil->Get->host_uuid;
 	my $peer_host_uuid = $peer_is eq "node2" ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid} : $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		peer_is        => $peer_is,
 		my_host_uuid   => $my_host_uuid, 
 		peer_host_uuid => $peer_host_uuid, 
@@ -1104,7 +1260,7 @@ sub is_primary
 	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 	{
 		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			server_name => $server_name,
 			server_uuid => $server_uuid, 
 		}});
@@ -1112,7 +1268,7 @@ sub is_primary
 		my $server_host_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 		my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 		my $server_ram_in_use = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			server_host_uuid  => $server_host_uuid,
 			server_state      => $server_state, 
 			server_ram_in_use => $server_ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")"
@@ -1122,21 +1278,21 @@ sub is_primary
 		if ($server_host_uuid eq $my_host_uuid)
 		{
 			$my_ram_in_use_by_servers += $server_ram_in_use;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				my_ram_in_use_by_servers => $my_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $my_ram_in_use_by_servers}).")"
 			}});
 		}
 		elsif ($server_host_uuid eq $peer_host_uuid)
 		{
 			$peer_ram_in_use_by_servers += $server_ram_in_use;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				peer_ram_in_use_by_servers => $peer_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_in_use_by_servers}).")"
 			}});
 		}
 	}
 	
 	# if we're node 1 and have equal RAM, or we have more RAM, we're primary.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		my_ram_in_use_by_servers   => $my_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $my_ram_in_use_by_servers}).")", 
 		peer_ram_in_use_by_servers => $peer_ram_in_use_by_servers." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_in_use_by_servers}).")", 
 	}});
@@ -1191,7 +1347,7 @@ sub migrate_server
 	my $server = defined $parameter->{server} ? $parameter->{server} : "";
 	my $node   = defined $parameter->{node}   ? $parameter->{node}   : "";
 	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server => $server,
 		node   => $node, 
 		'wait' => $wait,
@@ -1204,7 +1360,7 @@ sub migrate_server
 	}
 	
 	my $host_type = $anvil->Get->host_type({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { host_type => $host_type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	if ($host_type ne "node")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0154", variables => { server => $server }});
@@ -1212,7 +1368,7 @@ sub migrate_server
 	}
 	
 	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if ($problem)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0155", variables => { server => $server }});
@@ -1243,7 +1399,7 @@ sub migrate_server
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
 	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 	my $role   = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
 		role   => $role,
@@ -1319,7 +1475,7 @@ sub migrate_server
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
 		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 
 		}});
@@ -1417,12 +1573,12 @@ sub parse_cib
 	if ($cib)
 	{
 		$cib_data = $cib;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { cib_data => $cib_data }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cib_data => $cib_data }});
 	}
 	else
 	{
 		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		if ($anvil->Network->is_local({host => $target}))
 		{
@@ -1473,7 +1629,7 @@ sub parse_cib
 			###       - https://clusterlabs.org/pacemaker/doc/en-US/Pacemaker/2.0/html-single/Pacemaker_Explained/index.html
 			# Successful parse!
 			$problem = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			foreach my $nvpair ($dom->findnodes('/cib/configuration/crm_config/cluster_property_set/nvpair'))
 			{
 				my $nvpair_id = $nvpair->{id};
@@ -1481,7 +1637,7 @@ sub parse_cib
 				{
 					next if $variable eq "id";
 					$anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{$variable} = $nvpair->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::configuration::crm_config::cluster_property_set::nvpair::${nvpair_id}::${variable}" => $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{$variable}, 
 					}});
 				}
@@ -1493,7 +1649,7 @@ sub parse_cib
 				{
 					next if $variable eq "id";
 					$anvil->data->{cib}{parsed}{configuration}{nodes}{$node_id}{$variable} = $node->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::configuration::nodes::${node_id}::${variable}" => $anvil->data->{cib}{parsed}{configuration}{nodes}{$node_id}{$variable}, 
 					}});
 					
@@ -1501,7 +1657,7 @@ sub parse_cib
 					{
 						my $node                                              = $node->{$variable};
 						   $anvil->data->{cib}{parsed}{data}{node}{$node}{id} = $node_id;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::data::node::${node}::id" => $anvil->data->{cib}{parsed}{data}{node}{$node}{id}, 
 						}});
 						
@@ -1510,7 +1666,7 @@ sub parse_cib
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}               = "offline";
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}             = "down";
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'} = "off";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::cib::node_state::${node_id}::in_ccm"           => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}, 
 							"cib::parsed::cib::node_state::${node_id}::crmd"             => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}, 
 							"cib::parsed::cib::node_state::${node_id}::join"             => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}, 
@@ -1527,7 +1683,7 @@ sub parse_cib
 						my $name  = $nvpair->{name};
 						my $value = $nvpair->{value};
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$name} = $value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::cib::node_state::${node_id}::${name}" => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$name}, 
 						}});
 					}
@@ -1541,7 +1697,7 @@ sub parse_cib
 					my $primitive_id = $primitive->{id};
 					$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{class} = $primitive->{class};
 					$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{type}  = $primitive->{type};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::cib::resources::clone::${clone_id}::primitive::${primitive_id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{class}, 
 						"cib::parsed::cib::resources::clone::${clone_id}::primitive::${primitive_id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{type}, 
 					}});
@@ -1552,7 +1708,7 @@ sub parse_cib
 						{
 							next if $variable eq "id";
 							$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{operations}{$op_id}{$variable} = $op->{$variable};
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 								"cib::parsed::cib::resources::clone::${clone_id}::operations::${op_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{operations}{$op_id}{$variable}, 
 							}});
 						}
@@ -1568,7 +1724,7 @@ sub parse_cib
 						{
 							next if $variable eq "id";
 							$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{meta_attributes}{$id}{$variable} = $nvpair->{$variable};
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 								"cib::parsed::cib::resources::clone::${clone_id}::meta_attributes::${id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{meta_attributes}{$id}{$variable}, 
 							}});
 						}
@@ -1582,7 +1738,7 @@ sub parse_cib
 				{
 					next if $variable eq "id";
 					$anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{$variable} = $fencing_level->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::configuration::fencing-topology::fencing-level::${id}::${variable}" => $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{$variable}, 
 					}});
 				}
@@ -1593,7 +1749,7 @@ sub parse_cib
 				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}     = $constraint->{node};
 				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource} = $constraint->{rsc};
 				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}    = $constraint->{score};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"cib::parsed::configuration::constraints::location::${id}::node"     => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}, 
 					"cib::parsed::configuration::constraints::location::${id}::resource" => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource}, 
 					"cib::parsed::configuration::constraints::location::${id}::score"    => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}, 
@@ -1606,7 +1762,7 @@ sub parse_cib
 				{
 					next if $variable eq "id";
 					$anvil->data->{cib}{parsed}{cib}{node_state}{$id}{$variable} = $node_state->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::cib::node_state::${id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{node_state}{$id}{$variable}, 
 					}});
 				}
@@ -1618,7 +1774,7 @@ sub parse_cib
 						my $lrm_resource_id                                                                                                  = $lrm_resource->{id};
 						   $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{type}  = $lrm_resource->{type};
 						   $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{class} = $lrm_resource->{class};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::cib::status::node_state::${id}::lrm_id::${lrm_id}::lrm_resource::${lrm_resource_id}::type"  => $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{type}, 
 							"cib::parsed::cib::status::node_state::${id}::lrm_id::${lrm_id}::lrm_resource::${lrm_resource_id}::class" => $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{class}, 
 						}});
@@ -1629,7 +1785,7 @@ sub parse_cib
 							{
 								next if $variable eq "id";
 								$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable} = $lrm_rsc_op->{$variable};
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									"cib::parsed::cib::status::node_state::${id}::lrm_id::${lrm_id}::lrm_resource::${lrm_resource_id}::lrm_rsc_op_id::${lrm_rsc_op_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable}, 
 								}});
 							}
@@ -1643,7 +1799,7 @@ sub parse_cib
 					foreach my $instance_attributes ($transient_attributes->findnodes('./instance_attributes'))
 					{
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$id}{transient_attributes_id}{$transient_attributes_id}{instance_attributes_id} = $instance_attributes->{id};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::cib::status::node_state::${id}::transient_attributes_id::${transient_attributes_id}::instance_attributes_id" => $anvil->data->{cib}{parsed}{cib}{node_state}{$id}{transient_attributes_id}{$transient_attributes_id}{instance_attributes_id}, 
 						}});
 					}
@@ -1654,7 +1810,7 @@ sub parse_cib
 				my $id                                                                = $primitive->{id};
 				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}  = $primitive->{type};
 				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class} = $primitive->{class};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"cib::parsed::cib::resources::primitive::${id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}, 
 					"cib::parsed::cib::resources::primitive::${id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class}, 
 				}});
@@ -1665,7 +1821,7 @@ sub parse_cib
 					{
 						next if $variable eq "id";
 						$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{instance_attributes}{$nvpair_id}{$variable} = $nvpair->{$variable};;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::cib::resources::primitive::${id}::instance_attributes::${nvpair_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{instance_attributes}{$nvpair_id}{$variable}, 
 						}});
 					}
@@ -1677,7 +1833,7 @@ sub parse_cib
 					{
 						next if $variable eq "id";
 						$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{operations}{op}{$nvpair_id}{$variable} = $nvpair->{$variable};;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::cib::resources::primitive::${id}::operations::op::${nvpair_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{operations}{op}{$nvpair_id}{$variable}, 
 						}});
 					}
@@ -1688,7 +1844,7 @@ sub parse_cib
 				foreach my $variable (sort {$a cmp $b} keys %{$attribute})
 				{
 					$anvil->data->{cib}{parsed}{cib}{$variable} = $attribute->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::cib::${variable}" => $anvil->data->{cib}{parsed}{cib}{$variable}, 
 					}});
 				}
@@ -1702,7 +1858,7 @@ sub parse_cib
 	{
 		my $variable = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{name};
 		my $value    = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{value};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:nvpair_id' => $nvpair_id,
 			's2:variable'  => $variable, 
 			's3:value'     => $value,
@@ -1711,28 +1867,28 @@ sub parse_cib
 		if ($variable eq "stonith-max-attempts")
 		{
 			$anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} = $value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::data::stonith::max-attempts" => $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'}, 
 			}});
 		}
 		if ($variable eq "stonith-enabled")
 		{
 			$anvil->data->{cib}{parsed}{data}{stonith}{enabled} = $value eq "true" ? 1 : 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::data::stonith::enabled" => $anvil->data->{cib}{parsed}{data}{stonith}{enabled}, 
 			}});
 		}
 		if ($variable eq "cluster-name")
 		{
 			$anvil->data->{cib}{parsed}{data}{cluster}{name} = $value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::data::cluster::name" => $anvil->data->{cib}{parsed}{data}{cluster}{name}, 
 			}});
 		}
 		if ($variable eq "maintenance-mode")
 		{
 			$anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} = $value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::data::cluster::maintenance-mode" => $anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'}, 
 			}});
 		}
@@ -1750,7 +1906,7 @@ sub parse_cib
 		my $crmd             = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}               eq "online" ? 1 : 0; # 'online' or 'offline' - In corosync process group
 		my $join             = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}             eq "member" ? 1 : 0; # 'member' or 'down'    - Completed controller join process
 		my $ready            = (($in_ccm) && ($crmd) && ($join))                                                   ? 1 : 0; # Our summary of if the node is "up"
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:node_name'        => $node_name, 
 			's2:node_id'          => $node_id, 
 			's3:maintenance_mode' => $maintenance_mode, 
@@ -1764,7 +1920,7 @@ sub parse_cib
 		if (($anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'}) && ($anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} eq "true"))
 		{
 			$maintenance_mode = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { maintenance_mode => $maintenance_mode }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
 		}
 		
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{pacemaker_id}       = $node_id;
@@ -1773,7 +1929,7 @@ sub parse_cib
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd}               = $crmd;
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'}             = $join;
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}              = $ready;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cib::parsed::data::node::${node_name}::node_state::pacemaker_id"     => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{pacemaker_id}, 
 			"cib::parsed::data::node::${node_name}::node_state::maintenance_mode" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'}, 
 			"cib::parsed::data::node::${node_name}::node_state::in_ccm"           => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm}, 
@@ -1795,13 +1951,13 @@ sub parse_cib
 			});
 			$target_short_host_name =  $target_host_name;
 			$target_short_host_name =~ s/\..*$//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				target_host_uuid       => $target_host_uuid, 
 				target_host_name       => $target_host_name, 
 				target_short_host_name => $target_short_host_name, 
 			}});
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			node_name              => $node_name, 
 			target                 => $target, 
 			target_short_host_name => $target_short_host_name, 
@@ -1813,7 +1969,7 @@ sub parse_cib
 			# Me (or the node the CIB was read from).
 			$anvil->data->{cib}{parsed}{'local'}{ready} = $node_name;
 			$anvil->data->{cib}{parsed}{'local'}{name}  = $node_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready}, 
 				"cib::parsed::local::name"  => $anvil->data->{cib}{parsed}{'local'}{name}, 
 			}});
@@ -1823,7 +1979,7 @@ sub parse_cib
 			# It's our peer.
 			$anvil->data->{cib}{parsed}{peer}{ready} = $ready;
 			$anvil->data->{cib}{parsed}{peer}{name}  = $node_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::peer::ready" => $anvil->data->{cib}{parsed}{peer}{ready}, 
 				"cib::parsed::peer::name"  => $anvil->data->{cib}{parsed}{peer}{name}, 
 			}});
@@ -1843,7 +1999,7 @@ sub parse_cib
 			{
 				my $name  = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}{$fence_id}{name};
 				my $value = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}{$fence_id}{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					name  => $name, 
 					value => $value, 
 				}});
@@ -1851,12 +2007,12 @@ sub parse_cib
 				if ($name eq "pcmk_host_list")
 				{
 					$node_name = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_name => $node_name }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_name => $node_name }});
 				}
 				else
 				{
 					$variables->{$name} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { "variables->{$name}" => $variables->{$name} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "variables->{$name}" => $variables->{$name} }});
 				}
 			}
 			if ($node_name)
@@ -1865,33 +2021,33 @@ sub parse_cib
 				foreach my $name (sort {$a cmp $b} keys %{$variables})
 				{
 					$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{argument}{$name}{value} = $variables->{$name};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::argument::${name}::value" => $variables->{$name},
 					}});
 					
 					if ($name eq "delay")
 					{
 						$delay_set = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { delay_set => $delay_set }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay_set => $delay_set }});
 					}
 					
 					my $value           =  $variables->{$name};
 					   $value           =~ s/"/\\"/g;
 					   $argument_string .= $name."=\"".$value."\" ";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						argument_string => $argument_string,
 					}});
 				}
 				$argument_string =~ s/ $//;
 				$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{arguments} = $argument_string;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::arguments" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{arguments},
 				}});
 			}
 		}
 	}
 	$anvil->data->{cib}{parsed}{data}{stonith}{delay_set} = $delay_set;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"cib::parsed::data::stonith::delay_set" => $anvil->data->{cib}{parsed}{data}{stonith}{delay_set}, 
 	}});
 	
@@ -1900,14 +2056,14 @@ sub parse_cib
 		my $node_name = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{target};
 		my $devices   = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{devices};
 		my $index     = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{'index'};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			node_name => $node_name, 
 			devices   => $devices, 
 			'index'   => $index,
 		}});
 		
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$index}{devices} = $devices;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cib::parsed::data::node::${node_name}::fencing::order::${index}::devices" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$index}{devices},
 		}});
 	}
@@ -1928,7 +2084,7 @@ sub parse_cib
 					my $type      = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{type};
 					my $class     = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{class};
 					my $operation = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{operation};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						lrm_resource_operations_count => $lrm_resource_operations_count,
 						type                          => $type,
 						class                         => $class, 
@@ -1951,7 +2107,7 @@ sub parse_cib
 						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{managed}   = "";
 						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{orphaned}  = "";
 						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{role}      = "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"cib::parsed::data::server::${lrm_resource_id}::status"    => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status},
 							"cib::parsed::data::server::${lrm_resource_id}::host_name" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host_name},
 							"cib::parsed::data::server::${lrm_resource_id}::host_id"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host_id},
@@ -2051,7 +2207,7 @@ sub parse_cib
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{failed}    = $failed;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{managed}   = $managed;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{orphaned}  = $orphaned;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cib::parsed::data::server::${server}::status"    => $anvil->data->{cib}{parsed}{data}{server}{$server}{status},
 			"cib::parsed::data::server::${server}::host_name" => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name},
 			"cib::parsed::data::server::${server}::host_id"   => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_id},
@@ -2071,7 +2227,7 @@ sub parse_cib
 		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
 		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:server'    => $server,
 			's2:status'    => $status,
 			's2:host_name' => $host_name,
@@ -2128,7 +2284,7 @@ sub parse_crm_mon
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		xml => $xml,
 	}});
 	
@@ -2138,12 +2294,12 @@ sub parse_crm_mon
 	if ($xml)
 	{
 		$crm_mon_data = $xml;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { crm_mon_data => $crm_mon_data }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { crm_mon_data => $crm_mon_data }});
 	}
 	else
 	{
 		my $shell_call = $anvil->data->{path}{exe}{crm_mon}." --output-as=xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		if ($anvil->Network->is_local({host => $target}))
 		{
@@ -2192,17 +2348,17 @@ sub parse_crm_mon
 		{
 			# Successful parse!
 			$problem = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			foreach my $resource ($dom->findnodes('/pacemaker-result/resources/resource'))
 			{
 				next if $resource->{resource_agent} ne "ocf::alteeve:server";
 				my $id             = $resource->{id};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { id => $id }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 				foreach my $variable (sort {$a cmp $b} keys %{$resource})
 				{
 					next if $variable eq "id";
 					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable} = $resource->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::variables::${variable}" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable}, 
 					}});
 				}
@@ -2213,7 +2369,7 @@ sub parse_crm_mon
 					my $cached    = $node->{cached};
 					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name} = $node->{name};
 					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}   = $node->{id};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_name" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name}, 
 						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_id"   => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}, 
 					}});
@@ -2251,7 +2407,7 @@ sub shutdown_server
 	
 	my $server = defined $parameter->{server} ? $parameter->{server} : "";
 	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server => $server,
 		'wait' => $wait,
 	}});
@@ -2263,7 +2419,7 @@ sub shutdown_server
 	}
 	
 	my $host_type = $anvil->Get->host_type({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { host_type => $host_type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	if ($host_type ne "node")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0150", variables => { server => $server }});
@@ -2271,7 +2427,7 @@ sub shutdown_server
 	}
 	
 	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if ($problem)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0151", variables => { server => $server }});
@@ -2296,7 +2452,7 @@ sub shutdown_server
 	# Is the server already running? If so, do nothing.
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
 	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
 	}});
@@ -2320,7 +2476,7 @@ sub shutdown_server
 	
 	# Now shut down the server.
 	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource disable ".$server});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
@@ -2338,7 +2494,7 @@ sub shutdown_server
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
 		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 
 		}});
@@ -2381,7 +2537,7 @@ sub start_cluster
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->start_cluster()" }});
 	
 	my $all = defined $parameter->{all} ? $parameter->{all} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		all => $all,
 	}});
 	
@@ -2435,7 +2591,7 @@ sub which_node
 	my $node_is   = "";
 	my $node_name = defined $parameter->{node_name} ? $parameter->{node_name} : "";
 	my $node_uuid = defined $parameter->{node_uuid} ? $parameter->{node_uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node_name => $node_name,
 		node_uuid => $node_uuid, 
 	}});
@@ -2444,7 +2600,7 @@ sub which_node
 	{
 		$node_name = $anvil->Get->short_host_name();
 		$node_uuid = $anvil->Get->host_uuid();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			node_name => $node_name,
 			node_uuid => $node_uuid, 
 		}});
@@ -2453,7 +2609,7 @@ sub which_node
 	{
 		# Get the node UUID from the host name.
 		$node_uuid = $anvil->Get->host_name_from_uuid({host_name => $node_name}); 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_uuid => $node_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_uuid => $node_uuid }});
 		
 		if (not $node_uuid)
 		{
@@ -2472,7 +2628,7 @@ sub which_node
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_name      => $anvil_name,
 			node1_host_uuid => $node1_host_uuid, 
 			node2_host_uuid => $node2_host_uuid, 
@@ -2481,13 +2637,13 @@ sub which_node
 		if ($node_uuid eq $node1_host_uuid)
 		{
 			$node_is = "node1";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_is => $node_is }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_is => $node_is }});
 			last;
 		}
 		elsif ($node_uuid eq $node2_host_uuid)
 		{
 			$node_is = "node2";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_is => $node_is }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_is => $node_is }});
 			last;
 		}
 	}
@@ -2533,7 +2689,7 @@ sub _set_server_constraint
 	
 	my $preferred_node = defined $parameter->{preferred_node} ? $parameter->{preferred_node} : "";
 	my $server         = defined $parameter->{server}         ? $parameter->{server}         : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server         => $server,
 		preferred_node => $preferred_node,
 	}});
@@ -2553,7 +2709,7 @@ sub _set_server_constraint
 	if (not exists $anvil->data->{cib}{parsed}{data}{cluster}{name})
 	{
 		my $problem = $anvil->Cluster->parse_cib({debug => $debug});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 		if ($problem)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0145", variables => { server => $server }});
@@ -2573,7 +2729,7 @@ sub _set_server_constraint
 
 	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
 	my $local_name = $anvil->data->{cib}{parsed}{'local'}{name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		peer_name  => $peer_name,
 		local_name => $local_name,
 	}});
@@ -2601,7 +2757,7 @@ sub _set_server_constraint
 	
 	# Change the location constraint
 	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});

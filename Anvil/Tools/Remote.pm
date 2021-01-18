@@ -599,11 +599,13 @@ sub call
 			's2:ssh_fh->error' => $ssh_fh->error, 
 		}});
 		my $variables = { 
-			target     => $target.":".$port,
-			error      => $ssh_fh->error,
-			connection => $ssh_fh_key, 
-			file       => $bad_file, 
-			line       => $bad_line, 
+			remote_user => $remote_user, 
+			target      => $target.":".$port,
+			user        => getpwuid($<),
+			error       => $ssh_fh->error,
+			connection  => $ssh_fh_key, 
+			file        => $bad_file, 
+			line        => $bad_line, 
 		};
 		if (not $connected)
 		{

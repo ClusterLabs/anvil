@@ -1,0 +1,60 @@
+#!/usr/bin/perl
+# 
+# This provisions a new virtual machine server. It handles creating the logical volumes, DRBD resources, 
+# verifies the needed files are ready, creates the provision script, begins the installation, and adds the 
+# new server to pacemaker.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Any problem that causes an early exit.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+use Term::Cap;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{'anvil-uuid'}  = "";
+$anvil->data->{switches}{'anvil-name'}  = "";
+$anvil->data->{switches}{'job-uuid'}    = "";
+$anvil->data->{switches}{'server-name'} = "";
+$anvil->data->{switches}{'server-uuid'} = "";
+$anvil->Get->switches;
+$anvil->Log->variables({source  => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::anvil-uuid'  => $anvil->data->{switches}{'anvil-uuid'},
+	'switches::anvil-name'  => $anvil->data->{switches}{'anvil-name'},
+	'switches::job-uuid'    => $anvil->data->{switches}{'job-uuid'},
+	'switches::server-name' => $anvil->data->{switches}{'server-name'},
+	'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'},
+}});
+
+
+
+
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+

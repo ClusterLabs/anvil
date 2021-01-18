@@ -96,17 +96,14 @@ $| = 1;
 # NOTE: Setting 'log_level' and 'log_secure' here will get overridden in the main lopp. Use the Log methods 
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 # If we can connect to a database, we'll set/clear the 'migrating' flag during migrations
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
-	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-	return(1);
+	# No databases, we're only going to be able to do status checks..
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "warning_0073"});
 }
 
 ### Read or Set the environment variables
@@ -154,6 +151,9 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
 
 # Get any command line switches.
 $anvil->Get->switches({debug => 2});
+
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
@@ -664,7 +664,7 @@ sub start_server
 	# 7. Make sure all bridges exist and soft error if not.
 	# 8. Start the server.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0303", variables => { server => $server }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0303", variables => { server => $server }});
 	
 	# Make sure things are sane.
 	validate_all($anvil);
@@ -960,7 +960,7 @@ sub stop_server
 	# Stopping the server is simply a question of "is the server running?" and, if so, stop it. Once 
 	# stopped, we stop the DRBD resource on both nodes.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server => $server }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0582", variables => { server => $server }});
 	
 	# Read in an parse the server's XML.
 	$anvil->System->check_storage({debug => 3});
@@ -992,11 +992,13 @@ sub server_status
 {
 	my ($anvil) = @_;
 	
+	### NOTE: This method MUST always work, even without access to databases!
+	
 	# If the named server is running, return OCF_SUCCESS (rc: 0), otherwise OCF_NOT_RUNNING (rc: 7). If 
 	# the server is failed, return OCF_ERR_GENERIC (1).
 	my $state  = "";
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0521", variables => { server => $server }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0521", variables => { server => $server }});
 	
 	if (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout})
 	{
@@ -1185,6 +1187,14 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 sub migrate_server
 {
 	my ($anvil) = @_;
+	
+	# This requires a database
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
+		return(1);
+	}
 	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
@@ -1391,8 +1401,8 @@ sub migrate_server
 		### NOTE: Pacemaker doesn't seem to ever pull servers. 
 		# Pull the server here. Start by verifying it's on the 'meta_on_node' host.
 		# Scan locally and on our peer
-		$anvil->Server->find({debug => 3});
-		$anvil->Server->find({debug => 3, target => $meta_on_node, refresh => 0});
+		$anvil->Server->find({debug => 2});
+		$anvil->Server->find({debug => 2, target => $meta_on_node, refresh => 0});
 		
 		my $host       = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
 		my $short_host = ($host =~ /^(.*?)\..*$/)[0];
@@ -1469,6 +1479,9 @@ sub validate_all
 		source => $source, 
 		target => $target,
 	}});
+	
+	# Log what we're doing.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0581", variables => { server => $server }});
 	
 	# Read in and parse the server's XML.
 	$anvil->System->check_storage({debug => 3});

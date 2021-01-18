@@ -287,6 +287,12 @@ pcs resource update srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-mig
 stonith_admin --fence el8-a01n02 --verbose; crm_error $?
 
 
+
+pcs resource create srv01-test ocf:alteeve:server name="srv01-test" meta allow-migrate="true" target-role="started" op monitor interval="60" start timeout="INFINITY" on-fail="block" stop timeout="INFINITY" on-fail="block" migrate_to timeout="INFINITY"
+pcs constraint location srv01-test prefers el8-a01n01=200 el8-a01n02=100
+
+
+
 stonith-max-attempts=INFINITY
 cluster-recheck-interval puts an upper bound on the "i give up" time
 

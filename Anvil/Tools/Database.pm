@@ -3852,7 +3852,7 @@ This loads all known servers from the database.
  servers::server_uuid::<server_uuid>::server_start_after_server_uuid
  servers::server_uuid::<server_uuid>::server_start_delay
  servers::server_uuid::<server_uuid>::server_host_uuid
- servers::server_uuid::<server_uuid>::server_state
+ servers::server_uuid::<server_uuid>::server_state                    NOTE: This is set to 'DELETED' for deleted servers
  servers::server_uuid::<server_uuid>::server_live_migration
  servers::server_uuid::<server_uuid>::server_pre_migration_file_uuid
  servers::server_uuid::<server_uuid>::server_pre_migration_arguments
@@ -15532,6 +15532,8 @@ ORDER BY
 			}});
 			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
 			{
+				### TODO: This triggers with extremely high numbers. Somewhere, the time 
+				###       isn't being updated properly.
 				# Resync needed.
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
