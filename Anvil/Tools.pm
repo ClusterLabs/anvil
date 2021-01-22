@@ -883,6 +883,8 @@ sub _set_defaults
 			# Stores the '-v|...|-vvv' so that shell calls can be run at the same level as the 
 			# avtive program when set by the user at the command line.
 			level				=>	"",
+			# This is set to '1' when a log call might become recursive.
+			disable				=>	0,
 		},
 		manage				=>	{
 			firewall			=>	1,

@@ -2014,7 +2014,6 @@ sub is_local
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->is_local()" }});
 	
 	my $host = $parameter->{host} ? $parameter->{host} : "";
 	return(1) if not $host;

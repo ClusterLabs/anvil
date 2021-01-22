@@ -7,8 +7,8 @@ Release:        37%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
-URL:            https://github.com/digimer/anvil
-Source0:        https://www.alteeve.com/an-repo/el8b/files/anvil-3.0b.tar.gz
+URL:            https://github.com/ClusterLabs/anvil
+Source0:        https://www.alteeve.com/an-repo/el8/SOURCES/anvil-3.0b.tar.gz
 BuildArch:      noarch
 
 
@@ -382,8 +382,9 @@ fi
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-37
+* Mon Jan 18 2021 Madison Kelly <mkelly@alteeve.ca> 3.0-37
 - Updated source.
+- Moved repos to ClusterLabs group and updated Source.
 
 * Tue Nov 17 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-36
 - Updated source.

@@ -242,6 +242,9 @@ sub entry
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
 	
+	# If logging is disabled, return immediately.
+	return(0) if $anvil->data->{sys}{'log'}{disable};
+	
 	# If we're called before $anvil->_set_defaults, this will be undefined.
 	$anvil->data->{defaults}{'log'}{level} = 1 if not defined $anvil->data->{defaults}{'log'}{level};
 	
@@ -458,7 +461,9 @@ sub entry
 			### WARNING: We MUST set the debug level really high, or else we'll go into a deep 
 			###          recursion!
 			# Make sure the log directory exists.
+			$anvil->data->{sys}{'log'}{disable} = 1;
 			$anvil->Storage->make_directory({test => $test, debug => 99, directory => $directory, mode => 755});
+			$anvil->data->{sys}{'log'}{disable} = 0;
 			
 			# Now open the log
 			my $shell_call = $log_file;
@@ -779,6 +784,9 @@ sub variables
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	
+	# Return immediately if logging is disabled globally.
+	return(0) if $anvil->data->{sys}{'log'}{disable};
 	
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->data->{defaults}{'log'}{language};
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;

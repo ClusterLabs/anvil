@@ -1663,7 +1663,7 @@ sub make_directory
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { working_directory => $working_directory }});
 		
 		# Are we working locally or remotely?
-		if ($anvil->Network->is_local({host => $target}))
+		if ($anvil->Network->is_local({debug => $debug, host => $target}))
 		{
 			# Locally.
 			if (not -e $working_directory)

@@ -2680,9 +2680,9 @@ sub load_packages
 			"yajl.x86_64",
 			"yum.noarch",
 			"yum-utils.noarch",
-			"zenity.x86_64",
 		],
 		z	=>	[
+			"zenity.x86_64",
 			"zlib.x86_64",
 			"zlib-devel.x86_64",
 			"zstd.x86_64",
