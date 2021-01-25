@@ -18,6 +18,7 @@ my $THIS_FILE = "Cluster.pm";
 # assemble_storage_groups
 # boot_server
 # check_node_status
+# delete_server
 # get_anvil_name
 # get_anvil_uuid
 # get_peers
@@ -187,7 +188,7 @@ sub add_server
 	# The host here is the full host name.
 	my $host_name    = $anvil->Get->host_name();
 	my $server_state = $anvil->data->{server}{location}{$server_name}{status};
-	my $server_host  = $anvil->data->{server}{location}{$server_name}{host};
+	my $server_host  = $anvil->data->{server}{location}{$server_name}{host_name};
 	my $target_role  = $server_state eq "running" ? "started" : "stopped";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		host_name    => $host_name, 
@@ -711,11 +712,117 @@ sub check_node_status
 	return($anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready});
 }
 
+
+=head2 delete_server
+
+This takes a server (resource) name and deletes it from pacemaker. If there is a problem, C<< !!error!! >> is returned. Otherwise, C<< 0 >> is removed either once the resource is deleted, or if the resource didn't exist in the first place.
+
+Parameters;
+
+=head3 server_name (required)
+
+This is the name of the resource to delete.
+
+=cut
+sub delete_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->delete_server()" }});
+	
+	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server_name => $server_name,
+	}});
+	
+	if (not $server_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->delete_server()", parameter => "server_name" }});
+		return('!!error!!');
+	}
+	
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0224", variables => { server_name => $server_name }});
+		return('!!error!!');
+	}
+	
+	# Is this node fully in the cluster?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0225", variables => { server_name => $server_name }});
+		return('!!error!!');
+	}
+	
+	# Does the server exist in the config?
+	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server_name})
+	{
+		# The server is already gone.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0149", variables => { server_name => $server_name }});
+		return(0);
+	}
+	
+	# Is the server running? If so, stop it first.
+	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		status => $status,
+		host   => $host, 
+	}});
+	
+	# Stop the server
+	if ($status eq "running")
+	{
+		my $problem = $anvil->Cluster->shutdown_server({
+			server => $server_name, 
+			'wait' => 1,
+		});
+		if ($problem)
+		{
+			# Failed to stop.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0223", variables => { server_name => $server_name }});
+			return('!!error!!');
+		}
+	}
+	
+	# Now delete the resource. Any constraints will be deleted automatically.
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pcs}." resource delete ".$server_name});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	if (not $return_code)
+	{
+		# Success!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0587", variables => { server_name => $server_name }});
+		return(0);
+	}
+	else
+	{
+		# Unexpected return code.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0226", variables => { 
+			server_name => $server_name,
+			return_code => $return_code, 
+			output      => $$output, 
+		}});
+		return('!!error!!');
+	}
+	
+	return(0);
+}
+
+
 =head2 get_anvil_name
 
 This returns the C<< anvils >> -> C<< anvil_name >> for a given C<< anvil_uuid >>. If no C<< anvil_uuid >> is passed, a check is made to see if this host is in an Anvil! and, if so, the Anvil! name it's a member of is returned.
 
 If not match is found, a blank string is returned.
+
+ my $anvil_name = $anvil->Cluster->get_anvil_name({anvil_uuid => "2ac4dbcb-25d2-44b2-ae07-59707b0551ca"});
 
 Parameters;
 
@@ -1405,7 +1512,7 @@ sub migrate_server
 		role   => $role,
 	}});
 	
-	if ($status eq "off")
+	if (($status eq "off") or ($status eq "stopped"))
 	{
 		# It's not running on either node, nothing to do.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0061", variables => { 
@@ -2136,14 +2243,14 @@ sub parse_cib
 	});
 	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}})
 	{
-		my $host_name = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_name};
-		my $host_id   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_id};
-		my $role      = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{role};
-		my $active    = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{active}   eq "true" ? 1 : 0;
-		my $blocked   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{blocked}  eq "true" ? 1 : 0;
-		my $failed    = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed}   eq "true" ? 1 : 0;
-		my $managed   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{managed}  eq "true" ? 1 : 0;
-		my $orphaned  = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{orphaned} eq "true" ? 1 : 0;
+		my $host_name = defined $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_name} ? $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_name} : "";
+		my $host_id   = defined $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_id}   ? $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_id}   : "";
+		my $role      =         $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{role};
+		my $active    =         $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{active}   eq "true" ? 1 : 0;
+		my $blocked   =         $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{blocked}  eq "true" ? 1 : 0;
+		my $failed    =         $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed}   eq "true" ? 1 : 0;
+		my $managed   =         $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{managed}  eq "true" ? 1 : 0;
+		my $orphaned  =         $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{orphaned} eq "true" ? 1 : 0;
 		my $status    = lc($role);
 		if ($role)
 		{
@@ -2152,7 +2259,7 @@ sub parse_cib
 			# Starting
 			# Migrating
 			# Stopping
-			$status = "running";
+			$status = $active ? "running" : "off";
 			
 			# If the role is NOT 'migating', check to see if it's marked as such in the database.
 			if ($role ne "migrating")
@@ -2207,7 +2314,7 @@ sub parse_cib
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{failed}    = $failed;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{managed}   = $managed;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{orphaned}  = $orphaned;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"cib::parsed::data::server::${server}::status"    => $anvil->data->{cib}{parsed}{data}{server}{$server}{status},
 			"cib::parsed::data::server::${server}::host_name" => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name},
 			"cib::parsed::data::server::${server}::host_id"   => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_id},
@@ -2227,7 +2334,7 @@ sub parse_cib
 		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
 		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:server'    => $server,
 			's2:status'    => $status,
 			's2:host_name' => $host_name,
@@ -2384,7 +2491,9 @@ sub parse_crm_mon
 
 =head2 shutdown_server
 
-This shuts down a server that is running on the Anvil! system. 
+This shuts down a server that is running on the Anvil! system. If there is a problem, C<< !!error!! >> is returned. On success, C<< 0 >> is returned.
+
+B<< Note >>: If C<< wait >> is set to C<< 0 >>, then C<< 0 >> is returned once the shutdown is requested, not when it's actually turned off.
 
 Parameters;
 
@@ -2449,15 +2558,15 @@ sub shutdown_server
 		return('!!error!!');
 	}
 	
-	# Is the server already running? If so, do nothing.
-	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	# Is the server already stopped? If so, do nothing.
+	my $status =         $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+	my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
 	}});
 	
-	if ($status eq "off")
+	if (($status eq "off") or ($status eq "stopped"))
 	{
 		# Already off.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0548", variables => { server => $server }});
@@ -2475,7 +2584,7 @@ sub shutdown_server
 	}
 	
 	# Now shut down the server.
-	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource disable ".$server});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pcs}." resource disable ".$server});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 

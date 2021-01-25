@@ -525,6 +525,23 @@ sub check_peer_is_fenced
 			{
 				# The node is out.
 				to_log($conf, {message => "The node: [$node] has been fenced successfully.", 'line' => __LINE__, level => 1});
+				
+				# Call 'drbdadm adjust all' as it seems like drbd's in-memory can change 
+				# causing 'incompatible <fence option>' on return of the peer.
+				to_log($conf, {message => "Reloading DRBD config from disk to ensure in-memory and on-disk configs match.", 'line' => __LINE__, level => 1});
+				my $shell_call = $conf->{path}{exe}{drbdadm}." adjust all";
+				to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+				open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+				while(<$file_handle>)
+				{
+					# This should not generate output.
+					chomp;
+					my $line = $_;
+					to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+				}
+				close $file_handle;
+				to_log($conf, {message => "Fence completed successfully!", 'line' => __LINE__, level => 1});
+				
 				exit(7);
 			}
 			else

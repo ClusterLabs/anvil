@@ -145,7 +145,7 @@ sub boot_virsh
 	while($wait)
 	{
 		$anvil->Server->find({debug => $debug});
-		if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{host}))
+		if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{host_name}))
 		{
 			# Success!
 			$wait    = 0;
@@ -156,7 +156,7 @@ sub boot_virsh
 			}});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0421", variables => { 
 				server => $server, 
-				host   => $anvil->data->{server}{location}{$server}{host},
+				host   => $anvil->data->{server}{location}{$server}{host_name},
 			}});
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
@@ -229,8 +229,8 @@ This will look on the local or a remote machine for the list of servers that are
 
 The list is stored as; 
 
- server::location::<server>::status = <status>
- server::location::<server>::host   = <host_name>
+ server::location::<server_name>::status = <status>
+ server::location::<server_name>::host   = <host_name>
 
 Parameters;
 
@@ -283,7 +283,7 @@ sub find
 	}
 	
 	my $host_type    = $anvil->Get->host_type({debug => $debug});
-	my $host         = $anvil->Get->host_name;
+	my $host_name    = $anvil->Get->host_name;
 	my $virsh_output = "";
 	my $return_code  = "";
 	if ($anvil->Network->is_local({host => $target}))
@@ -298,7 +298,7 @@ sub find
 	else
 	{
 		# Remote call.
-		($host, my $error, my $host_return_code) = $anvil->Remote->call({
+		($host_name, my $error, my $host_return_code) = $anvil->Remote->call({
 			debug       => 2, 
 			password    => $password, 
 			shell_call  => $anvil->data->{path}{exe}{hostnamectl}." --static", 
@@ -306,7 +306,7 @@ sub find
 			remote_user => "root", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host             => $host,
+			host_name        => $host_name,
 			error            => $error,
 			host_return_code => $host_return_code, 
 		}});
@@ -331,12 +331,12 @@ sub find
 		
 		if ($line =~ /^\d+ (.*) (.*?)$/)
 		{
-			my $server                                           = $1;
-			   $anvil->data->{server}{location}{$server}{status} = $2;
-			   $anvil->data->{server}{location}{$server}{host}   = $host;
+			my $server_name                                              = $1;
+			   $anvil->data->{server}{location}{$server_name}{status}    = $2;
+			   $anvil->data->{server}{location}{$server_name}{host_name} = $host_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::location::${server}::status" => $anvil->data->{server}{location}{$server}{status}, 
-				"server::location::${server}::host"   => $anvil->data->{server}{location}{$server}{host}, 
+				"server::location::${server_name}::status"    => $anvil->data->{server}{location}{$server_name}{status}, 
+				"server::location::${server_name}::host_name" => $anvil->data->{server}{location}{$server_name}{host_name}, 
 			}});
 		}
 	}

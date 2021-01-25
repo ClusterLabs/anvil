@@ -689,7 +689,7 @@ sub start_server
 		# WTF?
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0310", variables => { 
 			server  => $server, 
-			'state' => defined $anvil->data->{server}{location}{$server}{host} ? $anvil->data->{server}{location}{$server}{host} : "#!string!unit_0003!#",
+			'state' => defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "#!string!unit_0003!#",
 		}});
 		$anvil->nice_exit({exit_code => 6});
 	}
@@ -902,19 +902,19 @@ sub find_server
 	foreach my $this_server (sort {$a cmp $b} keys %{$anvil->data->{server}{location}})
 	{
 		my $status = $anvil->data->{server}{location}{$this_server}{status};
-		my $host   = $anvil->data->{server}{location}{$this_server}{host};
+		my $host   = $anvil->data->{server}{location}{$this_server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			this_server => $this_server, 
 			status      => $status, 
 			host        => $host, 
 		}});
 	}
-	if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{host}))
+	if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{host_name}))
 	{
 		# The server is running. If it is running here, exit with success. If it's running elsewhere,
 		# exit with a failure.
 		my $status = $anvil->data->{server}{location}{$server}{status};
-		my $host   = $anvil->data->{server}{location}{$server}{host};
+		my $host   = $anvil->data->{server}{location}{$server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			status => $status, 
 			host   => $host, 
@@ -1254,8 +1254,8 @@ sub migrate_server
 		
 		# Find the server
 		$anvil->Server->find({debug => 3});
-		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
-		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		my $server_host   = defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "";
+		my $server_status = defined $anvil->data->{server}{location}{$server}{status}    ? $anvil->data->{server}{location}{$server}{status}    : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			server_host   => $server_host, 
 			server_status => $server_status, 
@@ -1266,8 +1266,8 @@ sub migrate_server
 		{
 			# Maybe...
 			$anvil->Server->find({debug => 3, target => $target});
-			$server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
-			$server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+			$server_host   = defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "";
+			$server_status = defined $anvil->data->{server}{location}{$server}{status}    ? $anvil->data->{server}{location}{$server}{status}    : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				server_host   => $server_host, 
 				server_status => $server_status, 
@@ -1404,7 +1404,7 @@ sub migrate_server
 		$anvil->Server->find({debug => 2});
 		$anvil->Server->find({debug => 2, target => $meta_on_node, refresh => 0});
 		
-		my $host       = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
+		my $host       = defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "";
 		my $short_host = ($host =~ /^(.*?)\..*$/)[0];
 		my $status     = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1415,8 +1415,8 @@ sub migrate_server
 		}});
 		
 		# Convert the host to a short name, in case the node's name is the short version.
-		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
-		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		my $server_host   = defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "";
+		my $server_status = defined $anvil->data->{server}{location}{$server}{status}    ? $anvil->data->{server}{location}{$server}{status}    : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			server_host   => $server_host, 
 			server_status => $server_status, 
@@ -1567,7 +1567,7 @@ sub validate_storage
 	}});
 	my $local_host = $anvil->Get->short_host_name();
 	my $xml_source = "from_disk";
-	if ($anvil->data->{server}{$local_host}{$server}{from_virsh}{host})
+	if ($anvil->data->{server}{$local_host}{$server}{from_virsh}{host_name})
 	{
 		$xml_source = "from_virsh";
 	}

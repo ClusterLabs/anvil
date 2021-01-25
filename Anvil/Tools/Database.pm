@@ -3862,6 +3862,10 @@ This loads all known servers from the database.
  servers::server_uuid::<server_uuid>::server_configured_ram
  servers::server_uuid::<server_uuid>::server_updated_by_user
  servers::server_uuid::<server_uuid>::server_boot_time
+ 
+To simplify lookup of server UUIDs by server names, this hash is also set;
+
+ servers::anvil_uuid::<anvil_uuid>::server_name::<server_name>::server_uuid
 
 This method takes no parameters.
 

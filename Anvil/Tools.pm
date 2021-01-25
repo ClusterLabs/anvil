@@ -1086,6 +1086,7 @@ sub _set_paths
 				'anvil-check-memory'		=>	"/usr/sbin/anvil-check-memory",
 				'anvil-configure-host'		=>	"/usr/sbin/anvil-configure-host",
 				'anvil-daemon'			=>	"/usr/sbin/anvil-daemon",
+				'anvil-delete-server'		=>	"/usr/sbin/anvil-delete-server",
 				'anvil-download-file'		=>	"/usr/sbin/anvil-download-file",
 				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
 				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",

@@ -26,6 +26,6 @@ $anvil->Get->switches;
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
-$anvil->Cluster->add_server({server_name => "srv01-test"});
+$anvil->Cluster->shutdown_server({server => "srv01-test"});
 
 $anvil->nice_exit({exit_code => 0});

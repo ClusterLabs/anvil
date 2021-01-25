@@ -1283,6 +1283,8 @@ WHERE
 
 This takes a host name and looks for a UUID from the C<< hosts >> table). If the entry is not found, an empty string is returned.
 
+ my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => "an-a02n01.alteeve.com"});
+
 Parameters;
 
 =head3 host_name (required)
