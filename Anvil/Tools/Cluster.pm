@@ -807,7 +807,7 @@ sub delete_server
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0226", variables => { 
 			server_name => $server_name,
 			return_code => $return_code, 
-			output      => $$output, 
+			output      => $output, 
 		}});
 		return('!!error!!');
 	}
@@ -2601,15 +2601,15 @@ sub shutdown_server
 	while($waiting)
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
-		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		my $status =         $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host}   ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 
 		}});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0554", variables => { server => $server }});
-		if ($host eq "running")
+		if ($status eq "running")
 		{
 			# Wait a bit and check again.
 			sleep 2;

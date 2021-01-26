@@ -303,13 +303,16 @@ Output (if any):
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0220">Unable to find a server name to match the server UUID: [#!variable!server_uuid!#].</key>
-		<key name="error_0221">The server: [#!variable!server_name!#] is already marked as DELETED.</key>
+		<key name="error_0221">#!free!#</key>
 		<key name="error_0222">The cluster does not appear to be running, unable to delete a server at this time. We'll sleep for a bit and then exit, and the try again.</key>
 		<key name="error_0223">The server: [#!variable!server_name!#] appears to have failed to stop.</key>
 		<key name="error_0224">Unable to delete the server resource: [#!variable!server_name!#] as the cluster isn't running or there was a problem parsing the cluster CIB.</key>
 		<key name="error_0225">Unable to delete the server resource: [#!variable!server_name!#] as this node is not (yet) a full member of the cluster.</key>
 		<key name="error_0226">It looks like to removal of the server resource: [#!variable!server_name!#] failed. The return code should have been '0', but: [#!variable!return_code!#] was returned. The 'pcs' command output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0227">It looks like to removal of the server resource: [#!variable!server_name!#] failed. Unsafe to proceed with the removal of the server. Please check the logs for more information.</key>
+		<key name="error_0228">Unable to delete the resource: [#!variable!resource!#] because it wasn't found in DRBD's config.</key>
+		<key name="error_0229">One or more peers need us, and we're not allowed to wait. Deletion aborted.</key>
+		<key name="error_0230">The shell call: [#!variable!shell_call!#] was expected to return '0', but instead the return code: [#!variable!return_code!#] was received. The output, if any, was: [#!variable!output!#].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -639,6 +642,11 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0209">This deletes a server from an Anvil! system.</key>
 		<key name="job_0210">Asking pacemaker to stop the server: [#!variable!server_name!#].</key>
 		<key name="job_0211">The server: [#!variable!server_name!#] is now stopped in pacemaker.</key>
+		<key name="job_0212">Registered a job with: [#!variable!host_name!#] to delete it's records of this server.</key>
+		<key name="job_0213">Deleting the replicated storage resource behind this server.</key>
+		<key name="job_0214">Storage has been released. Checking that the server has flagged as deleted in the database.</key>
+		<key name="job_0215">The server has been flagged as deleted now.</key>
+		<key name="job_0216">The server delete is complete on this host!</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1320,6 +1328,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0585">The server: [#!variable!server_name!#]'s current status is: [#!variable!status!#].</key>
 		<key name="log_0586">The server: [#!variable!server_name!#] is now off.</key>
 		<key name="log_0587">The server: [#!variable!server_name!#] has been removed from Pacemaker.</key>
+		<key name="log_0588">We're required by at least one peer, so we'll wait a bit and check to see if they still need us before we proceed with the deletion.</key>
+		<key name="log_0589">Deleting the file: [#!variable!file!#].</key>
+		<key name="log_0590">Wiping the metadata from the DRBD resource: [#!variable!resource!#].</key>
+		<key name="log_0591">Wiping any file system signatures and then deleting the logical volume: [#!variable!device_path!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2210,6 +2222,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0071">[ Warning ] - We were asked to create a new storage group called: [#!variable!name!#] but that name is already used by the group with UUID: [#!variable!uuid!#].</key>
 		<key name="warning_0072">[ Warning ] - The file: [#!variable!file_path!#] was not found on any accessible Striker dashboard (or it isn't the same size as recorded in the database). Will sleep for a minute and exit, then we'll try again.</key>
 		<key name="warning_0073">[ Warning ] - No databases are available. Some functions of this resource agent will not be available.</key>
+		<key name="warning_0074">[ Warning ] - Our disk state for the peer: [#!variable!peer_name!#] on resource: [#!variable!resource!#], volume: [#!variable!volume!#] is: [#!variable!disk_state!#].</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

@@ -129,16 +129,77 @@ sub run_jobs
 	# This parses the jobs::job_data intp variables.
 	parse_job_data($anvil);
 	
+	my $host_type   = $anvil->Get->host_type();
+	my $server_uuid = $anvil->data->{job}{server_uuid};
+	my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_type   => $host_type, 
+		server_uuid => $server_uuid,
+		server_name => $server_name, 
+	}});
+	
 	if (not $anvil->data->{job}{peer_mode})
 	{
 		# Remove the server from pacemaker (stopping it, if necessary).
 		remove_from_pacemaker($anvil);
-		
-		# Now parse the DRBD resources under this server. We'll log into the peers (if any) that are
-		# connected and down their DRBD resources under this server). 
-		
-		
 	}
+	
+	$anvil->Job->update_progress({
+		progress => 50,
+		message  => "job_0213", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0213"});
+	
+	### NOTE: If we're a DR host, and the server wasn't used here, this is expected to fail
+	# Delete the DRBD resource and backing storage
+	my $problem = $anvil->DRBD->delete_resource({debug => 2, resource => $server_name});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if (($problem) && ($host_type eq "node"))
+	{
+		# Something went wrong
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0228,!!resource!".$server_name."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0228", variables => { resource => $server_name }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->Job->update_progress({
+		progress => 60,
+		message  => "job_0214", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0214"});
+	
+	# Make sure the server is flagged as DELETEd.
+	$anvil->Database->get_servers();
+	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	if ($server_state ne "DELETED")
+	{
+		my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid = ".$anvil->Database->quote($server_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		$anvil->Job->update_progress({
+			progress => 70,
+			message  => "job_0215", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0215"});
+	}
+	
+	$anvil->Job->update_progress({
+		progress => 100,
+		message  => "job_0216", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0216"});
 
 	return(0);
 }
@@ -150,6 +211,10 @@ sub remove_from_pacemaker
 	
 	my $server_uuid = $anvil->data->{job}{server_uuid};
 	my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_uuid => $server_uuid,
+		server_name => $server_name, 
+	}});
 	
 	# Sanity checks passed
 	$anvil->Job->update_progress({
@@ -159,9 +224,9 @@ sub remove_from_pacemaker
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0210", variables => { server_name => $server_name }});
 	
 	my $problem = $anvil->Cluster->shutdown_server({
-		debug  => 2,
+		debug  => 2, 
 		server => $server_name, 
-		'wait' => 1,
+		'wait' => 1, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)
@@ -198,7 +263,47 @@ sub remove_from_pacemaker
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	
+	# Register the job with the peers. 
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	my $peers      = [];
+	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid} eq $anvil->Get->host_uuid)
+	{
+		# We're node 1
+		push @{$peers}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}
+	}
+	else
+	{
+		# We're node 2
+		push @{$peers}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}
+	}
+	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
+	{
+		# There's a DR host.
+		push @{$peers}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	}
+	my $progress = 30;
+	foreach my $host_uuid (@{$peers})
+	{
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-delete-server'}, 
+			job_data        => "server_uuid=".$server_uuid."\npeer_mode=true", 
+			job_name        => "server::delete", 
+			job_title       => "job_0208", 
+			job_description => "job_0209", 
+			job_progress    => 0,
+			job_host_uuid   => $host_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => $host_uuid});
+		$anvil->Job->update_progress({
+			progress => $progress,
+			message  => "job_0212,!!host_name!".$host_name."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0212", variables => { host_name => $host_name }});
+		$progress += 10;
+	}
 	
 	return(0);
 }
@@ -218,7 +323,7 @@ sub parse_job_data
 			$anvil->data->{job}{server_uuid} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_uuid' => $anvil->data->{job}{server_uuid} }});
 		}
-		if ($line =~ /peer_mode=true$/)
+		if ($line =~ /peer_mode=true/)
 		{
 			$anvil->data->{job}{peer_mode} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::peer_mode' => $anvil->data->{job}{peer_mode} }});
@@ -251,30 +356,23 @@ sub parse_job_data
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0220", variables => { server_uuid => $server_uuid }});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	elsif ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "DELETED")
-	{
-		# The server is already gone.
-		my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
-		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "error_0221,!!server_name!".$server_name."!!", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0221", variables => { server_name => $server_name }});
-		$anvil->nice_exit({exit_code => 1});
-	}
 	
-	my $problem = $anvil->Cluster->parse_cib({debug => 2});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-	if ($problem)
+	my $host_type = $anvil->Get->host_type();
+	if ($host_type eq "node")
 	{
-		# The cluster isn't running, sleep and exit.
-		$anvil->Job->update_progress({
-			progress => 0,
-			message  => "error_0222", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0222"});
-		sleep 10;
-		$anvil->nice_exit({exit_code => 1});
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# The cluster isn't running, sleep and exit.
+			$anvil->Job->update_progress({
+				progress => 0,
+				message  => "error_0222", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0222"});
+			sleep 10;
+			$anvil->nice_exit({exit_code => 1});
+		}
 	}
 	
 	return(0);

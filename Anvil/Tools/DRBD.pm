@@ -15,6 +15,7 @@ my $THIS_FILE = "DRBD.pm";
 
 ### Methods;
 # allow_two_primaries
+# delete_resource
 # gather_data
 # get_devices
 # get_status
@@ -236,6 +237,208 @@ sub allow_two_primaries
 }
 
 
+=head2 delete_resource
+
+This method deletes an entire resource. It does this by looping through the volumes configured in a resource and deleting them one after the other (even if there is only one volume).
+
+On success, C<< 0 >> is returned. If there are any issues, C<< !!error!! >> will be returned.
+
+Parameters;
+
+=head3 resource (required)
+
+This is the name of the resource to be deleted.
+
+=head3 wait (optional, default '1')
+
+This controls whether we wait for a resource that is C<< Primary >> or C<< SyncSource >> to demote or the sync target to disconnect before proceeding. If whis is set to C<< 0 >>, instead of waiting, the method returns an error and aborts.
+
+=cut
+sub delete_resource
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->delete_resource()" }});
+	
+	my $resource = defined $parameter->{resource} ? $parameter->{resource} : "";
+	my $wait     = defined $parameter->{'wait'}   ? $parameter->{'wait'}   : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		resource => $resource, 
+		'wait'   => $wait
+	}});
+	
+	if (not $resource)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->delete_resource()", parameter => "resource" }});
+		return('!!error!!');
+	}
+	
+	$anvil->DRBD->gather_data({debug => $debug});
+	if (not exists $anvil->data->{new}{resource}{$resource})
+	{
+		# Resource not found.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0228", variables => { resource => $resource }});
+		return('!!error!!');
+	}
+	
+	my $waiting = 1;
+	while($waiting)
+	{
+		my $peer_needs_us = 0;
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+		{
+			# If we're sync source, or we're primary, we'll either wait or abort.
+			my $device_path  = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path};
+			my $backing_disk = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk};
+			my $device_minor = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:device_path'  => $device_path, 
+				's2:backing_disk' => $backing_disk, 
+				's3:device_minor' => $device_minor, 
+			}});
+			$anvil->data->{drbd}{resource}{$resource}{backing_disk}{$backing_disk} = 1;
+			foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"new::resource::${resource}::volume::${volume}::peer::${peer}::local_disk_state" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state},
+				}});
+				if (($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} eq "startingsyncs") or 
+				    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} eq "syncsource")    or 
+				    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} eq "pausedsyncs")   or 
+				    ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state} eq "ahead"))
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0074", variables => {
+						peer_name  => $peer,
+						resource   => $resource,
+						volume     => $volume,
+						disk_state => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state},
+					}});
+					
+					$peer_needs_us = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { peer_needs_us => $peer_needs_us }});
+				}
+			}
+		}
+		if ($peer_needs_us)
+		{
+			if (not $wait)
+			{
+				# Abort.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0229"});
+				return('!!error!!');
+			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0588"});
+				sleep 10;
+				$anvil->DRBD->gather_data({debug => $debug})
+			}
+		}
+		else
+		{
+			# No need to wait now.
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+		}
+	}
+	
+	# Down the resource, if needed.
+	$anvil->DRBD->manage_resource({
+		debug    => $debug,
+		resource => $resource, 
+		task     => "down",
+	});
+	
+	# Wipe the DRBD MDs from each backing LV
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0590", variables => { resource => $resource }});
+	my $shell_call = $anvil->data->{path}{exe}{echo}." yes | ".$anvil->data->{path}{exe}{drbdadm}." wipe-md ".$resource;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	if ($return_code)
+	{
+		# Should have been '0'
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0230", variables => { 
+			shell_call  => $shell_call, 
+			return_code => $return_code,
+			output      => $output, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Now wipefs and lvremove each backing device
+	foreach my $backing_disk (sort {$a cmp $b} keys %{$anvil->data->{drbd}{resource}{$resource}{backing_disk}})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0591", variables => { backing_disk => $backing_disk }});
+		
+		my $shell_call = $anvil->data->{path}{exe}{wipefs}." --all ".$backing_disk;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if ($return_code)
+		{
+			# Should have been '0'
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0230", variables => { 
+				shell_call  => $shell_call, 
+				return_code => $return_code,
+				output      => $output, 
+			}});
+			return('!!error!!');
+		}
+		
+		# Now delete the logical volume
+		$shell_call = $anvil->data->{path}{exe}{lvremove}." --force ".$backing_disk;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if ($return_code)
+		{
+			# Should have been '0'
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0230", variables => { 
+				shell_call  => $shell_call, 
+				return_code => $return_code,
+				output      => $output, 
+			}});
+			return('!!error!!');
+		}
+	}
+	
+	# Now unlink the resource config file.
+	my $resource_file = $anvil->data->{new}{resource}{$resource}{config_file};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_file => $resource_file }});
+	if (-f $resource_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0589", variables => { file => $resource_file }});
+		unlink $resource_file;
+		sleep 1;
+		if (-f $resource_file)
+		{
+			# WTF?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0243", variables => { file => $resource_file }});
+			return('!!error!!');
+		}
+		else
+		{
+			# Success!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0134", variables => { file_path => $resource_file }});
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 gather_data
 
 This calls C<< drbdadm >> to collect the configuration of the local system and parses it. This methid is designed for use by C<< scan_drbd >>, but is useful elsewhere. This is note-worthy as the data is stored under a C<< new::... >> hash.
@@ -361,12 +564,14 @@ sub gather_data
 							's2:meta_disk' => $meta_disk, 
 						}});
 						
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}    = $volume_vnr->findvalue('./device');
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor}   = $volume_vnr->findvalue('./device/@minor');
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}           = 0;
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
+						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}         = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"s1:new::resource::${resource}::volume::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path},
-							"s2:new::resource::${resource}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor},
+							"s2:new::resource::${resource}::volume::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk},
+							"s3:new::resource::${resource}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor},
 						}});
 					}
 				}
@@ -1093,11 +1298,13 @@ ORDER BY
 
 This parses the DRBD status on the local or remote system. The data collected is stored in the following hashes;
 
- - drbd::status::<host_name>::resource::<resource_name>::{ap-in-flight,congested,connection-state,peer-node-id,rs-in-flight}
- - drbd::status::<host_name>::resource::<resource_name>::connection::<peer_host_name>::volume::<volume>::{has-online-verify-details,has-sync-details,out-of-sync,peer-client,peer-disk-state,pending,percent-in-sync,received,replication-state,resync-suspended,sent,unacked}
- - # If the volume is resyncing, these additional values will be set:
- - drbd::status::<host_name>::resource::<resource_name>::connection::<peer_host_name>::volume::<volume>::{db-dt MiB-s,db0-dt0 MiB-s,db1-dt1 MiB-s,estimated-seconds-to-finish,percent-resync-done,rs-db0-sectors,rs-db1-sectors,rs-dt-start-ms,rs-dt0-ms,rs-dt1-ms,rs-failed,rs-paused-ms,rs-same-csum,rs-total,want}
- - drbd::status::<host_name>::resource::<resource>::devices::volume::<volume>::{al-writes,bm-writes,client,disk-state,lower-pending,minor,quorum,read,size,upper-pending,written}
+ drbd::status::<host_name>::resource::<resource_name>::{ap-in-flight,congested,connection-state,peer-node-id,rs-in-flight}
+ drbd::status::<host_name>::resource::<resource_name>::connection::<peer_host_name>::volume::<volume>::{has-online-verify-details,has-sync-details,out-of-sync,peer-client,peer-disk-state,pending,percent-in-sync,received,replication-state,resync-suspended,sent,unacked}
+ 
+If the volume is resyncing, these additional values will be set:
+ 
+ drbd::status::<host_name>::resource::<resource_name>::connection::<peer_host_name>::volume::<volume>::{db-dt MiB-s,db0-dt0 MiB-s,db1-dt1 MiB-s,estimated-seconds-to-finish,percent-resync-done,rs-db0-sectors,rs-db1-sectors,rs-dt-start-ms,rs-dt0-ms,rs-dt1-ms,rs-failed,rs-paused-ms,rs-same-csum,rs-total,want}
+ drbd::status::<host_name>::resource::<resource>::devices::volume::<volume>::{al-writes,bm-writes,client,disk-state,lower-pending,minor,quorum,read,size,upper-pending,written}
 
 If any data for the host was stored in a previous call, it will be deleted before the new data is collected and stored.
 
@@ -1182,6 +1389,11 @@ sub get_status
 			output                               => $output,
 			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
 		}});
+	}
+	
+	if (exists $anvil->data->{drbd}{status}{$host})
+	{
+		delete $anvil->data->{drbd}{status}{$host};
 	}
 	
 	# Parse the output.

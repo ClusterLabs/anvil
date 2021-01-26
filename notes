@@ -576,280 +576,6 @@ argument ...       argument is repeatable.
 
 ====
 
-BEGIN TRANSACTION;
-DROP FUNCTION history_alerts() CASCADE;
-DROP TABLE history.alerts;
-DROP TABLE alerts;
-
-CREATE TABLE alerts (
-    alert_uuid             uuid                        not null    primary key,
-    alert_host_uuid        uuid                        not null,                    -- The name of the node or dashboard that this alert came from.
-    alert_set_by           text                        not null,
-    alert_level            integer                     not null,                    -- 1 (critical), 2 (warning), 3 (notice) or 4 (info)
-    alert_title            text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
-    alert_message          text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
-    alert_sort_position    integer                     not null    default 9999,    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
-    alert_show_header      integer                     not null    default 1,       -- This can be set to have the alert be printed with only the contents of the string, no headers.
-    modified_date          timestamp with time zone    not null,
-    
-    FOREIGN KEY(alert_host_uuid) REFERENCES hosts(host_uuid)
-);
-ALTER TABLE alerts OWNER TO admin;
-
-CREATE TABLE history.alerts (
-    history_id             bigserial,
-    alert_uuid             uuid,
-    alert_host_uuid        uuid,
-    alert_set_by           text,
-    alert_level            integer,
-    alert_title            text,
-    alert_message          text,
-    alert_sort_position    integer,
-    alert_show_header      integer,
-    modified_date          timestamp with time zone    not null
-);
-ALTER TABLE history.alerts OWNER TO admin;
-
-CREATE FUNCTION history_alerts() RETURNS trigger
-AS $$
-DECLARE
-    history_alerts RECORD;
-BEGIN
-    SELECT INTO history_alerts * FROM alerts WHERE alert_uuid = new.alert_uuid;
-    INSERT INTO history.alerts
-        (alert_uuid,
-         alert_host_uuid,
-         alert_set_by,
-         alert_level,
-         alert_title,
-         alert_title_variables,
-         alert_message,
-         alert_message_variables,
-         alert_sort_position, 
-         alert_show_header, 
-         modified_date)
-    VALUES
-        (history_alerts.alert_uuid,
-         history_alerts.alert_host_uuid,
-         history_alerts.alert_set_by,
-         history_alerts.alert_level,
-         history_alerts.alert_title,
-         history_alerts.alert_message,
-         history_alerts.alert_sort_position, 
-         history_alerts.alert_show_header, 
-         history_alerts.modified_date);
-    RETURN NULL;
-END;
-$$
-LANGUAGE plpgsql;
-ALTER FUNCTION history_alerts() OWNER TO admin;
-
-CREATE TRIGGER trigger_alerts
-    AFTER INSERT OR UPDATE ON alerts
-    FOR EACH ROW EXECUTE PROCEDURE history_alerts();
-
-COMMIT;
-
-====
-
-3rd party stuff;
-
-dnf install autoconf automake bzip2-devel corosynclib-devel gnutls-devel help2man libqb-devel libtool \
-            libtool-ltdl-devel libuuid-devel libxml2-devel libxslt-devel pam-devel "pkgconfig(dbus-1)" \
-	    "pkgconfig(glib-2.0)" python3-devel asciidoc inkscape publican booth-site diffstat \
-	    fence-agents-apc fence-agents-ipmilan fence-agents-scsi fence-virt python3-lxml ruby-devel \
-	    rubygem-backports rubygem-ethon rubygem-ffi rubygem-multi_json rubygem-open4 rubygem-rack \
-	    rubygem-rack-protection rubygem-rack-test rubygem-sinatra rubygem-test-unit flex perl-generators
-----
-pacemaker;
-git tag
-git checkout <2.x>
-make srpm
-mv /home/digimer/anvil/builds/pacemaker/pacemaker-2.0.0-0.1.rc2.fedora.src.rpm ~/rpmbuild/SRPMS/
-----
-pcs;
-- Requires pacemaker 2.x install
-git tag
-git checkout <0.10.x>
-
-====
-
-Building 3rd party tools
-dnf -y install bzip2-devel corosynclib-devel docbook-style-xsl gnutls-devel help2man libqb-devel libtool libtool-ltdl-devel libuuid-devel libxml2-devel libxslt-devel ncurses-devel pam-devel
-
-==========
-
-Build Dependency chain;
-
-perl-Log-Log4perl
-  perl-Log-Dispatch-FileRotate
-perl-MIME-Lite
-
-===========================================================================================================
-
-RPM build order
-
---- Install from RHEL repos;
-
-- Groups;
-dnf group install development rpm-development-tools
-
-- Uninstall
-dnf remove biosdevname
-
-- Packages
-dnf -y install bash-completion bind-utils dnf-utils firefox gdm libgcrypt-devel libutempter-devel libvirt-bash-completion ncurses-devel openssl-devel pam-devel perl-Capture-Tiny perl-Devel-CheckLib perl-Digest-SHA1 perl-ExtUtils-CBuilder perl-ExtUtils-MakeMaker perl-HTML-Parser \
-            perl-IO-stringy perl-MailTools perl-Module-Build perl-Module-Install perl-Module-Install-ReadmeFromPod perl-Net-DNS perl-Test-Exception perl-Test-Simple perl-Test-Pod perl-Test-Pod-Coverage \
-            perl-Test2-Suite rpm-build systemd-devel texinfo virt-manager wget \
-            perl-Params-ValidationCompiler perl-Dist-CheckConflicts perl-namespace-autoclean perl-Test-Fatal perl-Devel-GlobalDestruction perl-IPC-Run3 perl-Specio perl-Sys-Syslog postfix perl-DBI perl-IPC-SysV perl-Test perl-Filter rrdtool-perl perl-Test-Warn perl-Date-Manip \
-            perl-MIME-Types python36 docbook-style-xsl libxslt flex kernel-devel perl-IPC-System-Simple xdg-user-dirs perl-Import-Into perl-Class-XSAccessor perl-Sub-Name perl-DynaLoader-Functions perl-Devel-CallChecker perl-Test-Requires \
-            apr-devel apr-util-devel gdbm-devel httpd-devel perl-CGI perl-libwww-perl perl-Path-Tiny perl-ExtUtils-Embed perl-XML-DOM perl-Test-Taint perl-Readonly perl-Devel-Peek perl-String-ShellQuote elfutils-libelf-devel po4a
-
---- First round of builds;
-alteeve-el8-repo
-anvil
-anvil-striker-extra
-htop
-libssh2
-perl-Algorithm-C3
-perl-B-Compiling
-perl-BSD-Resource
-perl-Devel-ArgNames
-perl-Devel-Refcount
-perl-Email-Date-Format
-perl-Exporter-Lite
-perl-ExtUtils-Config
-perl-ExtUtils-Depends
-perl-ExtUtils-Helpers
-perl-Eval-WithLexicals
-perl-Fennec-Lite
-perl-HTML-Strip
-perl-File-BaseDir
-perl-File-MimeInfo
-perl-IO-CaptureOutput
-perl-Lexical-SealRequireHints
-perl-Linux-Pid
-perl-Log-Journald
-perl-Net-Domain-TLD
-perl-Mail-Sender
-perl-Mail-Sendmail
-perl-Module-Install-GithubMeta
-perl-Net-Domain-TLD
-perl-Net-OpenSSH	           # Requires the builder enter their password
-perl-Proc-Simple
-perl-Sub-Quote
-perl-Test-Identity
-perl-Test-Needs
-perl-Test-UseAllModules
-perl-UUID-Tiny
-
---- Second round of builds;
-
-# RHEL 8 blocks the install of libssh2-devel via dnf, so rpm to instal it
-rpm -Uvh /var/www/html/repo/RPMS/x86_64/libssh2-1.8.0-8.el8.x86_64.rpm /var/www/html/repo/RPMS/x86_64/libssh2-devel-1.8.0-8.el8.x86_64.rpm 
-dnf -y install perl-IO-CaptureOutput perl-Exporter-Lite perl-Module-Install-GithubMeta perl-Net-Domain-TLD perl-Test-UseAllModules perl-Mail-Sender perl-Mail-Sendmail perl-Test-Needs perl-Email-Date-Format perl-ExtUtils-Depends perl-B-Compiling perl-Lexical-SealRequireHints \
-               perl-Sub-Quote perl-BSD-Resource perl-Linux-Pid perl-Algorithm-C3 perl-Fennec-Lite perl-Devel-ArgNames perl-Devel-Refcount perl-ExtUtils-Config perl-ExtUtils-Helpers perl-Test-Identity perl-Eval-WithLexicals
-
-mod_perl			# NOTE: When --sign'ing it, it throws an error. Build without '--sign' and then do 'rpm --addsign <all rpms>'
-perl-B-Hooks-OP-Check
-perl-Class-C3
-perl-Data-Dumper-Concise
-perl-Email-Valid
-perl-ExtUtils-InstallPaths
-perl-Lexical-Var
-perl-Meta-Builder
-perl-MIME-Lite
-perl-Module-Install-AutoLicense
-perl-Net-Netmask
-perl-Test-Refcount
-
---- Third round of builds;
-
-dnf -y install perl-Email-Valid perl-Module-Install-AutoLicense perl-MIME-Lite perl-B-Hooks-OP-Check perl-Lexical-Var mod_perl perl-Class-C3 perl-Data-Dumper-Concise perl-ExtUtils-InstallPaths perl-Meta-Builder perl-Test-Refcount
-
-perl-bareword-filehandles
-perl-Email-Find
-perl-Future
-perl-Log-Dispatch
-perl-Module-Build-Tiny
-perl-Module-Install-CheckLib
-perl-multidimensional
-### NOTE: These two need to be built using bootstrap, and will be rebuilt later.
-perl-Devel-Declare            # NOTE: rpmbuild -ba --define='perl_bootstrap=1' perl-Devel-Declare.spec, build perl-Devel-CallParser, rebuild this without bootstrap.
-perl-indirect                 # NOTE: rpmbuild -ba --define='perl_bootstrap=1' perl-indirect.spec, build perl-Devel-CallParser, rebuild this without bootstrap.
-
-
---- Fourth round of builds;
-
-dnf -y install perl-Email-Find perl-Module-Install-CheckLib perl-Log-Dispatch perl-Devel-Declare perl-bareword-filehandles perl-multidimensional perl-indirect perl-Future perl-Module-Build-Tiny
-
-perl-aliased
-perl-Devel-CallParser
-perl-HTML-FromText
-perl-Log-Dispatch-FileRotate
-perl-Net-SSH2
-perl-strictures
-
---- Fifth round of builds;
-
-dnf -y install perl-Log-Dispatch perl-strictures perl-Devel-CallParser perl-Log-Dispatch-FileRotate perl-aliased
-
-perl-Exporter-Declare
-perl-Log-Log4perl
-perl-Moo
-### NOTE: We're rebuilding these two, this time without bootstrap
-perl-Devel-Declare
-perl-indirect
-
-
---- Sixth round of builds;
-
-### NOTE: expire-cache isn't enough to clear the boot-strapped versions
-dnf clean all
-dnf reinstall perl-Devel-Declare perl-indirect
-dnf -y install perl-Moo perl-Log-Log4perl perl-Exporter-Declare
-
-perl-CPAN-Changes
-perl-Log-Contextual
-
-
---- Seventh round of builds;
-
-dnf -y install perl-CPAN-Changes perl-Log-Contextual
-
-perl-File-DesktopEntry
-perl-Object-Remote
-
---- Seventh round, final installs.
-
-dnf -y install perl-File-DesktopEntry perl-Object-Remote perl-Net-OpenSSH
-
-
-
-=======================================
-
-cd SOURCES; 
-tar -xzvf $tarball (or xjvf, whatever); 
-tar -xzv -C package-digimer -f $tarball; 
-patch in *-digimer; 
-diff -uNr $package $package-digimer > ../SOURCES/whatever.patch
-
-00:24 < Bahhumbug> 
-Burst the source tarball; 
-do it again but stash this copy in a *-digimer directory.  
-Do patching in the -digimer directory and when finished great a recursive unified diff and place the results directly in the named .patch file.
-
-
-cd ~/rpmbuild/SOURCES
-tar -xzvf htop-2.2.0.tar.gz
-mv htop-2.2.0 htop-2.2.0-digimer
-cd htop-2.2.0-digimer
-# patch 
-diff -uNr htop-2.2.0 htop-2.2.0-digimer > whatever.patch
-
-# Fabio's way
-diff -Naurd htop-2.2.0 htop-2.2.0-digimer > htop_python3_MakeHeader.patch 
-
 =======================================
 
 chrissie's cluster script
@@ -895,200 +621,7 @@ virt-install --connect qemu:///system \
   
 # Migration;
 
-
 pcs constraint remove $(pcs constraint show --full | grep ban-srv07-el6 | perl -pe 's/^.*?id:(.*?)\)/$1/')
-
-
-DRBD 9 - Check;
-/sys/kernel/debug/drbd/resources/${resource_name}/connections/${hostname}/0/proc_drbd
-
-====== New style
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-Generated on:    2019-06-20, 15:32:27
-Striker Version: 2.0.7
--->
-
-<anvil name="xx-anvil-01">
-	<machines>
-		<node name="xx-a01n01.digimer.ca" uuid="xxx">
-			<network name="bcn1" ntp=""  ethtool_opts="" mtu="1500" default_gateway="0" >
-				<!-- subnet can be in "/xx" format -->
-				<address ip="10.201.10.1" subnet="255.255.0.0" gateway="" default_gateway="0" dns="" />
-				<interface name="bcn1_link1" mac="xx:xx:xx:xx:xx:xx"/>
-				<interface name="bcn1_link2" mac="xx:xx:xx:xx:xx:yy"/>
-			</network>
-			<fence>
-				<!-- IPMI data comes from hosts -> host_ipmi. If it is found, it always is used as the first fence device -->
-				<!-- PDU shows how to reference devices -->
-				<method name="pdu" type="pdu" order="1">
-					<!-- The 'name' parameter has to match an entry under devices -> pdu's name -->
-					<device name="xx-pdu01" port="1" />
-					<device name="xx-pdu02" port="2" />
-				</method>
-				<!-- This would only happen on it's own, but is here for example. The 'server_name' is the name of the VM on the host -->
-				<method name="kvm" type="kvm" order="1">
-					<device name="host1" server_name="xx-a01n01" />
-				</method>
-			</fence>
-			<power>
-				<!-- The 'name' parameter has to match an entry under devices -> ups's name -->
-				<ups name="xx-ups01" />
-				<ups name="xx-ups02" />
-			</power>
-		</node>
-		<dr name="xx-a01dr01.digimer.ca" uuid="xxx">
-			<!-- IPMI is used to power on/off for scheduled, periodic resyncs. -->
-		</dr>
-	</machines>
-	<!-- These devices need to reference entries in the 'fences' database table.
-	<fences>
-		<!-- When a machine references these, the 'type="x"' references the child element and the contained 'name="x"' references the child's child element by name -->
-		<pdu>
-			<pdu name="xx-pdu01" agent="fence_apc_snmp" address="10.20.2.1" />
-			<pdu name="xx-pdu02" agent="fence_apc_snmp" address="10.20.2.2" />
-		</pdu>
-		<!-- UPSes are used so that we know which UPSes feed a given node, when deciding power event actions -->
-		<ups>
-			<ups name="xx-ups01" address="10.20.3.1" />
-			<ups name="xx-ups02" address="10.20.3.2" />
-		</ups>
-		<!-- In cases where VMs are being used. Later we can add support for VMWare -->
-		<kvm>
-			<kvm name="host1" address="192.168.122.1" user="root" password="xxx" />
-		</kvm>
-	</fences>
-</anvil>
-
-====== Old manifest style
-<?xml version="1.0" encoding="UTF-8"?>
-
-<!--
-Generated on:    2019-06-20, 15:32:27
-Striker Version: 2.0.7
--->
-
-<config>
-	<node name="mk-a01n01.digimer.ca" uuid="71822143-2a4d-43b4-839b-7c66b3c2e4d7">
-		<network>
-			<bcn ip="10.20.10.1" />
-			<sn ip="10.10.10.1" />
-			<ifn ip="10.255.10.1" />
-		</network>
-		<ipmi>
-			<on reference="ipmi_n01" ip="10.20.11.1" netmask="255.255.0.0" user="admin" password="Initial1" gateway="" lanplus="false" privlvl="USER" />
-		</ipmi>
-		<pdu>
-			<on reference="pdu01" port="1" />
-			<on reference="pdu02" port="1" />
-			<on reference="pdu03" port="" />
-			<on reference="pdu04" port="" />
-		</pdu>
-		<kvm>
-			<!-- port == virsh name of VM -->
-			<on reference="kvm_host" port="" />
-		</kvm>
-		<interfaces>
-			<interface name="bcn_link1" mac="f8:0f:41:f8:6b:fe" />
-			<interface name="bcn_link2" mac="00:19:99:ff:ba:b4" />
-			<interface name="sn_link1" mac="f8:0f:41:f8:6b:ff" />
-			<interface name="sn_link2" mac="00:19:99:ff:8b:5a" />
-			<interface name="ifn_link1" mac="00:19:99:ff:ba:b5" />
-			<interface name="ifn_link2" mac="00:19:99:ff:8b:59" />
-		</interfaces>
-	</node>
-	<node name="mk-a01n02.digimer.ca" uuid="f7a7b2be-a10a-40f0-991d-2265e3ec3cce">
-		<network>
-			<bcn ip="10.20.10.2" />
-			<sn ip="10.10.10.2" />
-			<ifn ip="10.255.10.2" />
-		</network>
-		<ipmi>
-			<on reference="ipmi_n02" ip="10.20.11.2" netmask="255.255.0.0" user="admin" password="Initial1" gateway="" lanplus="false" privlvl="USER" />
-		</ipmi>
-		<pdu>
-			<on reference="pdu01" port="2" />
-			<on reference="pdu02" port="2" />
-			<on reference="pdu03" port="" />
-			<on reference="pdu04" port="" />
-		</pdu>
-		<kvm>
-			<on reference="kvm_host" port="" />
-		</kvm>
-		<interfaces>
-			<interface name="bcn_link1" mac="00:26:2d:0c:a8:74" />
-			<interface name="bcn_link2" mac="00:19:99:ff:bb:4e" />
-			<interface name="sn_link1" mac="00:26:2d:0c:a8:75" />
-			<interface name="sn_link2" mac="00:19:99:ff:bb:8b" />
-			<interface name="ifn_link1" mac="00:19:99:ff:bb:4f" />
-			<interface name="ifn_link2" mac="00:19:99:ff:bb:8a" />
-		</interfaces>
-	</node>
-	<common>
-		<networks>
-			<bcn netblock="10.20.0.0" netmask="255.255.0.0" gateway="" defroute="no" ethtool_opts="" />
-			<sn netblock="10.10.0.0" netmask="255.255.0.0" gateway="" defroute="no" ethtool_opts="" />
-			<ifn netblock="10.255.0.0" netmask="255.255.0.0" gateway="10.255.255.254" dns1="8.8.8.8" dns2="8.8.4.4" ntp1="" ntp2="" defroute="yes" ethtool_opts="" />
-			<bonding opts="mode=1 miimon=100 use_carrier=1 updelay=120000 downdelay=0">
-				<bcn name="bcn_bond1" primary="bcn_link1" secondary="bcn_link2" />
-				<sn name="sn_bond1" primary="sn_link1" secondary="sn_link2" />
-				<ifn name="ifn_bond1" primary="ifn_link1" secondary="ifn_link2" />
-			</bonding>
-			<bridges>
-				<bridge name="ifn_bridge1" on="ifn" />
-			</bridges>
-			<mtu size="1500" />
-		</networks>
-		<repository urls="" />
-		<media_library size="40" units="GiB" />
-		<storage_pool_1 size="100" units="%" />
-		<anvil prefix="mk" sequence="01" domain="digimer.ca" password="Initial1" striker_user="" striker_database="" />
-		<ssh keysize="8191" />
-		<cluster name="mk-anvil-01">
-			<!-- Set the order to 'kvm' if building on KVM-backed VMs. Also set each node's 'port=' above and '<kvm>' element attributes below. -->
-			<fence order="ipmi,pdu" post_join_delay="90" delay="15" delay_node="mk-a01n01.digimer.ca" />
-		</cluster>
-		<drbd>
-			<disk disk-barrier="no" disk-flushes="no" md-flushes="no" c-plan-ahead="1" c-max-rate="110M" c-min-rate="30M" c-fill-target="1M" />
-			<options cpu-mask="" />
-			<net max-buffers="8192" sndbuf-size="" rcvbuf-size="" />
-		</drbd>
-		<switch>
-			<switch name="mk-switch01.digimer.ca" ip="10.20.1.1" />
-			<switch name="mk-switch02.digimer.ca" ip="10.20.1.2" />
-		</switch>
-		<ups>
-			<ups name="mk-ups01.digimer.ca" type="apc" port="3551" ip="10.20.3.1" />
-			<ups name="mk-ups02.digimer.ca" type="apc" port="3552" ip="10.20.3.2" />
-		</ups>
-		<pdu>
-			<pdu reference="pdu01" name="mk-pdu01.digimer.ca" ip="10.20.2.1" agent="fence_apc_alteeve" />
-			<pdu reference="pdu02" name="mk-pdu02.digimer.ca" ip="10.20.2.2" agent="fence_apc_alteeve" />
-		</pdu>
-		<ipmi>
-			<ipmi reference="ipmi_n01" agent="fence_ipmilan" />
-			<ipmi reference="ipmi_n02" agent="fence_ipmilan" />
-		</ipmi>
-		<kvm>
-			<kvm reference="kvm_host" ip="192.168.122.1" user="root" password="" password_script="" agent="fence_virsh" />
-		</kvm>
-		<striker>
-			<striker name="mk-striker01.digimer.ca" bcn_ip="10.20.4.1" ifn_ip="10.255.4.1" database="" user="" password="" uuid="" />
-			<striker name="mk-striker02.digimer.ca" bcn_ip="10.20.4.2" ifn_ip="10.255.4.2" database="" user="" password="" uuid="" />
-		</striker>
-		<update os="true" />
-		<iptables>
-			<vnc ports="100" />
-		</iptables>
-		<servers>
-			<!-- This isn't used anymore, but this section may be useful for other things in the future, -->
-			<!-- <provision use_spice_graphics="0" /> -->
-		</servers>
-		<tools>
-			<use anvil-safe-start="true" anvil-kick-apc-ups="false" />
-		</tools>
-	</common>
-</config>
 
 
 # Attach a network interface:
@@ -1133,3 +666,80 @@ drbdadm disconnect <res>
 drbdadm connect --discard-my-data <res>
 # Node to save data on;
 drbdadm connect <res>
+
+==================
+# Server srv01-sql, example showing two disks in one VM.
+resource srv01-sql {
+
+        on mk-a02n01 {
+                node-id 0;
+                volume 0 {
+                        device    /dev/drbd_srv01-sql_0 minor 0;
+                        disk      /dev/rhel/srv01-sql_0;
+                        meta-disk internal;
+                }
+                volume 1 {
+                        device    /dev/drbd_srv01-sql_1 minor 1;
+                        disk      /dev/rhel/srv01-sql_1;
+                        meta-disk internal;
+                }
+        }
+
+        on mk-a02n02 {
+                node-id 1;
+                volume 0 {
+                        device    /dev/drbd_srv01-sql_0 minor 0;
+                        disk      /dev/rhel/srv01-sql_0;
+                        meta-disk internal;
+                }
+                volume 1 {
+                        device    /dev/drbd_srv01-sql_1 minor 1;
+                        disk      /dev/rhel/srv01-sql_1;
+                        meta-disk internal;
+                }
+        }
+
+        on mk-a02dr01 {
+                node-id 2;
+                volume 0 {
+                        device    /dev/drbd_srv01-sql_0 minor 0;
+                        disk      /dev/rhel_new-dr/srv01-sql_0;
+                        meta-disk internal;
+                }
+                volume 1 {
+                        device    /dev/drbd_srv01-sql_1 minor 1;
+                        disk      /dev/rhel_new-dr/srv01-sql_1;
+                        meta-disk internal;
+                }
+        }
+
+        ### NOTE: Remember to open the appropriate firewall port!
+        # firewall-cmd --zone=SN1 --permanent --add-port=7788/tcp --permanent
+        # firewall-cmd --zone=SN1 --permanent --add-port=7788/tcp
+
+        connection {
+                host  mk-a02n01  address  10.101.12.1:7788;
+                host  mk-a02n02  address  10.101.12.2:7788;
+                net {
+                        protocol  C;
+                        fencing resource-and-stonith;
+                }
+        }
+        connection {
+                host  mk-a02n01   address  10.101.12.1:7789;
+                host  mk-a02dr01  address  10.101.12.3:7789;
+                net {
+                        protocol  A;
+                        fencing dont-care;
+                }
+        }
+        connection {
+                host  mk-a02n02   address  10.101.12.2:7790;
+                host  mk-a02dr01  address  10.101.12.3:7790;
+                net {
+                        protocol  A;
+                        fencing dont-care;
+                }
+        }
+}
+==================
