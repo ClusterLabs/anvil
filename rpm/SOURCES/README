@@ -1,5 +1,0 @@
-The 'master.tar.gz' file from the anvil github repo: 
-https://github.com/digimer/anvil should be stored in this directory when 
-building the .spec file. 
-
-* wget -c https://github.com/digimer/anvil/archive/master.tar.gz
