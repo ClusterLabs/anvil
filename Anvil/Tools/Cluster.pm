@@ -341,7 +341,9 @@ SELECT
 FROM 
     scan_lvm_vgs 
 WHERE 
-    scan_lvm_vg_host_uuid = ".$anvil->Database->quote($host_uuid)."
+    scan_lvm_vg_host_uuid =  ".$anvil->Database->quote($host_uuid)." 
+AND 
+    scan_lvm_vg_name      != 'DELETED'
 ORDER BY 
     scan_lvm_vg_size ASC
 ;";
