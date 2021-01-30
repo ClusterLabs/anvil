@@ -43,11 +43,6 @@ DRBD has been found to be configured on this host.
 - Current Resync Speed: [#!variable!say_scan_drbd_total_sync_speed!#]
 
 Note: Disk and metadata flushes should be enabled _unless_ you're using nodes with RAID controllers with flash-backed write cache.
-
-Raw 'drbdadm dump-xml' output:
-========
-#!variable!new_scan_drbd_common_xml!#
-========
 		</key>
 		<key name="scan_drbd_message_0002">
 The disk flush configuration has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].

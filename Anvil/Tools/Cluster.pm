@@ -197,9 +197,11 @@ sub add_server
 		target_role  => $target_role, 
 	}});
 	
+	### NOTE: 'INFINITY' doesn't work in some cases, so we set 1 day timeouts. If windows can't install 
+	###       an OS update in 24 hours, there's probably deeper issues.
 	### TODO: If the target_role is 'started' because the server was running, we may need to later do an 
 	###       update to set it to 'stopped' after we've verified it's in the cluster below.
-	my $resource_command = $anvil->data->{path}{exe}{pcs}." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"INFINITY\" on-fail=\"block\" stop timeout=\"INFINITY\" on-fail=\"block\" migrate_to timeout=\"INFINITY\"";
+	my $resource_command = $anvil->data->{path}{exe}{pcs}." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"300\" on-fail=\"block\" stop timeout=\"86400\" on-fail=\"block\" migrate_to timeout=\"86400\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
 
 	my ($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
@@ -341,7 +343,7 @@ FROM
 WHERE 
     scan_lvm_vg_host_uuid = ".$anvil->Database->quote($host_uuid)."
 ORDER BY 
-    scan_lvm_vg_size ASC;
+    scan_lvm_vg_size ASC
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -388,7 +390,6 @@ ORDER BY
 			$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_internal_uuid} = $row->[5];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"ungrouped_vg_count::${this_is}"                                                => $anvil->data->{ungrouped_vg_count}{$this_is},
-				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::count"            => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{count}, 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_uuid"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_uuid}, 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_name"          => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_name}, 
 				"ungrouped_vgs::${scan_lvm_vg_size}::host_uuid::${host_uuid}::vg_extent_size"   => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}{$host_uuid}{vg_extent_size}}).")", 
@@ -399,12 +400,13 @@ ORDER BY
 		}
 	}
 	
-	# Fing ungrouped VGs and see if we can group them. First by looking for identical sizes.
+	# Find ungrouped VGs and see if we can group them. First by looking for identical sizes.
 	my $reload_storage_groups = 0;
 	foreach my $scan_lvm_vg_size (sort {$a cmp $b} keys %{$anvil->data->{ungrouped_vgs}})
 	{
 		# If there are two or three VGs, we can create a group.
 		my $count = keys %{$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 		if (($count == 2) or ($count == 3))
 		{
 			# Create the volume group ... group. First we need a group number

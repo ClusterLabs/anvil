@@ -16,7 +16,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2020 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2021 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		<key name="brand_0007">Node</key>
 		<key name="brand_0008">DR Host</key>
@@ -303,7 +303,7 @@ Output (if any):
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0220">Unable to find a server name to match the server UUID: [#!variable!server_uuid!#].</key>
-		<key name="error_0221">#!free!#</key>
+		<key name="error_0221">This tool is only designed to migrate servers between nodes, and this is a DR host.</key>
 		<key name="error_0222">The cluster does not appear to be running, unable to delete a server at this time. We'll sleep for a bit and then exit, and the try again.</key>
 		<key name="error_0223">The server: [#!variable!server_name!#] appears to have failed to stop.</key>
 		<key name="error_0224">Unable to delete the server resource: [#!variable!server_name!#] as the cluster isn't running or there was a problem parsing the cluster CIB.</key>
@@ -313,6 +313,12 @@ Output (if any):
 		<key name="error_0228">Unable to delete the resource: [#!variable!resource!#] because it wasn't found in DRBD's config.</key>
 		<key name="error_0229">One or more peers need us, and we're not allowed to wait. Deletion aborted.</key>
 		<key name="error_0230">The shell call: [#!variable!shell_call!#] was expected to return '0', but instead the return code: [#!variable!return_code!#] was received. The output, if any, was: [#!variable!output!#].</key>
+		<key name="error_0231">This host is not an Anvil! node or DR host, unable to migrate servers.</key>
+		<key name="error_0232">Unable to find the server to migrate in the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0233">The cluster does not appear to be running, unable to migrate servers at this time. We'll sleep for a bit and then exit, and the try again.</key>
+		<key name="error_0234">Unable to find the target host to migrate to the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="error_0235">The migration target host: [#!variable!target_host_uuid!#] is either invalid, or doesn't match one of the nodes in this Anvil! system.</key>
+		<key name="error_0236">There appears to be no resource data in the database for the host: [#!variable!host_name!#]. Has ScanCore run and, specifically, has 'scan-hardware' run yet? Unable to provide available resources for this Anvil! system.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -647,6 +653,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0214">Storage has been released. Checking that the server has flagged as deleted in the database.</key>
 		<key name="job_0215">The server has been flagged as deleted now.</key>
 		<key name="job_0216">The server delete is complete on this host!</key>
+		<key name="job_0217">It looks like ScanCore has not yet run on one or both nodes in this Anvil! system. Missing resource data, so unable to proceed.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1644,6 +1651,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0214">The server is running on the host: [#!variable!host_name!#], assigning the job to it.</key>
 		<key name="message_0215">The server is not running anywhere, assigning the job to this host.</key>
 		<key name="message_0216">The server is running here, assigning the job to this host.</key>
+		<key name="message_0217">Preparing to delete a server.</key>
+		<key name="message_0218">Preparing to migrate a server (or all servers).</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2223,6 +2232,9 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0072">[ Warning ] - The file: [#!variable!file_path!#] was not found on any accessible Striker dashboard (or it isn't the same size as recorded in the database). Will sleep for a minute and exit, then we'll try again.</key>
 		<key name="warning_0073">[ Warning ] - No databases are available. Some functions of this resource agent will not be available.</key>
 		<key name="warning_0074">[ Warning ] - Our disk state for the peer: [#!variable!peer_name!#] on resource: [#!variable!resource!#], volume: [#!variable!volume!#] is: [#!variable!disk_state!#].</key>
+		<key name="warning_0075">[ Warning ] - We were asked to insert or update a host with the name: [#!variable!host_name!#]. Another host: [#!variable!host_uuid!#] has the same name, which could be a failed node that is being replaced. We're going to set it's 'host_key' to 'DELETED'. If this warning is logged only once, and after a machine is replaced, it's safe to ignore. If this warning is repeatedly being logged, then there are two active machines with the same host name, and that needs to be fixed.</key>
+		<key name="warning_0076">[ Warning ] - It looks like the postfix daemon is not running. Enabling and starting it now.</key>
+		<key name="warning_0077">[ Warning ] - Checking the mail queue after attempting to start postgres appears to have still failed. Output received was: [#!variable!output!#].</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

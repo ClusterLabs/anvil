@@ -8,9 +8,10 @@ use warnings;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 use Encode;
-use UUID::Tiny qw(:std);
-use Net::Netmask;
 use JSON;
+use Net::Netmask;
+use Text::Diff;
+use UUID::Tiny qw(:std);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
@@ -166,6 +167,8 @@ WHERE
 
 This reads to C<< VERSION >> file of a local or remote machine. If the version file isn't found, C<< 0 >> is returned. 
 
+This also reads the main C<< anvil.sql >> schema file and parses 
+
 Parameters;
 
 =head3 password (optional)
@@ -198,7 +201,6 @@ sub anvil_version
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	my $version     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -206,116 +208,198 @@ sub anvil_version
 		target      => $target, 
 	}});
 	
+	# The variables that will store the versions.
+	my $anvil_version  = 0;
+	my $schema_version = 0;
+	my $schema_body    = "";
+	
 	# Is this a local call or a remote call?
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local.
-		$version = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.version'}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+		$anvil_version = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.version'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_version => $anvil_version }});
 		
 		# Did we actually read a version?
-		if ($version eq "!!error!!")
+		if ($anvil_version eq "!!error!!")
 		{
-			$version = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { version => $version }});
+			$anvil_version = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { anvil_version => $anvil_version }});
+		}
+		
+		# Now read in the SQL schema
+		$schema_body = $anvil->Storage->read_file({file => $anvil->data->{path}{sql}{'anvil.sql'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_version => $anvil_version }});
+		
+		# Did we actually read a version?
+		if ($schema_body eq "!!error!!")
+		{
+			$schema_version = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { schema_version => $schema_version }});
 		}
 	}
 	else
 	{
-		### TODO: Remote calls are fragile. Move the version of dashboards into a variable to read from the database.
 		# Remote call. If we're running as the apache user, we need to read the cached version for 
 		# the peer. otherwise, after we read the version, will write the cached version.
-		my $user       = getpwuid($<);
-		my $cache_file = $anvil->data->{path}{directories}{anvil}."/anvil.".$target.".version";
+		my $user              = getpwuid($<);
+		my $anvil_cache_file  = $anvil->data->{path}{directories}{anvil}."/anvil.".$target.".version";
+		my $schema_cache_file = $anvil->data->{path}{directories}{anvil}."/anvil.".$target.".schema";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			cache_file => $cache_file, 
-			user       => $user,
+			anvil_cache_file  => $anvil_cache_file, 
+			schema_cache_file => $schema_cache_file, 
+			user              => $user,
 		}});
 		if ($user eq "apache")
 		{
 			# Try to read the local cached version.
-			if (-e $cache_file)
+			if (-e $anvil_cache_file)
 			{
 				# Read it in.
-				$version = $anvil->Storage->read_file({file => $cache_file});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+				$anvil_version = $anvil->Storage->read_file({file => $anvil_cache_file});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_version => $anvil_version }});
+			}
+			if (-e $schema_cache_file)
+			{
+				# Read it in.
+				$schema_body = $anvil->Storage->read_file({file => $schema_cache_file});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_version => $anvil_version }});
 			}
 		}
 		else
 		{
-			my $shell_call = "
-if [ -e ".$anvil->data->{path}{configs}{'anvil.version'}." ];
+			foreach my $file ($anvil->data->{path}{configs}{'anvil.version'}, $anvil->data->{path}{sql}{'anvil.sql'})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
+				my $shell_call = "
+if [ -e ".$file." ];
 then
-    cat ".$anvil->data->{path}{configs}{'anvil.version'}.";
+    cat ".$file.";
 else
    echo 0;
 fi;
 ";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-			my ($output, $error, $return_code) = $anvil->Remote->call({
-				debug       => $debug, 
-				shell_call  => $shell_call, 
-				target      => $target,
-				port        => $port, 
-				password    => $password,
-				remote_user => $remote_user, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				error  => $error,
-				output => $output,
-			}});
-			
-			$version = defined $output ? $output : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
-			
-			# Create/Update the cache file.
-			if ($version)
-			{
-				my $update_cache = 1;
-				my $old_version  = "";
-				if (-e $cache_file)
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+				my ($file_body, $error, $return_code) = $anvil->Remote->call({
+					debug       => $debug, 
+					shell_call  => $shell_call, 
+					target      => $target,
+					port        => $port, 
+					password    => $password,
+					remote_user => $remote_user, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					file_body => $file_body,
+					error     => $error,
+				}});
+				
+				if ($file eq $anvil->data->{path}{configs}{'anvil.version'})
 				{
-					$old_version = $anvil->Storage->read_file({file => $cache_file});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_version => $old_version }});
-					if ($old_version eq $version)
+					$anvil_version = $file_body;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_version => $anvil_version }});
+				}
+				else
+				{
+					$schema_body = $file_body;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema_body => $schema_body }});
+				}
+				
+				# Create/Update the cache file.
+				if ($file_body)
+				{
+					my $update_cache  = 0;
+					my $old_file_body = "";
+					my $cache_file    = $file eq $anvil->data->{path}{configs}{'anvil.version'} ? $anvil_cache_file : $schema_cache_file;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cache_file => $cache_file }});
+					if (-e $cache_file)
 					{
-						# No need to update
-						$update_cache = 0;
+						$old_file_body = $anvil->Storage->read_file({file => $cache_file});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							old_file_body => $old_file_body,
+							file_body     => $file_body, 
+						}});
+						my $difference = diff \$old_file_body, \$file_body, { STYLE => 'Unified' };
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+						if ($difference)
+						{
+							# update needed
+							$update_cache = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_cache => $update_cache }});
+						}
 					}
 					else
 					{
-						
+						# Cache file needs to be created.
+						$update_cache = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_cache => $update_cache }});
 					}
-				}
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_cache => $update_cache }});
-				if ($update_cache)
-				{
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0437", variables => { 
-						target => $target, 
-						file   => $cache_file, 
-					}});
-					$anvil->Storage->write_file({
-						debug     => $debug, 
-						file      => $cache_file, 
-						body      => $version,
-						mode      => "0666",
-						overwrite => 1,
-					});
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_cache => $update_cache }});
+					if ($update_cache)
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0437", variables => { 
+							target => $target, 
+							file   => $cache_file, 
+						}});
+						$anvil->Storage->write_file({
+							debug     => $debug, 
+							backup    => 0,
+							file      => $cache_file, 
+							body      => $file_body,
+							mode      => "0666",
+							overwrite => 1,
+						});
+					}
 				}
 			}
 		}
 	}
 	
 	# Clear off any newline.
-	$version =~ s/\n//gs;
+	$anvil_version =~ s/\n//gs;
 	
-	return($version);
+	# Pull the schema version out of the schema body.
+	foreach my $line (split/\n/, $schema_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /-- SchemaVersion: (\d+\.\d+\.\d+)/)
+		{
+			$schema_version = $1; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema_version => $schema_version }});
+			last;
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_version  => $anvil_version, 
+		schema_version => $schema_version,
+	}});
+	return($anvil_version, $schema_version);
 }
 
 
 =head2 available_resources
 
+This method looks at the resource used and available on the nodes in a given Anvil! system. The DR's resources are also ready, but don't contribute to the "least available" values.
+
+If either node has no data in the C<< scan_hardware >> table, this method will return with C<< !!no_data!! >>. Callers should abort on this value and remind the user that ScanCore needs to run on both nodes.
+
+Data is store in the following hashes;
+
+ anvil_resources::<anvil_uuid>::cpu::cores
+ anvil_resources::<anvil_uuid>::cpu::threads
+ anvil_resources::<anvil_uuid>::ram::available
+ anvil_resources::<anvil_uuid>::ram::allocated
+ anvil_resources::<anvil_uuid>::ram::hardware
+ anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_nodes
+ anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_dr
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::group_name
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::free_size
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size_on_dr
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::available_on_dr
+
+All sizes are stored in bytes.
 
 Parameters;
 
@@ -460,8 +544,8 @@ WHERE
 		if (not $count)
 		{
 			# Looks like scan-hardware hasn't run. We can't use this host yet.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0169", variables => { host_name => $host_name }});
-			next;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0236", variables => { host_name => $host_name }});
+			return('!!no_data!!');
 		}
 		
 		my $scan_hardware_cpu_cores   = $results->[0]->[0];
@@ -1970,13 +2054,19 @@ sub trusted_hosts
 		
 		my $host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
 		my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $host_key   = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key};
 		my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:host_uuid'  => $host_uuid, 
 			's2:host_name'  => $host_name, 
 			's3:host_type'  => $host_type, 
-			's4:anvil_name' => $anvil_name, 
+			's4:host_key'   => $host_key, 
+			's5:anvil_name' => $anvil_name, 
 		}});
+		
+		# Skip if the host_key is 'DELETED'.
+		next if $host_key eq "DELETED";
+		
 		if ($anvil->Get->host_type eq "striker")
 		{
 			# Add all known machines

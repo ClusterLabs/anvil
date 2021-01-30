@@ -3,7 +3,7 @@
 #   This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
 #
 #   License: GNU General Public License (GPL) v2+
-#            (c) 1997-2020 - Alteeve's Niche! Inc.
+#            (c) 1997-2021 - Alteeve's Niche! Inc.
 # 
 # WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
@@ -83,7 +83,7 @@ use Data::Dumper;
 $| = 1;
 
 # The name of this file is just 'server', which isn't helpful, so we manually set it to our RA name.
-my $THIS_FILE           = "ocf:alteeve:server";
+my $THIS_FILE           =  "ocf:alteeve:server";
 my $running_directory   =  ($0 =~ /^(.*?)\/server/)[0];
 if (($running_directory =~ /^\./) && ($ENV{PWD}))
 {

@@ -1491,11 +1491,16 @@ sub interactive_ask_anvil_name
 				anvil_name => $anvil->data->{new_server}{anvil_name}, 
 				anvil_uuid => $anvil->data->{new_server}{anvil_uuid}, 
 			}})."\n";
-			$anvil->Get->available_resources({
+			my $problem = $anvil->Get->available_resources({
 				debug      => 2,
 				anvil_uuid => $anvil->data->{new_server}{anvil_uuid},
 			});
-			
+			if ($problem eq "!!no_data!!")
+			{
+				# We can't proceed.
+				print $anvil->Words->string({key => "job_0217"})."\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
 			last;
 		}
 		else

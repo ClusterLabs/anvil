@@ -813,6 +813,9 @@ sub check_ssh_keys
 				host_key  => $host_key, 
 			}});
 			
+			# If the host_key is 'DELETED', skip if.
+			next if $host_key eq "DELETED";
+			
 			# Is this in the file and, if so, has it changed?
 			my $found     = 0;
 			my $test_line = $host_name." ".$host_key;

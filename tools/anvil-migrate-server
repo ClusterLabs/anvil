@@ -1,0 +1,240 @@
+#!/usr/bin/perl
+# 
+# This migrates servers from one node to another. It can operate on a single server, or it can be used to 
+# migrate all servers to a given host.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Any problem that causes an early exit.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+use Term::Cap;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source  => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, sleep for a bit and then exit. The daemon will retry after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0218"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({debug => 2});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid} }});
+
+# If we don't have a job UUID, try to find one.
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+}
+
+# If we still don't have a job-uuit, go into interactive mode.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->Job->clear();
+	$anvil->Job->get_job_details();
+	$anvil->Job->update_progress({
+		progress         => 1,
+		job_picked_up_by => $$, 
+		job_picked_up_at => time, 
+		message          => "message_0218", 
+	});
+
+	# Are we in an Anvil! system?
+	if (not $anvil->data->{sys}{anvil_uuid})
+	{
+		# We're not in an Anvil!.
+		if ($anvil->data->{switches}{'job-uuid'})
+		{
+			# Mark the job as failed.
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0231", 
+				job_status => "failed", 
+			});
+		}
+		
+		# Log an exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0231"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Job data will be in $anvil->data->{jobs}{job_data}
+	run_jobs($anvil);
+}
+else
+{
+	if (not $anvil->data->{sys}{anvil_uuid})
+	{
+		# We can't do anything, exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0231"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Interactive!
+	ask_for_server($anvil);
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+
+# This actually provisions a VM.
+sub run_jobs
+{
+	my ($anvil) = @_;
+	
+	# This parses the jobs::job_data intp variables.
+	parse_job_data($anvil);
+	
+	
+
+	return(0);
+}
+
+# This parses and verifies the job data
+sub parse_job_data
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{job}{server_uuid} = "";
+	$anvil->data->{job}{peer_mode}   = 0;
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /server_uuid=(.*)$/)
+		{
+			$anvil->data->{job}{server_uuid} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_uuid' => $anvil->data->{job}{server_uuid} }});
+		}
+		if ($line =~ /target_host_uuid=(.*)$/)
+		{
+			$anvil->data->{job}{target_host_uuid} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::target_host_uuid' => $anvil->data->{job}{target_host_uuid} }});
+		}
+	}
+	
+	# Did we get a server UUID?
+	if (not $anvil->data->{job}{server_uuid})
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0232,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0232", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Does the server UUID match to a server?
+	$anvil->Database->get_servers();
+	my $server_uuid = $anvil->data->{job}{server_uuid};
+	if (($server_uuid ne "all") && (not exists $anvil->data->{servers}{server_uuid}{$server_uuid}))
+	{
+		# Server UUID is invalid
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0220,!!server_uuid!".$server_uuid."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0220", variables => { server_uuid => $server_uuid }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Is the target_host_uuid a host in our Anvil! system?
+	if (not $anvil->data->{job}{target_host_uuid})
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0234,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0234", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	else
+	{
+		my $anvil_uuid      = $anvil->data->{sys}{anvil_uuid};
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_uuid      => $anvil_uuid,
+			node1_host_uuid => $node1_host_uuid, 
+			node2_host_uuid => $node2_host_uuid, 
+		}});
+		if (($anvil->data->{job}{target_host_uuid} ne $node1_host_uuid) && 
+		    ($anvil->data->{job}{target_host_uuid} ne $node2_host_uuid))
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0235,!!target_host_uuid!".$anvil->data->{job}{target_host_uuid}."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0235", variables => { target_host_uuid => $anvil->data->{job}{target_host_uuid} }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	my $host_type = $anvil->Get->host_type();
+	if ($host_type eq "node")
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# The cluster isn't running, sleep and exit.
+			$anvil->Job->update_progress({
+				progress => 0,
+				message  => "error_0233", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0233"});
+			sleep 10;
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	else
+	{
+		# This is not the tool to move to DR.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0221", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0221"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	return(0);
+}
+

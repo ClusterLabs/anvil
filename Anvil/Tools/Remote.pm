@@ -1020,10 +1020,10 @@ sub _call_ssh_keyscan
 	}});
 	
 	# Redirect STDERR to STDOUT and grep off the comments.
-	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
+	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
 	if (($port) && ($port ne "22"))
 	{
-		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -p ".$port." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
+		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 -p ".$port." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
 	}
 	my $output = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});

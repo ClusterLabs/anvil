@@ -734,14 +734,15 @@ sub _anvil_version
 	my $self  = shift;
 	my $anvil = $self;
 	
-	$anvil->{HOST}{ANVIL_VERSION} = "" if not defined $anvil->{HOST}{ANVIL_VERSION};
+	$anvil->{HOST}{ANVIL_VERSION}  = "" if not defined $anvil->{HOST}{ANVIL_VERSION};
+	$anvil->{HOST}{SCHEMA_VERSION} = "" if not defined $anvil->{HOST}{SCHEMA_VERSION};
 	if ($anvil->{HOST}{ANVIL_VERSION} eq "")
 	{
 		# Try to read the local Anvil! version.
-		$anvil->{HOST}{ANVIL_VERSION} = $anvil->Get->anvil_version();
+		($anvil->{HOST}{ANVIL_VERSION}, $anvil->{HOST}{SCHEMA_VERSION}) = $anvil->Get->anvil_version();
 	}
 	
-	return($anvil->{HOST}{ANVIL_VERSION});
+	return($anvil->{HOST}{ANVIL_VERSION}, $anvil->{HOST}{SCHEMA_VERSION});
 }
 
 =head2 _get_hash_reference

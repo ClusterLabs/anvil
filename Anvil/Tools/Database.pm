@@ -1300,26 +1300,28 @@ sub connect
 		# sure it matches ours. If it doesn't, skip this database.
 		if (not $is_local)
 		{
-			my $local_version  = $anvil->_anvil_version({debug => $debug});
-			my $remote_version = $anvil->Get->anvil_version({
+			my ($local_anvil_version, $local_schema_version)   = $anvil->_anvil_version({debug => $debug});
+			my ($remote_anvil_version, $remote_schema_version) = $anvil->Get->anvil_version({
 				debug    => $debug, 
 				target   => $host,
 				password => $password,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				's1:host'           => $host, 
-				's2:remote_version' => $remote_version, 
-				's3:local_version'  => $local_version,
+				's1:host'                  => $host, 
+				's2:local_anvil_version'   => $local_anvil_version, 
+				's3:remote_anvil_version'  => $remote_anvil_version,
+				's4:local_schema_version'  => $local_schema_version, 
+				's5:remote_schema_version' => $remote_schema_version, 
 			}});
 			# TODO: Periodically, we fail to get the remote version. For now, we proceed if 
 			#       everything else is OK. Might be better to pause a re-try... To be determined.
-			if (($remote_version) && ($remote_version ne $local_version))
+			if (($remote_schema_version) && ($remote_schema_version ne $local_schema_version))
 			{
 				# Version doesn't match, 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0145", variables => { 
 					host           => $host,
-					local_version  => $anvil->_anvil_version, 
-					target_version => $remote_version,
+					local_version  => $local_schema_version, 
+					target_version => $remote_schema_version,
 				}});
 				
 				# Delete the information about this database. We'll try again on nexy 
@@ -2570,7 +2572,7 @@ Each anonymous hash is structured as:
  host_uuid     => $host_uuid, 
  host_name     => $host_name, 
  host_type     => $host_type, 
- host_key      => $host_key, 
+ host_key      => $host_key, 	
  host_ipmi     => $host_ipmi, 
  modified_date => $modified_date, 
 
@@ -2578,7 +2580,7 @@ It also sets the variables;
 
  hosts::host_uuid::<host_uuid>::host_name  = <host_name>;
  hosts::host_uuid::<host_uuid>::host_type  = <host_type; node, dr or dashboard>
- hosts::host_uuid::<host_uuid>::host_key   = <Machine's public key / fingerprint>
+ hosts::host_uuid::<host_uuid>::host_key   = <Machine's public key / fingerprint, set to DELETED when the host is no longer used>
  hosts::host_uuid::<host_uuid>::host_ipmi  = <If equiped, this is how to log into the host's IPMI BMC, including the password!>
  hosts::host_uuid::<host_uuid>::anvil_name = <anvil_name if associated with an anvil>
  hosts::host_uuid::<host_uuid>::anvil_uuid = <anvil_uuid if associated with an anvil>
@@ -6873,6 +6875,49 @@ WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	# If a node was replaced, there could a host_uuid with the same host name. If that's found for this 
+	# host, delete the other's host_key and register an alert.
+	$query = "
+SELECT 
+    host_uuid 
+FROM 
+    hosts 
+WHERE 
+    host_name = ".$anvil->Database->quote($host_name)." 
+AND 
+    host_uuid != ".$anvil->Database->quote($host_uuid)." 
+AND 
+    host_key != 'DELETED'
+;";
+	$results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $other_host_uuid = $row->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { other_host_uuid => $other_host_uuid }});
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0075", variables => { 
+			host_name => $host_name, 
+			host_uuid => $other_host_uuid,
+		}});
+		
+		my $query = "
+UPDATE 
+    hosts 
+SET 
+    host_key      = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    host_uuid     = ".$anvil->Database->quote($other_host_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	

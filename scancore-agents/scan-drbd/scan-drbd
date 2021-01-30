@@ -252,7 +252,6 @@ WHERE
 			new_scan_drbd_flush_md         => $new_scan_drbd_flush_md   ? "#!string!scan_drbd_unit_0001!#" : "#!string!scan_drbd_unit_0002!#", 
 			new_scan_drbd_timeout          => $new_scan_drbd_timeout, 
 			say_scan_drbd_total_sync_speed => $say_scan_drbd_total_sync_speed, 
-			new_scan_drbd_common_xml       => $new_scan_drbd_common_xml, 
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0001", variables => $variables});
 		$anvil->Alert->register({alert_level => "warning", message => "scan_drbd_message_0001", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});

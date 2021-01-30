@@ -75,7 +75,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0207", 
+		message          => "message_0217", 
 	});
 
 	# Are we in an Anvil! system?
@@ -264,7 +264,7 @@ sub remove_from_pacemaker
 	}
 	
 	# Register the job with the peers. 
-	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid = $anvil->data->{sys}{anvil_uuid};
 	my $peers      = [];
 	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid} eq $anvil->Get->host_uuid)
 	{

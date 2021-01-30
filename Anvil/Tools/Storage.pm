@@ -2680,7 +2680,7 @@ sub rsync
 		# Make sure we know the fingerprint of the remote machine
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => $< }});
 		$anvil->Remote->add_target_to_known_hosts({
-			debug  => $debug, 
+			debug  => 2, 
 			target => $target, 
 			user   => $<,
 		});
@@ -2724,7 +2724,7 @@ sub rsync
 			   $failed      = 1;
 			my $source      = $path.".ssh\/known_hosts";
 			my $destination = $path."known_hosts.".$anvil->Get->date_and_time({file_name => 1});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				path        => $path, 
 				line_number => $line_number, 
 				failed      => $failed, 

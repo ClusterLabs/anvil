@@ -1,5 +1,10 @@
 -- This is the core database schema for the Anvil! Intelligent Availability platform. 
 -- 
+-- The line below is used by machines in the Anvil! to know if their software version is compatible with the
+-- database servers. As such, do NOT edit the line below unless you know why you're changing it.
+-- - Version follows: https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
+-- SchemaVersion: 0.0.0
+-- 
 -- It expects PostgreSQL v. 9.1+
 --
 -- Table construction rules;

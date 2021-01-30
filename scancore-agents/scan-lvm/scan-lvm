@@ -872,8 +872,9 @@ INSERT INTO
 		my $scan_lvm_pv_uuid     = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid};
 		my $old_scan_lvm_pv_name = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			scan_lvm_pv_uuid     => $scan_lvm_pv_uuid,
-			old_scan_lvm_pv_name => $old_scan_lvm_pv_name, 
+			's1:scan_lvm_pv_internal_uuid' => $scan_lvm_pv_internal_uuid, 
+			's2:scan_lvm_pv_uuid'          => $scan_lvm_pv_uuid,
+			's3:old_scan_lvm_pv_name'      => $old_scan_lvm_pv_name, 
 		}});
 		next if $old_scan_lvm_pv_name eq "DELETED";
 		
@@ -936,7 +937,7 @@ WHERE
 		# services tables.
 		my $scan_lvm_pv_internal_uuid                                                                                       = $row->[1]; 
 		my $scan_lvm_pv_name                                                                                                = $row->[2];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name}       = $row->[0];; 
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid}       = $row->[0];; 
 		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name}       = $scan_lvm_pv_name; 
 		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg} = $row->[3]; 
 		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes} = $row->[4];

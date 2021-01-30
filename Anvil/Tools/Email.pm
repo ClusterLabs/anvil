@@ -218,8 +218,31 @@ sub check_queue
 	if ($queue =~ /^postqueue: warning:/)
 	{
 		# Something is up, we can't proceed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0069", variables => { output => $queue }});
-		return("!!error!!");
+		if (($queue =~ /Mail system is down/) && (($< == 0) or ($> == 0)))
+		{
+			# Enable and start the postfix daemon.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0076", variables => { output => $queue }});
+			$anvil->System->enable_daemon({debug => $debug, daemon => "postfix.service"});
+			$anvil->System->start_daemon({debug => $debug, daemon => "postfix.service"});
+			
+			# Try to check the queue again.
+			($queue, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{postqueue}." -j"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				queue       => $queue,
+				return_code => $return_code,
+			}});
+			if ($queue =~ /^postqueue: warning:/)
+			{
+				# Still down
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0077", variables => { output => $queue }});
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0069", variables => { output => $queue }});
+			return("!!error!!");
+		}
 	}
 	
 	# This is empty if there is nothing in the queue.
