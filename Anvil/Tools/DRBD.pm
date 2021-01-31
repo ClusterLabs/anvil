@@ -1114,6 +1114,14 @@ Parameters;
 
 This is the Anvil! in which we're looking for the next free resources.
 
+=head3 resource_name (optional)
+
+If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, C<< !!error!! >> is returned.
+
+=head3 force_unique (optional, default '0')
+
+This can be used to cause this method to return an error if C<< resource_name >> is also set and the resource is found to already exist.
+
 =cut
 sub get_next_resource
 {
@@ -1123,11 +1131,15 @@ sub get_next_resource
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_next_resource()" }});
 	
-	my $free_minor = "";
-	my $free_port  = "";
-	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	my $free_minor    = "";
+	my $free_port     = "";
+	my $anvil_uuid    = defined $parameter->{anvil_uuid}    ? $parameter->{anvil_uuid}    : "";
+	my $resource_name = defined $parameter->{resource_name} ? $parameter->{resource_name} : "";
+	my $force_unique  = defined $parameter->{force_unique}  ? $parameter->{force_unique}  : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		anvil_uuid => $anvil_uuid, 
+		anvil_uuid    => $anvil_uuid, 
+		resource_name => $resource_name, 
+		force_unique  => $force_unique, 
 	}});
 	
 	if (not $anvil_uuid)
@@ -1208,6 +1220,8 @@ ORDER BY
 		}
 
 		# Successful parse!
+		my $local_minor = "";
+		my $local_port  = "";
 		foreach my $name ($dom->findnodes('/resource'))
 		{
 			my $resource = $name->{name};
@@ -1231,6 +1245,12 @@ ORDER BY
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"drbd::used_resources::minor::${minor}::used" => $anvil->data->{drbd}{used_resources}{minor}{$minor}{used}, 
 					}});
+					
+					if (not $local_minor)
+					{
+						$local_minor = $minor;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_minor => $local_minor }});
+					}
 				}
 			}
 
@@ -1249,7 +1269,34 @@ ORDER BY
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"drbd::used_resources::tcp_port::${tcp_port}::used" => $anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used}, 
 					}});
+					
+					if (not $local_port)
+					{
+						$local_port = $tcp_port;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_port => $local_port }});
+					}
 				}
+			}
+		}
+		
+		# Is the user looking for this resource?
+		if (($resource_name) && ($resource_name eq $scan_drbd_resource_name))
+		{
+			# If we're force_unique, error.
+			if ($force_unique)
+			{
+				# Error out.
+				return('!!error!!');
+			}
+			else
+			{
+				$free_minor = $local_minor;
+				$free_port  = $local_port;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					free_minor => $free_minor,
+					free_port  => $free_port, 
+				}});
+				return($free_minor, $free_port);
 			}
 		}
 	}	

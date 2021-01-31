@@ -403,7 +403,6 @@ WHERE
 		my $variables = {
 			resource_name  => $scan_drbd_resource_name, 
 			resource_state => $new_scan_drbd_resource_up ? "#!string!scan_drbd_unit_0004!#" : "#!string!scan_drbd_unit_0005!#", 
-			resource_xml   => $new_scan_drbd_resource_xml, 
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0007", variables => $variables});
 		$anvil->Alert->register({alert_level => "warning", message => "scan_drbd_message_0007", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
