@@ -1069,7 +1069,11 @@ sub check_drbd_minor_and_port
 	
 	if ((($anvil->data->{job}{drbd_minor} eq "") or ($anvil->data->{job}{drbd_tcp_port} eq "")) && (not $anvil->data->{job}{peer_mode}))
 	{
-		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({debug => 2, anvil_uuid => $anvil->data->{job}{anvil_uuid}});
+		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({
+			debug         => 2, 
+			anvil_uuid    => $anvil->data->{job}{anvil_uuid},
+			resource_name => $anvil->data->{job}{server_name}, 
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			free_minor => $free_minor,
 			free_port  => $free_port, 
