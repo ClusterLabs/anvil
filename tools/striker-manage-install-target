@@ -1289,7 +1289,7 @@ ORDER BY
 									}});
 									if (($anvil->data->{host_os}{os_type} eq $os_type) && ($os_arch eq $anvil->data->{host_os}{os_arch}))
 									{
-										update_progress($anvil, ++$progress, "message_0185,!!node!".$host_name."!!");
+										update_progress($anvil, ++$progress, "message_0185,!!node_name!".$host_name."!!");
 										$use_node_name = $host_name;
 										$use_node_ip   = $remote_ip;
 										$use_password  = $anvil_password;
