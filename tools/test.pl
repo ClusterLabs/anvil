@@ -26,6 +26,6 @@ $anvil->Get->switches;
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
-$anvil->Cluster->assemble_storage_groups({debug => 2, anvil_uuid => '1aded871-fcb1-4473-9b97-6e9c246fc568'});
+$anvil->DRBD->gather_data({debug => 2});
 
 $anvil->nice_exit({exit_code => 0});
