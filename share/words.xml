@@ -654,6 +654,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0215">The server has been flagged as deleted now.</key>
 		<key name="job_0216">The server delete is complete on this host!</key>
 		<key name="job_0217">It looks like ScanCore has not yet run on one or both nodes in this Anvil! system. Missing resource data, so unable to proceed.</key>
+		<key name="job_0218">Manually calling 'scan-drbd' to ensure that the new agent is recorded.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

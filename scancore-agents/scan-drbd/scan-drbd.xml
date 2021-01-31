@@ -69,21 +69,11 @@ The full new config is:
 A new DRBD resource has been found on this host.
 - Resource Name: ...... [#!variable!resource_name!#]
 - Resource State: ..... [#!variable!resource_state!#]
-
-Raw resource XML:
-========
-#!variable!resource_xml!#
-========
 		</key>
 		<key name="scan_drbd_message_0008">
 A resource was found with a resource UUID that isn't valid on this host. An attempt to find a valid database entry was made but no candidate was found. Adding the resource to the database as if it were new, and generating a new resource UUID for the resource configuration file.
 - Resource Name: ...... [#!variable!resource_name!#]
 - Resource State: ..... [#!variable!resource_state!#]
-
-Raw resource XML:
-========
-#!variable!resource_xml!#
-========
 		</key>
 		<key name="scan_drbd_message_0009">The resource config: [#!variable!resource_name!#] has been deleted. The backing storage may or may not have been removed.</key>
 		<key name="scan_drbd_message_0010">The resource: [#!variable!old_value!#] has been renamed to: [#!variable!new_value!#].</key>
@@ -201,11 +191,6 @@ Note: The fencing policy 'resource-and-stonith' must always be used between node
 The DRBD resource was not found in the database, but appears to have been in the past. Re-adding it.
 - Resource Name: ...... [#!variable!resource_name!#]
 - Resource State: ..... [#!variable!resource_state!#]
-
-Raw resource XML:
-========
-#!variable!resource_xml!#
-========
 		</key>
 		
 		<!-- Units -->

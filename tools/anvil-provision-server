@@ -439,7 +439,7 @@ sub provision_server
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0200"});
 	
 	# Loop for up to 10 seconds waiting to see the server start running.
-	my $wait_until = time + 10;
+	my $wait_until = time + 60;
 	my $waiting    = 1;
 	my $status     = "";
 	while($waiting)
@@ -461,6 +461,15 @@ sub provision_server
 				{
 					$waiting = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				}
+				elsif ($status eq "shut off")
+				{
+					# Try to boot it.
+					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." start ".$server});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
 				}
 			}
 			if (($waiting) && (time > $wait_until))
@@ -923,6 +932,22 @@ sub create_resource_file
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
+	# Manually call 'scan-drbd' to make sure that the new data is in scan_drbd_resources so that any 
+	my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd";
+	if (-f $shell_call)
+	{
+		$anvil->Job->update_progress({
+			progress => 35,
+			message  => "job_0218", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0218"});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	
 	$anvil->Job->update_progress({
 		progress => 40,
 		message  => "job_0190,!!resource!".$anvil->data->{job}{server_name}."!!", 
@@ -1044,7 +1069,7 @@ sub check_drbd_minor_and_port
 	
 	if ((($anvil->data->{job}{drbd_minor} eq "") or ($anvil->data->{job}{drbd_tcp_port} eq "")) && (not $anvil->data->{job}{peer_mode}))
 	{
-		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({anvil_uuid => $anvil->data->{job}{anvil_uuid}});
+		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({debug => 2, anvil_uuid => $anvil->data->{job}{anvil_uuid}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			free_minor => $free_minor,
 			free_port  => $free_port, 

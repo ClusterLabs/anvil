@@ -84,10 +84,7 @@ The amount of RAM configured for the server: [#!variable!server!#] has changed f
 - NOTE: This RAM will not be used until the server is power cycled!
 		</key>
 		<key name="scan_server_alert_0016">
-A server named: [#!variable!server!#] was found in the database, but there was no definition file on disk. Saving the definition file now. The definition XML is:
-====
-#!variable!definition!#
-====
+A server named: [#!variable!server!#] was found in the database, but there was no definition file on disk. Saving the definition file now.
 		</key>
 		
 		<!-- Log entries -->

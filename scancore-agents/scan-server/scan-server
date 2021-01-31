@@ -146,9 +146,8 @@ sub collect_data
 				if ($server_definition)
 				{
 					# Register an alert.
-					my $variables  = {
-						server     => $server_name,
-						definition => $server_definition,
+					my $variables = {
+						server => $server_name,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0016", variables => $variables});
 					$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0016", variables => $variables, set_by => $THIS_FILE});
