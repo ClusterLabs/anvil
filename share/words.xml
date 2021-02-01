@@ -655,6 +655,8 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0216">The server delete is complete on this host!</key>
 		<key name="job_0217">It looks like ScanCore has not yet run on one or both nodes in this Anvil! system. Missing resource data, so unable to proceed.</key>
 		<key name="job_0218">Manually calling 'scan-drbd' to ensure that the new agent is recorded.</key>
+		<key name="job_0219">The server name: [#!variable!server_name!#] is already used by another server.</key>
+		<key name="job_0220">Deleting the server's definition file: [#!variable!file!#]...</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1654,6 +1656,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0216">The server is running here, assigning the job to this host.</key>
 		<key name="message_0217">Preparing to delete a server.</key>
 		<key name="message_0218">Preparing to migrate a server (or all servers).</key>
+		<key name="message_0219">- #!variable!server_name!# (Current state: [#!variable!server_state!#])</key>
+		<key name="message_0220">- * #!variable!server_name!# (Deleted, name can be reused)</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
