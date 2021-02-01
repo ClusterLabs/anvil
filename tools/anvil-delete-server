@@ -195,6 +195,20 @@ WHERE
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0215"});
 	}
 	
+	# Delete the XML definition file.
+	my $resource_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_file => $resource_file }});
+	if (-f $resource_file)
+	{
+		# Remove it.
+		$anvil->Job->update_progress({
+			progress => 80,
+			message  => "job_0220,!!file!".$resource_file."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0220", variables => { file => $resource_file }});
+		unlink $resource_file;
+	}
+	
 	$anvil->Job->update_progress({
 		progress => 100,
 		message  => "job_0216", 
