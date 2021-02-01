@@ -423,8 +423,8 @@ sub provision_server
 	my ($handle, $return_code) = $anvil->System->call({
 		background  => 1, 
 		shell_call  => $shell_call,
-		stdout_file => "/var/log/anvil_server_".$server.".stdout",
-		stderr_file => "/var/log/anvil_server_".$server.".stderr", 
+		stdout_file => "/var/log/anvil-server_".$server.".stdout",
+		stderr_file => "/var/log/anvil-server_".$server.".stderr", 
 	});
 	my $pid = $handle->pid();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1236,14 +1236,24 @@ sub parse_job_data
 		}});
 		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server})
 		{
-			# Duplicate name
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0198,!!server_name!".$anvil->data->{job}{server_name}."!!", 
-				job_status => "failed", 
-			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
-			$anvil->nice_exit({exit_code => 1});
+			# Is this name used by a server marked as DELETED?
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid  => $server_uuid,
+				server_state => $server_state, 
+			}});
+			if ($server_state ne "DELETED")
+			{
+				# Duplicate name
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0198,!!server_name!".$anvil->data->{job}{server_name}."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
+				$anvil->nice_exit({exit_code => 1});
+			}
 		}
 
 		if (not $anvil->data->{job}{server_name})
@@ -1564,7 +1574,8 @@ sub interactive_ask_server_name
 	$anvil->Database->get_servers({debug => 2});
 	
 	### TODO: Figure out how many rows we have and break the server list into columns if too long.
-	my $retry = 0;
+	my $retry     = 0;
+	my $duplicate = "";
 	while(1)
 	{
 		my $default = "";
@@ -1580,13 +1591,41 @@ sub interactive_ask_server_name
 		# Show all the current server names.
 		if ($retry)
 		{
-			print $anvil->Words->string({key => "job_0159"})."\n\n";
+			if ($duplicate)
+			{
+				print $anvil->Words->string({key => "job_0219", variables => { server_name => $duplicate }})."\n\n";
+				$duplicate = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplicate => $duplicate }});
+			}
+			else
+			{
+				print $anvil->Words->string({key => "job_0159"})."\n\n";
+			}
 		}
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		print $anvil->Words->string({key => "job_0160", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
 		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 		{
-			print "- ".$server_name."\n";
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid  => $server_uuid,
+				server_state => $server_state, 
+			}});
+			if ($server_state eq "DELETED")
+			{
+				print "- ".$server_name." ("..")\n";
+				print $anvil->Words->string({key => "message_0220", variables => { 
+					server_name  => $server_name,
+				}})."\n";
+			}
+			else
+			{
+				print $anvil->Words->string({key => "message_0219", variables => { 
+					server_name  => $server_name,
+					server_state => $server_state, 
+				}})."\n";
+			}
 		}
 		
 		print $terminal->Tgoto('cm', 0, 3)."? ";
@@ -1602,14 +1641,41 @@ sub interactive_ask_server_name
 		
 		# Reload in case a new anvil! was saved while we waited.
 		$anvil->Database->get_servers();
-		if (($answer) && (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}))
+		if ($answer)
 		{
-			# Valid.
-			$anvil->data->{new_server}{name} = $answer;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"new_server::name" => $anvil->data->{new_server}{name},
-			}});
-			
+			# Duplicate?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer})
+			{
+				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					server_uuid  => $server_uuid,
+					server_state => $server_state, 
+				}});
+				if ($server_state eq "DELETED")
+				{
+					# Valid, we can re-use deleted server names.
+					$anvil->data->{new_server}{name} = $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_server::name" => $anvil->data->{new_server}{name},
+					}});
+				}
+				else
+				{
+					# Invalid, duplicate.
+					$duplicate = $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplicate => $duplicate }});
+				}
+			}
+			else
+			{
+				# Valid.
+				$anvil->data->{new_server}{name} = $answer;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_server::name" => $anvil->data->{new_server}{name},
+				}});
+			}
 			last;
 		}
 		else
@@ -2218,7 +2284,7 @@ sub interactive_ask_server_os
 		}});
 		
 		# Still here?
-		$os_list .= " - [".sprintf("%-10s", $os_code)."] - ".$os_name."\n";
+		$os_list .= " - ".sprintf("%-10s", $os_code)." - ".$os_name."\n";
 	}
 	
 	my $retry = 0;
