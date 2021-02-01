@@ -399,10 +399,10 @@ sub parse_banged_string
 	# Some variable values will be multi-line strings. We need to replace the new-lines in those 
 	# multi-line values into '##br##' so that we can do a proper variable insertion. We can't simply 
 	# replace all new-lines, however, as it's normal to have multiple keys, each on their own line.
+	my $new_string = "";
 	if ($key_string =~ /\n/gs)
 	{
 		my $in_value   = 0;
-		my $new_string = "";
 		foreach my $line (split/\n/, $key_string)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -449,7 +449,7 @@ sub parse_banged_string
 	}
 	
 	# There might be multiple keys, split by newlines.
-	foreach my $message (split/\n/, $key_string)
+	foreach my $message (split/\n/, $new_string)
 	{
 		# If we've looped, there will be data in 'out_string" already so append a newline to separate
 		# this key from the previous one.
