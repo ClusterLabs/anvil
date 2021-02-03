@@ -8,6 +8,9 @@
 # 0 = Normal exit.
 # 1 = Any problem that causes an early exit.
 # 
+# TODO: Support cloning; Example
+#       - virt-clone --original-xml /mnt/shared/definitions/<source>.xml --name <new_server> --file <new_server's_drbd_path> --check path_exists=off
+# 
 
 use strict;
 use warnings;
@@ -37,6 +40,7 @@ $anvil->data->{switches}{os}              = "";
 $anvil->data->{switches}{cpu}             = "";
 $anvil->data->{switches}{'job-uuid'}      = "";
 $anvil->data->{switches}{name}            = "";
+$anvil->data->{switches}{uuid}            = "";
 $anvil->data->{switches}{ram}             = "";
 $anvil->data->{switches}{'storage-group'} = "";
 $anvil->data->{switches}{'storage-size'}  = "";
@@ -47,6 +51,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	'switches::cpu'           => $anvil->data->{switches}{cpu},
 	'switches::job-uuid'      => $anvil->data->{switches}{'job-uuid'},
 	'switches::name'          => $anvil->data->{switches}{name},
+	'switches::uuid'          => $anvil->data->{switches}{uuid},
 	'switches::ram'           => $anvil->data->{switches}{ram},
 	'switches::storage-group' => $anvil->data->{switches}{'storage-group'},
 	'switches::storage-size'  => $anvil->data->{switches}{'storage-size'},
@@ -406,6 +411,10 @@ sub provision_server
 	   $shell_call .= " --boot menu=on \\\n";
 	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0,target.bus=virtio,driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
 	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
+	if ($anvil->data->{job}{server_uuid})
+	{
+		$shell_call .= " --uuid=".$anvil->data->{job}{server_uuid}." \\\n";
+	}
 	if ($anvil->data->{job}{driver_iso_path})
 	{
 		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
@@ -423,8 +432,8 @@ sub provision_server
 	my ($handle, $return_code) = $anvil->System->call({
 		background  => 1, 
 		shell_call  => $shell_call,
-		stdout_file => "/var/log/anvil_server_".$server.".stdout",
-		stderr_file => "/var/log/anvil_server_".$server.".stderr", 
+		stdout_file => "/var/log/anvil-server_".$server.".stdout",
+		stderr_file => "/var/log/anvil-server_".$server.".stderr", 
 	});
 	my $pid = $handle->pid();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1067,28 +1076,19 @@ sub check_drbd_minor_and_port
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	if ((($anvil->data->{job}{drbd_minor} eq "") or ($anvil->data->{job}{drbd_tcp_port} eq "")) && (not $anvil->data->{job}{peer_mode}))
+	if (not $anvil->data->{job}{peer_mode})
 	{
-		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({
+		# We're primary, so query the minor number and TCP port
+		# The peer must use the TCP and minor as set in the job
+		($anvil->data->{job}{drbd_minor}, $anvil->data->{job}{drbd_tcp_port}) = $anvil->DRBD->get_next_resource({
 			debug         => 2, 
 			anvil_uuid    => $anvil->data->{job}{anvil_uuid},
 			resource_name => $anvil->data->{job}{server_name}, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			free_minor => $free_minor,
-			free_port  => $free_port, 
+			'job::drbd_minor' => $anvil->data->{job}{drbd_minor},
+			'job::drbd_tcp_port' => $anvil->data->{job}{drbd_tcp_port}, 
 		}});
-		
-		if ($anvil->data->{job}{drbd_minor} eq "")
-		{
-			$anvil->data->{job}{drbd_minor} = $free_minor;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::drbd_minor' => $anvil->data->{job}{drbd_minor} }});
-		}
-		if ($anvil->data->{job}{drbd_tcp_port} eq "")
-		{
-			$anvil->data->{job}{drbd_tcp_port} = $free_port;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::drbd_tcp_port' => $anvil->data->{job}{drbd_tcp_port} }});
-		}
 	}
 	
 	# If we don't have a DRBD minor or TCP port, we're stuck.
@@ -1128,6 +1128,11 @@ sub parse_job_data
 		{
 			$anvil->data->{job}{server_name} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_name' => $anvil->data->{job}{server_name} }});
+		}
+		if ($line =~ /server_uuid=(.*)$/)
+		{
+			$anvil->data->{job}{server_uuid} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_uuid' => $anvil->data->{job}{server_uuid} }});
 		}
 		if ($line =~ /cpu_cores=(.*)$/)
 		{
@@ -1236,14 +1241,24 @@ sub parse_job_data
 		}});
 		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server})
 		{
-			# Duplicate name
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0198,!!server_name!".$anvil->data->{job}{server_name}."!!", 
-				job_status => "failed", 
-			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
-			$anvil->nice_exit({exit_code => 1});
+			# Is this name used by a server marked as DELETED?
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid  => $server_uuid,
+				server_state => $server_state, 
+			}});
+			if ($server_state ne "DELETED")
+			{
+				# Duplicate name
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0198,!!server_name!".$anvil->data->{job}{server_name}."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
+				$anvil->nice_exit({exit_code => 1});
+			}
 		}
 
 		if (not $anvil->data->{job}{server_name})
@@ -1429,6 +1444,7 @@ sub interactive_question
 	}
 	
 	$anvil->data->{new_server}{name} = $anvil->data->{switches}{name} ? $anvil->data->{switches}{name} : "";
+	$anvil->data->{new_server}{uuid} = $anvil->data->{switches}{uuid} ? $anvil->data->{switches}{uuid} : "";
 	
 	# If this is a node, load the anvil_uuid automatically.
 	
@@ -1564,7 +1580,8 @@ sub interactive_ask_server_name
 	$anvil->Database->get_servers({debug => 2});
 	
 	### TODO: Figure out how many rows we have and break the server list into columns if too long.
-	my $retry = 0;
+	my $retry     = 0;
+	my $duplicate = "";
 	while(1)
 	{
 		my $default = "";
@@ -1580,13 +1597,39 @@ sub interactive_ask_server_name
 		# Show all the current server names.
 		if ($retry)
 		{
-			print $anvil->Words->string({key => "job_0159"})."\n\n";
+			if ($duplicate)
+			{
+				print $anvil->Words->string({key => "job_0219", variables => { server_name => $duplicate }})."\n\n";
+				$duplicate = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplicate => $duplicate }});
+			}
+			else
+			{
+				print $anvil->Words->string({key => "job_0159"})."\n\n";
+			}
 		}
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		print $anvil->Words->string({key => "job_0160", variables => { anvil_name => $anvil->data->{new_server}{anvil_name} }})."\n";
 		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 		{
-			print "- ".$server_name."\n";
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid  => $server_uuid,
+				server_state => $server_state, 
+			}});
+			if ($server_state eq "DELETED")
+			{
+				### NOTE: This could get cluttered, so for now we'll not show them.
+				#print $anvil->Words->string({key => "message_0220", variables => { server_name => $server_name }})."\n";
+			}
+			else
+			{
+				print $anvil->Words->string({key => "message_0219", variables => { 
+					server_name  => $server_name,
+					server_state => $server_state, 
+				}})."\n";
+			}
 		}
 		
 		print $terminal->Tgoto('cm', 0, 3)."? ";
@@ -1602,14 +1645,44 @@ sub interactive_ask_server_name
 		
 		# Reload in case a new anvil! was saved while we waited.
 		$anvil->Database->get_servers();
-		if (($answer) && (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}))
+		if ($answer)
 		{
-			# Valid.
-			$anvil->data->{new_server}{name} = $answer;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"new_server::name" => $anvil->data->{new_server}{name},
-			}});
-			
+			# Duplicate?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer})
+			{
+				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					server_uuid  => $server_uuid,
+					server_state => $server_state, 
+				}});
+				if ($server_state eq "DELETED")
+				{
+					# Valid, we can re-use deleted server names. We'll also re-use the 
+					# UUID, if the user didn't specifically specify a UUID.
+					$anvil->data->{new_server}{name} = $answer;
+					$anvil->data->{new_server}{uuid} = $server_uuid if not $anvil->data->{new_server}{uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_server::name" => $anvil->data->{new_server}{name},
+						"new_server::uuid" => $anvil->data->{new_server}{uuid},
+					}});
+				}
+				else
+				{
+					# Invalid, duplicate.
+					$duplicate = $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplicate => $duplicate }});
+				}
+			}
+			else
+			{
+				# Valid.
+				$anvil->data->{new_server}{name} = $answer;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_server::name" => $anvil->data->{new_server}{name},
+				}});
+			}
 			last;
 		}
 		else
@@ -2218,7 +2291,7 @@ sub interactive_ask_server_os
 		}});
 		
 		# Still here?
-		$os_list .= " - [".sprintf("%-10s", $os_code)."] - ".$os_name."\n";
+		$os_list .= " - ".sprintf("%-10s", $os_code)." - ".$os_name."\n";
 	}
 	
 	my $retry = 0;
@@ -2338,6 +2411,11 @@ storage_group_uuid=".$anvil->data->{new_server}{storage_group}."
 storage_size=".$anvil->data->{new_server}{storage_size}."
 install_iso=".$anvil->data->{new_server}{install_media}."
 driver_iso=".$anvil->data->{new_server}{driver_disc};
+		if ($anvil->data->{new_server}{uuid})
+		{
+			$job_data .= "
+server_uuid=".$anvil->data->{new_server}{name};
+		}
 		print "\n".$anvil->Words->string({key => "job_0183", variables => { job_data => $job_data }})."\n";
 		
 		# Register the job with the primary node on the Anvil! (or node 1, if neither node is primary).
