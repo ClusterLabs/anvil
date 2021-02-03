@@ -98,6 +98,7 @@ Requires:       rsync
 Requires:       screen
 Requires:       smartmontools
 Requires:       syslinux
+Requires:       tar
 Requires:       tmux
 Requires:       unzip
 Requires:       usbutils
