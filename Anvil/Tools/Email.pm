@@ -467,15 +467,16 @@ sub send_alerts
 			{
 				# The user wants it. 
 				my $message = $anvil->Words->parse_banged_string({
+					debug      => $debug, 
 					language   => $recipient_language, 
 					key_string => $alert_message, 
-					
 				});
+				
 				# A lot of multi-line strings start with an opening new line. This removes that.
 				$message =~ s/^\n//;
 				$message =~ s/\n$//s;
-				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message }});
+				
 				if ($alert_title)
 				{
 					my $title = "[ ".$alert_set_by." ] ".$anvil->Words->parse_banged_string({
