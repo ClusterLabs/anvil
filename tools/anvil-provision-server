@@ -8,6 +8,9 @@
 # 0 = Normal exit.
 # 1 = Any problem that causes an early exit.
 # 
+# TODO: Support cloning; Example
+#       - virt-clone --original-xml /mnt/shared/definitions/<source>.xml --name <new_server> --file <new_server's_drbd_path> --check path_exists=off
+# 
 
 use strict;
 use warnings;
@@ -1067,28 +1070,19 @@ sub check_drbd_minor_and_port
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	if ((($anvil->data->{job}{drbd_minor} eq "") or ($anvil->data->{job}{drbd_tcp_port} eq "")) && (not $anvil->data->{job}{peer_mode}))
+	if (not $anvil->data->{job}{peer_mode})
 	{
-		my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({
+		# We're primary, so query the minor number and TCP port
+		# The peer must use the TCP and minor as set in the job
+		($anvil->data->{job}{drbd_minor}, $anvil->data->{job}{drbd_tcp_port}) = $anvil->DRBD->get_next_resource({
 			debug         => 2, 
 			anvil_uuid    => $anvil->data->{job}{anvil_uuid},
 			resource_name => $anvil->data->{job}{server_name}, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			free_minor => $free_minor,
-			free_port  => $free_port, 
+			'job::drbd_minor' => $anvil->data->{job}{drbd_minor},
+			'job::drbd_tcp_port' => $anvil->data->{job}{drbd_tcp_port}, 
 		}});
-		
-		if ($anvil->data->{job}{drbd_minor} eq "")
-		{
-			$anvil->data->{job}{drbd_minor} = $free_minor;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::drbd_minor' => $anvil->data->{job}{drbd_minor} }});
-		}
-		if ($anvil->data->{job}{drbd_tcp_port} eq "")
-		{
-			$anvil->data->{job}{drbd_tcp_port} = $free_port;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::drbd_tcp_port' => $anvil->data->{job}{drbd_tcp_port} }});
-		}
 	}
 	
 	# If we don't have a DRBD minor or TCP port, we're stuck.
@@ -1614,10 +1608,8 @@ sub interactive_ask_server_name
 			}});
 			if ($server_state eq "DELETED")
 			{
-				print "- ".$server_name." ("..")\n";
-				print $anvil->Words->string({key => "message_0220", variables => { 
-					server_name  => $server_name,
-				}})."\n";
+				### NOTE: This could get cluttered, so for now we'll not show them.
+				#print $anvil->Words->string({key => "message_0220", variables => { server_name => $server_name }})."\n";
 			}
 			else
 			{

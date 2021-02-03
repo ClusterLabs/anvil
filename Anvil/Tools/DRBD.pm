@@ -278,9 +278,9 @@ sub delete_resource
 	$anvil->DRBD->gather_data({debug => $debug});
 	if (not exists $anvil->data->{new}{resource}{$resource})
 	{
-		# Resource not found.
+		# Resource not found, so it appears to already be gone.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0228", variables => { resource => $resource }});
-		return('!!error!!');
+		return(0);
 	}
 	
 	my $waiting = 1;
@@ -1100,23 +1100,25 @@ sub get_devices
 
 =head2 get_next_resource
 
-This returns the next free DRBD minor number and the next free TCP port. The minor number is the first one found to be free. The TCP port is allocated in steps of three. That is to say, if the last used TCP port is '7790', then '7793' is considered the next free port. This is to ensure that if a DR host is added or used, the three adjacent ports are available for use in one resource configuration. 
+This returns the next free DRBD minor number and the next free TCP port. The minor number and TCP port returned are ones found to be free on both/all machines in Anvil! system. As such, the returned values may skip values free on any given system.
 
-Minor numbers are not grouped as resources and volumes can be referenced by name, so the DRBD minor number is less important for human users.
+If a resource name is given, then the caller can either return an error if the name matches (useful for name conflict checks) or return the first (lowest) minor number and TCP used by the resource. 
 
  my ($free_minor, $free_port) = $anvil->DRBD->get_next_resource({anvil_uuid => "a5ae5242-e9d3-46c9-9ce8-306855aa56db"})
  
 If there is a problem, two empty strings will be returned. 
 
+B<< Note >>: Deleted resources, volumes and peers are ignored! As such, a minor or TCP port that used to be used by deleted resource can be returned. 
+
 Parameters;
 
-=head3 anvil_uuid (required)
+=head3 anvil_uuid (optional, default 'Cluster->get_anvil_uuid')
 
-This is the Anvil! in which we're looking for the next free resources.
+This is the Anvil! in which we're looking for the next free resources. It's required, but generally it doesn't need to be specified as we can find it via C<< Cluster->get_anvil_uuid() >>.
 
 =head3 resource_name (optional)
 
-If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, C<< !!error!! >> is returned.
+If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, empty strings are returned.
 
 =head3 force_unique (optional, default '0')
 
@@ -1131,8 +1133,6 @@ sub get_next_resource
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_next_resource()" }});
 	
-	my $free_minor    = "";
-	my $free_port     = "";
 	my $anvil_uuid    = defined $parameter->{anvil_uuid}    ? $parameter->{anvil_uuid}    : "";
 	my $resource_name = defined $parameter->{resource_name} ? $parameter->{resource_name} : "";
 	my $force_unique  = defined $parameter->{force_unique}  ? $parameter->{force_unique}  : 0;
@@ -1142,21 +1142,30 @@ sub get_next_resource
 		force_unique  => $force_unique, 
 	}});
 	
+	# If we weren't passed an anvil_uuid, see if we can find one locally
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	}
+	
 	if (not $anvil_uuid)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->get_next_resource()", parameter => "anvil_uuid" }});
-		return($free_minor, $free_port);
+		return("", "");
 	}
 	
 	$anvil->Database->get_anvils({debug => $debug});
 	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0162", variables => { anvil_uuid => $anvil_uuid }});
-		return($free_minor, $free_port);
+		return("", "");
 	}
 	
 	# Read in the resource information from both nodes. They _should_ be identical, but that's not 100% 
 	# certain.
+	my $free_minor      = "";
+	my $free_port       = "";
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
@@ -1166,26 +1175,53 @@ sub get_next_resource
 		dr1_host_uuid   => $dr1_host_uuid, 
 	}});
 	
-	my $query = "
+my $query = "
 SELECT 
-    scan_drbd_resource_host_uuid, 
-    scan_drbd_resource_name, 
-    scan_drbd_resource_xml 
+    a.host_uuid, 
+    a.host_name, 
+    b.scan_drbd_resource_name, 
+    c.scan_drbd_volume_number, 
+    c.scan_drbd_volume_device_path, 
+    c.scan_drbd_volume_device_minor, 
+    d.scan_drbd_peer_host_name, 
+    d.scan_drbd_peer_ip_address, 
+    d.scan_drbd_peer_protocol, 
+    d.scan_drbd_peer_fencing, 
+    d.scan_drbd_peer_tcp_port 
 FROM 
-    scan_drbd_resources 
+    hosts a, 
+    scan_drbd_resources b, 
+    scan_drbd_volumes c, 
+    scan_drbd_peers d 
 WHERE 
-    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)." 
-OR 
-    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." ";
+    a.host_uuid                       =  b.scan_drbd_resource_host_uuid 
+AND 
+    b.scan_drbd_resource_uuid         =  c.scan_drbd_volume_scan_drbd_resource_uuid 
+AND 
+    c.scan_drbd_volume_uuid           =  d.scan_drbd_peer_scan_drbd_volume_uuid 
+AND 
+    b.scan_drbd_resource_xml          != 'DELETED' 
+AND 
+    c.scan_drbd_volume_device_path    != 'DELETED' 
+AND 
+    d.scan_drbd_peer_connection_state != 'DELETED' 
+AND 
+    (
+        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)." 
+    OR 
+        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." ";
 	if ($dr1_host_uuid)
 	{
 		$query .= "
-OR 
-    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid)." ";
+    OR 
+        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid)." ";
 	}
 	$query .= "
+    )
 ORDER BY 
-    scan_drbd_resource_name ASC
+    b.scan_drbd_resource_name ASC, 
+    c.scan_drbd_volume_device_minor ASC, 
+    d.scan_drbd_peer_tcp_port ASC
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -1197,110 +1233,58 @@ ORDER BY
 	}});
 	foreach my $row (@{$results})
 	{
-		my $scan_drbd_resource_host_uuid = $row->[0];
-		my $scan_drbd_resource_name      = $row->[1];
-		my $scan_drbd_resource_xml       = $row->[2];
+		# I don't really need most of this, but it helps with debugging
+		my $host_uuid                     = $row->[0];
+		my $host_name                     = $row->[1];
+		my $scan_drbd_resource_name       = $row->[2];
+		my $scan_drbd_volume_number       = $row->[3];
+		my $scan_drbd_volume_device_path  = $row->[4];
+		my $scan_drbd_volume_device_minor = $row->[5];
+		my $scan_drbd_peer_host_name      = $row->[6];
+		my $scan_drbd_peer_ip_address     = $row->[7];
+		my $scan_drbd_peer_protocol       = $row->[8];
+		my $scan_drbd_peer_fencing        = $row->[9];
+		my $scan_drbd_peer_tcp_port       = $row->[10];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			scan_drbd_resource_host_uuid => $scan_drbd_resource_host_uuid, 
-			scan_drbd_resource_name      => $scan_drbd_resource_name, 
-			scan_drbd_resource_xml       => $scan_drbd_resource_xml, 
+			's1:host_uuid'                     => $host_uuid, 
+			's2:host_name'                     => $host_name, 
+			's3:scan_drbd_resource_name'       => $scan_drbd_resource_name, 
+			's4:scan_drbd_volume_number'       => $scan_drbd_volume_number, 
+			's5:scan_drbd_volume_device_path'  => $scan_drbd_volume_device_path, 
+			's6:scan_drbd_volume_device_minor' => $scan_drbd_volume_device_minor, 
+			's7:scan_drbd_peer_host_name'      => $scan_drbd_peer_host_name, 
+			's8:scan_drbd_peer_ip_address'     => $scan_drbd_peer_ip_address, 
+			's9:scan_drbd_peer_protocol'      => $scan_drbd_peer_protocol, 
+			's10:scan_drbd_peer_fencing'       => $scan_drbd_peer_fencing, 
+			's11:scan_drbd_peer_tcp_port'      => $scan_drbd_peer_tcp_port, 
 		}});
 		
-		next if $scan_drbd_resource_xml eq "DELETED";
+		$anvil->data->{drbd}{used_resources}{minor}{$scan_drbd_volume_device_minor}{used} = 1;
+		$anvil->data->{drbd}{used_resources}{tcp_port}{$scan_drbd_peer_tcp_port}{used}    = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"drbd::used_resources::minor::${scan_drbd_volume_device_minor}::used" => $anvil->data->{drbd}{used_resources}{minor}{$scan_drbd_volume_device_minor}{used}, 
+			"drbd::used_resources::tcp_port::${scan_drbd_peer_tcp_port}::used"    => $anvil->data->{drbd}{used_resources}{tcp_port}{$scan_drbd_peer_tcp_port}{used}, 
+		}});
 		
-		local $@;
-		my $dom = eval { XML::LibXML->load_xml(string => $scan_drbd_resource_xml); };
-		if ($@)
+		if (($resource_name) && ($scan_drbd_resource_name eq $resource_name))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0111", variables => { 
-				xml_body   => $scan_drbd_resource_xml,
-				eval_error => $@,
-			}});
-			next;
-		}
-
-		# Successful parse!
-		my $local_minor = "";
-		my $local_port  = "";
-		foreach my $name ($dom->findnodes('/resource'))
-		{
-			my $resource = $name->{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
-			
-			foreach my $host ($name->findnodes('./host'))
-			{
-				my $host_name = $host->{name};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
-				
-				foreach my $volume_vnr ($host->findnodes('./volume'))
-				{
-					my $volume = $volume_vnr->{vnr};
-					my $minor  = $volume_vnr->findvalue('./device/@minor');
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						's1:host_name' => $host_name." \@ ".$resource."/".$volume,
-						's2:minor'     => $minor, 
-					}});
-					
-					$anvil->data->{drbd}{used_resources}{minor}{$minor}{used} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"drbd::used_resources::minor::${minor}::used" => $anvil->data->{drbd}{used_resources}{minor}{$minor}{used}, 
-					}});
-					
-					if (not $local_minor)
-					{
-						$local_minor = $minor;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_minor => $local_minor }});
-					}
-				}
-			}
-
-			foreach my $connection ($name->findnodes('./connection'))
-			{
-				foreach my $host ($connection->findnodes('./host'))
-				{
-					my $host_name = $host->{name};
-					my $tcp_port  = $host->findvalue('./address/@port');
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						host_name => $host_name,
-						tcp_port  => $tcp_port,
-					}});
-					
-					$anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"drbd::used_resources::tcp_port::${tcp_port}::used" => $anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used}, 
-					}});
-					
-					if (not $local_port)
-					{
-						$local_port = $tcp_port;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_port => $local_port }});
-					}
-				}
-			}
-		}
-		
-		# Is the user looking for this resource?
-		if (($resource_name) && ($resource_name eq $scan_drbd_resource_name))
-		{
-			# If we're force_unique, error.
+			# Found the resource the user was asking for.
 			if ($force_unique)
 			{
 				# Error out.
-				return('!!error!!');
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => 'err', key => "error_0237", variables => { resource_name => $resource_name }});
+				return("", "");
 			}
 			else
 			{
-				$free_minor = $local_minor;
-				$free_port  = $local_port;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					free_minor => $free_minor,
-					free_port  => $free_port, 
-				}});
-				return($free_minor, $free_port);
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0592", variables => { resource_name => $resource_name }});
+				return($scan_drbd_volume_device_minor, $scan_drbd_peer_tcp_port);
 			}
 		}
 	}	
 	
+	# If I'm here, I need to find the next free TCP port. We'll look for the next minor number for this 
+	# host.
 	my $looking    = 1;
 	   $free_minor = 0;
 	while($looking)
@@ -1323,7 +1307,7 @@ ORDER BY
 	{
 		if (exists $anvil->data->{drbd}{used_resources}{tcp_port}{$free_port})
 		{
-			$free_port += 3;
+			$free_port++;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
 		}
 		else
