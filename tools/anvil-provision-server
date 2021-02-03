@@ -40,6 +40,7 @@ $anvil->data->{switches}{os}              = "";
 $anvil->data->{switches}{cpu}             = "";
 $anvil->data->{switches}{'job-uuid'}      = "";
 $anvil->data->{switches}{name}            = "";
+$anvil->data->{switches}{uuid}            = "";
 $anvil->data->{switches}{ram}             = "";
 $anvil->data->{switches}{'storage-group'} = "";
 $anvil->data->{switches}{'storage-size'}  = "";
@@ -50,6 +51,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	'switches::cpu'           => $anvil->data->{switches}{cpu},
 	'switches::job-uuid'      => $anvil->data->{switches}{'job-uuid'},
 	'switches::name'          => $anvil->data->{switches}{name},
+	'switches::uuid'          => $anvil->data->{switches}{uuid},
 	'switches::ram'           => $anvil->data->{switches}{ram},
 	'switches::storage-group' => $anvil->data->{switches}{'storage-group'},
 	'switches::storage-size'  => $anvil->data->{switches}{'storage-size'},
@@ -409,6 +411,10 @@ sub provision_server
 	   $shell_call .= " --boot menu=on \\\n";
 	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0,target.bus=virtio,driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
 	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
+	if ($anvil->data->{job}{server_uuid})
+	{
+		$shell_call .= " --uuid=".$anvil->data->{job}{server_uuid}." \\\n";
+	}
 	if ($anvil->data->{job}{driver_iso_path})
 	{
 		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
@@ -1123,6 +1129,11 @@ sub parse_job_data
 			$anvil->data->{job}{server_name} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_name' => $anvil->data->{job}{server_name} }});
 		}
+		if ($line =~ /server_uuid=(.*)$/)
+		{
+			$anvil->data->{job}{server_uuid} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_uuid' => $anvil->data->{job}{server_uuid} }});
+		}
 		if ($line =~ /cpu_cores=(.*)$/)
 		{
 			$anvil->data->{job}{cpu_cores} = $1;
@@ -1433,6 +1444,7 @@ sub interactive_question
 	}
 	
 	$anvil->data->{new_server}{name} = $anvil->data->{switches}{name} ? $anvil->data->{switches}{name} : "";
+	$anvil->data->{new_server}{uuid} = $anvil->data->{switches}{uuid} ? $anvil->data->{switches}{uuid} : "";
 	
 	# If this is a node, load the anvil_uuid automatically.
 	
@@ -1647,10 +1659,13 @@ sub interactive_ask_server_name
 				}});
 				if ($server_state eq "DELETED")
 				{
-					# Valid, we can re-use deleted server names.
+					# Valid, we can re-use deleted server names. We'll also re-use the 
+					# UUID, if the user didn't specifically specify a UUID.
 					$anvil->data->{new_server}{name} = $answer;
+					$anvil->data->{new_server}{uuid} = $server_uuid if not $anvil->data->{new_server}{uuid};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"new_server::name" => $anvil->data->{new_server}{name},
+						"new_server::uuid" => $anvil->data->{new_server}{uuid},
 					}});
 				}
 				else
@@ -2396,6 +2411,11 @@ storage_group_uuid=".$anvil->data->{new_server}{storage_group}."
 storage_size=".$anvil->data->{new_server}{storage_size}."
 install_iso=".$anvil->data->{new_server}{install_media}."
 driver_iso=".$anvil->data->{new_server}{driver_disc};
+		if ($anvil->data->{new_server}{uuid})
+		{
+			$job_data .= "
+server_uuid=".$anvil->data->{new_server}{name};
+		}
 		print "\n".$anvil->Words->string({key => "job_0183", variables => { job_data => $job_data }})."\n";
 		
 		# Register the job with the primary node on the Anvil! (or node 1, if neither node is primary).
