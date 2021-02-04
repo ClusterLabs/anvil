@@ -343,16 +343,19 @@ sub load_agent_strings
 	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
 	{
 		my $agent_words = $anvil->data->{scancore}{agent}{$agent_name}.".xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { agent_words => $agent_words }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { agent_words => $agent_words }});
 		
 		if ((-e $agent_words) && (-r $agent_words))
 		{
 			# Read the words file.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0251", variables => {
 				agent_name => $agent_name,
 				file       => $agent_words,
 			}});
-			$anvil->Words->read({file => $agent_words});
+			$anvil->Words->read({
+				debug => $debug, 
+				file  => $agent_words,
+			});
 		}
 	}
 	
@@ -445,6 +448,12 @@ sub parse_banged_string
 			}
 		}
 		$new_string =~ s/\n$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_string => $new_string }});
+	}
+	else
+	{
+		# If a string doesn't have a new-line, then copy the key string directly.
+		$new_string = $key_string;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_string => $new_string }});
 	}
 	
