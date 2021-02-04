@@ -310,7 +310,7 @@ Output (if any):
 		<key name="error_0225">Unable to delete the server resource: [#!variable!server_name!#] as this node is not (yet) a full member of the cluster.</key>
 		<key name="error_0226">It looks like to removal of the server resource: [#!variable!server_name!#] failed. The return code should have been '0', but: [#!variable!return_code!#] was returned. The 'pcs' command output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0227">It looks like to removal of the server resource: [#!variable!server_name!#] failed. Unsafe to proceed with the removal of the server. Please check the logs for more information.</key>
-		<key name="error_0228">Unable to delete the resource: [#!variable!resource!#] because it wasn't found in DRBD's config.</key>
+		<key name="error_0228">Unable to delete the resource: [#!variable!resource!#] because it wasn't found in DRBD's config. This can happen is a previous delete partially completed, in which case this is not a problem.</key>
 		<key name="error_0229">One or more peers need us, and we're not allowed to wait. Deletion aborted.</key>
 		<key name="error_0230">The shell call: [#!variable!shell_call!#] was expected to return '0', but instead the return code: [#!variable!return_code!#] was received. The output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0231">This host is not an Anvil! node or DR host, unable to migrate servers.</key>
@@ -319,6 +319,8 @@ Output (if any):
 		<key name="error_0234">Unable to find the target host to migrate to the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0235">The migration target host: [#!variable!target_host_uuid!#] is either invalid, or doesn't match one of the nodes in this Anvil! system.</key>
 		<key name="error_0236">There appears to be no resource data in the database for the host: [#!variable!host_name!#]. Has ScanCore run and, specifically, has 'scan-hardware' run yet? Unable to provide available resources for this Anvil! system.</key>
+		<key name="error_0237">The resource name: [#!variable!resource_name!#] already exists, and 'force_unique' is set. This is likely a name conflict, returning '!!error!!'.</key>
+		<key name="error_0238">This node is not yet fully in the cluster. Sleeping for a bit, then we'll exit. The job will try again shortly after.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -655,6 +657,11 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0216">The server delete is complete on this host!</key>
 		<key name="job_0217">It looks like ScanCore has not yet run on one or both nodes in this Anvil! system. Missing resource data, so unable to proceed.</key>
 		<key name="job_0218">Manually calling 'scan-drbd' to ensure that the new agent is recorded.</key>
+		<key name="job_0219">The server name: [#!variable!server_name!#] is already used by another server.</key>
+		<key name="job_0220">Deleting the server's definition file: [#!variable!file!#]...</key>
+		<key name="job_0221">The server: [#!variable!server_name!#] was not found in the cluster configuration. This can happen if a server was partially deleted and we're trying again.</key>
+		<key name="job_0222">Preparing to delete the server: [#!variable!server_name!#].</key>
+		<key name="job_0223">Using virsh to destroy (force off) the server: [#!variable!server_name!#], if it is still running.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1340,6 +1347,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0589">Deleting the file: [#!variable!file!#].</key>
 		<key name="log_0590">Wiping the metadata from the DRBD resource: [#!variable!resource!#].</key>
 		<key name="log_0591">Wiping any file system signatures and then deleting the logical volume: [#!variable!device_path!#].</key>
+		<key name="log_0592">The resource name: [#!variable!resource_name!#] was found, returning the first TCP port and minor number.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1654,6 +1662,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0216">The server is running here, assigning the job to this host.</key>
 		<key name="message_0217">Preparing to delete a server.</key>
 		<key name="message_0218">Preparing to migrate a server (or all servers).</key>
+		<key name="message_0219">- #!variable!server_name!# (Current state: [#!variable!server_state!#])</key>
+		<key name="message_0220">- * #!variable!server_name!# (Deleted, name can be reused)</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

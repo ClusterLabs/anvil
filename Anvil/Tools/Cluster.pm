@@ -1694,7 +1694,7 @@ sub parse_cib
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local call
-			($cib_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			($cib_data, $return_code) = $anvil->System->call({debug => ($debug + 1), shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				cib_data    => $cib_data,
 				return_code => $return_code,
@@ -1704,7 +1704,7 @@ sub parse_cib
 		{
 			# Remote call.
 			($cib_data, my $error, $return_code) = $anvil->Remote->call({
-				debug       => $debug, 
+				debug       => ($debug + 1), 
 				shell_call  => $shell_call, 
 				target      => $target,
 				port        => $port, 
@@ -2415,7 +2415,7 @@ sub parse_crm_mon
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local call
-			($crm_mon_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			($crm_mon_data, $return_code) = $anvil->System->call({debug => ($debug + 1), shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				crm_mon_data => $crm_mon_data,
 				return_code  => $return_code,
@@ -2463,7 +2463,7 @@ sub parse_crm_mon
 			foreach my $resource ($dom->findnodes('/pacemaker-result/resources/resource'))
 			{
 				next if $resource->{resource_agent} ne "ocf::alteeve:server";
-				my $id             = $resource->{id};
+				my $id = $resource->{id};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 				foreach my $variable (sort {$a cmp $b} keys %{$resource})
 				{
