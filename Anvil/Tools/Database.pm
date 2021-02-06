@@ -2510,6 +2510,10 @@ Parameters;
 
 This is the host UUID we're querying the name of.
 
+=head3 include_deleted (optional, default '0')
+
+If set to C<< 1 >>, hosts that are deleted are included. If you use this, and a machine was replaced, then watch for multiple host UUIDs.
+
 =head3 short (optional, default '0')
 
 If set to C<< 1 >>, the short host name is returned. When set to C<< 0 >>, the full host name is returned.
@@ -2523,12 +2527,14 @@ sub get_host_from_uuid
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
 	
-	my $host_name = "";
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
-	my $short     = defined $parameter->{short}     ? $parameter->{short}     : 0;
+	my $host_name       = "";
+	my $host_uuid       = defined $parameter->{host_uuid}       ? $parameter->{host_uuid}       : "";
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	my $short           = defined $parameter->{short}           ? $parameter->{short}           : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		host_uuid => $host_uuid, 
-		short     => $short,
+		host_uuid       => $host_uuid, 
+		include_deleted => $include_deleted, 
+		short           => $short,
 	}});
 	
 	if (not $host_uuid)
@@ -2538,7 +2544,21 @@ sub get_host_from_uuid
 		return($host_name);
 	}
 	
-	my $query = "SELECT host_name FROM hosts WHERE host_uuid = ".$anvil->Database->quote($host_uuid).";";
+	my $query = "
+SELECT 
+    host_name 
+FROM 
+    hosts 
+WHERE 
+    host_uuid = ".$anvil->Database->quote($host_uuid);
+	if (not $include_deleted)
+	{
+		$query .= "
+AND 
+    host_key  != 'DELETED'";
+	}
+	$query .= "
+;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -2592,7 +2612,13 @@ And to simplify look-ups by UUID or name;
 
 To prevent some cases of recursion, C<< hosts::loaded >> is set on successful load, and if this is set, this method immediately returns with C<< 0 >>. 
 
-This method takes no parameters.
+Parameters;
+
+=head3 include_deleted (optional, default '0')
+
+By default, hosts that have been deleted (C<< host_key >> set to C<< DELETED >>) are not returned. If this is set to C<< 1 >>, those deleted hosts are included.
+
+B<< Note >>: Be careful when using this. If a machine was replaced, then there could be two (or more) host UUIDs for a given host name.
 
 =cut
 sub get_hosts
@@ -2602,6 +2628,11 @@ sub get_hosts
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
 	
 	# Delete any data from past scans.
 	delete $anvil->data->{hosts}{host_uuid};
@@ -2620,7 +2651,14 @@ SELECT
     host_ipmi, 
     modified_date 
 FROM 
-    hosts
+    hosts ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    host_key  != 'DELETED'";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	

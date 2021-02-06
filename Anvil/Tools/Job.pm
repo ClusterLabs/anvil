@@ -356,9 +356,10 @@ FROM
 WHERE 
     job_command LIKE ".$anvil->Database->quote("%".$program."%")." 
 AND 
-    job_progress != '100'
+    job_progress  = 0
 AND 
     job_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+LIMIT 1
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
