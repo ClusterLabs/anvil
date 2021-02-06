@@ -31,9 +31,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new();
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -54,7 +52,7 @@ $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  = 75;
 $anvil->data->{switches}{force}                                  = 0;
 
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->Get->switches;
@@ -913,15 +911,15 @@ sub find_changes
 			my $say_new_scan_hardware_memory_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)";
 			my $say_old_scan_hardware_memory_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)";
 			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "info", message => "scan_hardware_alert_0018,!!new!".$say_new_scan_hardware_memory_free."!!,!!old!".$say_old_scan_hardware_memory_free."!!"});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0018", variables => { new => $say_new_scan_hardware_memory_free, old => $say_old_scan_hardware_memory_free}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_hardware_alert_0018", variables => { new => $say_new_scan_hardware_memory_free, old => $say_old_scan_hardware_memory_free}});
 		}
 		if ($new_scan_hardware_swap_free ne $old_scan_hardware_swap_free)
 		{
-			   $update                       = 1;
+			   $update                          = 1;
 			my $say_new_scan_hardware_swap_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_free})." #!string!scan_hardware_unit_0001!#)";
 			my $say_old_scan_hardware_swap_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_swap_free})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_swap_free})." #!string!scan_hardware_unit_0001!#)";
 			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "info", message => "scan_hardware_alert_0019,!!new!".$say_new_scan_hardware_swap_free."!!,!!old!".$say_old_scan_hardware_swap_free."!!"});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0019", variables => { new => $say_new_scan_hardware_swap_free, old => $say_old_scan_hardware_swap_free}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_hardware_alert_0019", variables => { new => $say_new_scan_hardware_swap_free, old => $say_old_scan_hardware_swap_free}});
 
 			my $new_swap_bytes_used   = $new_scan_hardware_swap_total - $new_scan_hardware_swap_free;
 			my $old_swap_bytes_used   = $old_scan_hardware_swap_total - $old_scan_hardware_swap_free;

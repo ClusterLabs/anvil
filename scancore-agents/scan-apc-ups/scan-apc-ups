@@ -40,9 +40,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new();
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -185,7 +183,7 @@ $anvil->data->{snmp} = {
 };
 
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->Get->switches;
@@ -736,7 +734,7 @@ INSERT INTO
 					new_value => "#!string!scan_apc_ups_last_transfer_".sprintf("%04d", $say_scan_apc_ups_last_transfer_reason)."!#",
 					old_value => "#!string!scan_apc_ups_last_transfer_".sprintf("%04d", $say_old_scan_apc_ups_last_transfer_reason)."!#",
 				};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0015", variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0015", variables => $variables});
 				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0015", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_manufactured_date ne $old_scan_apc_ups_manufactured_date)

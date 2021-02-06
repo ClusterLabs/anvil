@@ -1252,7 +1252,7 @@ sub connect
 				average_time => $average_time, 
 			}});
 			
-			my $ping_time = tv_interval ($start_time, [gettimeofday]);
+			#my $ping_time = tv_interval ($start_time, [gettimeofday]);
 			#print "[".$ping_time."] - Pinged: [$host:$port:$name:$user]\n";
 			
 			if (not $pinged)

@@ -192,7 +192,7 @@ $anvil->data->{'scan-ipmitool'} = {
 };
 
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1 , key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1 , key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->data->{switches}{force} = 0;
@@ -2014,10 +2014,10 @@ sub find_ipmi_targets
 
 	# If I am a node, I will only scan myself.
 	my $host_type = $anvil->Get->host_type();
-	my $hostname  = $anvil->Get->host_name();
+	my $host_name = $anvil->Get->host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		host_type => $host_type, 
-		hostname  => $hostname, 
+		host_name => $host_name, 
 	}});
 	
 	# Do I have local IPMI access?
@@ -2044,8 +2044,49 @@ sub find_ipmi_targets
 		}
 	}
 	
-	# Find all known hosts (except ourself) with a host_ipmi value set.
+	# Which hosts we scan depends on if we're a Striker dashboard or not. If we are, we'll try to scan 
+	# all machines in all Anvil! systems. Otherwise, we only scan ourselves.
+	if ($host_type ne "striker")
+	{
+		# We're not a dashboard, so we don't scan others.
+		return($ipmi_targets);
+	}
+	
+	# Loop through Anvil! systems.
 	my $query = "
+SELECT 
+    anvil_name, 
+    anvil_node1_host_uuid, 
+    anvil_node2_host_uuid, 
+    anvil_dr1_host_uuid 
+FROM 
+    anvils 
+WHERE 
+    anvil_description != 'DELETED'
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# For each host_uuid, get the IPMI info.
+		my $anvil_name            =         $row->[0]; 
+		my $anvil_node1_host_uuid =         $row->[1];
+		my $anvil_node2_host_uuid =         $row->[2];
+		my $anvil_dr1_host_uuid   = defined $row->[3] ? $row->[3] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_name'            => $anvil_name, 
+			's2:anvil_node1_host_uuid' => $anvil_node1_host_uuid, 
+			's3:anvil_node2_host_uuid' => $anvil_node2_host_uuid,
+			's4:anvil_dr1_host_uuid'   => $anvil_dr1_host_uuid, 
+		}});
+		
+		my $query = "
 SELECT 
     host_name, 
     host_uuid, 
@@ -2055,60 +2096,72 @@ FROM
 WHERE 
     host_ipmi != ''
 AND 
-    host_uuid != ".$anvil->Database->quote($anvil->Get->host_uuid)."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
-	{
-		# We've got an entry in the 'scan_hardware' table, so now we'll look for data in the node and 
-		# services tables.
-		my $host_name = $row->[0]; 
-		my $host_uuid = $row->[1]; 
-		my $host_ipmi = $row->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host_name => $host_name, 
-			host_uuid => $host_uuid, 
-			host_ipmi => $anvil->Log->is_secure($host_ipmi),
-		}});
-		
-		# Get the ipaddress and see if I can ping the target. If I can't, there is no sense in 
-		# recording this entry.
-		my $access = 0;
-		my $target = "";
-		if (($host_ipmi =~ /-a (.*?) /) or ($host_ipmi =~ /-ip (.*?) /))
+    (
+        host_uuid = ".$anvil->Database->quote($anvil_node1_host_uuid)."
+    OR 
+        host_uuid = ".$anvil->Database->quote($anvil_node2_host_uuid);
+		if ($anvil_dr1_host_uuid)
 		{
-			$target = $1;
+			$query .= "
+    OR 
+        host_uuid = ".$anvil->Database->quote($anvil_dr1_host_uuid);
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
-		if ($target)
+		$query .= "
+    )
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
 		{
-			($access, my $average_time) = $anvil->Network->ping({ping => $target});
+			# We've got an entry in the 'scan_hardware' table, so now we'll look for data in the node and 
+			# services tables.
+			my $host_name = $row->[0]; 
+			my $host_uuid = $row->[1]; 
+			my $host_ipmi = $row->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				access       => $access,
-				average_time => $average_time, 
+				host_name => $host_name, 
+				host_uuid => $host_uuid, 
+				host_ipmi => $anvil->Log->is_secure($host_ipmi),
+			}});
+			
+			# Get the ipaddress and see if I can ping the target. If I can't, there is no sense in 
+			# recording this entry.
+			my $access = 0;
+			my $target = "";
+			if (($host_ipmi =~ /-a (.*?) /) or ($host_ipmi =~ /-ip (.*?) /))
+			{
+				$target = $1;
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+			if ($target)
+			{
+				($access, my $average_time) = $anvil->Network->ping({ping => $target});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					access       => $access,
+					average_time => $average_time, 
+				}});
+			}
+			next if not $access;
+			$ipmi_targets++;
+			
+			# Convert to an 'ipmitool' call.
+			my ($ipmitool_command, $ipmi_password) = $anvil->Convert->fence_ipmilan_to_ipmitool({fence_ipmilan_command => $host_ipmi});
+			
+			$anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{host_ipmi}        = $host_ipmi;
+			$anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmitool_command} = $ipmitool_command;
+			$anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmi_password}    = $ipmi_password;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"scan-ipmitool::host_name::${host_name}::host_ipmi"        => $anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{host_ipmi}, 
+				"scan-ipmitool::host_name::${host_name}::ipmitool_command" => $anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmitool_command}, 
+				"scan-ipmitool::host_name::${host_name}::ipmi_password"    => $anvil->Log->is_secure($anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmi_password}), 
 			}});
 		}
-		next if not $access;
-		$ipmi_targets++;
-		
-		# Convert to an 'ipmitool' call.
-		my ($ipmitool_command, $ipmi_password) = $anvil->Convert->fence_ipmilan_to_ipmitool({fence_ipmilan_command => $host_ipmi});
-		
-		$anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{host_ipmi}        = $host_ipmi;
-		$anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmitool_command} = $ipmitool_command;
-		$anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmi_password}    = $ipmi_password;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"scan-ipmitool::host_name::${host_name}::host_ipmi"        => $anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{host_ipmi}, 
-			"scan-ipmitool::host_name::${host_name}::ipmitool_command" => $anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmitool_command}, 
-			"scan-ipmitool::host_name::${host_name}::ipmi_password"    => $anvil->Log->is_secure($anvil->data->{'scan-ipmitool'}{host_name}{$host_name}{ipmi_password}), 
-		}});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmi_targets => $ipmi_targets }});

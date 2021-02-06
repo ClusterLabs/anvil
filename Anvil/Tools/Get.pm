@@ -1479,7 +1479,11 @@ sub free_memory
 
 =head2 host_type
 
-This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
+This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table. Returned values are;
+
+ striker - Striker dashboards
+ node    - Anvil! nodes (active protection of VMs)
+ dr      - DR Hosts (passive DR host targets)
 
  my $type = $anvil->Get->host_type();
 

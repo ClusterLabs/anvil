@@ -75,9 +75,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new();
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -159,7 +157,7 @@ $anvil->data->{snmp} = {
 };
 
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->Get->switches;
@@ -883,7 +881,7 @@ WHERE
 					if ($new_uptime > $old_uptime)
 					{
 						# Normal, info-level
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0018", variables => $variables});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_pdu_message_0018", variables => $variables});
 						$anvil->Alert->register({
 							alert_level   => "info", 
 							message       => "scan_apc_pdu_message_0018", 
@@ -933,9 +931,9 @@ WHERE
 						old_total_wattage_draw => $old_total_wattage_draw,
 						new_total_wattage_draw => $new_total_wattage_draw, 
 					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0020", variables => $variables});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_pdu_message_0020", variables => $variables});
 					$anvil->Alert->register({
-						alert_level   => "notice", 
+						alert_level   => "info", 
 						message       => "scan_apc_pdu_message_0020", 
 						variables     => $variables, 
 						set_by        => $THIS_FILE, 
@@ -1035,7 +1033,7 @@ WHERE
 							old_phase_current_amperage => $old_scan_apc_pdu_phase_current_amperage,
 							new_phase_current_amperage => $new_scan_apc_pdu_phase_current_amperage, 
 						};
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0023", variables => $variables});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_pdu_message_0023", variables => $variables});
 						$anvil->Alert->register({
 							alert_level   => "info", 
 							message       => "scan_apc_pdu_message_0023", 

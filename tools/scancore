@@ -16,7 +16,9 @@
 # - Record how long a server's migration took in the past, and use that to determine which node to evacuate 
 #   during load shed. Also, track how long it takes for servers to stop to determine when to initiate a total
 #   shutdown.
-# - 
+# - Add a '--silence-alerts --anvil <name>' and '--restore-alerts --anvil <name>' to temporarily 
+#   disable/re-enable alerts. This is to allow for quiet maintenance without stopping scancore itself.
+# 
 
 use strict;
 use warnings;

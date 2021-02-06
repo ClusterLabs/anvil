@@ -36,9 +36,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new();
 
 $anvil->data->{'scan-drbd'}{alert_sort} = 2;
 $anvil->data->{'scan-drbd'}{queries}    = [];
@@ -75,7 +73,7 @@ if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});
 }
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_log_0001", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 if ($anvil->data->{switches}{purge})
 {
