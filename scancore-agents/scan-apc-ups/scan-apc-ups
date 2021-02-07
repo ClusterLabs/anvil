@@ -701,9 +701,9 @@ INSERT INTO
 				$ups_changed = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_changed => $ups_changed }});
 				
-				### NOTE: This used to be 'warning' level, but it caused way too many
-				###       false alarms. If a serious issue arises, the input voltage
-				###       will trigger a 'warning' level alert.
+				### NOTE: This used to be 'warning' level, but it caused way too many false 
+				###       alarms. If a serious issue arises, the input voltage will trigger a
+				###       'warning' level alert.
 				### There are 10 possible states 
 				# 0 -  There is no information on when the UPS last transferred to battery.
 				# 1 -  The UPS has not transferred to battery power since the last time it booted.
