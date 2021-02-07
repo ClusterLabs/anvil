@@ -130,6 +130,7 @@ $anvil->data->{'scan-ipmitool'} = {
 			buffer				=>	2,
 			weight				=>	1,
 		},
+		### TODO: Support wild-card sensor names.
 		# If the user wants to assign manual values for a given sensor, they can do 
 		# so by creating an entry hear where the key is the IPMI-returned sensor 
 		# name.
@@ -177,6 +178,19 @@ $anvil->data->{'scan-ipmitool'} = {
 		# The ROC on LSI controllers can just dramatically
 		'RAID Controller'		=>	{
 			jump				=>	15,
+		},
+		# On Dells, 'Temp{1..4}' change a lot, so we bump the jump.
+		'Temp1'				=>	{
+			jump				=>	20,
+		},
+		'Temp2'				=>	{
+			jump				=>	20,
+		},
+		'Temp3'				=>	{
+			jump				=>	20,
+		},
+		'Temp4'				=>	{
+			jump				=>	20,
 		},
 	},
 	# TODO: Remove this and have Striker pull the list of thermal sensors read in the 
