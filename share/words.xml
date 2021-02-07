@@ -949,7 +949,7 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0246">[ Warning ] - The local system is not yet configured. Scancore will check once a minute and start running once configured.</key>
 		<key name="log_0247">[ Cleared ] - The local system is now configured, proceeding.</key>
 		<key name="log_0248">ScanCore is entering the main loop now.</key>
-		<key name="log_0249">----=] ScanCore loop finished. Sleeping for: [#!variable!run_interval!#] seconds. ]=--------------------------------------</key>	<!-- This is meant to be easily seen in the logs, hence the dashes. -->
+		<key name="log_0249">----=] ScanCore loop finished after: [#!variable!runtime!#]. Sleeping for: [#!variable!run_interval!#] seconds. ]=--------------------------------------</key>	<!-- This is meant to be easily seen in the logs, hence the dashes. -->
 		<key name="log_0250">
 The md5sum of: [#!variable!file!#] has changed since the daemon started.
 * [#!variable!old_sum!#] -> [#!variable!new_sum!#]

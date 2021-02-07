@@ -34,9 +34,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new();
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -69,7 +67,7 @@ if ($problem)
 	$anvil->nice_exit({exit_code => 1});
 }
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0001", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 if ($anvil->data->{switches}{purge})
 {
 	# This can be called when doing bulk-database purges.
@@ -85,7 +83,7 @@ my $host_type = $anvil->Get->host_type;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 if ($host_type ne "node")
 {
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0002", variables => { host_type => $host_type }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_cluster_log_0002", variables => { host_type => $host_type }});
 	$anvil->nice_exit({exit_code => 0});
 }
 

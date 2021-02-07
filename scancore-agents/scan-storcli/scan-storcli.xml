@@ -334,6 +334,9 @@ The temperature of the Battery Backup Unit (BBU): [#!variable!serial_number!#] h
 - Controller: [#!variable!serial_number!#]: '#!variable!name!#' has changed: [#!variable!old_value!#] -> [#!variable!new_value!#]
   NOTE: This is expected and is no reason for concern.
 		</key>
+		<key name="scan_storcli_note_0071">The host appears to have a MegaRAID controller, but the tool to communicate with it is not installed. We'll try to install it now.</key>
+		<key name="scan_storcli_note_0072">An LSI-based (MegaRAID) controller was found, but the management tool was not installed. The RPM: [#!variable!rpm!#] has now been installed to allow monitoring storage.</key>
+		<key name="scan_storcli_note_0073">The install didn't work, we'll try again in the next scan.</key>
 
 		
 		<!-- Warnings -->

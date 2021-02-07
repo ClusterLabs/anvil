@@ -337,7 +337,7 @@ CREATE TRIGGER trigger_sessions
 CREATE TABLE anvils (
     anvil_uuid               uuid                        not null    primary key, 
     anvil_name               text                        not null,
-    anvil_description        text                        not null,                -- This is a short, one-line (usually) description of this particular Anvil!. It is displayed in the Anvil! selection list.
+    anvil_description        text                        not null,                -- This is a short, one-line (usually) description of this particular Anvil!. It is displayed in the Anvil! selection list. This is set to 'DELETED' when an Anvil! is removed.
     anvil_password           text                        not null,                -- This is the 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
     anvil_node1_host_uuid    uuid,                                                -- This is the host_uuid of the machine that is used as node 1. 
     anvil_node2_host_uuid    uuid,                                                -- This is the host_uuid of the machine that is used as node 2. 

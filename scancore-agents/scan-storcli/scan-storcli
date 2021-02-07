@@ -75,9 +75,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new();
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -207,7 +205,7 @@ $anvil->data->{'scan-storcli'} = {
 };
 
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1 , key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->data->{switches}{force} = 0;
@@ -240,7 +238,7 @@ if ($anvil->data->{switches}{purge})
 }
 
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_storcli_message_0001"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "scan_storcli_message_0001"});
 
 # This does two things; It checks to see if storcli64 is installed (exits '1' if not, exits '2' if not 
 # executable) and then checks to see if any controllers are found in the system (exits '3' if not). 
@@ -2724,7 +2722,7 @@ INSERT INTO
 					low_critical_temperature  => $low_critical, 
 					low_warning_temperature	  => $low_warning, 
 				};
-				my $log_level = $alert_level eq "notice" ? 2 : 1;
+				my $log_level = $alert_level eq "notice" ? 3 : 2;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level   => $alert_level, 
@@ -3284,7 +3282,7 @@ WHERE
 							low_warning_temperature	  => $low_warning, 
 							jump                      => $jump,
 						};
-						my $log_level = $alert_level eq "notice" ? 2 : 1;
+						my $log_level = $alert_level eq "notice" ? 3 : 2;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 						$anvil->Alert->register({
 							alert_level   => $alert_level, 
@@ -10040,12 +10038,37 @@ sub find_lsi_controllers
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::exe::storcli64" => $anvil->data->{path}{exe}{storcli64} }});
 	}
 	
-	# First, do we have storcli64 installed?
+	# Do we have storcli64 installed?
 	if (not -e $anvil->data->{path}{exe}{storcli64})
 	{
-		# Nope, exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0001", variables => { path => $anvil->data->{path}{exe}{storcli64} }});
-		$anvil->nice_exit({exit_code => 1});
+		# Nope, Call lspci to see if there's a MegaRAID controller. If there is, the user may need to
+		# install the RPM.
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{lspci}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		
+		my $megaraid_installed = 0;
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			
+			if ($line =~ /MegaRAID/i)
+			{
+				# This host appears to have a RAID card, but it's not installed. Lets try to 
+				# install it for them.
+				$megaraid_installed = install_storcli($anvil);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { megaraid_installed => $megaraid_installed }});
+			}
+		}
+		
+		# exit.
+		if (not $megaraid_installed)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "scan_storcli_error_0001", variables => { path => $anvil->data->{path}{exe}{storcli64} }});
+			$anvil->nice_exit({exit_code => 1});
+		}
 	}
 	
 	# Make sure it is executable
@@ -10083,10 +10106,80 @@ sub find_lsi_controllers
 	}
 	else
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "scan_storcli_error_0003", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 2, level => 0, key => "scan_storcli_error_0003", variables => { 
 			path => $anvil->data->{path}{exe}{storcli64}, 
 		}});
 		$anvil->nice_exit({exit_code => 3});
+	}
+	
+	return(0);
+}
+
+sub install_storcli
+{
+	my ($anvil) = @_;
+	
+	# Tell the user what we're doing. 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_note_0071"});
+	
+	# Is this a Dell?
+	my $is_dell                = 0;
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-manufacturer"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /Dell/i)
+		{
+			$is_dell = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_dell => $is_dell }});
+		}
+	}
+	
+	my $rpm_name   = $is_dell ? "perccli" : "storcli";
+	my $shell_call = $anvil->data->{path}{exe}{dnf}." -y install ".$rpm_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	# Check now to see if the program is installed. If it is, register an alert announcing we installed it.
+	my $program = $is_dell ? $anvil->data->{path}{exe}{perccli64} : $anvil->data->{path}{exe}{storcli64};
+	if (-e $program)
+	{
+		# Installed successfully! 
+		my $variables = {
+			rpm => $rpm_name,
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_storcli_note_0072", variables => $variables});
+		$anvil->Alert->register({
+			alert_level   => "notice", 
+			message       => "scan_storcli_note_0072", 
+			show_header   => 1, 
+			variables     => $variables, 
+			sort_position => 0,
+			set_by        => $THIS_FILE, 
+		});
+		
+		# Before we return, if we installed for Dell, switch out the 'storcli' program path.
+		if ($is_dell)
+		{
+			$anvil->data->{path}{exe}{storcli64} = $anvil->data->{path}{exe}{perccli64};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::exe::storcli64" => $anvil->data->{path}{exe}{storcli64} }});
+		}
+		
+		return(1);
+	}
+	else
+	{
+		# Didn't work.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "scan_storcli_note_0073"});
 	}
 	
 	return(0);

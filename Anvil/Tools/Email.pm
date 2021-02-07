@@ -623,10 +623,9 @@ Reply-To: ".$reply_to."
 		my $file_time  = $anvil->Get->date_and_time({file_name => 1});
 		my $short_uuid = $anvil->Get->uuid({short => 1});
 		my $file_name  = $anvil->data->{path}{directories}{alert_emails}."/alert_email.".$file_time.".".$short_uuid;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0541", variables => { file => $file_name }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0541", variables => { file => $file_name }});
 		
 		my $problem = $anvil->Storage->write_file({
-			debug => 3, 
 			file  => $file_name, 
 			body  => $email_body, 
 		});
@@ -640,7 +639,7 @@ Reply-To: ".$reply_to."
 		}
 		else
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0542", variables => { to => $to }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0542", variables => { to => $to }});
 			my $shell_call = $anvil->data->{path}{exe}{mailx}." -t < ".$file_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
