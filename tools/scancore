@@ -97,10 +97,11 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level 
 while(1)
 {
 	# Do the various pre-run tasks.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'sys::log::level' => $anvil->data->{sys}{'log'}{level} }});
+	my $start_time = time;
 	prepare_for_run($anvil);
 	
 	# Do we have at least one database?
+	my $agent_runtime = 0;
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
@@ -147,7 +148,10 @@ while(1)
 	{
 		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
 	}
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { run_interval => $run_interval }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { 
+		run_interval => $run_interval,
+		runtime      => (time - $start_time),
+	}});
 	sleep($run_interval);
 	
 	# In case something has changed, exit.
@@ -211,7 +215,7 @@ sub prepare_for_run
 	$anvil->Get->switches();
 	$anvil->Words->read();
 	$anvil->Database->connect();
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0132"});
 	
 	# See if the mail server needs to be updated.
 	$anvil->Email->check_config;
@@ -303,9 +307,8 @@ sub startup_tasks
 	my ($anvil) = @_;
 	
 	# Make sure our stop reason is cleared.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0572"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0572"});
 	my $variable_uuid = $anvil->Database->insert_or_update_variables({
-		debug                 => 2,
 		variable_name         => 'system::stop_reason', 
 		variable_value        => '', 
 		variable_default      => '', 

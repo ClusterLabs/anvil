@@ -124,7 +124,7 @@ $anvil->data->{'scan-ipmitool'} = {
 			high_critical			=>	55,
 			low_warning			=>	5,
 			low_critical			=>	0,
-			jump				=>	5,
+			jump				=>	10,
 			### TODO: Some sensors define their hysteresis which we can read using: 
 			###       ipmitool ... sensor get "Ambient"
 			buffer				=>	2,

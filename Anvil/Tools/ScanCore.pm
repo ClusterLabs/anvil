@@ -259,7 +259,7 @@ sub call_scan_agents
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		# Tell the user this agent is about to run...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0252", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0252", variables => {
 			agent_name => $agent_name,
 			timeout    => $timeout,
 		}});
@@ -269,9 +269,14 @@ sub call_scan_agents
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0557", variables => {
+		
+		# If an agent takes a while to run, log it with higher verbosity
+		my $runtime   = (time - $start_time);
+		my $log_level = $runtime > 10 ? 1 : $debug;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, runtime => $runtime }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $log_level, key => "log_0557", variables => {
 			agent_name  => $agent_name,
-			runtime     => (time - $start_time),
+			runtime     => $runtime,
 			return_code => $return_code,
 		}});
 		

@@ -698,6 +698,8 @@ INSERT INTO
 			# some being more critical than others.
 			if ($scan_apc_ups_last_transfer_reason ne $old_scan_apc_ups_last_transfer_reason)
 			{
+				$ups_changed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_changed => $ups_changed }});
 				
 				### NOTE: This used to be 'warning' level, but it caused way too many
 				###       false alarms. If a serious issue arises, the input voltage
@@ -729,13 +731,27 @@ INSERT INTO
 					$say_old_scan_apc_ups_last_transfer_reason = 99;
 				}
 				
+				# The level of the alert will depends on the now/old state
+				my $log_level   = 3;
+				my $alert_level = "info";
+				if (($scan_apc_ups_last_transfer_reason eq "2")  or ($old_scan_apc_ups_last_transfer_reason eq "2") or 
+				    ($scan_apc_ups_last_transfer_reason eq "3")  or ($old_scan_apc_ups_last_transfer_reason eq "3") or 
+				    ($scan_apc_ups_last_transfer_reason eq "4")  or ($old_scan_apc_ups_last_transfer_reason eq "3") or 
+				    ($scan_apc_ups_last_transfer_reason eq "6")  or ($old_scan_apc_ups_last_transfer_reason eq "6") or 
+				    ($scan_apc_ups_last_transfer_reason eq "8")  or ($old_scan_apc_ups_last_transfer_reason eq "8") or 
+				    ($scan_apc_ups_last_transfer_reason eq "10") or ($old_scan_apc_ups_last_transfer_reason eq "10"))
+				{
+					$log_level   = 2;
+					$alert_level = "notice";
+				}
+				
 				my $variables = {
 					ups_name  => $scan_apc_ups_name,
 					new_value => "#!string!scan_apc_ups_last_transfer_".sprintf("%04d", $say_scan_apc_ups_last_transfer_reason)."!#",
 					old_value => "#!string!scan_apc_ups_last_transfer_".sprintf("%04d", $say_old_scan_apc_ups_last_transfer_reason)."!#",
 				};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0015", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0015", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "scan_apc_ups_warning_0015", variables => $variables});
+				$anvil->Alert->register({alert_level => $alert_level, message => "scan_apc_ups_warning_0015", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_manufactured_date ne $old_scan_apc_ups_manufactured_date)
 			{
