@@ -51,8 +51,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 $anvil->data->{switches}{'delete'}    = "";
 $anvil->data->{switches}{download}    = "";

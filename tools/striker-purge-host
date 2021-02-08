@@ -27,9 +27,10 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $anvil = Anvil::Tools->new({debug => 2});
-$anvil->Log->secure({set => 1});
-$anvil->Log->level({set => 2});
+my $anvil = Anvil::Tools->new();
+
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
