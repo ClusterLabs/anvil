@@ -883,7 +883,7 @@ ORDER BY
 			{
 				# Mark it as deleted.
 				my $query = "UPDATE network_interfaces SET network_interface_operational = 'DELETED' WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0124", variables => { query => $query }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 			}
 			
