@@ -14,7 +14,6 @@ dist_sbin_SCRIPTS	= \
 			  anvil-delete-server \
 			  anvil-download-file \
 			  anvil-file-details \
-			  anvil-jobs \
 			  anvil-join-anvil \
 			  anvil-maintenance-mode \
 			  anvil-manage-files \
