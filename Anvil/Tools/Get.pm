@@ -1827,7 +1827,7 @@ sub os_type
 		$os_type = "rhel".$1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
 	}
-	elsif ($release =~ /CentOS .*? (\d+)\./)
+	elsif ($release =~ /CentOS .*? (\d+)\.?/)
 	{
 		# CentOS, with the major version number appended
 		$os_type = "centos".$1;
