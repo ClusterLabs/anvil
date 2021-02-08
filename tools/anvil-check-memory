@@ -30,7 +30,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+my $anvil = Anvil::Tools->new();
 
 $anvil->data->{switches}{program} = ""; 
 $anvil->Get->switches;

@@ -20,10 +20,10 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 $| = 1;
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 my $words_file = $anvil->data->{path}{words}{'words.xml'};
 my $language   = $anvil->Words->language;

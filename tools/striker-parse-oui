@@ -22,9 +22,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 0});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
@@ -38,6 +35,7 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->data->{switches}{force}      = "";
 $anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
 	"switches::force"    => $anvil->data->{switches}{force}, 

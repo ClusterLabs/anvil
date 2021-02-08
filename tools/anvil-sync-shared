@@ -30,14 +30,11 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 $| = 1;
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
-
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Connect to the database(s).
 $anvil->Database->connect;
