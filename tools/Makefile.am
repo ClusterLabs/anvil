@@ -2,7 +2,6 @@ MAINTAINERCLEANFILES	= Makefile.in
 
 # XXX recheck after rebase!
 EXTRA_DIST		= \
-			  test.pl \
 			  watch_drbd
 
 dist_sbin_SCRIPTS	= \
