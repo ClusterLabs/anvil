@@ -1545,7 +1545,7 @@ NOTE: Please be patient!
 		<key name="message_0116">#!string!brand_0002!# Node</key>
 		<key name="message_0117">Disaster Recovery (DR) Host</key>
 		<key name="message_0118">Regenerating the source repository metadata.</key>
-		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
+		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests.</key>
 		<key name="message_0120">
 About to try to download aproximately: [#!variable!packages!#] packages needed to:
 - [#!variable!directory!#].
