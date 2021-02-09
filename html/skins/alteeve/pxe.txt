@@ -9,21 +9,20 @@ ddns-update-style none;
 option arch code 93 = unsigned integer 16;
 
 subnet #!variable!network!# netmask 255.255.0.0 {
-	default-lease-time 600;
-	max-lease-time     1200;
-	range              #!variable!range!#;
-	option routers     #!variable!router!#;
-	next-server        #!variable!router!#;
+    default-lease-time 600;
+    max-lease-time     1200;
+    range              #!variable!range!#;
+    option routers     #!variable!router!#;
 
-	class "pxeclients" {
-		match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
-		next-server 192.168.0.1;
-		if option pxe-system-type = 00:07 {
-			filename "BOOTX64.efi";
-		} else {
-			filename "pxelinux.0";
-		}
-	}
+    class "pxeclients" {
+        match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
+        next-server #!variable!router!#;
+        if option arch = 00:07 {
+	    filename "BOOTX64.efi";
+        } else {
+            filename "pxelinux.0";
+        }
+    }
 }
 <!-- end dhcpd_conf -->
 
