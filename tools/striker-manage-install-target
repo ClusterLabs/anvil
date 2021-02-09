@@ -503,9 +503,9 @@ sub setup_boot_environment
 	   $striker_number =  1 if not $striker_number;
 	   $striker_number =~ s/^0//;
 	my $third_octet    =  (10 * $striker_number) + 4;
-	   $third_octet    = 254 if $third_octet > 254;
-	my $first_part     = ($bcn_network =~ /^(\d+\.\d+)\./)[0].".".$third_octet;
-	my $range          = $first_part.".10 ".$first_part.".250";
+	   $third_octet    =  254 if $third_octet > 254;
+	my $first_part     =  ($bcn_network =~ /^(\d+\.\d+)\./)[0].".".$third_octet;
+	my $range          =  $first_part.".10 ".$first_part.".250";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		's1:striker_number' => $striker_number,
 		's2:third_octet'    => $third_octet,
