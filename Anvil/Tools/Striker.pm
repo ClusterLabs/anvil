@@ -544,7 +544,7 @@ sub get_local_repo
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base_url => $base_url }});
 	
 	### NOTE: The 'module_hotfixes=1' is needed until we can figure out how to add libssh2 to 
-	###       'modules.yaml' (from anvil-striker-extra, in turn from the RHEL 8.x repodata). See: 
+	###       'modules.yaml' (from the RHEL 8.x repodata). See: 
 	###       - https://docs.fedoraproject.org/en-US/modularity/making-modules/defining-modules/
 	###       - https://docs.fedoraproject.org/en-US/modularity/hosting-modules/
 	# Create the local repo file body

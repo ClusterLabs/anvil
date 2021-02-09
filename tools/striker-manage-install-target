@@ -19,7 +19,7 @@
 # 3  = Failed to write or update a configuration file.
 # 4  = Not a striker dashboard (or isn't yet).
 # 5  = Not running as the 'root' user.
-# 6  = The 'comps,xml' file provided by anvil-striker-extra was not found.
+# 6  = The 'comps,xml' file was not found.
 # 7  = A package failed to download to our repo
 # 8  = No database connection available.
 # 9  = The system isn't configured yet.
@@ -275,6 +275,10 @@ sub load_os_info
 	{
 		$anvil->data->{host_os}{os_name} = "RHEL ".$anvil->data->{host_os}{version};
 	}
+	elsif ($os_type =~ /^centos-stream/)
+	{
+		$anvil->data->{host_os}{os_name} = "CentOS Stream ".$anvil->data->{host_os}{version};
+	}
 	elsif ($os_type =~ /^centos/)
 	{
 		$anvil->data->{host_os}{os_name} = "CentOS ".$anvil->data->{host_os}{version};
@@ -446,11 +450,6 @@ sub setup_boot_environment
 {
 	my ($anvil) = @_;
 	
-	### TODO: We don't yet support UEFI, though we will need to soon. Note that the 'shim.efi' and 
-	###       'grubx64.efi' files should be added to 'anvil-striker-extras'. We'll also need to create
-	###       '/var/lib/tftpboot/pxelinux/uefi' as well.
-	###       We;re going to need the '.treeinfo' as well in anvil-striker-extra
-	###       - https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/advanced/Network_based_Installations/
 	# Get my BCN IP and active OS.
 	$anvil->Network->get_ips();
 	my $bcn_interface = "";
@@ -1061,7 +1060,7 @@ sub update_install_source
 			}
 			$packages   =~ s/ $//;
 			$shell_call .= " ".$packages."; 2>&1 ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			# Now call the command in the background, then we'll track the output.
 			my $stdout_file = "/tmp/".$THIS_FILE."_update_install_source.stdout";
@@ -1070,7 +1069,7 @@ sub update_install_source
 				unlink $stdout_file;
 			}
 			my ($handle, undef) = $anvil->System->call({
-				debug       => 2,
+				debug       => 3,
 				shell_call  => $shell_call, 
 				background  => 1, 
 				stdout_file => $stdout_file, 
@@ -1476,7 +1475,6 @@ sub load_packages
 			"anvil-core.noarch",
 			"anvil-dr.noarch",
 			"anvil-node.noarch",
-			"anvil-striker-extra.noarch",
 			"anvil-striker.noarch",
 			"apr-util-bdb.x86_64",
 			"apr-util-openssl.x86_64",
@@ -1539,7 +1537,6 @@ sub load_packages
 			"clutter-gtk.x86_64",
 			"clutter.x86_64",
 			"cockpit-bridge.x86_64",
-			"cockpit-dashboard.noarch",
 			"cockpit-machines.noarch",
 			"cockpit-packagekit.noarch",
 			"cockpit-system.noarch",
@@ -2725,13 +2722,27 @@ sub load_packages
 
 	
 	my ($os_type, $os_arch) = $anvil->Get->os_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		os_type => $os_type,
+		os_arch => $os_arch, 
+	}});
 	if ($os_type eq "rhel8")
 	{
+		push @{$anvil->data->{packages}{c}}, "cockpit-dashboard.noarch";
 		push @{$anvil->data->{packages}{r}}, "redhat-backgrounds.noarch";
 		push @{$anvil->data->{packages}{r}}, "redhat-indexhtml.noarch";
 		push @{$anvil->data->{packages}{r}}, "redhat-logos-httpd.noarch";
 		push @{$anvil->data->{packages}{r}}, "redhat-logos.x86_64";
 		push @{$anvil->data->{packages}{r}}, "redhat-release.x86_64";
+	}
+	elsif ($os_type eq "centos-stream8")
+	{
+		push @{$anvil->data->{packages}{c}}, "centos-backgrounds.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-gpg-keys.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-indexhtml.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-logos-httpd.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-logos.x86_64";
+		push @{$anvil->data->{packages}{c}}, "centos-stream-release.noarch";
 	}
 	elsif ($os_type eq "centos8")
 	{
@@ -2741,38 +2752,89 @@ sub load_packages
 		push @{$anvil->data->{packages}{c}}, "centos-logos-httpd.noarch";
 		push @{$anvil->data->{packages}{c}}, "centos-logos.x86_64";
 		push @{$anvil->data->{packages}{c}}, "centos-linux-release.noarch";
-		
-		# While we're here, we will need to rename /var/www/html/rhel8 to /var/www/html/rhel8, as
-		# 'centos8' and '/var/lib/tftpboot/rhel8' as 'centos8', as is used by anvil-striker-extra.
+		push @{$anvil->data->{packages}{c}}, "cockpit-dashboard.noarch";
+	}
+	
+	# Now see if the base OS has changed and, if so, rename directories
+	my $rhel8_test_source          = $anvil->data->{path}{directories}{html}."/rhel8";
+	my $centos8_test_source        = $anvil->data->{path}{directories}{html}."/centos8";
+	my $centos_stream8_test_source = $anvil->data->{path}{directories}{html}."/centos-stream8";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		rhel8_test_source          => $rhel8_test_source,
+		centos8_test_source        => $centos8_test_source,
+		centos_stream8_test_source => $centos_stream8_test_source, 
+	}});
+	
+	my $source = "";
+	my $target = "";
+	if ((-e $rhel8_test_source) && ($os_type ne "rhel8"))
+	{
+		# This isn't RHEL 8, we need to rename the directories
+		$source = "rhel8";
+		$target = $os_type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			source => $source,
+			target => $target, 
+		}});
+	}
+	elsif ((-e $centos8_test_source) && ($os_type ne "centos8"))
+	{
+		# This isn't CentOS 8, we need to rename the directories
+		$source = "centos8";
+		$target = $os_type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			source => $source,
+			target => $target, 
+		}});
+	}
+	elsif ((-e $centos_stream8_test_source) && ($os_type ne "centos-stream8"))
+	{
+		# This isn't CentOS Stream 8, rename the directories
+		$source = "centos-stream8";
+		$target = $os_type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			source => $source,
+			target => $target, 
+		}});
+	}
+	
+	# If 'source' is set, we need to rename.
+	if ($source)
+	{
+		# While we're here, we will need to rename /var/www/html/rhel8 to /var/www/html/centos8, as
+		# 'centos8' and '/var/lib/tftpboot/rhel8' as 'centos8'.
 		foreach my $directory ("html", "tftpboot")
 		{
-			my $source = $anvil->data->{path}{directories}{$directory}."/rhel8";
-			my $target = $anvil->data->{path}{directories}{$directory}."/centos8";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				directory => $directory,
-				source    => $source,
-				target    => $target, 
+			my $source_directory = $anvil->data->{path}{directories}{$directory}."/".$source;
+			my $target_directory = $anvil->data->{path}{directories}{$directory}."/".$target;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				source_directory => $source_directory,
+				target_directory => $target_directory,
 			}});
 			
-			if ((-e $anvil->data->{path}{directories}{$directory}."/rhel8") && (not -e $anvil->data->{path}{directories}{$directory}."/centos8"))
+			# We check to see if the target directory already exists. If it does, the user may be
+			# supporting multiple distros and we don't want to clobber that
+			if ((-e $source_directory) && (not -e $target_directory))
 			{
-				my $shell_call = $anvil->data->{path}{exe}{mv}." ".$source." ".$target;
+				my $shell_call = $anvil->data->{path}{exe}{mv}." ".$source_directory." ".$target_directory;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
 				my ($handle, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle, return_code => $return_code }});
-				if (-e $anvil->data->{path}{directories}{$directory}."/centos8")
+				if (-e $target_directory)
 				{
+					# Success!
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0475", variables => {
-						source => $source,
-						target => $target,
+						source => $source_directory,
+						target => $target_directory,
 					}});
 				}
 				else
 				{
+					# Failed :(
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0116", variables => {
-						source => $source,
-						target => $target,
+						source => $source_directory,
+						target => $target_directory,
 					}});
 					$anvil->nice_exit({exit_code => 12});
 				}
