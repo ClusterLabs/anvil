@@ -149,6 +149,7 @@ sub get
 	
 	# The 'http_headers' template can never show the name
 	$show_name = 0 if $name eq "http_headers";
+	$show_name = 0 if $name eq "json_headers";
 	
 	my $error = 0;
 	if (not $file)
