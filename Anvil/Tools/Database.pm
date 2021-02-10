@@ -2592,18 +2592,22 @@ Each anonymous hash is structured as:
  host_uuid     => $host_uuid, 
  host_name     => $host_name, 
  host_type     => $host_type, 
- host_key      => $host_key, 	
+ host_key      => $host_key, 
  host_ipmi     => $host_ipmi, 
+ host_health   => $host_health, 
+ host_status   => $host_status,
  modified_date => $modified_date, 
 
 It also sets the variables;
 
- hosts::host_uuid::<host_uuid>::host_name  = <host_name>;
- hosts::host_uuid::<host_uuid>::host_type  = <host_type; node, dr or dashboard>
- hosts::host_uuid::<host_uuid>::host_key   = <Machine's public key / fingerprint, set to DELETED when the host is no longer used>
- hosts::host_uuid::<host_uuid>::host_ipmi  = <If equiped, this is how to log into the host's IPMI BMC, including the password!>
- hosts::host_uuid::<host_uuid>::anvil_name = <anvil_name if associated with an anvil>
- hosts::host_uuid::<host_uuid>::anvil_uuid = <anvil_uuid if associated with an anvil>
+ hosts::host_uuid::<host_uuid>::host_name   = <host_name>;
+ hosts::host_uuid::<host_uuid>::host_type   = <host_type; node, dr or dashboard>
+ hosts::host_uuid::<host_uuid>::host_key    = <Machine's public key / fingerprint, set to DELETED when the host is no longer used>
+ hosts::host_uuid::<host_uuid>::host_ipmi   = <If equiped, this is how to log into the host's IPMI BMC, including the password!>
+ hosts::host_uuid::<host_uuid>::host_health = <A numeric score representing the health of the node; 0 == healthy and the higher the number, the worse its health>
+ hosts::host_uuid::<host_uuid>::host_status = <This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.>
+ hosts::host_uuid::<host_uuid>::anvil_name  = <anvil_name if associated with an anvil>
+ hosts::host_uuid::<host_uuid>::anvil_uuid  = <anvil_uuid if associated with an anvil>
 
 And to simplify look-ups by UUID or name;
 
@@ -2649,6 +2653,8 @@ SELECT
     host_type, 
     host_key, 
     host_ipmi, 
+    host_health, 
+    host_status, 
     modified_date 
 FROM 
     hosts ";
@@ -2676,13 +2682,17 @@ WHERE
 		my $host_type     = defined $row->[2] ? $row->[2] : "";
 		my $host_key      = defined $row->[3] ? $row->[3] : "";
 		my $host_ipmi     =         $row->[4];
-		my $modified_date =         $row->[5];
+		my $host_health   =         $row->[5];
+		my $host_status   =         $row->[6];
+		my $modified_date =         $row->[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host_uuid     => $host_uuid, 
 			host_name     => $host_name, 
 			host_type     => $host_type, 
 			host_key      => $host_key, 
 			host_ipmi     => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
+			host_health   => $host_health, 
+			host_status   => $host_status, 
 			modified_date => $modified_date, 
 		}});
 		
@@ -2701,6 +2711,8 @@ WHERE
 			host_type     => $host_type, 
 			host_key      => $host_key, 
 			host_ipmi     => $host_ipmi, 
+			host_health   => $host_health, 
+			host_status   => $host_status, 
 			modified_date => $modified_date, 
 		};
 		
@@ -2713,6 +2725,8 @@ WHERE
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}       = $host_type;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}        = $host_key;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}       = $host_ipmi;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_health}     = $host_health;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}     = $host_status;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}      = $anvil_name;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}      = $anvil_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2721,6 +2735,8 @@ WHERE
 			"hosts::host_uuid::${host_uuid}::host_type"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
 			"hosts::host_uuid::${host_uuid}::host_key"        => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 			"hosts::host_uuid::${host_uuid}::host_ipmi"       => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}) : $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+			"hosts::host_uuid::${host_uuid}::host_health"     => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_health}, 
+			"hosts::host_uuid::${host_uuid}::host_status"     => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
 			"hosts::host_uuid::${host_uuid}::anvil_name"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
 			"hosts::host_uuid::${host_uuid}::anvil_uuid"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
 		}});
@@ -2740,6 +2756,7 @@ WHERE
 }
 
 
+### TODO: Why does this method exist?
 =head2 get_hosts_info
 
 This gathers up all the known information about all known hosts.
@@ -2764,7 +2781,9 @@ SELECT
     host_name, 
     host_type, 
     host_key, 
-    host_ipmi 
+    host_ipmi, 
+    host_health, 
+    host_status 
 FROM 
     hosts
 ;";
@@ -2778,27 +2797,35 @@ FROM
 	}});
 	foreach my $row (@{$results})
 	{
-		my $host_uuid = $row->[0];
-		my $host_name = $row->[1];
-		my $host_type = $row->[2];
-		my $host_key  = $row->[3];
-		my $host_ipmi = $row->[4];
+		my $host_uuid   = $row->[0];
+		my $host_name   = $row->[1];
+		my $host_type   = $row->[2];
+		my $host_key    = $row->[3];
+		my $host_ipmi   = $row->[4];
+		my $host_health = $row->[5];
+		my $host_status = $row->[6];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host_uuid => $host_uuid, 
-			host_name => $host_name, 
-			host_type => $host_type, 
-			host_key  => $host_key, 
-			host_ipmi => $anvil->Log->is_secure($host_ipmi), 
+			host_uuid   => $host_uuid, 
+			host_name   => $host_name, 
+			host_type   => $host_type, 
+			host_key    => $host_key, 
+			host_ipmi   => $anvil->Log->is_secure($host_ipmi), 
+			host_health => $host_health, 
+			host_status => $host_status, 
 		}});
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name} = $host_name;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type} = $host_type;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}  = $host_key;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi} = $host_ipmi;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}   = $host_name;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}   = $host_type;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}    = $host_key;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}   = $host_ipmi;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_health} = $host_health;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status} = $host_status;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"machine::host_uuid::${host_uuid}::hosts::host_name" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}, 
-			"machine::host_uuid::${host_uuid}::hosts::host_type" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}, 
-			"machine::host_uuid::${host_uuid}::hosts::host_key"  => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}, 
-			"machine::host_uuid::${host_uuid}::hosts::host_ipmi" => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}), 
+			"machine::host_uuid::${host_uuid}::hosts::host_name"   => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_type"   => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_key"    => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_ipmi"   => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}), 
+			"machine::host_uuid::${host_uuid}::hosts::host_health" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_health}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_status" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status}, 
 		}});
 		
 		# If this is an Anvil! member, pull it's IP.
@@ -6784,6 +6811,24 @@ This default value is the value returned by C<< Get->host_type >>.
 
 The default value is the host's UUID (as returned by C<< Get->host_uuid >>.
 
+=head3 host_health (optional, default 'no_change')
+
+This is a numerical representation of the health of the node. C<< 0 >> is healthy, and the higher the value, the more "sick" the node is. This guides ScanCore is determining when to proactive live migrate servers.
+
+B<< Note >>: This can be set to C<< no_change >> and the existing value is left as it is.
+
+=head3 host_status (optional, default 'no_change')
+
+This is the power state of the host. Valid values are;
+
+* C<< unknown >>     - This should only be set when a node can not be reached and the previous setting was not C<< stopping >> or C<< booting >>.
+* C<< powered off >> - This shoule be set only when the host is confirmed off via IPMI call
+* C<< online >>      - This is set by the host itself when it boots up and first connects to the anvil database. B<< Note >> - This does NOT indicate readiness! Only that the host is accessible
+* C<< stopping >>    - This is a transitional state set by the host when it begins powering off. 
+* C<< booting >>     - This is a transitional state set by a Striker dashboard when it is powering on a host.
+
+B<< Note >> - Given that most Striker dashboards do not have IPMI, it is expected that they will enter C<< stopping >> state and never transition to c<< powered off >>. This is OK as C<< powered off >> can only be set when a target is B<< confirmed >> off. There's no other way to ensure that a target is not stuck while shutting down. Lack of pings doesn't solve this, either, as the network can go down before the host powers off.
+
 =cut
 sub insert_or_update_hosts
 {
@@ -6793,23 +6838,27 @@ sub insert_or_update_hosts
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_hosts()" }});
 	
-	my $uuid      = defined $parameter->{uuid}      ? $parameter->{uuid}      : "";
-	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
-	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
-	my $host_ipmi = defined $parameter->{host_ipmi} ? $parameter->{host_ipmi} : "";
-	my $host_key  = defined $parameter->{host_key}  ? $parameter->{host_key}  : "";
-	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->Get->host_name;
-	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->Get->host_type;
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $uuid        = defined $parameter->{uuid}        ? $parameter->{uuid}        : "";
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
+	my $line        = defined $parameter->{line}        ? $parameter->{line}        : "";
+	my $host_ipmi   = defined $parameter->{host_ipmi}   ? $parameter->{host_ipmi}   : "";
+	my $host_key    = defined $parameter->{host_key}    ? $parameter->{host_key}    : "";
+	my $host_name   = defined $parameter->{host_name}   ? $parameter->{host_name}   : $anvil->Get->host_name;
+	my $host_type   = defined $parameter->{host_type}   ? $parameter->{host_type}   : $anvil->Get->host_type;
+	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : $anvil->Get->host_uuid;
+	my $host_health = defined $parameter->{host_health} ? $parameter->{host_health} : "no_change";
+	my $host_status = defined $parameter->{host_status} ? $parameter->{host_status} : "no_change";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid      => $uuid, 
-		file      => $file, 
-		line      => $line, 
-		host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
-		host_key  => $host_key, 
-		host_name => $host_name, 
-		host_type => $host_type, 
-		host_uuid => $host_uuid, 
+		uuid        => $uuid, 
+		file        => $file, 
+		line        => $line, 
+		host_ipmi   => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
+		host_key    => $host_key, 
+		host_name   => $host_name, 
+		host_type   => $host_type, 
+		host_uuid   => $host_uuid, 
+		host_health => $host_health, 
+		host_status => $host_status, 
 	}});
 	
 	if (not $host_name)
@@ -6834,16 +6883,20 @@ sub insert_or_update_hosts
 	}
 	
 	# Read the old values, if they exist.
-	my $old_host_ipmi = "";
-	my $old_host_name = "";
-	my $old_host_type = "";
-	my $old_host_key  = "";
-	my $query         = "
+	my $old_host_ipmi   = "";
+	my $old_host_name   = "";
+	my $old_host_type   = "";
+	my $old_host_key    = "";
+	my $old_host_health = ""; 
+	my $old_host_status = "";
+	my $query           = "
 SELECT 
     host_ipmi, 
     host_name, 
     host_type, 
-    host_key  
+    host_key, 
+    host_health, 
+    host_status 
 FROM 
     hosts 
 WHERE 
@@ -6859,21 +6912,38 @@ WHERE
 	}});
 	foreach my $row (@{$results})
 	{
-		$old_host_ipmi = $row->[0];
-		$old_host_name = $row->[1];
-		$old_host_type = $row->[2];
-		$old_host_key  = $row->[3];
+		$old_host_ipmi   = $row->[0];
+		$old_host_name   = $row->[1];
+		$old_host_type   = $row->[2];
+		$old_host_key    = $row->[3];
+		$old_host_health = $row->[4]; 
+		$old_host_status = $row->[5];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-			old_host_ipmi => $old_host_ipmi =~ /passw/ ? $anvil->Log->is_secure($old_host_ipmi) : $old_host_ipmi,
-			old_host_name => $old_host_name, 
-			old_host_type => $old_host_type, 
-			old_host_key  => $old_host_key, 
+			old_host_ipmi   => $old_host_ipmi =~ /passw/ ? $anvil->Log->is_secure($old_host_ipmi) : $old_host_ipmi,
+			old_host_name   => $old_host_name, 
+			old_host_type   => $old_host_type, 
+			old_host_key    => $old_host_key, 
+			old_host_health => $old_host_health, 
+			old_host_status => $old_host_status, 
 		}});
+		
+		if ($host_health eq "no_change")
+		{
+			$host_health = $old_host_health;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_health => $host_health }});
+		}
+		if ($host_status eq "no_change")
+		{
+			$host_status = $old_host_status;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_status => $host_status }});
+		}
 	}
 	if (not $count)
 	{
 		# Add this host to the database
-		my $query = "
+		my $say_host_health = $host_health eq "no_change" ? 0         : $host_health;
+		my $say_host_status = $host_status eq "no_change" ? "unknown" : $host_status;
+		my $query           = "
 INSERT INTO 
     hosts 
 (
@@ -6882,6 +6952,8 @@ INSERT INTO
     host_type, 
     host_key, 
     host_ipmi, 
+    host_health, 
+    host_status,  
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($host_uuid).", 
@@ -6889,15 +6961,19 @@ INSERT INTO
     ".$anvil->Database->quote($host_type).",
     ".$anvil->Database->quote($host_key).",
     ".$anvil->Database->quote($host_ipmi).",
+    ".$anvil->Database->quote($say_host_health).",
+    ".$anvil->Database->quote($say_host_status).",
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
-	elsif (($old_host_name ne $host_name) or 
-	       ($old_host_type ne $host_type) or 
-	       ($old_host_key  ne $host_key))
+	elsif (($old_host_name   ne $host_name)   or 
+	       ($old_host_type   ne $host_type)   or 
+	       ($old_host_key    ne $host_key)    or 
+	       ($old_host_health ne $host_health) or 
+	       ($old_host_status ne $host_status))
 	{
 		# Clear the stop data.
 		my $query = "
@@ -6908,6 +6984,8 @@ SET
     host_type     = ".$anvil->Database->quote($host_type).", 
     host_key      = ".$anvil->Database->quote($host_key).", 
     host_ipmi     = ".$anvil->Database->quote($host_ipmi).", 
+    host_health   = ".$anvil->Database->quote($host_health).", 
+    host_status   = ".$anvil->Database->quote($host_status).", 
     modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."

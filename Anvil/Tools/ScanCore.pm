@@ -642,23 +642,27 @@ sub post_scan_analysis_striker
 	foreach my $host_uuid (keys %{$anvil->data->{machine}{host_uuid}})
 	{
 		# Compile data.
-		my $host_name  = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
-		my $host_type  = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
-		my $host_key   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
-		my $host_ipmi  = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
-		my $password   = $anvil->data->{machine}{host_uuid}{$host_uuid}{password};
-		my $anvil_name = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name};
-		my $anvil_uuid = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid};
-		my $anvil_role = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role};
+		my $host_name   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
+		my $host_type   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
+		my $host_key    = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
+		my $host_ipmi   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
+		my $host_health = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_health}; 
+		my $host_status = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status};
+		my $password    = $anvil->data->{machine}{host_uuid}{$host_uuid}{password};
+		my $anvil_name  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name};
+		my $anvil_uuid  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid};
+		my $anvil_role  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host_name  => $host_name, 
-			host_type  => $host_type, 
-			host_key   => $host_key, 
-			host_ipmi  => $anvil->Log->is_secure($host_ipmi), 
-			password   => $anvil->Log->is_secure($password), 
-			anvil_name => $anvil_name, 
-			anvil_uuid => $anvil_uuid, 
-			anvil_role => $anvil_role, 
+			host_name   => $host_name, 
+			host_type   => $host_type, 
+			host_key    => $host_key, 
+			host_ipmi   => $anvil->Log->is_secure($host_ipmi), 
+			host_health => $host_health, 
+			host_status => $host_status, 
+			password    => $anvil->Log->is_secure($password), 
+			anvil_name  => $anvil_name, 
+			anvil_uuid  => $anvil_uuid, 
+			anvil_role  => $anvil_role, 
 		}});
 		
 		### TODO: Add an ability to mark which PDU powers a striker. If set, try logging into the 
