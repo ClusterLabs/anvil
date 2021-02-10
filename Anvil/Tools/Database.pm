@@ -1949,7 +1949,7 @@ SELECT
     anvil_node1_host_uuid, 
     anvil_node2_host_uuid, 
     anvil_dr1_host_uuid, 
-    modified_date 
+    modified_date  
 FROM 
     anvils ";
 	if (not $include_deleted)
@@ -1976,7 +1976,7 @@ WHERE
 		my $anvil_node1_host_uuid = defined $row->[4] ? $row->[4] : ""; 
 		my $anvil_node2_host_uuid = defined $row->[5] ? $row->[5] : ""; 
 		my $anvil_dr1_host_uuid   = defined $row->[6] ? $row->[6] : ""; 
-		my $modified_date         =         $row->[5];
+		my $modified_date         =         $row->[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_uuid            => $anvil_uuid, 
 			anvil_name            => $anvil_name, 
@@ -2006,6 +2006,8 @@ WHERE
 			"anvils::anvil_uuid::${anvil_uuid}::modified_date"         => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{modified_date}, 
 		}});
 		
+		### NOTE: This is used in the 'get_anvils' CGI so we store the query time to allow the client
+		###       side to know that the data is fresh.
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}            = $anvil_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}     = $anvil_description;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_password}        = $anvil_password;
@@ -2013,6 +2015,7 @@ WHERE
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}         = $modified_date;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{query_time}            = time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"anvils::anvil_name::${anvil_name}::anvil_uuid"            => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}, 
 			"anvils::anvil_name::${anvil_name}::anvil_description"     => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}, 
@@ -2021,6 +2024,7 @@ WHERE
 			"anvils::anvil_name::${anvil_name}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid}, 
 			"anvils::anvil_name::${anvil_name}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}, 
 			"anvils::anvil_name::${anvil_name}::modified_date"         => $anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}, 
+			"anvils::anvil_name::${anvil_name}::query_time"            => $anvil->data->{anvils}{anvil_name}{$anvil_name}{query_time}, 
 		}});
 		
 		if ($anvil_node1_host_uuid)
