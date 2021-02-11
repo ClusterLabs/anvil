@@ -572,44 +572,59 @@ sub setup_boot_environment
 		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_default}."!!");
 		$anvil->nice_exit({exit_code => 3});
 	}
-	elsif ($dhcpd_conf_success eq "1")
+	elsif ($bios_default_success eq "1")
 	{
 		# Updated
 		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 	}
-	elsif ($dhcpd_conf_success eq "2")
+	elsif ($bios_default_success eq "2")
 	{
 		# Update not needed.
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 	}
 	
-	### PXE UEFI 'uefi' file.
-	my $uefi_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_uefi", variables => { base_url => $base_url }});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uefi_default_body => $uefi_default_body }});
+	### PXE UEFI 'grub.cfg' file.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "host_os::os_type" => $anvil->data->{host_os}{os_type} }});
+	my $say_os = "#!string!brand_0010!#";
+	if ($anvil->data->{host_os}{os_type} eq "centos8")
+	{
+		$say_os = "#!string!brand_0011!#";
+	}
+	elsif ($anvil->data->{host_os}{os_type} eq "centos-stream8")
+	{
+		$say_os = "#!string!brand_0012!#";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_os => $say_os }});
+	
+	my $uefi_grub_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_grub", variables => { 
+		base_url => $base_url,
+		say_os   => $say_os,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uefi_grub_body => $uefi_grub_body }});
 	
 	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
 	# went wrong.
-	my $uefi_default_success = $anvil->Storage->update_file({
-		body  => $uefi_default_body, 
-		file  => $anvil->data->{path}{configs}{pxe_uefi},
+	my $uefi_grub_success = $anvil->Storage->update_file({
+		body => $uefi_grub_body, 
+		file => $anvil->data->{path}{configs}{pxe_grub},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uefi_default_success => $uefi_default_success }});
-	if (not $uefi_default_success)
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uefi_grub_success => $uefi_grub_success }});
+	if (not $uefi_grub_success)
 	{
 		# Failed.
-		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
-		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_uefi}."!!");
+		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_grub} }})."\n";
+		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_grub}."!!");
 		$anvil->nice_exit({exit_code => 3});
 	}
-	elsif ($dhcpd_conf_success eq "1")
+	elsif ($uefi_grub_success eq "1")
 	{
 		# Updated
-		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
+		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_grub} }})."\n";
 	}
-	elsif ($dhcpd_conf_success eq "2")
+	elsif ($uefi_grub_success eq "2")
 	{
 		# Update not needed.
-		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_grub} }})."\n";
 	}
 	
 	### TODO: Add repos for all known strikers
@@ -1615,6 +1630,7 @@ sub load_packages
 			"e2fsprogs-libs.x86_64",
 			"e2fsprogs.x86_64",
 			"edk2-ovmf.noarch",
+			"efi-filesystem.noarch",
 			"efi-srpm-macros.noarch",
 			"elfutils.x86_64",
 			"elfutils-default-yama-scope.noarch",
@@ -1756,6 +1772,7 @@ sub load_packages
 			"grilo.x86_64",
 			"groff-base.x86_64",
 			"grub2-common.noarch",
+			"grub2-efi-x64.x86_64",
 			"grub2-pc-modules.noarch",
 			"grub2-pc.x86_64",
 			"grub2-tools-extra.x86_64",
