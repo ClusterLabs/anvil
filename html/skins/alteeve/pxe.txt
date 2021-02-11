@@ -5,6 +5,13 @@ option domain-name-servers #!variable!dns!#;
 authoritative;
 ddns-update-style none;
 
+option space pxelinux;
+option pxelinux.magic code 208 = string;
+option pxelinux.configfile code 209 = text;
+option pxelinux.pathprefix code 210 = text;
+option pxelinux.reboottime code 211 = unsigned integer 32;
+option architecture-type code 93 = unsigned integer 16;
+
 # refer to RFC4758 for possible arch option values
 option arch code 93 = unsigned integer 16;
 
@@ -18,7 +25,7 @@ subnet #!variable!network!# netmask 255.255.0.0 {
         match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
         next-server #!variable!router!#;
         if option arch = 00:07 {
-	    filename "BOOTX64.efi";
+            filename "BOOTX64.efi";
         } else {
             filename "pxelinux.0";
         }
@@ -857,6 +864,36 @@ menu default
 menu label #!string!message_0094!#
 localboot 0xffff
 <!-- end tftp_bios -->
+
+
+<!-- start tftp_grub -->
+set default="1"
+
+function load_video {
+  insmod efi_gop
+  insmod efi_uga
+  insmod video_bochs
+  insmod video_cirrus
+  insmod all_video
+}
+
+load_video
+set gfxpayload=keep
+insmod gzio
+insmod part_gpt
+insmod ext2
+
+set timeout=60
+### END /etc/grub.d/00_header ###
+
+search --no-floppy --set=root -l 'RHEL-8-3-0-BaseOS-x86_64'
+
+### BEGIN /etc/grub.d/10_linux ###
+menuentry 'Install #!variable!say_os!# 8' --class fedora --class gnu-linux --class gnu --class os {
+	linuxefi /images/#!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/os/ 
+	initrdefi /images/#!data!host_os::os_type!#/initrd.img
+}
+<!-- end tftp_grub -->
 
 
 <!-- start tftp_uefi -->

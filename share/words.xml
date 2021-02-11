@@ -21,6 +21,9 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="brand_0007">Node</key>
 		<key name="brand_0008">DR Host</key>
 		<key name="brand_0009">Unknown Type</key>
+		<key name="brand_0010">Red Hat Enterprise Linux</key>
+		<key name="brand_0011">CentOS Linux</key>
+		<key name="brand_0012">CentOS Stream Linux</key>
 		
 		<!-- Emails messages -->
 		<key name="email_0001">[ #!string!brand_0004!# ] - Critical level alert from #!variable!host_name!#</key>

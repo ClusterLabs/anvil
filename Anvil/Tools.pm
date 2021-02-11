@@ -1032,6 +1032,7 @@ sub _set_paths
 				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
 				pxe_default			=>	"/var/lib/tftpboot/pxelinux.cfg/default",
 				pxe_uefi			=>	"/var/lib/tftpboot/pxelinux.cfg/uefi",
+				pxe_grub			=>	"/var/lib/tftpboot/grub.cfg",
 				postfix_main			=>	"/etc/postfix/main.cf",
 				postfix_relay_password		=>	"/etc/postfix/relay_password",
 				ssh_config			=>	"/etc/ssh/ssh_config",
