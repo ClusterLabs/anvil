@@ -266,6 +266,8 @@ touch /etc/anvil/type.striker
 ### TODO: I don't think we need this anymore
 # Open access for Striker. The database will be opened after initial setup.
 echo "Opening the web and postgresql ports."
+systemctl enable firewalld
+systemctl start firewalld
 firewall-cmd --add-service=http
 firewall-cmd --add-service=http --permanent
 firewall-cmd --add-service=https
