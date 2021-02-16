@@ -35,6 +35,19 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->Get->cgi();
 $anvil->Database->get_anvils();
 
-print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
-print JSON->new->utf8->encode($anvil->data->{anvils}{anvil_name})."\n";
+my $json_hash = {};
+$json_hash->{anvils} = [];
 
+foreach my $anvil_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}})
+{
+	push @{$json_hash->{anvils}}, { uuid => $anvil_uuid };
+	
+	my $anvil_description     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
+	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+}
+
+print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
+print JSON->new->utf8->encode($json_hash)."\n";

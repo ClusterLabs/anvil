@@ -50,13 +50,13 @@ $$;
 -- This stores information about the host machine. This is the master table that everything will be linked 
 -- to. 
 CREATE TABLE hosts (
-    host_uuid        uuid                        not null    primary key,         -- This is the single most important record in Anvil!. Everything links back to here.
-    host_name        text                        not null,                        -- This is the 'hostname' of the machine
-    host_type        text                        not null,                        -- Either 'node' or 'dashboard' or 'dr'. It is left empty until the host is configured.
-    host_key         text                        not null,                        -- This is the host's key used to authenticate it when other machines try to ssh to it.
-    host_ipmi        text                        not null    default '',          -- This is an optional string, in 'fence_ipmilan' format, that tells how to access/fence this host.
-    host_health      numeric                     not null    default 0,           -- This is a numerical representation of the health of the node. 0 is healthy, and the higher the value, the more "sick" the node is. This guides ScanCore is determining when to proactive live migrate servers.
-    host_status      text                        not null    default 'unknown'    -- This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.
+    host_uuid        uuid                        not null    primary key,          -- This is the single most important record in Anvil!. Everything links back to here.
+    host_name        text                        not null,                         -- This is the 'hostname' of the machine
+    host_type        text                        not null,                         -- Either 'node' or 'dashboard' or 'dr'. It is left empty until the host is configured.
+    host_key         text                        not null,                         -- This is the host's key used to authenticate it when other machines try to ssh to it.
+    host_ipmi        text                        not null    default '',           -- This is an optional string, in 'fence_ipmilan' format, that tells how to access/fence this host.
+    host_health      numeric                     not null    default 0,            -- This is a numerical representation of the health of the node. 0 is healthy, and the higher the value, the more "sick" the node is. This guides ScanCore is determining when to proactive live migrate servers.
+    host_status      text                        not null    default 'unknown',    -- This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE hosts OWNER TO admin;

@@ -39,6 +39,7 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
+my $hash = {};
 my $anvil_uuid = $anvil->data->{cgi}{anvil_uuid}{value};
 if ((not $anvil_uuid) or (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}))
 {
@@ -60,6 +61,11 @@ else
 	$anvil->data->{anvil_status}{nodes}{node2}{host_name}   = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_name};
 	$anvil->data->{anvil_status}{nodes}{node2}{host_uuid}   = $node2_uuid;
 	$anvil->data->{anvil_status}{nodes}{node2}{host_status} = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_status} eq "online" ? 1 : 0;
+	
+	$hash->{timestamp} = time;
+	$hash->{nodes}     = [];
+	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node1}{host_status} };
+	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node2}{host_status} };
 }
 
-print JSON->new->utf8->encode($anvil->data->{anvil_status})."\n";
+print JSON->new->utf8->encode($hash)."\n";
