@@ -328,18 +328,18 @@ print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." 
 
 # Build the partition file.
 my $partition_file = "/tmp/plan_partitions.out";
-my $partition_body = "zerombr
-clearpart --all --drives=".$say_use_drive."
-ignoredisk --only-use=".$say_use_drive."
-bootloader --location=mbr --driveorder=".$say_use_drive." --boot-drive=".$use_drive;
+my $partition_body = "ignoredisk --only-use=".$say_use_drive."
+clearpart --none --initlabel";
 
 if (not $raid_level)
 {
 	# Finally, we've got our output.
 	$partition_body .= "
-# Partitions
-part biosboot --fstype=biosboot --size=2
-part pv.01    --fstype=lvmpv    --size=100 --ondisk=".$use_drive." --grow
+# Disk partitioning information
+part biosboot  --fstype=\"biosboot\" --ondisk=".$use_drive." --size=2
+part /boot     --fstype=\"xfs\"      --ondisk=".$use_drive." --size=1024
+part /boot/efi --fstype=\"efi\"      --ondisk=".$use_drive." --size=600 --fsoptions=\"umask=0077,shortname=winnt\"
+part pv.01     --fstype=lvmpv        --ondisk=".$use_drive." --size=100 --grow
 
 # LVM Volume groups
 volgroup ".$vg_name." --pesize=4096 pv.01
@@ -357,7 +357,9 @@ else
 
 	for (my $i = 0; $i < $count; $i++)
 	{
-		$partition_body .= "part biosboot --fstype=biosboot --size=2 --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+		$partition_body .= "part biosboot  --fstype=\"biosboot\" --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]." --size=2 \n";
+		$partition_body .= "part /boot/efi --fstype=\"efi\"      --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]." --size=600 --fsoptions=\"umask=0077,shortname=winnt\" \n";
+		$partition_body .= "part /boot     --fstype=\"xfs\"      --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]." --size=1024 \n";
 	}
 
 	$partition_body .= "

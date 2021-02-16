@@ -82,7 +82,7 @@ selinux --permissive
 
 %packages
 @^minimal-environment
-alteeve-el8-repo
+#alteeve-el8-repo
 #createrepo
 #dhcp-server
 #firefox
@@ -276,7 +276,7 @@ use strict;
 use warnings;
 
 # Set to '1' for verbose output 
-my $debug = #!variable!debug!#;
+my $debug = 0;
 
 ### NOTE: This must be set to 'striker', 'node' or 'dr'! Wither set '$type' or use the appropriate argument.
 my $type  = "#!variable!type!#";
@@ -533,7 +533,6 @@ else
 ### NOTE: kickstart sizes are in MiB
 # Prepare some variables
 my $swap_size = 8192;
-my $boot_size = 1024;
 my $root_size = 0;
 my $vg_name   = $type."_".$id;
 
@@ -571,7 +570,7 @@ if ($available_space < 40960)
 }
 
 # The left over space is for '/' (we'll shorten this up to 40GiB for nodes and DR hosts next)
-$root_size = $available_space - $swap_size - $boot_size;
+$root_size = $available_space - $swap_size;
 print __LINE__."; [ Debug ] - root_size: [".$root_size."]\n" if $debug;
 
 print __LINE__."; [ Debug ] - type: [".$type."], root_size: [".$root_size."]\n" if $debug;
@@ -583,23 +582,22 @@ if (($type ne "striker") && ($root_size > 40960))
 
 # Round down to an event integer.
 $root_size =~ s/\.\d+$//;
-print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." MiB)], root_size: [".hr_size($root_size * (2**20))." (".$root_size.") MiB], boot_size: [".hr_size($boot_size * (2**20))." (".$boot_size.") MiB]\n" if $debug;
+print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." MiB)], root_size: [".hr_size($root_size * (2**20))." (".$root_size.") MiB]\n" if $debug;
 
 # Build the partition file.
 my $partition_file = "/tmp/plan_partitions.out";
-my $partition_body = "zerombr
-clearpart --all --drives=".$say_use_drive."
-ignoredisk --only-use=".$say_use_drive."
-bootloader --location=mbr --driveorder=".$say_use_drive." --boot-drive=".$use_drive;
+my $partition_body = "ignoredisk --only-use=".$say_use_drive."
+clearpart --none --initlabel";
 
 if (not $raid_level)
 {
 	# Finally, we've got our output.
 	$partition_body .= "
-# Partitions
-part biosboot --fstype=biosboot --size=2
-part /boot    --fstype=ext4     --size=1024 --ondisk=".$use_drive."
-part pv.01    --fstype=lvmpv    --size=100  --ondisk=".$use_drive." --grow
+# Disk partitioning information
+part biosboot  --fstype=\"biosboot\" --ondisk=".$use_drive." --size=2
+part /boot     --fstype=\"xfs\"      --ondisk=".$use_drive." --size=1024
+part /boot/efi --fstype=\"efi\"      --ondisk=".$use_drive." --size=600 --fsoptions=\"umask=0077,shortname=winnt\"
+part pv.01     --fstype=lvmpv        --ondisk=".$use_drive." --size=100 --grow
 
 # LVM Volume groups
 volgroup ".$vg_name." --pesize=4096 pv.01
@@ -617,26 +615,22 @@ else
 
 	for (my $i = 0; $i < $count; $i++)
 	{
-		$partition_body .= "part biosboot --fstype=biosboot --size=2 --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+		$partition_body .= "part biosboot  --fstype=\"biosboot\" --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]." --size=2 \n";
+		$partition_body .= "part /boot/efi --fstype=\"efi\"      --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]." --size=600 --fsoptions=\"umask=0077,shortname=winnt\" \n";
+		$partition_body .= "part /boot     --fstype=\"xfs\"      --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]." --size=1024 \n";
 	}
 
 	$partition_body .= "
 # LVM PV
 ";
-	### TODO: Test the /boot part.
-	my $say_raid_boot = "";
-	my $say_raid      = "";
+	my $say_raid = "";
 	for (my $i = 0; $i < $count; $i++)
 	{
 		my $disk_number    =  $i + 1;
-		   $partition_body .= "part raid.0".$disk_number." --size 1025        --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
-		   $partition_body .= "part raid.1".$disk_number." --size 100  --grow --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
-		   $say_raid_boot  .= "raid.0".$disk_number." ";
-		   $say_raid       .= "raid.1".$disk_number." ";
+		   $partition_body .= "part raid.1".$disk_number." --size 100 --grow --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+		   $say_raid      .= "raid.1".$disk_number." ";
 	}
-	$partition_body .= "
-raid /boot --fstype=ext4 --device=boot  --level=RAID1 ".$say_raid_boot."
-raid pv.01 --fstype=xfs  --device=pv.01 --level=RAID".$raid_level." ".$say_raid."
+	$partition_body .= "raid pv.01 --fstype=xfs --device=pv.01 --level=RAID".$raid_level." ".$say_raid."
 
 # LVM Volume groups
 volgroup ".$vg_name." pv.01
@@ -647,7 +641,7 @@ logvol /    --fstype=xfs  --size=100 --grow --maxsize=".$root_size." --name=lv_r
 ";
 }
 
-
+### NOTE: This shouldn't be needed... See: https://bugzilla.redhat.com/show_bug.cgi?id=1654902
 # Wipe out the start of each disk so that the install doesn't puke if it sees, for example, an mdadm 
 # signature on the sole disk being used as an install target.
 foreach my $path (split/,/, $say_use_drive)
@@ -819,7 +813,7 @@ MENU COLOR help	       0  #c0f2f2f2 #c0000000 std      # Help text, if set via '
 ### NOTE: inst.repo is the image of the install media, looks for .treeinfo
 
 label striker
-menu label #!string!message_0084!#
+menu label ^1. #!string!message_0084!#
 TEXT HELP
 #!string!message_0085!#
 ENDTEXT
@@ -828,7 +822,7 @@ kernel #!data!host_os::os_type!#/vmlinuz
 append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
 
 label node
-menu label #!string!message_0086!#
+menu label ^2. #!string!message_0086!#
 TEXT HELP
 #!string!message_0087!#
 ENDTEXT
@@ -836,7 +830,7 @@ kernel #!data!host_os::os_type!#/vmlinuz
 append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
 
 label node
-menu label #!string!message_0088!#
+menu label ^3. #!string!message_0088!#
 TEXT HELP
 #!string!message_0089!#
 ENDTEXT
@@ -844,7 +838,7 @@ kernel #!data!host_os::os_type!#/vmlinuz
 append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
 
 label rescue
-menu label #!string!message_0090!#
+menu label ^4. #!string!message_0090!#
 TEXT HELP
 #!string!message_0091!#
 ENDTEXT
@@ -852,7 +846,7 @@ kernel #!data!host_os::os_type!#/vmlinuz
 append initrd=#!data!host_os::os_type!#/initrd.img ip=dhcp root=live:#!variable!base_url!#/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
 
 label #!data!host_os::os_type!#
-menu label #!string!message_0092!#
+menu label ^5. #!string!message_0092!#
 TEXT HELP
 #!string!message_0093!#
 ENDTEXT
@@ -861,7 +855,7 @@ append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url
 
 label next
 menu default
-menu label #!string!message_0094!#
+menu label ^6. #!string!message_0094!#
 localboot 0xffff
 <!-- end tftp_bios -->
 
@@ -890,13 +884,21 @@ search --no-floppy --set=root -l 'RHEL-8-3-0-BaseOS-x86_64'
 
 ### BEGIN /etc/grub.d/10_linux ###
 menuentry 'Install #!variable!say_os!# 8' --class fedora --class gnu-linux --class gnu --class os {
-	linuxefi /images/#!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/os/ 
-	initrdefi /images/#!data!host_os::os_type!#/initrd.img
+	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/os/ 
+	initrdefi #!data!host_os::os_type!#/initrd.img
+}
+
+menuentry '#!string!message_0084!#' --class #!data!host_os::os_type!# --class gnu-linux --class gnu --class os {
+	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/os/ inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
+	initrdefi #!data!host_os::os_type!#/initrd.img
 }
 <!-- end tftp_grub -->
 
 
 <!-- start tftp_uefi -->
+set timeout="-1"
+set default="1"
+
 function load_video {
 	insmod efi_gop
 	insmod efi_uga
@@ -909,13 +911,53 @@ load_video
 set gfxpayload=keep
 insmod gzio
 
-menuentry 'Install RHEL 8'  --class rhel --class gnu-linux --class gnu --class os {
+menuentry 'Install RHEL 8' --class rhel --class gnu-linux --class gnu --class os {
 	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/iso/ 
 	initrdefi #!data!host_os::os_type!#/initrd.img
 }
 
-menuentry 'Install Striker'  --class rhel --class gnu-linux --class gnu --class os {
-	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/iso/ root=live:#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/os/images/install.img inst.ks=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/kickstart/striker.ks inst.sshd rd.debug
+menuentry '#!string!message_0084!#' --class #!data!host_os::os_type!# --class gnu-linux --class gnu --class os { inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
+	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/iso/ 
 	initrdefi #!data!host_os::os_type!#/initrd.img
 }
 <!-- end tftp_uefi -->
+
+
+<!-- start temp -->
+label node
+menu label ^2. #!string!message_0086!#
+TEXT HELP
+#!string!message_0087!#
+ENDTEXT
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
+
+label node
+menu label ^3. #!string!message_0088!#
+TEXT HELP
+#!string!message_0089!#
+ENDTEXT
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
+
+label rescue
+menu label ^4. #!string!message_0090!#
+TEXT HELP
+#!string!message_0091!#
+ENDTEXT
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img ip=dhcp root=live:#!variable!base_url!#/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
+
+label #!data!host_os::os_type!#
+menu label ^5. #!string!message_0092!#
+TEXT HELP
+#!string!message_0093!#
+ENDTEXT
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/images/install.img inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.gpt inst.sshd
+
+label next
+menu default
+menu label ^6. #!string!message_0094!#
+localboot 0xffff
+<!-- end temp -->

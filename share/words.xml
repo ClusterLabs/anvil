@@ -1459,7 +1459,7 @@ NOTE: Please be patient!
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
-		<key name="message_0084">^1. Install a Striker dashboard (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0084">Install a Striker dashboard (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0085">
@@ -1471,7 +1471,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an #!string!brand_0002!# Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0086">Install an #!string!brand_0002!# Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0087">
@@ -1484,7 +1484,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an #!string!brand_0002!# Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0088">Install an #!string!brand_0002!# Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
@@ -1497,7 +1497,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 <!--    \===========================================================================================================/ -->
 		</key>
-		<key name="message_0090">Boot into a ^Rescue session</key>
+		<key name="message_0090">Boot into a rescue session</key>
 		<key name="message_0091">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
@@ -1507,7 +1507,7 @@ NOTE: Please be patient!
 	No data on the target machine will be changed by this option.
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0092">Install ^Standard #!data!host_os::os_name!# #!data!host_os::os_arch!# Install</key>
+		<key name="message_0092">Install standard #!data!host_os::os_name!# #!data!host_os::os_arch!# Install</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0093">
@@ -1516,7 +1516,7 @@ NOTE: Please be patient!
 	This option will not change anything on disk until and unless you choose to do so.
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0094">Boot from Next ^Boot Device</key>
+		<key name="message_0094">Boot from the next boot device</key>
 		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
 		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
 		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
