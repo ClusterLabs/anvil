@@ -18,7 +18,7 @@ BuildArch:      noarch
 
 # required to detect paths to:
 # systemd unit files
-BuildRequires:  systemd
+BuildRequires:  systemd autoconf automake
 # fence-agents binaries
 BuildRequires:  fence-agents-common
 # OCFROOT
