@@ -1,6 +1,11 @@
 import { GetServerSidePropsResult, InferGetServerSidePropsType } from 'next';
+import styled from 'styled-components';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import DEFAULT_THEME from '../lib/consts/DEFAULT_THEME';
+
+import Label from '../components/atoms/Label';
+import List from '../components/molecules/List';
 
 import fetchJSON from '../lib/fetchers/fetchJSON';
 
@@ -12,15 +17,31 @@ export async function getServerSideProps(): Promise<
   };
 }
 
+const StyledPageContainer = styled.div`
+  min-height: 100vh;
+  width: 100vw;
+
+  background-color: ${(props) => props.theme.colors.secondary};
+`;
+
+StyledPageContainer.defaultProps = {
+  theme: DEFAULT_THEME,
+};
+
 function DemoAnvilList({
   anvils,
 }: InferGetServerSidePropsType<typeof getServerSideProps>): JSX.Element {
   return (
-    <div>
-      <h1>Demo Anvil List</h1>
-      <h2>anvils</h2>
-      <pre>{JSON.stringify(anvils, null, 4)}</pre>
-    </div>
+    <StyledPageContainer>
+      <Label text="anvils" />
+      <List>
+        {anvils.map(
+          (anvil: AnvilListItem): JSX.Element => (
+            <Label key={anvil.uuid} text={anvil.uuid} />
+          ),
+        )}
+      </List>
+    </StyledPageContainer>
   );
 }
 
