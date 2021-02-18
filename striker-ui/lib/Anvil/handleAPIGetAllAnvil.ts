@@ -1,11 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiHandler, NextApiRequest, NextApiResponse } from 'next';
 
 import getAllAnvil from './getAllAnvil';
+import handleAPIFakeGetAllAnvil from './handleAPIFakeGetAllAnvil';
 
-async function handleAPIGetAllAnvil(
+const handleAPIGetAllAnvil: NextApiHandler<AnvilList> = async (
   request: NextApiRequest,
-  response: NextApiResponse,
-): Promise<void> {
+  response: NextApiResponse<AnvilList>,
+): Promise<void> => {
   const { anvilList, error }: GetAllAnvilResponse = await getAllAnvil();
 
   if (error) {
@@ -15,6 +16,8 @@ async function handleAPIGetAllAnvil(
   }
 
   response.send(anvilList);
-}
+};
 
-export default handleAPIGetAllAnvil;
+export default process.env.IS_USE_FAKE_DATA
+  ? handleAPIFakeGetAllAnvil
+  : handleAPIGetAllAnvil;

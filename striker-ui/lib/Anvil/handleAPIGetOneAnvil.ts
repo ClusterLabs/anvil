@@ -1,11 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiHandler, NextApiRequest, NextApiResponse } from 'next';
 
 import getOneAnvil from './getOneAnvil';
+import handleAPIFakeGetOneAnvil from './handleAPIFakeGetOneAnvil';
 
-async function handleAPIGetOneAnvil(
+const handleAPIGetOneAnvil: NextApiHandler<AnvilStatus> = async (
   request: NextApiRequest,
-  response: NextApiResponse,
-): Promise<void> {
+  response: NextApiResponse<AnvilStatus>,
+): Promise<void> => {
   const {
     query: { uuid },
   }: NextApiRequest = request;
@@ -23,6 +24,8 @@ async function handleAPIGetOneAnvil(
   }
 
   response.send(anvilStatus);
-}
+};
 
-export default handleAPIGetOneAnvil;
+export default process.env.IS_USE_FAKE_DATA
+  ? handleAPIFakeGetOneAnvil
+  : handleAPIGetOneAnvil;
