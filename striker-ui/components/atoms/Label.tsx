@@ -3,13 +3,14 @@ import styled from 'styled-components';
 
 import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
 
-type LabelProps = {
-  text: string;
-};
+const StyledLabel = styled.h2`
+  padding: 0;
+  margin: 0;
 
-const StyledLabel = styled.span`
-  font-size: 1em;
   color: ${(props) => props.theme.colors.primary};
+
+  font-size: 1em;
+  font-weight: normal;
 `;
 
 StyledLabel.defaultProps = {
