@@ -4,7 +4,8 @@ import styled from 'styled-components';
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import DEFAULT_THEME from '../lib/consts/DEFAULT_THEME';
 
-import Label from '../components/atoms/Label';
+import Button from '../components/atoms/Button';
+import Header from '../components/organisms/Header';
 import List from '../components/molecules/List';
 
 import fetchJSON from '../lib/fetchers/fetchJSON';
@@ -24,7 +25,20 @@ const StyledPageContainer = styled.div`
   background-color: ${(props) => props.theme.colors.secondary};
 `;
 
+const StyledCenterContainer = styled.div`
+  width: 50%;
+
+  padding-top: 1em;
+
+  margin-left: auto;
+  margin-right: auto;
+`;
+
 StyledPageContainer.defaultProps = {
+  theme: DEFAULT_THEME,
+};
+
+StyledCenterContainer.defaultProps = {
   theme: DEFAULT_THEME,
 };
 
@@ -33,14 +47,21 @@ function DemoAnvilList({
 }: InferGetServerSidePropsType<typeof getServerSideProps>): JSX.Element {
   return (
     <StyledPageContainer>
-      <Label text="anvils" />
-      <List>
-        {anvils.map(
-          (anvil: AnvilListItem): JSX.Element => (
-            <Label key={anvil.uuid} text={anvil.uuid} />
-          ),
-        )}
-      </List>
+      <Header />
+      <StyledCenterContainer>
+        <List labelText="List of Anvils">
+          {anvils.map(
+            (anvil: AnvilListItem): JSX.Element => (
+              <Button
+                key={anvil.uuid}
+                imageProps={{ src: '/pngs/anvil_icon_on.png' }}
+                labelProps={{ text: anvil.uuid }}
+                linkProps={{ href: '/demo-anvil-status' }}
+              />
+            ),
+          )}
+        </List>
+      </StyledCenterContainer>
     </StyledPageContainer>
   );
 }
