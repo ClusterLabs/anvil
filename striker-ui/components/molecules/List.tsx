@@ -2,22 +2,57 @@ import { FunctionComponent } from 'react';
 import styled from 'styled-components';
 
 import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
-
-type ListProps = {
-  isAlignHorizontal?: boolean;
-};
+import Label from '../atoms/Label';
 
 const StyledList = styled.div<ListProps>`
   display: flex;
+
   flex-direction: ${(props) => (props.isAlignHorizontal ? 'row' : 'column')};
+
+  border-style: solid;
+  border-color: ${(props) => props.theme.colors.tertiary};
+
+  border-width: 0 1px 1px 1px;
+
+  > * {
+    display: flex;
+
+    align-items: center;
+
+    color: ${(props) => props.theme.colors.tertiary};
+
+    border-style: solid;
+    border-color: ${(props) => props.theme.colors.tertiary};
+
+    border-width: 1px 0 0 0;
+
+    padding: 1em;
+  }
+`;
+
+const StyledListContainer = styled.div`
+  > :first-child {
+    margin-bottom: 1em;
+
+    padding-left: 0;
+  }
 `;
 
 StyledList.defaultProps = {
   theme: DEFAULT_THEME,
 };
 
-const List: FunctionComponent<ListProps> = ({ children }) => {
-  return <StyledList>{children}</StyledList>;
+StyledListContainer.defaultProps = {
+  theme: DEFAULT_THEME,
+};
+
+const List: FunctionComponent<ListProps> = ({ labelText, children }) => {
+  return (
+    <StyledListContainer>
+      {labelText !== undefined && <Label text={labelText} />}
+      <StyledList>{children}</StyledList>
+    </StyledListContainer>
+  );
 };
 
 export default List;
