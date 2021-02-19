@@ -63,6 +63,7 @@ const Button: FunctionComponent<ButtonProps> = ({
   isSubmit,
   labelProps,
   linkProps,
+  onClick,
 }) => {
   const imageElement: JSX.Element | undefined = getButtonImageElement(
     imageProps,
@@ -91,7 +92,7 @@ const Button: FunctionComponent<ButtonProps> = ({
     );
   } else {
     resultElement = (
-      <StyledButton type={isSubmit ? 'submit' : 'button'}>
+      <StyledButton type={isSubmit ? 'submit' : 'button'} {...{ onClick }}>
         {imageElement}
         {separatorElement}
         {labelElement}
