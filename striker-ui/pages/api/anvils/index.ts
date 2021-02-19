@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 
 import { APIRouteHandlerMap } from '../../../types/APIRouteHandlerMap';
 
-import handleAPIGetAllAnvil from '../../../lib/Anvil/handleAPIGetAllAnvil';
+import handleAPIGetAllAnvil from '../../../lib/anvil/handleAPIGetAllAnvil';
 
 const ROUTE_HANDLER_MAP: APIRouteHandlerMap = {
   GET: handleAPIGetAllAnvil,
