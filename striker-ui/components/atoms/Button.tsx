@@ -5,6 +5,8 @@ import styled from 'styled-components';
 
 import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
 
+import { ButtonImageProps } from '../../types/ButtonImageProps';
+import { ButtonProps } from '../../types/ButtonProps';
 import Label from './Label';
 
 const DEFAULT_BUTTON_IMAGE_SIZE = 30;
