@@ -20,7 +20,7 @@ function DemoAnvilStatus({
 }: InferGetServerSidePropsType<typeof getServerSideProps>): JSX.Element {
   return (
     <div>
-      <h1>Demo Anvil List</h1>
+      <h1>Demo Anvil Status</h1>
       <h2>nodes</h2>
       <pre>{JSON.stringify(nodes, null, 4)}</pre>
       <h2>timestamp</h2>
