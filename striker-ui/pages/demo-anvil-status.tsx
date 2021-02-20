@@ -1,5 +1,45 @@
 import { NextPage } from 'next';
+import styled from 'styled-components';
+
+import DEFAULT_THEME from '../lib/consts/DEFAULT_THEME';
+
+import Header from '../components/organisms/Header';
+import List from '../components/molecules/List';
+import PageCenterContainer from '../components/organisms/PageCenterContainer';
+import PageContainer from '../components/organisms/PageContainer';
+import ToggleSwitch from '../components/atoms/ToggleSwitch';
+
 import useOneAnvil from '../lib/anvil/useOneAnvil';
+import Label from '../components/atoms/Label';
+
+const StyledAnvilNodeStatus = styled.div`
+  display: flex;
+
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+`;
+
+const StyledAnvilNodePower = styled.div`
+  display: flex;
+
+  flex-direction: row;
+
+  justify-content: space-around;
+
+  width: 100%;
+
+  margin-top: 1em;
+`;
+
+StyledAnvilNodeStatus.defaultProps = {
+  theme: DEFAULT_THEME,
+};
+
+StyledAnvilNodePower.defaultProps = {
+  theme: DEFAULT_THEME,
+};
 
 const DemoAnvilStatus: NextPage = (): JSX.Element => {
   const {
@@ -8,18 +48,58 @@ const DemoAnvilStatus: NextPage = (): JSX.Element => {
     isLoading,
   } = useOneAnvil(`d61c0383-5d82-4d9f-a193-b4a31cff1ceb`);
 
+  const lastUpdatedDatetime: string = new Date(timestamp * 1000).toLocaleString(
+    'en-US',
+    {
+      timeZoneName: 'short',
+    },
+  );
+
   return (
-    <div>
-      <h1>Demo Anvil Status</h1>
-      <h2>nodes</h2>
-      <pre>{JSON.stringify(nodes, null, 4)}</pre>
-      <h2>timestamp</h2>
-      <pre>{timestamp}</pre>
-      <h2>isLoading</h2>
-      <pre>{isLoading}</pre>
-      <h2>error</h2>
-      <pre>{error?.message}</pre>
-    </div>
+    <PageContainer>
+      <Header />
+      <PageCenterContainer>
+        <List labelText="Anvil Status" isAlignHorizontal>
+          {(() => {
+            let resultElement: JSX.Element[];
+
+            if (isLoading) {
+              resultElement = [
+                <Label key="loading" text="Loading Anvil status..." />,
+              ];
+            } else if (error !== null) {
+              resultElement = [
+                <Label
+                  key="error"
+                  text={`Failed to get Anvil status; CAUSE: ${error}`}
+                />,
+              ];
+            } else {
+              resultElement = nodes.map(
+                ({ on }: AnvilNodeStatus, nodeIndex: number) => {
+                  const nodeName = `Node ${nodeIndex + 1}`;
+
+                  return (
+                    <StyledAnvilNodeStatus key={nodeName}>
+                      <Label text={nodeName} />
+                      <StyledAnvilNodePower>
+                        <Label text="Power" />
+                        <ToggleSwitch checked={on === 1} />
+                      </StyledAnvilNodePower>
+                    </StyledAnvilNodeStatus>
+                  );
+                },
+              );
+            }
+
+            return resultElement;
+          })()}
+        </List>
+        <List labelText="Last Updated">
+          <Label text={lastUpdatedDatetime} />
+        </List>
+      </PageCenterContainer>
+    </PageContainer>
   );
 };
 
