@@ -1,16 +1,17 @@
 import { NextPage } from 'next';
 import styled from 'styled-components';
+import { useRouter } from 'next/dist/client/router';
 
-import DEFAULT_THEME from '../lib/consts/DEFAULT_THEME';
+import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
 
-import Header from '../components/organisms/Header';
-import List from '../components/molecules/List';
-import PageCenterContainer from '../components/organisms/PageCenterContainer';
-import PageContainer from '../components/organisms/PageContainer';
-import ToggleSwitch from '../components/atoms/ToggleSwitch';
+import Header from '../../components/organisms/Header';
+import List from '../../components/molecules/List';
+import PageCenterContainer from '../../components/organisms/PageCenterContainer';
+import PageContainer from '../../components/organisms/PageContainer';
+import ToggleSwitch from '../../components/atoms/ToggleSwitch';
 
-import useOneAnvil from '../lib/anvil/useOneAnvil';
-import Label from '../components/atoms/Label';
+import useOneAnvil from '../../lib/anvil/useOneAnvil';
+import Label from '../../components/atoms/Label';
 
 const StyledAnvilNodeStatus = styled.div`
   display: flex;
@@ -42,11 +43,14 @@ StyledAnvilNodePower.defaultProps = {
 };
 
 const DemoAnvilStatus: NextPage = (): JSX.Element => {
+  const router = useRouter();
+  const { uuid } = router.query;
+  const anvilUUID: string = uuid instanceof Array ? uuid[0] : uuid ?? '';
   const {
     anvilStatus: { nodes, timestamp },
     error,
     isLoading,
-  } = useOneAnvil(`d61c0383-5d82-4d9f-a193-b4a31cff1ceb`);
+  } = useOneAnvil(anvilUUID);
 
   const lastUpdatedDatetime: string = new Date(timestamp * 1000).toLocaleString(
     'en-US',
