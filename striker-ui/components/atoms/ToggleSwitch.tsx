@@ -1,4 +1,4 @@
-import { FunctionComponent, useState } from 'react';
+import { FunctionComponent, useEffect, useState } from 'react';
 import styled from 'styled-components';
 
 import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
@@ -60,6 +60,11 @@ const ToggleSwitch: FunctionComponent<ToggleSwitchProps> = ({
   disabled,
 }) => {
   const [on, setOn] = useState<boolean>(checked);
+
+  // Update the toggle switch when supplied props change
+  useEffect(() => {
+    setOn(checked);
+  }, [checked]);
 
   return (
     <StyledToggleSwitchBase
