@@ -12,7 +12,8 @@ const StyledList = styled.div<ListProps>`
   border-style: solid;
   border-color: ${(props) => props.theme.colors.tertiary};
 
-  border-width: 0 1px 1px 1px;
+  border-width: ${(props) =>
+    props.isAlignHorizontal ? '1px 1px 1px 0' : '0 1px 1px 1px'};
 
   > * {
     display: flex;
@@ -24,7 +25,8 @@ const StyledList = styled.div<ListProps>`
     border-style: solid;
     border-color: ${(props) => props.theme.colors.tertiary};
 
-    border-width: 1px 0 0 0;
+    border-width: ${(props) =>
+      props.isAlignHorizontal ? '0 0 0 1px' : '1px 0 0 0'};
 
     padding: 1em;
   }
@@ -46,11 +48,15 @@ StyledListContainer.defaultProps = {
   theme: DEFAULT_THEME,
 };
 
-const List: FunctionComponent<ListProps> = ({ labelText, children }) => {
+const List: FunctionComponent<ListProps> = ({
+  isAlignHorizontal,
+  labelText,
+  children,
+}) => {
   return (
     <StyledListContainer>
       {labelText !== undefined && <Label text={labelText} />}
-      <StyledList>{children}</StyledList>
+      <StyledList {...{ isAlignHorizontal }}>{children}</StyledList>
     </StyledListContainer>
   );
 };
