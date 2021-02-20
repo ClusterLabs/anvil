@@ -36,7 +36,7 @@ const StyledToggleSwitchBase = styled.div<ToggleSwitchProps>`
 `;
 
 const StyledToggleSwitchLever = styled.div<ToggleSwitchProps>`
-  background-color: #ffffff;
+  background-color: ${(props) => props.theme.colors.primary};
 
   transition: margin-left 1s;
 
