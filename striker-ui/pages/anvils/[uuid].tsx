@@ -52,12 +52,7 @@ const DemoAnvilStatus: NextPage = (): JSX.Element => {
     isLoading,
   } = useOneAnvil(anvilUUID);
 
-  const lastUpdatedDatetime: string = new Date(timestamp * 1000).toLocaleString(
-    'en-US',
-    {
-      timeZoneName: 'short',
-    },
-  );
+  const lastUpdatedDatetime: string = new Date(timestamp * 1000).toISOString();
 
   return (
     <PageContainer>
