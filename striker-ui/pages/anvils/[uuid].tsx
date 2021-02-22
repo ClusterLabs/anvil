@@ -4,14 +4,15 @@ import { useRouter } from 'next/dist/client/router';
 
 import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
 
+import ExtendedDate from '../../lib/extended_date/ExtendedDate';
 import Header from '../../components/organisms/Header';
+import Label from '../../components/atoms/Label';
 import List from '../../components/molecules/List';
 import PageCenterContainer from '../../components/organisms/PageCenterContainer';
 import PageContainer from '../../components/organisms/PageContainer';
 import ToggleSwitch from '../../components/atoms/ToggleSwitch';
 
 import useOneAnvil from '../../lib/anvil/useOneAnvil';
-import Label from '../../components/atoms/Label';
 
 const StyledAnvilNodeStatus = styled.div`
   display: flex;
@@ -52,7 +53,9 @@ const DemoAnvilStatus: NextPage = (): JSX.Element => {
     isLoading,
   } = useOneAnvil(anvilUUID);
 
-  const lastUpdatedDatetime: string = new Date(timestamp * 1000).toISOString();
+  const lastUpdatedDatetime: string = new ExtendedDate(
+    timestamp * 1000,
+  ).toLocaleISOString();
 
   return (
     <PageContainer>
