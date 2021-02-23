@@ -15214,7 +15214,7 @@ sub _archive_table
 	# We don't archive the OUI table, it generally has more entries than needed to trigger the archive, but it's needed.
 	if (($table eq "oui") or ($table eq "states"))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0459", variables => { table => $table }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "err", key => "log_0459", variables => { table => $table }});
 		return(0);
 	}
 	

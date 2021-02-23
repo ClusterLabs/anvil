@@ -1026,9 +1026,27 @@ sub run_jobs
 		# If the job is not running, start it.
 		if ((not $job_picked_up_by) && ($job_progress ne "100") && (not $anvil->data->{switches}{'no-start'}))
 		{
-			# Start the job, appending '--job-uuid' to the command.
 			my $command = $job_command." --job-uuid ".$job_uuid;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0210", variables => { command => $command }});
+			
+			# Have we started this job recently?
+			if (exists $anvil->data->{jobs}{$job_uuid}{started})
+			{
+				my $last_start = time - $anvil->data->{jobs}{$job_uuid}{started};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { last_start => $last_start }});
+				
+				if ($last_start < 60)
+				{
+					# Skip, Started too recently.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0578", variables => { 
+						command    => $command,
+						last_start => $last_start, 
+					}});
+					next;
+				}
+			}
+			
+			# Start the job, appending '--job-uuid' to the command.
 			($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
 				background  => 1, 
 				stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
@@ -1042,6 +1060,10 @@ sub run_jobs
 			# Log the PID (the job should update the database).
 			my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pid => $pid }});
+			
+			# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
+			$anvil->data->{jobs}{$job_uuid}{started} = time;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'jobs::$job_uuid::started' => $anvil->data->{jobs}{$job_uuid}{started} }});
 		}
 	}
 	
