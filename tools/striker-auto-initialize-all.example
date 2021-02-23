@@ -6,7 +6,15 @@ base::password::desired = super secret password
 base::organization_name = Alteeve's Niche!
 base::prefix            = an
 base::domain            = alteeve.com
+base::dns               = 8.8.8.8,8.8.4.4
+base::gateway           = 192.168.122.1
+base::interface         = ifn1
 
+# Startup IP is used for peers to find us
 striker::1::network::startup_ip           = 192.168.122.145
 striker::1::network::ifn::1::ip           = 192.168.122.11
+striker::1::network::ifn::1::subnet_mask  = 255.255.255.0
 striker::1::network::ifn::1::link::1::mac = aa:bb:cc:dd:ee:ff
+striker::1::network::bcn::1::ip           = 192.168.122.11
+striker::1::network::bcn::1::subnet_mask  = 255.255.255.0
+striker::1::network::bcn::1::link::1::mac = aa:bb:cc:dd:ff:00

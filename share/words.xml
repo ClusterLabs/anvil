@@ -324,6 +324,14 @@ Output (if any):
 		<key name="error_0236">There appears to be no resource data in the database for the host: [#!variable!host_name!#]. Has ScanCore run and, specifically, has 'scan-hardware' run yet? Unable to provide available resources for this Anvil! system.</key>
 		<key name="error_0237">The resource name: [#!variable!resource_name!#] already exists, and 'force_unique' is set. This is likely a name conflict, returning '!!error!!'.</key>
 		<key name="error_0238">This node is not yet fully in the cluster. Sleeping for a bit, then we'll exit. The job will try again shortly after.</key>
+		<key name="error_0239"><![CDATA[Remote->call() was called without a target being set. Other values passed in that may help locate the source of this call:
+- remote_user: [#!variable!remote_user!#]
+- port: ...... [#!variable!port!#]
+- close: ..... [#!variable!close!#]
+- secure: .... [#!variable!secure!#] 
+- shell_call:  [#!variable!shell_call!#]
+		]]></key>
+		<key name="error_0240">Usage: [#!variable!program!# --config /path/to/config].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -1337,7 +1345,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
 		<key name="log_0577">The job: [#!variable!job_uuid!#] was assigned to our Anvil! and this is the primary node. Assigning the job to this machine.</key>
-		<key name="log_0578">#!free!#</key>
+		<key name="log_0578">I was about to start: [#!variable!command!#], but I last tried to run this: [#!variable!last_start!#] seconds ago. We'll wait at least a minute before we try to run it again.</key>
 		<key name="log_0579">The LV(s) behind the resource: [#!variable!resource!#] have had their DRBD metadata created successfully.</key>
 		<key name="log_0580">The LV(s) behind the resource: [#!variable!resource!#] have been forced to primary to initialize the resource.</key>
 		<key name="log_0581">Asked to validate that the server: [#!variable!server!#] is able to run.</key>

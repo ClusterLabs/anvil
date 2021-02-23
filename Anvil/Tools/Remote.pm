@@ -328,8 +328,14 @@ sub call
 	}
 	if (not $target)
 	{
-		# No target
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->call()", parameter => "target" }});
+		# No target, this should not happen...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0239", variables => { 
+			remote_user => $remote_user,
+			port        => $port, 
+			'close'     => $close, 
+			secure      => $secure, 
+			shell_call  => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
+		}});
 		return("!!error!!");
 	}
 	if (not $remote_user)
