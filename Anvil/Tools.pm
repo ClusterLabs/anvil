@@ -1215,6 +1215,7 @@ sub _set_paths
 				vgscan				=>	"/usr/sbin/vgscan",
 				wc				=>	"/usr/bin/wc",
 				wget				=>	"/usr/bin/wget",
+				yum				=>	"/usr/bin/yum",
 			},
 			json			=>	{
 				all_status			=>	"all_status.json",

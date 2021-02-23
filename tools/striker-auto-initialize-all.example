@@ -1,0 +1,12 @@
+# This is an example script to feed to 'striker-auto-initialize-all'.
+# 
+
+base::password::current = Initial1
+base::password::desired = super secret password
+base::organization_name = Alteeve's Niche!
+base::prefix            = an
+base::domain            = alteeve.com
+
+striker::1::network::startup_ip           = 192.168.122.145
+striker::1::network::ifn::1::ip           = 192.168.122.11
+striker::1::network::ifn::1::link::1::mac = aa:bb:cc:dd:ee:ff

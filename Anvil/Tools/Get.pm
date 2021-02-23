@@ -1808,19 +1808,23 @@ sub os_type
 	
 	### NOTE: Examples;
 	# Red Hat Enterprise Linux release 8.0 Beta (Ootpa)
-	# Red Hat Enterprise Linux Server release 7.5 (Maipo)
-	# CentOS Linux release 7.5.1804 (Core) 
-
+	# CentOS Stream release 8
+	
+	### NOTE: This can be called before 'rsync' is called, so we use 'cat'
 	# Read in the /etc/redhat-release file
-	my $release = $anvil->Storage->read_file({
+	my ($release, $error, $return_code) = $anvil->Remote->call({
 		debug       => $debug, 
-		file        => $anvil->data->{path}{data}{'redhat-release'},
+		shell_call  => $anvil->data->{path}{exe}{cat}." ".$anvil->data->{path}{data}{'redhat-release'}, 
 		port        => $port, 
 		password    => $password, 
 		remote_user => $remote_user, 
 		target      => $target,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { release => $release }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		release     => $release,
+		error       => $error,
+		return_code => $return_code, 
+	}});
 	if ($release =~ /Red Hat Enterprise Linux .* (\d+)\./)
 	{
 		# RHEL, with the major version number appended
@@ -1839,7 +1843,7 @@ sub os_type
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
 	}
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uname}." --hardware-platform"});
+	(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uname}." --hardware-platform"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 	if ($output)
 	{
