@@ -665,6 +665,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0221">The server: [#!variable!server_name!#] was not found in the cluster configuration. This can happen if a server was partially deleted and we're trying again.</key>
 		<key name="job_0222">Preparing to delete the server: [#!variable!server_name!#].</key>
 		<key name="job_0223">Using virsh to destroy (force off) the server: [#!variable!server_name!#], if it is still running.</key>
+		<key name="job_0224">Enabled the HA repository for CentOS Stream.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

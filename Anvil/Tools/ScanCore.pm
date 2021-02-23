@@ -646,7 +646,6 @@ sub post_scan_analysis_striker
 		my $host_type   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
 		my $host_key    = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
 		my $host_ipmi   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
-		my $host_health = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_health}; 
 		my $host_status = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status};
 		my $password    = $anvil->data->{machine}{host_uuid}{$host_uuid}{password};
 		my $anvil_name  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name};
@@ -657,7 +656,6 @@ sub post_scan_analysis_striker
 			host_type   => $host_type, 
 			host_key    => $host_key, 
 			host_ipmi   => $anvil->Log->is_secure($host_ipmi), 
-			host_health => $host_health, 
 			host_status => $host_status, 
 			password    => $anvil->Log->is_secure($password), 
 			anvil_name  => $anvil_name, 

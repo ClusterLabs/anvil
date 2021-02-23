@@ -3,7 +3,7 @@
 -- The line below is used by machines in the Anvil! to know if their software version is compatible with the
 -- database servers. As such, do NOT edit the line below unless you know why you're changing it.
 -- - Version follows: https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
--- SchemaVersion: 0.0.1
+-- SchemaVersion: 0.0.2
 -- 
 -- It expects PostgreSQL v. 9.1+
 --
@@ -55,7 +55,6 @@ CREATE TABLE hosts (
     host_type        text                        not null,                         -- Either 'node' or 'dashboard' or 'dr'. It is left empty until the host is configured.
     host_key         text                        not null,                         -- This is the host's key used to authenticate it when other machines try to ssh to it.
     host_ipmi        text                        not null    default '',           -- This is an optional string, in 'fence_ipmilan' format, that tells how to access/fence this host.
-    host_health      numeric                     not null    default 0,            -- This is a numerical representation of the health of the node. 0 is healthy, and the higher the value, the more "sick" the node is. This guides ScanCore is determining when to proactive live migrate servers.
     host_status      text                        not null    default 'unknown',    -- This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.
     modified_date    timestamp with time zone    not null
 );
@@ -68,7 +67,6 @@ CREATE TABLE history.hosts (
     host_type        text,
     host_key         text,
     host_ipmi        text,
-    host_health      numeric,
     host_status      text,
     modified_date    timestamp with time zone    not null
 );
@@ -86,7 +84,6 @@ BEGIN
          host_type, 
          host_key, 
          host_ipmi, 
-         host_health, 
          host_status, 
          modified_date)
     VALUES
@@ -95,7 +92,6 @@ BEGIN
          history_hosts.host_type,
          history_hosts.host_key, 
          history_hosts.host_ipmi, 
-         history_hosts.host_health, 
          history_hosts.host_status, 
          history_hosts.modified_date);
     RETURN NULL;

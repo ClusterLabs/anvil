@@ -1,3 +1,10 @@
+TODO: 
+- Remove this; (step 2) "This is the user name that you will log into Striker as and the name of the user that owns the database"
+- Being set to the gateway, not the default DNS - "This is the domain name server(s) to use when resolving domain names. You can specify 2 or more, separated by commas."
+- The web UI password isn't being set properly during Striker stage-2 setup
+- Changing the password doesn't log out active webui sessions.
+- host_health is a duplicate of 'health'
+
 ============
 
 DISABLE KSM! 
@@ -702,3 +709,59 @@ resource srv01-sql {
         }
 }
 ==================
+
+mediawiki on EL8 install notes (starting from a minimal install);
+
+dnf module reset php
+dnf module enable php:7.4
+dnf install httpd php php-mysqlnd php-gd php-xml mariadb-server mariadb php-mbstring php-json \
+            vim postgresql-server postgresql-plperl bash-completion wget tar rsync mlocate php-pecl-apcu \
+            memcached php-pear icu php-intl php-pgsql bzip2 
+
+postgresql-setup --initdb
+systemctl start postgresql.service 
+systemctl enable postgresql.service 
+systemctl start httpd.service 
+systemctl enable httpd.service 
+systemctl start memcached.service
+systemctl enable memcached.service
+firewall-cmd --permanent --zone=public --add-service=http
+firewall-cmd --permanent --zone=public --add-service=https
+systemctl restart firewalld
+
+
+# diff -u /var/lib/pgsql/data/pg_hba.conf.orig /var/lib/pgsql/data/pg_hba.conf
+====
+--- /var/lib/pgsql/data/pg_hba.conf.orig	2021-02-17 02:50:10.959000000 -0500
++++ /var/lib/pgsql/data/pg_hba.conf	2021-02-17 02:52:54.859000000 -0500
+@@ -77,11 +77,12 @@
+ # TYPE  DATABASE        USER            ADDRESS                 METHOD
+ 
+ # "local" is for Unix domain socket connections only
+-local   all             all                                     peer
++local   all             postgres                                ident
++local   all             all                                     md5
+ # IPv4 local connections:
+-host    all             all             127.0.0.1/32            ident
++host    all             all             127.0.0.1/32            md5
+ # IPv6 local connections:
+-host    all             all             ::1/128                 ident
++host    all             all             ::1/128                 md5
+ # Allow replication connections from localhost, by a user with the
+ # replication privilege.
+ local   replication     all                                     peer
+====
+ 
+# diff -u /etc/php.ini.orig /etc/php.ini
+====
+--- /etc/php.ini.orig	2021-02-17 02:56:32.293000000 -0500
++++ /etc/php.ini	2021-02-17 02:57:33.731000000 -0500
+@@ -903,6 +903,7 @@
+ ; 'extension='php_<ext>.dll') is supported for legacy reasons and may be
+ ; deprecated in a future PHP major version. So, when it is possible, please
+ ; move to the new ('extension=<ext>) syntax.
++extension=php_pgsql.so
+ 
+ ;;;;
+ ; Note: packaged extension modules are now loaded via the .ini files
+====

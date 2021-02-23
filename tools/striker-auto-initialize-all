@@ -1,0 +1,94 @@
+#!/usr/bin/perl
+# 
+# NOTE: This tool is NOT meant for production use! It is meant as a tool for CI/CD testing. 
+# 
+# If this is used for any other purpose, it is at he user's own risk. Please be sure to thoroughly test the 
+# resulting Anvil! before going into production (which, honestly, you should do anyways).
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+=cut 
+
+Striker initialization;
+            variable_uuid             |                  variable_name                   |     variable_value      | variable_default | variable_description | variable_section |         variable_source_uuid         | variable_source_table |         modified_date         
+--------------------------------------+--------------------------------------------------+-------------------------+------------------+----------------------+------------------+--------------------------------------+-----------------------+-------------------------------
+ b397973f-e871-4140-baab-6d77611b4edd | form::config_step1::organization::value          | Alteeve                 |                  | striker_0004         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
+ 55261634-0495-448f-a41f-24af7ed57911 | form::config_step1::prefix::value                | di                      |                  | striker_0006         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
+ 192d3636-3e66-46cb-bf60-5e11c35220dc | form::config_step1::domain::value                | digimer.ca              |                  | striker_0008         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
+ e53cc9f3-6d8e-4622-8b56-7df8b90cdd24 | form::config_step1::ifn_count::value             | 1                       |                  | striker_0012         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
+ 823222e7-e55a-48e6-8b16-cf2046c880b4 | form::config_step1::sequence::value              | 2                       |                  | striker_0010         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:27:39.491016-05
+
+ 858c40b8-6612-4922-b824-1eb6ce3c74cc | form::config_step2::host_name::value             | di-striker02.digimer.ca |                  | striker_0017         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 9a176810-403b-4180-b502-90a8529c43bd | form::config_step2::striker_user::value          | admin                   |                  | striker_0032         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 8bdf6cc8-3799-4759-8e7d-7d9ebbc74d6a | form::config_step2::striker_password::value      | super secret password   |                  | striker_0034         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 0c22eba6-438a-4a7d-8a4b-c473e24da790 | form::config_step2::dns::value                   | 8.8.8.8, 8.8.4.4        |                  | striker_0038         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ cd443969-30ee-45ca-a189-8546e945dd13 | form::config_step2::bcn1_ip::value               | 10.201.4.2              |                  | striker_0024         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 8f618047-59e9-4d56-b842-ea6e43c6aac1 | form::config_step2::bcn1_subnet_mask::value      | 255.255.0.0             |                  | striker_0025         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 7b6d2213-3852-42d2-9a3c-f31f2197c6b2 | form::config_step2::bcn1_link1_mac_to_set::value | 52:54:00:8b:d6:82       |                  | striker_0029         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ a1137f58-22c3-4d12-bfbd-1f88c1cb0956 | form::config_step2::ifn1_subnet_mask::value      | 255.255.255.0           |                  | striker_0025         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 52842c37-4f8b-4d77-9712-c911d4abaf11 | form::config_step2::ifn1_link1_mac_to_set::value | 52:54:00:c0:f2:7c       |                  | striker_0029         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
+ 42f33705-8fbb-48eb-82cf-e0ec2f2cfebe | form::config_step2::ifn1_ip::value               | 192.168.122.12          |                  | striker_0024         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:30:16.688974-05
+ 7110e4e9-6cc7-4a9b-a0c8-8e234ab3fbc9 | form::config_step2::gateway::value               | 192.168.122.1           |                  | striker_0036         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:30:16.688974-05
+ 7efc6c79-4806-478e-ae55-b9d09e2f23aa | form::config_step2::gateway_interface::value     | ifn1                    |                  |                      | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:30:16.688974-05
+
+anvil=# SELECT * FROM jobs WHERE job_uuid = '158e8384-eac7-4289-8f70-bc43eaf8b017';
+               job_uuid               |            job_host_uuid             |          job_command           |      job_data      | job_picked_up_by | job_picked_up_at | job_updated |      job_name      | job_progress | job_title | job_description | job_status |         m
+odified_date         
+--------------------------------------+--------------------------------------+--------------------------------+--------------------+------------------+------------------+-------------+--------------------+--------------+-----------+-----------------+------------+----------
+---------------------
+ 158e8384-eac7-4289-8f70-bc43eaf8b017 | a64c477b-b0a1-4985-9968-f4b46d75fb0c | /usr/sbin/anvil-configure-host | form::config_step2 |                0 |                0 |  1613525509 | configure::network |            0 | job_0001  | job_0002        |            | 2021-02-1
+6 20:31:49.108908-05
+
+
+# At this point, the Striker should be coming up at the IP. Once both/all Strikers are up, update their anvil.conf to add each other's UUID database entry.
+# FROM ONE STRIKER;
+               job_uuid               |            job_host_uuid             |                                                         job_command                                                          |                                                                   job_data                                                                    | job_picked_up_by | job_picked_up_at | job_updated |     job_name      | job_progress | job_title | job_description | job_status |         modified_date         
+--------------------------------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+------------------+------------------+-------------+-------------------+--------------+-----------+-----------------+------------+-------------------------------
+ 6ca30d0b-c03c-43f9-bd7c-c40a79ca52a8 | 46c00674-fea2-44af-981d-2833d5c8270a | /usr/sbin/striker-manage-peers --add --host-uuid a64c477b-b0a1-4985-9968-f4b46d75fb0c --host 10.201.4.2 --port 5432 --ping 1 | password=super secret password                                                                                                               +|                0 |                0 |  1613699163 | striker-peer::add |            0 | job_0011  | job_0012        |            | 2021-02-18 20:46:03.305568-05
+                                      |                                      |                                                                                                                              | peer_job_command=/usr/sbin/striker-manage-peers --add --host-uuid 46c00674-fea2-44af-981d-2833d5c8270a --host 10.201.4.1 --port 5432 --ping 1 |                  |                  |             |                   |              |           |                 |            | 
+(1 row)
+
+# Initialize nodes / dr hosts (may need to call striker-get-peer-data)
+anvil=# SELECT * FROM jobs ;
+               job_uuid               |            job_host_uuid             |            job_command            |            job_data             | job_picked_up_by | job_picked_up_at | job_updated |             job_name              | job_progress | job_title | job_description | job_status |        modified_date         
+--------------------------------------+--------------------------------------+-----------------------------------+---------------------------------+------------------+------------------+-------------+-----------------------------------+--------------+-----------+-----------------+------------+------------------------------
+ a5c3381c-c581-4020-baa0-72e136c75a68 | 46c00674-fea2-44af-981d-2833d5c8270a | /usr/sbin/striker-initialize-host | password=Initial1              +|                0 |                0 |  1613957250 | initialize::node::192.168.122.207 |            0 | job_0020  | job_0022        |            | 2021-02-21 20:27:30.73576-05
+                                      |                                      |                                   | rh_password=                   +|                  |                  |             |                                   |              |           |                 |            | 
+                                      |                                      |                                   | rh_user=                       +|                  |                  |             |                                   |              |           |                 |            | 
+                                      |                                      |                                   | host_ip_address=192.168.122.207+|                  |                  |             |                                   |              |           |                 |            | 
+                                      |                                      |                                   | ssh_port=22                    +|                  |                  |             |                                   |              |           |                 |            | 
+                                      |                                      |                                   | type=node                      +|                  |                  |             |                                   |              |           |                 |            | 
+                                      |                                      |                                   | host_name=di-a02n01.alteeve.com+|                  |                  |             |                                   |              |           |                 |            | 
+                                      |                                      |                                   |                                 |                  |                  |             |                                   |              |           |                 |            | 
+(1 row)
+
+=cut
+
+
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
+$anvil->Get->switches;
+
+$anvil->nice_exit({exit_code => 0});
