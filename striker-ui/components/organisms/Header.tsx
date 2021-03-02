@@ -1,42 +1,30 @@
 import { FunctionComponent } from 'react';
+import AppBar from '@material-ui/core/AppBar';
+import { makeStyles, createStyles } from '@material-ui/core/styles';
 import Image from 'next/image';
-import styled from 'styled-components';
 
-import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
+// import DEFAULT_THEME from '../../lib/consts/DEFAULT_THEME';
 
-const StyledHeader = styled.div`
-  display: flex;
-
-  justify-content: space-between;
-  align-content: center;
-
-  padding: 0.5em 1.5em;
-
-  border-style: solid;
-  border-color: #d02724;
-
-  border-width: 0 0 1px 0;
-`;
-
-const StyledRightContainer = styled.div`
-  display: flex;
-
-  > * {
-    padding: 0 0 0 0.5em;
-  }
-`;
-
-StyledHeader.defaultProps = {
-  theme: DEFAULT_THEME,
-};
+const useStyles = makeStyles((theme) =>
+  createStyles({
+    appBar: {
+      paddingTop: theme.spacing(0.5),
+      paddingBottom: theme.spacing(0.5),
+      paddingLeft: theme.spacing(3),
+      paddingRight: theme.spacing(0.5),
+    },
+  }),
+);
 
 const Header: FunctionComponent = () => {
+  const classes = useStyles();
   return (
-    <StyledHeader>
+    <AppBar position="static" className={classes.appBar}>
       <div>
         <Image src="/pngs/logo.png" width="160" height="40" />
       </div>
-      <StyledRightContainer>
+    </AppBar>
+    /* <StyledRightContainer>
         <div>
           <Image src="/pngs/files_on.png" width="40" height="40" />
         </div>
@@ -62,7 +50,7 @@ const Header: FunctionComponent = () => {
           <Image src="/pngs/help_icon_on.png" width="40" height="40" />
         </div>
       </StyledRightContainer>
-    </StyledHeader>
+    </StyledHeader> */
   );
 };
 

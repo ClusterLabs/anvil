@@ -12,11 +12,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "@material-ui/core": "^4.11.3",
     "next": "10.0.6",
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "styled-components": "^5.2.1",
-    "swr": "^0.4.2"
+    "swr": "^0.4.2",
+    "typeface-muli": "^1.1.13"
   },
   "devDependencies": {
     "@commitlint/cli": "^11.0.0",
