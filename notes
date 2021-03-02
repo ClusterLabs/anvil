@@ -331,6 +331,10 @@ drbdsetup show all --show-defaults
 drbdsetup net-options srv01-c7_0 2 --_name=m3-a02n01.alteeve.com --csums-alg=md5 --data-integrity-alg=md5 --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --protocol=C --fencing=resource-and-stonith --allow-two-primaries=yes
 drbdsetup net-options srv01-c7_0 2 --_name=m3-a02n01.alteeve.com --csums-alg=md5 --data-integrity-alg=md5 --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --protocol=C --fencing=resource-and-stonith --allow-two-primaries=yes
 
+
+# Adding a second volume to a running resource;
+- I wonder if you'd have the same results if you could get vol1 into an UpToDate/UpToDate state using the drbdsetup equivalent of drbdadm new-current-uuid --clear-bitmap <res>
+
 # Migrate:
 
 virsh -c qemu+ssh://root@m3-a02n02.alteeve.com/system list

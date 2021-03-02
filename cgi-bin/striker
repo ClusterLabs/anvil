@@ -7839,21 +7839,21 @@ sub sanity_check_step2
 		}});
 		foreach my $count (1..$network_count)
 		{
-			my $this_network    = $network.$count;
-			my $this_ip_key     = $this_network."_ip";
+			my $this_network         = $network.$count;
+			my $this_ip_key          = $this_network."_ip";
 			my $this_subnet_mask_key = $this_network."_subnet_mask";
-			my $this_iface1_key = $this_network."_link1_mac_to_set";
-			my $this_iface2_key = $this_network."_link2_mac_to_set";
+			my $this_iface1_key      = $this_network."_link1_mac_to_set";
+			my $this_iface2_key      = $this_network."_link2_mac_to_set";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				count                            => $count,
-				this_ip_key                      => $this_ip_key, 
+				count                                 => $count,
+				this_ip_key                           => $this_ip_key, 
 				this_subnet_mask_key                  => $this_subnet_mask_key, 
-				this_iface1_key                  => $this_iface1_key,
-				this_iface2_key                  => $this_iface2_key,
-				"cgi::${this_ip_key}::value"     => $anvil->data->{cgi}{$this_ip_key}{value}, 
+				this_iface1_key                       => $this_iface1_key,
+				this_iface2_key                       => $this_iface2_key,
+				"cgi::${this_ip_key}::value"          => $anvil->data->{cgi}{$this_ip_key}{value}, 
 				"cgi::${this_subnet_mask_key}::value" => $anvil->data->{cgi}{$this_subnet_mask_key}{value}, 
-				"cgi::${this_iface1_key}::value" => $anvil->data->{cgi}{$this_iface1_key}{value},
-				"cgi::${this_iface2_key}::value" => $anvil->data->{cgi}{$this_iface2_key}{value},
+				"cgi::${this_iface1_key}::value"      => $anvil->data->{cgi}{$this_iface1_key}{value},
+				"cgi::${this_iface2_key}::value"      => $anvil->data->{cgi}{$this_iface2_key}{value},
 			}});
 			
 			# This will be used to tell the user which interface has a problem, if one exists.

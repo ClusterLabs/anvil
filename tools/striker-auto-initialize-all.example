@@ -1,20 +1,51 @@
 # This is an example script to feed to 'striker-auto-initialize-all'.
 # 
 
-base::password::current = Initial1
-base::password::desired = super secret password
+#############################################################################################################
+# Common values                                                                                             #
+#############################################################################################################
+# This is the listed owner, department or organization who this Anvil! serves.
 base::organization_name = Alteeve's Niche!
-base::prefix            = an
-base::domain            = alteeve.com
-base::dns               = 8.8.8.8,8.8.4.4
-base::gateway           = 192.168.122.1
-base::interface         = ifn1
 
+# The prefix for the Anvil! system. The can be up to five characters long.
+base::prefix            = an
+
+# This is the domain to use for the Anvil! and member machine host names.
+base::domain            = alteeve.com
+
+# These are the DNS server to use when configuring networks, comma separated.
+base::dns               = 8.8.8.8,8.8.4.4
+
+# This is the default gateway for the IFN 
+base::gateway           = 192.168.122.1
+
+# This is the IFN network on which the gateway will be configured.
+base::gateway_network   = ifn1
+
+# This is the startup password for newly built nodes and DR hosts we'll be integrating.
+base::password::current = Initial1
+
+# This is the password to set for all systems.
+base::password::desired = super secret password
+
+
+#############################################################################################################
+# Striker configurations                                                                                    #
+#############################################################################################################
 # Startup IP is used for peers to find us
-striker::1::network::startup_ip           = 192.168.122.145
+striker::1::startup_ip                    = 192.168.122.145
 striker::1::network::ifn::1::ip           = 192.168.122.11
 striker::1::network::ifn::1::subnet_mask  = 255.255.255.0
-striker::1::network::ifn::1::link::1::mac = aa:bb:cc:dd:ee:ff
-striker::1::network::bcn::1::ip           = 192.168.122.11
-striker::1::network::bcn::1::subnet_mask  = 255.255.255.0
-striker::1::network::bcn::1::link::1::mac = aa:bb:cc:dd:ff:00
+striker::1::network::ifn::1::link::1::mac = 52:54:00:ac:50:e4
+striker::1::network::bcn::1::ip           = 10.201.4.1
+striker::1::network::bcn::1::subnet_mask  = 255.255.0.0
+striker::1::network::bcn::1::link::1::mac = 52:54:00:68:be:2e
+
+striker::2::startup_ip                    = 192.168.122.146
+striker::2::network::ifn::1::ip           = 192.168.122.12
+striker::2::network::ifn::1::subnet_mask  = 255.255.255.0
+striker::2::network::ifn::1::link::1::mac = 52:54:00:c0:f2:7c
+striker::2::network::bcn::1::ip           = 192.168.122.12
+striker::2::network::bcn::1::subnet_mask  = 255.255.255.0
+striker::2::network::bcn::1::link::1::mac = 52:54:00:8b:d6:82
+

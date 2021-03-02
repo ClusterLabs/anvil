@@ -1637,6 +1637,15 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${in_iface}::ip"              => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}, 
+				"network::${host}::interface::${in_iface}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}, 
+				"network::${host}::interface::${in_iface}::mac_address"     => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address}, 
+				"network::${host}::interface::${in_iface}::mtu"             => $anvil->data->{network}{$host}{interface}{$in_iface}{mtu}, 
+				"network::${host}::interface::${in_iface}::default_gateway" => $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway}, 
+				"network::${host}::interface::${in_iface}::gateway"         => $anvil->data->{network}{$host}{interface}{$in_iface}{gateway}, 
+				"network::${host}::interface::${in_iface}::dns"             => $anvil->data->{network}{$host}{interface}{$in_iface}{dns}, 
+			}});
 		}
 		next if not $in_iface;
 		if ($in_iface eq "lo")

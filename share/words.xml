@@ -332,6 +332,13 @@ Output (if any):
 - shell_call:  [#!variable!shell_call!#]
 		]]></key>
 		<key name="error_0240">Usage: [#!variable!program!# --config /path/to/config].</key>
+		<key name="error_0241">The file: [#!variable!file!#] doesn't appear to be valid.</key>
+		<key name="error_0242">Failed to find a matching entry in the file: [#!variable!file!#]. Please make sure the MAC addresses in the config are accurate for these systems.</key>
+		<key name="error_0243">Missing variable: [#!variable!variable!#] from config file: [#!data!switches::config!#].</key>
+		<key name="error_0244">The length of the prefix: [#!variable!prefix!#] is: [#!variable!length!#]. The prefix needs to be not more than 5.</key>
+		<key name="error_0245">The DNS IP: [#!variable!ip!#] is invalid.</key>
+		<key name="error_0246">The gateway IP: [#!variable!ip!#] is invalid.</key>
+		<key name="error_0247">The variable: [#!variable!variable!#] is invalid: [#!variable!value!#].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -1676,6 +1683,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0218">Preparing to migrate a server (or all servers).</key>
 		<key name="message_0219">- #!variable!server_name!# (Current state: [#!variable!server_state!#])</key>
 		<key name="message_0220">- * #!variable!server_name!# (Deleted, name can be reused)</key>
+		<key name="message_0221">We're Striker: [#!variable!striker!#], and we're now configured, so we're done. Striker 1 will finish configuration.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

@@ -1063,7 +1063,7 @@ sub cgi
 				# This is a password and we're not logging sensitive data, obfuscate it.
 				$censored_value = $anvil->Words->string({key => "log_0186"});
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cgi::${variable}::$say_value" => $censored_value,
 			}});
 		}

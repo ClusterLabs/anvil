@@ -162,7 +162,7 @@ sub add_target_to_known_hosts
 	{
 		# We don't know about this machine yet, so scan it.
 		my $added = $anvil->Remote->_call_ssh_keyscan({
-			debug       => $debug, 
+			debug       => 2, 
 			target      => $target, 
 			port        => $port, 
 			user        => $user, 
@@ -171,10 +171,11 @@ sub add_target_to_known_hosts
 		if (not $added)
 		{
 			# Failed to add. :(
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0009", variables => { 
 				target => $target, 
 				port   => $port, 
-				user   => $user, 
+				user   => getpwuid($user) ? getpwuid($user) : $user, 
 			}});
 			return(1);
 		}
@@ -1022,7 +1023,7 @@ sub _call_ssh_keyscan
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0159", variables => { 
 		target => $target, 
 		port   => $port, 
-		user   => $user, 
+		user   => getpwuid($user) ? getpwuid($user) : $user, 
 	}});
 	
 	# Redirect STDERR to STDOUT and grep off the comments.
