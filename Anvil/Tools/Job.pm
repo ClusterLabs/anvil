@@ -332,7 +332,7 @@ sub get_job_uuid
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->get_job_uuid()" }});
-
+	
 	my $job_uuid  = "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	my $program   = defined $parameter->{program}   ? $parameter->{program}   : "";

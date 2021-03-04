@@ -3208,33 +3208,33 @@ WHERE
 	my $job_status          =         $results->[0]->[10];
 	my $modified_date       =         $results->[0]->[11];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		job_host_uuid       => $job_host_uuid,
-		job_command         => $job_command,
-		job_data            => $job_data,
-		job_picked_up_by    => $job_picked_up_by,
-		job_picked_up_at    => $job_picked_up_at,
-		job_updated         => $job_updated,
-		job_name            => $job_name, 
-		job_progress        => $job_progress,
-		job_title           => $job_title, 
-		job_description     => $job_description,
-		job_status          => $job_status, 
-		modified_date       => $modified_date, 
+		job_host_uuid    => $job_host_uuid,
+		job_command      => $job_command,
+		job_data         => $job_data,
+		job_picked_up_by => $job_picked_up_by,
+		job_picked_up_at => $job_picked_up_at,
+		job_updated      => $job_updated,
+		job_name         => $job_name, 
+		job_progress     => $job_progress,
+		job_title        => $job_title, 
+		job_description  => $job_description,
+		job_status       => $job_status, 
+		modified_date    => $modified_date, 
 	}});
 	
 	$return = {
-		job_host_uuid       => $job_host_uuid,
-		job_command         => $job_command,
-		job_data            => $job_data,
-		job_picked_up_by    => $job_picked_up_by,
-		job_picked_up_at    => $job_picked_up_at,
-		job_updated         => $job_updated,
-		job_name            => $job_name, 
-		job_progress        => $job_progress,
-		job_title           => $job_title, 
-		job_description     => $job_description,
-		job_status          => $job_status, 
-		modified_date       => $modified_date, 
+		job_host_uuid    => $job_host_uuid,
+		job_command      => $job_command,
+		job_data         => $job_data,
+		job_picked_up_by => $job_picked_up_by,
+		job_picked_up_at => $job_picked_up_at,
+		job_updated      => $job_updated,
+		job_name         => $job_name, 
+		job_progress     => $job_progress,
+		job_title        => $job_title, 
+		job_description  => $job_description,
+		job_status       => $job_status, 
+		modified_date    => $modified_date, 
 	};
 	
 	return($return);
@@ -3343,18 +3343,18 @@ WHERE
 		}
 		
 		push @{$return}, {
-			job_uuid            => $job_uuid,
-			job_command         => $job_command,
-			job_data            => $job_data,
-			job_picked_up_by    => $job_picked_up_by,
-			job_picked_up_at    => $job_picked_up_at,
-			job_updated         => $job_updated,
-			job_name            => $job_name, 
-			job_progress        => $job_progress,
-			job_title           => $job_title, 
-			job_description     => $job_description,
-			job_status          => $job_status, 
-			modified_date       => $modified_date, 
+			job_uuid         => $job_uuid,
+			job_command      => $job_command,
+			job_data         => $job_data,
+			job_picked_up_by => $job_picked_up_by,
+			job_picked_up_at => $job_picked_up_at,
+			job_updated      => $job_updated,
+			job_name         => $job_name, 
+			job_progress     => $job_progress,
+			job_title        => $job_title, 
+			job_description  => $job_description,
+			job_status       => $job_status, 
+			modified_date    => $modified_date, 
 		};
 	}
 	
@@ -7480,6 +7480,8 @@ This is a string key to display in the title of the box showing that the job is 
 Variables can not be passed to this title key.
 
 * This is not required when C<< update_progress_only >> is set
+
+B<< Note >>: This can be set to the special C<< scancore_startup >>. When the job status is set to this value, the job will only run when ScanCore next starts up (generally after a reboot). 
 
 =head3 job_uuid (optional)
 

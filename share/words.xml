@@ -681,6 +681,12 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0222">Preparing to delete the server: [#!variable!server_name!#].</key>
 		<key name="job_0223">Using virsh to destroy (force off) the server: [#!variable!server_name!#], if it is still running.</key>
 		<key name="job_0224">Enabled the HA repository for CentOS Stream.</key>
+		<key name="job_0225">Initialize Stage-1 installed systems into a full Anvil!.</key>
+		<key name="job_0226">This program is designed the automation of turning a set of stage-1 (bare OS + anvil-repo) systems and turn them into a fully functioning Anvil! system.</key>
+		<key name="job_0227">We need to setup pairing with Striker: [#!variable!number!#]. We will wait for it to come up. Be sure that you're run 'striker-auto-initialize-all' on it.</key>
+		<key name="job_0228">Successfully connected to Striker: [#!variable!number!#] using the IP: [#!variable!ip!#]!</key>
+		<key name="job_0229">No connection to Striker: [#!variable!number!#] via the IP: [#!variable!ip!#].</key>
+		<key name="job_0230">Failed to connect Striker: [#!variable!number!#] over any IPs. Sleeping a bit and then trying again.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1367,6 +1373,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0590">Wiping the metadata from the DRBD resource: [#!variable!resource!#].</key>
 		<key name="log_0591">Wiping any file system signatures and then deleting the logical volume: [#!variable!device_path!#].</key>
 		<key name="log_0592">The resource name: [#!variable!resource_name!#] was found, returning the first TCP port and minor number.</key>
+		<key name="log_0593">The job: [#!variable!command!#] with UUID: [#!variable!job_uuid!#] is a start-time job, not running it now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

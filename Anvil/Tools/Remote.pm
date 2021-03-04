@@ -172,10 +172,16 @@ sub add_target_to_known_hosts
 		{
 			# Failed to add. :(
 			
+			my $say_user = $user;
+			if (($say_user =~ /^\d+$/) && (getpwuid($user)))
+			{
+				$say_user = getpwuid($user);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_user => $say_user }});
+			}
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0009", variables => { 
 				target => $target, 
 				port   => $port, 
-				user   => getpwuid($user) ? getpwuid($user) : $user, 
+				user   => $say_user, 
 			}});
 			return(1);
 		}
@@ -1020,10 +1026,16 @@ sub _call_ssh_keyscan
 	}});
 	
 	# Log what we're doing
+	my $say_user = $user;
+	if (($say_user =~ /^\d+$/) && (getpwuid($user)))
+	{
+		$say_user = getpwuid($user);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_user => $say_user }});
+	}
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0159", variables => { 
 		target => $target, 
 		port   => $port, 
-		user   => getpwuid($user) ? getpwuid($user) : $user, 
+		user   => $say_user, 
 	}});
 	
 	# Redirect STDERR to STDOUT and grep off the comments.

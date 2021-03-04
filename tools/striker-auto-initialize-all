@@ -23,12 +23,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 =cut 
 
 Striker initialization;
-anvil=# SELECT * FROM jobs WHERE job_uuid = '158e8384-eac7-4289-8f70-bc43eaf8b017';
-               job_uuid               |            job_host_uuid             |          job_command           |      job_data      | job_picked_up_by | job_picked_up_at | job_updated |      job_name      | job_progress | job_title | job_description | job_status |         modified_date         
---------------------------------------+--------------------------------------+--------------------------------+--------------------+------------------+------------------+-------------+--------------------+--------------+-----------+-----------------+------------+-------------------------------
- 158e8384-eac7-4289-8f70-bc43eaf8b017 | a64c477b-b0a1-4985-9968-f4b46d75fb0c | /usr/sbin/anvil-configure-host | form::config_step2 |                0 |                0 |  1613525509 | configure::network |            0 | job_0001  | job_0002        |            | 2021-02-16 20:31:49.108908-05
-
-
 # At this point, the Striker should be coming up at the IP. Once both/all Strikers are up, update their anvil.conf to add each other's UUID database entry.
 # FROM ONE STRIKER;
                job_uuid               |            job_host_uuid             |                                                         job_command                                                          |                                                                   job_data                                                                    | job_picked_up_by | job_picked_up_at | job_updated |     job_name      | job_progress | job_title | job_description | job_status |         modified_date         
@@ -77,6 +71,8 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
 	$anvil->nice_exit({exit_code => 1});
 }
+$anvil->data->{switches}{config}     = "";
+$anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
 
 # Read in the config file
@@ -99,26 +95,26 @@ if ((not exists $anvil->data->{base}{prefix}) or ($anvil->data->{base}{prefix} e
 
 # Find myself
 find_myself($anvil);
-if (not $anvil->data->{striker}{i_am})
+if (not $anvil->data->{i_am}{striker})
 {
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0242", variables => { file => $anvil->data->{switches}{config} }});
 	$anvil->nice_exit({exit_code => 1});
 }
 
 # If I am not configured, configure myself now.
-#my $configured = $anvil->System->check_if_configured;
-my $configured = 0;
+my $configured = $anvil->System->check_if_configured;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 if ($configured)
 {
 	# If I am not Striker 1, I am done.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "striker::i_am" => $anvil->data->{striker}{i_am} }});
-	if ($anvil->data->{striker}{i_am} ne "1")
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "i_am::striker" => $anvil->data->{i_am}{striker} }});
+	if ($anvil->data->{i_am}{striker} ne "1")
 	{
 		# We're done.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0221", variables => { striker => $anvil->data->{striker}{i_am} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0221", variables => { striker => $anvil->data->{i_am}{striker} }});
 		$anvil->nice_exit({exit_code => 0});
 	}
+	striker_stage2($anvil);
 }
 else
 {
@@ -137,6 +133,127 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This does the rest of the setup.
+sub striker_stage2
+{
+	my ($anvil) = @_;
+	
+	# Merge my peer Striker.
+	merge_peer_striker($anvil);
+	
+	return(0);
+}
+
+# Merge my peer Striker.
+sub merge_peer_striker
+{ 
+	my ($anvil) = @_;
+	
+	# For each peer, see if we're already connected to it.
+	foreach my $striker_number (sort {$a cmp $b} keys %{$anvil->data->{striker}})
+	{
+		next if $striker_number !~ /^\d+$/;
+		next if $striker_number == $anvil->data->{i_am}{striker};
+		next if not exists $anvil->data->{striker}{$striker_number}{network};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { striker_number => $striker_number }});
+		
+		# Use the MAC address(es) to look for a host UUID. If we don't find one, we need to peer it. 
+		my $peer_host_uuid = 0;
+		my $peer_ips       = [];
+		foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+			foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}})
+			{
+				my $ip = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip};
+				push @{$peer_ips}, $ip;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					network_number => $network_number,
+					ip             => $ip,
+				}});
+				foreach my $link_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}})
+				{
+					next if $peer_host_uuid; 
+					my $mac_address = lc($anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{$link_number}{mac});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						link_number => $link_number, 
+						mac_address => $mac_address,
+					}});
+					my $query = "
+SELECT 
+    network_interface_host_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_operational != 'DELETED' 
+AND 
+    network_interface_mac_address =  ".$anvil->Database->quote($mac_address)."
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
+					if ($count)
+					{
+						$peer_host_uuid = $results->[0]->[0]; 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_uuid => $peer_host_uuid }});
+					}
+				}
+			}
+		}
+		
+		if (not $peer_host_uuid)
+		{
+			### Add the peer.
+			# First, wait for access.
+			my $waiting = 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0227", variables => { number => $striker_number }});
+			
+			while ($waiting)
+			{
+				foreach my $ip (@{$peer_ips})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
+					my $access = $anvil->Remote->test_access({
+						target   => $ip,
+						password => $anvil->data->{base}{password}{desired},
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+					if ($access)
+					{
+						# Success!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0228", variables => { 
+							number => $striker_number,
+							ip     => $ip,
+						}});
+						exit(0);
+					}
+					else
+					{
+						# No access
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0229", variables => { 
+							number => $striker_number,
+							ip     => $ip,
+						}});
+					}
+				}
+				if ($waiting)
+				{
+					# Wait 30 seconds and try again
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0230", variables => { number => $striker_number }});
+					sleep 30;
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # This preps and requests the initial configuration job.
 sub striker_stage1
@@ -205,7 +322,7 @@ sub striker_stage1
 		}
 	}
 	
-	my $striker_number    = $anvil->data->{striker}{i_am};
+	my $striker_number    = $anvil->data->{i_am}{striker};
 	my $organization_name = $anvil->data->{base}{organization_name};
 	my $prefix            = $anvil->data->{base}{prefix};
 	my $domain            = $anvil->data->{base}{domain};
@@ -379,6 +496,36 @@ sub striker_stage1
 		
 	}
 	
+	# Call anvil-configure-host now.
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		debug           => 2,
+		job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
+		job_data        => "form::config_step2", 
+		job_name        => "configure::network", 
+		job_title       => "job_0001", 
+		job_description => "job_0071", 
+		job_progress    => 0,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
+	# If we're striker 1, add a job to restart ourselves when ScanCore starts (after the reboot)
+	if ($striker_number eq "1")
+	{
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
+			job_command     => $anvil->data->{path}{exe}{'striker-auto-initialize-all'}." --config ".$anvil->data->{switches}{config}, 
+			job_data        => "", 
+			job_name        => "configure::auto_initialize", 
+			job_title       => "job_0225", 
+			job_description => "job_0226", 
+			job_status      => "scancore_startup",
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	}
+	
 	return(0);
 }
 
@@ -393,14 +540,7 @@ sub find_myself
 	
 	$anvil->Network->get_ips({debug => 3});
 	
-# 	print Dumper $anvil->data->{network}{$short_host_name}{interface};
-# 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
-# 	{
-# 		print "Interface: [".$interface."]\n";
-# 	}
-# 	die;
-	
-	$anvil->data->{striker}{i_am} = 0;
+	$anvil->data->{i_am}{striker} = 0;
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
 	{
 		my $ip_address      = $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip};
@@ -423,6 +563,7 @@ sub find_myself
 		
 		foreach my $striker_number (sort {$a cmp $b} keys %{$anvil->data->{striker}})
 		{
+			next if $striker_number !~ /^\d+$/;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { striker_number => $striker_number }});
 			foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}})
 			{
@@ -439,12 +580,12 @@ sub find_myself
 							mac_address      => $mac_address, 
 							this_mac_address => $this_mac_address,
 						}});
-						if ((not $anvil->data->{striker}{i_am}) && ($this_mac_address eq $mac_address))
+						if ((not $anvil->data->{i_am}{striker}) && ($this_mac_address eq $mac_address))
 						{
 							# This is us.
-							$anvil->data->{striker}{i_am} = $striker_number;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "striker::i_am" => $anvil->data->{striker}{i_am} }});
-							return($anvil->data->{striker}{i_am});
+							$anvil->data->{i_am}{striker} = $striker_number;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "i_am::striker" => $anvil->data->{i_am}{striker} }});
+							return($anvil->data->{i_am}{striker});
 						}
 					}
 				}
@@ -452,7 +593,28 @@ sub find_myself
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i_am_striker => $anvil->data->{striker}{i_am} }});
-	return($anvil->data->{striker}{i_am});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i_am_striker => $anvil->data->{i_am}{striker} }});
+	return($anvil->data->{i_am}{striker});
 }
 
+
+# If this is being called as a job, this will allow the progress to be updated.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+
+	$progress = 95 if $progress > 100;
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		return(0);
+	}
+	
+	$anvil->Job->update_progress({
+		debug    => 3,
+		progress => $progress, 
+		message  => $message,
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
+	
+	return(0);
+}
