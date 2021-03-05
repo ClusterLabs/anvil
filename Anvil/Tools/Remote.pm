@@ -385,7 +385,7 @@ sub call
 		# In case the user is using ports in /etc/ssh/ssh_config, we'll want to check for an entry.
 		$anvil->System->read_ssh_config({deubg => $debug});
 		
-		$anvil->data->{hosts}{$target}{port} = "" if not defined $anvil->data->{hosts}{$target}{port};
+		$anvil->data->{hosts}{$target}{port} = 22 if not defined $anvil->data->{hosts}{$target}{port};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hosts::${target}::port" => $anvil->data->{hosts}{$target}{port} }});
 		if ($anvil->data->{hosts}{$target}{port} =~ /^\d+$/)
 		{
@@ -693,9 +693,9 @@ sub call
 				###       but it's here just in case.
 				# If the output of the shell call doesn't end in a newline, the return_code:X
 				# could be appended. This catches those cases and removes it.
-				$return_code =  $1;
-				$line        =~ s/return_code:\d+$//;
-				$output      .= $line."\n";
+				$return_code  =  $1;
+				$line         =~ s/return_code:\d+$//;
+				$clean_output .= $line."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					line        => $line, 
 					output      => $output, 
@@ -709,6 +709,7 @@ sub call
 		}
 		$clean_output =~ s/\n$//;
 		$output       =  $clean_output;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 		
 		# Have we been asked to close the connection?
 		if ($close)

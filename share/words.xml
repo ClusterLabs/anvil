@@ -687,6 +687,9 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0228">Successfully connected to Striker: [#!variable!number!#] using the IP: [#!variable!ip!#]!</key>
 		<key name="job_0229">No connection to Striker: [#!variable!number!#] via the IP: [#!variable!ip!#].</key>
 		<key name="job_0230">Failed to connect Striker: [#!variable!number!#] over any IPs. Sleeping a bit and then trying again.</key>
+		<key name="job_0231">Waiting now for the peer Striker: [#!variable!number!#] with host UUID: [#!variable!peer_host_uuid!#] to show up in our database.</key>
+		<key name="job_0232">The peer Striker: [#!variable!number!#] with host name: [#!variable!peer_host_name!#] has successfully peered with us!</key>
+		<key name="job_0233">The peer Striker: [#!variable!number!#] with host UUID: [#!variable!peer_host_uuid!#] has not yet started using our database. Waiting a bit before checking again...</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
