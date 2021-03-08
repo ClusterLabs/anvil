@@ -1,36 +1,52 @@
-import Document, { DocumentContext, DocumentInitialProps } from 'next/document';
-import { ServerStyleSheet } from 'styled-components';
+import { Children } from 'react';
+import Document, { Html, Head, Main, NextScript } from 'next/document';
+import { ServerStyleSheets } from '@material-ui/core/styles';
 
-class StyledDocument extends Document {
-  static async getInitialProps(
-    context: DocumentContext,
-  ): Promise<DocumentInitialProps> {
-    const styleSheet = new ServerStyleSheet();
-    const originalRenderPage = context.renderPage;
-
-    try {
-      context.renderPage = () =>
-        originalRenderPage({
-          enhanceApp: (App) => (props) =>
-            // eslint-disable-next-line react/jsx-props-no-spreading
-            styleSheet.collectStyles(<App {...props} />),
-        });
-
-      const initialProps = await Document.getInitialProps(context);
-
-      return {
-        ...initialProps,
-        styles: (
-          <>
-            {initialProps.styles}
-            {styleSheet.getStyleElement()}
-          </>
-        ),
-      };
-    } finally {
-      styleSheet.seal();
-    }
+export default class MyDocument extends Document {
+  render(): JSX.Element {
+    return (
+      <Html lang="en">
+        <Head>
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+          />
+        </Head>
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    );
   }
 }
 
-export default StyledDocument;
+// `getInitialProps` belongs to `_document` (instead of `_app`),
+// it's compatible with server-side generation (SSG).
+MyDocument.getInitialProps = async (ctx) => {
+  // Render app and page and get the context of the page with collected side effects.
+  const sheets = new ServerStyleSheets();
+  const originalRenderPage = ctx.renderPage;
+
+  ctx.renderPage = () =>
+    originalRenderPage({
+      enhanceApp: (App) => (props) =>
+        sheets.collect(
+          <App
+            /* eslint-disable react/jsx-props-no-spreading */
+            {...props}
+          />,
+        ),
+    });
+
+  const initialProps = await Document.getInitialProps(ctx);
+
+  return {
+    ...initialProps,
+    // Styles fragment is rendered after the app and page rendering finish.
+    styles: [
+      ...Children.toArray(initialProps.styles),
+      sheets.getStyleElement(),
+    ],
+  };
+};
