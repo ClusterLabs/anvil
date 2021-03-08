@@ -24,33 +24,6 @@ const Header: FunctionComponent = () => {
         <Image src="/pngs/logo.png" width="160" height="40" />
       </div>
     </AppBar>
-    /* <StyledRightContainer>
-        <div>
-          <Image src="/pngs/files_on.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/tasks_no-jobs_icon.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/configure_icon_on.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/striker_icon_on.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/anvil_icon_on.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/email_on.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/users_icon_on.png" width="40" height="40" />
-        </div>
-        <div>
-          <Image src="/pngs/help_icon_on.png" width="40" height="40" />
-        </div>
-      </StyledRightContainer>
-    </StyledHeader> */
   );
 };
 
