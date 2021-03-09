@@ -1,11 +1,8 @@
-import { DefaultTheme } from 'styled-components';
+// Colour Palette
 
-const DEFAULT_THEME: Readonly<DefaultTheme> = {
-  colors: {
-    primary: '#f2f2f2',
-    secondary: '#343434',
-    tertiary: '#adadad',
-  },
-};
-
-export default DEFAULT_THEME;
+export const RED_ON = '#D02724';
+export const BORDER_GREY = '#E5E5E5';
+export const TEXT = '#F2F2F2';
+export const PANEL_BACKGROUND = '#343434';
+export const PANEL_BORDER = '#000000';
+export const PURPLE_OFF = '#7353BA';
