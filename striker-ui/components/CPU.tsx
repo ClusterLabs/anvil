@@ -1,7 +1,7 @@
 import { withStyles } from '@material-ui/core/styles';
-import { Grid, LinearProgress, Typography } from '@material-ui/core';
+import { Grid, LinearProgress } from '@material-ui/core';
 import Panel from './Panel';
-import Text from './Text/HeaderText';
+import { HeaderText, BodyText } from './Text';
 import { PURPLE_OFF, RED_ON } from '../lib/consts/DEFAULT_THEME';
 
 const BorderLinearProgress = withStyles({
@@ -23,13 +23,13 @@ const CPU = (): JSX.Element => {
     <Panel>
       <Grid container alignItems="center" justify="space-around">
         <Grid item xs={12}>
-          <Text text="CPU" />
+          <HeaderText text="CPU" />
         </Grid>
         <Grid item xs={3}>
-          <Typography variant="subtitle1">Allocated: 3</Typography>
+          <BodyText text="Allocated: 3" />
         </Grid>
         <Grid item xs={3}>
-          <Typography variant="subtitle1">Free: 6</Typography>
+          <BodyText text="Free: 6" />
         </Grid>
         <Grid item xs={10}>
           <BorderLinearProgress variant="determinate" value={50} />
