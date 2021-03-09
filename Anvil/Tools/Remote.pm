@@ -162,7 +162,7 @@ sub add_target_to_known_hosts
 	{
 		# We don't know about this machine yet, so scan it.
 		my $added = $anvil->Remote->_call_ssh_keyscan({
-			debug       => $debug, 
+			debug       => 2, 
 			target      => $target, 
 			port        => $port, 
 			user        => $user, 
@@ -171,10 +171,17 @@ sub add_target_to_known_hosts
 		if (not $added)
 		{
 			# Failed to add. :(
+			
+			my $say_user = $user;
+			if (($say_user =~ /^\d+$/) && (getpwuid($user)))
+			{
+				$say_user = getpwuid($user);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_user => $say_user }});
+			}
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0009", variables => { 
 				target => $target, 
 				port   => $port, 
-				user   => $user, 
+				user   => $say_user, 
 			}});
 			return(1);
 		}
@@ -378,7 +385,7 @@ sub call
 		# In case the user is using ports in /etc/ssh/ssh_config, we'll want to check for an entry.
 		$anvil->System->read_ssh_config({deubg => $debug});
 		
-		$anvil->data->{hosts}{$target}{port} = "" if not defined $anvil->data->{hosts}{$target}{port};
+		$anvil->data->{hosts}{$target}{port} = 22 if not defined $anvil->data->{hosts}{$target}{port};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hosts::${target}::port" => $anvil->data->{hosts}{$target}{port} }});
 		if ($anvil->data->{hosts}{$target}{port} =~ /^\d+$/)
 		{
@@ -686,9 +693,9 @@ sub call
 				###       but it's here just in case.
 				# If the output of the shell call doesn't end in a newline, the return_code:X
 				# could be appended. This catches those cases and removes it.
-				$return_code =  $1;
-				$line        =~ s/return_code:\d+$//;
-				$output      .= $line."\n";
+				$return_code  =  $1;
+				$line         =~ s/return_code:\d+$//;
+				$clean_output .= $line."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					line        => $line, 
 					output      => $output, 
@@ -702,6 +709,7 @@ sub call
 		}
 		$clean_output =~ s/\n$//;
 		$output       =  $clean_output;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 		
 		# Have we been asked to close the connection?
 		if ($close)
@@ -1019,10 +1027,16 @@ sub _call_ssh_keyscan
 	}});
 	
 	# Log what we're doing
+	my $say_user = $user;
+	if (($say_user =~ /^\d+$/) && (getpwuid($user)))
+	{
+		$say_user = getpwuid($user);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_user => $say_user }});
+	}
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0159", variables => { 
 		target => $target, 
 		port   => $port, 
-		user   => $user, 
+		user   => $say_user, 
 	}});
 	
 	# Redirect STDERR to STDOUT and grep off the comments.

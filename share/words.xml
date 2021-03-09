@@ -332,6 +332,15 @@ Output (if any):
 - shell_call:  [#!variable!shell_call!#]
 		]]></key>
 		<key name="error_0240">Usage: [#!variable!program!# --config /path/to/config].</key>
+		<key name="error_0241">The file: [#!variable!file!#] doesn't appear to be valid.</key>
+		<key name="error_0242">Failed to find a matching entry in the file: [#!variable!file!#]. Please make sure the MAC addresses in the config are accurate for these systems.</key>
+		<key name="error_0243">Missing variable: [#!variable!variable!#] from config file: [#!data!switches::config!#].</key>
+		<key name="error_0244">The length of the prefix: [#!variable!prefix!#] is: [#!variable!length!#]. The prefix needs to be not more than 5.</key>
+		<key name="error_0245">The DNS IP: [#!variable!ip!#] is invalid.</key>
+		<key name="error_0246">The gateway IP: [#!variable!ip!#] is invalid.</key>
+		<key name="error_0247">The variable: [#!variable!variable!#] is invalid: [#!variable!value!#].</key>
+		<key name="error_0248">Failed to add the UPS: [#!variable!ups_name!#] at: [#!variable!aups_ip_address!#] using the agent: [#!variable!ups_agent!#]!</key>
+		<key name="error_0249">Failed to add the fence device: [#!variable!fence_name!#] using the agent: [#!variable!fence_agent!#]!</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -674,6 +683,45 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0222">Preparing to delete the server: [#!variable!server_name!#].</key>
 		<key name="job_0223">Using virsh to destroy (force off) the server: [#!variable!server_name!#], if it is still running.</key>
 		<key name="job_0224">Enabled the HA repository for CentOS Stream.</key>
+		<key name="job_0225">Initialize Stage-1 installed systems into a full Anvil!.</key>
+		<key name="job_0226">This program is designed the automation of turning a set of stage-1 (bare OS + anvil-repo) systems and turn them into a fully functioning Anvil! system.</key>
+		<key name="job_0227">We need to setup pairing with Striker: [#!variable!number!#]. We will wait for it to come up. Be sure that you're run 'striker-auto-initialize-all' on it.</key>
+		<key name="job_0228">Successfully connected to Striker: [#!variable!number!#] using the IP: [#!variable!ip!#]!</key>
+		<key name="job_0229">No connection to Striker: [#!variable!number!#] via the IP: [#!variable!ip!#].</key>
+		<key name="job_0230">Failed to connect Striker: [#!variable!number!#] over any IPs. Sleeping a bit and then trying again.</key>
+		<key name="job_0231">Waiting now for the peer Striker: [#!variable!number!#] with host UUID: [#!variable!peer_host_uuid!#] to show up in our database.</key>
+		<key name="job_0232">The peer Striker: [#!variable!number!#] with host name: [#!variable!peer_host_name!#] has successfully peered with us!</key>
+		<key name="job_0233">The peer Striker: [#!variable!number!#] with host UUID: [#!variable!peer_host_uuid!#] has not yet started using our database. Waiting a bit before checking again...</key>
+		<key name="job_0234">Peering Striker dashbaords</key>
+		<key name="job_0235">Striker peers now working with us!</key>
+		<key name="job_0236">Adding UPSes now.</key>
+		<key name="job_0237">Successfully added/updated the UPS: [#!variable!ups_name!#] at: [#!variable!ups_ip_address!#] using the agent: [#!variable!ups_agent!#]. It's UPS UUID is: [#!variable!ups_uuid!#].</key>
+		<key name="job_0238">Failed to assemble the Anvil!, aborting.</key>
+		<key name="job_0239">All UPSes added/updated.</key>
+		<key name="job_0240">Adding fence devices now.</key>
+		<key name="job_0241">Successfully added/updated the fence device: [#!variable!fence_name!#] using the agent: [#!variable!fence_agent!#]. It's fence UUID is: [#!variable!fence_uuid!#].</key>
+		<key name="job_0242">All fence devices added/updated.</key>
+		<key name="job_0243">Creating Install Manifest(s).</key>
+		<key name="job_0244">Created the manifest: [#!variable!manifest_name!#] with the UUID: [#!variable!manifest_uuid!#].</key>
+		<key name="job_0245">Install Manifest(s) created.</key>
+		<key name="job_0246">Initializing nodes and, if applicable, DR host(s).</key>
+		<key name="job_0247">The machine: [#!variable!machine!#] is already initialized and has the host UUID: [#!variable!host_uuid!#]. No need to initialize.</key>
+		<key name="job_0248">Trying to connect to: [#!variable!machine!#] using IP: [#!variable!ip!#] with the initial password.</key>
+		<key name="job_0249">Trying to connect to: [#!variable!machine!#] using IP: [#!variable!ip!#] with the desired password.</key>
+		<key name="job_0250">Connected! We will initialize using the IP: [#!variable!ip!#]</key>
+		<key name="job_0251">Failed to connect to: [#!variable!machine!#] using any IP address. We'll sleep and then try again shortly.</key>
+		<key name="job_0252">Created the job to initialize: [#!variable!host_name!#] via the IP address: [#!variable!ip!#] with job UUID: [#!variable!job_uuid!#].</key>
+		<key name="job_0253">All machines should now be initializing. Waiting now for all machines to register in the database.</key>
+		<key name="job_0254">The machine: [#!variable!machine!#] hasn't connected to the database yet.</key>
+		<key name="job_0255">One (or more) machines have not yet initialized. Waiting a few seconds, then checking again.</key>
+		<key name="job_0256">All machines have been initialized!</key>
+		<key name="job_0257">Ready to create jobs to assemble Anvil! systems.</key>
+		<key name="job_0258">Created (or updated) the Anvil! [#!variable!anvil_name!#] with the UUID: [#!variable!anvil_uuid!#].</key>
+		<key name="job_0259">Created the job for: [#!variable!machine_name!#] with host UUID: [#!variable!host_uuid!#] to the Anvil!: [#!variable!anvil_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="job_0260">Add machines have been asked to joing their Anvil! system(s). We'll now wait for all jobs to complete.</key>
+		<key name="job_0261">The job UUID: [#!variable!job_uuid!#] is at: [#!variable!progress!#%].</key>
+		<key name="job_0262">Not all jobs are done yet, will check again in a bit.</key>
+		<key name="job_0263">All jobs are complete! Baring problems, the Anvil! system(s) should now be ready to use.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1360,6 +1408,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0590">Wiping the metadata from the DRBD resource: [#!variable!resource!#].</key>
 		<key name="log_0591">Wiping any file system signatures and then deleting the logical volume: [#!variable!device_path!#].</key>
 		<key name="log_0592">The resource name: [#!variable!resource_name!#] was found, returning the first TCP port and minor number.</key>
+		<key name="log_0593">The job: [#!variable!command!#] with UUID: [#!variable!job_uuid!#] is a start-time job, not running it now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1676,6 +1725,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0218">Preparing to migrate a server (or all servers).</key>
 		<key name="message_0219">- #!variable!server_name!# (Current state: [#!variable!server_state!#])</key>
 		<key name="message_0220">- * #!variable!server_name!# (Deleted, name can be reused)</key>
+		<key name="message_0221">We're Striker: [#!variable!striker!#], and we're now configured, so we're done. Striker 1 will finish configuration.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

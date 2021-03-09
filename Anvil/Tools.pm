@@ -1189,6 +1189,7 @@ sub _set_paths
 				stonith_admin			=>	"/usr/sbin/stonith_admin",
 				storcli64			=>	"/opt/MegaRAID/storcli/storcli64",
 				strings				=>	"/usr/bin/strings",
+				'striker-auto-initialize-all'	=>	"/usr/sbin/striker-auto-initialize-all",
 				'striker-get-peer-data'		=>	"/usr/sbin/striker-get-peer-data",
 				'striker-initialize-host'	=>	"/usr/sbin/striker-initialize-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",

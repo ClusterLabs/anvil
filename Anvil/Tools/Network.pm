@@ -1205,22 +1205,22 @@ C<< Note >>: IP addresses that have been deleted will be marked so by C<< ip >> 
 
 The loaded data will be stored as:
 
-* C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
-* C<< network::<target>::interface::<iface_name>::subnet_mask >>     - If an IP is set
-* C<< network::<target>::interface::<iface_name>::mac >>             - Always set.
-* C<< network::<target>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
-* C<< network::<target>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
-* C<< network::<target>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
+* C<< network::<host>::interface::<iface_name>::ip >>              - If an IP address is set
+* C<< network::<host>::interface::<iface_name>::subnet_mask >>     - If an IP is set
+* C<< network::<host>::interface::<iface_name>::mac >>             - Always set.
+* C<< network::<host>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
+* C<< network::<host>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
+* C<< network::<host>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
 
 Parameters;
 
 =head3 clear (optional, default '1')
 
-When set, any previously known information is cleared. Specifically, the C<< network::<target>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
+When set, any previously known information is cleared. Specifically, the C<< network::<host>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
 
 =head3 host (optional, default is 'host_uuid' value)
 
-This is the optional C<< target >> string to use in the hash where the data is stored.
+This is the optional C<< host >> string to use in the hash where the data is stored.
 
 =head3 host_uuid (optional, default 'sys::host_uuid')
 
@@ -1637,6 +1637,15 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${in_iface}::ip"              => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}, 
+				"network::${host}::interface::${in_iface}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}, 
+				"network::${host}::interface::${in_iface}::mac_address"     => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address}, 
+				"network::${host}::interface::${in_iface}::mtu"             => $anvil->data->{network}{$host}{interface}{$in_iface}{mtu}, 
+				"network::${host}::interface::${in_iface}::default_gateway" => $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway}, 
+				"network::${host}::interface::${in_iface}::gateway"         => $anvil->data->{network}{$host}{interface}{$in_iface}{gateway}, 
+				"network::${host}::interface::${in_iface}::dns"             => $anvil->data->{network}{$host}{interface}{$in_iface}{dns}, 
+			}});
 		}
 		next if not $in_iface;
 		if ($in_iface eq "lo")

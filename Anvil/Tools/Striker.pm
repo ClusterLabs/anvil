@@ -136,8 +136,8 @@ sub generate_manifest
 				if (($network eq "bcn") && ($i eq "1"))
 				{
 					# Get the IP.
-					my $ipmi_ip_key = $machine."_ipmi_ip";
-					$machines->{$machine}{ipmi_ip} = defined $anvil->data->{cgi}{$ipmi_ip_key}{value} ? $anvil->data->{cgi}{$ipmi_ip_key}{value} : "";
+					my $ipmi_ip_key                   = $machine."_ipmi_ip";
+					   $machines->{$machine}{ipmi_ip} = defined $anvil->data->{cgi}{$ipmi_ip_key}{value} ? $anvil->data->{cgi}{$ipmi_ip_key}{value} : "";
 					
 					# Find the UPSes.
 					foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})

@@ -10,6 +10,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use NetAddr::IP;
 
 $| = 1;
 
@@ -19,76 +20,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 {
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
-
-=cut 
-
-Striker initialization;
-
-# Figure out if we're striker '1' or '2' by matching found MAC addresses against configured MAC addresses. 
-# Striker 1 will, after configuring itself, reboot and wait for access to Striker 2. Then it will bond the two and begin configuring nodes (and DR, if defined)
-               data source                |                  variable_name                   |     variable_value      | variable_default | variable_description | variable_section |         variable_source_uuid         | variable_source_table |         modified_date         
-------------------------------------------+--------------------------------------------------+-------------------------+------------------+----------------------+------------------+--------------------------------------+-----------------------+-------------------------------
-base::organization_name                   | form::config_step1::organization::value          | Alteeve                 |                  | striker_0004         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
-base::prefix                              | form::config_step1::prefix::value                | di                      |                  | striker_0006         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
-base::domain                              | form::config_step1::domain::value                | digimer.ca              |                  | striker_0008         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
-keys %{striker}{1}{network}{ifn}          | form::config_step1::ifn_count::value             | 1                       |                  | striker_0012         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:26:22.938934-05
-# Match MAC for Striker sequence          | form::config_step1::sequence::value              | 2                       |                  | striker_0010         | config_step1     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:27:39.491016-05
-<prefix>-striker0<sequence>.<domain>      | form::config_step2::host_name::value             | di-striker02.digimer.ca |                  | striker_0017         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-# Hard code to 'admin'                    | form::config_step2::striker_user::value          | admin                   |                  | striker_0032         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-base::password::desired                   | form::config_step2::striker_password::value      | super secret password   |                  | striker_0034         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-base::dns                                 | form::config_step2::dns::value                   | 8.8.8.8, 8.8.4.4        |                  | striker_0038         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-base::gateway                             | form::config_step2::gateway::value               | 192.168.122.1           |                  | striker_0036         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:30:16.688974-05
-base::interface                           | form::config_step2::gateway_interface::value     | ifn1                    |                  |                      | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:30:16.688974-05
-striker::1::network::bcn::1::ip           | form::config_step2::bcn1_ip::value               | 10.201.4.2              |                  | striker_0024         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-striker::1::network::bcn::1::subnet_mask  | form::config_step2::bcn1_subnet_mask::value      | 255.255.0.0             |                  | striker_0025         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-striker::1::network::bcn::1::link::1::mac | form::config_step2::bcn1_link1_mac_to_set::value | 52:54:00:8b:d6:82       |                  | striker_0029         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-striker::1::network::ifn::1::subnet_mask  | form::config_step2::ifn1_subnet_mask::value      | 255.255.255.0           |                  | striker_0025         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-striker::1::network::ifn::1::link::1::mac | form::config_step2::ifn1_link1_mac_to_set::value | 52:54:00:c0:f2:7c       |                  | striker_0029         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:29:59.317812-05
-striker::1::network::ifn::1::ip           | form::config_step2::ifn1_ip::value               | 192.168.122.12          |                  | striker_0024         | config_step2     | a64c477b-b0a1-4985-9968-f4b46d75fb0c | hosts                 | 2021-02-16 20:30:16.688974-05
-
-
-anvil=# SELECT * FROM jobs WHERE job_uuid = '158e8384-eac7-4289-8f70-bc43eaf8b017';
-               job_uuid               |            job_host_uuid             |          job_command           |      job_data      | job_picked_up_by | job_picked_up_at | job_updated |      job_name      | job_progress | job_title | job_description | job_status |         modified_date         
---------------------------------------+--------------------------------------+--------------------------------+--------------------+------------------+------------------+-------------+--------------------+--------------+-----------+-----------------+------------+-------------------------------
- 158e8384-eac7-4289-8f70-bc43eaf8b017 | a64c477b-b0a1-4985-9968-f4b46d75fb0c | /usr/sbin/anvil-configure-host | form::config_step2 |                0 |                0 |  1613525509 | configure::network |            0 | job_0001  | job_0002        |            | 2021-02-16 20:31:49.108908-05
-
-
-# At this point, the Striker should be coming up at the IP. Once both/all Strikers are up, update their anvil.conf to add each other's UUID database entry.
-# FROM ONE STRIKER;
-               job_uuid               |            job_host_uuid             |                                                         job_command                                                          |                                                                   job_data                                                                    | job_picked_up_by | job_picked_up_at | job_updated |     job_name      | job_progress | job_title | job_description | job_status |         modified_date         
---------------------------------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+------------------+------------------+-------------+-------------------+--------------+-----------+-----------------+------------+-------------------------------
- 6ca30d0b-c03c-43f9-bd7c-c40a79ca52a8 | 46c00674-fea2-44af-981d-2833d5c8270a | /usr/sbin/striker-manage-peers --add --host-uuid a64c477b-b0a1-4985-9968-f4b46d75fb0c --host 10.201.4.2 --port 5432 --ping 1 | password=super secret password                                                                                                               +|                0 |                0 |  1613699163 | striker-peer::add |            0 | job_0011  | job_0012        |            | 2021-02-18 20:46:03.305568-05
-                                      |                                      |                                                                                                                              | peer_job_command=/usr/sbin/striker-manage-peers --add --host-uuid 46c00674-fea2-44af-981d-2833d5c8270a --host 10.201.4.1 --port 5432 --ping 1 |                  |                  |             |                   |              |           |                 |            | 
-(1 row)
-
-# Initialize nodes / dr hosts (may need to call striker-get-peer-data)
-anvil=# SELECT * FROM jobs ;
-               job_uuid               |            job_host_uuid             |            job_command            |            job_data             | job_picked_up_by | job_picked_up_at | job_updated |             job_name              | job_progress | job_title | job_description | job_status |        modified_date         
---------------------------------------+--------------------------------------+-----------------------------------+---------------------------------+------------------+------------------+-------------+-----------------------------------+--------------+-----------+-----------------+------------+------------------------------
- a5c3381c-c581-4020-baa0-72e136c75a68 | 46c00674-fea2-44af-981d-2833d5c8270a | /usr/sbin/striker-initialize-host | password=Initial1              +|                0 |                0 |  1613957250 | initialize::node::192.168.122.207 |            0 | job_0020  | job_0022        |            | 2021-02-21 20:27:30.73576-05
-                                      |                                      |                                   | rh_password=                   +|                  |                  |             |                                   |              |           |                 |            | 
-                                      |                                      |                                   | rh_user=                       +|                  |                  |             |                                   |              |           |                 |            | 
-                                      |                                      |                                   | host_ip_address=192.168.122.207+|                  |                  |             |                                   |              |           |                 |            | 
-                                      |                                      |                                   | ssh_port=22                    +|                  |                  |             |                                   |              |           |                 |            | 
-                                      |                                      |                                   | type=node                      +|                  |                  |             |                                   |              |           |                 |            | 
-                                      |                                      |                                   | host_name=di-a02n01.alteeve.com+|                  |                  |             |                                   |              |           |                 |            | 
-                                      |                                      |                                   |                                 |                  |                  |             |                                   |              |           |                 |            | 
-(1 row)
-anvil=# SELECT * FROM jobs WHERE job_progress != 100;
-               job_uuid               |            job_host_uuid             |            job_command            |             job_data             | job_picked_up_by | job_picked_up_at | job_updated |            job_name             | job_progress | job_title | job_description | job_status |         modified_date         
---------------------------------------+--------------------------------------+-----------------------------------+----------------------------------+------------------+------------------+-------------+---------------------------------+--------------+-----------+-----------------+------------+-------------------------------
- 6c21d7ca-1c86-4389-9821-0ae945529754 | 46c00674-fea2-44af-981d-2833d5c8270a | /usr/sbin/striker-initialize-host | password=Initial1               +|                0 |                0 |  1614047831 | initialize::dr::192.168.122.141 |            0 | job_0021  | job_0022        |            | 2021-02-22 21:37:11.082112-05
-                                      |                                      |                                   | rh_password=                    +|                  |                  |             |                                 |              |           |                 |            | 
-                                      |                                      |                                   | rh_user=                        +|                  |                  |             |                                 |              |           |                 |            | 
-                                      |                                      |                                   | host_ip_address=192.168.122.141 +|                  |                  |             |                                 |              |           |                 |            | 
-                                      |                                      |                                   | ssh_port=22                     +|                  |                  |             |                                 |              |           |                 |            | 
-                                      |                                      |                                   | type=dr                         +|                  |                  |             |                                 |              |           |                 |            | 
-                                      |                                      |                                   | host_name=di-a02dr01.alteeve.com+|                  |                  |             |                                 |              |           |                 |            | 
-                                      |                                      |                                   |                                  |                  |                  |             |                                 |              |           |                 |            | 
-(1 row)
-
-=cut
-
 
 
 my $anvil = Anvil::Tools->new();
@@ -101,6 +32,8 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
 	$anvil->nice_exit({exit_code => 1});
 }
+$anvil->data->{switches}{config}     = "";
+$anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
 
 # Read in the config file
@@ -114,8 +47,1421 @@ if ((not $anvil->data->{switches}{config}) or (not -f $anvil->data->{switches}{c
 # Load the config.
 $anvil->Storage->read_config({file => $anvil->data->{switches}{config}});
 
-print Dumper $anvil->data->{base};
-print Dumper $anvil->data->{striker};
+# Check that 'prefix' is now set as a rough test that the file we read was useful.
+if ((not exists $anvil->data->{base}{prefix}) or ($anvil->data->{base}{prefix} eq ""))
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0241", variables => { file => $anvil->data->{switches}{config} }});
+	$anvil->nice_exit({exit_code => 1});
+}
 
+# Find myself
+find_myself($anvil);
+if (not $anvil->data->{i_am}{striker})
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0242", variables => { file => $anvil->data->{switches}{config} }});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# If I am not configured, configure myself now.
+my $configured = $anvil->System->check_if_configured;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+if ($configured)
+{
+	# If I am not Striker 1, I am done.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "i_am::striker" => $anvil->data->{i_am}{striker} }});
+	if ($anvil->data->{i_am}{striker} ne "1")
+	{
+		# We're done.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0221", variables => { striker => $anvil->data->{i_am}{striker} }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	striker_stage2($anvil);
+}
+else
+{
+	# Do the initial setup of ourselves.
+	striker_stage1($anvil);
+}
 
 $anvil->nice_exit({exit_code => 0});
+
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This does the rest of the setup.
+sub striker_stage2
+{
+	my ($anvil) = @_;
+	
+	# Merge my peer Striker.
+	merge_peer_striker($anvil);
+	
+	# Add UPSes.
+	add_upses($anvil);
+	
+	# Add fence devices
+	add_fences($anvil);
+	
+	# Create manifest.
+	create_manifest($anvil);
+	
+	# Initialize nodes and DR.
+	initialize_machines($anvil);
+	
+	# Run the manifest(s).
+	run_manifests($anvil);
+	
+	return(0);
+}
+
+# By this point, all machines should be initialized and online.
+sub run_manifests
+{
+	my ($anvil) = @_;
+	
+	update_progress($anvil, 70, "job_0257");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0257"});
+	
+	# All machines are up!
+	my $job_uuids = [];
+	foreach my $anvil_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}})
+	{
+		my $anvil_name      = $anvil->data->{process}{anvil}{$anvil_number}{name};
+		my $manifest_uuid   = $anvil->data->{process}{anvil}{$anvil_number}{manifest_uuid};
+		my $manifest_name   = $anvil->data->{process}{anvil}{$anvil_number}{manifest_name};
+		my $node1_host_uuid = $anvil->data->{process}{anvil}{$anvil_number}{node1}{host_uuid};
+		my $node2_host_uuid = $anvil->data->{process}{anvil}{$anvil_number}{node2}{host_uuid};
+		my $dr1_host_uuid   = exists $anvil->data->{process}{anvil}{$anvil_number}{dr1}{host_uuid} ? $anvil->data->{process}{anvil}{$anvil_number}{dr1}{host_uuid} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_name'      => $anvil_name, 
+			's2:manifest_name'   => $manifest_name, 
+			's3:manifest_uuid'   => $manifest_uuid, 
+			's4:node1_host_uuid' => $node1_host_uuid, 
+			's5:node2_host_uuid' => $node2_host_uuid, 
+			's6:dr1_host_uuid'   => $dr1_host_uuid, 
+		}});
+		
+		my ($anvil_uuid) = $anvil->Database->insert_or_update_anvils({
+			debug                 => 2,
+			anvil_description     => $anvil->data->{anvil}{$anvil_number}{description}, 
+			anvil_name            => $anvil_name, 
+			anvil_password        => $anvil->data->{base}{password}{desired}, 
+			anvil_node1_host_uuid => $node1_host_uuid, 
+			anvil_node2_host_uuid => $node2_host_uuid, 
+			anvil_dr1_host_uuid   => $dr1_host_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0258", variables => {
+			anvil_name => $anvil_name, 
+			anvil_uuid => $anvil_uuid, 
+		}});
+		
+		# Tell node 1 to join.
+		my ($node1_job_uuid) = $anvil->Database->insert_or_update_jobs({
+			job_host_uuid   => $node1_host_uuid, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+			job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
+			job_name        => "join_anvil::node1", 
+			job_title       => "job_0072", 
+			job_description => "job_0073", 
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_job_uuid => $node1_job_uuid }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0259", variables => {
+			machine_name => "node1",
+			anvil_name   => $anvil_name, 
+			host_uuid    => $node1_host_uuid, 
+			job_uuid     => $node1_job_uuid, 
+		}});
+		push @{$job_uuids}, $node1_job_uuid;
+		
+		my ($node2_job_uuid) = $anvil->Database->insert_or_update_jobs({
+			job_host_uuid   => $node2_host_uuid, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+			job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
+			job_name        => "join_anvil::node2", 
+			job_title       => "job_0072", 
+			job_description => "job_0073", 
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_job_uuid => $node2_job_uuid }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0259", variables => {
+			machine_name => "node2",
+			anvil_name   => $anvil_name, 
+			host_uuid    => $node2_host_uuid, 
+			job_uuid     => $node2_job_uuid, 
+		}});
+		push @{$job_uuids}, $node2_job_uuid;
+		
+		if ($anvil->data->{cgi}{dr1_host}{value})
+		{
+			my ($dr1_job_uuid) = $anvil->Database->insert_or_update_jobs({
+				job_host_uuid   => $dr1_host_uuid, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+				job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
+				job_name        => "join_anvil::dr1", 
+				job_title       => "job_0072", 
+				job_description => "job_0073", 
+				job_progress    => 0,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_job_uuid => $dr1_job_uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0259", variables => {
+				machine_name => "dr1",
+				anvil_name   => $anvil_name, 
+				host_uuid    => $dr1_host_uuid, 
+				job_uuid     => $dr1_job_uuid, 
+			}});
+			push @{$job_uuids}, $dr1_job_uuid;
+		}
+	}
+	
+	update_progress($anvil, 80, "job_0257");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0257"});
+	
+	# Wait for jobs to complete.
+	my $waiting = 1;
+	while ($waiting)
+	{
+		$waiting = 0;
+		foreach my $job_uuid (@{$job_uuids})
+		{
+			my $return       = $anvil->Database->get_job_details({job_uuid => $job_uuid});
+			my $job_progress = $return->{job_progress};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0259", variables => {
+				job_uuid => $job_uuid, 
+				progress => $job_progress, 
+			}});
+			
+			if ($job_progress != 100)
+			{
+				# Still waiting
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+		}
+		
+		if ($waiting)
+		{
+			# Wait a bit and check again.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0262"});
+			sleep 10;
+		}
+		else
+		{
+			# We're done.
+			update_progress($anvil, 100, "job_0263");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0263"});
+		}
+	}
+	
+	return(0);
+}
+
+# This initializes nodes and DR hosts. This also sets the 'cgi::<variable>::value' hashes that will be needed
+# later to create the install manifest.
+sub initialize_machines
+{
+	my ($anvil) = @_;
+	
+	update_progress($anvil, 60, "job_0246");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0245"});
+	
+	foreach my $anvil_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_number => $anvil_number }});
+		foreach my $machine_type ("node", "dr")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_type => $machine_type }});
+			foreach my $machine_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}})
+			{
+				my $startup_ip = $anvil->data->{anvil}{$anvil_number}{$machine_type}{start_ip};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					machine_number => $machine_number,
+					startup_ip     => $startup_ip, 
+				}});
+				
+				# Find the IP we can access the machine with and the machine's host_uuid.
+				my $machine_host_uuid = "";
+				my $machine_ips       = [];
+				push @{$machine_ips}, $startup_ip;
+				
+				foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{network}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+					foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{network}{$network}})
+					{
+						my $ip_address  = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{ip};
+						my $subnet_mask = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{subnet_mask};
+						my $link1_mac   = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+						my $link2_mac   = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:ip_address'  => $ip_address, 
+							's2:subnet_mask' => $subnet_mask, 
+							's3:link1_mac'   => $link1_mac, 
+							's4:link2_mac'   => $link2_mac,
+						}});
+						
+						# No sense pushing SN IPs
+						if ($network != /^sn/)
+						{
+							push @{$machine_ips}, $ip_address;
+						}
+						
+						if (not $machine_host_uuid)
+						{
+							$machine_host_uuid = get_host_uuid_from_mac($anvil, $link1_mac);
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+						}
+						if (not $machine_host_uuid)
+						{
+							$machine_host_uuid = get_host_uuid_from_mac($anvil, $link2_mac);
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+						}
+					}
+				}
+				
+				# If I don't have a machine host uuid, initialize the machine.
+				if ($machine_host_uuid)
+				{
+					# Already initialized
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0247", variables => {
+						machine   => $machine_type.$machine_number, 
+						host_uuid => $machine_host_uuid, 
+					}});
+				}
+				else
+				{
+					# Which IP should be use to initialize?
+					my $use_ip       = "";
+					my $use_password = $anvil->data->{base}{password}{current};
+					until ($use_ip)
+					{
+						foreach my $ip_address (@{$machine_ips})
+						{
+							next if $use_ip;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_address => $ip_address }});
+							
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0248", variables => {
+								machine => $machine_type.$machine_number, 
+								ip      => $ip_address, 
+							}});
+							my $access = $anvil->Remote->test_access({
+								target   => $ip_address,
+								password => $use_password,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+							if ($access)
+							{
+								$use_ip = $ip_address;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0250", variables => { ip => $use_ip }});
+							}
+							else
+							{
+								# Failed to log in, try again with the 
+								# desired password, the machine might already
+								# be updated.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0249", variables => {
+									machine => $machine_type.$machine_number, 
+									ip      => $ip_address, 
+								}});
+								$access = $anvil->Remote->test_access({
+									target   => $ip_address,
+									password => $anvil->data->{base}{password}{desired},
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+								if ($access)
+								{
+									# The new password worked.
+									$use_password = $anvil->data->{base}{password}{desired};
+									$use_ip       = $ip_address;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0250", variables => { ip => $use_ip }});
+								}
+							}
+						}
+						if (not $use_ip)
+						{
+							# Sleep and try again.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0251", variables => { machine => $machine_type.$machine_number }});
+							sleep 10;
+						}
+					}
+					
+					# Now register a job to initialize the target.
+					my $padded_sequence = $anvil_number;
+					if (length($padded_sequence) == 1)
+					{
+						$padded_sequence = sprintf("%02d", $padded_sequence);
+					}
+					my $machine_suffix = $machine_type eq "node" ? "n".sprintf("%02d", $machine_number) : "dr".sprintf("%02d", $machine_number);
+					my $name_prefix    = "a".$padded_sequence;
+					my $say_host_name  = $anvil->data->{base}{prefix}."-".$name_prefix.$machine_suffix.".".$anvil->data->{base}{domain};
+					
+					# Store the peer's password as the job data
+					my $job_data =  "password=".$anvil->data->{base}{password}{desired}."\n";
+					   $job_data .= "rh_password=".$anvil->data->{base}{rhn}{password}."\n";
+					   $job_data .= "rh_user=".$anvil->data->{base}{rhn}{user}."\n";
+					   $job_data .= "host_ip_address=".$use_ip."\n";
+					   $job_data .= "ssh_port=22\n";
+					   $job_data .= "type=".$machine_type."\n"; 
+					   $job_data .= "host_name=".$say_host_name; 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data => $job_data }});
+					
+					# Store the job
+					my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+						debug           => 2,
+						file            => $THIS_FILE, 
+						line            => __LINE__, 
+						job_command     => $anvil->data->{path}{exe}{'striker-initialize-host'}, 
+						job_data        => $job_data, 
+						job_name        => "initialize::".$machine_type."::".$use_ip, 
+						job_title       => $machine_type eq "dr" ? "job_0021" : "job_0020", 
+						job_description => "job_0022", 
+						job_progress    => 0,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0246", variables => {
+						host_name => $say_host_name, 
+						ip        => $use_ip, 
+						job_uuid  => $job_uuid, 
+					}});
+				}
+			}
+		}
+	}
+	
+	update_progress($anvil, 65, "job_0253");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0253"});
+	
+	# Now wait until all machines are in the database.
+	my $waiting = 1;
+	my $node1_host_uuid = "";
+	my $node2_host_uuid = "";
+	my $dr1_host_uuid   = "";
+	while($waiting)
+	{
+		$waiting = 0;
+		foreach my $anvil_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_number => $anvil_number }});
+			foreach my $machine_type ("node", "dr")
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_type => $machine_type }});
+				foreach my $machine_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}})
+				{
+					my $machine_host_uuid = "";
+					foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{network}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+						foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{network}{$network}})
+						{
+							next if $machine_host_uuid;
+							my $link1_mac = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+							my $link2_mac = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:link1_mac' => $link1_mac, 
+								's2:link2_mac' => $link2_mac,
+							}});
+							
+							# No sense pushing SN IPs
+							if (not $machine_host_uuid)
+							{
+								$machine_host_uuid = get_host_uuid_from_mac($anvil, $link1_mac);
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+							}
+							if (not $machine_host_uuid)
+							{
+								$machine_host_uuid = get_host_uuid_from_mac($anvil, $link2_mac);
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+							}
+						}
+					}
+					if ($machine_host_uuid)
+					{
+						# Ready
+						my $key                                                           = $machine_type.$machine_number;
+						   $anvil->data->{process}{anvil}{$anvil_number}{$key}{host_uuid} = $machine_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"process::anvil::${anvil_number}::${key}::host_uuid" => $anvil->data->{process}{anvil}{$anvil_number}{$key}{host_uuid},
+						}});
+					}
+					else
+					{
+						# At least one machine isn't up yet.
+						$waiting = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0254", variables => { machine => $machine_type.$machine_number }});
+					}
+				}
+			}
+		}
+		if ($waiting)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0255"});
+			sleep 10;
+		}
+	}
+	
+	update_progress($anvil, 65, "job_0256");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0256"});
+	
+	return(0);
+}
+
+# This creates the manifests
+sub create_manifest
+{
+	my ($anvil) = @_;
+	
+	# By here, the peer(s) are joined.
+	update_progress($anvil, 50, "job_0243");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0243"});
+	
+	$anvil->Database->get_upses({debug => 2});
+	$anvil->Database->get_fences({debug => 2});
+	
+	# This is common for all Anvil! systems we might be building
+	$anvil->data->{cgi}{prefix}{value} = $anvil->data->{base}{prefix};
+	$anvil->data->{cgi}{domain}{value} = $anvil->data->{base}{domain};
+	$anvil->data->{cgi}{mtu}{value}    = $anvil->data->{base}{mtu};
+	$anvil->data->{cgi}{dns}{value}    = $anvil->data->{base}{dns};
+	$anvil->data->{cgi}{ntp}{value}    = $anvil->data->{base}{ntp};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::prefix::value" => $anvil->data->{cgi}{prefix}{value}, 
+		"cgi::domain::value" => $anvil->data->{cgi}{domain}{value}, 
+		"cgi::mtu::value"    => $anvil->data->{cgi}{mtu}{value}, 
+		"cgi::dns::value"    => $anvil->data->{cgi}{dns}{value}, 
+		"cgi::ntp::value"    => $anvil->data->{cgi}{ntp}{value}, 
+	}});
+	
+	foreach my $anvil_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}})
+	{
+		$anvil->data->{cgi}{sequence}{value} = $anvil_number;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::sequence::value" => $anvil->data->{cgi}{sequence}{value}, 
+		}});
+		
+		my $padded_sequence = $anvil_number;
+		if (length($padded_sequence) == 1)
+		{
+			$padded_sequence = sprintf("%02d", $padded_sequence);
+		}
+		my $anvil_name = $anvil->data->{cgi}{prefix}{value}."-anvil-".$padded_sequence;
+		my $query      = "SELECT manifest_uuid FROM manifests WHERE manifest_name = ".$anvil->Database->quote($anvil_name).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		$anvil->data->{process}{anvil}{$anvil_number}{name} = $anvil_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"process::anvil::${anvil_number}::name" => $anvil->data->{process}{anvil}{$anvil_number}{name},
+		}});
+
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$anvil->data->{cgi}{manifest_uuid}{value} = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::manifest_uuid::value" => $anvil->data->{cgi}{manifest_uuid}{value}, 
+			}});
+		}
+		else
+		{
+			$anvil->data->{cgi}{manifest_uuid}{value} = "new";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::manifest_uuid::value" => $anvil->data->{cgi}{manifest_uuid}{value}, 
+			}});
+		}
+		
+		foreach my $machine_type ("node", "dr")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_type => $machine_type }});
+			foreach my $machine_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}})
+			{
+				my $machine = $machine_type.$machine_number;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					machine        => $machine, 
+					machine_number => $machine_number,
+				}});
+				
+				$anvil->data->{cgi}{bcn_count}{value} = keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{bcn}};
+				$anvil->data->{cgi}{sn_count}{value}  = keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{sn}};
+				$anvil->data->{cgi}{ifn_count}{value} = keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{ifn}};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value}, 
+					"cgi::sn_count::value"  => $anvil->data->{cgi}{sn_count}{value}, 
+					"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value}, 
+				}});
+				
+				# The machine might already be initialized, so we'll look in our database for
+				# any entries ith the same MAC addresses. If none are found, we'll wait to 
+				# ping it on the startup IP and then initialize it.
+				my $machine_host_uuid = "";
+				my $machine_ips       = [];
+				my $startup_ip        = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{startup_ip};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_ip => $startup_ip }});
+				
+				foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+					foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_number => $network_number }});
+						
+						my $ip_address  = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{ip};
+						my $subnet_mask = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{subnet_mask};
+						my $link1_mac   = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+						my $link2_mac   = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:ip_address'  => $ip_address, 
+							's2:subnet_mask' => $subnet_mask, 
+							's3:link1_mac'   => $link1_mac, 
+							's4:link2_mac'   => $link2_mac,
+						}});
+						push @{$machine_ips}, $ip_address."/".$subnet_mask;
+						
+						if (not $machine_host_uuid)
+						{
+							$machine_host_uuid = get_host_uuid_from_mac($anvil, $link1_mac);
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+						}
+						if (not $machine_host_uuid)
+						{
+							$machine_host_uuid = get_host_uuid_from_mac($anvil, $link2_mac);
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+						}
+						
+						my $network_name = $network.$network_number;
+						my $network_key  = $network_name."_network";
+						my $subnet_key   = $network_name."_subnet";
+						my $gateway_key  = $network_name."_gateway";
+						my $ip_key       = $machine."_".$network_name."_ip";
+						$anvil->data->{cgi}{$network_key}{value} = $anvil->Network->get_network({ip => $ip_address, subnet_mask => $subnet_mask});
+						$anvil->data->{cgi}{$subnet_key}{value}  = $subnet_mask;
+						$anvil->data->{cgi}{$gateway_key}{value} = $anvil->data->{base}{gateway_network} eq $network_name ? $anvil->data->{base}{gateway_network} : "";
+						$anvil->data->{cgi}{$ip_key}{value}      = $ip_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value}, 
+							"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value}, 
+							"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value}, 
+							"cgi::${ip_key}::value"      => $anvil->data->{cgi}{$ip_key}{value}, 
+						}});
+						
+						if ($network_name eq "bcn1")
+						{
+							my $ipmi_ip_key                             = $machine."_ipmi_ip";
+							   $anvil->data->{cgi}{$ipmi_ip_key}{value} = $anvil->data->{$machine_type}{$machine_number}{network}{$network}{$network_number}{ipmi_ip};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"cgi::${ipmi_ip_key}::value" => $anvil->data->{cgi}{$ipmi_ip_key}{value}, 
+							}});
+							
+							### Find the UPSes.
+							# Preset all known UPSes to not used
+							foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
+							{
+								my $ups_key                             = $machine."_ups_".$ups_name;
+								   $anvil->data->{cgi}{$ups_key}{value} = "";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									"cgi::${ups_key}::value" => $anvil->data->{cgi}{$ups_key}{value}, 
+								}});
+							}
+							# Now flip on the ones configured for use
+							foreach my $ups_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{ups}})
+							{
+								my $ups_name = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{ups}{$ups_number}{name};
+								my $ups_key  = $machine."_ups_".$ups_name;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									ups_number => $ups_number,
+									ups_name   => $ups_name,
+								}});
+								
+								$anvil->data->{cgi}{$ups_key}{value} = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									"cgi::${ups_key}::value" => $anvil->data->{cgi}{$ups_key}{value}, 
+								}});
+							}
+							
+							### Find the Fence devices.
+							# Preset all known fence devices to have no port.
+							foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
+							{
+								my $fence_key                             = $machine."_fence_".$fence_name;
+								   $anvil->data->{cgi}{$fence_key}{value} = "" if not defined $anvil->data->{cgi}{$fence_key}{value};
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									"cgi::${fence_key}::value" => $anvil->data->{cgi}{$fence_key}{value}, 
+								}});
+							}
+							foreach my $fence_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{fence}})
+							{
+								my $fence_name = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{fence}{$fence_number}{name};
+								my $fence_port = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{fence}{$fence_number}{port};
+								my $fence_key  = $machine."_fence_".$fence_name;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									fence_number => $fence_number,
+									fence_name   => $fence_name,
+									fence_port   => $fence_port,
+								}});
+								
+								$anvil->data->{cgi}{$fence_key}{value} = $fence_port;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									"cgi::${fence_key}::value" => $anvil->data->{cgi}{$fence_key}{value}, 
+								}});
+							}
+						}
+					}
+				}
+			}
+		}
+		# Now generate the manifest.
+		my ($manifest_uuid, $manifest_name) = $anvil->Striker->generate_manifest({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			manifest_uuid => $manifest_uuid, 
+			manifest_name => $manifest_name, 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0244", variables => {
+			manifest_name => $manifest_name, 
+			manifest_uuid => $manifest_uuid, 
+		}});
+		
+		$anvil->data->{process}{anvil}{$anvil_number}{manifest_uuid} = $manifest_uuid;
+		$anvil->data->{process}{anvil}{$anvil_number}{manifest_name} = $manifest_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"process::anvil::${anvil_number}::manifest_name" => $anvil->data->{process}{anvil}{$anvil_number}{manifest_name},
+			"process::anvil::${anvil_number}::manifest_uuid" => $anvil->data->{process}{anvil}{$anvil_number}{manifest_uuid},
+		}});
+	}
+	update_progress($anvil, 55, "job_0245");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0245"});
+	
+	return(0);
+}
+
+sub add_fences
+{
+	my ($anvil) = @_;
+	
+	# By here, the peer(s) are joined.
+	update_progress($anvil, 40, "job_0240");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0240"});
+	
+	foreach my $fence_number (sort {$a cmp $b} keys %{$anvil->data->{fence}})
+	{
+		my $fence_name      = $anvil->data->{fence}{$fence_number}{name};
+		my $fence_agent     = $anvil->data->{fence}{$fence_number}{agent};
+		my $fence_arguments = $anvil->data->{fence}{$fence_number}{arguments};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:fence_number'    => $fence_number, 
+			's2:fence_name'      => $fence_name, 
+			's3:fence_agent'     => $fence_agent, 
+			's4:fence_arguments' => $fence_arguments, 
+		}});
+		
+		my ($fence_uuid) = $anvil->Database->insert_or_update_fences({
+			fence_agent     => $fence_agent, 
+			fence_arguments => $fence_arguments, 
+			fence_name      => $fence_name, 
+		});
+		if (($fence_uuid) && ($anvil->Validate->uuid({uuid => $fence_uuid})))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0241", variables => { 
+				fence_name  => $fence_name,
+				fence_agent => $fence_agent,
+				fence_uuid  => $fence_uuid, 
+			}});
+		}
+		else
+		{
+			# WTF?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0249", variables => { 
+				fence_name      => $fence_name,
+				fence_arguments => $fence_arguments, 
+				fence_agent     => $fence_agent,
+			}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0238"});
+			update_progress($anvil, 100, "job_0238");
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	update_progress($anvil, 45, "job_0242");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0242"});
+	
+	return(0);
+}
+
+sub add_upses
+{
+	my ($anvil) = @_;
+	
+	# By here, the peer(s) are joined.
+	update_progress($anvil, 30, "job_0236");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0236"});
+	
+	foreach my $ups_number (sort {$a cmp $b} keys %{$anvil->data->{ups}})
+	{
+		my $ups_name       = $anvil->data->{ups}{$ups_number}{name};
+		my $ups_agent      = $anvil->data->{ups}{$ups_number}{agent};
+		my $ups_ip_address = $anvil->data->{ups}{$ups_number}{ip_address};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:ups_number'     => $ups_number, 
+			's2:ups_name'       => $ups_name, 
+			's3:ups_agent'      => $ups_agent, 
+			's4:ups_ip_address' => $ups_ip_address, 
+		}});
+		
+		my ($ups_uuid) = $anvil->Database->insert_or_update_upses({
+			ups_agent      => $ups_agent, 
+			ups_ip_address => $ups_ip_address, 
+			ups_name       => $ups_name, 
+		});
+		if (($ups_uuid) && ( $anvil->Validate->uuid({uuid => $ups_uuid})))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0237", variables => { 
+				ups_name       => $ups_name,
+				ups_ip_address => $ups_ip_address, 
+				ups_agent      => $ups_agent,
+				ups_uuid       => $ups_uuid, 
+			}});
+		}
+		else
+		{
+			# WTF?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0248", variables => { 
+				ups_name       => $ups_name,
+				ups_ip_address => $ups_ip_address, 
+				ups_agent      => $ups_agent,
+			}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0238"});
+			update_progress($anvil, 100, "job_0238");
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	update_progress($anvil, 35, "job_0239");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0239"});
+	
+	return(0);
+}
+
+# This takes a MAC address and returns the host_uuid, if found.
+sub get_host_uuid_from_mac
+{
+	my ($anvil, $mac_address) = @_;
+	
+	my $host_uuid = "";
+	my $query     = "
+SELECT 
+    network_interface_host_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_operational != 'DELETED' 
+AND 
+    network_interface_mac_address =  ".$anvil->Database->quote($mac_address)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		$host_uuid = $results->[0]->[0]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	}
+	
+	return($host_uuid);
+}
+
+# Merge my peer Striker.
+sub merge_peer_striker
+{ 
+	my ($anvil) = @_;
+	
+	# For each peer, see if we're already connected to it.
+	update_progress($anvil, 0, "clear");
+	update_progress($anvil, 10, "job_0234");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0234"});
+	foreach my $striker_number (sort {$a cmp $b} keys %{$anvil->data->{striker}})
+	{
+		next if $striker_number !~ /^\d+$/;
+		next if $striker_number == $anvil->data->{i_am}{striker};
+		next if not exists $anvil->data->{striker}{$striker_number}{network};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { striker_number => $striker_number }});
+		
+		# Use the MAC address(es) to look for a host UUID. If we don't find one, we need to peer it. 
+		my $peer_host_uuid = "";
+		my $peer_ips       = [];
+		foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+			foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}})
+			{
+				my $ip          = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip};
+				my $subnet_mask = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{subnet_mask};
+				push @{$peer_ips}, $ip."/".$subnet_mask;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					network_number => $network_number,
+					ip             => $ip,
+					subnet_mask    => $subnet_mask, 
+				}});
+				foreach my $link_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}})
+				{
+					next if $peer_host_uuid; 
+					my $mac_address = lc($anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{$link_number}{mac});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						link_number => $link_number, 
+						mac_address => $mac_address,
+					}});
+					$peer_host_uuid = get_host_uuid_from_mac($anvil, $mac_address);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_uuid => $peer_host_uuid }});
+				}
+			}
+		}
+		
+		if (not $peer_host_uuid)
+		{
+			### Add the peer.
+			# First, wait for access.
+			my $waiting = 1;
+			my $joining = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0227", variables => { number => $striker_number }});
+			
+			while ($waiting)
+			{
+				foreach my $network (@{$peer_ips})
+				{
+					next if not $waiting;
+					my ($ip, $subnet_mask) = ($network =~ /^(.*?)\/(.*)$/);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						ip          => $ip,
+						subnet_mask => $subnet_mask, 
+					}});
+					
+					# Try to read the host uuid.
+					my $file = $anvil->data->{path}{data}{host_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+					my $shell_call = "
+if [ -e ".$file." ];
+then
+    cat ".$file.";
+else
+    echo 0;
+fi;
+";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0166", variables => { 
+						shell_call  => $shell_call, 
+						target      => $ip, 
+						remote_user => "root",
+					}});
+					my ($host_uuid, $error, $return_code) = $anvil->Remote->call({
+						shell_call => $shell_call, 
+						target     => $ip,
+						password   => $anvil->data->{base}{password}{desired},
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						host_uuid   => $host_uuid,
+						error       => $error,
+						return_code => $return_code, 
+					}});
+					if (($host_uuid) && ($anvil->Validate->uuid({uuid => $host_uuid})))
+					{
+						# Success!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0228", variables => { 
+							number => $striker_number,
+							ip     => $ip,
+						}});
+						
+						$peer_host_uuid = $host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_uuid => $peer_host_uuid }});
+						
+						# Find the IP we used to reach the peer.
+						my $our_ip = "";
+						$anvil->Network->load_ips({
+							host      => "local",
+							host_uuid => $anvil->Get->host_uuid(),
+						});
+						foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+						{
+							my $local_ip          = $anvil->data->{network}{'local'}{interface}{$interface_name}{ip};
+							my $local_subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface_name}{subnet_mask};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								interface_name    => $interface_name, 
+								local_ip          => $local_ip, 
+								local_subnet_mask => $local_subnet_mask, 
+							}});
+							next if $local_subnet_mask ne $subnet_mask;
+							
+							# See if this IP is in the same subnet.
+							my $first  = NetAddr::IP->new($local_ip."/".$local_subnet_mask);
+							my $second = NetAddr::IP->new($ip."/".$subnet_mask);
+							if ($second->within($first))
+							{
+								# Found the IP to tell the peer to use
+								$our_ip = $local_ip;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { our_ip => $our_ip }});
+								last;
+							}
+						}
+						
+						if (not $our_ip)
+						{
+							# wtf;
+							die;
+						}
+						
+						# Register a job and then wait for it to show up in our database.
+						my $job_data    =  "password=".$anvil->data->{base}{password}{desired}."\n";
+						   $job_data    .= "peer_job_command=".$anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$anvil->Get->host_uuid." --host ".$our_ip." --port 5432 --ping 1";
+						my $job_command =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$ip." --port 5432 --ping 1";
+						   $waiting     =  0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							job_command => $job_command,
+							job_data    => $anvil->Log->is_secure($job_data), 
+							waiting     => $waiting, 
+						}});
+						my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+							job_command     => $job_command, 
+							job_data        => $job_data, 
+							job_name        => "striker-peer::remove", 
+							job_title       => "job_0013", 
+							job_description => "job_0014", 
+							job_progress    => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+					}
+					else
+					{
+						# No access
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0229", variables => { 
+							number => $striker_number,
+							ip     => $ip,
+						}});
+					}
+				}
+				if ($waiting)
+				{
+					# Wait 30 seconds and try again
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0230", variables => { number => $striker_number }});
+					sleep 30;
+				}
+			}
+		}
+		
+		# Now wait until the peer is in our database.
+		my $peer_host_name = "";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0231", variables => { 
+			number         => $striker_number, 
+			peer_host_uuid => $peer_host_uuid,
+		}});
+		until ($peer_host_name)
+		{
+			my $query = "SELECT host_name FROM hosts WHERE host_uuid = ".$anvil->Database->quote($peer_host_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				$peer_host_name = $results->[0]->[0]; 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0232", variables => { 
+					number         => $striker_number, 
+					peer_host_name => $peer_host_name,
+				}});
+			}
+			else
+			{
+				# Sleep for a bit.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0233", variables => { 
+					number         => $striker_number, 
+					peer_host_uuid => $peer_host_uuid,
+				}});
+				sleep 5;
+			}
+		}
+	}
+	
+	# By here, the peer(s) are joined.
+	update_progress($anvil, 20, "job_0235");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0235"});
+	
+	return(0);
+}
+
+# This preps and requests the initial configuration job.
+sub striker_stage1
+{
+	my ($anvil) = @_;
+	
+	### TODO: Validate all steps up front before starting anything.
+	if ((not defined $anvil->data->{base}{organization_name}) or (not $anvil->data->{base}{organization_name}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { variable => 'base::organization_name' }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ((not defined $anvil->data->{base}{prefix}) or (not $anvil->data->{base}{prefix}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { variable => 'base::prefix' }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (length($anvil->data->{base}{prefix}) > 5)
+	{
+		# Prefix is too long
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0244", variables => { 
+			prefix   => $anvil->data->{base}{prefix},
+			'length' => length($anvil->data->{base}{prefix}),
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ((not defined $anvil->data->{base}{domain}) or (not $anvil->data->{base}{domain}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { variable => 'base::domain' }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not $anvil->Validate->domain_name({name => $anvil->data->{base}{domain}}))
+	{
+		# Domain is not valid
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0117", variables => { name => $anvil->data->{base}{domain} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ((not defined $anvil->data->{base}{password}{desired}) or (not $anvil->data->{base}{password}{desired}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { variable => 'base::password::desired' }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ((not defined $anvil->data->{base}{dns}) or (not $anvil->data->{base}{dns}))
+	{
+		$anvil->data->{base}{dns} = "8.8.8.8,8.8.4.4";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "base::dns" => $anvil->data->{base}{dns} }});
+	}
+	else
+	{
+		# Make sure any/all DNS are valid.
+		foreach my $ip (split/,/, $anvil->data->{base}{dns})
+		{
+			if (not $anvil->Validate->ipv4({ip => $ip}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0245", variables => { ip => $ip }});
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+	}
+	if ((defined $anvil->data->{base}{gateway}) && ($anvil->data->{base}{gateway}))
+	{
+		if (not $anvil->Validate->ipv4({ip => $anvil->data->{base}{gateway}}))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0246", variables => { ip => $anvil->data->{base}{gateway} }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	my $striker_number    = $anvil->data->{i_am}{striker};
+	my $organization_name = $anvil->data->{base}{organization_name};
+	my $prefix            = $anvil->data->{base}{prefix};
+	my $domain            = $anvil->data->{base}{domain};
+	my $ifn_count         = keys %{$anvil->data->{striker}{$striker_number}{network}{ifn}};
+	my $host_name         = $prefix."-striker0".$striker_number.".".$domain;
+	my $new_password      = $anvil->data->{base}{password}{desired};
+	my $dns               = $anvil->data->{base}{dns};
+	my $gateway           = $anvil->data->{base}{gateway};
+	my $gateway_network   = defined $anvil->data->{base}{gateway_network} ? $anvil->data->{base}{gateway_network} : "ifn1";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		striker_number    => $striker_number, 
+		organization_name => $organization_name,
+		prefix            => $prefix, 
+		domain            => $domain, 
+		ifn_count         => $ifn_count, 
+		host_name         => $host_name, 
+		new_password      => $anvil->Log->is_secure($new_password), 
+		dns               => $dns, 
+		gateway           => $gateway, 
+		gateway_network   => $gateway_network, 
+	}});
+	
+	# Load the variables.
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::organization::value'}{variable_value}            = $organization_name;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::organization::value'}{variable_description}      = "striker_0004";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::organization::value'}{variable_section}          = "config_step1";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::prefix::value'}{variable_value}                  = $prefix;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::prefix::value'}{variable_description}            = "striker_0006";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::prefix::value'}{variable_section}                = "config_step1";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::domain::value'}{variable_value}                  = $domain;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::domain::value'}{variable_description}            = "striker_0008";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::domain::value'}{variable_section}                = "config_step1";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::ifn_count::value'}{variable_value}               = $ifn_count;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::ifn_count::value'}{variable_description}         = "striker_0012";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::ifn_count::value'}{variable_section}             = "config_step1";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::sequence::value'}{variable_value}                = $striker_number;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::sequence::value'}{variable_description}          = "striker_0010";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::sequence::value'}{variable_section}              = "config_step1";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::host_name::value'}{variable_value}               = $host_name;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::host_name::value'}{variable_description}         = "striker_0017";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::host_name::value'}{variable_section}             = "config_step2";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_user::value'}{variable_value}            = "admin";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_user::value'}{variable_description}      = "striker_0032";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_user::value'}{variable_section}          = "config_step2";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_password::value'}{variable_value}        = $new_password;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_password::value'}{variable_description}  = "striker_0034";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_password::value'}{variable_section}      = "config_step2";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::dns::value'}{variable_value}                     = $dns;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::dns::value'}{variable_description}               = "striker_0038";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::dns::value'}{variable_section}                   = "config_step2";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway::value'}{variable_value}                 = $gateway;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway::value'}{variable_description}           = "striker_0036";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway::value'}{variable_section}               = "config_step2";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_value}       = $gateway_network;
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_description} = "";
+	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_section}     = "config_step2";
+	foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+		foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_number => $network_number }});
+			if ((not defined $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip}) or (not $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { 
+					variable => "striker::${striker_number}::network::${network}::${network_number}::ip",
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			elsif (not $anvil->Validate->ipv4({ip => $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip}}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0247", variables => { 
+					variable => "striker::${striker_number}::network::${network}::${network_number}::ip", 
+					value    => $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip},
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			if ((not defined $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{subnet_mask}) or (not $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{subnet_mask}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { 
+					variable => "striker::${striker_number}::network::${network}::${network_number}::subnet_mask",
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			elsif (not $anvil->Validate->ipv4({ip => $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{subnet_mask}}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0247", variables => { 
+					variable => "striker::${striker_number}::network::${network}::${network_number}::subnet_mask", 
+					value    => $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{subnet_mask},
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			if ((not defined $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{1}{mac}) or (not $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{1}{mac}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { 
+					variable => "striker::${striker_number}::network::${network}::${network_number}::link::1::mac",
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			my $ip_key          = "form::config_step2::".$network.$network_number."_ip::value";
+			my $ip              = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{ip};
+			my $subnet_mask_key = "form::config_step2::".$network.$network_number."_subnet_mask::value";
+			my $subnet_mask     = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{subnet_mask};
+			my $link1_mac_key   = "form::config_step2::".$network.$network_number."_link1_mac_to_set::value";
+			my $link1_mac       = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:ip_key'          => $ip_key, 
+				's2:ip'              => $ip,
+				's3:subnet_mask_key' => $subnet_mask_key, 
+				's4:subnet_mask'     => $subnet_mask, 
+				's4:link1_mac_key'   => $link1_mac_key, 
+				's5:link1_mac'       => $link1_mac,
+			}});
+			
+			$anvil->data->{striker}{stage1}{variables}{$ip_key}{variable_value}                = $ip;
+			$anvil->data->{striker}{stage1}{variables}{$ip_key}{variable_description}          = "striker_0024";
+			$anvil->data->{striker}{stage1}{variables}{$ip_key}{variable_section}              = "config_step2";
+			$anvil->data->{striker}{stage1}{variables}{$subnet_mask_key}{variable_value}       = $subnet_mask;
+			$anvil->data->{striker}{stage1}{variables}{$subnet_mask_key}{variable_description} = "striker_0025";
+			$anvil->data->{striker}{stage1}{variables}{$subnet_mask_key}{variable_section}     = "config_step2";
+			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_value}         = $link1_mac;
+			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_description}   = "striker_0029";
+			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_section}       = "config_step2";
+			
+			if (exists $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2})
+			{
+				if ((not defined $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2}{mac}) or (not $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2}{mac}))
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { 
+						variable => "striker::${striker_number}::network::${network}::${network_number}::link::2::mac",
+					}});
+					$anvil->nice_exit({exit_code => 1});
+				}
+				my $link2_mac_key = "form::config_step2::".$network.$network_number."_link2_mac_to_set::value";
+				my $link2_mac     = $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2}{mac};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:link2_mac_key' => $link2_mac_key, 
+					's2:link2_mac'     => $link2_mac,
+				}});
+				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_value}       = $link2_mac;
+				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_description} = "striker_0029";
+				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_section}     = "config_step2";
+			}
+		}
+	}
+	
+	# Now, for each variable, record it to the database.
+	foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{striker}{stage1}{variables}})
+	{
+		my $value       = $anvil->data->{striker}{stage1}{variables}{$variable}{variable_value};
+		my $description = $anvil->data->{striker}{stage1}{variables}{$variable}{variable_description};
+		my $section     = $anvil->data->{striker}{stage1}{variables}{$variable}{variable_section};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:variable'    => $variable, 
+			's2:value'       => $value,
+			's3:description' => $description, 
+			's4:section'     => $section,
+		}});
+		
+		my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+			variable_name         => $variable, 
+			variable_value        => $value, 
+			variable_default      => "", 
+			variable_description  => $description, 
+			variable_section      => $section, 
+			variable_source_uuid  => $anvil->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+		
+	}
+	
+	# Call anvil-configure-host now.
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		debug           => 2,
+		job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
+		job_data        => "form::config_step2", 
+		job_name        => "configure::network", 
+		job_title       => "job_0001", 
+		job_description => "job_0071", 
+		job_progress    => 0,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
+	# If we're striker 1, add a job to restart ourselves when ScanCore starts (after the reboot)
+	if ($striker_number eq "1")
+	{
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
+			job_command     => $anvil->data->{path}{exe}{'striker-auto-initialize-all'}." --config ".$anvil->data->{switches}{config}, 
+			job_data        => "", 
+			job_name        => "configure::auto_initialize", 
+			job_title       => "job_0225", 
+			job_description => "job_0226", 
+			job_status      => "scancore_startup",
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	}
+	
+	return(0);
+}
+
+# This looks to see if we can map a 'striker::X::' to this machine.
+sub find_myself
+{
+	my ($anvil) = @_;
+	
+	# Find my MAC addresses.
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+	
+	$anvil->Network->get_ips({debug => 3});
+	
+	$anvil->data->{i_am}{striker} = 0;
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
+	{
+		my $ip_address      = $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip};
+		my $subnet_mask     = $anvil->data->{network}{$short_host_name}{interface}{$interface}{subnet_mask};
+		my $mac_address     = $anvil->data->{network}{$short_host_name}{interface}{$interface}{mac_address};
+		my $mtu             = $anvil->data->{network}{$short_host_name}{interface}{$interface}{mtu};
+		my $default_gateway = $anvil->data->{network}{$short_host_name}{interface}{$interface}{default_gateway};
+		my $gateway         = $anvil->data->{network}{$short_host_name}{interface}{$interface}{gateway};
+		my $dns             = $anvil->data->{network}{$short_host_name}{interface}{$interface}{dns};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			interface       => $interface,
+			ip_address      => $ip_address, 
+			subnet_mask     => $subnet_mask, 
+			mac_address     => $mac_address, 
+			mtu             => $mtu, 
+			default_gateway => $default_gateway,
+			gateway         => $gateway, 
+			dns             => $dns, 
+		}});
+		
+		foreach my $striker_number (sort {$a cmp $b} keys %{$anvil->data->{striker}})
+		{
+			next if $striker_number !~ /^\d+$/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { striker_number => $striker_number }});
+			foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+				foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_number => $network_number }});
+					foreach my $link_number (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link_number => $link_number }});
+						
+						my $this_mac_address = lc($anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{$link_number}{mac});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							mac_address      => $mac_address, 
+							this_mac_address => $this_mac_address,
+						}});
+						if ((not $anvil->data->{i_am}{striker}) && ($this_mac_address eq $mac_address))
+						{
+							# This is us.
+							$anvil->data->{i_am}{striker} = $striker_number;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "i_am::striker" => $anvil->data->{i_am}{striker} }});
+							return($anvil->data->{i_am}{striker});
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i_am_striker => $anvil->data->{i_am}{striker} }});
+	return($anvil->data->{i_am}{striker});
+}
+
+
+# If this is being called as a job, this will allow the progress to be updated.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+
+	$progress = 95 if $progress > 100;
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		return(0);
+	}
+	
+	$anvil->Job->update_progress({
+		progress => $progress, 
+		message  => $message,
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
+	
+	return(0);
+}
