@@ -16,21 +16,24 @@ const useStyles = makeStyles(() => ({
     borderStyle: 'solid',
     borderColor: TEXT,
   },
+  paper: {
+    opacity: 0.7,
+  },
 }));
 
 const Panel = ({ children }: Props): JSX.Element => {
   const classes = useStyles();
 
   return (
-    <Paper>
+    <>
       <Box display="flex" justifyContent="flex-start">
         <Box className={classes.rectangle} />
       </Box>
-      {children}
+      <Paper className={classes.paper}>{children}</Paper>
       <Box display="flex" justifyContent="flex-end">
         <Box className={classes.rectangle} />
       </Box>
-    </Paper>
+    </>
   );
 };
 
