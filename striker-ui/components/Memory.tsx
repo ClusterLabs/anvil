@@ -1,22 +1,7 @@
-import { withStyles } from '@material-ui/core/styles';
-import { Grid, LinearProgress } from '@material-ui/core';
+import { Grid } from '@material-ui/core';
 import Panel from './Panel';
+import AllocationBar from './AllocationBar';
 import { HeaderText, BodyText } from './Text';
-import { PURPLE_OFF, RED_ON } from '../lib/consts/DEFAULT_THEME';
-
-const BorderLinearProgress = withStyles({
-  root: {
-    height: 10,
-    borderRadius: 5,
-  },
-  colorPrimary: {
-    backgroundColor: PURPLE_OFF,
-  },
-  bar: {
-    borderRadius: 5,
-    backgroundColor: RED_ON,
-  },
-})(LinearProgress);
 
 const Memory = (): JSX.Element => {
   return (
@@ -26,14 +11,16 @@ const Memory = (): JSX.Element => {
           <HeaderText text="Memory" />
         </Grid>
         <Grid item xs={3}>
-          <BodyText text="Allocated: 14GB" />
+          <BodyText text="Allocated: 14GiB" />
         </Grid>
         <Grid item xs={3}>
-          <BodyText text="Free: 50GB" />
+          <BodyText text="Free: 50GiB" />
         </Grid>
         <Grid item xs={10}>
-          <BorderLinearProgress variant="determinate" value={50} />
-          <LinearProgress variant="determinate" value={0} />
+          <AllocationBar allocated={30} />
+        </Grid>
+        <Grid item xs={6}>
+          <BodyText text="Total Memory: 64GiB" />
         </Grid>
       </Grid>
     </Panel>
