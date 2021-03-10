@@ -549,7 +549,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0102">Starting the cluster (on both nodes) now.</key>
 		<key name="job_0103">We're node 2, so we will wait until the peer starts the cluster.</key>
 		<key name="job_0104">Both nodes are up!</key>
-		<key name="job_0105">Still waiting. Node 1: [#!variable!node1_name!#] ready: [#!variable!node1_ready!#] (in_ccm/crmd/join: [#!variable!node1_in_ccm!#/#!variable!node1_crmd!#/#!variable!node1_join!#]), Node 2: [#!variable!node2_name!#] ready: [#!variable!node1_ready!#] (in_ccm/crmd/join: [#!variable!node2_in_ccm!#/#!variable!node2_crmd!#/#!variable!node2_join!#])</key>
+		<key name="job_0105">Still waiting. Node 1: [#!variable!node1_name!#] ready: [#!variable!node1_ready!#] (in_ccm/crmd/join: [#!variable!node1_in_ccm!#/#!variable!node1_crmd!#/#!variable!node1_join!#]), Node 2: [#!variable!node2_name!#] ready: [#!variable!node2_ready!#] (in_ccm/crmd/join: [#!variable!node2_in_ccm!#/#!variable!node2_crmd!#/#!variable!node2_join!#])</key>
 		<key name="job_0106">Cluster hasn't started, calling local start.</key>
 		<key name="job_0107">Corosync is not yet configured, waiting. It will be created when node 1 initializes the cluster.</key>
 		<key name="job_0108">Corosync is configured. Will wait for the cluster to start. If it hasn't started in two minutes, we'll try to join it.</key>
@@ -730,6 +730,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0269">One or more machines are not yet accessible on the first BCN. Will check again in a moment.</key>
 		<key name="job_0270">All machines are now available on the first BCN!</key>
 		<key name="job_0271">One of the Striker dashboards has not yet updated network information in the database. We need this to know which IP to tell the peer to use to connect to us. We'll wait a moment and check again.</key>
+		<key name="job_0272">The cluster still hasn't started. Calling startup again (will try once per minute).</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2316,6 +2317,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0075">[ Warning ] - We were asked to insert or update a host with the name: [#!variable!host_name!#]. Another host: [#!variable!host_uuid!#] has the same name, which could be a failed node that is being replaced. We're going to set it's 'host_key' to 'DELETED'. If this warning is logged only once, and after a machine is replaced, it's safe to ignore. If this warning is repeatedly being logged, then there are two active machines with the same host name, and that needs to be fixed.</key>
 		<key name="warning_0076">[ Warning ] - It looks like the postfix daemon is not running. Enabling and starting it now.</key>
 		<key name="warning_0077">[ Warning ] - Checking the mail queue after attempting to start postgres appears to have still failed. Output received was: [#!variable!output!#].</key>
+		<key name="warning_0078">[ Warning ] - Not installing the Alteeve repo! The package: [#!variable!anvil_role_rpm!#] is already installed. This is OK, but be aware that updates from Alteeve will not be available. To change this, please install: [#!variable!alteeve_repo!#].</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

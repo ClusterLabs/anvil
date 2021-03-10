@@ -394,6 +394,7 @@ sub configure_pacemaker
 		# Now wait for both nodes to come online.
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0109");
 		my $both_online = 0;
+		my $start_again = time + 60;
 		until ($both_online)
 		{
 			### TODO: If we're waiting more that five minutes, call 'pcs cluster start --all' again.
@@ -432,6 +433,23 @@ sub configure_pacemaker
 						node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
 					}});
 				}
+			}
+			if (time > $start_again)
+			{
+				# Call cluster start again.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0272"});
+				   $start_again = time + 60;
+				my $shell_call  = $anvil->data->{path}{exe}{pcs}." cluster start --all";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					start_again => $start_again, 
+					shell_call  => $shell_call,
+				}});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
 			}
 			sleep 5 if not $both_online;
 		}
