@@ -1017,6 +1017,7 @@ sub _set_paths
 	# Executables
 	$anvil->data->{path} = {
 			configs			=>	{
+				'alteeve-el8.repo'		=>	"/etc/yum.repos.d/alteeve-el8.repo",
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
@@ -1247,6 +1248,7 @@ sub _set_paths
 			urls			=>	{
 				skins				=>	"/skins",
 				oui_file			=>	"http://standards.ieee.org/develop/regauth/oui/oui.txt",
+				alteeve_repo			=>	"https://www.alteeve.com/an-repo/el8/alteeve-el8-repo-latest.noarch.rpm",
 			},
 			words			=>	{
 				'words.xml'			=>	"/usr/share/anvil/words.xml",

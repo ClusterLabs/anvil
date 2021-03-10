@@ -342,7 +342,7 @@ sub add_repos
 	
 	# Add the local repo.
 	my $repo = $anvil->Striker->get_local_repo({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { repo => $repo }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { repo => $repo }});
 	
 	if ($repo)
 	{
@@ -353,7 +353,7 @@ sub add_repos
 $repo
 EOF
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => 3, 
 			shell_call  => $shell_call, 
@@ -666,6 +666,38 @@ EOF
 		error       => $error, 
 		return_code => $return_code,
 	}});
+	
+	# Install the Alteeve repo, if possible. There may be no Internet access, so it's OK if this fails.
+	if (not -e $anvil->data->{path}{config}{'alteeve-el8.repo'})
+	{
+		my ($alteeve_access) = $anvil->Network->check_internet({
+			debug       => 2,
+			domains     => ["alteeve.com"],
+			password    => $anvil->data->{data}{password}, 
+			port        => $anvil->data->{data}{ssh_port}, 
+			target      => $anvil->data->{data}{host_ip_address},
+			remote_user => "root", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alteeve_access => $alteeve_access }});
+		if ($alteeve_access)
+		{
+			$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y install ".$anvil->data->{path}{urls}{alteeve_repo};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $error, $return_code) = $anvil->Remote->call({
+				debug       => 3,
+				shell_call  => $shell_call,
+				password    => $anvil->data->{data}{password}, 
+				port        => $anvil->data->{data}{ssh_port}, 
+				target      => $anvil->data->{data}{host_ip_address},
+				remote_user => "root", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				error       => $error, 
+				return_code => $return_code,
+			}});
+		}
+	}
 	
 	# Install the anvil package now.
 	my $package = $anvil->data->{data}{type} eq "dr" ? "anvil-dr" : "anvil-node";
