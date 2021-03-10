@@ -667,35 +667,84 @@ EOF
 		return_code => $return_code,
 	}});
 	
+	# In the CI, we'll have custom repos installed. So here we're looking to see if 'anvil-X' is already 
+	# installed. If so, we won't add our repo.
+	my $anvil_role_rpm = "";
+	undef $output;
+	undef $error;
+	undef $return_code;
+	undef $shell_call;
+	$shell_call = $anvil->data->{path}{exe}{'dnf'}." list installed";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $error, $return_code) = $anvil->Remote->call({
+		debug       => 3,
+		shell_call  => $shell_call,
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+		timeout     => 300,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		error       => $error, 
+		return_code => $return_code,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$line =~ s/\s.*$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		
+		next if $line =~ /anvil-core/;
+		if ($line =~ /anvil-(.*).noarch/)
+		{
+			$anvil_role_rpm = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_role_rpm => $anvil_role_rpm }});
+			last;
+		}
+	}
+	
 	# Install the Alteeve repo, if possible. There may be no Internet access, so it's OK if this fails.
 	if (not -e $anvil->data->{path}{config}{'alteeve-el8.repo'})
 	{
-		my ($alteeve_access) = $anvil->Network->check_internet({
-			debug       => 2,
-			domains     => ["alteeve.com"],
-			password    => $anvil->data->{data}{password}, 
-			port        => $anvil->data->{data}{ssh_port}, 
-			target      => $anvil->data->{data}{host_ip_address},
-			remote_user => "root", 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alteeve_access => $alteeve_access }});
-		if ($alteeve_access)
+		if ($anvil_role_rpm)
 		{
-			$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y install ".$anvil->data->{path}{urls}{alteeve_repo};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			($output, $error, $return_code) = $anvil->Remote->call({
-				debug       => 3,
-				shell_call  => $shell_call,
+			# There's already an anvil RPM installed, so we're going to skip installing the repo.
+			# Warn the user though.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0042", variables => { 
+				anvil_role_rpm => $anvil_role_rpm,
+				alteeve_repo   => $anvil->data->{path}{urls}{alteeve_repo},
+			}});
+		}
+		else
+		{
+			my ($alteeve_access) = $anvil->Network->check_internet({
+				debug       => 2,
+				domains     => ["alteeve.com"],
 				password    => $anvil->data->{data}{password}, 
 				port        => $anvil->data->{data}{ssh_port}, 
 				target      => $anvil->data->{data}{host_ip_address},
 				remote_user => "root", 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output, 
-				error       => $error, 
-				return_code => $return_code,
-			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alteeve_access => $alteeve_access }});
+			if ($alteeve_access)
+			{
+				$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y install ".$anvil->data->{path}{urls}{alteeve_repo};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				($output, $error, $return_code) = $anvil->Remote->call({
+					debug       => 3,
+					shell_call  => $shell_call,
+					password    => $anvil->data->{data}{password}, 
+					port        => $anvil->data->{data}{ssh_port}, 
+					target      => $anvil->data->{data}{host_ip_address},
+					remote_user => "root", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					error       => $error, 
+					return_code => $return_code,
+				}});
+			}
 		}
 	}
 	
