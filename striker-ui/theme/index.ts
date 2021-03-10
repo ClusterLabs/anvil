@@ -19,7 +19,8 @@ const theme: Theme = createMuiTheme({
     },
   },
   typography: {
-    fontFamily: 'Roboto',
+    fontFamily: 'Roboto Condensed',
+    fontWeightRegular: 200,
     fontSize: 14,
   },
   overrides: {

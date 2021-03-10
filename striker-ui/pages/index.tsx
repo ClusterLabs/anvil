@@ -8,7 +8,7 @@ import SharedStorage from '../components/SharedStorage';
 import ReplicatedStorage from '../components/ReplicatedStorage';
 import Memory from '../components/Memory';
 
-import 'fontsource-roboto';
+import 'typeface-roboto-condensed';
 
 const useStyles = makeStyles(() => ({
   grid: {
