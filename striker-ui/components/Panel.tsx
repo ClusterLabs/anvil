@@ -18,6 +18,7 @@ const useStyles = makeStyles(() => ({
   },
   paper: {
     opacity: 0.7,
+    padding: 10,
   },
 }));
 
