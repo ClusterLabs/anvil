@@ -5,13 +5,13 @@ import { PURPLE_OFF, RED_ON } from '../lib/consts/DEFAULT_THEME';
 const BorderLinearProgress = withStyles({
   root: {
     height: 10,
-    borderRadius: 5,
+    borderRadius: 3,
   },
   colorPrimary: {
     backgroundColor: PURPLE_OFF,
   },
   bar: {
-    borderRadius: 5,
+    borderRadius: 3,
     backgroundColor: RED_ON,
   },
 })(LinearProgress);
