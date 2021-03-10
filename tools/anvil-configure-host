@@ -11,7 +11,9 @@
 # 5 = Failed to write the temp file with the new password needed to call anvil-change-password.
 # 6 = The job-uuid was not found.
 # 
-# TODO: Add MTU support
+# TODO: 
+# - Add MTU support
+# - Check to see if this is a cluster node and/or running VMs, and if so, refuse to run.
 # 
 
 use strict;

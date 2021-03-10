@@ -13,7 +13,7 @@
 # 7 = No job was found to run.
 # 
 # TODO: 
-# - 
+# - Check to see if this is a cluster node and/or running VMs, and if so, refuse to run.
 # 
 
 use strict;
@@ -396,6 +396,7 @@ sub configure_pacemaker
 		my $both_online = 0;
 		until ($both_online)
 		{
+			### TODO: If we're waiting more that five minutes, call 'pcs cluster start --all' again.
 			my $problem = $anvil->Cluster->parse_cib({debug => 3});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
 			if (not $problem)
@@ -420,15 +421,15 @@ sub configure_pacemaker
 					# Not online yet, wait a bit.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0105", variables => {
 						node1_name   => $node1_host_name,
-						node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
-						node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
-						node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
-						node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
+						node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
+						node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
+						node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
+						node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
 						node2_name   => $node2_host_name,
-						node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
-						node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
-						node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
-						node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
+						node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
+						node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
+						node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
+						node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
 					}});
 				}
 			}
@@ -1484,8 +1485,8 @@ sub check_local_network
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mtu_seen => $mtu_seen }});
 						if (not $mtu_seen)
 						{
-							$mtu_seen =  1;
-							$new_config   .= "MTU=\"".$mtu."\"\n";
+							$mtu_seen   =  1;
+							$new_config .= "MTU=\"".$mtu."\"\n";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:mtu_seen'   => $mtu_seen, 
 								's2:new_config' => $new_config,

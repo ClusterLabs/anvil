@@ -130,7 +130,7 @@ sub add_target_to_known_hosts
 	}});
 	
 	# Get the local user's home
-	my $users_home = $anvil->Get->users_home({debug => $debug, user => $user});
+	my $users_home = $anvil->Get->users_home({debug => ($debug + 1), user => $user});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { users_home => $users_home }});
 	if (not $users_home)
 	{
@@ -148,6 +148,7 @@ sub add_target_to_known_hosts
 	{
 		# Yup, see if the target is there already,
 		$known_machine = $anvil->Remote->_check_known_hosts_for_target({
+			debug           => ($debug + 1), 
 			target          => $target, 
 			port            => $port, 
 			known_hosts     => $known_hosts, 
@@ -162,7 +163,7 @@ sub add_target_to_known_hosts
 	{
 		# We don't know about this machine yet, so scan it.
 		my $added = $anvil->Remote->_call_ssh_keyscan({
-			debug       => 2, 
+			debug       => ($debug + 1), 
 			target      => $target, 
 			port        => $port, 
 			user        => $user, 
@@ -331,7 +332,7 @@ sub call
 	{
 		# No shell call
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->call()", parameter => "shell_call" }});
-		return("!!error!!");
+		return("!!error!!", "!!error!!", 9999);
 	}
 	if (not $target)
 	{
@@ -343,12 +344,12 @@ sub call
 			secure      => $secure, 
 			shell_call  => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
 		}});
-		return("!!error!!");
+		return("!!error!!", "!!error!!", 9999);
 	}
 	if (not $remote_user)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->call()", parameter => "remote_user" }});
-		return("!!error!!");
+		return("!!error!!", "!!error!!", 9999);
 	}
 	if (($timeout) && ($timeout =~ /\D/))
 	{
@@ -408,7 +409,7 @@ sub call
 	if ((not defined $port) or (($port !~ /^\d+$/) or ($port < 0) or ($port > 65536)))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0058", variables => { port => $port }});
-		return("!!error!!");
+		return("!!error!!", "!!error!!", 9999);
 	}
 	
 	# If the target is a host name, convert it to an IP.
@@ -963,7 +964,7 @@ sub test_access
 		return_code => $return_code, 
 	}});
 	
-	if ($output)
+	if ($output eq "1")
 	{
 		$access = 1;
 	}
@@ -1063,6 +1064,7 @@ sub _call_ssh_keyscan
 	
 	# Verify that it's now there.
 	my $known_machine = $anvil->Remote->_check_known_hosts_for_target({
+		debug       => $debug, 
 		target      => $target, 
 		port        => $port, 
 		known_hosts => $known_hosts, 
@@ -1139,7 +1141,8 @@ sub _check_known_hosts_for_target
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
 		
-		if (($line =~ /$target ssh-rsa /) or ($line =~ /\[$target\]:$port ssh-rsa /))
+		# This is wider scope now to catch hosts using other hashes than 'ssh-rsa'
+		if (($line =~ /$target /) or ($line =~ /\[$target\]:$port /))
 		{
 			# We already know this machine (or rather, we already have a fingerprint for
 			# this machine).

@@ -32,7 +32,7 @@ base::gateway           = 192.168.122.1
 base::gateway_network   = ifn1
 
 # This is the startup password for newly built nodes and DR hosts we'll be integrating.
-base::password::current = Initial1
+base::password::startup = Initial1
 
 # This is the password to set for all systems.
 base::password::desired = super secret password
@@ -77,43 +77,43 @@ striker::2::network::bcn::1::link::2::mac = 52:54:00:30:f9:db
 ups::1::name                                     = an-ups01
 ups::1::agent                                    = scan-apc-ups
 ups::1::ip_address                               = 10.201.3.1
-ups::2::name                                     = an-ups01
+ups::2::name                                     = an-ups02
 ups::2::agent                                    = scan-apc-ups
-ups::2::ip_address                               = 10.201.3.1
+ups::2::ip_address                               = 10.201.3.2
 
 ### Fence device(s)
 # NOTE: Do NOT specify fence_ipmilan! It is detected / configured automatically. 
 # The fence_arguments only needs to contain variable="value" pairs that don't have a useful default.
 fence::1::name                                   = gravitar
-fence::1::agent                                  = virsh
+fence::1::agent                                  = fence_virsh
 fence::1::arguments                              = action="reboot" ip="192.168.122.1" password_script="/root/gravitar_password" username="root"
 
 # Example PDUs
 #fence::2::name                                   = an-pdu01
-#fence::2::agent                                  = apc_snmp
+#fence::2::agent                                  = fence_apc_snmp
 #fence::2::arguments                              = action="reboot" ip="10.201.2.1"
 #fence::3::name                                   = an-pdu02
-#fence::3::agent                                  = apc_snmp
+#fence::3::agent                                  = fence_apc_snmp
 #fence::3::arguments                              = action="reboot" ip="10.201.2.2"
 
 # Anvil description
 anvil::1::description                            = "Test Anvil! running on gravitar"
 
 ### Nodes
-anvil::1::node::1::start_ip                      = 192.168.122.235
+anvil::1::node::1::startup_ip                    = 192.168.122.235
+anvil::1::node::1::network::bcn::1::ip           = 10.201.10.1
+anvil::1::node::1::network::bcn::1::ipmi_ip      = 10.201.11.1
+anvil::1::node::1::network::bcn::1::subnet_mask  = 255.255.0.0
+anvil::1::node::1::network::bcn::1::link::1::mac = 52:54:00:7e:b8:9e
+anvil::1::node::1::network::bcn::1::link::2::mac = 52:54:00:23:e8:46
+anvil::1::node::1::network::sn::1::ip            = 10.101.4.1
+anvil::1::node::1::network::sn::1::subnet_mask   = 255.255.0.0
+anvil::1::node::1::network::sn::1::link::1::mac  = 52:54:00:d2:6b:0b
+anvil::1::node::1::network::sn::1::link::2::mac  = 52:54:00:01:11:0e
 anvil::1::node::1::network::ifn::1::ip           = 192.168.122.11
 anvil::1::node::1::network::ifn::1::subnet_mask  = 255.255.255.0
 anvil::1::node::1::network::ifn::1::link::1::mac = 52:54:00:17:d6:0b
 anvil::1::node::1::network::ifn::1::link::2::mac = 52:54:00:c4:87:b6
-anvil::1::node::1::network::bcn::1::ip           = 10.201.10.1
-anvil::1::node::1::network::bcn::1::ipmi_ip      = 10.201.11.1
-anvil::1::node::1::network::bcn::1::subnet_mask  = 255.255.0.0
-anvil::1::node::1::network::bcn::1::link::1::mac = 52:54:00:d2:6b:0b
-anvil::1::node::1::network::bcn::1::link::2::mac = 52:54:00:01:11:0e
-anvil::1::node::1::network::sn::1::ip            = 10.101.4.1
-anvil::1::node::1::network::sn::1::subnet_mask   = 255.255.0.0
-anvil::1::node::1::network::sn::1::link::1::mac  = 52:54:00:7e:b8:9e
-anvil::1::node::1::network::sn::1::link::2::mac  = 52:54:00:23:e8:46
 # Fence (IPMI configured automatically), same fence types grouped automatically
 anvil::1::node::1::fence::1::name                = gravitar
 anvil::1::node::1::fence::1::port                = an-a01n01
@@ -125,11 +125,7 @@ anvil::1::node::1::fence::1::port                = an-a01n01
 #anvil::1::node::1::ups::1::name                  = an-ups01
 #anvil::1::node::1::ups::2::name                  = an-ups02
 
-anvil::1::node::2::start_ip                      = 192.168.122.185
-anvil::1::node::2::network::ifn::1::ip           = 192.168.122.12
-anvil::1::node::2::network::ifn::1::subnet_mask  = 255.255.255.0
-anvil::1::node::2::network::ifn::1::link::1::mac = 52:54:00:09:b7:90
-anvil::1::node::2::network::ifn::1::link::2::mac = 52:54:00:78:a3:41
+anvil::1::node::2::startup_ip                    = 192.168.122.185
 anvil::1::node::2::network::bcn::1::ip           = 10.201.10.2
 anvil::1::node::2::network::bcn::1::ipmi_ip      = 10.201.11.2
 anvil::1::node::2::network::bcn::1::subnet_mask  = 255.255.0.0
@@ -139,16 +135,16 @@ anvil::1::node::2::network::sn::1::ip            = 10.101.4.2
 anvil::1::node::2::network::sn::1::subnet_mask   = 255.255.0.0
 anvil::1::node::2::network::sn::1::link::1::mac  = 52:54:00:79:1c:ce
 anvil::1::node::2::network::sn::1::link::2::mac  = 52:54:00:5d:d3:6d
+anvil::1::node::2::network::ifn::1::ip           = 192.168.122.12
+anvil::1::node::2::network::ifn::1::subnet_mask  = 255.255.255.0
+anvil::1::node::2::network::ifn::1::link::1::mac = 52:54:00:09:b7:90
+anvil::1::node::2::network::ifn::1::link::2::mac = 52:54:00:78:a3:41
 # Set for UPSes powering the node, if any
 anvil::1::node::2::ups::1::name                  = an-ups01
 anvil::1::node::2::ups::2::name                  = an-ups02
 
 ### DR host (optional)
-anvil::1::dr::1::start_ip                        = 192.168.122.153
-anvil::1::dr::1::network::ifn::1::ip             = 192.168.122.10
-anvil::1::dr::1::network::ifn::1::subnet_mask    = 255.255.255.0
-anvil::1::dr::1::network::ifn::1::link::1::mac   = 52:54:00:6d:05:5e
-anvil::1::dr::1::network::ifn::1::link::2::mac   = 52:54:00:7e:87:ec
+anvil::1::dr::1::startup_ip                      = 192.168.122.153
 anvil::1::dr::1::network::bcn::1::ip             = 10.201.10.3
 anvil::1::dr::1::network::bcn::1::ipmi_ip        = 10.201.11.3
 anvil::1::dr::1::network::bcn::1::subnet_mask    = 255.255.0.0
@@ -158,3 +154,7 @@ anvil::1::dr::1::network::sn::1::ip              = 10.101.4.3
 anvil::1::dr::1::network::sn::1::subnet_mask     = 255.255.0.0
 anvil::1::dr::1::network::sn::1::link::1::mac    = 52:54:00:d6:f8:8d
 anvil::1::dr::1::network::sn::1::link::2::mac    = 52:54:00:51:7b:b6
+anvil::1::dr::1::network::ifn::1::ip             = 192.168.122.13
+anvil::1::dr::1::network::ifn::1::subnet_mask    = 255.255.255.0
+anvil::1::dr::1::network::ifn::1::link::1::mac   = 52:54:00:6d:05:5e
+anvil::1::dr::1::network::ifn::1::link::2::mac   = 52:54:00:7e:87:ec

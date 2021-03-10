@@ -722,6 +722,14 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0261">The job UUID: [#!variable!job_uuid!#] is at: [#!variable!progress!#%].</key>
 		<key name="job_0262">Not all jobs are done yet, will check again in a bit.</key>
 		<key name="job_0263">All jobs are complete! Baring problems, the Anvil! system(s) should now be ready to use.</key>
+		<key name="job_0264">The peer Striker: [#!variable!number!#] with host name: [#!variable!peer_host_name!#] is already peered with us.</key>
+		<key name="job_0265">Configuring the network of all machines now.</key>
+		<key name="job_0266">Created a job for: [#!variable!host_name!#] to configure it's network under job UUID: [#!variable!job_uuid!#].</key>
+		<key name="job_0267">All machines should be configuring their network now. Waiting for all to become accessible over BCN 1.</key>
+		<key name="job_0268">The machine: [#!variable!host_name!#] is not yet accessible at: [#!variable!ip_address!#].</key>
+		<key name="job_0269">One or more machines are not yet accessible on the first BCN. Will check again in a moment.</key>
+		<key name="job_0270">All machines are now available on the first BCN!</key>
+		<key name="job_0271">One of the Striker dashboards has not yet updated network information in the database. We need this to know which IP to tell the peer to use to connect to us. We'll wait a moment and check again.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

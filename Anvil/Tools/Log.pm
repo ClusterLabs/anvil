@@ -357,6 +357,7 @@ sub entry
 	print $THIS_FILE." ".__LINE__."; priority string: [".$priority_string."]\n" if $test;
 	
 	# Log the file and line, if passed.
+	my $job_uuid     = "";
 	my $string       = "";
 	my $print_string = "";
 	if ($anvil->data->{sys}{'log'}{date})
@@ -365,19 +366,25 @@ sub entry
 		$string .= $anvil->Get->date_and_time({debug => 99}).":";
 		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
+	if ((exists $anvil->data->{switches}{'job-uuid'}) && ($anvil->Validate->uuid({uuid => $anvil->data->{switches}{'job-uuid'}})))
+	{
+		$job_uuid =  $anvil->data->{switches}{'job-uuid'};
+		$job_uuid =~ s/^(\w+?)-.*$/$1/;
+		$string   .= "[".$job_uuid."]:";
+	}
 	if (($source) && ($line))
 	{
-		$string .= "$source:$line; ";
+		$string .= $source.":".$line."; ";
 		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	elsif ($source)
 	{
-		$string .= "$source; ";
+		$string .= $source."; ";
 		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	elsif ($line)
 	{
-		$string .= "$line; ";
+		$string .= $line."; ";
 		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	print $THIS_FILE." ".__LINE__."; loop::count: [".$anvil->data->{loop}{count}."] " if $test;
