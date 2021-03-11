@@ -957,6 +957,8 @@ sub test_access
 		shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
 		target      => $target,
 		remote_user => $user, 
+		'close'     => 1,
+		no_cache    => 1,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,

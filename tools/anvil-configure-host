@@ -10,6 +10,7 @@
 # 4 = The host name did not update properly.
 # 5 = Failed to write the temp file with the new password needed to call anvil-change-password.
 # 6 = The job-uuid was not found.
+# 7 = The host is an active cluster member.
 # 
 # TODO: 
 # - Add MTU support
@@ -35,6 +36,8 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches
 $anvil->Get->switches;
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -176,7 +179,7 @@ sub reconfigure_network
 	my $ifn_count        = exists $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    : 1;
 	my $new_host_name    = exists $anvil->data->{variables}{form}{config_step2}{host_name}{value}    ? $anvil->data->{variables}{form}{config_step2}{host_name}{value}    : "";
 	my $type             = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
 		prefix        => $prefix, 
 		sequence      => $sequence,
 		domain        => $domain, 
@@ -667,6 +670,7 @@ sub reconfigure_network
 					
 					if (-e $old_link1_file)
 					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0589", variables => { file => $old_link1_file }});
 						unlink $old_link1_file;
 					}
 				}
@@ -695,6 +699,7 @@ sub reconfigure_network
 					sleep 1;
 					if (-e $old_link2_file)
 					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0589", variables => { file => $old_link2_file }});
 						unlink $old_link2_file;
 					}
 				}
@@ -1198,6 +1203,21 @@ AND
 		message  => "message_0015", 
 		job_uuid => $anvil->data->{job}{uuid},
 	});
+	
+	# If we're in a cluster, abort.
+	my ($problem) = $anvil->Cluster->parse_cib();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ((not $problem) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+	{
+		# We're in a cluster, abort.
+		$anvil->Job->update_progress({
+			progress => 100, 
+			message  => "error_0250", 
+			job_uuid => $anvil->data->{job}{uuid},
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0250"});
+		$anvil->nice_exit({exit_code => 7});
+	}
 	
 	return(0);
 }

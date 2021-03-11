@@ -35,6 +35,8 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->data->{switches}{config}     = "";
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 # Read in the config file
 if ((not $anvil->data->{switches}{config}) or (not -f $anvil->data->{switches}{config}))
@@ -367,6 +369,7 @@ sub configure_machine_networks
 					}});
 					
 					my $access = $anvil->Remote->test_access({
+						debug    => 2,
 						target   => $bcn1_ip,
 						password => $anvil->data->{base}{password}{startup},
 					});
@@ -377,6 +380,7 @@ sub configure_machine_networks
 						# Try again with the new password, in case it's already 
 						# updated.
 						my $access = $anvil->Remote->test_access({
+							debug    => 2,
 							target   => $bcn1_ip,
 							password => $anvil->data->{base}{password}{desired},
 						});

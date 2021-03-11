@@ -51,7 +51,7 @@ base::rhn::password     =
 ###       required!
 striker::1::network::ifn::1::ip           = 192.168.122.251
 striker::1::network::ifn::1::subnet_mask  = 255.255.255.0
-striker::1::network::ifn::1::link::1::mac = 52:54:00:df:03:e
+striker::1::network::ifn::1::link::1::mac = 52:54:00:df:03:e3
 striker::1::network::ifn::1::link::2::mac = 52:54:00:45:6e:5d
 striker::1::network::bcn::1::ip           = 10.201.4.1
 striker::1::network::bcn::1::subnet_mask  = 255.255.0.0
