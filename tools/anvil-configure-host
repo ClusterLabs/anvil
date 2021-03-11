@@ -36,8 +36,6 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches
 $anvil->Get->switches;
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
