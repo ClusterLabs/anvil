@@ -33,6 +33,8 @@ my $anvil = Anvil::Tools->new();
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
@@ -670,6 +672,7 @@ EOF
 	# In the CI, we'll have custom repos installed. So here we're looking to see if 'anvil-X' is already 
 	# installed. If so, we won't add our repo.
 	my $anvil_role_rpm = "";
+	my $alteeve_repo   = 0;
 	undef $output;
 	undef $error;
 	undef $return_code;
@@ -685,27 +688,37 @@ EOF
 		remote_user => "root", 
 		timeout     => 300,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		output      => $output, 
 		error       => $error, 
 		return_code => $return_code,
 	}});
 	foreach my $line (split/\n/, $output)
 	{
+		next if $line =~ /Installed Packages/i;
 		$line =~ s/\s.*$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		
 		next if $line =~ /anvil-core/;
+		if ($line =~ /alteeve.*repo.noarch/)
+		{
+			$alteeve_repo = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alteeve_repo => $alteeve_repo }});
+		}
 		if ($line =~ /anvil-(.*).noarch/)
 		{
 			$anvil_role_rpm = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_role_rpm => $anvil_role_rpm }});
-			last;
 		}
+		last if $anvil_role_rpm && $alteeve_repo;
 	}
 	
 	# Install the Alteeve repo, if possible. There may be no Internet access, so it's OK if this fails.
-	if (not -e $anvil->data->{path}{config}{'alteeve-el8.repo'})
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		alteeve_repo   => $alteeve_repo,
+		anvil_role_rpm => $anvil_role_rpm,
+	}});
+	if (not $alteeve_repo)
 	{
 		if ($anvil_role_rpm)
 		{

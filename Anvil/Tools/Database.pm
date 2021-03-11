@@ -3067,17 +3067,17 @@ AND
 			
 			# Which device is it on?
 			my $on_interface = "";
-			if ($ip_address_on_type eq "bridge")
+			if (($ip_address_on_type eq "bridge") && (defined $anvil->data->{hosts}{host_uuid}{$host_uuid}{bridges}{bridge_uuid}{$ip_address_on_uuid}{bridge_name}))
 			{
 				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{bridges}{bridge_uuid}{$ip_address_on_uuid}{bridge_name};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
 			}
-			elsif ($ip_address_on_type eq "bond")
+			elsif (($ip_address_on_type eq "bond") && (defined $anvil->data->{hosts}{host_uuid}{$host_uuid}{bonds}{bond_uuid}{$ip_address_on_uuid}{bond_name}))
 			{
 				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{bonds}{bond_uuid}{$ip_address_on_uuid}{bond_name};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
 			}
-			elsif ($ip_address_on_type eq "interface")
+			elsif (($ip_address_on_type eq "interface") && (defined $anvil->data->{hosts}{host_uuid}{$host_uuid}{network_interfaces}{network_interface_uuid}{$ip_address_on_uuid}{network_interface_name}))
 			{
 				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network_interfaces}{network_interface_uuid}{$ip_address_on_uuid}{network_interface_name};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});

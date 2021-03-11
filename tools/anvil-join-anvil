@@ -37,6 +37,8 @@ my $anvil = Anvil::Tools->new();
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
 $anvil->Get->switches;
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect();
@@ -756,7 +758,9 @@ sub configure_pacemaker
 					}});
 					
 					# Ignore 'delay', we handle that in Cluster->set_delay();
-					if (($argument ne "pcmk_off_action") && ($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
+					if (($argument ne "pcmk_off_action")                                           && 
+					    (exists $anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name}) && 
+					    ($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
 					{
 						next;
 					}
@@ -1029,6 +1033,7 @@ sub configure_pacemaker
 	}
 	
 	# Enable fencing and set the retry to INFINITY, if needed.
+	$anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} = "" if not defined $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"cib::parsed::data::stonith::max-attempts" => $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'}, 
 	}});
@@ -1689,7 +1694,7 @@ sub check_local_network
 			's2:current_mtu' => $current_mtu,
 		}});
 		
-		if ($current_mtu eq $mtu)
+		if (($mtu) && ($current_mtu eq $mtu))
 		{
 			# It's fine
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0087,!!interface!".$in_iface."!!,!!mtu!".$mtu."!!");

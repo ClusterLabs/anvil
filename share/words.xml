@@ -341,6 +341,7 @@ Output (if any):
 		<key name="error_0247">The variable: [#!variable!variable!#] is invalid: [#!variable!value!#].</key>
 		<key name="error_0248">Failed to add the UPS: [#!variable!ups_name!#] at: [#!variable!aups_ip_address!#] using the agent: [#!variable!ups_agent!#]!</key>
 		<key name="error_0249">Failed to add the fence device: [#!variable!fence_name!#] using the agent: [#!variable!fence_agent!#]!</key>
+		<key name="error_0250">This machine is a an active cluster member, aborting job.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
