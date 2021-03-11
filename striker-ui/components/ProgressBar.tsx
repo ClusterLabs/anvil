@@ -31,7 +31,7 @@ const useStyles = makeStyles((theme) => ({
     position: 'absolute',
     color: TEXT,
     top: 0,
-    left: '5%',
+    left: '2%',
   },
   centerLabel: {
     position: 'absolute',
