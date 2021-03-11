@@ -1,12 +1,14 @@
 import Panel from './Panel';
-import Text from './Text/HeaderText';
+import { HeaderText } from './Text';
 import InnerPanel from './InnerPanel';
+import ProgressBar from './ProgressBar';
 
 const ReplicatedStorage = (): JSX.Element => {
   return (
     <Panel>
-      <Text text="Replicated Storage" />
+      <HeaderText text="Replicated Storage" />
       <InnerPanel />
+      <ProgressBar allocated={20} />
     </Panel>
   );
 };
