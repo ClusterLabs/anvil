@@ -358,8 +358,8 @@ fi
 %config(noreplace) %{_sysconfdir}/anvil/anvil.conf
 %{_usr}/lib/*
 %config(noreplace) %{_datadir}/anvil/anvil.sql
-%{_usr}/share/anvil/firewall.txt
-%{_usr}/share/anvil/words.xml
+%{_datadir}/anvil/firewall.txt
+%{_datadir}/anvil/words.xml
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
@@ -367,6 +367,8 @@ fi
 
 %files striker
 %{_localstatedir}/www/*/*
+%{_datadir}/anvil/striker-auto-initialize-all
+%{_datadir}/anvil/striker-auto-initialize-all.example
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
