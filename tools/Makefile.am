@@ -43,3 +43,8 @@ fencedir		= $(FASEXECPREFIX)/sbin
 dist_fence_SCRIPTS	= \
 			  fence_delay \
 			  fence_pacemaker
+
+sharedir		= ${datarootdir}/anvil
+
+dist_share_SCRIPTS	= striker-auto-initialize-all
+dist_share_DATA		= striker-auto-initialize-all.example
