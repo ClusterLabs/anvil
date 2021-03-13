@@ -367,7 +367,6 @@ fi
 
 %files striker
 %{_localstatedir}/www/*/*
-%{_datadir}/anvil/striker-auto-initialize-all
 %{_datadir}/anvil/striker-auto-initialize-all.example
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 

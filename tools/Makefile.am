@@ -36,7 +36,8 @@ dist_sbin_SCRIPTS	= \
 			  striker-parse-oui \
 			  striker-prep-database \
 			  striker-purge-host \
-			  striker-scan-network
+			  striker-scan-network \
+			  striker-auto-initialize-all
 
 fencedir		= $(FASEXECPREFIX)/sbin
 
@@ -46,5 +47,4 @@ dist_fence_SCRIPTS	= \
 
 sharedir		= ${datarootdir}/anvil
 
-dist_share_SCRIPTS	= striker-auto-initialize-all
 dist_share_DATA		= striker-auto-initialize-all.example
