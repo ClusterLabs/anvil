@@ -72,6 +72,7 @@ Requires:       perl-DBI
 Requires:       perl-Data-Validate-Domain
 Requires:       perl-Digest-SHA
 Requires:       perl-File-MimeInfo
+Requires:       perl-CGI
 Requires:       perl-HTML-FromText
 Requires:       perl-HTML-Strip
 Requires:       perl-IO-Tty
@@ -129,7 +130,6 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
-Requires:       perl-CGI 
 Requires:       postgresql-server 
 Requires:       syslinux
 Requires:       syslinux-nonlinux
