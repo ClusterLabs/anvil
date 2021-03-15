@@ -52,7 +52,10 @@
     // Use TypeScript's types for component props
     "react/prop-types": "off",
     // Importing React is not required in Next.js
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+
+    "camelcase": "off",
+    "@typescript-eslint/camelcase": "off"
   },
   "settings": {
     "react": { "version": "detect" }
