@@ -1,3 +1,3 @@
 declare type AnvilList = {
-  anvils: AnvilListItem[];
+  anvils: Array<AnvilListItem>;
 };
