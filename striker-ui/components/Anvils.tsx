@@ -3,8 +3,11 @@ import { Switch, Grid } from '@material-ui/core';
 import Panel from './Panel';
 import { HeaderText, BodyText } from './Text';
 
-const Anvils = (): JSX.Element => {
+const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
   const [checked, setChecked] = useState<boolean>(true);
+  let anvils: AnvilListItem[] = [];
+  if (list) anvils = list.anvils;
+
   return (
     <Panel>
       <Grid container alignItems="center" justify="space-around">
@@ -12,7 +15,9 @@ const Anvils = (): JSX.Element => {
           <HeaderText text="Anvils" />
         </Grid>
         <Grid item xs={4}>
-          <BodyText text="Anvil 4" />
+          <BodyText
+            text={anvils.length > 0 ? anvils[0].anvil_name : 'Anvil 1'}
+          />
           <BodyText text="Optimal" />
         </Grid>
         <Grid item xs={3}>

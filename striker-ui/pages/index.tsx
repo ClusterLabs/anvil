@@ -7,8 +7,7 @@ import CPU from '../components/CPU';
 import SharedStorage from '../components/SharedStorage';
 import ReplicatedStorage from '../components/ReplicatedStorage';
 import Memory from '../components/Memory';
-
-import 'typeface-roboto-condensed';
+import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
 const useStyles = makeStyles(() => ({
   grid: {
@@ -19,6 +18,11 @@ const useStyles = makeStyles(() => ({
 const Home = (): JSX.Element => {
   const classes = useStyles();
 
+  const { data } = PeriodicFetch<AnvilList>(
+    'http://localhost:8080',
+    '/anvils/get_anvils',
+  );
+
   return (
     <Grid container alignItems="center" justify="space-around">
       <Grid item xs={3}>
@@ -28,7 +32,7 @@ const Home = (): JSX.Element => {
           direction="column"
           className={classes.grid}
         >
-          <Anvils />
+          <Anvils list={data} />
           <Nodes />
         </Grid>
       </Grid>
@@ -59,41 +63,3 @@ const Home = (): JSX.Element => {
 };
 
 export default Home;
-
-/*
-  return (
-    <Grid container alignItems="center" justify="space-around">
-      <Grid item xs={3}>
-        <Grid container justify="flex-start" direction="column">
-          <Anvils />
-          <Nodes />
-        </Grid>
-      </Grid>
-      <Grid item xs={5}>
-        <ReplicatedStorage />
-      </Grid>
-      <Grid item xs={3}>
-        <SharedStorage />
-        <CPU />
-        <Memory />
-      </Grid>
-    </Grid>
-  );
-
-    <>
-      <div>
-        <Grid container justify="flex-start" direction="column">
-          <Anvils />
-          <Nodes />
-        </Grid>
-      </div>
-      <Grid container justify="flex-start" direction="column">
-        <ReplicatedStorage />
-      </Grid>
-      <Grid container justify="flex-start" direction="column">
-        <SharedStorage />
-        <CPU />
-        <Memory />
-      </Grid>
-    </>
-  */
