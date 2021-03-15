@@ -2,14 +2,13 @@ import useSWR from 'swr';
 import fetcher from './fetchJSON';
 
 const PeriodicFetch = <T>(
+  url: string,
   uuid: string,
-  uri: string,
   refreshInterval = 2000,
 ): GetResponses => {
-  const { data, error } = useSWR<T>(`${uri}${uuid}`, fetcher, {
+  const { data, error } = useSWR<T>(`${url}${uuid}`, fetcher, {
     refreshInterval,
   });
-
   return {
     data,
     isLoading: !error && !data,
