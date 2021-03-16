@@ -184,7 +184,7 @@ sub add_databases
 	if ($db_host)
 	{
 		my $failed = $anvil->Database->manage_anvil_conf({
-			debug        => 3, 
+			debug        => 2, 
 			target       => $target,
 			remote_user  => "root",
 			password     => $anvil->data->{data}{password}, 
@@ -773,7 +773,7 @@ EOF
 	$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y install ".$package;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => 3,
+		debug       => 2,
 		shell_call  => $shell_call,
 		password    => $anvil->data->{data}{password}, 
 		port        => $anvil->data->{data}{ssh_port}, 

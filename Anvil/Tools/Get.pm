@@ -132,8 +132,14 @@ sub anvil_name_from_uuid
 	
 	if (not $anvil_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->anvil_name_from_uuid()", parameter => "server_name" }});
-		return("!!error!!");
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		
+		if (not $anvil_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->anvil_name_from_uuid()", parameter => "server_name" }});
+			return("!!error!!");
+		}
 	}
 	
 	my $query = "
@@ -423,8 +429,14 @@ sub available_resources
 	
 	if (not $anvil_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->available_resources()", parameter => "anvil_uuid" }});
-		return("!!error!!");
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		
+		if (not $anvil_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->available_resources()", parameter => "anvil_uuid" }});
+			return("!!error!!");
+		}
 	}
 	
 	if (exists $anvil->data->{anvil_resources}{$anvil_uuid})

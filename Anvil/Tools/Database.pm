@@ -2015,7 +2015,7 @@ WHERE
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}         = $modified_date;
-		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{query_time}            = time;
+		$anvil->data->{anvils}{anvil_name}{$anvil_uuid}{query_time}            = time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"anvils::anvil_name::${anvil_name}::anvil_uuid"            => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}, 
 			"anvils::anvil_name::${anvil_name}::anvil_description"     => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}, 
@@ -4219,7 +4219,7 @@ ORDER BY
 		my $storage_group_name             = $row->[2];
 		my $storage_group_member_uuid      = $row->[3];
 		my $storage_group_member_host_uuid = $row->[4];
-		my $storage_group_member_vg_uuid   = $row->[5];
+		my $storage_group_member_vg_uuid   = $row->[5];		# This is the VG's internal UUID
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			storage_group_uuid             => $storage_group_uuid, 
 			storage_group_anvil_uuid       => $storage_group_anvil_uuid, 
@@ -11644,7 +11644,9 @@ SELECT
 FROM 
     storage_group_members 
 WHERE 
-    storage_group_member_vg_uuid = ".$anvil->Database->quote($storage_group_member_vg_uuid)."
+    storage_group_member_vg_uuid   = ".$anvil->Database->quote($storage_group_member_vg_uuid)."
+AND 
+    storage_group_member_host_uuid = ".$anvil->Database->quote($storage_group_member_host_uuid)."
 ;";
 		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
