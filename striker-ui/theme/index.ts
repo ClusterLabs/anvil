@@ -3,7 +3,7 @@ import {
   PANEL_BACKGROUND,
   TEXT,
   PURPLE_OFF,
-  RED_ON,
+  BLUE,
 } from '../lib/consts/DEFAULT_THEME';
 
 const theme: Theme = createMuiTheme({
@@ -33,7 +33,7 @@ const theme: Theme = createMuiTheme({
         backgroundColor: PURPLE_OFF,
         '$checked$checked + &': {
           // Controls checked color for the track
-          backgroundColor: RED_ON,
+          backgroundColor: BLUE,
         },
       },
       thumb: {
