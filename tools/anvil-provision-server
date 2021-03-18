@@ -1012,7 +1012,7 @@ sub create_lv
 		my $vg_name      = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name};
 		my $extent_size  = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_extent_size};
 		my $extent_count = int($anvil->data->{job}{storage_size} / $extent_size);
-		my $shell_call   = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$anvil->data->{job}{server_name}."_0 ".$vg_name;
+		my $shell_call   = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$anvil->data->{job}{server_name}."_0 ".$vg_name." -y";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:vg_name'      => $vg_name, 
 			's2:extent_size'  => $extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $extent_size}).")", 
@@ -1361,7 +1361,7 @@ sub parse_job_data
 		}
 		# Driver disc is optional.
 		$anvil->data->{new_server}{driver_iso_path} = "";
-		if ($anvil->data->{job}{driver_iso_uuid})
+		if (($anvil->data->{job}{driver_iso_uuid}) && ($anvil->data->{job}{driver_iso_uuid} ne "none"))
 		{
 			my $driver_iso_uuid = $anvil->data->{job}{driver_iso_uuid};
 			my $driver_iso      = $anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$driver_iso_uuid}{file_name};

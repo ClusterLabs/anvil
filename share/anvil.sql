@@ -20,6 +20,10 @@
 -- Tables can optionally have a '*_host_uuid  uuid  not null' colum. If this is found, when resync'ing the
 -- table, the resync will be restricted to the host's 'sys::host_uuid'.
 -- 
+-- NOTE: If you have a column that is '<table>_host_uuid', and it's role is to show which host a moveable
+--       thing is on (as opposed to a record bound to a host_uuid), be sure to add the table name to the
+--       excluded list in Database->_find_behind_databases().
+-- 
 -- Most tables will want to have a matching table in the history schema with an additional 
 -- 'history_id  bigserial' column. Match the function and trigger seen elsewhere to copy your data from the
 -- public schema to the history schema on UPDATE or INSERT.
@@ -1229,7 +1233,7 @@ CREATE TABLE servers (
     server_user_stop                   boolean                     not null    default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
     server_start_after_server_uuid     uuid,                                                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
     server_start_delay                 integer                     not null    default 0,        -- See above.
-    server_host_uuid                   uuid                        not null,                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
+    server_host_uuid                   uuid,                                                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
     server_state                       text                        not null,                     -- This is the current state of this server, as reported by 'virsh list --all' (see: man virsh -> GENERIC COMMANDS -> --list)
     server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be frozen for a migration, instead of being migrated while the server is migrating. During a cold migration, the server will be unresponsive, so connections to it could time out. However, by being frozen the migration will complete faster.
     server_pre_migration_file_uuid     uuid,                                                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.

@@ -4423,6 +4423,14 @@ sub get_tables_from_schema
 		}
 	}
 	
+	# Store the tables in 'sys::database::check_tables'
+	$anvil->data->{sys}{database}{check_tables} = $tables;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		tables                        => $tables,
+		'sys::database::check_tables' => $anvil->data->{sys}{database}{check_tables}, 
+	}});
+	
+	
 	my $table_count = @{$tables};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table_count => $table_count }});
 	
@@ -14474,8 +14482,6 @@ sub resync_databases
 		return(0);
 	}
 	
-	#$anvil->data->{sys}{database}{log_transactions} = 1;
-	
 	# Archive old data before resync'ing
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0451"});
 	$anvil->Database->archive_database({debug => $debug});
@@ -15498,7 +15504,7 @@ sub _find_behind_databases
 	
 	### NOTE: Don't sort this! Tables need to be resynced in a specific order!
 	# Loop through and resync the tables.
-	foreach my $table (@{$tables})
+	foreach my $table (@{$tables}) 
 	{
 		# Record the table in 'sys::database::check_tables' array for later use in archive and 
 		# resync methods.
@@ -15544,16 +15550,43 @@ sub _find_behind_databases
 			
 			if ($count == 1)
 			{
-				# Does this table have a '*_host_uuid' column?
-				my $query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name LIKE '\%_host_uuid' AND table_name = ".$anvil->Database->quote($table).";";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				
-				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
-				# it later to restrict resync activity to these columns with the local 
-				# 'sys::host_uuid'.
-				my $host_column = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				   $host_column = "" if not defined $host_column;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
+				# Some tables, like 'servers', has a host_uuid column, but it's not used to 
+				# restrict data to a host, but instead show which host a movable resource is 
+				# on. This prevents us from using the column by accident.
+				my $host_column = "";
+				if (($table ne "servers") && 
+				    ($table ne "jobs"))
+				{
+					# Does this table have a '*_host_uuid' column?
+					my $test_columns = [$table."_host_uuid"];
+					if ($table =~ /^(.*)s$/)
+					{
+						push @{$test_columns}, $1."_host_uuid";
+					}
+					if ($table =~ /^(.*)es$/)
+					{
+						push @{$test_columns}, $1."_host_uuid";
+					}
+					
+					foreach my $test_column (@{$test_columns})
+					{
+						my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = ".$anvil->Database->quote($test_column)." AND table_name = ".$anvil->Database->quote($table).";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+						
+						# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
+						# it later to restrict resync activity to these columns with the local 
+						# 'sys::host_uuid'.
+						my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+						
+						if ($count)
+						{
+							$host_column = $test_column;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
+							last;
+						}
+					}
+				}
 				
 				# Does this table have a history schema version?
 				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
