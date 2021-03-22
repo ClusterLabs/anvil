@@ -204,9 +204,9 @@ sub bytes_to_human_readable
 	my $unit  = defined $parameter->{unit}    ? uc($parameter->{unit}) : "";
 	my $base2 = defined $parameter->{base2}   ? $parameter->{base2}    : $anvil->data->{sys}{use_base2};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		base2      => $base2, 
-		'bytes'    => $bytes, 
-		unit       => $unit, 
+		base2   => $base2, 
+		'bytes' => $bytes, 
+		unit    => $unit, 
 	}});
 	
 	# Expand exponential numbers.
@@ -1044,14 +1044,24 @@ sub human_readable_to_bytes
 	# If the "type" is "Xib" or if '$base2' is set, make sure we're running in Base2 notation. Conversly,
 	# if the type is "Xb" or if '$base10' is set, make sure that we're running in Base10 notation. In 
 	# either case, shorten the 'type' to just the first letter to make the next sanity check simpler.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		base2  => $base2, 
+		base10 => $base10,
+	}});
 	if ((not $base2) && (not $base10))
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
 		if ($type =~ /^(\w)ib$/)
 		{
 			# Make sure we're running in Base2.
 			$type   = $1;
 			$base2  = 1;
 			$base10 = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				type   => $type,
+				base2  => $base2, 
+				base10 => $base10,
+			}});
 		}
 		elsif ($type =~ /^(\w)b$/)
 		{
@@ -1059,6 +1069,22 @@ sub human_readable_to_bytes
 			$type   = $1;
 			$base2  = 0;
 			$base10 = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				type   => $type,
+				base2  => $base2, 
+				base10 => $base10,
+			}});
+		}
+		elsif ($type =~ /^b/)
+		{
+			$type   = "b";
+			$base2  = 1;
+			$base10 = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				type   => $type,
+				base2  => $base2, 
+				base10 => $base10,
+			}});
 		}
 	}
 	
@@ -1070,11 +1096,12 @@ sub human_readable_to_bytes
 	if (($type ne "p") && 
 	    ($type ne "e") && 
 	    ($type ne "z") && 
-	    ($type eq "y") && 
+	    ($type ne "y") && 
 	    ($type ne "t") && 
 	    ($type ne "g") && 
 	    ($type ne "m") && 
-	    ($type ne "k"))
+	    ($type ne "k") &&
+	    ($type ne "b"))
 	{
 		# Poop
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0119", variables => { 
@@ -1098,6 +1125,7 @@ sub human_readable_to_bytes
 		elsif ($type eq "g") { $bytes = ($size * (10 ** 9)) }					# Gigabyte
 		elsif ($type eq "m") { $bytes = ($size * (10 ** 6)) }					# Megabyte
 		elsif ($type eq "k") { $bytes = ($size * (10 ** 3)) }					# Kilobyte
+		elsif ($type eq "b") { $bytes = $size; }						# bytes
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'bytes' => $bytes }});
 	}
 	else
@@ -1110,6 +1138,7 @@ sub human_readable_to_bytes
 		elsif ($type eq "g") { $bytes = ($size * (2 ** 30)) }					# Gibibyte
 		elsif ($type eq "m") { $bytes = ($size * (2 ** 20)) }					# Mebibyte
 		elsif ($type eq "k") { $bytes = ($size * (2 ** 10)) }					# Kibibyte
+		elsif ($type eq "b") { $bytes = $size; }						# bytes
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'bytes' => $bytes }});
 	}
 	

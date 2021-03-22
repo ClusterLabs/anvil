@@ -273,8 +273,16 @@ sub assemble_storage_groups
 	
 	if (not $anvil_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->assemble_storage_groups()", parameter => "anvil_uuid" }});
-		return("!!error!!");
+		# Can we deduce the anvil_uuid?
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid=> $anvil_uuid }});
+		
+		if (not $anvil_uuid)
+		{
+			# Still no anvil_uuid
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->assemble_storage_groups()", parameter => "anvil_uuid" }});
+			return("!!error!!");
+		}
 	}
 	
 	# Get the node UUIDs for this anvil.
@@ -372,7 +380,8 @@ ORDER BY
 				# only.
 				my $storage_group_uuid        = $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid};
 				my $group_name                = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
-				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_member_uuid};
+				#my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_member_uuid};
+				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					anvil_uuid                => $anvil_uuid, 
 					host_uuid                 => $host_uuid, 
@@ -434,6 +443,7 @@ ORDER BY
 					storage_group_member_host_uuid          => $host_uuid, 
 					storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 				
 				$anvil->data->{ungrouped_vg_count}{$this_is}--;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

@@ -35,6 +35,10 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->data->{switches}{config}     = "";
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+### TODO: Remove this before final release
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+##########################################
 
 # Read in the config file
 if ((not $anvil->data->{switches}{config}) or (not -f $anvil->data->{switches}{config}))

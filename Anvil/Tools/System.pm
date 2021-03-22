@@ -36,6 +36,7 @@ my $THIS_FILE = "System.pm";
 # maintenance_mode
 # manage_authorized_keys
 # manage_firewall
+# parse_lshw
 # read_ssh_config
 # reload_daemon
 # reboot_needed
@@ -3805,6 +3806,151 @@ sub parse_arguments
 	
 	return($hash);
 }
+
+
+=head2 parse_lshw
+
+B<< NOTE >>: This method is not complete, do not use it yet!
+
+This calls C<< lshw >> (in XML format) and parses the output. Data is stored as:
+
+ * lshw::...
+
+Parameters;
+
+=head3 xml (optional)
+
+If set, the passed-in XML is parsed and C<< lshw -xml >> is not called. This should only be used for testing / debugging.
+
+=cut
+sub parse_lshw
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->parse_lsblk()" }});
+	
+	my $xml = defined $parameter->{xml} ? $parameter->{xml} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { xml => $xml }});
+	
+	if (not $xml)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{lshw}." -xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		($xml, my $return_code) = $anvil->System->call({shell_call => $shell_call});
+		if ($return_code)
+		{
+			# Failed.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0080", variables => { 
+				return_code => $return_code,
+				output      => $xml, 
+			}});
+			return(1);
+		}
+	}
+	
+	local $@;
+	my $dom = eval { XML::LibXML->load_xml(string => $xml); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "warning_0053", variables => { 
+			cib   => $xml,
+			error => $@,
+		}});
+	}
+
+	foreach my $node ($dom->findnodes('/list/node'))
+	{
+		my $id    = $node->{id};
+		my $class = $node->{class};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			id    => $id, 
+			class => $class,
+		}});
+	}
+=cut
+	foreach my $node ($dom->findnodes('/list/node'))
+	{
+		my $id                   = $node->{id};
+		my $class                = $node->{class};
+		my $handle               = $node->{handle};
+		my $parent_description   = defined $node->findvalue('./description') ? $node->findvalue('./description') : "";
+		my $logical_name         = defined $node->findvalue('./logicalname') ? $node->findvalue('./logicalname') : "";
+		my $parent_vendor        = defined $node->findvalue('./vendor')      ? $node->findvalue('./vendor')      : "";
+		my $parent_model         = defined $node->findvalue('./product')     ? $node->findvalue('./product')     : "";
+		my $parent_serial_number = defined $node->findvalue('./serial')      ? $node->findvalue('./serial')      : "";
+		my $parent_media         = $id;
+		if ($id eq "device")
+		{
+			if (($parent_description =~ /sd card/i) or ($logical_name =~ /\/dev\/mmcblk/))
+			{
+				$parent_media = "sdcard";
+			}
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			id                  => $id, 
+			class               => $class,
+			logical_name        => $logical_name, 
+			parent_vendor       => $parent_vendor, 
+			parent_model        => $parent_model, 
+		}});
+		# Sub devices may not appear, so we'll later match logical names (when they're a path) to devices in 'df' later.
+		foreach my $device ($node->findnodes('./node'))
+		{
+			my $dev_id        = $device->{id};
+			my $dev_class     = $device->{class};
+			my $bus_info      = defined $device->findvalue('./businfo')     ? $device->findvalue('./businfo')     : "";
+			my $path          = defined $device->findvalue('./logicalname') ? $device->findvalue('./logicalname') : "";
+			my $description   = defined $device->findvalue('./description') ? $device->findvalue('./description') : "";
+			my $vendor        = defined $device->findvalue('./vendor')      ? $device->findvalue('./vendor')      : "";
+			$vendor        = $parent_vendor if not $vendor;
+			my $model         = defined $device->findvalue('./product')     ? $device->findvalue('./product')     : "";
+			$model         = $parent_model if not $model;
+			my $serial_number = defined $device->findvalue('./serial')      ? $device->findvalue('./serial')      : "";
+			$serial_number = $parent_serial_number if not $serial_number;
+			my $size_number   = defined $device->findvalue('./size')        ? $device->findvalue('./size')        : "";
+			$size_number   = 0 if not $size_number;
+			my ($size_dom)    = $device->findnodes('./size');
+			my $size_units    = $size_dom->{units};
+			$size_units    = "bytes" if not $size_units;
+			my $size_in_bytes = $anvil->Convert->human_readable_to_bytes({size => $size_number, type => $size_units});
+			my $media         = $dev_id;
+			if (($bus_info =~ /nvme/i) or ($path =~ /\/dev\/nvm/))
+			{
+				$bus_info = "nvme";
+				$media    = "ssd";
+			}
+			if ($dev_id eq "cdrom")
+			{
+				$media = "optical";
+			}
+			if (($bus_info =~ /^scsi/) or ($description =~ /ATA Disk/i))
+			{
+				# Call 
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				dev_id        => $dev_id, 
+				dev_class     => $dev_class,
+				bus_info      => $bus_info,
+				path          => $path,
+				description   => $description, 
+				vendor        => $vendor, 
+				model         => $model, 
+				serial_number => $serial_number, 
+				size_number   => $size_number, 
+				size_units    => $size_units, 
+				size_in_bytes => $anvil->Convert->add_commas({number => $size_in_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size_in_bytes}),
+				media         => $media, 
+			}});
+		}
+	}
+=cut
+
+	return(0);
+}
+
 
 =head2 read_ssh_config
 

@@ -36,6 +36,10 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches
 $anvil->Get->switches;
+### TODO: Remove this before final release
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+##########################################
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -1203,18 +1207,21 @@ AND
 	});
 	
 	# If we're in a cluster, abort.
-	my ($problem) = $anvil->Cluster->parse_cib();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-	if ((not $problem) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+	if (-e $anvil->data->{path}{exe}{pcs})
 	{
-		# We're in a cluster, abort.
-		$anvil->Job->update_progress({
-			progress => 100, 
-			message  => "error_0250", 
-			job_uuid => $anvil->data->{job}{uuid},
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0250"});
-		$anvil->nice_exit({exit_code => 7});
+		my ($problem) = $anvil->Cluster->parse_cib();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ((not $problem) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+		{
+			# We're in a cluster, abort.
+			$anvil->Job->update_progress({
+				progress => 100, 
+				message  => "error_0250", 
+				job_uuid => $anvil->data->{job}{uuid},
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0250"});
+			$anvil->nice_exit({exit_code => 7});
+		}
 	}
 	
 	return(0);

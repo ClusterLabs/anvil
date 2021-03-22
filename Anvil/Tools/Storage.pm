@@ -6,9 +6,10 @@ package Anvil::Tools::Storage;
 use strict;
 use warnings;
 use Data::Dumper;
+use File::MimeInfo;
+use JSON;
 use Scalar::Util qw(weaken isweak);
 use Text::Diff;
-use File::MimeInfo;
 use utf8;
 
 our $VERSION  = "3.0.0";
@@ -25,6 +26,7 @@ my $THIS_FILE = "Storage.pm";
 # get_storage_group_details
 # make_directory
 # move_file
+# parse_df
 # parse_lsblk
 # read_config
 # read_file
@@ -2031,32 +2033,98 @@ fi";
 }
 
 
+=head2 parse_df
+
+This calls C<< df >> and parses the output. Data is stored as:
+
+ * storage::df::<kernel_device_name>::...
+
+This method takes no parameters.
+
+=cut
+sub parse_df
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->parse_df()" }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{df}." --exclude-type=tmpfs --exclude-type=devtmpfs --no-sync --block-size=1 --output=source,fstype,size,used,avail,target";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	if ($return_code)
+	{
+		# Failed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0079", variables => { 
+			return_code => $return_code,
+			output      => $output, 
+		}});
+		return(1);
+	}
+	
+	foreach my $line (split/\n/, $output)
+	{
+		if ($line =~ /^\/dev\/(.*?)\s+(.*?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\/.*)$/)
+		{
+			my $kernel_device_name = $1;
+			my $filesystem_type    = $2;
+			my $size               = $3;
+			my $used               = $4; 
+			my $free               = $5; 
+			my $mount_point        = $6;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:kernel_device_name' => $kernel_device_name,
+				's2:mount_point'        => $mount_point, 
+				's3:filesystem_type'    => $filesystem_type, 
+				's4:size'               => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",
+				's5:used'               => $anvil->Convert->add_commas({number => $used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used}).")",
+				's6:free'               => $anvil->Convert->add_commas({number => $free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free}).")",
+			}});
+			
+			# If the line starts with 'mapper', we need to figure out what dm-X device it is.
+			if ($kernel_device_name =~ /^mapper\//)
+			{
+				# Use lstat
+				my $device_path   = "/dev/".$kernel_device_name;
+				my $device_mapper = readlink($device_path);
+				if ($device_mapper =~ /^\.\.\/(.*)$/)
+				{
+					$kernel_device_name = $1;
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					device_path        => $device_path,
+					kernel_device_name => $kernel_device_name, 
+				}});
+			}
+			
+			$anvil->{storage}{df}{$kernel_device_name}{filesystem_type} = $filesystem_type;
+			$anvil->{storage}{df}{$kernel_device_name}{mount_point}     = $mount_point;
+			$anvil->{storage}{df}{$kernel_device_name}{size}            = $size;
+			$anvil->{storage}{df}{$kernel_device_name}{used}            = $used;
+			$anvil->{storage}{df}{$kernel_device_name}{free}            = $free;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"storage::df::${kernel_device_name}::filesystem_type" => $anvil->{storage}{df}{$kernel_device_name}{filesystem_type},
+				"storage::df::${kernel_device_name}::mount_point"     => $anvil->{storage}{df}{$kernel_device_name}{mount_point},
+				"storage::df::${kernel_device_name}::size"            => $anvil->Convert->add_commas({number => $anvil->{storage}{df}{$kernel_device_name}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->{storage}{df}{$kernel_device_name}{size}}).")",
+				"storage::df::${kernel_device_name}::used"            => $anvil->Convert->add_commas({number => $anvil->{storage}{df}{$kernel_device_name}{used}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->{storage}{df}{$kernel_device_name}{used}}).")",
+				"storage::df::${kernel_device_name}::free"            => $anvil->Convert->add_commas({number => $anvil->{storage}{df}{$kernel_device_name}{free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->{storage}{df}{$kernel_device_name}{free}}).")",
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 parse_lsblk
 
 This calls C<< lsblk >> (in json format) and parses the output. Data is stored as:
 
- * lsblk::<target>::...
+ * storage::lsblk::<kernel_device_name>::...
 
-Parameters;
-
-=head3 password (optional)
-
-If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made..
-
-=head3 port (optional, default 22)
-
-If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
-
-=head3 remote_user (optional)
-
-If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
-
-=head3 target (optional)
-
-If set, C<< lsblk >> read from the target machine. This must be either an IP address or a resolvable host name. 
-
-B<< Note >>: If not set, the short host name of this system is used in C<< lsblk::<short_host_name>::: >>.
-
+This method takes no parameters.
 =cut
 sub parse_lsblk
 {
@@ -2066,21 +2134,159 @@ sub parse_lsblk
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->parse_lsblk()" }});
 	
-	# Setup default values
-	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
-	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->is_secure($password),
-		port        => $port, 
-		remote_user => $remote_user,
-		target      => $target, 
-	}});
+	my $shell_call = $anvil->data->{path}{exe}{lsblk}." --output KNAME,FSTYPE,MOUNTPOINT,UUID,PARTLABEL,PARTUUID,RO,RM,HOTPLUG,MODEL,SERIAL,SIZE,STATE,ALIGNMENT,PHY-SEC,LOG-SEC,ROTA,SCHED,TYPE,TRAN,VENDOR --bytes --json";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
-	my $shell_call = $anvil->data->{path}{exe}{lsblk}." --all --bytes --json";
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	if ($return_code)
+	{
+		# Failed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0079", variables => { 
+			return_code => $return_code,
+			output      => $output, 
+		}});
+		return(1);
+	}
+	
+	my $json = JSON->new->allow_nonref;
+	my $data = $json->decode($output);
+	
+	foreach my $hash_ref (@{$data->{blockdevices}})
+	{
+		my $kernel_device_name = $hash_ref->{kname};
+		#next if $kernel_device_name =~ /^dm-/;
+		#next if $kernel_device_name =~ /^mmcblk/;	# Add support for this later when 'System->parse_lshw' is done
+		$anvil->{storage}{lsblk}{$kernel_device_name}{alignment_offset}     = defined $hash_ref->{alignment}  ? $hash_ref->{alignment}  : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{device_type}          = defined $hash_ref->{type}       ? $hash_ref->{type}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type}      = defined $hash_ref->{fstype}     ? $hash_ref->{fstype}     : "";
+		# This is the LVM formatted UUID, when it's an 'LVM2_member', so it should be easy to cross 
+		# reference with: scan_lvm_lvs -> scan_lvm_lv_internal_uuid to map the LVs to a PV
+		$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_uuid}      = defined $hash_ref->{uuid}       ? $hash_ref->{uuid}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{hot_plug}             = defined $hash_ref->{hotplug}    ? $hash_ref->{hotplug}    : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{logical_sector_size}  = defined $hash_ref->{'log-sec'}  ? $hash_ref->{'log-sec'}  : 0;
+		$anvil->{storage}{lsblk}{$kernel_device_name}{model}                = defined $hash_ref->{model}      ? $hash_ref->{model}      : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{model}                = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{model}});
+		$anvil->{storage}{lsblk}{$kernel_device_name}{mount_point}          = defined $hash_ref->{mountpoint} ? $hash_ref->{mountpoint} : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{partition_label}      = defined $hash_ref->{partlabel}  ? $hash_ref->{partlabel}  : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{partition_uuid}       = defined $hash_ref->{partuuid}   ? $hash_ref->{partuuid}   : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{physical_sector_size} = defined $hash_ref->{'phy-sec'}  ? $hash_ref->{'phy-sec'}  : 0;
+		$anvil->{storage}{lsblk}{$kernel_device_name}{read_only}            = defined $hash_ref->{ro}         ? $hash_ref->{ro}         : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{removable}            = defined $hash_ref->{rm}         ? $hash_ref->{rm}         : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive}       = defined $hash_ref->{rota}       ? $hash_ref->{rota}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}        = defined $hash_ref->{serial}     ? $hash_ref->{serial}     : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}        = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}});
+		$anvil->{storage}{lsblk}{$kernel_device_name}{scheduler}            = defined $hash_ref->{sched}      ? $hash_ref->{sched} : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{size}                 = defined $hash_ref->{size}       ? $hash_ref->{size}       : 0;
+		$anvil->{storage}{lsblk}{$kernel_device_name}{'state'}              = defined $hash_ref->{'state'}    ? $hash_ref->{'state'}    : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{transport}            = defined $hash_ref->{tran}       ? $hash_ref->{tran}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{type}                 = $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_uuid} ? "partition" : "drive";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}               = defined $hash_ref->{vendor}     ? $hash_ref->{vendor}     : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}               = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor}});
+		
+		# There's precious little data that comes from SD cards.
+		if ($kernel_device_name =~ /^mmcblk/)
+		{
+			if ($kernel_device_name =~ /^mmcblk\d+p\d+/)
+			{
+				# This is a partition
+				$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type} = "partition";
+				$anvil->{storage}{lsblk}{$kernel_device_name}{model}           = "SD Card"   if not $anvil->{storage}{lsblk}{$kernel_device_name}{model};
+				$anvil->{storage}{lsblk}{$kernel_device_name}{transport}       = "pci"       if not $anvil->{storage}{lsblk}{$kernel_device_name}{transport};
+				$anvil->{storage}{lsblk}{$kernel_device_name}{type}            = "ssd"       if not $anvil->{storage}{lsblk}{$kernel_device_name}{type};
+				$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}          = "unknown"   if not $anvil->{storage}{lsblk}{$kernel_device_name}{vendor};
+			}
+			else
+			{
+				# It's the drive
+				$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type} = "drive";
+			}
+		}
+		# Later, we'll want to trace device mapper devices back to the real device behind them (being
+		# LVM, crypt, etc). For now, this works.
+		if ($kernel_device_name =~ /^dm-/)
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type} = "partition";
+			$anvil->{storage}{lsblk}{$kernel_device_name}{model}           = "Device Mapper" if not $anvil->{storage}{lsblk}{$kernel_device_name}{model};
+			$anvil->{storage}{lsblk}{$kernel_device_name}{transport}       = "virtual"       if not $anvil->{storage}{lsblk}{$kernel_device_name}{transport};
+			$anvil->{storage}{lsblk}{$kernel_device_name}{type}            = "virtual"       if not $anvil->{storage}{lsblk}{$kernel_device_name}{type};
+			$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}          = "Linux"         if not $anvil->{storage}{lsblk}{$kernel_device_name}{vendor};
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage::lsblk::${kernel_device_name}::alignment_offset"     => $anvil->{storage}{lsblk}{$kernel_device_name}{alignment_offset},
+			"storage::lsblk::${kernel_device_name}::device_type"          => $anvil->{storage}{lsblk}{$kernel_device_name}{device_type},
+			"storage::lsblk::${kernel_device_name}::filesystem_type"      => $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type},
+			"storage::lsblk::${kernel_device_name}::filesystem_uuid"      => $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_uuid},
+			"storage::lsblk::${kernel_device_name}::hot_plug"             => $anvil->{storage}{lsblk}{$kernel_device_name}{hot_plug},
+			"storage::lsblk::${kernel_device_name}::logical_sector_size"  => $anvil->{storage}{lsblk}{$kernel_device_name}{logical_sector_size},
+			"storage::lsblk::${kernel_device_name}::model"                => $anvil->{storage}{lsblk}{$kernel_device_name}{model},
+			"storage::lsblk::${kernel_device_name}::mount_point"          => $anvil->{storage}{lsblk}{$kernel_device_name}{mount_point},
+			"storage::lsblk::${kernel_device_name}::partition_label"      => $anvil->{storage}{lsblk}{$kernel_device_name}{partition_label},
+			"storage::lsblk::${kernel_device_name}::partition_uuid"       => $anvil->{storage}{lsblk}{$kernel_device_name}{partition_uuid},
+			"storage::lsblk::${kernel_device_name}::physical_sector_size" => $anvil->{storage}{lsblk}{$kernel_device_name}{physical_sector_size},
+			"storage::lsblk::${kernel_device_name}::read_only"            => $anvil->{storage}{lsblk}{$kernel_device_name}{read_only},
+			"storage::lsblk::${kernel_device_name}::removable"            => $anvil->{storage}{lsblk}{$kernel_device_name}{removable},
+			"storage::lsblk::${kernel_device_name}::rotating_drive"       => $anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive},
+			"storage::lsblk::${kernel_device_name}::serial_number"        => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number},
+			"storage::lsblk::${kernel_device_name}::scheduler"            => $anvil->{storage}{lsblk}{$kernel_device_name}{scheduler},
+			"storage::lsblk::${kernel_device_name}::size"                 => $anvil->Convert->add_commas({number => $anvil->{storage}{lsblk}{$kernel_device_name}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->{storage}{lsblk}{$kernel_device_name}{size}}).")",
+			"storage::lsblk::${kernel_device_name}::state"                => $anvil->{storage}{lsblk}{$kernel_device_name}{'state'},
+			"storage::lsblk::${kernel_device_name}::type"                 => $anvil->{storage}{lsblk}{$kernel_device_name}{type},
+			"storage::lsblk::${kernel_device_name}::transport"            => $anvil->{storage}{lsblk}{$kernel_device_name}{transport},
+			"storage::lsblk::${kernel_device_name}::vendor"               => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor},
+		}});
+	}
+	
+	# Now loop through devices and pass parent information (like transport, model, etc) from devices down to partitions.
+	my $parent_device = "";
+	foreach my $kernel_device_name (sort {$a cmp $b} keys %{$anvil->{storage}{lsblk}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { kernel_device_name => $kernel_device_name }});
+		
+		if ($anvil->{storage}{lsblk}{$kernel_device_name}{type} eq "drive")
+		{
+			$parent_device = $kernel_device_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { parent_device => $parent_device }});
+			next;
+		}
+		
+		if (($parent_device) && (not $anvil->{storage}{lsblk}{$kernel_device_name}{model}))
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{model} = $anvil->{storage}{lsblk}{$parent_device}{model};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"storage::lsblk::${kernel_device_name}::model" => $anvil->{storage}{lsblk}{$kernel_device_name}{model},
+			}});
+		}
+		if (($parent_device) && (not $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}))
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number} = $anvil->{storage}{lsblk}{$parent_device}{serial_number};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"storage::lsblk::${kernel_device_name}::serial_number" => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number},
+			}});
+		}
+		if (($parent_device) && (not $anvil->{storage}{lsblk}{$kernel_device_name}{vendor}))
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{vendor} = $anvil->{storage}{lsblk}{$parent_device}{vendor};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"storage::lsblk::${kernel_device_name}::vendor" => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor},
+			}});
+		}
+		if (($parent_device) && (not $anvil->{storage}{lsblk}{$kernel_device_name}{transport}))
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{transport} = $anvil->{storage}{lsblk}{$parent_device}{transport};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"storage::lsblk::${kernel_device_name}::transport" => $anvil->{storage}{lsblk}{$kernel_device_name}{transport},
+			}});
+		}
+		if (($parent_device) && (not $anvil->{storage}{lsblk}{$kernel_device_name}{'state'}))
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{'state'} = $anvil->{storage}{lsblk}{$parent_device}{'state'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"storage::lsblk::${kernel_device_name}::state" => $anvil->{storage}{lsblk}{$kernel_device_name}{'state'},
+			}});
+		}
+	}
 
-	
 	return(0);
 }
 

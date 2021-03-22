@@ -33,6 +33,10 @@ my $anvil = Anvil::Tools->new();
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+### TODO: Remove this before final release
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+##########################################
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
@@ -184,7 +188,7 @@ sub add_databases
 	if ($db_host)
 	{
 		my $failed = $anvil->Database->manage_anvil_conf({
-			debug        => 3, 
+			debug        => 2, 
 			target       => $target,
 			remote_user  => "root",
 			password     => $anvil->data->{data}{password}, 
@@ -282,7 +286,7 @@ sub add_databases
 				if ($peer_host)
 				{
 					my $failed = $anvil->Database->manage_anvil_conf({
-						debug        => 3, 
+						debug        => 2, 
 						target       => $target,
 						remote_user  => "root",
 						password     => $anvil->data->{data}{password}, 
@@ -773,7 +777,7 @@ EOF
 	$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y install ".$package;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => 3,
+		debug       => 2,
 		shell_call  => $shell_call,
 		password    => $anvil->data->{data}{password}, 
 		port        => $anvil->data->{data}{ssh_port}, 

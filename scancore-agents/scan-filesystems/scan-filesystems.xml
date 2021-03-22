@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_filesystem_log_0001'.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors file systems and the devices backing them.">
+		
+		<!-- Alert entries -->
+		<key name="scan_filesystem_alert_0001"></key>
+
+		<!-- Log entries -->
+		<key name="scan_filesystem_log_0001">Starting: [#!variable!program!#].</key>
+		
+		<!-- Message entries (usually meant to be alerts) -->
+		<key name="scan_filesystem_message_0001"></key>
+		
+		<!-- Units -->
+		<key name="scan_filesystem_unit_0001"></key>
+		
+	</language>
+</words>
