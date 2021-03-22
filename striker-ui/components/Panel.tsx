@@ -17,7 +17,6 @@ const useStyles = makeStyles(() => ({
     borderColor: TEXT,
   },
   paper: {
-    opacity: 0.7,
     padding: 10,
   },
 }));
