@@ -25,15 +25,23 @@ const theme: Theme = createMuiTheme({
   },
   overrides: {
     MuiSwitch: {
+      switchBase: {
+        // Controls default (unchecked) color for the thumb
+        color: '#fff',
+      },
       root: {
         padding: 8,
       },
       track: {
         borderRadius: 0,
+        border: 3,
         backgroundColor: PURPLE_OFF,
         '$checked$checked + &': {
           // Controls checked color for the track
           backgroundColor: BLUE,
+        },
+        '&$checked + $track': {
+          opacity: 1,
         },
       },
       thumb: {
