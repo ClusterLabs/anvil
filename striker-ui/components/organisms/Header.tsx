@@ -26,13 +26,13 @@ const Header = (): JSX.Element => {
   return (
     <AppBar position="static" className={classes.appBar}>
       <Grid container alignItems="center" justify="space-between">
-        <Grid>
+        <Grid item>
           <Image src="/pngs/logo.png" width="160" height="40" />
         </Grid>
-        <Grid>
+        <Grid item>
           <input className={classes.input} list="search-suggestions" />
         </Grid>
-        <Grid>
+        <Grid item>
           {ICONS.map(
             (icon): JSX.Element => (
               <Image
