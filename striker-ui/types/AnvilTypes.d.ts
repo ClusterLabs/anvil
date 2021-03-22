@@ -1,1 +1,1 @@
-declare type AnvilTypes = AnvilList | AnvilCPU;
+declare type AnvilTypes = AnvilList | AnvilCPU | AnvilMemory;
