@@ -72,6 +72,7 @@ Requires:       perl-DBI
 Requires:       perl-Data-Validate-Domain
 Requires:       perl-Digest-SHA
 Requires:       perl-File-MimeInfo
+Requires:       perl-CGI
 Requires:       perl-HTML-FromText
 Requires:       perl-HTML-Strip
 Requires:       perl-IO-Tty
@@ -129,7 +130,6 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
-Requires:       perl-CGI 
 Requires:       postgresql-server 
 Requires:       syslinux
 Requires:       syslinux-nonlinux
@@ -358,8 +358,8 @@ fi
 %config(noreplace) %{_sysconfdir}/anvil/anvil.conf
 %{_usr}/lib/*
 %config(noreplace) %{_datadir}/anvil/anvil.sql
-%{_usr}/share/anvil/firewall.txt
-%{_usr}/share/anvil/words.xml
+%{_datadir}/anvil/firewall.txt
+%{_datadir}/anvil/words.xml
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
@@ -367,6 +367,7 @@ fi
 
 %files striker
 %{_localstatedir}/www/*/*
+%{_datadir}/anvil/striker-auto-initialize-all.example
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
