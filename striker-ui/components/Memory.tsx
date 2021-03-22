@@ -6,7 +6,7 @@ import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
 const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
-  const { data, isLoading } = PeriodicFetch(
+  const { data, isLoading } = PeriodicFetch<AnvilMemory>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_memory?anvil_uuid=`,
     uuid,
   );
@@ -29,7 +29,7 @@ const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
             )}`}
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid item xs={4}>
           <BodyText
             text={`Free: ${prettyBytes.default(memoryData.free, {
               binary: true,
@@ -43,7 +43,7 @@ const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
             }
           />
         </Grid>
-        <Grid item xs={10}>
+        <Grid item xs={6}>
           <BodyText
             text={`Total Memory: ${prettyBytes.default(memoryData.total, {
               binary: true,

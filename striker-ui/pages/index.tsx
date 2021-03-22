@@ -53,9 +53,19 @@ const Home = (): JSX.Element => {
           direction="column"
           className={classes.grid}
         >
-          <SharedStorage />
-          <CPU />
-          <Memory />
+          <SharedStorage
+            anvil={data?.anvils?.length > 0 ? data.anvils[0] : 'no uuid'}
+          />
+          <CPU
+            uuid={
+              data?.anvils?.length > 0 ? data.anvils[0].anvil_uuid : 'no uuid'
+            }
+          />
+          <Memory
+            uuid={
+              data?.anvils?.length > 0 ? data.anvils[0].anvil_uuid : 'no uuid'
+            }
+          />
         </Grid>
       </Grid>
     </Grid>

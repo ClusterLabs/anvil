@@ -5,7 +5,7 @@ import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
 const CPU = ({ uuid }: { uuid: string }): JSX.Element => {
-  const { data, isLoading } = PeriodicFetch(
+  const { data, isLoading } = PeriodicFetch<AnvilCPU>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_cpu?anvil_uuid=`,
     uuid,
   );
@@ -30,7 +30,7 @@ const CPU = ({ uuid }: { uuid: string }): JSX.Element => {
             allocated={(cpuData.allocated / cpuData.cores) * 100}
           />
         </Grid>
-        <Grid item xs={10}>
+        <Grid item xs={5}>
           <BodyText text={`Total Cores: ${cpuData.cores}`} />
         </Grid>
         <Grid item xs={12}>
