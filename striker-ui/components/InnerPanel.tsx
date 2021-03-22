@@ -1,7 +1,11 @@
+import { ReactNode } from 'react';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { TEXT } from '../lib/consts/DEFAULT_THEME';
-import { BodyText } from './Text';
+
+type Props = {
+  children: ReactNode;
+};
 
 const useStyles = makeStyles(() => ({
   innerBody: {
@@ -22,14 +26,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const InnerPanel = (): JSX.Element => {
+const InnerPanel = ({ children }: Props): JSX.Element => {
   const classes = useStyles();
 
-  return (
-    <Box className={classes.innerBody}>
-      <BodyText text="inner body" />
-    </Box>
-  );
+  return <Box className={classes.innerBody}>{children}</Box>;
 };
 
 export default InnerPanel;
