@@ -13878,19 +13878,7 @@ sub manage_anvil_conf
 	
 	if ($rewrite)
 	{
-		# Backup the original
-		my $backup_file = $anvil->Storage->backup({
-			debug       => 2,
-			secure      => 1, 
-			file        => $anvil->data->{path}{configs}{'anvil.conf'},
-			password    => $password, 
-			port        => $port, 
-			remote_user => $remote_user, 
-			target      => $target,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
-		
-		# Now update!
+		# Now update! This will back up the file as well.
 		my ($failed) = $anvil->Storage->write_file({
 			debug       => $debug,
 			secure      => 1, 
@@ -13908,7 +13896,7 @@ sub manage_anvil_conf
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 		if ($failed)
 		{
-			# Something went weong.
+			# Something went wrong.
 			return(1);
 		}
 		

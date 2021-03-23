@@ -2321,6 +2321,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0078">[ Warning ] - Not installing the Alteeve repo! The package: [#!variable!anvil_role_rpm!#] is already installed. This is OK, but be aware that updates from Alteeve will not be available. To change this, please install: [#!variable!alteeve_repo!#].</key>
 		<key name="warning_0079">[ Warning ] - Failed to read the JSON formatted output of 'lsblk'. Expected the return code '0' but received: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="warning_0080">[ Warning ] - Failed to read the XML formatted output of 'lshw'. Expected the return code '0' but received: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
+		<key name="warning_0081">[ Warning ] - The temporary file: [#!variable!temp_file!#] vanished (or failed to be created) before it could be copied to: [#!variable!target!#].</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

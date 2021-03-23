@@ -9,7 +9,10 @@ TODO:
 
 Jenkins;
 
-- 
+Initial setup:
+export NODE_NAME=anvil-ci-bm
+export python=python3
+./ci-update-yum
 
 ============
 
