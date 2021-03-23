@@ -3936,7 +3936,8 @@ fi";
 					my $temp_file =  $file;
 					   $temp_file =~ s/\//_/g;
 					   $temp_file =~ s/^_//g;
-					   $temp_file = "/tmp/".$temp_file;
+					   $temp_file =  "/tmp/".$temp_file;
+					   $temp_file .= ".".$anvil->Get->uuid({debug => $debug, short => 1});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_file => $temp_file }});
 					$anvil->Storage->write_file({
 						body      => $body,
@@ -3968,6 +3969,11 @@ fi";
 					{
 						# Something went wrong writing it.
 						$error = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0081", variables => { 
+							temp_file => $temp_file, 
+							target    => $remote_user."\@".$target.":".$file,
+						}});
 					}
 				}
 			}
