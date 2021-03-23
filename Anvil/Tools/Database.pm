@@ -13606,6 +13606,7 @@ sub manage_anvil_conf
 		secure      => 1, 
 		target      => $target,
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_conf => $anvil_conf }});
 	
 	if ($anvil_conf eq "!!error!!")
 	{
@@ -13891,6 +13892,7 @@ sub manage_anvil_conf
 		
 		# Now update!
 		my ($failed) = $anvil->Storage->write_file({
+			debug       => $debug,
 			secure      => 1, 
 			file        => $anvil->data->{path}{configs}{'anvil.conf'}, 
 			body        => $new_body, 
@@ -13906,7 +13908,7 @@ sub manage_anvil_conf
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 		if ($failed)
 		{
-			# Simething went weong.
+			# Something went weong.
 			return(1);
 		}
 		

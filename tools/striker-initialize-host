@@ -155,7 +155,7 @@ sub add_databases
 		first  => $local_host,
 		second => $target, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { match => $match }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
 	
 	# We'll sort in reverse order, so if there is a BCN address, we'll use it.
 	my $host_uuid   = $anvil->data->{sys}{host_uuid};
