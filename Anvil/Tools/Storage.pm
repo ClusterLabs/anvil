@@ -1223,12 +1223,16 @@ fi";
 					port        => $port, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0170", variables => {
-					method      => "copy_file",
-					source_file => $source_file,
-					target_file => $target_file,
-				}});
-				return(1);
+				if ($failed)
+				{
+					# Failed to create the directory, abort.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0170", variables => {
+						method      => "copy_file",
+						source_file => $source_file,
+						target_file => $target_file,
+					}});
+					return(1);
+				}
 			}
 		
 			# Now backup the file.
@@ -1713,28 +1717,27 @@ sub make_directory
 			my $shell_call = "
 if [ -d '".$working_directory."' ];
 then
-   ".$anvil->data->{path}{exe}{echo}." 'exists'
+    ".$anvil->data->{path}{exe}{echo}." 'exists'
 else
-   ".$anvil->data->{path}{exe}{'mkdir'}." $working_directory
+    ".$anvil->data->{path}{exe}{'mkdir'}." $working_directory
 ";
 			if ($mode)
 			{
-				$shell_call .= "    ".$anvil->data->{path}{exe}{'chmod'}." ".$mode."\n";
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chmod'}." ".$mode." ".$working_directory."\n";
 			}
 			if (($user) && ($group))
 			{
-				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." ".$user.":".$group."\n";
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." ".$user.":".$group." ".$working_directory."\n";
 			}
 			elsif ($user)
 			{
-				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." ".$user.":\n";
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." ".$user.": ".$working_directory."\n";
 			}
 			elsif ($group)
 			{
-				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." :".$group."\n";
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." :".$group." ".$working_directory."\n";
 			}
-			$shell_call .= "
-    if [ -d '".$working_directory."' ];
+			$shell_call .= "    if [ -d '".$working_directory."' ];
     then
         ".$anvil->data->{path}{exe}{echo}." 'created'
     else
