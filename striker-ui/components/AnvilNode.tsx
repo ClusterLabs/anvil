@@ -4,17 +4,21 @@ import InnerPanel from './InnerPanel';
 import AllocationBar from './AllocationBar';
 import { BodyText } from './Text';
 
-const AnvilNode = ({ node }: { node: AnvilStatus }): JSX.Element => {
+const AnvilNode = ({
+  node,
+}: {
+  node: Array<AnvilStatusNode & AnvilListItemNode>;
+}): JSX.Element => {
   return (
     <>
       {node &&
-        node.nodes.map(
+        node.map(
           (n): JSX.Element => {
             return (
               <InnerPanel key={n.state_message}>
                 <Grid container alignItems="center" justify="space-around">
                   <Grid item xs={6}>
-                    <BodyText text="Node: an-a01n01" />
+                    <BodyText text={`Node: ${n.node_name}`} />
                   </Grid>
                   <Grid item xs={4}>
                     <Switch checked />

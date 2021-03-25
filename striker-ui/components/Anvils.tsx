@@ -1,19 +1,22 @@
 import { Grid } from '@material-ui/core';
-import Panel from './Panel';
 import Anvil from './Anvil';
+import Panel from './Panel';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
 const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
-  let anvils: AnvilListItem[] = [];
-  if (list) anvils = list.anvils;
+  const anvils: AnvilListItem[] = [];
+  // if (list) anvils = list.anvils;
 
-  anvils.forEach((anvil: AnvilListItem) => {
+  list?.anvils.forEach((anvil: AnvilListItem) => {
     const { data } = PeriodicFetch<AnvilStatus>(
       `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=`,
       anvil.anvil_uuid,
     );
     /* eslint-disable no-param-reassign */
-    anvil.anvil_status = data;
+    anvils.push({
+      ...anvil,
+      anvil_state: data.anvil_state,
+    });
   });
 
   return (

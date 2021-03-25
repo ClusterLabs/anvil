@@ -8,9 +8,7 @@ const Anvil = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
     <>
       <Grid item xs={6}>
         <HeaderText text={anvil.anvil_name} />
-        <HeaderText
-          text={anvil.anvil_status?.anvil_state || 'State unavailable'}
-        />
+        <HeaderText text={anvil.anvil_state || 'State unavailable'} />
       </Grid>
       <Grid item xs={3}>
         <Switch checked={checked} onChange={() => setChecked(!checked)} />

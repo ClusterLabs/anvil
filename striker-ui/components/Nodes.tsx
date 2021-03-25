@@ -9,12 +9,15 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
     anvil?.anvil_uuid,
   );
   /* eslint-disable no-param-reassign */
-  if (anvil) anvil.anvil_status = data;
 
   return (
     <Panel>
       <Text text="Nodes" />
-      <AnvilNode node={anvil?.anvil_status} />
+      <AnvilNode
+        node={anvil.nodes.map((n, index) => {
+          return { ...n, ...data.nodes[index] };
+        })}
+      />
     </Panel>
   );
 };
