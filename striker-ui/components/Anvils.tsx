@@ -1,28 +1,27 @@
-import { useState } from 'react';
-import { Switch, Grid } from '@material-ui/core';
+import { Grid } from '@material-ui/core';
 import Panel from './Panel';
-import { HeaderText, BodyText } from './Text';
+import Anvil from './Anvil';
+import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
 const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
-  const [checked, setChecked] = useState<boolean>(true);
   let anvils: AnvilListItem[] = [];
   if (list) anvils = list.anvils;
+
+  anvils.forEach((anvil: AnvilListItem) => {
+    const { data } = PeriodicFetch<AnvilStatus>(
+      `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=`,
+      anvil.anvil_uuid,
+    );
+    /* eslint-disable no-param-reassign */
+    anvil.anvil_status = data;
+  });
 
   return (
     <Panel>
       <Grid container alignItems="center" justify="space-around">
-        <Grid item xs={12}>
-          <HeaderText text="Anvils" />
-        </Grid>
-        <Grid item xs={4}>
-          <BodyText
-            text={anvils.length > 0 ? anvils[0].anvil_name : 'Anvil 1'}
-          />
-          <BodyText text="Optimal" />
-        </Grid>
-        <Grid item xs={3}>
-          <Switch checked={checked} onChange={() => setChecked(!checked)} />
-        </Grid>
+        {anvils.map((anvil) => (
+          <Anvil anvil={anvil} key={anvil.anvil_uuid} />
+        ))}
       </Grid>
     </Panel>
   );
