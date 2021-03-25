@@ -22,7 +22,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
         <Grid item xs={12}>
           {data &&
             data.file_systems[0]?.nodes.map(
-              (node: AnvilSharedStorageNode, index: number) => (
+              (node: AnvilSharedStorageNode, index: number): JSX.Element => (
                 <SharedStorageNode
                   node={{ ...node, nodeInfo: anvil.nodes[index] }}
                   key={anvil.nodes[index].node_uuid}
