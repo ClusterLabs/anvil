@@ -1202,6 +1202,7 @@ sub round
 	
 	# Take out any commas.
 	$rounded_number =~ s/,//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rounded_number => $rounded_number }});
 	
 	# If there is a decimal place in the number, do the smart math. Otherwise, just pad the number with 
 	# the requested number of zeros after the decimal place.
@@ -1209,6 +1210,10 @@ sub round
 	{
 		# Split up the number.
 		my ($real, $decimal) = split/\./, $rounded_number, 2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			real    => $real,
+			decimal => $decimal, 
+		}});
 		
 		# If there is anything other than one ',' and digits, error.
 		if (($real =~ /\D/) or ($decimal =~ /\D/))
@@ -1222,24 +1227,27 @@ sub round
 		if ( length($decimal) == $places )
 		{
 			# Equal, return.
-			return $rounded_number;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rounded_number => $rounded_number }});
+			return($rounded_number);
 		}
 		elsif ( length($decimal) < $places )
 		{
 			# Less, pad.
 			$rounded_number = sprintf("%.${places}f", $rounded_number);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rounded_number => $rounded_number }});
 		}
 		else
 		{
 			# Greater than; I need to round the number. Start by getting the number of places I 
 			# need to round.
 			my $round_diff = length($decimal) - $places;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { round_diff => $round_diff }});
 			
 			# This keeps track of whether the next (left) digit needs to be incremented.
 			my $increase = 0;
 			
 			# Now loop the number of times needed to round to the requested number of places.
-			for (1..$round_diff)
+			for (0..$round_diff)
 			{
 				# Reset 'increase'.
 				$increase = 0;
@@ -1248,17 +1256,24 @@ sub round
 				if ($decimal =~ /(\d)$/)
 				{
 					my $last_digit =  $1;
-					$decimal       =~ s/$last_digit$//;
+					   $decimal    =~ s/$last_digit$//;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						last_digit => $last_digit,
+						decimal    => $decimal, 
+					}});
 					if ($last_digit > 4)
 					{
 						$increase = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { increase => $increase }});
 						if ($decimal eq "")
 						{
 							$real++;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { real => $real }});
 						}
 						else
 						{
 							$decimal++;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { decimal => $decimal }});
 						}
 					}
 				}
@@ -1266,10 +1281,12 @@ sub round
 			if ($places == 0 )
 			{
 				$rounded_number = $real;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rounded_number => $rounded_number }});
 			}
 			else
 			{
 				$rounded_number = $real.".".$decimal;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rounded_number => $rounded_number }});
 			}
 		}
 	}
@@ -1277,6 +1294,7 @@ sub round
 	{
 		# This is a whole number so just pad 0s as needed.
 		$rounded_number = sprintf("%.${places}f", $rounded_number);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rounded_number => $rounded_number }});
 	}
 	
 	# Return the number.

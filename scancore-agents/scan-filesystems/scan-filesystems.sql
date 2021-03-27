@@ -3,8 +3,9 @@
 
 -- This table stores physical volume information
 CREATE TABLE scan_filesystems (
-    scan_filesystem_uuid             uuid                        primary key,    -- This comes from the file system's UUID 
+    scan_filesystem_uuid             uuid                        primary key,    
     scan_filesystem_host_uuid        uuid                        not null,       -- The host that the file system is mounted on. Note that some FSes, like those from USB, can move between hosts.
+    scan_filesystem_internal_uuid    text                        not null,       -- This comes from the file system's UUID, which is not actually always a UUID.
     scan_filesystem_type             text                        not null,       -- This is the name of the file system type.  
     scan_filesystem_kernel_name      text                        not null,       -- This is the backing device of the file system.
     scan_filesystem_mount_point      text                        not null,       -- This is the name of the mount point.  
@@ -26,6 +27,7 @@ CREATE TABLE history.scan_filesystems (
     history_id                       bigserial,
     scan_filesystem_uuid             uuid,
     scan_filesystem_host_uuid        uuid,
+    scan_filesystem_internal_uuid    text,
     scan_filesystem_type             text,
     scan_filesystem_kernel_name      text,
     scan_filesystem_mount_point      text,
@@ -50,6 +52,7 @@ BEGIN
     INSERT INTO history.scan_filesystems
         (scan_filesystem_uuid,
          scan_filesystem_host_uuid, 
+	 scan_filesystem_internal_uuid, 
          scan_filesystem_type, 
          scan_filesystem_kernel_name, 
          scan_filesystem_mount_point, 
@@ -65,6 +68,7 @@ BEGIN
     VALUES
         (history_scan_filesystems.scan_filesystem_uuid,
          history_scan_filesystems.scan_filesystem_host_uuid, 
+	 history_scan_filesystems.scan_filesystem_internal_uuid, 
          history_scan_filesystems.scan_filesystem_type, 
          history_scan_filesystems.scan_filesystem_kernel_name, 
          history_scan_filesystems.scan_filesystem_mount_point, 

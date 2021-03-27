@@ -2159,32 +2159,38 @@ sub parse_lsblk
 		my $kernel_device_name = $hash_ref->{kname};
 		#next if $kernel_device_name =~ /^dm-/;
 		#next if $kernel_device_name =~ /^mmcblk/;	# Add support for this later when 'System->parse_lshw' is done
-		$anvil->{storage}{lsblk}{$kernel_device_name}{alignment_offset}     = defined $hash_ref->{alignment}  ? $hash_ref->{alignment}  : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{device_type}          = defined $hash_ref->{type}       ? $hash_ref->{type}       : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type}      = defined $hash_ref->{fstype}     ? $hash_ref->{fstype}     : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{alignment_offset}         = defined $hash_ref->{alignment}  ? $hash_ref->{alignment}  : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{device_type}              = defined $hash_ref->{type}       ? $hash_ref->{type}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type}          = defined $hash_ref->{fstype}     ? $hash_ref->{fstype}     : "";
 		# This is the LVM formatted UUID, when it's an 'LVM2_member', so it should be easy to cross 
 		# reference with: scan_lvm_lvs -> scan_lvm_lv_internal_uuid to map the LVs to a PV
-		$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_uuid}      = defined $hash_ref->{uuid}       ? $hash_ref->{uuid}       : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{hot_plug}             = defined $hash_ref->{hotplug}    ? $hash_ref->{hotplug}    : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{logical_sector_size}  = defined $hash_ref->{'log-sec'}  ? $hash_ref->{'log-sec'}  : 0;
-		$anvil->{storage}{lsblk}{$kernel_device_name}{model}                = defined $hash_ref->{model}      ? $hash_ref->{model}      : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{model}                = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{model}});
-		$anvil->{storage}{lsblk}{$kernel_device_name}{mount_point}          = defined $hash_ref->{mountpoint} ? $hash_ref->{mountpoint} : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{partition_label}      = defined $hash_ref->{partlabel}  ? $hash_ref->{partlabel}  : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{partition_uuid}       = defined $hash_ref->{partuuid}   ? $hash_ref->{partuuid}   : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{physical_sector_size} = defined $hash_ref->{'phy-sec'}  ? $hash_ref->{'phy-sec'}  : 0;
-		$anvil->{storage}{lsblk}{$kernel_device_name}{read_only}            = defined $hash_ref->{ro}         ? $hash_ref->{ro}         : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{removable}            = defined $hash_ref->{rm}         ? $hash_ref->{rm}         : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive}       = defined $hash_ref->{rota}       ? $hash_ref->{rota}       : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}        = defined $hash_ref->{serial}     ? $hash_ref->{serial}     : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}        = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}});
-		$anvil->{storage}{lsblk}{$kernel_device_name}{scheduler}            = defined $hash_ref->{sched}      ? $hash_ref->{sched} : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{size}                 = defined $hash_ref->{size}       ? $hash_ref->{size}       : 0;
-		$anvil->{storage}{lsblk}{$kernel_device_name}{'state'}              = defined $hash_ref->{'state'}    ? $hash_ref->{'state'}    : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{transport}            = defined $hash_ref->{tran}       ? $hash_ref->{tran}       : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{type}                 = $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_uuid} ? "partition" : "drive";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}               = defined $hash_ref->{vendor}     ? $hash_ref->{vendor}     : "";
-		$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}               = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor}});
+		$anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_internal_uuid} = defined $hash_ref->{uuid}       ? $hash_ref->{uuid}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{hot_plug}                 = defined $hash_ref->{hotplug}    ? $hash_ref->{hotplug}    : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{logical_sector_size}      = defined $hash_ref->{'log-sec'}  ? $hash_ref->{'log-sec'}  : 0;
+		$anvil->{storage}{lsblk}{$kernel_device_name}{model}                    = defined $hash_ref->{model}      ? $hash_ref->{model}      : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{model}                    = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{model}});
+		$anvil->{storage}{lsblk}{$kernel_device_name}{mount_point}              = defined $hash_ref->{mountpoint} ? $hash_ref->{mountpoint} : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{partition_label}          = defined $hash_ref->{partlabel}  ? $hash_ref->{partlabel}  : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{partition_uuid}           = defined $hash_ref->{partuuid}   ? $hash_ref->{partuuid}   : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{physical_sector_size}     = defined $hash_ref->{'phy-sec'}  ? $hash_ref->{'phy-sec'}  : 0;
+		$anvil->{storage}{lsblk}{$kernel_device_name}{read_only}                = defined $hash_ref->{ro}         ? $hash_ref->{ro}         : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{removable}                = defined $hash_ref->{rm}         ? $hash_ref->{rm}         : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive}           = defined $hash_ref->{rota}       ? $hash_ref->{rota}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}            = defined $hash_ref->{serial}     ? $hash_ref->{serial}     : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}            = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number}});
+		$anvil->{storage}{lsblk}{$kernel_device_name}{scheduler}                = defined $hash_ref->{sched}      ? $hash_ref->{sched} : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{size}                     = defined $hash_ref->{size}       ? $hash_ref->{size}       : 0;
+		$anvil->{storage}{lsblk}{$kernel_device_name}{'state'}                  = defined $hash_ref->{'state'}    ? $hash_ref->{'state'}    : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{transport}                = defined $hash_ref->{tran}       ? $hash_ref->{tran}       : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{type}                     = $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_internal_uuid} ? "partition" : "drive";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}                   = defined $hash_ref->{vendor}     ? $hash_ref->{vendor}     : "";
+		$anvil->{storage}{lsblk}{$kernel_device_name}{vendor}                   = $anvil->Words->clean_spaces({string => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor}});
+		
+		# Standardize the 'swap' partitions to '<swap>'
+		if (($anvil->{storage}{lsblk}{$kernel_device_name}{mount_point} eq "[SWAP]") or ((defined $hash_ref->{fstype}) && ($hash_ref->{fstype} eq "swap")))
+		{
+			$anvil->{storage}{lsblk}{$kernel_device_name}{mount_point} = "<swap>";
+		}
 		
 		# There's precious little data that comes from SD cards.
 		if ($kernel_device_name =~ /^mmcblk/)
@@ -2216,27 +2222,27 @@ sub parse_lsblk
 		}
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"storage::lsblk::${kernel_device_name}::alignment_offset"     => $anvil->{storage}{lsblk}{$kernel_device_name}{alignment_offset},
-			"storage::lsblk::${kernel_device_name}::device_type"          => $anvil->{storage}{lsblk}{$kernel_device_name}{device_type},
-			"storage::lsblk::${kernel_device_name}::filesystem_type"      => $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type},
-			"storage::lsblk::${kernel_device_name}::filesystem_uuid"      => $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_uuid},
-			"storage::lsblk::${kernel_device_name}::hot_plug"             => $anvil->{storage}{lsblk}{$kernel_device_name}{hot_plug},
-			"storage::lsblk::${kernel_device_name}::logical_sector_size"  => $anvil->{storage}{lsblk}{$kernel_device_name}{logical_sector_size},
-			"storage::lsblk::${kernel_device_name}::model"                => $anvil->{storage}{lsblk}{$kernel_device_name}{model},
-			"storage::lsblk::${kernel_device_name}::mount_point"          => $anvil->{storage}{lsblk}{$kernel_device_name}{mount_point},
-			"storage::lsblk::${kernel_device_name}::partition_label"      => $anvil->{storage}{lsblk}{$kernel_device_name}{partition_label},
-			"storage::lsblk::${kernel_device_name}::partition_uuid"       => $anvil->{storage}{lsblk}{$kernel_device_name}{partition_uuid},
-			"storage::lsblk::${kernel_device_name}::physical_sector_size" => $anvil->{storage}{lsblk}{$kernel_device_name}{physical_sector_size},
-			"storage::lsblk::${kernel_device_name}::read_only"            => $anvil->{storage}{lsblk}{$kernel_device_name}{read_only},
-			"storage::lsblk::${kernel_device_name}::removable"            => $anvil->{storage}{lsblk}{$kernel_device_name}{removable},
-			"storage::lsblk::${kernel_device_name}::rotating_drive"       => $anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive},
-			"storage::lsblk::${kernel_device_name}::serial_number"        => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number},
-			"storage::lsblk::${kernel_device_name}::scheduler"            => $anvil->{storage}{lsblk}{$kernel_device_name}{scheduler},
-			"storage::lsblk::${kernel_device_name}::size"                 => $anvil->Convert->add_commas({number => $anvil->{storage}{lsblk}{$kernel_device_name}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->{storage}{lsblk}{$kernel_device_name}{size}}).")",
-			"storage::lsblk::${kernel_device_name}::state"                => $anvil->{storage}{lsblk}{$kernel_device_name}{'state'},
-			"storage::lsblk::${kernel_device_name}::type"                 => $anvil->{storage}{lsblk}{$kernel_device_name}{type},
-			"storage::lsblk::${kernel_device_name}::transport"            => $anvil->{storage}{lsblk}{$kernel_device_name}{transport},
-			"storage::lsblk::${kernel_device_name}::vendor"               => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor},
+			"storage::lsblk::${kernel_device_name}::alignment_offset"         => $anvil->{storage}{lsblk}{$kernel_device_name}{alignment_offset},
+			"storage::lsblk::${kernel_device_name}::device_type"              => $anvil->{storage}{lsblk}{$kernel_device_name}{device_type},
+			"storage::lsblk::${kernel_device_name}::filesystem_type"          => $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type},
+			"storage::lsblk::${kernel_device_name}::filesystem_internal_uuid" => $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_internal_uuid},
+			"storage::lsblk::${kernel_device_name}::hot_plug"                 => $anvil->{storage}{lsblk}{$kernel_device_name}{hot_plug},
+			"storage::lsblk::${kernel_device_name}::logical_sector_size"      => $anvil->{storage}{lsblk}{$kernel_device_name}{logical_sector_size},
+			"storage::lsblk::${kernel_device_name}::model"                    => $anvil->{storage}{lsblk}{$kernel_device_name}{model},
+			"storage::lsblk::${kernel_device_name}::mount_point"              => $anvil->{storage}{lsblk}{$kernel_device_name}{mount_point},
+			"storage::lsblk::${kernel_device_name}::partition_label"          => $anvil->{storage}{lsblk}{$kernel_device_name}{partition_label},
+			"storage::lsblk::${kernel_device_name}::partition_uuid"           => $anvil->{storage}{lsblk}{$kernel_device_name}{partition_uuid},
+			"storage::lsblk::${kernel_device_name}::physical_sector_size"     => $anvil->{storage}{lsblk}{$kernel_device_name}{physical_sector_size},
+			"storage::lsblk::${kernel_device_name}::read_only"                => $anvil->{storage}{lsblk}{$kernel_device_name}{read_only},
+			"storage::lsblk::${kernel_device_name}::removable"                => $anvil->{storage}{lsblk}{$kernel_device_name}{removable},
+			"storage::lsblk::${kernel_device_name}::rotating_drive"           => $anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive},
+			"storage::lsblk::${kernel_device_name}::serial_number"            => $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number},
+			"storage::lsblk::${kernel_device_name}::scheduler"                => $anvil->{storage}{lsblk}{$kernel_device_name}{scheduler},
+			"storage::lsblk::${kernel_device_name}::size"                     => $anvil->Convert->add_commas({number => $anvil->{storage}{lsblk}{$kernel_device_name}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->{storage}{lsblk}{$kernel_device_name}{size}}).")",
+			"storage::lsblk::${kernel_device_name}::state"                    => $anvil->{storage}{lsblk}{$kernel_device_name}{'state'},
+			"storage::lsblk::${kernel_device_name}::type"                     => $anvil->{storage}{lsblk}{$kernel_device_name}{type},
+			"storage::lsblk::${kernel_device_name}::transport"                => $anvil->{storage}{lsblk}{$kernel_device_name}{transport},
+			"storage::lsblk::${kernel_device_name}::vendor"                   => $anvil->{storage}{lsblk}{$kernel_device_name}{vendor},
 		}});
 	}
 	
