@@ -10,6 +10,8 @@
 # 
 # TODO: 
 # - Finish System->parse_lwhw(), lots of good stuff in there. 
+# - We can figure out what is using swap with:
+#   - for file in /proc/*/status ; do awk '/VmSwap|Name/{printf $2 " " $3}END{ print ""}' $file; done | grep kB
 #
 
 use strict;

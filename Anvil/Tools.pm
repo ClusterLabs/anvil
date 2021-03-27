@@ -1203,6 +1203,7 @@ sub _set_paths
 				stty				=>	"/usr/bin/stty",
 				su				=>	"/usr/bin/su",
 				'subscription-manager'		=>	"/usr/sbin/subscription-manager",
+				swapon				=>	"/usr/sbin/swapon",
 				systemctl			=>	"/usr/bin/systemctl",
 				timeout				=>	"/usr/bin/timeout",
 				touch				=>	"/usr/bin/touch",

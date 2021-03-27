@@ -14,7 +14,39 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_filesystem
 	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors file systems and the devices backing them.">
 		
 		<!-- Alert entries -->
-		<key name="scan_filesystem_alert_0001"></key>
+		<key name="scan_filesystem_alert_0001">A new partition was found!
+- Kernel device path: [#!variable!new_kernel_name!#]
+- Filesystem UUID: .. [#!variable!filesystem_uuid!#]
+- Filesystem type: .. [#!variable!new_type!#]
+- Mount point: ...... [#!variable!new_mount_point!#]
+- Transport (bus): .. [#!variable!new_transport!#]
+- Media type: ....... [#!variable!new_media_type!#]
+- Device vendor: .... [#!variable!new_vendor!#]
+- Device model: ..... [#!variable!new_model!#]
+- Serial Number: .... [#!variable!new_serial_number!#]
+- Description: ...... [#!variable!new_description!#]
+- Size: ............. [#!variable!new_hr_size!#] (#!variable!new_byte_size!# bytes)
+- Used: ............. [#!variable!new_hr_used!#] (#!variable!new_byte_used!# bytes)
+- Free: ............. [#!variable!new_hr_free!#] (#!variable!new_free_percent!#% / #!variable!new_byte_free!# bytes)
+		</key>
+		<key name="scan_filesystem_alert_0002">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] at the mount point: [#!variable!new_mount_point!#] (UUID: [#!variable!filesystem_uuid!#]) is very low on space! There is only: [#!variable!new_hr_free!#] (#!variable!new_free_percent!#%) out of: [#!variable!new_hr_size!#] left free!</key>
+		<key name="scan_filesystem_alert_0003">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] at the mount point: [#!variable!new_mount_point!#] (UUID: [#!variable!filesystem_uuid!#]) is getting low on space. There is: [#!variable!new_hr_free!#] (#!variable!new_free_percent!#%) out of: [#!variable!new_hr_size!#] left free.</key>
+		<key name="scan_filesystem_alert_0004">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] at the mount point: [#!variable!new_mount_point!#] (UUID: [#!variable!filesystem_uuid!#]) is no longer low on space. There is now: [#!variable!new_hr_free!#] (#!variable!new_free_percent!#%) out of: [#!variable!new_hr_size!#] free.</key>
+		<key name="scan_filesystem_alert_0005">The: [#!variable!new_type!#] file system's kernel device name has changed from: [#!variable!old_kernel_name!#] to: [#!variable!new_kernel_name!#].</key>
+		<key name="scan_filesystem_alert_0006">The: [#!variable!old_type!#] file system: [#!variable!new_kernel_name!#] has somehow changed to be of the filesystem type: [#!variable!new_type!#]. This is unexpected.</key>
+		<key name="scan_filesystem_alert_0007">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] mount point has changed from: [#!variable!old_mount_point!#] to: [#!variable!new_kernel_name!#].</key>
+		<key name="scan_filesystem_alert_0008">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] transport has changed from: [#!variable!old_transport!#] to: [#!variable!new_transport!#]. Was the file system cloned to a new device?</key>
+		<key name="scan_filesystem_alert_0009">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] media type has changed from: [#!variable!old_media_type!#] to: [#!variable!new_media_type!#]. Was the file system cloned to a new device?</key>
+		<key name="scan_filesystem_alert_0010">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] vendor has changed from: [#!variable!old_vendor!#] to: [#!variable!new_vendor!#]. Was the file system cloned to a new device?</key>
+		<key name="scan_filesystem_alert_0011">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] model has changed from: [#!variable!old_model!#] to: [#!variable!new_model!#]. Was the file system cloned to a new device?</key>
+		<key name="scan_filesystem_alert_0012">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] model has changed from: [#!variable!old_serial_number!#] to: [#!variable!new_serial_number!#]. Was the file system cloned to a new device?</key>
+		<key name="scan_filesystem_alert_0013">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] size has changed from: [#!variable!old_hr_size!#] (#!variable!old_byte_size!# bytes) to: [#!variable!new_hr_size!#] (#!variable!new_byte_size!# bytes). Was the file system resized or cloned to a new device?</key>
+		<key name="scan_filesystem_alert_0014">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] used / free space has changed (this is expected to change almost constantly);
+From: [#!variable!old_hr_used!#] (#!variable!old_byte_used!# bytes) used, [#!variable!old_hr_free!#] (#!variable!old_free_percent!#% / #!variable!old_byte_free!# bytes) free
+To: . [#!variable!new_hr_used!#] (#!variable!new_byte_used!# bytes) used, [#!variable!new_hr_free!#] (#!variable!new_free_percent!#% / #!variable!new_byte_free!# bytes) free
+		</key>
+		<key name="scan_filesystem_alert_0015">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] that was removed is back and mounted at: [#!variable!new_mount_point!#].</key>
+		<key name="scan_filesystem_alert_0016">The: [#!variable!old_type!#] file system: [#!variable!old_kernel_name!#] mounted at: [#!variable!old_mount_point!#] has been removed or unplugged.</key>
 
 		<!-- Log entries -->
 		<key name="scan_filesystem_log_0001">Starting: [#!variable!program!#].</key>

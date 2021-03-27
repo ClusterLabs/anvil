@@ -49,7 +49,8 @@ if (($< != 0) && ($> != 0))
 
 # These are the threasholds for when to alert when swap is running out.
 $anvil->data->{scancore}{'scan-filesystems'}{disable} = 0;
-$anvil->data->{switches}{force}               = 0;
+$anvil->data->{'scan-filesystems'}{alert_sort}        = 2;
+$anvil->data->{switches}{force}                       = 0;
 
 $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -104,268 +105,503 @@ sub find_changes
 {
 	my ($anvil) = @_;
 	
-=cut
-	foreach my $scan_filesystem_type (keys %{$anvil->data->{filesystem}{scan_filesystem_type}})
+	foreach my $filesystem_internal_uuid (sort {$a cmp $b} keys %{$anvil->data->{new}{partition}})
 	{
-		my $scan_filesystem_kernel_name       = $anvil->data->{filesystem}{scan_filesystem_type}{$scan_filesystem_type}{name};
-		my $scan_filesystem_mount_point = $anvil->data->{filesystem}{scan_filesystem_type}{$scan_filesystem_type}{used_by_vg};
-		my $scan_filesystem_media_type = $anvil->data->{filesystem}{scan_filesystem_type}{$scan_filesystem_type}{attributes};
-		my $scan_filesystem_size       = $anvil->data->{filesystem}{scan_filesystem_type}{$scan_filesystem_type}{size};
-		my $scan_filesystem_free       = $anvil->data->{filesystem}{scan_filesystem_type}{$scan_filesystem_type}{free_space};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { filesystem_uuid => $filesystem_internal_uuid }});
+		
+		# Skip LVM devices as they're tracked by 'scan-lvm'.
+		next if $anvil->data->{new}{partition}{$filesystem_internal_uuid}{type} eq "LVM2_member";
+		
+		my $new_kernel_name   = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{kernel_name};
+		my $new_type          = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{type};
+		my $new_mount_point   = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{mount_point};
+		my $new_transport     = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{transport};
+		my $new_media_type    = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{media_type};
+		my $new_vendor        = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{vendor};
+		my $new_model         = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{model};
+		my $new_serial_number = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{serial_number};
+		my $new_description   = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{description};
+		my $new_size          = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{size};
+		my $new_used          = $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used};
+		my $new_free          = $new_size - $new_used;
+		my $new_free_percent  = $anvil->Convert->round({number => ((($new_size - $new_used)/$new_size) * 100), places => 1});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			scan_filesystem_type       => $scan_filesystem_type, 
-			scan_filesystem_kernel_name       => $scan_filesystem_kernel_name,
-			scan_filesystem_mount_point => $scan_filesystem_mount_point,
-			scan_filesystem_media_type => $scan_filesystem_media_type,
-			scan_filesystem_size       => $anvil->Convert->add_commas({number => $scan_filesystem_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_filesystem_size}),
-			scan_filesystem_free       => $anvil->Convert->add_commas({number => $scan_filesystem_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_filesystem_free}),
+			new_kernel_name   => $new_kernel_name, 
+			new_type          => $new_type,
+			new_mount_point   => $new_mount_point,
+			new_transport     => $new_transport,
+			new_media_type    => $new_media_type,
+			new_vendor        => $new_vendor,
+			new_model         => $new_model,
+			new_serial_number => $new_serial_number,
+			new_description   => $new_description,
+			new_size          => $anvil->Convert->add_commas({number => $new_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}),
+			new_used          => $anvil->Convert->add_commas({number => $new_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_used}),
+			new_free          => $anvil->Convert->add_commas({number => $new_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_free}),
+			new_free_percent  => $new_free_percent,
 		}});
 		
-		# Have we seen this before?
-		if (exists $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid})
+		# Have we seen this partition before?
+		if (exists $anvil->data->{sql}{scan_filesystems}{scan_filesystem_internal_uuid}{$filesystem_internal_uuid})
 		{
-			# Yup, anything changed?
-			my $scan_filesystem_uuid           = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_uuid};
-			my $old_scan_filesystem_kernel_name       = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_kernel_name};
-			my $old_scan_filesystem_mount_point = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_mount_point};
-			my $old_scan_filesystem_media_type = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_media_type};
-			my $old_scan_filesystem_size       = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size};
-			my $old_scan_filesystem_free       = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_free};
+			my $filesystem_uuid = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_internal_uuid}{$filesystem_internal_uuid}{filesystem_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { filesystem_uuid => $filesystem_uuid }});
+			
+			# Note: We do not edit the description as the user may do so later in the WebUI
+			my $old_kernel_name   = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_kernel_name};
+			my $old_type          = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_type};
+			my $old_mount_point   = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_mount_point}; 
+			my $old_transport     = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_transport}; 
+			my $old_media_type    = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_media_type};
+			my $old_vendor        = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_vendor};
+			my $old_model         = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_model};
+			my $old_serial_number = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_serial_number};
+			my $old_size          = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_size};
+			my $old_used          = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_used};
+			my $old_free          = $old_size - $old_used;
+			my $old_free_percent  = $anvil->Convert->round({number => ((($old_size - $old_used)/$old_size) * 100), places => 1});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				old_scan_filesystem_kernel_name       => $old_scan_filesystem_kernel_name,
-				old_scan_filesystem_mount_point => $old_scan_filesystem_mount_point,
-				old_scan_filesystem_media_type => $old_scan_filesystem_media_type,
-				old_scan_filesystem_size       => $anvil->Convert->add_commas({number => $old_scan_filesystem_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_filesystem_size}),
-				old_scan_filesystem_free       => $anvil->Convert->add_commas({number => $old_scan_filesystem_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_filesystem_free}),
+				filesystem_uuid   => $filesystem_uuid, 
+				old_kernel_name   => $old_kernel_name, 
+				old_type          => $old_type,
+				old_mount_point   => $old_mount_point,
+				old_transport     => $old_transport,
+				old_media_type    => $old_media_type,
+				old_vendor        => $old_vendor,
+				old_model         => $old_model,
+				old_serial_number => $old_serial_number,
+				old_size          => $anvil->Convert->add_commas({number => $old_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_size}),
+				old_used          => $anvil->Convert->add_commas({number => $old_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_used}),
+				old_free          => $anvil->Convert->add_commas({number => $old_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_free}),
+				old_free_percent  => $old_free_percent,
 			}});
 			
-			my $update = 0;
-			if ($scan_filesystem_kernel_name ne $old_scan_filesystem_kernel_name)
+			my $update    = 0;
+			my $variables = {
+				filesystem_internal_uuid => $filesystem_internal_uuid, 
+				new_kernel_name          => $new_kernel_name, 
+				old_kernel_name          => $old_kernel_name, 
+				new_type                 => $new_type, 
+				old_type                 => $old_type, 
+				new_mount_point          => $new_mount_point, 
+				old_mount_point          => $old_mount_point, 
+				new_transport            => $new_transport, 
+				old_transport            => $old_transport, 
+				new_media_type           => $new_media_type, 
+				old_media_type           => $old_media_type, 
+				new_vendor               => $new_vendor, 
+				old_vendor               => $old_vendor, 
+				new_model                => $new_model, 
+				old_model                => $old_model, 
+				new_serial_number        => $new_serial_number, 
+				old_serial_number        => $old_serial_number, 
+				new_hr_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}), 
+				old_hr_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_size}), 
+				new_byte_size            => $anvil->Convert->add_commas({number => $new_size}), 
+				old_byte_size            => $anvil->Convert->add_commas({number => $old_size}), 
+				new_hr_used              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_used}), 
+				old_hr_used              => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_used}), 
+				new_byte_used            => $anvil->Convert->add_commas({number => $new_used}), 
+				old_byte_used            => $anvil->Convert->add_commas({number => $old_used}), 
+				new_hr_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_free}), 
+				old_hr_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_free}), 
+				new_byte_free            => $anvil->Convert->add_commas({number => $new_free}), 
+				old_byte_free            => $anvil->Convert->add_commas({number => $old_free}), 
+				new_free_percent         => $new_free_percent, 
+				old_free_percent         => $old_free_percent, 
+			};
+			
+			if ($new_kernel_name ne $old_kernel_name)
 			{
+				# Kernel device name changed.
 				$update = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
-				if ($old_scan_filesystem_kernel_name eq "DELETED")
-				{
-					# A lost PV is back
-					my $variables = { 
-						pv_uuid => $scan_filesystem_type, 
-						pv_name => $scan_filesystem_kernel_name,
-					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0001", variables => $variables});
-					$anvil->Alert->register({clear_alert => 1, alert_level => "warning", message => "scan_filesystem_alert_0001", variables => $variables, set_by => $THIS_FILE});
-				}
-				else
-				{
-					# Device (name) changed... This shouldn't normally happen.
-					my $variables = {
-						pv_uuid     => $scan_filesystem_type, 
-						new_name => $scan_filesystem_kernel_name,
-						old_name => $old_scan_filesystem_kernel_name,
-					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0002", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_filesystem_alert_0002", variables => $variables, set_by => $THIS_FILE});
-				}
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0005", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0005", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
 			}
-			if ($scan_filesystem_mount_point ne $old_scan_filesystem_mount_point)
+			if ($new_type ne $old_type)
 			{
-				# If the old value was blank, then this PV was added to a VG and that's fine.
+				# File system type has changed. WAT?
 				$update = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
-				if (not $old_scan_filesystem_mount_point)
-				{
-					# Added to a VG
-					my $variables = {
-						pv_uuid => $scan_filesystem_type, 
-						pv_name => $scan_filesystem_kernel_name,
-						vg_name => $scan_filesystem_mount_point,
-					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0004", variables => $variables});
-					$anvil->Alert->register({alert_level => "notice", message => "scan_filesystem_alert_0004", variables => $variables, set_by => $THIS_FILE});
-				}
-				else
-				{
-					# The VG was probably renamed.
-					my $variables = {
-						pv_uuid     => $scan_filesystem_type, 
-						pv_name     => $scan_filesystem_kernel_name,
-						new_vg_name => $scan_filesystem_mount_point,
-						old_vg_name => $old_scan_filesystem_mount_point,
-					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0005", variables => $variables});
-					$anvil->Alert->register({alert_level => "notice", message => "scan_filesystem_alert_0005", variables => $variables, set_by => $THIS_FILE});
-				}
-			}
-			if ($scan_filesystem_media_type ne $old_scan_filesystem_media_type)
-			{
-				# Attribute bits changed.
-				$update = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
-				my $variables = {
-					pv_uuid        => $scan_filesystem_type, 
-					pv_name        => $scan_filesystem_kernel_name,
-					new_attributes => $scan_filesystem_media_type,
-					old_attributes => $old_scan_filesystem_media_type,
-				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0006", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_filesystem_alert_0006", variables => $variables, set_by => $THIS_FILE});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0006", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
 			}
-			if ($scan_filesystem_size ne $old_scan_filesystem_size)
+			if ($new_mount_point ne $old_mount_point)
 			{
-				# PE size changed, likely grew.
+				# Mount point has changed
 				$update = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
-				my $variables = {
-					pv_uuid           => $scan_filesystem_type, 
-					pv_name           => $scan_filesystem_kernel_name,
-					new_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_filesystem_size}),
-					new_size_bytes => $anvil->Convert->add_commas({number => $scan_filesystem_size}),
-					old_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_filesystem_size}),
-					old_size_bytes => $anvil->Convert->add_commas({number => $old_scan_filesystem_size}),
-				};
-				if ($scan_filesystem_size > $old_scan_filesystem_size)
+				
+				# Is this a returning filesystem?
+				if ($old_mount_point eq "REMOVED")
 				{
-					# Yup
+					# Yup, returned
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0015", variables => $variables});
+					$anvil->Alert->register({
+						alert_level   => "notice", 
+						message       => "scan_filesystem_alert_0015", 
+						sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+						variables     => $variables, 
+						set_by        => $THIS_FILE,
+					});
+				}
+				else
+				{
+					# Nope, it's a remount
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0007", variables => $variables});
-					$anvil->Alert->register({alert_level => "notice", message => "scan_filesystem_alert_0007", variables => $variables, set_by => $THIS_FILE});
-				}
-				else
-				{
-					# Uhhhh... We'll make this a warning as it shouldn't happen.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0008", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_filesystem_alert_0008", variables => $variables, set_by => $THIS_FILE});
+					$anvil->Alert->register({
+						alert_level   => "notice", 
+						message       => "scan_filesystem_alert_0007", 
+						sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+						variables     => $variables, 
+						set_by        => $THIS_FILE,
+					});
 				}
 			}
-			if ($scan_filesystem_free ne $old_scan_filesystem_free)
+			if ($new_transport ne $old_transport)
 			{
-				# PE size changed, likely shrunk.
+				# Transport changed?! Could it be a dd to a new device?
 				$update = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
-				my $variables = {
-					pv_uuid           => $scan_filesystem_type, 
-					pv_name           => $scan_filesystem_kernel_name,
-					new_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_filesystem_free}),
-					new_free_bytes => $anvil->Convert->add_commas({number => $scan_filesystem_free}),
-					old_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_filesystem_free}),
-					old_free_bytes => $anvil->Convert->add_commas({number => $old_scan_filesystem_free}),
-				};
-				if ($scan_filesystem_free < $old_scan_filesystem_free)
-				{
-					# Yup
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0009", variables => $variables});
-					$anvil->Alert->register({alert_level => "notice", message => "scan_filesystem_alert_0009", variables => $variables, set_by => $THIS_FILE});
-				}
-				else
-				{
-					# Uhhhh... We'll make this a warning as it shouldn't happen.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0010", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_filesystem_alert_0010", variables => $variables, set_by => $THIS_FILE});
-				}
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0008", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0008", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+			if ($new_media_type ne $old_media_type)
+			{
+				# Media changed?! Could it be a dd to a new device?
+				$update = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0009", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0009", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+			if ($new_vendor ne $old_vendor)
+			{
+				# Vendor changed?! Could it be a dd to a new device?
+				$update = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0010", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0010", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+			if ($new_model ne $old_model)
+			{
+				# Model changed?! Could it be a dd to a new device?
+				$update = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0011", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0011", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+			if ($new_serial_number ne $old_serial_number)
+			{
+				# Serial Number changed?! Could it be a dd to a new device?
+				$update = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0012", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0012", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+			if ($new_size ne $old_size)
+			{
+				# Size changed, could be an LV resize or dd.
+				$update = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0013", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0013", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+			if ($new_used ne $old_used)
+			{
+				# This is expected to nearly constantly change.
+				$update = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_filesystem_alert_0014", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "info", 
+					message       => "scan_filesystem_alert_0014", 
+					sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
 			if ($update)
 			{
+				# Save the changed.
 				my $query = "
 UPDATE 
     scan_filesystems 
 SET 
-    scan_filesystem_kernel_name       = ".$anvil->Database->quote($scan_filesystem_kernel_name).", 
-    scan_filesystem_mount_point = ".$anvil->Database->quote($scan_filesystem_mount_point).", 
-    scan_filesystem_media_type = ".$anvil->Database->quote($scan_filesystem_media_type).", 
-    scan_filesystem_size       = ".$anvil->Database->quote($scan_filesystem_size).", 
-    scan_filesystem_free       = ".$anvil->Database->quote($scan_filesystem_free).", 
-    modified_date          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    scan_filesystem_type          = ".$anvil->Database->quote($new_type).", 
+    scan_filesystem_kernel_name   = ".$anvil->Database->quote($new_kernel_name).", 
+    scan_filesystem_mount_point   = ".$anvil->Database->quote($new_mount_point).", 
+    scan_filesystem_transport     = ".$anvil->Database->quote($new_transport).", 
+    scan_filesystem_media_type    = ".$anvil->Database->quote($new_media_type).", 
+    scan_filesystem_vendor        = ".$anvil->Database->quote($new_vendor).", 
+    scan_filesystem_model         = ".$anvil->Database->quote($new_model).", 
+    scan_filesystem_serial_number = ".$anvil->Database->quote($new_serial_number).",
+    scan_filesystem_description   = ".$anvil->Database->quote($new_description).", 
+    scan_filesystem_size          = ".$anvil->Database->quote($new_size).", 
+    scan_filesystem_used          = ".$anvil->Database->quote($new_used).", 
+    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    scan_filesystem_uuid       = ".$anvil->Database->quote($scan_filesystem_uuid)." 
+    scan_filesystem_uuid          = ".$anvil->Database->quote($filesystem_uuid)."
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 			}
 			
-			# Delete the loaded entry so we can check for missing PVs later.
-			delete $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid};
+			# Delete the SQL entry so we can tell which disappeared.
+			delete $anvil->data->{sql}{scan_filesystems}{scan_filesystem_internal_uuid}{$filesystem_internal_uuid};
+			delete $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid};
 		}
 		else
 		{
-			# New PV
-			my $variables = {
-				pv_uuid       => $scan_filesystem_type, 
-				pv_name       => $scan_filesystem_kernel_name,
-				vg_name       => $scan_filesystem_mount_point ? $scan_filesystem_mount_point : "--",
-				attributes    => $scan_filesystem_media_type,
-				pv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_filesystem_size}),
-				pv_size_bytes => $anvil->Convert->add_commas({number => $scan_filesystem_size}),
-				pv_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_filesystem_free}),
-				pv_free_bytes => $anvil->Convert->add_commas({number => $scan_filesystem_free}),
-			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0019", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_filesystem_alert_0019", variables => $variables, set_by => $THIS_FILE});
-			
+			# It's new, add it.
 			my $scan_filesystem_uuid = $anvil->Get->uuid();
-			my $query            = "
-INSERT INTO 
+			my $query                = "
+INSERT INTO  
     scan_filesystems 
 (
-    scan_filesystem_uuid, 
-    scan_filesystem_type,
+    scan_filesystem_uuid,
     scan_filesystem_host_uuid, 
+    scan_filesystem_internal_uuid, 
+    scan_filesystem_type, 
     scan_filesystem_kernel_name, 
     scan_filesystem_mount_point, 
+    scan_filesystem_transport, 
     scan_filesystem_media_type, 
+    scan_filesystem_vendor, 
+    scan_filesystem_model, 
+    scan_filesystem_serial_number, 
+    scan_filesystem_description, 
     scan_filesystem_size, 
-    scan_filesystem_free, 
+    scan_filesystem_used, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($scan_filesystem_uuid).", 
-    ".$anvil->Database->quote($scan_filesystem_type).", 
     ".$anvil->Database->quote($anvil->Get->host_uuid).", 
-    ".$anvil->Database->quote($scan_filesystem_kernel_name).", 
-    ".$anvil->Database->quote($scan_filesystem_mount_point).", 
-    ".$anvil->Database->quote($scan_filesystem_media_type).", 
-    ".$anvil->Database->quote($scan_filesystem_size).", 
-    ".$anvil->Database->quote($scan_filesystem_free).", 
+    ".$anvil->Database->quote($filesystem_internal_uuid).", 
+    ".$anvil->Database->quote($new_type).", 
+    ".$anvil->Database->quote($new_kernel_name).", 
+    ".$anvil->Database->quote($new_mount_point).", 
+    ".$anvil->Database->quote($new_transport).", 
+    ".$anvil->Database->quote($new_media_type).", 
+    ".$anvil->Database->quote($new_vendor).", 
+    ".$anvil->Database->quote($new_model).", 
+    ".$anvil->Database->quote($new_serial_number).", 
+    ".$anvil->Database->quote($new_description).", 
+    ".$anvil->Database->quote($new_size).", 
+    ".$anvil->Database->quote($new_used).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			
+			# Register the notice level alert.
+			my $variables = {
+				filesystem_internal_uuid => $filesystem_internal_uuid, 
+				new_kernel_name          => $new_kernel_name, 
+				new_type                 => $new_type,
+				new_mount_point          => $new_mount_point,
+				new_transport            => $new_transport,
+				new_media_type           => $new_media_type,
+				new_vendor               => $new_vendor,
+				new_model                => $new_model,
+				new_serial_number        => $new_serial_number,
+				new_description          => $new_description,
+				new_hr_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}),
+				new_byte_size            => $anvil->Convert->add_commas({number => $new_size}),
+				new_hr_used              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_used}),
+				new_byte_used            => $anvil->Convert->add_commas({number => $new_used}),
+				new_hr_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_free}),
+				new_byte_free            => $anvil->Convert->add_commas({number => $new_free}),
+				new_free_percent         => $new_free_percent,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0001", variables => $variables});
+			$anvil->Alert->register({
+				alert_level   => "notice", 
+				message       => "scan_filesystem_alert_0001", 
+				sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+				variables     => $variables, 
+				set_by        => $THIS_FILE,
+			});
+		}
+		
+		# Now that we know the partition is in the database; If the free percent is less than 5, set 
+		# a warning alert. If it's less than 15%, set a notice alert. Otherwise, if the free space is
+		# greater than 25%, clear any existing  warnings.
+		my $percent_free_warn   = 5;
+		my $percent_free_notice = 15; 
+		my $percent_free_clear  = 25;
+		my $variables           = {
+			filesystem_internal_uuid => $filesystem_internal_uuid, 
+			new_kernel_name          => $new_kernel_name, 
+			new_type                 => $new_type,
+			new_mount_point          => $new_mount_point,
+			new_hr_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}),
+			new_byte_size            => $anvil->Convert->add_commas({number => $new_size}),
+			new_hr_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_free}),
+			new_byte_free            => $anvil->Convert->add_commas({number => $new_free}),
+			new_free_percent         => $new_free_percent,
+		};
+		
+		if ($new_free_percent < $percent_free_warn)
+		{
+			# See if we've warned the user.
+			my $changed = $anvil->Alert->check_alert_sent({
+				clear          => 0, 
+				record_locator => $filesystem_internal_uuid.":very_low_space", 
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# First time we've fallen under 5%
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0002", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "warning", 
+					message       => "scan_filesystem_alert_0002", 
+					sort_position => 1,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+		}
+		elsif ($new_free_percent < $percent_free_notice)
+		{
+			# Send the low space notice, if needed.
+			my $changed = $anvil->Alert->check_alert_sent({
+				clear          => 0, 
+				record_locator => $filesystem_internal_uuid.":low_space", 
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# First time we've fallen under 5%
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0003", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "notice", 
+					message       => "scan_filesystem_alert_0003", 
+					sort_position => 1,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
+		}
+		elsif ($new_free_percent < $percent_free_clear)
+		{
+			# Send the low space cleared message, if needed.
+			my $very_low_changed = $anvil->Alert->check_alert_sent({
+				clear          => 1, 
+				record_locator => $filesystem_internal_uuid.":very_low_space", 
+				set_by         => $THIS_FILE,
+			});
+			my $low_changed = $anvil->Alert->check_alert_sent({
+				clear          => 1, 
+				record_locator => $filesystem_internal_uuid.":low_space", 
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				very_low_changed => $very_low_changed,
+				low_changed      => $low_changed, 
+			}});
+			if (($very_low_changed) or ($low_changed))
+			{
+				# Clear the alert
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0004", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => $very_low_changed ? "warning" : "notice", 
+					clear_alert   => 1,
+					message       => "scan_filesystem_alert_0004", 
+					sort_position => 1,
+					variables     => $variables, 
+					set_by        => $THIS_FILE,
+				});
+			}
 		}
 	}
 	
-	# Any missing PVs?
-	foreach my $scan_filesystem_type (keys %{$anvil->data->{sql}{scan_filesystems}{scan_filesystem_type}})
+	# Look now for lost file systems.
+	foreach my $filesystem_uuid (keys %{$anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}})
 	{
-		# This one is missing.
-		my $scan_filesystem_uuid     = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_uuid};
-		my $old_scan_filesystem_kernel_name = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_kernel_name};
+		# Is this one we already know has left?
+		next if $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_mount_point} eq "REMOVED";
+		
+		my $old_kernel_name = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_kernel_name};
+		my $old_type        = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_type};
+		my $old_mount_point = $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$filesystem_uuid}{scan_filesystem_mount_point}; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:scan_filesystem_type' => $scan_filesystem_type, 
-			's2:scan_filesystem_uuid'          => $scan_filesystem_uuid,
-			's3:old_scan_filesystem_kernel_name'      => $old_scan_filesystem_kernel_name, 
+			filesystem_uuid => $filesystem_uuid, 
+			old_kernel_name => $old_kernel_name, 
+			old_type        => $old_type,
+			old_mount_point => $old_mount_point,
 		}});
-		next if $old_scan_filesystem_kernel_name eq "DELETED";
 		
-		# Register an alert
-		my $variables = { 
-			pv_uuid => $scan_filesystem_type, 
-			pv_name => $old_scan_filesystem_kernel_name,
-		};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0003", variables => $variables});
-		$anvil->Alert->register({alert_level => "warning", message => "scan_filesystem_alert_0003", variables => $variables, set_by => $THIS_FILE});
-		
-		# Update it PV name to be 'DELTED'
 		my $query = "
 UPDATE 
-    scan_filesystems
+    scan_filesystems 
 SET 
-    scan_filesystem_kernel_name = 'DELETED',
-    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    scan_filesystem_mount_point = 'REMOVED', 
+    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    scan_filesystem_uuid = ".$anvil->Database->quote($scan_filesystem_uuid)."
+    scan_filesystem_uuid        = ".$anvil->Database->quote($filesystem_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		my $update    = 0;
+		my $variables = {
+			old_kernel_name => $old_kernel_name, 
+			old_type        => $old_type,
+			old_mount_point => $old_mount_point,
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_filesystem_alert_0016", variables => $variables});
+		$anvil->Alert->register({
+			alert_level   => "info", 
+			message       => "scan_filesystem_alert_0016", 
+			sort_position => $anvil->data->{'scan-filesystems'}{alert_sort}++,
+			variables     => $variables, 
+			set_by        => $THIS_FILE,
+		});
 	}
-=cut
 
 	return(0);
 }
@@ -379,7 +615,7 @@ sub read_last_scan
 	my $query = "
 SELECT 
     scan_filesystem_uuid, 
-    scan_filesystem_host_uuid,  
+    scan_filesystem_internal_uuid, 
     scan_filesystem_type, 
     scan_filesystem_kernel_name, 
     scan_filesystem_mount_point, 
@@ -393,6 +629,8 @@ SELECT
     scan_filesystem_used 
 FROM 
     scan_filesystems 
+WHERE 
+    scan_filesystem_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
@@ -406,32 +644,34 @@ FROM
 	{
 		# We've got an entry in the 'scan_filesystems' table, so now we'll look for data in the node and 
 		# services tables.
-		my $scan_filesystem_uuid                                                                                             = $row->[0]; 
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_host_uuid}     = $row->[1];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_type}          = $row->[2];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_kernel_name}   = $row->[3]; 
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_mount_point}   = $row->[4]; 
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_transport}     = $row->[5]; 
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_media_type}    = $row->[6];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_vendor}        = $row->[7];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_model}         = $row->[8];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_serial_number} = $row->[9];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_description}   = $row->[10];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size}          = $row->[11];
-		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_used}          = $row->[12];
+		my $scan_filesystem_uuid                                                                                                 = $row->[0]; 
+		my $scan_filesystem_internal_uuid                                                                                        = $row->[1];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_internal_uuid}     = $scan_filesystem_internal_uuid;
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_type}              = $row->[2];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_kernel_name}       = $row->[3]; 
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_mount_point}       = $row->[4]; 
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_transport}         = $row->[5]; 
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_media_type}        = $row->[6];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_vendor}            = $row->[7];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_model}             = $row->[8];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_serial_number}     = $row->[9];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_description}       = $row->[10];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size}              = $row->[11];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_used}              = $row->[12];
+		   $anvil->data->{sql}{scan_filesystems}{scan_filesystem_internal_uuid}{$scan_filesystem_internal_uuid}{filesystem_uuid} = $scan_filesystem_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_uuid"          => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_uuid},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_kernel_name"   => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_kernel_name},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_mount_point"   => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_mount_point},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_transport"     => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_transport},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_media_type"    => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_media_type},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_vendor"        => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_vendor},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_model"         => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_model},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_serial_number" => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_serial_number},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_description"   => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_description},
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_size"          => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size}}),
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_used"          => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_used}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_used}}),
-			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_host_uuid"     => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_host_uuid},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_internal_uuid"     => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_internal_uuid},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_kernel_name"       => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_kernel_name},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_mount_point"       => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_mount_point},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_transport"         => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_transport},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_media_type"        => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_media_type},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_vendor"            => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_vendor},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_model"             => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_model},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_serial_number"     => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_serial_number},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_description"       => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_description},
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_size"              => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_size}}),
+			"sql::scan_filesystems::scan_filesystem_uuid::${scan_filesystem_uuid}::scan_filesystem_used"              => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_used}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_uuid}{$scan_filesystem_uuid}{scan_filesystem_used}}),
+			"sql::scan_filesystems::scan_filesystem_internal_uuid::${scan_filesystem_internal_uuid}::filesystem_uuid" => $anvil->data->{sql}{scan_filesystems}{scan_filesystem_internal_uuid}{$scan_filesystem_internal_uuid}{filesystem_uuid}, 
 		}});
 	}
 	
@@ -443,24 +683,28 @@ sub collect_data
 	my ($anvil) = @_;
 	
 	### NOTE: If a drive is unmounted, we can't trust the sizes.
-	$anvil->Storage->parse_lsblk({debug => 2});
-	$anvil->Storage->parse_df({debug => 2});
+	$anvil->Storage->parse_lsblk({debug => 3});
+	$anvil->Storage->parse_df({debug => 3});
 	foreach my $kernel_device_name (sort {$a cmp $b} keys %{$anvil->{storage}{lsblk}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { kernel_device_name => $kernel_device_name }});
 		if ($anvil->{storage}{lsblk}{$kernel_device_name}{type} eq "partition")
 		{
-			$anvil->data->{new}{partition}{$kernel_device_name}{type}          = $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type};
-			$anvil->data->{new}{partition}{$kernel_device_name}{mount_point}   = $anvil->{storage}{lsblk}{$kernel_device_name}{mount_point};
-			$anvil->data->{new}{partition}{$kernel_device_name}{transport}     = $anvil->{storage}{lsblk}{$kernel_device_name}{transport};
-			$anvil->data->{new}{partition}{$kernel_device_name}{media_type}    = $anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive} ? "platter" : "solid_state";	# This could be network as well someday
-			$anvil->data->{new}{partition}{$kernel_device_name}{vendor}        = $anvil->{storage}{lsblk}{$kernel_device_name}{vendor};
-			$anvil->data->{new}{partition}{$kernel_device_name}{model}         = $anvil->{storage}{lsblk}{$kernel_device_name}{model};
-			$anvil->data->{new}{partition}{$kernel_device_name}{serial_number} = $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number};
-			$anvil->data->{new}{partition}{$kernel_device_name}{description}   = $anvil->{storage}{lsblk}{$kernel_device_name}{partition_label};
-			$anvil->data->{new}{partition}{$kernel_device_name}{size}          = 0;
-			$anvil->data->{new}{partition}{$kernel_device_name}{used}          = 0;
-			if (($anvil->data->{new}{partition}{$kernel_device_name}{mount_point}) && (exists $anvil->{storage}{df}{$kernel_device_name}))
+			my $filesystem_internal_uuid = $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_internal_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { filesystem_internal_uuid => $filesystem_internal_uuid }});
+			
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{kernel_name}     = $kernel_device_name;
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{type}            = $anvil->{storage}{lsblk}{$kernel_device_name}{filesystem_type};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{mount_point}     = $anvil->{storage}{lsblk}{$kernel_device_name}{mount_point};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{transport}       = $anvil->{storage}{lsblk}{$kernel_device_name}{transport};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{media_type}      = $anvil->{storage}{lsblk}{$kernel_device_name}{rotating_drive} ? "platter" : "solid_state";	# This could be network as well someday
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{vendor}          = $anvil->{storage}{lsblk}{$kernel_device_name}{vendor};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{model}           = $anvil->{storage}{lsblk}{$kernel_device_name}{model};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{serial_number}   = $anvil->{storage}{lsblk}{$kernel_device_name}{serial_number};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{description}     = $anvil->{storage}{lsblk}{$kernel_device_name}{partition_label};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{size}            = $anvil->{storage}{lsblk}{$kernel_device_name}{size};
+			$anvil->data->{new}{partition}{$filesystem_internal_uuid}{used}            = 0;
+			if (($anvil->data->{new}{partition}{$filesystem_internal_uuid}{mount_point}) && (exists $anvil->{storage}{df}{$kernel_device_name}))
 			{
 				# Look for space usage from 'df'
 				my $df_mount_point     = $anvil->{storage}{df}{$kernel_device_name}{mount_point};
@@ -478,9 +722,9 @@ sub collect_data
 				
 				# This is a check to see if the calculated free space matches the reported free 
 				# space.
-				   $anvil->data->{new}{partition}{$kernel_device_name}{size} =  $df_size; 
-				   $anvil->data->{new}{partition}{$kernel_device_name}{used} =  $df_used;
-				my $calculated_free                                          =  $anvil->data->{new}{partition}{$kernel_device_name}{size} - $anvil->data->{new}{partition}{$kernel_device_name}{used};
+				   $anvil->data->{new}{partition}{$filesystem_internal_uuid}{size} =  $df_size; 
+				   $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used} =  $df_used;
+				my $calculated_free                                          =  $anvil->data->{new}{partition}{$filesystem_internal_uuid}{size} - $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used};
 				my $difference                                               =  $df_free - $calculated_free;
 				   $difference                                               =~ s/^-//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -489,18 +733,45 @@ sub collect_data
 				}});
 			}
 			
+			# If this is swap, there won't be any information from 'df', so get the used space 
+			# from swapon.
+			if ($anvil->{storage}{lsblk}{$kernel_device_name}{mount_point} eq "<swap>")
+			{
+				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{swapon}."  --show=UUID,USED --bytes --noheadings"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
+				foreach my $line (split/\n/, $output)
+				{
+					$line = $anvil->Words->clean_spaces({string => $line});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					
+					if ($line =~ /^$filesystem_internal_uuid (\d+)$/)
+					{
+						$anvil->data->{new}{partition}{$filesystem_internal_uuid}{used} = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"new::partition::${filesystem_internal_uuid}::used" => $anvil->Convert->add_commas({number => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used}}).")"
+						}});
+						last;
+					}
+				}
+			}
+			
 			# Record the partition
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:new::partition::${kernel_device_name}::type"          => $anvil->data->{new}{partition}{$kernel_device_name}{type}, 
-				"s2:new::partition::${kernel_device_name}::mount_point"   => $anvil->data->{new}{partition}{$kernel_device_name}{mount_point}, 
-				"s3:new::partition::${kernel_device_name}::transport"     => $anvil->data->{new}{partition}{$kernel_device_name}{transport}, 
-				"s4:new::partition::${kernel_device_name}::media_type"    => $anvil->data->{new}{partition}{$kernel_device_name}{media_type}, 
-				"s5:new::partition::${kernel_device_name}::vendor"        => $anvil->data->{new}{partition}{$kernel_device_name}{vendor}, 
-				"s6:new::partition::${kernel_device_name}::model"         => $anvil->data->{new}{partition}{$kernel_device_name}{model}, 
-				"s7:new::partition::${kernel_device_name}::serial_number" => $anvil->data->{new}{partition}{$kernel_device_name}{serial_number}, 
-				"s8:new::partition::${kernel_device_name}::description"   => $anvil->data->{new}{partition}{$kernel_device_name}{description}, 
-				"s9:new::partition::${kernel_device_name}::size"          => $anvil->Convert->add_commas({number => $anvil->data->{new}{partition}{$kernel_device_name}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{partition}{$kernel_device_name}{size}}).")", 
-				"s10:new::partition::${kernel_device_name}::used"         => $anvil->Convert->add_commas({number => $anvil->data->{new}{partition}{$kernel_device_name}{used}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{partition}{$kernel_device_name}{used}}).")", 
+				"s1:new::partition::${filesystem_internal_uuid}::kernel_name"               => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{kernel_name}, 
+				"s2:new::partition::${filesystem_internal_uuid}::type"                      => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{type}, 
+				"s3:new::partition::${filesystem_internal_uuid}::mount_point"               => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{mount_point}, 
+				"s4:new::partition::${filesystem_internal_uuid}::transport"                 => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{transport}, 
+				"s5:new::partition::${filesystem_internal_uuid}::media_type"                => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{media_type}, 
+				"s6:new::partition::${filesystem_internal_uuid}::vendor"                    => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{vendor}, 
+				"s7:new::partition::${filesystem_internal_uuid}::model"                     => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{model}, 
+				"s8:new::partition::${filesystem_internal_uuid}::serial_number"             => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{serial_number}, 
+				"s9:new::partition::${filesystem_internal_uuid}::description"               => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{description}, 
+				"s10:new::partition::${filesystem_internal_uuid}::filesystem_internal_uuid" => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{filesystem_internal_uuid}, 
+				"s10:new::partition::${filesystem_internal_uuid}::size"                     => $anvil->Convert->add_commas({number => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{size}}).")", 
+				"s11:new::partition::${filesystem_internal_uuid}::used"                     => $anvil->Convert->add_commas({number => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{partition}{$filesystem_internal_uuid}{used}}).")", 
 			}});
 		}
 	}
