@@ -1,14 +1,16 @@
 import { makeStyles, withStyles } from '@material-ui/core/styles';
-import { LinearProgress, Typography } from '@material-ui/core';
+import { LinearProgress } from '@material-ui/core';
 import {
   PURPLE_OFF,
+  BLUE,
   PANEL_BACKGROUND,
-  TEXT,
 } from '../lib/consts/DEFAULT_THEME';
+
+const completed = 100;
 
 const BorderLinearProgress = withStyles({
   root: {
-    height: 25,
+    height: 10,
     borderRadius: 3,
   },
   colorPrimary: {
@@ -16,48 +18,38 @@ const BorderLinearProgress = withStyles({
   },
   bar: {
     borderRadius: 3,
-    backgroundColor: PURPLE_OFF,
   },
 })(LinearProgress);
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    flexGrow: 1,
+const useStyles = makeStyles(() => ({
+  barOk: {
+    backgroundColor: BLUE,
   },
-  margin: {
-    margin: theme.spacing(1),
-  },
-  leftLabel: {
-    position: 'absolute',
-    color: TEXT,
-    top: 0,
-    left: '2%',
-  },
-  centerLabel: {
-    position: 'absolute',
-    color: TEXT,
-    top: 0,
-    left: '70%',
-  },
-  rightLabel: {
-    position: 'absolute',
-    color: TEXT,
-    top: 0,
-    left: '90%',
+  barInProgress: {
+    backgroundColor: PURPLE_OFF,
   },
 }));
 
-const ProgressBar = ({ allocated }: { allocated: number }): JSX.Element => {
+const ProgressBar = ({
+  progressPercentage,
+}: {
+  progressPercentage: number;
+}): JSX.Element => {
   const classes = useStyles();
-
   return (
-    <div style={{ position: 'relative' }}>
-      <BorderLinearProgress variant="determinate" value={allocated} />
-      <Typography className={classes.leftLabel}>53.5%</Typography>
-      <Typography className={classes.centerLabel}>570MiB/s</Typography>
-      <Typography className={classes.rightLabel}>1:15:30</Typography>
+    <>
+      <BorderLinearProgress
+        classes={{
+          bar:
+            progressPercentage < completed
+              ? classes.barInProgress
+              : classes.barOk,
+        }}
+        variant="determinate"
+        value={progressPercentage}
+      />
       <LinearProgress variant="determinate" value={0} />
-    </div>
+    </>
   );
 };
 
