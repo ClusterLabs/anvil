@@ -16,6 +16,7 @@ const useStyles = makeStyles(() => ({
     marginTop: '20px',
     marginBottom: '20px',
     paddingBottom: '10px',
+    position: 'relative',
   },
 }));
 
