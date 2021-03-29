@@ -5,7 +5,6 @@ import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
 const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
   const anvils: AnvilListItem[] = [];
-  // if (list) anvils = list.anvils;
 
   list?.anvils.forEach((anvil: AnvilListItem) => {
     const { data } = PeriodicFetch<AnvilStatus>(
@@ -15,7 +14,7 @@ const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
     /* eslint-disable no-param-reassign */
     anvils.push({
       ...anvil,
-      anvil_state: data.anvil_state,
+      anvil_state: data?.anvil_state,
     });
   });
 
