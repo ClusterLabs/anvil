@@ -4,6 +4,7 @@ import * as prettyBytes from 'pretty-bytes';
 import InnerPanel from './InnerPanel';
 import AllocationBar from './AllocationBar';
 import { BodyText } from './Text';
+import PanelHeader from './PanelHeader';
 
 const SharedStorageNode = ({
   node,
@@ -12,13 +13,17 @@ const SharedStorageNode = ({
 }): JSX.Element => {
   return (
     <InnerPanel>
+      <PanelHeader>
+        <Grid container alignItems="center" justify="space-around">
+          <Grid item xs={6}>
+            <BodyText text={`Node: ${node.nodeInfo?.node_name}`} />
+          </Grid>
+          <Grid item xs={3}>
+            <Switch checked={node.is_mounted} />
+          </Grid>
+        </Grid>
+      </PanelHeader>
       <Grid container alignItems="center" justify="space-around">
-        <Grid item xs={6}>
-          <BodyText text={`Node: ${node.nodeInfo?.node_name}`} />
-        </Grid>
-        <Grid item xs={4}>
-          <Switch checked={node.is_mounted} />
-        </Grid>
         <Grid item xs={4}>
           <BodyText
             text={`Used: ${prettyBytes.default(node.total - node.free, {
