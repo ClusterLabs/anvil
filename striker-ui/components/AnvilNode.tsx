@@ -1,6 +1,5 @@
 import { Grid, Switch } from '@material-ui/core';
 
-import InnerPanel from './InnerPanel';
 import AllocationBar from './AllocationBar';
 import { BodyText } from './Text';
 
@@ -15,12 +14,12 @@ const AnvilNode = ({
         node.map(
           (n): JSX.Element => {
             return (
-              <InnerPanel key={n.state_message}>
+              <>
                 <Grid container alignItems="center" justify="space-around">
                   <Grid item xs={6}>
                     <BodyText text={`Node: ${n.node_name}`} />
                   </Grid>
-                  <Grid item xs={4}>
+                  <Grid item xs={3}>
                     <Switch checked />
                   </Grid>
                   <Grid item xs={6}>
@@ -33,7 +32,7 @@ const AnvilNode = ({
                     <AllocationBar allocated={n.state_percent} />
                   </Grid>
                 </Grid>
-              </InnerPanel>
+              </>
             );
           },
         )}
