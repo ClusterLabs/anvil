@@ -13,16 +13,9 @@ const useStyles = makeStyles(() => ({
     borderRadius: '3px',
     borderStyle: 'solid',
     borderColor: TEXT,
-    marginTop: '5px',
-    marginLeft: '5px',
-    paddinLeft: '5px',
-  },
-  innerHeader: {
-    width: '100%',
-    borderWidth: '1px',
-    borderRadius: '3px',
-    borderStyle: 'solid',
-    borderColor: TEXT,
+    marginTop: '20px',
+    marginBottom: '20px',
+    paddingBottom: '10px',
   },
 }));
 
