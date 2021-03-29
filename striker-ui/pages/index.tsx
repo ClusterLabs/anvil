@@ -19,7 +19,7 @@ const Home = (): JSX.Element => {
   const classes = useStyles();
 
   const { data } = PeriodicFetch<AnvilList>(
-    'http://localhost:8080',
+    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
     '/anvils/get_anvils',
   );
 
@@ -33,7 +33,7 @@ const Home = (): JSX.Element => {
           className={classes.grid}
         >
           <Anvils list={data} />
-          <Nodes />
+          <Nodes anvil={data?.anvils[0]} />
         </Grid>
       </Grid>
       <Grid item xs={5}>
@@ -53,19 +53,13 @@ const Home = (): JSX.Element => {
           direction="column"
           className={classes.grid}
         >
-          <SharedStorage
-            anvil={data?.anvils?.length > 0 ? data.anvils[0] : 'no uuid'}
-          />
-          <CPU
-            uuid={
-              data?.anvils?.length > 0 ? data.anvils[0].anvil_uuid : 'no uuid'
-            }
-          />
-          <Memory
-            uuid={
-              data?.anvils?.length > 0 ? data.anvils[0].anvil_uuid : 'no uuid'
-            }
-          />
+          {data?.anvils?.length ? (
+            <>
+              <SharedStorage anvil={data.anvils[0]} />
+              <CPU uuid={data.anvils[0].anvil_uuid} />
+              <Memory uuid={data.anvils[0].anvil_uuid} />
+            </>
+          ) : null}
         </Grid>
       </Grid>
     </Grid>
