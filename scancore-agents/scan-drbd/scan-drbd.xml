@@ -202,6 +202,8 @@ The DRBD resource was not found in the database, but appears to have been in the
 		
 		<!-- States - Note: All of this copy is taken from the official DRBD 9.0 documentation (as of 2020-12-03) - https://www.linbit.com/drbd-user-guide/drbd-guide-9_0-en/#s-connection-states -->
 		<!-- Connection States -->
+		<key name="scan_drbd_state_down_name">Down</key>
+		<key name="scan_drbd_state_down_explain">The resource is stopped.</key>
 		<key name="scan_drbd_state_standalone_name">StandAlone</key>
 		<key name="scan_drbd_state_standalone_explain">No network configuration available. The resource has not yet been connected, or has been administratively disconnected (using drbdadm disconnect), or has dropped its connection due to failed authentication or split brain.</key>
 		<key name="scan_drbd_state_connecting_name">Connecting</key>

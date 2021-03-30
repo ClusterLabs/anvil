@@ -445,7 +445,7 @@ sub check_agent_data
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0181", variables => $variables});
 				$anvil->Alert->register({
-					debug       => 2,
+					debug       => $debug,
 					alert_level => "warning",
 					message     => "message_0181",
 					variables   => $variables, 
@@ -1663,14 +1663,40 @@ sub connect
 	
 	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
 	# date.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 	if ($anvil->data->{sys}{database}{connections} > 1)
 	{
-		$anvil->Database->_find_behind_databases({
-			debug  => $debug, 
-			source => $source, 
-			tables => $tables,
-		});
+		# If we have a "last_db_count" and it's the same as the current number of connections, skip 
+		# checking for a resync. This is done because the databases change constantly so tables like
+		# jobs, which scancore and anvil-daemon constantly change, doesn't trigger a resync when 
+		# records change mid-check.
+		my $check = 1;
+		if (exists $anvil->data->{sys}{database}{last_db_count})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count},
+				"sys::database::connections"   => $anvil->data->{sys}{database}{connections}, 
+			}});
+			if ($anvil->data->{sys}{database}{last_db_count} eq $anvil->data->{sys}{database}{connections})
+			{
+				$check = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check => $check }});
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check => $check }});
+		if ($check)
+		{
+			$anvil->Database->_find_behind_databases({
+				debug  => $debug, 
+				source => $source, 
+				tables => $tables,
+			});
+		}
 	}
+	
+	$anvil->data->{sys}{database}{last_db_count} = $anvil->data->{sys}{database}{connections};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count} }});
 	
 	# Hold if a lock has been requested.
 	$anvil->Database->locking({debug => $debug});
@@ -4778,7 +4804,7 @@ sub initialize
 	
 	# Now that I am ready, disable autocommit, write and commit.
 	$anvil->Database->write({
-		debug  => 2,
+		debug  => $debug,
 		uuid   => $uuid, 
 		query  => $sql, 
 		source => $THIS_FILE, 
@@ -6589,7 +6615,7 @@ SET
 WHERE 
     health_uuid        = ".$anvil->Database->quote($health_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		
 		$query = "
@@ -6598,7 +6624,7 @@ DELETE FROM
 WHERE 
     health_uuid        = ".$anvil->Database->quote($health_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	else
@@ -11954,7 +11980,7 @@ SET
 WHERE
     temperature_uuid   = ".$anvil->Database->quote($temperature_uuid).";
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		if (ref($cache) eq "ARRAY")
 		{
 			push @{$cache}, $query;
@@ -15214,7 +15240,7 @@ sub _archive_table
 	# We don't archive the OUI table, it generally has more entries than needed to trigger the archive, but it's needed.
 	if (($table eq "oui") or ($table eq "states"))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "err", key => "log_0459", variables => { table => $table }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "err", key => "log_0459", variables => { table => $table }});
 		return(0);
 	}
 	
@@ -15697,24 +15723,30 @@ ORDER BY
 			}});
 			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
 			{
-				### TODO: This triggers with extremely high numbers. Somewhere, the time 
-				###       isn't being updated properly.
+				### NOTE: This triggers often with just a few seconds difference, which is 
+				###       more likely caused by one database being reads, something changes,
+				###       and the next database is read. As such, we won't trigger unless
+				###       the difference is more than 10 seconds.
 				# Resync needed.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
-					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
-				}});
 				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}) });
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
-					seconds => $difference, 
-					table   => $table, 
-					uuid    => $uuid,
-					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:difference"                                                  => $difference, 
+					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
+					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				}});
-				
-				# Mark it as behind.
-				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
-				last;
+				if ($difference > 10)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
+						seconds => $difference, 
+						table   => $table, 
+						uuid    => $uuid,
+						host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+					}});
+					
+					# Mark it as behind.
+					$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+					last;
+				}
 			}
 			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
