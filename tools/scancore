@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This is the main ScanCore program. It is started/killed/recovered by anvil-daemon.
+# This is the main ScanCore program. It is managed by systemd
 # 
 # Examples;
 # 

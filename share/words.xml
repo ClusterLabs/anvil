@@ -342,6 +342,19 @@ Output (if any):
 		<key name="error_0248">Failed to add the UPS: [#!variable!ups_name!#] at: [#!variable!aups_ip_address!#] using the agent: [#!variable!ups_agent!#]!</key>
 		<key name="error_0249">Failed to add the fence device: [#!variable!fence_name!#] using the agent: [#!variable!fence_agent!#]!</key>
 		<key name="error_0250">This machine is a an active cluster member, aborting job.</key>
+		<key name="error_0251">We were asked to call 'drbdadm' but it doesn't exist. Is DRBD installed?</key>
+		<key name="error_0252">The call to 'drbdadm dump-xml' returned the exit code: [#!variable!return_code!#].</key>
+		<key name="error_0253">[ Warning ] - Failed to parse the DRBD XML. The XML read was:
+========
+#!variable!xml!#
+========
+
+The error was:
+
+========
+#!variable!error!#
+========
+		</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->

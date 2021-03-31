@@ -31,6 +31,13 @@ dist_drbd_DATA			= \
 dist_drbd_SCRIPTS		= \
 				  scan-drbd/scan-drbd
 
+filesystemsdir			= ${targetdir}/scan-filesystems
+dist_filesystems_DATA		= \
+				  scan-filesystems/scan-filesystems.xml \
+				  scan-filesystems/scan-filesystems.sql
+dist_filesystems_SCRIPTS	= \
+				  scan-filesystems/scan-filesystems
+
 hardwaredir			= ${targetdir}/scan-hardware
 dist_hardware_DATA		= \
 				  scan-hardware/scan-hardware.xml \

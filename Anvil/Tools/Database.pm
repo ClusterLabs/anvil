@@ -14616,7 +14616,7 @@ sub resync_databases
 				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
 			}
 			$query .= " ORDER BY utc_modified_date DESC;";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
@@ -15729,7 +15729,7 @@ ORDER BY
 				###       the difference is more than 10 seconds.
 				# Resync needed.
 				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
 					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 

@@ -22,7 +22,11 @@
 -- 
 -- NOTE: If you have a column that is '<table>_host_uuid', and it's role is to show which host a moveable
 --       thing is on (as opposed to a record bound to a host_uuid), be sure to add the table name to the
---       excluded list in Database->_find_behind_databases().
+--       excluded list in Database->_find_behind_databases(). 
+-- 
+-- NOTE: When developing Scan Agents; If an agent's data is tied to a host, all tables in the SQL schema for
+--       that agent need to also be tied to the host so that resyncs of sub tables don't sync when they
+--       shouldn't.
 -- 
 -- Most tables will want to have a matching table in the history schema with an additional 
 -- 'history_id  bigserial' column. Match the function and trigger seen elsewhere to copy your data from the
@@ -31,8 +35,6 @@
 -- If a table is a child of another table, ie: a UPS battery is a child of a UPS, and you have tables for 
 -- each that you plan to link, still use a '*_host_uuid' column (if the data is host-specific). This is 
 -- needed by the resync method.
--- 
--- NOTE: If you add, rename or remove a table, remember to update the 'sys::database::core_tables' array!
 -- 
 
 

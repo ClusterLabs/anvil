@@ -18,19 +18,7 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_server_log
 		
 		<!-- Error entries -->
 		<key name="scan_drbd_error_0001">DRBD is not configured on this host, exiting.</key>
-		<key name="scan_drbd_error_0002">The call to 'drbdadm dump-xml' returned the exit code: [#!variable!return_code!#].</key>
-		<key name="scan_drbd_error_0003">[ Warning ] - Failed to parse the DRBD XML. The XML read was:
-========
-#!variable!xml!#
-========
-
-The error was:
-
-========
-#!variable!error!#
-========
-		</key>
-		
+			
 		<!-- Error entries -->
 		<key name="scan_drbd_log_0001">Starting The: [#!variable!program!#] DRBD resource agent.</key>
 		
