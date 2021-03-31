@@ -78,6 +78,7 @@ CREATE TRIGGER trigger_scan_ipmitool
 -- possible.
 CREATE TABLE scan_ipmitool_values (
     scan_ipmitool_value_uuid                  uuid                        not null    primary key,
+    scan_ipmitool_value_host_uuid             uuid                        not null,
     scan_ipmitool_value_scan_ipmitool_uuid    uuid                        not null,
     scan_ipmitool_value_sensor_value          numeric                     not null,
     modified_date                             timestamp with time zone    not null,
@@ -89,6 +90,7 @@ ALTER TABLE scan_ipmitool_values OWNER TO admin;
 CREATE TABLE history.scan_ipmitool_values (
     history_id                                uuid,
     scan_ipmitool_value_uuid                  uuid,
+    scan_ipmitool_value_host_uuid             uuid,
     scan_ipmitool_value_scan_ipmitool_uuid    uuid,
     scan_ipmitool_value_sensor_value          numeric,
     modified_date                             timestamp with time zone    not null
@@ -103,11 +105,13 @@ BEGIN
     SELECT INTO history_scan_ipmitool_values * FROM scan_ipmitool_values WHERE scan_ipmitool_value_uuid=new.scan_ipmitool_value_uuid;
     INSERT INTO history.scan_ipmitool_values 
         (scan_ipmitool_value_uuid,
+         scan_ipmitool_value_host_uuid, 
          scan_ipmitool_value_scan_ipmitool_uuid, 
          scan_ipmitool_value_sensor_value, 
          modified_date)
     VALUES
         (history_scan_ipmitool_values.scan_ipmitool_value_uuid,
+         history_scan_ipmitool_values.scan_ipmitool_value_host_uuid, 
          history_scan_ipmitool_values.scan_ipmitool_value_scan_ipmitool_uuid, 
          history_scan_ipmitool_values.scan_ipmitool_value_sensor_value, 
          history_scan_ipmitool_values.modified_date);

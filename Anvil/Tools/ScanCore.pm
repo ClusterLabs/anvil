@@ -117,6 +117,7 @@ sub agent_startup
 		tables => $tables, 
 	}});
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 	if ((not $tables) or (ref($tables) ne "ARRAY"))
 	{
 		my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".sql";
@@ -124,10 +125,18 @@ sub agent_startup
 		if (-e $schema_file)
 		{
 			$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => $schema_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 			if (($tables eq "!!error!!") or (ref($tables) ne "ARRAY"))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
 				return("!!error!!");
+			}
+			else
+			{
+				foreach my $table (@{$tables})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+				}
 			}
 		}
 		else
@@ -135,15 +144,6 @@ sub agent_startup
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { schema_file => $schema_file }});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
 			return("!!error!!");
-		}
-	}
-	
-	if ((ref($tables) ne "ARRAY") && (@{$tables} > 0))
-	{
-		# Append our tables 
-		foreach my $table (@{$tables})
-		{
-			push @{$anvil->data->{sys}{database}{check_tables}}, $table;
 		}
 	}
 	
@@ -375,10 +375,10 @@ sub check_power
 	my $estimated_hold_up_time    = 0;
 	
 	my $query = "SELECT manifest_uuid FROM manifests WHERE manifest_name = ".$anvil->Database->quote($anvil_name).";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -393,7 +393,7 @@ sub check_power
 	}
 	
 	my $manifest_uuid = $results->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { manifest_uuid => $manifest_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
 	
 	# Try to parse the manifest now.
 	if (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid})
@@ -402,7 +402,7 @@ sub check_power
 			debug         => $debug, 
 			manifest_uuid => $manifest_uuid,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 		
 		if ($problem)
 		{
@@ -421,7 +421,7 @@ sub check_power
 	foreach my $machine_type (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}})
 	{
 		my $machine_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine_type}{name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			machine_type => $machine_type,
 			machine_name => $machine_name, 
 		}});
@@ -432,7 +432,7 @@ sub check_power
 			my $ups_uuid   = $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid};
 			my $ups_used   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine_type}{ups}{$ups_name}{used};
 			my $power_uuid = $anvil->data->{upses}{ups_name}{$ups_name}{power_uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ups_name   => $ups_name,
 				ups_uuid   => $ups_uuid, 
 				power_uuid => $power_uuid, 
@@ -451,7 +451,7 @@ sub check_power
 				my $modified_date_unix      = $anvil->data->{power}{power_uuid}{$power_uuid}{modified_date_unix};
 				my $time_now                = time;
 				my $last_updated            = $time_now - $modified_date_unix;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					ups_count               => $ups_count,
 					power_on_battery        => $power_on_battery, 
 					power_seconds_left      => $power_seconds_left." (".$anvil->Convert->time({'time' => $power_seconds_left, long => 1, translate => 1}).")", 
@@ -468,12 +468,12 @@ sub check_power
 					{
 						# Set this to '2', if another UPS is on mains, it will change it to 1.
 						$power_health = 2;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { power_health => $power_health }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { power_health => $power_health }});
 					}
 					if ($power_seconds_left > $estimated_hold_up_time)
 					{
 						$estimated_hold_up_time = $power_seconds_left;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { estimated_hold_up_time => $estimated_hold_up_time }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { estimated_hold_up_time => $estimated_hold_up_time }});
 					}
 					
 					# How long has it been on batteries?
@@ -492,7 +492,7 @@ LIMIT 1
 ;";
 					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 					my $count   = @{$results};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						results => $results, 
 						count   => $count, 
 					}});
@@ -508,14 +508,14 @@ LIMIT 1
 					else
 					{
 						my $time_on_batteries = $results->[0]->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							time_on_batteries => $time_on_batteries." (".$anvil->Convert->time({'time' => $time_on_batteries, long => 1, translate => 1}).")",
 						}});
 						
 						if ($time_on_batteries < $shorted_time_on_batteries)
 						{
 							$shorted_time_on_batteries = $shorted_time_on_batteries;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 								shorted_time_on_batteries => $shorted_time_on_batteries." (".$anvil->Convert->time({'time' => $shorted_time_on_batteries, long => 1, translate => 1}).")",
 							}});
 						}
@@ -527,7 +527,7 @@ LIMIT 1
 					$power_health              = 1;
 					$ups_with_mains_found      = 1;
 					$shorted_time_on_batteries = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						ups_with_mains_found      => $ups_with_mains_found,
 						shorted_time_on_batteries => $shorted_time_on_batteries, 
 					}});
@@ -535,7 +535,7 @@ LIMIT 1
 					if ($power_charge_percentage > $highest_charge_percentage)
 					{
 						$highest_charge_percentage = $power_charge_percentage;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { highest_charge_percentage => $highest_charge_percentage }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { highest_charge_percentage => $highest_charge_percentage }});
 					}
 				}
 			}
@@ -546,7 +546,7 @@ LIMIT 1
 	{
 		# No UPSes found.
 		$shorted_time_on_batteries = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shorted_time_on_batteries => $shorted_time_on_batteries }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shorted_time_on_batteries => $shorted_time_on_batteries }});
 	}
 	
 	return($power_health, $shorted_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time);
@@ -717,7 +717,7 @@ sub post_scan_analysis_striker
 				count => 3, 
 				ping  => $ip_address,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				pinged       => $pinged,
 				average_time => $average_time, 
 			}});
@@ -729,7 +729,7 @@ sub post_scan_analysis_striker
 					user     => "root",
 					password => $password, 
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
 				if ($access)
 				{
 					# It's up.
@@ -765,10 +765,10 @@ sub post_scan_analysis_striker
 		   $shell_call .= " --action status";
 		   $shell_call =~ s/  --action/ --action/;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		}
 		
 		if ($return_code eq "2")
@@ -798,17 +798,17 @@ AND
 AND 
     variable_source_uuid  = ".$anvil->Database->quote($host_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
 			count   => $count, 
 		}});
 		if ($count)
 		{
 			$stop_reason = $results->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { stop_reason => $stop_reason }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_reason => $stop_reason }});
 		}
 		
 		if (not $stop_reason)
@@ -834,7 +834,7 @@ AND
 				host_uuid  => $host_uuid,
 				host_name  => $host_name,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				power_health              => $power_health,
 				shorted_time_on_batteries => $shorted_time_on_batteries, 
 				highest_charge_percentage => $highest_charge_percentage, 
@@ -853,7 +853,7 @@ AND
 						"scancore::power::safe_boot_percentage" => $anvil->data->{scancore}{power}{safe_boot_percentage}, 
 					}});
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					highest_charge_percentage               => $highest_charge_percentage, 
 					"scancore::power::safe_boot_percentage" => $anvil->data->{scancore}{power}{safe_boot_percentage}, 
 				}});
@@ -863,7 +863,7 @@ AND
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0574", variables => { host_name => $host_name }});
 					$shell_call =~ s/--action status/ --action on/;
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				}
 			}
 		}
@@ -876,7 +876,7 @@ AND
 				debug                 => 2,
 				fence_ipmilan_command => $host_ipmi,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ipmitool_command => $ipmitool_command,
 				ipmi_password    => $anvil->Log->is_secure($ipmi_password), 
 			}});
@@ -902,7 +902,7 @@ AND
 				my $current_value = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value};
 				my $units         = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units};
 				my $status        = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					current_value => $current_value, 
 					sensor_name   => $sensor_name, 
 					units         => $units, 
@@ -917,19 +917,19 @@ AND
 					{
 						# We've found at least one temperature sensor.
 						$sensor_found = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_found => $sensor_found }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sensor_found => $sensor_found }});
 					}
 					
 					if ($status ne "ok")
 					{
 						# Sensor isn't OK yet.
 						$temperatures_ok = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperatures_ok => $temperatures_ok }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperatures_ok => $temperatures_ok }});
 					}
 				}
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				sensor_found    => $sensor_found,
 				temperatures_ok => $temperatures_ok, 
 			}});
@@ -942,7 +942,7 @@ AND
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0575", variables => { host_name => $host_name }});
 				$shell_call =~ s/--action status/ --action on/;
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			}
 		}
 	}
@@ -1006,7 +1006,7 @@ sub _scan_directory
 			
 			# If I am still alive, I am looking at a scan agent!
 			$anvil->data->{scancore}{agent}{$file} = $full_path;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"scancore::agent::${file}" => $anvil->data->{scancore}{agent}{$file},
 			}});
 		}

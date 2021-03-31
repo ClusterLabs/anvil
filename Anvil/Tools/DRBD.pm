@@ -456,12 +456,21 @@ sub gather_data
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->gather_data()" }});
 	
+	# Is DRBD even installed?
+	if (not -e $anvil->data->{path}{exe}{drbdadm})
+	{
+		# This is an error, but it happens a lot because we're called by scan_drbd from Striker 
+		# dashboards often. As such, this log level is '2'.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0251"});
+		return(1);
+	}
+	
 	my ($drbd_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { drbd_xml => $drbd_xml, return_code => $return_code }});
 	if ($return_code)
 	{
 		# Failed to dump the XML.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_error_0002", variables => { return_code => $return_code }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0252", variables => { return_code => $return_code }});
 		return(1);
 	}
 	else
@@ -470,7 +479,7 @@ sub gather_data
 		my $dom = eval { XML::LibXML->load_xml(string => $drbd_xml); };
 		if ($@)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_error_0003", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0253", variables => { 
 				xml   => $drbd_xml,
 				error => $@,
 			}});
