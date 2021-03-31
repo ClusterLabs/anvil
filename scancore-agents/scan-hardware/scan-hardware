@@ -1037,7 +1037,7 @@ WHERE
 			ram_swap_free    => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_free})." #!string!scan_hardware_unit_0001!#)",
 		};
 		$anvil->Alert->register({alert_level => "notice", message => "scan_hardware_alert_0022", variables => $variables, set_by => $THIS_FILE });
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0019", variables => $variables});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0022", variables => $variables});
 		
 		# INSERT
 		my $scan_hardware_uuid = $anvil->Get->uuid();

@@ -210,6 +210,8 @@ The DRBD resource was not found in the database, but appears to have been in the
 		<key name="scan_drbd_state_connecting_explain">This node is waiting until the peer node becomes visible on the network.</key>
 		<key name="scan_drbd_state_connected_name">Connected</key>
 		<key name="scan_drbd_state_connected_explain">A DRBD connection has been established, data mirroring is now active. This is the normal state.</key>
+		<key name="scan_drbd_state_disconnected_name">Disconnected</key>
+		<key name="scan_drbd_state_disconnected_explain">This indicates that the connection is down.</key>
 		<key name="scan_drbd_state_disconnecting_name">Disconnecting</key>
 		<key name="scan_drbd_state_disconnecting_explain">Temporary state during disconnection. The next state is StandAlone.</key>
 		<key name="scan_drbd_state_unconnected_name">Unconnected</key>

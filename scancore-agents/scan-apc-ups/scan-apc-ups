@@ -249,7 +249,7 @@ sub find_changes
 	
 	# This stores all the queries so that they're committed in one transaction.
 	$anvil->data->{sys}{queries}               = [];
-	$anvil->data->{'scan-apc-pdu'}{alert_sort} = 1;
+	$anvil->data->{'scan-apc-ups'}{alert_sort} = 1;
 	
 	# Loop through each UPS we've seen this pass
 	foreach my $scan_apc_ups_uuid (sort {$a cmp $b} keys %{$anvil->data->{ups}{scan_apc_ups_uuid}})
@@ -308,7 +308,7 @@ sub find_changes
 		my $scan_apc_ups_output_total_output      = $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_total_output};
 		my $scan_apc_ups_output_frequency         = $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_frequency};
 		my $scan_apc_ups_output_time_on_batteries = $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_time_on_batteries};
-		my $scan_apc_ups_output_estimated_runtime = $anvil->data->{sql}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_estimated_runtime};
+		my $scan_apc_ups_output_estimated_runtime = $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_estimated_runtime};
 		my $scan_apc_ups_output_load_percentage   = $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_load_percentage};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			scan_apc_ups_output_voltage           => $scan_apc_ups_output_voltage, 
@@ -385,8 +385,8 @@ INSERT INTO
 				low_transfer_voltage  => $scan_apc_ups_low_transfer_voltage,
 				last_transfer_reason  => "#!string!scan_apc_ups_last_xfer_".sprintf("%04d", $scan_apc_ups_last_transfer_reason)."!#",
 			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0002", variables => $variables});
-			$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0002", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_message_0002", variables => $variables});
+			$anvil->Alert->register({alert_level => "warning", message => "scan_apc_ups_message_0002", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			
 			# Add any batteries.
 			foreach my $battery_number (sort {$a cmp $b} keys %{$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}})
@@ -450,7 +450,7 @@ INSERT INTO
 					new_name => $old_scan_apc_ups_name,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0005", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0005", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0005", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_serial_number ne $old_scan_apc_ups_serial_number)
 			{
@@ -464,7 +464,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_serial_number,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0006", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0006", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0006", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_ip ne $old_scan_apc_ups_ip)
 			{
@@ -477,7 +477,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_ip,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0007", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0007", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0007", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_model ne $old_scan_apc_ups_model)
 			{
@@ -491,7 +491,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_model,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0008", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0008", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0008", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_ac_restore_delay ne $old_scan_apc_ups_ac_restore_delay)
 			{
@@ -504,7 +504,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_ac_restore_delay,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0009", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0009", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0009", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_shutdown_delay ne $old_scan_apc_ups_shutdown_delay)
 			{
@@ -517,7 +517,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_shutdown_delay,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0010", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0010", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0010", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_firmware_version ne $old_scan_apc_ups_firmware_version)
 			{
@@ -530,7 +530,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_firmware_version,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0011", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0011", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0011", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 				
 			# Has the health changed? This is fairly complex as there are many possible health 
@@ -669,7 +669,7 @@ INSERT INTO
 					old_value => "#!string!scan_apc_ups_health_".sprintf("%04d", $say_old_scan_apc_ups_health)."!#",
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0012", variables => $variables});
-				$anvil->Alert->register({alert_level => $level, message => "scan_apc_ups_warning_0012", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => $level, message => "scan_apc_ups_warning_0012", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			if ($scan_apc_ups_low_transfer_voltage ne $old_scan_apc_ups_low_transfer_voltage)
@@ -691,7 +691,7 @@ INSERT INTO
 					old_value => $old_scan_apc_ups_low_transfer_voltage,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => $message_key, variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => $message_key, variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			# Has the last transfer reason changed? There are 10 reasons why this might happen, 
@@ -751,7 +751,7 @@ INSERT INTO
 					old_value => "#!string!scan_apc_ups_last_transfer_".sprintf("%04d", $say_old_scan_apc_ups_last_transfer_reason)."!#",
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "scan_apc_ups_warning_0015", variables => $variables});
-				$anvil->Alert->register({alert_level => $alert_level, message => "scan_apc_ups_warning_0015", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => $alert_level, message => "scan_apc_ups_warning_0015", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			if ($scan_apc_ups_manufactured_date ne $old_scan_apc_ups_manufactured_date)
 			{
@@ -765,7 +765,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_manufactured_date,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0016", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0016", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0016", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			# Has the NMC's firmware changed?
@@ -781,7 +781,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_nmc_firmware_version,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0017", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0017", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0017", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			# Has the NMC serial number changed? If the user changed the network card, 
@@ -798,7 +798,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_nmc_serial_number,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0018", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0018", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0018", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			# As with above, if the MAC address changed, it is probably because the NMC 
@@ -815,7 +815,7 @@ INSERT INTO
 					new_value => $scan_apc_ups_nmc_mac_address,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_warning_0019", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0019", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0019", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			if ($ups_changed)
@@ -904,7 +904,7 @@ WHERE
 					old_value => "#!string!scan_apc_ups_sensitivity_".sprintf("%04d", $say_old_scan_apc_ups_input_sensitivity)."!#",
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0020", variables => $variables});
-				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0020", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_warning_0020", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++});
 			}
 			
 			# Has the input voltage changed?
@@ -1031,7 +1031,7 @@ WHERE
 					}
 				}
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => $variables});
-				$anvil->Alert->register({alert_level => "info", message => $message_key, variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "info", message => $message_key, variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			# Has the maximum input voltage seen in the last 60 seconds changed?
@@ -1047,7 +1047,7 @@ WHERE
 					old_value => $anvil->Convert->round({places => 1, number => $old_scan_apc_ups_input_1m_maximum_input_voltage}),
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0029", variables => $variables});
-				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0029", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0029", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			# Has the minimum input voltage seen in the last 60 seconds changed?
@@ -1062,7 +1062,7 @@ WHERE
 					old_value => $anvil->Convert->round({places => 1, number => $old_scan_apc_ups_input_1m_minimum_input_voltage}),
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0030", variables => $variables});
-				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0030", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0030", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { input_changed => $input_changed }});
@@ -1149,7 +1149,7 @@ WHERE
 				{
 					# This is an info level alert as it changes all the time.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0031", variables => $variables});
-					$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0031", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0031", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 				}
 			}
 			
@@ -1190,7 +1190,7 @@ WHERE
 				}});
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => $variables});
-				$anvil->Alert->register({alert_level => $level, message => $message_key, variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => $level, message => $message_key, variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			# Has the estimated runtime changed?
@@ -1241,7 +1241,7 @@ WHERE
 				{
 					# A normal minor change.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0037", variables => $variables});
-					$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0037", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+					$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0037", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 				}
 			}
 			
@@ -1259,7 +1259,7 @@ WHERE
 				};
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0040", variables => $variables});
-				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0040", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0040", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			# Has the output voltage changed?
@@ -1276,7 +1276,7 @@ WHERE
 				};
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0041", variables => $variables});
-				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0041", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0041", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			# This is always changing...
@@ -1297,7 +1297,7 @@ WHERE
 				};
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_warning_0042", variables => $variables});
-				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0042", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+				$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_warning_0042", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output_changed => $output_changed }});
@@ -1392,7 +1392,7 @@ WHERE
 							battery_number => $battery_number,
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0008", variables => $variables});
-						$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_message_0008", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+						$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_message_0008", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 					}
 					
 					# Has the battery health changed?
@@ -1437,7 +1437,7 @@ WHERE
 							$message_key = "scan_apc_ups_message_0011";
 						}
 						
-						my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+						my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-ups'}{alert_sort}++;
 						my $variables     = {
 							ups_name       => $scan_apc_ups_name,
 							battery_number => $battery_number,
@@ -1463,7 +1463,7 @@ WHERE
 							old_value => $old_scan_apc_ups_battery_model,
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0012", variables => $variables});
-						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0012", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0012", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 					}
 					
 					# If the battery charge percentage has changed, it will usually be an 'info'
@@ -1583,7 +1583,7 @@ LIMIT 1
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sent => $alert_sent }});
 						if (not $alert_sent)
 						{
-							my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+							my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-ups'}{alert_sort}++;
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => $variables});
 							$anvil->Alert->register({alert_level => $level, message => $message_key, variables => $variables, sort_position => $sort_position, set_by => $THIS_FILE});
 						}
@@ -1602,7 +1602,7 @@ LIMIT 1
 							battery_number => $battery_number,
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0017", variables => $variables});
-						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0017", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0017", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 					}
 					
 					# Has the battery state changed? There are four possible battery states.
@@ -1647,7 +1647,7 @@ LIMIT 1
 							$clear_alert = 1;
 						}
 						
-						my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-pdu'}{alert_sort}++;
+						my $sort_position = $level eq "warning" ? 1 : $anvil->data->{'scan-apc-ups'}{alert_sort}++;
 						my $variables     = {
 							ups_name       => $scan_apc_ups_name,
 							new_value      => "#!string!scan_apc_ups_battery_state_".sprintf("%04d", $say_scan_apc_ups_battery_state)."!#",
@@ -1708,7 +1708,7 @@ LIMIT 1
 								battery_number => $battery_number,
 							};
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0020", variables => $variables});
-							$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_message_0020", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+							$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_message_0020", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 						}
 					}
 					
@@ -1726,7 +1726,7 @@ LIMIT 1
 						};
 						
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0021", variables => $variables});
-						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0021", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0021", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 					}
 					
 					# Has the UPS battery voltage changed? 
@@ -1743,7 +1743,7 @@ LIMIT 1
 							battery_number => $battery_number,
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0022", variables => $variables});
-						$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_message_0022", variables => $variables, sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++, set_by => $THIS_FILE});
+						$anvil->Alert->register({alert_level => "info", message => "scan_apc_ups_message_0022", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
 					}
 					
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { battery_changed => $battery_changed }});
@@ -1887,10 +1887,14 @@ FROM
 			"sql::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_nmc_mac_address"       => $anvil->data->{sql}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_nmc_mac_address}, 
 		}});
 		
-		my $scan_apc_ups_ups_uuid =  $anvil->data->{sql}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_ups_uuid};
-		$anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$scan_apc_ups_ups_uuid} = $scan_apc_ups_uuid;
+		# Make it possible to find the UPS by ups_uuid and by serial number.
+		my $scan_apc_ups_ups_uuid                                                          = $anvil->data->{sql}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_ups_uuid};
+		my $scan_apc_ups_serial_number                                                     = $anvil->data->{sql}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_serial_number};
+		   $anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$scan_apc_ups_ups_uuid}           = $scan_apc_ups_uuid;
+		   $anvil->data->{sql}{serial_number_to_apc_ups_uuid}{$scan_apc_ups_serial_number} = $scan_apc_ups_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::ups_uuid_to_apc_ups_uuid::${scan_apc_ups_ups_uuid}" => $anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$scan_apc_ups_ups_uuid},
+			"sql::ups_uuid_to_apc_ups_uuid::${scan_apc_ups_ups_uuid}"           => $anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$scan_apc_ups_ups_uuid},
+			"sql::serial_number_to_apc_ups_uuid::${scan_apc_ups_serial_number}" => $anvil->data->{sql}{serial_number_to_apc_ups_uuid}{$scan_apc_ups_serial_number},
 		}});
 	}
 	undef $results;
@@ -2069,8 +2073,7 @@ sub gather_ups_data
 	###       these cases. Regardless, be sure to check all returned OID values for 'no connection' and
 	###       handle such cases more gracefully.
 	
-	# Loop through the UPSes we found in upses (we may miss existing entries from 'scan_apc_upses', but 
-	# we'll watch for that later).
+	# Loop through the UPSes we found in upses.
 	foreach my $ups_uuid (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_uuid}})
 	{
 		my $ups_ip   = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ip_address};
@@ -2083,22 +2086,12 @@ sub gather_ups_data
 		
 		# Have we seen this UPS before?
 		my $scan_apc_ups_uuid = "";
-		my $new_ups           = 0;
+		my $new_ups           = 1;
 		if ((exists $anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$ups_uuid}) && (defined $anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$ups_uuid}))
 		{
 			# Yup!
 			$scan_apc_ups_uuid = $anvil->data->{sql}{ups_uuid_to_apc_ups_uuid}{$ups_uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				scan_apc_ups_uuid => $scan_apc_ups_uuid, 
-				new_ups           => $new_ups, 
-			}});
-		}
-		else
-		{
-			# It's new, generate the UUID now. We'll set 'scan_apc_ups_new' so we know to INSERT 
-			# it later.
-			$scan_apc_ups_uuid = $anvil->Get->uuid();
-			$new_ups           = 1;
+			$new_ups           = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				scan_apc_ups_uuid => $scan_apc_ups_uuid, 
 				new_ups           => $new_ups, 
@@ -2150,7 +2143,7 @@ sub gather_ups_data
 		# If the serial number is '!!no_connection!!', this isn't the UPS we want or SNMP is disabled.
 		if ($scan_apc_ups_serial_number eq "!!no_connection!!")
 		{
-			$scan_apc_ups_serial_number                             = "";
+			$scan_apc_ups_serial_number                           = "";
 			$anvil->data->{upses}{ups_uuid}{$ups_uuid}{connected} = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				scan_apc_ups_serial_number                => $scan_apc_ups_serial_number, 
@@ -2158,7 +2151,34 @@ sub gather_ups_data
 			}});
 		}
 		
-		# These are set to avoid 'undefined' variable warnings later if we fail to reach this PDU.
+		# If we didn't find the UPS using the ups_uuid, see if we can find it by the serial number.
+		if ($new_ups)
+		{
+			if (($scan_apc_ups_serial_number) && (exists $anvil->data->{sql}{serial_number_to_apc_ups_uuid}{$scan_apc_ups_serial_number}))
+			{
+				# It's new, generate the UUID now. We'll set 'scan_apc_ups_new' so we know to INSERT 
+				# it later.
+				$scan_apc_ups_uuid = $anvil->data->{sql}{serial_number_to_apc_ups_uuid}{$scan_apc_ups_serial_number};
+				$new_ups           = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_apc_ups_uuid => $scan_apc_ups_uuid, 
+					new_ups           => $new_ups, 
+				}});
+			}
+			else
+			{
+				# It's new, generate the UUID now. We'll set 'scan_apc_ups_new' so we know to INSERT 
+				# it later.
+				$scan_apc_ups_uuid = $anvil->Get->uuid();
+				$new_ups           = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_apc_ups_uuid => $scan_apc_ups_uuid, 
+					new_ups           => $new_ups, 
+				}});
+			}
+		}
+		
+		# These are set to avoid 'undefined' variable warnings later if we fail to reach this UPS.
 		$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{highest_charge_percent}                      = 0;
 		$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{new_ups}                                     = $new_ups;
 		$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_upses}{scan_apc_ups_ups_uuid}       = $ups_uuid;
@@ -2187,7 +2207,7 @@ sub gather_ups_data
 		$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_time_on_batteries}       = "";
 		$anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_load_percentage}         = "";
 		
-		# If I got the serial number, I found the PDU.
+		# If I got the serial number, I found the UPS.
 		next if not $scan_apc_ups_serial_number;
 		
 		# Now that I can trust my OIDs, lets start gathering data! Keep track of how long it took to
@@ -3129,13 +3149,13 @@ INSERT INTO
 		alarm_temperature => $scan_apc_ups_battery_alarm_temperature, 
 		voltage           => $scan_apc_ups_battery_voltage, 
 	};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0002", variables => $variables});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_message_0003", variables => $variables});
 	$anvil->Alert->register({
 		alert_level       => "warning", 
-		message           => "scan_apc_pdu_message_0002", 
+		message           => "scan_apc_ups_message_0003", 
 		variables => $variables, 
 		set_by            => $THIS_FILE, 
-		sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+		sort_position     => $anvil->data->{'scan-apc-ups'}{alert_sort}++,
 	});
 	
 	return($scan_apc_ups_battery_uuid);
@@ -3192,13 +3212,13 @@ INSERT INTO
 		input_sensitivity          => $scan_apc_ups_input_sensitivity, 
 		input_frequency            => $scan_apc_ups_input_frequency, 
 	};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0004", variables => $variables});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_message_0004", variables => $variables});
 	$anvil->Alert->register({
 		alert_level       => "warning", 
-		message           => "scan_apc_pdu_message_0004", 
+		message           => "scan_apc_ups_message_0004", 
 		variables => $variables, 
 		set_by            => $THIS_FILE, 
-		sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+		sort_position     => $anvil->data->{'scan-apc-ups'}{alert_sort}++,
 	});
 
 	return($scan_apc_ups_input_uuid);
@@ -3259,13 +3279,13 @@ INSERT INTO
 		time_on_batteries => $scan_apc_ups_output_time_on_batteries ? "#!string!scan_apc_ups_message_0007!#" : "#!string!scan_apc_ups_message_0006!#", 
 		load_percentage   => $scan_apc_ups_output_load_percentage, 
 	};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0005", variables => $variables});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_ups_message_0005", variables => $variables});
 	$anvil->Alert->register({
 		alert_level       => "warning", 
-		message           => "scan_apc_pdu_message_0005", 
+		message           => "scan_apc_ups_message_0005", 
 		variables => $variables, 
 		set_by            => $THIS_FILE, 
-		sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+		sort_position     => $anvil->data->{'scan-apc-ups'}{alert_sort}++,
 	});
 
 	return($scan_apc_ups_name);
