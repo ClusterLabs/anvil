@@ -305,9 +305,12 @@ FROM
 			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlet_count"     => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlet_count}, 
 		}});
 		
-		$anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$scan_apc_pdu_fence_uuid} = $scan_apc_pdu_uuid;
+		# Make it possible to find this PDU by serial number and by fence_uuid reference.
+		$anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$scan_apc_pdu_fence_uuid}       = $scan_apc_pdu_uuid;
+		$anvil->data->{sql}{serial_number_to_apc_pdu_uuid}{$scan_apc_pdu_serial_number} = $scan_apc_pdu_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::fence_uuid_to_apc_pdu_uuid::${scan_apc_pdu_fence_uuid}" => $anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$scan_apc_pdu_fence_uuid},
+			"sql::fence_uuid_to_apc_pdu_uuid::${scan_apc_pdu_fence_uuid}"       => $anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$scan_apc_pdu_fence_uuid},
+			"sql::serial_number_to_apc_pdu_uuid::${scan_apc_pdu_serial_number}" => $anvil->data->{sql}{serial_number_to_apc_pdu_uuid}{$scan_apc_pdu_serial_number},
 		}});
 	}
 	undef $results;
@@ -422,7 +425,7 @@ FROM
 	}
 	undef $results;
 	
-	# Read in the history schema
+	# Read in the variables
 	$query = "
 SELECT 
     scan_apc_pdu_variable_uuid, 
@@ -465,8 +468,6 @@ FROM
 			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_variable_scan_apc_pdu_uuid}::scan_apc_pdu_variables::scan_apc_pdu_variable_name::${scan_apc_pdu_variable_name}::scan_apc_pdu_variable_is_temperature" => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_variable_scan_apc_pdu_uuid}{scan_apc_pdu_variables}{scan_apc_pdu_variable_name}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_is_temperature}, 
 			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_variable_scan_apc_pdu_uuid}::scan_apc_pdu_variables::scan_apc_pdu_variable_name::${scan_apc_pdu_variable_name}::scan_apc_pdu_variable_value"          => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_variable_scan_apc_pdu_uuid}{scan_apc_pdu_variables}{scan_apc_pdu_variable_name}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_value}, 
 		}});
-		
-			
 	}
 	
 	return(0);
@@ -1850,8 +1851,7 @@ sub gather_pdu_data
 {
 	my ($anvil) = @_;
 	
-	# Loop through the PDUs we found in fences (we may miss existing entries from 'scan_apc_pdus', but 
-	# we'll watch for that later).
+	# Loop through the PDUs we found in fences.
 	foreach my $fence_uuid (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_uuid}})
 	{
 		my $pdu_ip   = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ip_address};
@@ -1862,24 +1862,15 @@ sub gather_pdu_data
 			pdu_name   => $pdu_name, 
 		}});
 		
-		# Have we seen this PDU before?
+		# Have we seen this PDU before? We may have info in our database that's not mapped to fences 
+		# yet, so we'll also check by serial number as well.
 		my $scan_apc_pdu_uuid = "";
-		my $new_pdu           = 0;
+		my $new_pdu           = 1;
 		if ((exists $anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$fence_uuid}) && (defined $anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$fence_uuid}))
 		{
 			# Yup!
+			$new_pdu           = 0;
 			$scan_apc_pdu_uuid = $anvil->data->{sql}{fence_uuid_to_apc_pdu_uuid}{$fence_uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				scan_apc_pdu_uuid => $scan_apc_pdu_uuid, 
-				new_pdu           => $new_pdu, 
-			}});
-		}
-		else
-		{
-			# It's new, generate the UUID now. We'll set 'scan_apc_pdu_new' so we know to INSERT 
-			# it later.
-			$scan_apc_pdu_uuid = $anvil->Get->uuid();
-			$new_pdu           = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				scan_apc_pdu_uuid => $scan_apc_pdu_uuid, 
 				new_pdu           => $new_pdu, 
@@ -1905,13 +1896,11 @@ sub gather_pdu_data
 			next;
 		}
 
-		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}              = 1;
-		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version}      = $anvil->data->{snmp}{community}{version};
-		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{scan_apc_pdu_uuid} = $scan_apc_pdu_uuid;
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}         = 1;
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version} = $anvil->data->{snmp}{community}{version};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"fences::fence_uuid::${fence_uuid}::ping"              => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}, 
-			"fences::fence_uuid::${fence_uuid}::snmp_version"      => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version}, 
-			"fences::fence_uuid::${fence_uuid}::scan_apc_pdu_uuid" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{scan_apc_pdu_uuid}, 
+			"fences::fence_uuid::${fence_uuid}::ping"         => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}, 
+			"fences::fence_uuid::${fence_uuid}::snmp_version" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version}, 
 		}});
 		
 		my ($scan_apc_pdu_serial_number, $data_type) = $anvil->Remote->read_snmp_oid({
@@ -1952,14 +1941,44 @@ sub gather_pdu_data
 			if ($scan_apc_pdu_serial_number eq "!!no_connection!!")
 			{
 				# No luck
-				$scan_apc_pdu_serial_number                             = "";
+				$scan_apc_pdu_serial_number                                = "";
 				$anvil->data->{fences}{fence_uuid}{$fence_uuid}{connected} = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					scan_apc_pdu_serial_number                  => $scan_apc_pdu_serial_number, 
+					scan_apc_pdu_serial_number                     => $scan_apc_pdu_serial_number, 
 					"fences::fence_uuid::${fence_uuid}::connected" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{connected}, 
 				}});
 			}
 		}
+		
+		# If we didn't find the PDU using the fence_uuid, see if we can find it by the serial number.
+		if ($new_pdu)
+		{
+			if (($scan_apc_pdu_serial_number) && (exists $anvil->data->{sql}{serial_number_to_apc_pdu_uuid}{$scan_apc_pdu_serial_number}))
+			{
+				# It's new, generate the UUID now. We'll set 'scan_apc_pdu_new' so we know to INSERT 
+				# it later.
+				$scan_apc_pdu_uuid = $anvil->data->{sql}{serial_number_to_apc_pdu_uuid}{$scan_apc_pdu_serial_number};
+				$new_pdu           = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_apc_pdu_uuid => $scan_apc_pdu_uuid, 
+					new_pdu           => $new_pdu, 
+				}});
+			}
+			else
+			{
+				$scan_apc_pdu_uuid = $anvil->Get->uuid();
+				$new_pdu           = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_apc_pdu_uuid => $scan_apc_pdu_uuid, 
+					new_pdu           => $new_pdu, 
+				}});
+			}
+		}
+		
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{scan_apc_pdu_uuid} = $scan_apc_pdu_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"fences::fence_uuid::${fence_uuid}::scan_apc_pdu_uuid" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{scan_apc_pdu_uuid}, 
+		}});
 		
 		# These are set to avoid 'undefined' variable warnings later if we fail to reach this PDU.
 		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{pdu_host_name}                               = $pdu_name;

@@ -239,10 +239,19 @@ sub call_scan_agents
 		}
 		
 		# Set the timeout.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			agent_name                         => $agent_name,
-			"scancore::${agent_name}::timeout" => $anvil->data->{scancore}{$agent_name}{timeout},
-		}});
+		if (not defined $anvil->data->{scancore}{$agent_name}{timeout})
+		{
+			$anvil->data->{scancore}{$agent_name}{timeout} = $timeout;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::${agent_name}::timeout" => $anvil->data->{scancore}{$agent_name}{timeout},
+			}});
+		}
+		else
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::${agent_name}::timeout" => $anvil->data->{scancore}{$agent_name}{timeout},
+			}});
+		}
 		
 		# Now call the agent.
 		my $start_time = time;
