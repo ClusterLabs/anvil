@@ -1,7 +1,8 @@
 import { Grid } from '@material-ui/core';
-import Anvil from './Anvil';
 import Panel from './Panel';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import SelectedAnvil from './SelectedAnvil';
+import AnvilList from './AnvilList';
 
 const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
   const anvils: AnvilListItem[] = [];
@@ -21,9 +22,8 @@ const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
   return (
     <Panel>
       <Grid container alignItems="center" justify="space-around">
-        {anvils.map((anvil) => (
-          <Anvil anvil={anvil} key={anvil.anvil_uuid} />
-        ))}
+        <SelectedAnvil anvil={anvils[0]} />
+        <AnvilList list={anvils} />
       </Grid>
     </Panel>
   );
