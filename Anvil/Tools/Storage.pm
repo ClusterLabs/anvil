@@ -25,6 +25,7 @@ my $THIS_FILE = "Storage.pm";
 # get_file_stats
 # get_storage_group_details
 # make_directory
+# manage_lvm_conf
 # move_file
 # parse_df
 # parse_lsblk
@@ -1777,6 +1778,173 @@ fi;";
 	print $THIS_FILE." ".__LINE__."; failed: [".$failed."]\n" if $test;
 	return($failed);
 }
+
+
+=head2 manage_lvm_conf
+
+This method configures C<< lvm.conf >> to add the C<< filter = [ ... ] >> to ensure DRBD devices aren't scanned.
+
+If there was a problem, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
+
+Parameters;
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 target (optional)
+
+If set, the file will be copied on the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=cut
+sub manage_lvm_conf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->manage_lvm_conf()" }});
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target,
+	}});
+	
+	my $body = $anvil->Storage->read_file({
+		debug       => $debug,
+		file        => $anvil->data->{path}{configs}{'lvm.conf'}, 
+		password    => $password, 
+		port        => $port, 
+		target      => $target, 
+		remote_user => $remote_user, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+	
+	if ($body eq "!!error!!")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0254"});
+		return(1);
+	}
+	
+	my $in_device = 0;
+	foreach my $line (split/\n/, $body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		next if $line =~ /^#/ or $line =~ /^\s+#/;
+		
+		if ($line =~ /^devices \{/)
+		{
+			$in_device = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_device => $in_device }});
+		}
+		if ($in_device)
+		{
+			$line =~ s/^\s+//;
+			if ($line =~ /^\}/)
+			{
+				$in_device = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_device => $in_device }});
+				last;
+			}
+			if ($line =~ /^filter = \[(.*?)\]/)
+			{
+				# Filter exists, we won't change it.
+				my $filter = $1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0594", variables => { filter => $filter }});
+				return(0);
+			}
+		}
+	}
+	
+	# If I made it here, I need to add the filter.
+	   $in_device    = 0;
+	my $filter_added = 0;
+	my $new_body     = "";
+	my $filter_line  = 'filter = [ "r|/dev/drbd*|" ]';
+	foreach my $line (split/\n/, $body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^devices \{/)
+		{
+			$in_device = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_device => $in_device }});
+		}
+		if ($in_device)
+		{
+			if ($line =~ /^\}/)
+			{
+				$in_device = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_device => $in_device }});
+				
+				# If we didn't find where to inject the filter, do it now.
+				if (not $filter_added)
+				{
+					$new_body .= "\t".$filter_line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { filter_line => $filter_line }});
+				}
+			}
+			if (($line =~ /# filter = \[ "a\|\.\*\|" \]/) && (not $filter_added))
+			{
+				# Add the filter here
+				$new_body     .= $line."\n";
+				$new_body     .= "\t".$filter_line."\n";
+				$filter_added =  1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					filter_added => $filter_added, 
+					filter_line  => $filter_line,
+				}});
+				next;
+			}
+		}
+		$new_body .= $line."\n";
+	}
+	
+	# Write the file out.
+	my $error = $anvil->Storage->write_file({
+		debug       => $debug,
+		body        => $new_body,
+		file        => $anvil->data->{path}{configs}{'lvm.conf'},
+		group       => "root", 
+		mode        => "0644",
+		overwrite   => 1,
+		backup      => 1,
+		user        => "root",
+		password    => $password, 
+		port        => $port, 
+		target      => $target, 
+		remote_user => $remote_user, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
+	
+	if ($error)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0255"});
+		return(1);
+	}
+	else
+	{
+		# Record that we updated the lvm.conf.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0595", variables => { filter => $filter_line }});
+	}
+	
+	return(0);
+}
+
 
 =head2 move_file
 

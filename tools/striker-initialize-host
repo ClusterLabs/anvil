@@ -57,6 +57,7 @@ get_job_details($anvil);
 wait_for_access($anvil);
 set_host_name($anvil);
 add_repos($anvil);
+configure_lvm($anvil);
 add_databases($anvil);
 update_progress($anvil, 100, "job_0047");
 
@@ -67,15 +68,40 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This configures filtering on LVM
+sub configure_lvm
+{
+	my ($anvil) = @_;
+	
+	my $problem = $anvil->Storage->manage_lvm_conf({
+		debug       => 2,
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root",
+	})
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->data->{job}{progress} += 5;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0274"});
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0274");
+	}
+	else
+	{
+		$anvil->data->{job}{progress} += 5;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0273"});
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0273");
+	}
+	
+	return(0);
+}
+
 # Set the host name, if needed.
 sub set_host_name
 {
 	my ($anvil) = @_;
 	
-	### TODO: Left off here;
-	###       - Validate host name
-	###       - Update progress values
-	###       - Set host_namectl
 	if ((not defined $anvil->data->{data}{host_name}) or (not $anvil->data->{data}{host_name}))
 	{
 		return(0);

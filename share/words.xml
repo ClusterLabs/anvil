@@ -355,6 +355,8 @@ The error was:
 #!variable!error!#
 ========
 		</key>
+		<key name="error_0254">Failed to read the lvm.conf file. The reason why should be logged above.</key>
+		<key name="error_0255">Failed to write the lvm.conf file. The reason why should be logged above.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -745,6 +747,8 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0270">All machines are now available on the first BCN!</key>
 		<key name="job_0271">One of the Striker dashboards has not yet updated network information in the database. We need this to know which IP to tell the peer to use to connect to us. We'll wait a moment and check again.</key>
 		<key name="job_0272">The cluster still hasn't started. Calling startup again (will try once per minute).</key>
+		<key name="job_0273">Successfully added/confirmed the filter in lvm.conf.</key>
+		<key name="job_0274">Failed to add/confirmed the filter in lvm.conf! This should be corrected later by 'scan-drbd' though.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1432,6 +1436,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0591">Wiping any file system signatures and then deleting the logical volume: [#!variable!device_path!#].</key>
 		<key name="log_0592">The resource name: [#!variable!resource_name!#] was found, returning the first TCP port and minor number.</key>
 		<key name="log_0593">The job: [#!variable!command!#] with UUID: [#!variable!job_uuid!#] is a start-time job, not running it now.</key>
+		<key name="log_0594">The lvm.conf already has the filter: [#!variable!filter!#], will not change it.</key>
+		<key name="log_0595">Updated the lvm.conf file to add the filter: [#!variable!filter!#] to prevent LVM from seeing the DRBD devices as LVM devices.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
