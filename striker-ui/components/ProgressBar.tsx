@@ -10,8 +10,8 @@ const completed = 100;
 
 const BorderLinearProgress = withStyles({
   root: {
-    height: 10,
-    borderRadius: 3,
+    height: 15,
+    borderRadius: 2,
   },
   colorPrimary: {
     backgroundColor: PANEL_BACKGROUND,
