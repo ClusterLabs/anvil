@@ -79,7 +79,7 @@ sub configure_lvm
 		port        => $anvil->data->{data}{ssh_port}, 
 		target      => $anvil->data->{data}{host_ip_address},
 		remote_user => "root",
-	})
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)
 	{
