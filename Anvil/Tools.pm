@@ -1029,6 +1029,7 @@ sub _set_paths
 				hosts				=>	"/etc/hosts", 
 				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
+				'lvm.conf'			=>	"/etc/lvm/lvm.conf",
 				'pg_hba.conf'			=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
 				pxe_default			=>	"/var/lib/tftpboot/pxelinux.cfg/default",

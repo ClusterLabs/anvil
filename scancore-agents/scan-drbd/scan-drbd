@@ -93,6 +93,10 @@ if ($anvil->DRBD->gather_data())
 	$anvil->nice_exit({exit_code => 2});
 }
 
+# Make sure that lvm.conf's filter of DRBD devices is in place.
+$problem = $anvil->Storage->manage_lvm_conf();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+
 read_last_scan($anvil);
 
 find_changes($anvil);
