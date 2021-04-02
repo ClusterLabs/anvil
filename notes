@@ -778,3 +778,98 @@ systemctl restart firewalld
  ;;;;
  ; Note: packaged extension modules are now loaded via the .ini files
 ====
+
+Dell S4128T-ON Configuration
+
+# Terminal access using serial port on back on the switch (USB-B front connect seems flaky)
+screen /dev/ttyUSB0 115200
+
+u: admin
+p: admin
+
+# Interface numbering (management port on the rear is 'mgmt 1/1/1');
+OS10# show interface status 
+  
+--------------------------------------------------------------------------------------------------
+Port            Description     Status   Speed    Duplex   Mode Vlan Tagged-Vlans
+--------------------------------------------------------------------------------------------------
+Eth 1/1/1                       down     0        full     A    1    - 
+Eth 1/1/2                       down     0        full     A    1    - 
+Eth 1/1/3                       down     0        full     A    1    - 
+Eth 1/1/4                       down     0        full     A    1    - 
+Eth 1/1/5                       down     0        full     A    1    - 
+Eth 1/1/6                       down     0        full     A    1    - 
+Eth 1/1/7                       down     0        full     A    1    - 
+Eth 1/1/8                       down     0        full     A    1    - 
+Eth 1/1/9                       down     0        full     A    1    - 
+Eth 1/1/10                      down     0        full     A    1    - 
+Eth 1/1/11                      down     0        full     A    1    - 
+Eth 1/1/12                      down     0        full     A    1    - 
+Eth 1/1/13                      down     0        full     A    1    - 
+Eth 1/1/14                      down     0        full     A    1    - 
+Eth 1/1/15                      down     0        full     A    1    - 
+Eth 1/1/16                      down     0        full     A    1    - 
+Eth 1/1/17                      down     0        full     A    1    - 
+Eth 1/1/18                      down     0        full     A    1    - 
+Eth 1/1/19                      down     0        full     A    1    - 
+Eth 1/1/20                      down     0        full     A    1    - 
+Eth 1/1/21                      down     0        full     A    1    - 
+Eth 1/1/22                      down     0        full     A    1    - 
+Eth 1/1/23                      down     0        full     A    1    - 
+Eth 1/1/24                      down     0        full     A    1    - 
+Eth 1/1/25                      up       100G     full     A    1    - 
+Eth 1/1/26                      up       100G     full     A    1    - 
+Eth 1/1/27                      down     0        full     A    1    - 
+Eth 1/1/28                      down     0        full     A    1    - 
+Eth 1/1/29                      down     0        full     A    1    - 
+Eth 1/1/30                      down     0        full     A    1    - 
+--------------------------------------------------------------------------------------------------
+
+OS10# configure terminal 
+OS10(config)# interface range ethernet 1/1/1-1/1/24
+OS10(conf-range-eth1/1/1-1/1/24)# exit
+OS10(config)# interface range ethernet 1/1/1-1/1/24,1/1/27-1/1/30
+OS10(conf-range-eth1/1/1-1/1/24,1/1/27-1/1/30)# exit
+
+# Configure management IP address
+OS10# configure terminal 
+OS10(config)# interface mgmt 1/1/1
+OS10(conf-if-ma-1/1/1)# no ip address dhcp
+OS10(conf-if-ma-1/1/1)# ip address 10.201.1.2/16
+OS10(conf-if-ma-1/1/1)# <165>1 2021-04-02T12:23:40.141901+00:00 OS10 dn_alm 652 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IP_ADDRESS_ADD: IP Address add is successful. IP 10.201.1.2/16 in VRF:default added successfully
+OS10(conf-if-ma-1/1/1)# no shutdown 
+# Connected via SSH to confirm access:
+OS10(config)# 
+<165>1 2021-04-02T12:25:49.956308+00:00 OS10 dn_alm 652 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %ALM_AUTH_EVENT: Authentication event was raised MESSAGE=pam_unix(sshd:session): session opened for user admin by (uid=0)
+<86>1 2021-04-02T12:25:49.501860+00:00 OS10 sshd 6512 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) pam_unix(sshd:session): session opened for user admin by (uid=0) 
+<86>1 2021-04-02T12:25:51.795620+00:00 OS10 sshd 6527 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) pam_unix(sshd:session): session opened for user admin by (uid=0) 
+<165>1 2021-04-02T12:25:51.957630+00:00 OS10 dn_alm 652 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %ALM_AUTH_EVENT: Authentication event was raised MESSAGE=pam_unix(sshd:session): session opened for user admin by (uid=0)
+OS10(config)# exit
+OS10# write memory 
+
+
+### Stacking is not a thing anymore, but VLT is its replacement.
+# On both switches;
+OS10# configure terminal 
+OS10(config)# interface range ethernet 1/1/25-1/1/26
+OS10(conf-range-eth1/1/25-1/1/26)# no shutdown 
+OS10(conf-range-eth1/1/25-1/1/26)# no switchport 
+<165>1 2021-04-02T11:47:05.731264+00:00 OS10 dn_alm 652 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %STP_ROOT_CHANGE: STP:Root Brg Chg RPVST root changed for vlan 1.
+<165>1 2021-04-02T11:47:05.739950+00:00 OS10 dn_alm 652 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %STP_ROOT_CHANGE: STP:Root Brg Chg My ID:f0d4.e250.cb8b   OldRt:32769:f0d4.e250.c00b NewRt:32769:f0d4.e250.cb8b
+OS10(conf-range-eth1/1/25-1/1/26)# exit
+OS10(config)# vlt-domain 1
+OS10(conf-vlt-1)# discovery-interface ethernet 1/1/25-1/1/26
+# When this is done to the second switch;
+<165>1 2021-04-02T12:31:11.702525+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_ASTATE_UP: Interface admin state up :port-channel1000
+<165>1 2021-04-02T12:31:11.707501+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_DN: Interface operational state is down :port-channel1000
+<165>1 2021-04-02T12:31:11.720332+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :port-channel1000
+<165>1 2021-04-02T12:31:11.845070+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :vlan4094
+<165>1 2021-04-02T12:31:11.863978+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %VLT_PEER_UP: VLT unit 1 is up
+<165>1 2021-04-02T12:31:18.996716+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %VLT_ELECTION_ROLE: VLT unit 1 is elected as secondary
+<165>1 2021-04-02T12:31:19.087695+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :vlan1
+
+# Configure the same MAC address to the VLT on both switches:
+OS10# configure terminal 
+OS10(config)# vlt-domain 1
+OS10(conf-vlt-1)# vlt-mac 00:00:00:00:00:02
+

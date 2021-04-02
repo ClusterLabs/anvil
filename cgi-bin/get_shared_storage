@@ -47,6 +47,29 @@ if ((not $anvil_uuid) or (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_u
 }
 else
 {
+=cut
+{
+
+  file_systems => (
+    {
+      mount_point => "/shared",
+      nodes => (
+        {
+          is_mounted => \1,
+          total => 42949672960,
+          free => 11811160064
+        },
+        {
+          is_mounted => \0,
+          total => 42949672960,
+          free => 11811160064
+        }
+      )
+    },
+=cut
+	
+	
+	
 	$anvil->data->{anvil_status}{anvil_name}        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 	$anvil->data->{anvil_status}{anvil_description} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
 	$anvil->data->{anvil_status}{timestamp}         = time;
