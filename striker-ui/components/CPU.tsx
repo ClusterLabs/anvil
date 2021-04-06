@@ -30,11 +30,10 @@ const CPU = ({ uuid }: { uuid: string }): JSX.Element => {
             allocated={(cpuData.allocated / cpuData.cores) * 100}
           />
         </Grid>
-        <Grid item xs={5}>
-          <BodyText text={`Total Cores: ${cpuData.cores}`} />
-        </Grid>
-        <Grid item xs={12}>
-          <BodyText text={`Threads: ${cpuData.threads}`} />
+        <Grid item xs={4}>
+          <BodyText
+            text={`Total Cores: ${cpuData.cores}c | ${cpuData.threads}t`}
+          />
         </Grid>
       </Grid>
     </Panel>
