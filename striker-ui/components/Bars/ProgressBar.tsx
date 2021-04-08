@@ -4,7 +4,7 @@ import {
   PURPLE_OFF,
   BLUE,
   PANEL_BACKGROUND,
-} from '../lib/consts/DEFAULT_THEME';
+} from '../../lib/consts/DEFAULT_THEME';
 
 const completed = 100;
 

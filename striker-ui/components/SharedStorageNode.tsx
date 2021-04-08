@@ -2,7 +2,7 @@ import { Grid, Switch } from '@material-ui/core';
 import * as prettyBytes from 'pretty-bytes';
 
 import InnerPanel from './InnerPanel';
-import AllocationBar from './AllocationBar';
+import { AllocationBar } from './Bars';
 import { BodyText } from './Text';
 import PanelHeader from './PanelHeader';
 

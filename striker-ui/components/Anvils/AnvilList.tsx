@@ -1,7 +1,7 @@
 import { makeStyles } from '@material-ui/core/styles';
 import { List, ListItem, ListItemText, Divider } from '@material-ui/core';
-import { TEXT } from '../lib/consts/DEFAULT_THEME';
-import { BodyText } from './Text';
+import { TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { BodyText } from '../Text';
 
 const useStyles = makeStyles(() => ({
   root: {

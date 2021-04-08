@@ -5,7 +5,7 @@ import {
   RED_ON,
   BLUE,
   PANEL_BACKGROUND,
-} from '../lib/consts/DEFAULT_THEME';
+} from '../../lib/consts/DEFAULT_THEME';
 
 const breakpointWarning = 70;
 const breakpointAlert = 90;

@@ -1,9 +1,9 @@
 import { Grid, Switch } from '@material-ui/core';
 
-import InnerPanel from './InnerPanel';
-import ProgressBar from './ProgressBar';
-import { BodyText } from './Text';
-import PanelHeader from './PanelHeader';
+import InnerPanel from '../InnerPanel';
+import { ProgressBar } from '../Bars';
+import { BodyText } from '../Text';
+import PanelHeader from '../PanelHeader';
 
 const AnvilNode = ({
   node,

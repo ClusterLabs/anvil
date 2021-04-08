@@ -1,7 +1,7 @@
 import { Grid } from '@material-ui/core';
 import * as prettyBytes from 'pretty-bytes';
 import Panel from './Panel';
-import AllocationBar from './AllocationBar';
+import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 
@@ -43,7 +43,7 @@ const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
             }
           />
         </Grid>
-        <Grid item xs={6}>
+        <Grid item xs={5}>
           <BodyText
             text={`Total Memory: ${prettyBytes.default(memoryData.total, {
               binary: true,
