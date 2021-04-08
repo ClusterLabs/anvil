@@ -2,7 +2,7 @@ import AppBar from '@material-ui/core/AppBar';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
 import { Grid } from '@material-ui/core';
 import Image from 'next/image';
-import { ICONS, ICON_SIZE } from '../../lib/consts/ICONS';
+import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 
 const useStyles = makeStyles((theme) =>
   createStyles({
