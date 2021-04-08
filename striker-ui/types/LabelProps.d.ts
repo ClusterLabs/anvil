@@ -1,3 +1,0 @@
-type LabelProps = {
-  text: string;
-};
