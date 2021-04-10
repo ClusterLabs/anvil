@@ -751,7 +751,7 @@ AND
 	}});
 	if ($reboot_needed)
 	{
-		($uptime < $changed_seconds_ago)
+		if ($uptime < $changed_seconds_ago)
 		{
 			# Clear the reboot request.
 			$reboot_needed = $anvil->System->reboot_needed({set => 0});
