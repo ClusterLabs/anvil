@@ -458,7 +458,10 @@ sub get_fence_data
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { action => $action }});
 		}
 	}
-
+	
+	# ScanCore will load this to check nodes that are not accessible. To reduce load, as this is an 
+	# expensive call, this time is set so a caller can decide if the data should be updated.
+	$anvil->data->{fence_data}{updated} = time;
 	
 	return(0);
 }

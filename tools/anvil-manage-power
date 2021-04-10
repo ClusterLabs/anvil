@@ -246,6 +246,13 @@ sub do_poweroff
 	# that it is starting post-reboot and clear it.
 	$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
 	
+	# Mark our power state.
+	$anvil->Database->update_host_status({
+		debug       => $debug,
+		host_uuid   => $anvil->Get->host_uuid,
+		host_status => $task eq "poweroff" ? "rebooting" : "stopping";,
+	});
+	
 	# Now do the deed.
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." ".$task;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});

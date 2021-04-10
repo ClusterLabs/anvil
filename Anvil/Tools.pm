@@ -1021,6 +1021,7 @@ sub _set_paths
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
+				'cib.xml'			=>	"/var/lib/pacemaker/cib/cib.xml",
 				'corosync.conf'			=>	"/etc/corosync/corosync.conf",
 				'dhcpd.conf'			=>	"/etc/dhcp/dhcpd.conf",
 				'dnf.conf'			=>	"/etc/dnf/dnf.conf",

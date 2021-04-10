@@ -1236,7 +1236,7 @@ sub load_ips
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_ips()" }});
 	
 	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		clear     => $clear, 

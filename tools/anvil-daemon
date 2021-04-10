@@ -749,29 +749,60 @@ AND
 		"s3:uptime"              => $uptime,
 		"s4:difference"          => $difference,
 	}});
-	if (($reboot_needed) && ($uptime < $changed_seconds_ago))
+	if ($reboot_needed)
 	{
-		# Clear the reboot request.
-		$reboot_needed = $anvil->System->reboot_needed({set => 0});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
-		
-		# Check to see if there was a reboot job in progress. If so, finish it off.
-		my $job_uuid = $anvil->Job->get_job_uuid({program => "anvil-manage-power"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
-		
-		if ($job_uuid)
+		($uptime < $changed_seconds_ago)
 		{
-			# Update the percentage to '100' and then clear the old PID.
-			my $date_time = $anvil->Get->date_and_time();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { date_time => $date_time }});
+			# Clear the reboot request.
+			$reboot_needed = $anvil->System->reboot_needed({set => 0});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
 			
-			$anvil->Job->update_progress({
-				progress     => 100, 
-				message      => "message_0064,!!date_and_time!".$date_time."!!", 
-				job_uuid     => $job_uuid,
-				picked_up_by => 0,
-			});
+			# Check to see if there was a reboot job in progress. If so, finish it off.
+			my $job_uuid = $anvil->Job->get_job_uuid({program => "anvil-manage-power"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+			
+			if ($job_uuid)
+			{
+				# Update the percentage to '100' and then clear the old PID.
+				my $date_time = $anvil->Get->date_and_time();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { date_time => $date_time }});
+				
+				$anvil->Job->update_progress({
+					progress     => 100, 
+					message      => "message_0064,!!date_and_time!".$date_time."!!", 
+					job_uuid     => $job_uuid,
+					picked_up_by => 0,
+				});
+			}
 		}
+	}
+	else
+	{
+		# Update our status 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0572"});
+		
+		$anvil->Database->get_hosts({debug => 3});
+		my $host_uuid = $anvil->Get->host_uuid();
+		$anvil->Database->insert_or_update_hosts({
+			host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+			host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+			host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+			host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+			host_uuid   => $host_uuid, 
+			host_status => "online", 
+		});
+		
+		# Make sure our stop reason is cleared.
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			variable_name         => 'system::stop_reason', 
+			variable_value        => '', 
+			variable_default      => '', 
+			variable_description  => 'striker_0279', 
+			variable_section      => 'system', 
+			variable_source_uuid  => '4c4c4544-0043-4210-8042-c3c04f523533', 
+			variable_source_table => 'hosts', 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	}
 	
 	# Now look for jobs that have a job status of 'scancore_startup'

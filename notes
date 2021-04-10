@@ -831,6 +831,7 @@ OS10(conf-range-eth1/1/1-1/1/24)# exit
 OS10(config)# interface range ethernet 1/1/1-1/1/24,1/1/27-1/1/30
 OS10(conf-range-eth1/1/1-1/1/24,1/1/27-1/1/30)# exit
 
+
 # Configure management IP address
 OS10# configure terminal 
 OS10(config)# interface mgmt 1/1/1
@@ -847,6 +848,12 @@ OS10(config)#
 OS10(config)# exit
 OS10# write memory 
 
+### Set hostname:
+OS10# configure terminal 
+OS10(config)# hostname zo-switch02
+zo-switch02(config)# 
+
+======] VLT Config [=======
 
 ### Stacking is not a thing anymore, but VLT is its replacement.
 # On both switches;
@@ -868,8 +875,72 @@ OS10(conf-vlt-1)# discovery-interface ethernet 1/1/25-1/1/26
 <165>1 2021-04-02T12:31:18.996716+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %VLT_ELECTION_ROLE: VLT unit 1 is elected as secondary
 <165>1 2021-04-02T12:31:19.087695+00:00 OS10 dn_alm 803 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :vlan1
 
+
 # Configure the same MAC address to the VLT on both switches:
 OS10# configure terminal 
 OS10(config)# vlt-domain 1
 OS10(conf-vlt-1)# vlt-mac 00:00:00:00:00:02
+
+# show vlt 1 mismatch
+(If no issues, VLT is OK)
+
+# See how I am and my role (* == switch you're on)
+zo-switch02(config)# show vlt 1 role 
+VLT Unit ID    Role
+------------------------
+* 1            secondary
+  2            primary
+
+=====] VLAN Config [========  
+
+
+zo-switch02# configure terminal 
+zo-switch02(config)# interface vlan 100
+zo-switch02(conf-if-vl-100)# description BCN1
+zo-switch02(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/10
+zo-switch02(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
+zo-switch02(conf-range-eth1/1/1-1/1/10)# exot
+% Error: Unrecognized command.
+zo-switch02(conf-range-eth1/1/1-1/1/10)# exit
+zo-switch02(config)# interface range ethernet 1/1/11-1/1/14
+zo-switch02(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
+zo-switch02(conf-range-eth1/1/11-1/1/14)# exit
+zo-switch02(config)# interface range ethernet 1/1/15-1/1/24
+zo-switch02(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
+ezo-switch02(conf-range-eth1/1/15-1/1/24)# exit
+zo-switch02(config)# show vlan
+Codes: * - Default VLAN, M - Management VLAN, R - Remote Port Mirroring VLANs,
+       @ – Attached to Virtual Network, P - Primary, C - Community, I - Isolated
+Q: A - Access (Untagged), T - Tagged
+    NUM    Status    Description                     Q Ports
+*   1      Active                                    A Eth1/1/27-1/1/30 
+                                                     A Po1000 
+    100    Active    BCN1                            T Po1000 
+                                                     A Eth1/1/1-1/1/10 
+    200    Active                                    T Po1000 
+                                                     A Eth1/1/11-1/1/14 
+    300    Active                                    T Po1000 
+                                                     A Eth1/1/15-1/1/24 
+    4094   Active                                    T Po1000 
+
+    
+### Delete a VLAN:
+
+zo-switch02(config)# no interface vlan 3400
+zo-switch02(config)# show vlan
+
+
+# Configure VLANs.
+OS10(config)# interface range vlan 100,200,300
+OS10(conf-range-vl-100,200,300)# exit
+OS10(config)# interface range ethernet 1/1/1-1/1/10
+OS10(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
+OS10(conf-range-eth1/1/1-1/1/10)# exit
+OS10(config)# interface range ethernet 1/1/11-1/1/14
+OS10(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
+OS10(conf-range-eth1/1/11-1/1/14)# exit
+OS10(config)# interface range ethernet 1/1/15-1/1/24
+OS10(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
+OS10(conf-range-eth1/1/15-1/1/24)# exit
+
 

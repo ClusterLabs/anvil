@@ -306,8 +306,21 @@ sub startup_tasks
 {
 	my ($anvil) = @_;
 	
-	# Make sure our stop reason is cleared.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0572"});
+	
+	# Update our status 
+	$anvil->Database->get_hosts({debug => 3});
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Database->insert_or_update_hosts({
+		host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+		host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+		host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+		host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+		host_uuid   => $host_uuid, 
+		host_status => "online", 
+	});
+	
+	# Make sure our stop reason is cleared.
 	my $variable_uuid = $anvil->Database->insert_or_update_variables({
 		variable_name         => 'system::stop_reason', 
 		variable_value        => '', 

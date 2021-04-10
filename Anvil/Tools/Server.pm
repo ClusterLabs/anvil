@@ -1262,7 +1262,7 @@ sub parse_definition
 	}});
 	foreach my $hash_ref (@{$server_xml->{cpu}->[0]->{feature}})
 	{
-		my $name                                                         = $hash_ref->{name};
+		my $name                                                                  = $hash_ref->{name};
 		   $anvil->data->{server}{$target}{$server}{$source}{cpu}{feature}{$name} = $hash_ref->{policy};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"server::${target}::${server}::${source}::cpu::feature::${name}" => $anvil->data->{server}{$target}{$server}{$source}{cpu}{feature}{$name},

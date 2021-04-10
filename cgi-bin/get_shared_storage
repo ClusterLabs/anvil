@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This prints JSON formated data reporting the status of an Anvil! system and it's member hosts.
+# This prints JSON formated data reporting the status of an file systems on nodes and DR hosts.
 # 
 
 use strict;

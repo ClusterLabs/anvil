@@ -71,9 +71,10 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 if ($anvil->data->{switches}{purge})
 {
 	# This can be called when doing bulk-database purges.
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
 	$anvil->Database->purge_data({
 		debug  => 2,
-		tables => $anvil->data->{scancore}{'scan-cluster'}{tables},
+		tables => $anvil->Database->get_tables_from_schema({schema_file => $schema_file}),
 	});
 	$anvil->nice_exit({exit_code => 0});
 }
@@ -120,14 +121,25 @@ sub find_changes
 		stonith_max_attempts => $stonith_max_attempts, 
 	}});
 	
+	# If we're a full cluster member, read the CIB as well.
+	my $cluster_cib = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready} }});
+	if ($anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$cluster_cib = $anvil->Storage->read_file({cache => 0, force_read => 1, debug => 2, file => $anvil->data->{path}{configs}{'cib.xml'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_cib => $cluster_cib }});
+	}
+	
 	if (exists $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid})
 	{
 		# Check for a name change
 		   $scan_cluster_uuid = $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid};
 		my $old_cluster_name  = $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name};
+		my $old_cluster_cib   = $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			scan_cluster_uuid => $scan_cluster_uuid,
 			old_cluster_name  => $old_cluster_name, 
+			old_cluster_cib   => $old_cluster_cib, 
 		}});
 		if ($cluster_name ne $old_cluster_name)
 		{
@@ -137,6 +149,27 @@ UPDATE
     scan_cluster 
 SET 
     scan_cluster_name = ".$anvil->Database->quote($cluster_name).", 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_cluster_uuid = ".$anvil->Database->quote($scan_cluster_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			
+			my $variables = {
+				new_cluster_name => $cluster_name, 
+				old_cluster_name => $old_cluster_name, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0002", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0002", variables => $variables, set_by => $THIS_FILE});
+		}
+		if (($cluster_cib) && ($cluster_cib ne $old_cluster_cib))
+		{
+			my $query = "
+UPDATE 
+    scan_cluster 
+SET 
+    scan_cluster_cib  = ".$anvil->Database->quote($cluster_name).", 
     modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE 
     scan_cluster_uuid = ".$anvil->Database->quote($scan_cluster_uuid)."
@@ -163,11 +196,13 @@ INSERT INTO
     scan_cluster_uuid, 
     scan_cluster_anvil_uuid,
     scan_cluster_name, 
+    scan_cluster_cib, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($scan_cluster_uuid).", 
     ".$anvil->Database->quote($scan_cluster_anvil_uuid).",
     ".$anvil->Database->quote($cluster_name).", 
+    ".$anvil->Database->quote($cluster_cib).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -386,7 +421,8 @@ sub read_last_scan
 SELECT 
     scan_cluster_uuid, 
     scan_cluster_anvil_uuid, 
-    scan_cluster_name 
+    scan_cluster_name, 
+    scan_cluster_cib 
 FROM 
     scan_cluster 
 ;";
@@ -405,18 +441,22 @@ FROM
 		my $scan_cluster_uuid       = $row->[0]; 
 		my $scan_cluster_anvil_uuid = $row->[1];
 		my $scan_cluster_name       = $row->[2]; 
+		my $scan_cluster_cib   = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"scan_cluster_uuid"       => $scan_cluster_uuid,
-			"scan_cluster_anvil_uuid" => $scan_cluster_anvil_uuid, 
-			"scan_cluster_name"       => $scan_cluster_name,
+			"s1:scan_cluster_uuid"       => $scan_cluster_uuid,
+			"s2:scan_cluster_anvil_uuid" => $scan_cluster_anvil_uuid, 
+			"s3:scan_cluster_name"       => $scan_cluster_name,
+			"s4:scan_cluster_cib"        => $scan_cluster_cib, 
 		}});
 		
 		# Store the old data now.
 		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name}       = $scan_cluster_name;
 		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_anvil_uuid} = $scan_cluster_anvil_uuid;
+		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib}        = $scan_cluster_cib;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_name"       => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name},
 			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_anvil_uuid" => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_anvil_uuid},
+			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_cib"        => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib},
 		}});
 		
 		# Make it easy to look up the cluster_uuid from the anvil_uuid.
