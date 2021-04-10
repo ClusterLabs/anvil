@@ -8,6 +8,7 @@ CREATE TABLE scan_cluster (
     scan_cluster_uuid          uuid                        primary key,
     scan_cluster_anvil_uuid    uuid                        not null,       -- The Anvil! UUID this cluster is associated with.
     scan_cluster_name          text                        not null,       -- The name of the cluster
+    scan_cluster_cib           text                        not null,       -- This is the CIB from disk, only updated when a node is a full member of the cluster.
     modified_date              timestamp with time zone    not null
 );
 ALTER TABLE scan_cluster OWNER TO admin;
@@ -17,6 +18,7 @@ CREATE TABLE history.scan_cluster (
     scan_cluster_uuid          uuid,
     scan_cluster_anvil_uuid    uuid,
     scan_cluster_name          text, 
+    scan_cluster_cib      text, 
     modified_date              timestamp with time zone    not null
 );
 ALTER TABLE history.scan_cluster OWNER TO admin;
@@ -31,11 +33,13 @@ BEGIN
         (scan_cluster_uuid, 
          scan_cluster_anvil_uuid, 
          scan_cluster_name, 
+         scan_cluster_cib, 
          modified_date)
     VALUES
         (history_scan_cluster.scan_cluster_uuid, 
          history_scan_cluster.scan_cluster_anvil_uuid, 
          history_scan_cluster.scan_cluster_name, 
+         history_scan_cluster.scan_cluster_cib, 
          history_scan_cluster.modified_date);
     RETURN NULL;
 END;

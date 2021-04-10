@@ -797,8 +797,9 @@ sub create_md
 {
 	my ($anvil) = @_;
 	
+	### NOTE: The '--max-peers=3' is needed to make space for future DR additions
 	# Create the DRBD metadata
-	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." -- --force create-md ".$anvil->data->{job}{server_name};
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." -- --force create-md --max-peers=3 ".$anvil->data->{job}{server_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});

@@ -647,47 +647,109 @@ sub post_scan_analysis_striker
 	# set, or when a DR host is scheduled to boot.
 	$anvil->Database->get_hosts_info({debug => $debug});
 	
+	# Load our IP information.
+	my $short_host_name = $anvil->Get->short_host_name;
+	$anvil->Network->load_ips({
+		debug     => 2,
+		clear     => 1, 
+		host_uuid => $anvil->Get->host_uuid, 
+	});
+	
 	# Get a look at all nodes and DR hosts. For each, check if they're up.
 	foreach my $host_uuid (keys %{$anvil->data->{machine}{host_uuid}})
 	{
-		# Compile data.
-		my $host_name   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
-		my $host_type   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
-		my $host_key    = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
-		my $host_ipmi   = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
-		my $host_status = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status};
-		my $password    = $anvil->data->{machine}{host_uuid}{$host_uuid}{password};
-		my $anvil_name  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name};
-		my $anvil_uuid  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid};
-		my $anvil_role  = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role};
+		# Skip outself
+		next if $host_uuid eq $anvil->Get->host_uuid();
+		
+		# Compile host's data.
+		my $host_name       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
+		my $short_host_name = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
+		my $host_type       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
+		my $host_key        = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
+		my $host_ipmi       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
+		my $host_status     = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status};
+		my $password        = $anvil->data->{machine}{host_uuid}{$host_uuid}{password};
+		my $anvil_name      = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{name};
+		my $anvil_uuid      = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{uuid};
+		my $anvil_role      = $anvil->data->{machine}{host_uuid}{$host_uuid}{anvil}{role};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host_name   => $host_name, 
-			host_type   => $host_type, 
-			host_key    => $host_key, 
-			host_ipmi   => $anvil->Log->is_secure($host_ipmi), 
-			host_status => $host_status, 
-			password    => $anvil->Log->is_secure($password), 
-			anvil_name  => $anvil_name, 
-			anvil_uuid  => $anvil_uuid, 
-			anvil_role  => $anvil_role, 
+			host_name       => $host_name, 
+			short_host_name => $short_host_name, 
+			host_type       => $host_type, 
+			host_key        => $host_key, 
+			host_ipmi       => $anvil->Log->is_secure($host_ipmi), 
+			host_status     => $host_status, 
+			password        => $anvil->Log->is_secure($password), 
+			anvil_name      => $anvil_name, 
+			anvil_uuid      => $anvil_uuid, 
+			anvil_role      => $anvil_role, 
 		}});
 		
-		### TODO: Add an ability to mark which PDU powers a striker. If set, try logging into the 
-		###       peer striker and if it fails, power cycle it (but only once per hour). 
-		next if $host_type eq "striker";
-		
-		### TODO: Adding support for PDU resets would allow us to recover from crashed IPMI BMCs as
-		###       well. For now though, not 'host_ipmi' means there's nothing we can do.
-		if (not $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi})
+		# Check to see when the last 'updated' entry was from, and it if was less than 60 seconds 
+		# ago, skip this machine as it's likely on.
+		my $query = "
+SELECT 
+    round(extract(epoch from modified_date)) 
+FROM 
+    updated 
+WHERE 
+    updated_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+ORDER BY 
+    modified_date DESC 
+LIMIT 1;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		my $last_update = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		   $last_update = 0 if not defined $last_update;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_update => $last_update }});
+		if (not $last_update)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0560", variables => { host_name => $host_name }});
+			# This machine isn't running ScanCore yet, skip it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0597", variables => { host_name => $host_name }});
 			next;
+		}
+		else
+		{
+			my $last_update_age = time - $last_update;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_update_age => $last_update_age }});
+			
+			if ($last_update_age < 120)
+			{
+				# It was alive less than two minutes ago, we don't need to check anything.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0596", variables => { 
+					host_name  => $host_name,
+					difference => $last_update_age, 
+				}});
+				next;
+			}
+		}
+		
+		# Read in the unified fence data, if it's not already loaded.
+		my $update_fence_data = 1;
+		if ($anvil->data->{fence_data}{updated}) 
+		{
+			my $age = time - $anvil->data->{fence_data}{updated};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+			if ($age < 86400)
+			{
+				# Only refresh daily.
+				$update_fence_data = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_fence_data => $update_fence_data }});
+			}
+		}
+		if ($update_fence_data)
+		{
+			$anvil->Striker->get_fence_data({debug => $debug});
 		}
 		
 		# Check this target's power state.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0561", variables => { host_name => $host_name }});
 		
 		# Do we share a network with this system?
+		$anvil->Network->load_ips({
+			debug     => 2,
+			clear     => 1, 
+			host_uuid => $host_uuid, 
+		});
 		my $check_power = 1;
 		my $match       = $anvil->Network->find_matches({
 			debug  => $debug, 
@@ -699,12 +761,11 @@ sub post_scan_analysis_striker
 		if (not $matched_ips)
 		{
 			# nothing we can do with this host.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0558", variables => { host_name => $host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0558", variables => { host_name => $host_name }});
 			next;
 		}
 		foreach my $interface (sort {$a cmp $b} keys %{$match->{$host_uuid}})
 		{
-			next;
 			my $ip_address = $match->{$host_uuid}{$interface}{ip};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				's1:interface'  => $interface, 
@@ -733,9 +794,23 @@ sub post_scan_analysis_striker
 				if ($access)
 				{
 					# It's up.
-					$check_power = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_power => $check_power }});
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0562", variables => { host_name => $host_name }});
+					
+					$check_power = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						check_power => $check_power,
+						host_status => $host_status, 
+					}});
+					
+					# If the host_status is 'booting' or 'unknown', change it to online.
+					if (($host_status eq "booting") or ($host_status eq "unknown"))
+					{
+						$anvil->Database->update_host_status({
+							debug       => $debug,
+							host_uuid   => $host_uuid,
+							host_status => "online",
+						});
+					}
 					last;
 				}
 			}
@@ -748,13 +823,113 @@ sub post_scan_analysis_striker
 		}
 
 		# Do we have IPMI info?
-		if (not $host_ipmi)
+		if ((not $host_ipmi) && ($host_type eq "node") && ($anvil_uuid))
 		{
+			# No host IPMI (that we know of). Can we check using another (non PDU) fence method?
+			my $query = "SELECT scan_cluster_cib FROM scan_cluster WHERE scan_cluster_anvil_uuid = ".$anvil->Database->quote($anvil_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $scan_cluster_cib = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			   $scan_cluster_cib = "" if not defined $scan_cluster_cib; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan_cluster_cib => $scan_cluster_cib }});
+			if ($scan_cluster_cib)
+			{
+				# Parse out the fence methods for this host. 
+				my $problem = $anvil->Cluster->parse_cib({
+					debug => $debug,
+					cib   => $scan_cluster_cib, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+				if (not $problem)
+				{
+					# Parsed! Do we have a fence method we can trust to check the power 
+					# state of this node?
+					my $node_name = exists $anvil->data->{cib}{parsed}{data}{node}{$short_host_name} ? $short_host_name : $host_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_name => $node_name }});
+					foreach my $order (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}})
+					{
+						my $method = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$order}{devices};
+						my $agent  = $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$method}{agent};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:order'  => $order,
+							's2:method' => $method, 
+							's3:agent'  => $agent 
+						}});
+						
+						# We can't trust a PDU's output, so skip them.
+						next if $agent =~ /pdu/;
+						
+						my $shell_call = $agent." ";
+						foreach my $stdin_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$method}{argument}})
+						{
+							next if $stdin_name =~ /pcmk_o\w+_action/;
+							my $switch = "";
+							my $value  = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$method}{argument}{$stdin_name}{value};
+							
+							foreach my $this_switch (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$agent}{switch}})
+							{
+								my $this_name = $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
+								if ($stdin_name eq $this_name)
+								{
+									   $switch  =  $this_switch;
+									my $dashes  =  (length($switch) > 1) ? "--" : "-";
+									$shell_call .= $dashes.$switch." \"".$value."\" ";
+									last;
+								}
+							}
+							if (not $switch)
+							{
+								if ($anvil->data->{fence_data}{$agent}{switch}{$stdin_name}{name})
+								{
+									my $dashes  =  (length($stdin_name) > 1) ? "--" : "-";
+									$shell_call .= $dashes.$stdin_name." \"".$value."\" ";
+								}
+							}
+						}
+						$shell_call .= "--action status";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						
+						my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output, 
+							return_code => $return_code,
+						}});
+						foreach my $line (split/\n/, $output)
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+						}
+						
+						if ($return_code eq "2")
+						{
+							# Node is off.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0564", variables => { host_name => $host_name }});
+							$anvil->Database->update_host_status({
+								debug       => $debug,
+								host_uuid   => $host_uuid,
+								host_status => "powered off",
+							});
+						}
+						elsif ($return_code eq "0")
+						{
+							# Node is on.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0563", variables => { host_name => $host_name }});
+							next;
+						}
+					}
+				}
+			}
+			
 			### TODO: Add support for power-cycling a target using PDUs. Until this, this
 			###       will never be hit as we next on no host_ipmi, but will be useful 
 			###       when PDU support is added.
 			# Nothing we can do (for now)
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0559", variables => { host_name => $host_name }});
+			next;
+		}
+		
+		# If we're here and there's no host IPMI information, there's nothing we can do.
+		if (not $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0560", variables => { host_name => $host_name }});
 			next;
 		}
 		
@@ -775,6 +950,11 @@ sub post_scan_analysis_striker
 		{
 			# Node is off.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0564", variables => { host_name => $host_name }});
+			$anvil->Database->update_host_status({
+				debug       => $debug,
+				host_uuid   => $host_uuid,
+				host_status => "powered off",
+			});
 		}
 		elsif ($return_code eq "0")
 		{
@@ -786,7 +966,7 @@ sub post_scan_analysis_striker
 		# Still here? See if we know why the node is off.
 		my $boot_target = 0;
 		my $stop_reason = "unknown";
-		my $query       = "
+		   $query       = "
 SELECT 
     variable_value 
 FROM 
@@ -864,6 +1044,13 @@ AND
 					$shell_call =~ s/--action status/ --action on/;
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					
+					# Mark it as booting.
+					$anvil->Database->update_host_status({
+						debug       => $debug,
+						host_uuid   => $host_uuid,
+						host_status => "booting",
+					});
 				}
 			}
 		}
@@ -943,6 +1130,13 @@ AND
 				$shell_call =~ s/--action status/ --action on/;
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				# Mark it as booting.
+				$anvil->Database->update_host_status({
+					debug       => $debug,
+					host_uuid   => $host_uuid,
+					host_status => "booting",
+				});
 			}
 		}
 	}

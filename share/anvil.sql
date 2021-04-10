@@ -61,7 +61,7 @@ CREATE TABLE hosts (
     host_type        text                        not null,                         -- Either 'node' or 'dashboard' or 'dr'. It is left empty until the host is configured.
     host_key         text                        not null,                         -- This is the host's key used to authenticate it when other machines try to ssh to it.
     host_ipmi        text                        not null    default '',           -- This is an optional string, in 'fence_ipmilan' format, that tells how to access/fence this host.
-    host_status      text                        not null    default 'unknown',    -- This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.
+    host_status      text                        not null    default 'unknown',    -- This is the power state of the host. Default is 'unknown', and can be "powered off", "stopping", "online" and "booting".
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE hosts OWNER TO admin;

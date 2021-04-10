@@ -202,7 +202,7 @@ sub configure_pacemaker
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!libvirtd.service!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "libvirtd.service" }});
 	
-	# Disabled and stop the libvirtd daemon.
+	# Disabled and stop the drbd daemon.
 	($return_code) = $anvil->System->disable_daemon({daemon => "drbd.service"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
@@ -210,6 +210,16 @@ sub configure_pacemaker
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!drbd.service!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "drbd.service" }});
+	
+	# Disabled and stop the ksm and ksmtuned daemon.
+	($return_code) = $anvil->System->disable_daemon({daemon => "ksm.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$return_code = undef;
+	($return_code) = $anvil->System->stop_daemon({daemon => "ksmtuned.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$return_code = undef;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!ksm.service!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "drbd.service" }});
 	
 	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the

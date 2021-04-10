@@ -1935,6 +1935,15 @@ sub parse_cib
 					"cib::parsed::cib::resources::primitive::${id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}, 
 					"cib::parsed::cib::resources::primitive::${id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class}, 
 				}});
+				
+				# If this is a stonith class, store the type as the 'agent' variable.
+				if ($anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class} eq "stonith")
+				{
+					$anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$id}{agent} = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"cib::parsed::data::stonith::primitive_id::${id}::agent" => $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$id}{agent}, 
+					}});
+				}
 				foreach my $nvpair ($primitive->findnodes('./instance_attributes/nvpair'))
 				{
 					my $nvpair_id = $nvpair->{id};
@@ -2112,6 +2121,7 @@ sub parse_cib
 	foreach my $primitive_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{resources}{primitive}})
 	{
 		next if not $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{class};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { primitive_id => $primitive_id }});
 		if ($anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{class} eq "stonith")
 		{
 			my $variables = {};
@@ -2121,8 +2131,9 @@ sub parse_cib
 				my $name  = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}{$fence_id}{name};
 				my $value = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}{$fence_id}{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					name  => $name, 
-					value => $value, 
+					's1:fence_id' => $fence_id, 
+					's2:name'     => $name, 
+					's3:value'    => $value, 
 				}});
 				
 				if ($name eq "pcmk_host_list")
@@ -2419,6 +2430,12 @@ sub parse_crm_mon
 	}
 	else
 	{
+		# When called on Striker during post-scan analysis, this won't work. So to avoid noise in the
+		# logs, we do en explicit check if the binary exists and exit quietly if it does not.
+		if (not -e $anvil->data->{path}{exe}{crm_mon})
+		{
+			return(1);
+		}
 		my $shell_call = $anvil->data->{path}{exe}{crm_mon}." --output-as=xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		

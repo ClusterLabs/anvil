@@ -731,19 +731,24 @@ sub gather_data
 							"new::resource::${resource}::volume::${volume}::peer::${peer}::peer_role"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role},
 						}});
 						
-						# If the peer is secondary, read the device size.
-						if ($anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role} eq "secondary")
+						# Get the resource size by reading '/sys/block/drbd<minor>/size' and multiplying by '/sys/block/<disk>/queue/logical_block_size'
+						my $drbd_device = "/sys/block/drbd".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_device => $drbd_device }});
+						if (-d $drbd_device)
 						{
-							# Get the size of the DRBD device.
-							my ($size, $return_code) = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{blockdev}." --getsize64 /dev/drbd".$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor}});
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-								size        => $size, 
-								return_code => $return_code,
+							my $logical_block_size = $anvil->Words->clean_spaces({string => $anvil->Storage->read_file({file => $drbd_device."/queue/logical_block_size"})});
+							my $sector_size        = $anvil->Words->clean_spaces({string => $anvil->Storage->read_file({file => $drbd_device."/size"})});
+							my $size               = $logical_block_size * $sector_size;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								logical_block_size => $anvil->Convert->add_commas({number => $logical_block_size}),
+								sector_size        => $anvil->Convert->add_commas({number => $sector_size}),
+								size               => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",
 							}});
-							if (not $return_code)
+							
+							if ($size > 0)
 							{
 								$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size} = $size;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 									"new::resource::${resource}::volume::${volume}::size" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}}).")",
 								}});
 							}
@@ -765,22 +770,7 @@ sub gather_data
 							"new::resource::${resource}::volume::${volume}::peer::${peer}::out_of_sync_size" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}}).")",
 						}});
 					}
-=cut
- 0: cs:Established ro:Secondary/Secondary ds:Inconsistent/Inconsistent C r-----
-    ns:0 nr:0 dw:0 dr:0 al:0 bm:0 lo:0 pe:[0;0] ua:0 ap:[0;0] ep:1 wo:1 oos:0
-	resync: used:0/61 hits:0 misses:0 starving:0 locked:0 changed:0
-	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
-	blocked on activity log: 0/0/0
-
- 0: cs:SyncTarget ro:Secondary/Primary ds:Inconsistent/UpToDate C r-----
-    ns:0 nr:648960 dw:648728 dr:0 al:0 bm:0 lo:4 pe:[0;1] ua:4 ap:[0;0] ep:1 wo:1 oos:20321476
-	[>....................] sync'ed:  3.2% (19844/20476)M
-	finish: 0:03:39 speed: 92,672 (92,936 -- 92,672) want: 2,880 K/sec
-	  3% sector pos: 1298032/41940408
-	resync: used:1/61 hits:31926 misses:10 starving:0 locked:0 changed:5
-	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
-	blocked on activity log: 0/0/0
-=cut
+					
 					if ($line =~ /sync'ed:\s+(\d.*\%)/)
 					{
 						$progress .= $1;
@@ -1565,7 +1555,7 @@ sub get_status
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{size}            = $hash_ref->{devices}->[$i]->{size};
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'upper-pending'} = $hash_ref->{devices}->[$i]->{'upper-pending'};
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{written}         = $hash_ref->{devices}->[$i]->{written};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::al-writes"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'al-writes'},
 				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::bm-writes"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'bm-writes'},
 				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::client"        => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{client},

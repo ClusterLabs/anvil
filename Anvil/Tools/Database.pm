@@ -87,6 +87,7 @@ my $THIS_FILE = "Database.pm";
 # read_variable
 # refresh_timestamp
 # resync_databases
+# update_host_status
 # write
 # _archive_table
 # _find_behind_database
@@ -2832,17 +2833,20 @@ FROM
 			host_ipmi   => $anvil->Log->is_secure($host_ipmi), 
 			host_status => $host_status, 
 		}});
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}   = $host_name;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}   = $host_type;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}    = $host_key;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}   = $host_ipmi;
-		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status} = $host_status;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}       =  $host_name;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{short_host_name} =  $host_name;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{short_host_name} =~ s/\..*$//;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}       =  $host_type;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}        =  $host_key;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}       =  $host_ipmi;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status}     =  $host_status;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"machine::host_uuid::${host_uuid}::hosts::host_name"   => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}, 
-			"machine::host_uuid::${host_uuid}::hosts::host_type"   => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}, 
-			"machine::host_uuid::${host_uuid}::hosts::host_key"    => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}, 
-			"machine::host_uuid::${host_uuid}::hosts::host_ipmi"   => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}), 
-			"machine::host_uuid::${host_uuid}::hosts::host_status" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_name"       => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}, 
+			"machine::host_uuid::${host_uuid}::hosts::short_host_name" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{short_host_name}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_type"       => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_key"        => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_ipmi"       => $anvil->Log->is_secure($anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}), 
+			"machine::host_uuid::${host_uuid}::hosts::host_status"     => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_status}, 
 		}});
 		
 		# If this is an Anvil! member, pull it's IP.
@@ -6843,7 +6847,8 @@ This is the power state of the host. Valid values are;
 * C<< unknown >>     - This should only be set when a node can not be reached and the previous setting was not C<< stopping >> or C<< booting >>.
 * C<< powered off >> - This shoule be set only when the host is confirmed off via IPMI call
 * C<< online >>      - This is set by the host itself when it boots up and first connects to the anvil database. B<< Note >> - This does NOT indicate readiness! Only that the host is accessible
-* C<< stopping >>    - This is a transitional state set by the host when it begins powering off. 
+* C<< rebooting >>   - This is a transitional state set by the host when it begins a reboot. The next step is 'online'.
+* C<< stopping >>    - This is a transitional state set by the host when it begins powering off. The next step is 'powered off' and will be set by a Striker. Note that if there is no host IPMI, the may stay in this state until in next powers on.
 * C<< booting >>     - This is a transitional state set by a Striker dashboard when it is powering on a host.
 
 B<< Note >> - Given that most Striker dashboards do not have IPMI, it is expected that they will enter C<< stopping >> state and never transition to c<< powered off >>. This is OK as C<< powered off >> can only be set when a target is B<< confirmed >> off. There's no other way to ensure that a target is not stuck while shutting down. Lack of pings doesn't solve this, either, as the network can go down before the host powers off.
@@ -14930,6 +14935,58 @@ sub resync_databases
 	# Clear the variable that indicates we need a resync.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
+	
+	return(0);
+}
+
+
+=head2 update_host_status
+
+This is a variant on C<< insert_or_update_hosts >> designed only to update the power status of a host. 
+
+Parameters;
+
+=head3 host_uuid (optional, default Get->host_uuid)
+
+This is the host whose power state is being updated.
+
+=head3 host_status (required)
+
+This is the host status to set. See C<< insert_or_update_hosts -> host_status >> for valid values.
+
+=cut
+sub update_host_status
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->update_host_status()" }});
+	
+	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : $anvil->Get->host_uuid;
+	my $host_status = defined $parameter->{host_status} ? $parameter->{host_status} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid   => $host_uuid, 
+		host_status => $host_status, 
+	}});
+	
+	if (not $host_status)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->update_host_status()", parameter => "host_status" }});
+		return("");
+	}
+	
+	# We're only updating the status, so we'll read in the current data to pass back in.
+	$anvil->Database->get_hosts({debug => $debug});
+	$anvil->Database->insert_or_update_hosts({
+		host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+		host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+		host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+		host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+		host_uuid   => $host_uuid, 
+		host_status => $host_status, 
+	});
 	
 	return(0);
 }
