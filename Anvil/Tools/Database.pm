@@ -2620,23 +2620,25 @@ Get a list of hosts from the c<< hosts >> table, returned as an array of hash re
 
 Each anonymous hash is structured as:
 
- host_uuid     => $host_uuid, 
- host_name     => $host_name, 
- host_type     => $host_type, 
- host_key      => $host_key, 
- host_ipmi     => $host_ipmi, 
- host_status   => $host_status,
- modified_date => $modified_date, 
+ host_uuid       => $host_uuid, 
+ host_name       => $host_name, 
+ short_host_name => $short_host_name, 
+ host_type       => $host_type, 
+ host_key        => $host_key, 
+ host_ipmi       => $host_ipmi, 
+ host_status     => $host_status,
+ modified_date   => $modified_date, 
 
 It also sets the variables;
 
- hosts::host_uuid::<host_uuid>::host_name   = <host_name>;
- hosts::host_uuid::<host_uuid>::host_type   = <host_type; node, dr or dashboard>
- hosts::host_uuid::<host_uuid>::host_key    = <Machine's public key / fingerprint, set to DELETED when the host is no longer used>
- hosts::host_uuid::<host_uuid>::host_ipmi   = <If equiped, this is how to log into the host's IPMI BMC, including the password!>
- hosts::host_uuid::<host_uuid>::host_status = <This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.>
- hosts::host_uuid::<host_uuid>::anvil_name  = <anvil_name if associated with an anvil>
- hosts::host_uuid::<host_uuid>::anvil_uuid  = <anvil_uuid if associated with an anvil>
+ hosts::host_uuid::<host_uuid>::host_name       = <host_name>;
+ hosts::host_uuid::<host_uuid>::short_host_name = <short_host_name>;
+ hosts::host_uuid::<host_uuid>::host_type       = <host_type; node, dr or dashboard>
+ hosts::host_uuid::<host_uuid>::host_key        = <Machine's public key / fingerprint, set to DELETED when the host is no longer used>
+ hosts::host_uuid::<host_uuid>::host_ipmi       = <If equiped, this is how to log into the host's IPMI BMC, including the password!>
+ hosts::host_uuid::<host_uuid>::host_status     = <This is the power state of the host. Default is 'unknown', and can be "powered off", "online", "stopping" and "booting.>
+ hosts::host_uuid::<host_uuid>::anvil_name      = <anvil_name if associated with an anvil>
+ hosts::host_uuid::<host_uuid>::anvil_uuid      = <anvil_uuid if associated with an anvil>
 
 And to simplify look-ups by UUID or name;
 
@@ -2779,10 +2781,9 @@ WHERE
 }
 
 
-### TODO: Why does this method exist?
 =head2 get_hosts_info
 
-This gathers up all the known information about all known hosts.
+This gathers up all the known information about all known hosts, inlcuding information from the C<< variables >> table linked to each host.
 
 This method takes no parameters.
 

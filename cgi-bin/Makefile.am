@@ -8,6 +8,7 @@ dist_cgibin_SCRIPTS     = \
                           get_cpu \
                           get_memory \
                           get_replicated_storage \
+                          get_servers \
                           get_shared_storage \
                           get_status \
                           set_membership \
