@@ -60,111 +60,127 @@ else
 {
 	my $node1_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $dr1_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		node1_uuid => $node1_uuid,
 		node2_uuid => $node2_uuid, 
-		dr1_uuid   => $dr1_uuid, 
 	}});
 	
-	my $query = "
-SELECT 
-     
-FROM 
-    hosts a, 
-    scan_filesystems b 
-WHERE 
-    a.host_uuid = b.scan_filesystem_host_uuid 
-AND 
-    (
-        a.host_uuid = ".$anvil->Database->quote($node1_uuid)." 
-    OR 
-        a.host_uuid = ".$anvil->Database->quote($node2_uuid);
-	if ($dr1_uuid)
-	{
-		$query .= "
-    OR 
-        a.host_uuid = ".$anvil->Database->quote($dr1_uuid);
-	}
-	$query .= "
-    ) 
-ORDER BY 
-    a.host_name ASC, 
-    b.scan_filesystem_mount_point DESC
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
+	# For each node, check to see if it's "online" and, if so, if the node is in the cluster.
+	$anvil->Database->get_hosts_info();
+	
+	# Read in the 
+	my $node1_status    = $anvil->data->{hosts}{host_uuid}{$node1_uuid}{host_status};
+	my $node1_host_name = $anvil->data->{hosts}{host_uuid}{$node1_uuid}{short_host_name};
+	my $node2_status    = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_status};
+	my $node2_host_name = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{short_host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		results => $results, 
-		count   => $count, 
+		node1_status    => $node1_status,
+		node1_host_name => $node1_host_name, 
+		node2_status    => $node2_status, 
+		node2_host_name => $node2_host_name, 
 	}});
-	foreach my $row (@{$results})
+	
+	# Array index 0 is node 1, index 1 is node 2.
+	$hash->{anvil_state} = "optimal"; 
+	$hash->{nodes}->[0]  = {
+		host_uuid        =>  $node1_uuid,
+		'state'          => "offline",
+		state_percent    => 0,
+		state_message    => "message_0222,!!host_name!".$node1_host_name."!!",
+		maintenance_mode => 'undefined',
+	};
+	$hash->{nodes}->[1]  = {
+		host_uuid        =>  $node2_uuid,
+		'state'          => "offline",
+		state_percent    => 0,
+		state_message    => "message_0222,!!host_name!".$node2_host_name."!!",
+		maintenance_mode => 'undefined',
+	};
+	
+	foreach my $i (0..1)
 	{
-		my $host_uuid   = $row->[0];
-		my $host_name   = $row->[1];
-		my $mount_point = $row->[2];
-		my $size        = $row->[3]; 
-		my $used        = $row->[4]; 
-		my $free        = $size - $used;
+		my $host_uuid       = $hash->{nodes}->[$i]->{host_uuid};
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		my $host_status     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host_uuid   => $host_uuid, 
-			host_name   => $host_name, 
-			mount_point => $mount_point, 
-			size        => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",, 
-			used        => $anvil->Convert->add_commas({number => $used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used}).")",, 
-			free        => $anvil->Convert->add_commas({number => $free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free}).")",, 
+			's1:short_host_name' => $short_host_name,
+			's2:host_uuid'       => $host_uuid, 
+			's3:host_status'     => $host_status, 
 		}});
 		
-		$anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name} = $host_name;
-		$anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}     = $size;
-		$anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free}      = $free;
+		# If the node is not "online", nothing else matters.
+		next if $host_status ne "online";
+		
+		my $query = "
+SELECT 
+    scan_cluster_node_in_ccm, 
+    scan_cluster_node_crmd_member, 
+    scan_cluster_node_cluster_member, 
+    scan_cluster_node_maintenance_mode 
+FROM 
+    scan_cluster_nodes 
+WHERE 
+    scan_cluster_node_host_uuid = ".$anvil->Database->quote($host_uuid)."
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"raw::file_systems::${mount_point}::nodes::${host_uuid}::host_name" => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name}, 
-			"raw::file_systems::${mount_point}::nodes::${host_uuid}::total"     => $anvil->Convert->add_commas({number => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}}).")",, 
-			"raw::file_systems::${mount_point}::nodes::${host_uuid}::free"      => $anvil->Convert->add_commas({number => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free}}).")",, 
+			results => $results, 
+			count   => $count, 
 		}});
-	}
-	
-	$anvil->data->{file_systems} = [];
-	
-	foreach my $mount_point (sort {$a cmp $b} keys %{$anvil->data->{raw}{file_systems}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mount_point => $mount_point }});
-		   $hash->{mount_point} = $mount_point;
-		   $hash->{nodes}       = [];
-		my $nodes               = [$node1_uuid, $node2_uuid];
-		if ($dr1_uuid)
+		
+		if (not $count)
 		{
-			push @{$nodes}, $dr1_uuid;
+			# Weird, looks like this host isn't a node.
+			next;
 		}
-		foreach my $host_uuid (@{$nodes})
+		foreach my $row (@{$results})
 		{
-			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+			# How online is it?
+			my $scan_cluster_node_in_ccm           = $row->[0];
+			my $scan_cluster_node_crmd_member      = $row->[1];
+			my $scan_cluster_node_cluster_member   = $row->[2];
+			my $scan_cluster_node_maintenance_mode = $row->[3];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				host_uuid => $host_uuid,
-				host_name => $host_name, 
+				scan_cluster_node_in_ccm           => $scan_cluster_node_in_ccm, 
+				scan_cluster_node_crmd_member      => $scan_cluster_node_crmd_member, 
+				scan_cluster_node_cluster_member   => $scan_cluster_node_cluster_member, 
+				scan_cluster_node_maintenance_mode => $scan_cluster_node_maintenance_mode, 
 			}});
-			if (exists $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid})
+			
+			$hash->{nodes}->[$i]->{maintenance_mode} = $scan_cluster_node_maintenance_mode ? 1 : 0;
+			if ($scan_cluster_node_cluster_member)
 			{
-				push @{$hash->{nodes}}, {
-					host_uuid  => $host_uuid, 
-					host_name  => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name},
-					is_mounted => 1,
-					total      => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total},
-					free       => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free},
-				}
+				$hash->{nodes}->[$i]->{'state'}       = "online";
+				$hash->{nodes}->[$i]->{state_percent} = 100;
+				$hash->{nodes}->[$i]->{state_message} = "message_0223,!!host_name!".$node2_host_name."!!",
+			}
+			elsif ($scan_cluster_node_crmd_member)
+			{
+				$hash->{nodes}->[$i]->{'state'}       = "crmd";
+				$hash->{nodes}->[$i]->{state_percent} = 75;
+				$hash->{nodes}->[$i]->{state_message} = "message_0224,!!host_name!".$node2_host_name."!!",
+			}
+			elsif ($scan_cluster_node_in_ccm)
+			{
+				$hash->{nodes}->[$i]->{'state'}       = "in_ccm";
+				$hash->{nodes}->[$i]->{state_percent} = 50;
+				$hash->{nodes}->[$i]->{state_message} = "message_0225,!!host_name!".$node2_host_name."!!",
 			}
 			else
 			{
-				push @{$hash->{nodes}}, {
-					host_uuid  => $host_uuid, 
-					host_name  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name},
-					is_mounted => 0,
-					total      => 0,
-					free       => 0,
-				}
+				$hash->{nodes}->[$i]->{'state'}       = "booted";
+				$hash->{nodes}->[$i]->{state_percent} = 25;
+				$hash->{nodes}->[$i]->{state_message} = "message_0226,!!host_name!".$node2_host_name."!!",
 			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"hash->{nodes}->[".$i."]->{state}"            => $hash->{nodes}->[$i]->{'state'}, 
+				"hash->{nodes}->[".$i."]->{state_percent}"    => $hash->{nodes}->[$i]->{state_percent}, 
+				"hash->{nodes}->[".$i."]->{state_message}"    => $hash->{nodes}->[$i]->{state_message}, 
+				"hash->{nodes}->[".$i."]->{maintenance_mode}" => $hash->{nodes}->[$i]->{maintenance_mode}, 
+			}});
 		}
 	}
 }

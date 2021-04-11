@@ -1757,6 +1757,11 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0219">- #!variable!server_name!# (Current state: [#!variable!server_state!#])</key>
 		<key name="message_0220">- * #!variable!server_name!# (Deleted, name can be reused)</key>
 		<key name="message_0221">We're Striker: [#!variable!striker!#], and we're now configured, so we're done. Striker 1 will finish configuration.</key>
+		<key name="message_0222">The node: [#!variable!host_name!#] is in an unknown state.</key>
+		<key name="message_0223">The node: [#!variable!host_name!#] is a full cluster member.</key>
+		<key name="message_0224">The node: [#!variable!host_name!#] is coming online; the cluster resource manager is running. (step 2/3)</key>
+		<key name="message_0225">The node: [#!variable!host_name!#] is coming online; the node is a consensus cluster member. (step 1/3)</key>
+		<key name="message_0226">The node: [#!variable!host_name!#] has booted, but it is not (yet) joining the cluster.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
