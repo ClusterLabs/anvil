@@ -1440,6 +1440,12 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0595">Updated the lvm.conf file to add the filter: [#!variable!filter!#] to prevent LVM from seeing the DRBD devices as LVM devices.</key>
 		<key name="log_0596">The host: [#!variable!host_name!#] last updated the database: [#!variable!difference!#] seconds ago, skipping power checks.</key>
 		<key name="log_0597">The host: [#!variable!host_name!#] has no entries in the 'updated' table, so ScanCore has likely never run. Skipping this host for now.</key>
+		<key name="log_0598">This host is not a node, this program isn't designed to run here.</key>
+		<key name="log_0599">Enabled 'anvil-safe-start' locally on this node.</key>
+		<key name="log_0600">Enabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
+		<key name="log_0601">Disabled 'anvil-safe-start' locally on this node.</key>
+		<key name="log_0602">Disabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
+		<key name="log_0603">This node is not in an Anvil! yet, so there's no reason to run this program.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1762,6 +1768,12 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0224">The node: [#!variable!host_name!#] is coming online; the cluster resource manager is running. (step 2/3)</key>
 		<key name="message_0225">The node: [#!variable!host_name!#] is coming online; the node is a consensus cluster member. (step 1/3)</key>
 		<key name="message_0226">The node: [#!variable!host_name!#] has booted, but it is not (yet) joining the cluster.</key>
+		<key name="message_0227">The 'anvil-safe-start' tool is enabled on both this node and on the peer.</key>
+		<key name="message_0228">The 'anvil-safe-start' tool is disabled on both this node and on the peer.</key>
+		<key name="message_0229">The 'anvil-safe-start' tool is enabled on this node and disabled on the peer.</key>
+		<key name="message_0230">The 'anvil-safe-start' tool is disabled on this node and enabled on the peer.</key>
+		<key name="message_0231">The 'anvil-safe-start' tool is disabled, exiting. Use '--force' to run anyway.</key>
+		<key name="message_0232">The 'anvil-safe-start' tool is disabled, but '--force' was used, so proceeding.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2081,6 +2093,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0283">There are no #!string!brand_0006!# configured yet. Existing files will automatically sync to new clusters.</key>
 		<key name="striker_0284">Cancel</key>
 		<key name="striker_0285">Close</key>
+		<key name="striker_0286">This controls if 'anvil-safe-start' is enabled on a node.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
