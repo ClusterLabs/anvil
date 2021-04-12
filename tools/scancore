@@ -332,6 +332,15 @@ sub startup_tasks
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	
+	# If we've been up for less than ten minutes, call anvil-safe-start as a background process. It will 
+	# exit if it is disabled.
+	my $uptime = $anvil->Get->uptime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
+	if ($uptime < 600)
+	{
+		
+	}
+	
 	return(0);
 }
 
