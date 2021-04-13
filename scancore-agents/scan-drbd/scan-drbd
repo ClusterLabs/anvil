@@ -741,6 +741,8 @@ WHERE
 					scan_drbd_peer_scan_drbd_volume_uuid => $scan_drbd_peer_scan_drbd_volume_uuid, 
 				}});
 				
+				die if not $scan_drbd_peer_scan_drbd_volume_uuid;
+				
 				my $query = "
 INSERT INTO 
     scan_drbd_peers 
@@ -830,7 +832,7 @@ sub process_volumes
 			my $update = 0;
 			if ($new_scan_drbd_volume_device_path ne $old_scan_drbd_volume_device_path)
 			{
-				$update    = 1;
+				   $update    = 1;
 				my $variables = {
 					resource_name => $scan_drbd_resource_name, 
 					volume_number => $scan_drbd_volume_number, 
@@ -853,7 +855,7 @@ sub process_volumes
 			if ($new_scan_drbd_volume_device_minor ne $old_scan_drbd_volume_device_minor)
 			{
 				# The minor-number changing is almost certainly a human-changed thing.
-				$update    = 1;
+				   $update    = 1;
 				my $variables = {
 					resource_name => $scan_drbd_resource_name, 
 					volume_number => $scan_drbd_volume_number, 
@@ -866,7 +868,7 @@ sub process_volumes
 			if ($new_scan_drbd_volume_size ne $old_scan_drbd_volume_size)
 			{
 				# Looks like the volume was resized.
-				$update    = 1;
+				   $update    = 1;
 				my $variables = {
 					resource_name => $scan_drbd_resource_name, 
 					volume_number => $scan_drbd_volume_number, 
@@ -1252,14 +1254,16 @@ WHERE
 		# Record the scan_drbd_volume_uuid in an easy to find place for later when looking for changes.
 		my $on_resource_name = $anvil->data->{old}{uuid_to_resource}{$scan_drbd_volume_scan_drbd_resource_uuid}{name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_resource_name => $on_resource_name }});
-		
+
 		$anvil->data->{volume_to_uuid}{$scan_drbd_volume_uuid}{number}                                   = $scan_drbd_volume_number;
 		$anvil->data->{volume_to_uuid}{$scan_drbd_volume_uuid}{on_resource}                              = $scan_drbd_volume_scan_drbd_resource_uuid;
 		$anvil->data->{volume_to_uuid}{$on_resource_name}{volume_number}{$scan_drbd_volume_number}{uuid} = $scan_drbd_volume_uuid;
+		$anvil->data->{volume_uuid}{resource}{$on_resource_name}{volume}{$scan_drbd_volume_number}{uuid} = $scan_drbd_volume_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"volume_to_uuid::${scan_drbd_volume_uuid}::number"                                     => $anvil->data->{volume_to_uuid}{$scan_drbd_volume_uuid}{number}, 
 			"volume_to_uuid::${scan_drbd_volume_uuid}::on_resource"                                => $anvil->data->{volume_to_uuid}{$scan_drbd_volume_uuid}{on_resource}, 
 			"volume_to_uuid::${on_resource_name}::volume_number::${scan_drbd_volume_number}::uuid" => $anvil->data->{volume_to_uuid}{$on_resource_name}{volume_number}{$scan_drbd_volume_number}{uuid}, 
+			"volume_uuid::resource::${on_resource_name}::volume::${scan_drbd_volume_number}::uuid" => $anvil->data->{volume_uuid}{resource}{$on_resource_name}{volume}{$scan_drbd_volume_number}{uuid},
 		}});
 	}
 	undef $count;

@@ -36,6 +36,7 @@ my $THIS_FILE = "System.pm";
 # maintenance_mode
 # manage_authorized_keys
 # manage_firewall
+# pids
 # parse_lshw
 # read_ssh_config
 # reload_daemon
@@ -3539,7 +3540,7 @@ sub manage_firewall
 
 =head2 pids
 
-This parses C<< ps aux >> and stores the information about running programs in C<< pids::<pid_number>::<data> >>.
+This parses C<< ps aux >> and stores the information about running programs in C<< pids::<pid_number>::<data> >>. If called against a remote host, the data is stored in C<< remote_pids::<pid_number>::<data> >>.
 
 Optionally, if the C<< program_name >> parameter is set, an array of PIDs for that program will be returned.
 
@@ -3553,6 +3554,22 @@ If set to C<< 1 >>, the PID of this program is ignored.
 
 This is an option string that is searched for in the 'command' portion of the 'ps aux' call. If this string matches, the PID is added to the array reference returned by this method.
 
+=head3 password (optional)
+
+If you are testing IPMI from a remote machine, this is the password used to connect to that machine. If not passed, an attempt to connect with passwordless SSH will be made (but this won't be the case in most instances). Ignored if C<< target >> is not given.
+
+=head3 port (optional, default 22)
+
+This is the TCP port number to use if connecting to a remote machine over SSH. Ignored if C<< target >> is not given.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user we will use when logging in to the target machine.
+
+=head3 target (optional)
+
+This is the IP address or (resolvable) host name of the target machine to test the IPMI connection from.
+
 =cut
 sub pids
 {
@@ -3562,23 +3579,58 @@ sub pids
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->pids()" }});
 	
-	my $ignore_me    = defined $parameter->{ignore_me}    ? $parameter->{ignore_me}    : 0;
-	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
+	my $ignore_me     = defined $parameter->{ignore_me}     ? $parameter->{ignore_me}     : 0;
+	my $program_name  = defined $parameter->{program_name}  ? $parameter->{program_name}  : "";
+	my $password      = defined $parameter->{password}      ? $parameter->{password}      : "";
+	my $port          = defined $parameter->{port}          ? $parameter->{port}          : "";
+	my $remote_user   = defined $parameter->{remote_user}   ? $parameter->{remote_user}   : "";
+	my $target        = defined $parameter->{target}        ? $parameter->{target}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		ignore_me    => $ignore_me, 
 		program_name => $program_name,
 	}});
 	
-	# If we stored this data before, delete it as it is now stale.
-	if (exists $anvil->data->{pids})
+	my $my_pid      = $$;
+	my $pids        = [];
+	my $shell_call  = $anvil->data->{path}{exe}{ps}." aux";
+	my $pid_key     = "pids";
+	my $output      = "";
+	my $return_code = "";
+	if ($anvil->Network->is_local({host => $target}))
 	{
-		delete $anvil->data->{pids};
+		
+		# Local call
+		($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output       => $output, 
+			return_code  => $return_code,
+		}});
 	}
-	my $my_pid     = $$;
-	my $pids       = [];
-	my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	else
+	{
+		# Remote call, clear the 'my_pid'
+		$my_pid  = "";
+		$pid_key = "remote_pids";
+		($output, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
+	}
+	
+	# If we stored this data before, delete it as it is now stale.
+	if (exists $anvil->data->{$pid_key})
+	{
+		delete $anvil->data->{$pid_key};
+	}
+	
 	foreach my $line (split/\n/, $output)
 	{
 		$line = $anvil->Words->clean_spaces({ string => $line });
@@ -3628,26 +3680,26 @@ sub pids
 			}
 			
 			# Store by PID
-			$anvil->data->{pids}{$pid}{user}                = $user;
-			$anvil->data->{pids}{$pid}{cpu}                 = $cpu;
-			$anvil->data->{pids}{$pid}{memory}              = $memory;
-			$anvil->data->{pids}{$pid}{virtual_memory_size} = $virtual_memory_size;
-			$anvil->data->{pids}{$pid}{resident_set_size}   = $resident_set_size;
-			$anvil->data->{pids}{$pid}{control_terminal}    = $control_terminal;
-			$anvil->data->{pids}{$pid}{state_codes}         = $state_codes;
-			$anvil->data->{pids}{$pid}{start_time}          = $start_time;
-			$anvil->data->{pids}{$pid}{'time'}              = $time;
-			$anvil->data->{pids}{$pid}{command}             = $command;
+			$anvil->data->{$pid_key}{$pid}{user}                = $user;
+			$anvil->data->{$pid_key}{$pid}{cpu}                 = $cpu;
+			$anvil->data->{$pid_key}{$pid}{memory}              = $memory;
+			$anvil->data->{$pid_key}{$pid}{virtual_memory_size} = $virtual_memory_size;
+			$anvil->data->{$pid_key}{$pid}{resident_set_size}   = $resident_set_size;
+			$anvil->data->{$pid_key}{$pid}{control_terminal}    = $control_terminal;
+			$anvil->data->{$pid_key}{$pid}{state_codes}         = $state_codes;
+			$anvil->data->{$pid_key}{$pid}{start_time}          = $start_time;
+			$anvil->data->{$pid_key}{$pid}{'time'}              = $time;
+			$anvil->data->{$pid_key}{$pid}{command}             = $command;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"pids::${pid}::cpu"                 => $anvil->data->{pids}{$pid}{cpu}, 
-				"pids::${pid}::memory"              => $anvil->data->{pids}{$pid}{memory}, 
-				"pids::${pid}::virtual_memory_size" => $anvil->data->{pids}{$pid}{virtual_memory_size}, 
-				"pids::${pid}::resident_set_size"   => $anvil->data->{pids}{$pid}{resident_set_size}, 
-				"pids::${pid}::control_terminal"    => $anvil->data->{pids}{$pid}{control_terminal}, 
-				"pids::${pid}::state_codes"         => $anvil->data->{pids}{$pid}{state_codes}, 
-				"pids::${pid}::start_time"          => $anvil->data->{pids}{$pid}{start_time}, 
-				"pids::${pid}::time"                => $anvil->data->{pids}{$pid}{'time'}, 
-				"pids::${pid}::command"             => $anvil->data->{pids}{$pid}{command}, 
+				"${pid_key}::${pid}::cpu"                 => $anvil->data->{$pid_key}{$pid}{cpu}, 
+				"${pid_key}::${pid}::memory"              => $anvil->data->{$pid_key}{$pid}{memory}, 
+				"${pid_key}::${pid}::virtual_memory_size" => $anvil->data->{$pid_key}{$pid}{virtual_memory_size}, 
+				"${pid_key}::${pid}::resident_set_size"   => $anvil->data->{$pid_key}{$pid}{resident_set_size}, 
+				"${pid_key}::${pid}::control_terminal"    => $anvil->data->{$pid_key}{$pid}{control_terminal}, 
+				"${pid_key}::${pid}::state_codes"         => $anvil->data->{$pid_key}{$pid}{state_codes}, 
+				"${pid_key}::${pid}::start_time"          => $anvil->data->{$pid_key}{$pid}{start_time}, 
+				"${pid_key}::${pid}::time"                => $anvil->data->{$pid_key}{$pid}{'time'}, 
+				"${pid_key}::${pid}::command"             => $anvil->data->{$pid_key}{$pid}{command}, 
 			}});
 			
 			if ($command =~ /$program_name/)
