@@ -1446,6 +1446,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0601">Disabled 'anvil-safe-start' locally on this node.</key>
 		<key name="log_0602">Disabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
 		<key name="log_0603">This node is not in an Anvil! yet, so there's no reason to run this program.</key>
+		<key name="log_0604">Scuccessful acess over the network: [#!variable!network!#] to the peer: [#!variable!peer!#] using the peer's IP: [#!variable!peer_ip!#].</key>
+		<key name="log_0605">Failed to acess over the peer: [#!variable!peer!#] over the network: [#!variable!network!#] via the peer's IP: [#!variable!peer_ip!#].</key>
+		<key name="log_0606">At least one network connection to the peer: [#!variable!peer!#] is still down. Waiting a bit and then will check again.</key>
+		<key name="log_0607">All connections to the peer: [#!variable!peer!#] are up!</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1774,6 +1778,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0230">The 'anvil-safe-start' tool is disabled on this node and enabled on the peer.</key>
 		<key name="message_0231">The 'anvil-safe-start' tool is disabled, exiting. Use '--force' to run anyway.</key>
 		<key name="message_0232">The 'anvil-safe-start' tool is disabled, but '--force' was used, so proceeding.</key>
+		<key name="message_0233">It appears that another instance of 'anvil-safe-start' is already runing. Please wait for it to complete (or kill it manually if needed).</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

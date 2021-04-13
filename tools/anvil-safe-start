@@ -18,6 +18,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use NetAddr::IP;
 require POSIX;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
@@ -79,14 +80,159 @@ if (not $anvil->data->{sys}{database}{connections})
 	}
 }
 
+### Process
+# 1. Check if I am enabled and that no other copies are running.
+# 2. Can I ping my peer on all three networks? Loop until true.
+#    - Wait here indefinately
+# 3. ...
+# 6. Using Start Groups/Delays (and ignoring 'clean' off VMs), boot servers.
+
+
 # Check to see if we should run. Also checks/sets enable/disable requests.
 prerun_checks($anvil);
+
+# Wait until I can ping the peer on all three networks. This will not return until access is available on all
+# networks. There is no timeout.
+wait_for_access($anvil);
+
 
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Check for which networks we have and verify that we can ping our peer on each. This function will not 
+# return until all networks are up.
+sub wait_for_access
+{
+	my ($anvil) = @_;
+	
+	my $host_uuid            = $anvil->Get->host_uuid();
+	my $short_host_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	my $peer_host_uuid       = $anvil->data->{sys}{peer_host_uuid};
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	my $peer_password        = $anvil->data->{sys}{peer_password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid            => $host_uuid,
+		short_host_name      => $short_host_name, 
+		peer_host_uuid       => $peer_host_uuid, 
+		peer_short_host_name => $peer_short_host_name, 
+		peer_password        => $anvil->Log->is_secure($peer_password), 
+	}});
+	
+	my $waiting = 1;
+	while ($waiting)
+	{
+		# This will get set back to '1' if 
+		$waiting = 0;
+		
+		# Load IPs (again, to catch changes that might be delaying startup)
+		$anvil->Network->load_ips({
+			clear     => 1,
+			host      => $short_host_name,
+			host_uuid => $host_uuid, 
+			
+		});
+		$anvil->Network->load_ips({
+			clear     => 1,
+			host      => $peer_short_host_name,
+			host_uuid => $peer_host_uuid, 
+			
+		});
+		
+		# Loop through our interfaces and then loop our peers. Test access over them and set 
+		# 'waiting' back to '1' if the connection fails.
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface => $interface,
+				waiting   => $waiting, 
+			}});
+			
+			# Only care about our networks.
+			next if $waiting;
+			if (($interface !~ /^bcn/) && ($interface !~ /^sn/) && ($interface !~ /^ifn/))
+			{
+				# Not an interface we care about
+				next;
+			}
+			
+			my $this_network = ($interface =~ /^(.*?)_/)[0];
+			my $ip_address   = $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip};
+			my $subnet_mask  = $anvil->data->{network}{$short_host_name}{interface}{$interface}{subnet_mask};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_network' => $this_network, 
+				's2:ip_address'   => $ip_address, 
+				's3:subnet_mask'  => $subnet_mask, 
+			}});
+			
+			### NOTE: I know I could match interface names, but that's not certain enough. It's 
+			###       possible (if unlikely) that the network name+numbre differs on our peer. So
+			###       this is safer.
+			# Loop through my peer's interfaces and see if we're sharing this one.
+			my $local_network    = NetAddr::IP->new($ip_address."/".$subnet_mask);
+			my $peer_match_found = 0;
+			foreach my $peer_interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$peer_short_host_name}{interface}})
+			{
+				last if $peer_match_found;
+				my $peer_ip_address  = $anvil->data->{network}{$peer_short_host_name}{interface}{$peer_interface}{ip};
+				my $peer_subnet_mask = $anvil->data->{network}{$peer_short_host_name}{interface}{$peer_interface}{subnet_mask};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					peer_interface   => $peer_interface, 
+					peer_ip_address  => $peer_ip_address, 
+					peer_subnet_mask => $peer_subnet_mask, 
+				}});
+				
+				# This the matching network?
+				next if $subnet_mask ne $peer_subnet_mask;
+				
+				my $peer_network = NetAddr::IP->new($peer_ip_address."/".$peer_subnet_mask);
+				if ($peer_network->within($local_network))
+				{
+					# Match, test access.
+					   $peer_match_found = 1;
+					my $access           = $anvil->Remote->test_access({
+						target   => $peer_ip_address,
+						password => $peer_password,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+					if ($access)
+					{
+						# This network is good.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0604", variables => {
+							peer    => $peer_short_host_name, 
+							network => $this_network, 
+							peer_ip => $peer_ip_address,
+						}});
+					}
+					else
+					{
+						# No access, wait and try it again.
+						$waiting = 1;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0605", variables => {
+							peer    => $peer_short_host_name, 
+							network => $this_network, 
+							peer_ip => $peer_ip_address,
+						}});
+					}
+				} 
+				
+			}
+		}
+		
+		if ($waiting)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0606", variables => { peer => $peer_short_host_name }});
+			sleep 5;
+		}
+	}
+	
+	# All networks are up.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0607", variables => { peer => $peer_short_host_name }});
+	
+	return(0);
+}
 
 # This checks to verify that we're a node, and if so, if this tool is enabled. If it's disabled or this isn't
 # a node, this method will exit.
@@ -123,7 +269,17 @@ sub prerun_checks
 	
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $peer_host_uuid  = $host_uuid eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		node1_host_uuid => $node1_host_uuid,
+		node2_host_uuid => $node2_host_uuid, 
+	}});
+	
+	$anvil->data->{sys}{peer_host_uuid} = $host_uuid eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	$anvil->data->{sys}{peer_password}  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::peer_host_uuid" => $anvil->data->{sys}{peer_host_uuid}, 
+		"sys::peer_password"  => $anvil->Log->is_secure($anvil->data->{sys}{peer_password}), 
+	}});
 	
 	# Are we being asked to enable or disable? 
 	my $nodes   = [$host_uuid];
@@ -147,12 +303,12 @@ sub prerun_checks
 		if (not $anvil->data->{switches}{'local'})
 		{
 			# Add our peer as well.
-			push @{$nodes}, $peer_host_uuid;
+			push @{$nodes}, $anvil->data->{sys}{peer_host_uuid};
 		}
 		foreach my $host_uuid (@{$nodes})
 		{
 			my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
-				debug                 => 2,
+				debug                 => 3,
 				variable_name         => "tool::anvil-safe-start::enabled", 
 				variable_value        => $set_to, 
 				variable_default      => 1, 
@@ -171,7 +327,7 @@ sub prerun_checks
 	
 	# Read my variables. 
 	my ($local_enabled, $variable_uuid, $mtime, $modified_date) = $anvil->Database->read_variable({
-		debug                 => 2,
+		debug                 => 3,
 		variable_name         => "tool::anvil-safe-start::enabled", 
 		variable_source_table => "hosts", 
 		variable_source_uuid  => $host_uuid, 
@@ -192,9 +348,10 @@ sub prerun_checks
 	{
 		# Yes, check our peer as well.
 		my ($peer_enabled, $variable_uuid, $mtime, $modified_date) = $anvil->Database->read_variable({
+			debug                 => 3,
 			variable_name         => "tool::anvil-safe-start::enabled", 
 			variable_source_table => "hosts", 
-			variable_source_uuid  => $peer_host_uuid, 
+			variable_source_uuid  => $anvil->data->{sys}{peer_host_uuid}, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			peer_enabled  => $peer_enabled, 
@@ -238,6 +395,22 @@ sub prerun_checks
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
+	# Is another instance running?
+	my $pids = $anvil->System->pids({
+		debug        => 3, 
+		ignore_me    => 1,
+		program_name => $THIS_FILE,
+	});
+	my $other_instances = @{$pids};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { other_instances => $other_instances }});
+	
+	if ($other_instances)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0233"});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	# Last test, enabled or forced?
 	if (not $local_enabled)
 	{
 		# Disabled. Forced?
@@ -245,6 +418,7 @@ sub prerun_checks
 		{
 			# Forced, run anyway.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0232"});
+			return(0);
 		}
 		else
 		{
