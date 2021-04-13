@@ -5,9 +5,11 @@ import Anvils from '../components/Anvils';
 import Nodes from '../components/Nodes';
 import CPU from '../components/CPU';
 import SharedStorage from '../components/SharedStorage';
-import ReplicatedStorage from '../components/ReplicatedStorage';
 import Memory from '../components/Memory';
+import Network from '../components/Network';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import Servers from '../components/Servers';
+import Storage from '../components/Storage';
 
 const useStyles = makeStyles(() => ({
   grid: {
@@ -30,20 +32,31 @@ const Home = (): JSX.Element => {
           container
           justify="flex-start"
           direction="column"
-          className={classes.grid}
+          // className={classes.grid}
         >
           <Anvils list={data} />
           <Nodes anvil={data?.anvils[0]} />
         </Grid>
       </Grid>
-      <Grid item xs={5}>
+      <Grid item xs={3}>
         <Grid
           container
           justify="flex-start"
           direction="column"
           className={classes.grid}
         >
-          <ReplicatedStorage />
+          <Servers anvil={data?.anvils[0]} />
+        </Grid>
+      </Grid>
+      <Grid item xs={3}>
+        <Grid
+          container
+          justify="flex-start"
+          direction="column"
+          className={classes.grid}
+        >
+          <Storage uuid={data?.anvils[0].anvil_uuid} />
+          <SharedStorage anvil={data?.anvils[0]} />
         </Grid>
       </Grid>
       <Grid item xs={3}>
@@ -55,7 +68,7 @@ const Home = (): JSX.Element => {
         >
           {data?.anvils?.length ? (
             <>
-              <SharedStorage anvil={data.anvils[0]} />
+              <Network />
               <CPU uuid={data.anvils[0].anvil_uuid} />
               <Memory uuid={data.anvils[0].anvil_uuid} />
             </>
