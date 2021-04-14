@@ -9,7 +9,6 @@ import Memory from '../components/Memory';
 import Network from '../components/Network';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import Servers from '../components/Servers';
-import Storage from '../components/Storage';
 
 const useStyles = makeStyles(() => ({
   grid: {
@@ -28,12 +27,7 @@ const Home = (): JSX.Element => {
   return (
     <Grid container alignItems="center" justify="space-around">
       <Grid item xs={3}>
-        <Grid
-          container
-          justify="flex-start"
-          direction="column"
-          // className={classes.grid}
-        >
+        <Grid container justify="flex-start" direction="column">
           <Anvils list={data} />
           <Nodes anvil={data?.anvils[0]} />
         </Grid>
@@ -55,7 +49,6 @@ const Home = (): JSX.Element => {
           direction="column"
           className={classes.grid}
         >
-          <Storage uuid={data?.anvils[0].anvil_uuid} />
           <SharedStorage anvil={data?.anvils[0]} />
         </Grid>
       </Grid>
