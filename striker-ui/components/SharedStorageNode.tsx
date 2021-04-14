@@ -1,4 +1,6 @@
-import { Grid, Switch } from '@material-ui/core';
+import { Box } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
+
 import * as prettyBytes from 'pretty-bytes';
 
 import InnerPanel from './InnerPanel';
@@ -6,51 +8,64 @@ import { AllocationBar } from './Bars';
 import { BodyText } from './Text';
 import PanelHeader from './PanelHeader';
 
+const useStyles = makeStyles(() => ({
+  fs: {
+    paddingLeft: '10px',
+    paddingRight: '10px',
+    paddingTop: '20px',
+  },
+  bar: {
+    paddingLeft: '10px',
+    paddingRight: '10px',
+  },
+}));
+
 const SharedStorageNode = ({
   node,
 }: {
   node: AnvilSharedStorageNode;
 }): JSX.Element => {
+  const classes = useStyles();
+
   return (
     <InnerPanel>
       <PanelHeader>
-        <Grid container alignItems="center" justify="space-around">
-          <Grid item xs={6}>
-            <BodyText text={`Node: ${node.nodeInfo?.node_name}`} />
-          </Grid>
-          <Grid item xs={3}>
-            <Switch checked={node.is_mounted} />
-          </Grid>
-        </Grid>
+        <Box display="flex" width="100%">
+          <Box>
+            <BodyText text={node.nodeInfo?.node_name} />
+          </Box>
+        </Box>
       </PanelHeader>
-      <Grid container alignItems="center" justify="space-around">
-        <Grid item xs={4}>
+      <Box display="flex" width="100%" className={classes.fs}>
+        <Box flexGrow={1}>
           <BodyText
             text={`Used: ${prettyBytes.default(node.total - node.free, {
               binary: true,
             })}`}
           />
-        </Grid>
-        <Grid item xs={4}>
+        </Box>
+        <Box>
           <BodyText
             text={`Free: ${prettyBytes.default(node.free, {
               binary: true,
             })}`}
           />
-        </Grid>
-        <Grid item xs={10}>
+        </Box>
+      </Box>
+      <Box display="flex" width="100%" className={classes.bar}>
+        <Box flexGrow={1}>
           <AllocationBar
             allocated={((node.total - node.free) / node.total) * 100}
           />
-        </Grid>
-        <Grid item xs={6}>
-          <BodyText
-            text={`Total Storage: ${prettyBytes.default(node.total, {
-              binary: true,
-            })}`}
-          />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
+      <Box display="flex" justifyContent="center" width="100%">
+        <BodyText
+          text={`Total Storage: ${prettyBytes.default(node.total, {
+            binary: true,
+          })}`}
+        />
+      </Box>
     </InnerPanel>
   );
 };
