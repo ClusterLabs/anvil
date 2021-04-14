@@ -1,15 +1,29 @@
-import { Grid, Switch } from '@material-ui/core';
+import { Box, Switch } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
 
 import InnerPanel from '../InnerPanel';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import PanelHeader from '../PanelHeader';
 
+const useStyles = makeStyles(() => ({
+  state: {
+    paddingLeft: '10px',
+    paddingRight: '10px',
+    paddingTop: '20px',
+  },
+  bar: {
+    paddingLeft: '10px',
+    paddingRight: '10px',
+  },
+}));
+
 const AnvilNode = ({
   node,
 }: {
   node: Array<AnvilStatusNode & AnvilListItemNode>;
 }): JSX.Element => {
+  const classes = useStyles();
   return (
     <>
       {node &&
@@ -18,26 +32,28 @@ const AnvilNode = ({
             return (
               <InnerPanel key={n.node_uuid}>
                 <PanelHeader>
-                  <Grid container alignItems="center" justify="space-around">
-                    <Grid item xs={7}>
-                      <BodyText text={`Node: ${n.node_name}`} />
-                    </Grid>
-                    <Grid item xs={3}>
+                  <Box display="flex" width="100%">
+                    <Box flexGrow={1}>
+                      <BodyText text={n.node_name} />
+                    </Box>
+                    <Box>
                       <Switch checked />
-                    </Grid>
-                  </Grid>
+                    </Box>
+                  </Box>
                 </PanelHeader>
-                <Grid container alignItems="center" justify="space-around">
-                  <Grid item xs={5}>
+                <Box display="flex" width="100%" className={classes.state}>
+                  <Box flexGrow={1}>
                     <BodyText text={`State: ${n.state}`} />
-                  </Grid>
-                  <Grid item xs={4}>
+                  </Box>
+                  <Box>
                     <BodyText text={n.state_message} />
-                  </Grid>
-                  <Grid item xs={10}>
+                  </Box>
+                </Box>
+                <Box display="flex" width="100%" className={classes.bar}>
+                  <Box flexGrow={1}>
                     <ProgressBar progressPercentage={n.state_percent} />
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </InnerPanel>
             );
           },
