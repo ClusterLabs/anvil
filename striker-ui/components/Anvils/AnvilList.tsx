@@ -1,8 +1,8 @@
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
 import { List, Box, Divider, ListItem } from '@material-ui/core';
-import { BodyText } from '../Text';
 import { BLUE, PURPLE_OFF, RED_ON, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import Anvil from './Anvil';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -73,8 +73,7 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
                   />
                 </Box>
                 <Box p={1} flexGrow={1} className={classes.anvil}>
-                  <BodyText text={anvil?.anvil_name} />
-                  <BodyText text={anvil?.anvil_state || 'State unavailable'} />
+                  <Anvil anvil={anvil} />
                 </Box>
               </Box>
             </ListItem>
