@@ -1025,14 +1025,14 @@ WHERE
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ipmi_ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip}, 
 			}});
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"ref(parsed_xml->{machines}{$machine}{upses}{ups})" => ref($parsed_xml->{machines}{$machine}{upses}{ups}), 
 			}});
 			if (ref($parsed_xml->{machines}{$machine}{upses}{ups}) eq "HASH")
 			{
 				my $ups_name                                                                                                 = $parsed_xml->{machines}{$machine}{upses}{ups}{name};
 				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $parsed_xml->{machines}{$machine}{upses}{ups}{used};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
 				}});
 			}
@@ -1042,20 +1042,20 @@ WHERE
 				{
 					my $ups_name                                                                                                 = $hash_ref->{name};
 					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $hash_ref->{used};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
 					}});
 				}
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"ref(parsed_xml->{machines}{$machine}{fences}{fence})" => ref($parsed_xml->{machines}{$machine}{fences}{fence}), 
 			}});
 			if (ref($parsed_xml->{machines}{$machine}{fences}{fence}) eq "HASH")
 			{
 				my $fence_name                                                                                                   = $parsed_xml->{machines}{$machine}{fences}{fence}{name};
 				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $parsed_xml->{machines}{$machine}{fences}{fence}{port};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
 				}});
 			}
@@ -1065,7 +1065,7 @@ WHERE
 				{
 					my $fence_name                                                                                                   = $hash_ref->{name};
 					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{port};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
 					}});
 				}

@@ -13,6 +13,7 @@
 # 
 # TODO: 
 # - Make this work on DR hosts.
+# - 'pcs quorum unblock' could be useful in sole-survivor cold starts.
 # 
 
 use strict;
@@ -33,7 +34,7 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 $anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -55,7 +56,6 @@ $anvil->data->{switches}{force}   = "";
 $anvil->data->{switches}{'local'} = "";
 $anvil->data->{switches}{status}  = "";
 $anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 
 # If I have no databases, sleep until I do
@@ -75,7 +75,7 @@ if (not $anvil->data->{sys}{database}{connections})
 		if (not $anvil->data->{sys}{database}{connections})
 		{
 			# Keep waiting
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, secure => 0, key => "log_0439"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, secure => 0, key => "log_0439"});
 		}
 	}
 }
@@ -95,12 +95,182 @@ prerun_checks($anvil);
 # networks. There is no timeout.
 wait_for_access($anvil);
 
+# Start pacemaker now.
+start_pacemaker($anvil);
+
+# Boot servers.
+boot_servers($anvil);
+
 
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This boots the servers.
+sub boot_servers
+{
+	my ($anvil) = @_;
+	
+	### TODO: We need to handle boot ordering, once the WebUI is at that stage. For now, bling-boot all
+	###       servers.
+	
+	
+	return(0);
+}
+
+# Start pacemaker and wait until we're quorate.
+sub start_pacemaker
+{
+	my ($anvil) = @_;
+	
+	my $anvil_uuid           = $anvil->data->{sys}{anvil_uuid};
+	my $host_uuid            = $anvil->Get->host_uuid();
+	my $short_host_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	my $peer_host_uuid       = $anvil->data->{sys}{peer_host_uuid};
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	my $fenced_peer          = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid           => $anvil_uuid, 
+		host_uuid            => $host_uuid,
+		short_host_name      => $short_host_name, 
+		peer_host_uuid       => $peer_host_uuid, 
+		peer_short_host_name => $peer_short_host_name, 
+	}});
+	
+	# Is pacemaker already running?
+	my ($problem) = $anvil->Cluster->parse_cib({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
+	if ($problem)
+	{
+		# Nope, start it.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0608"});
+		
+		### TODO: A lot more testing is needed for degraded single-node start later. 
+		#my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($return_code)
+		{
+			# What?! Fail out, we're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0256", variables => {
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		### TODO: We may implement the logic to fence our peer (similar to cman's post_join_delay' 
+		###       logic) at a later time. For now, we'll wait forever for this to exit. This is why
+		###       we set 'wait_for_peer', even though it's not used yet.
+		# Now wait up to two minutes for the cluster to start. If it's not up by then, we'll fence 
+		# the peer and, if the fence succeeds, unblock quorum.
+		my $start_time    = time;
+		my $wait_for_peer = $start_time + 120;
+		my $waiting       = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			start_time    => $start_time,
+			wait_for_peer => $wait_for_peer, 
+		}});
+		while ($waiting)
+		{
+			   $waiting   = 0;
+			my ($problem) = $anvil->Cluster->parse_cib({debug => 3});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if ($problem)
+			{
+				# Can't parse the CIB yet, wait.
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+			else
+			{
+				# Quorum, as reported in the CIB, sets 'have-quorum to '1' as soon as it 
+				# starts, the retracts it. For this reason, we use 'parse_quorum()' to get 
+				# the quorum directly from corosync/votequorum.
+				my ($problem) = $anvil->Cluster->parse_quorum({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				if ($problem)
+				{
+					# Corosync is down.
+					$waiting = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				}
+				else
+				{
+					### NOTE: We don't worry about maintenance mode yet, as it shouldn't 
+					###       apply, but we may change that view later.
+					# See where we are.
+					my $node_name        = $anvil->data->{cib}{parsed}{'local'}{name};
+					my $maintenance_mode = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'};
+					my $in_ccm           = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm};
+					my $crmd             = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd};
+					my $join             = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'};
+					my $ready            = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready};
+					my $quorate          = $anvil->data->{quorum}{quorate};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:node_name'        => $node_name, 
+						's2:maintenance_mode' => $maintenance_mode, 
+						's3:in_ccm/crmd/join' => $in_ccm."/".$crmd."/".$join,
+						's4:ready'            => $ready, 
+						's5:quorate'          => $quorate,
+					}});
+					
+					# Are we online?
+					if ($ready)
+					{
+						# We're ready, but do we have quorum?
+						if ($quorate)
+						{
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0611", variables => { node_name => $node_name }});
+						}
+						else
+						{
+							# Nope
+							$waiting = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+							
+							# Keep waiting, or fence the peer?
+							if (time > $wait_for_peer)
+							{
+								### TODO: See above, not implemented yet.
+								# Time to fence.
+							}
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0610", variables => { node_name => $node_name }});
+						}
+					}
+					else
+					{
+						# Not ready yet.
+						$waiting = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0612", variables => { 
+							node_name => $node_name,
+							in_ccm    => $in_ccm,
+							crmd      => $crmd,
+							'join'    => $join,
+						}});
+					}
+				}
+			}
+			
+			if ($waiting)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0609"});
+				sleep 5;
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # Check for which networks we have and verify that we can ping our peer on each. This function will not 
 # return until all networks are up.
@@ -274,9 +444,11 @@ sub prerun_checks
 		node2_host_uuid => $node2_host_uuid, 
 	}});
 	
+	$anvil->data->{sys}{anvil_uuid}     = $anvil_uuid;
 	$anvil->data->{sys}{peer_host_uuid} = $host_uuid eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
 	$anvil->data->{sys}{peer_password}  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::anvil_uuid"     => $anvil->data->{sys}{anvil_uuid}, 
 		"sys::peer_host_uuid" => $anvil->data->{sys}{peer_host_uuid}, 
 		"sys::peer_password"  => $anvil->Log->is_secure($anvil->data->{sys}{peer_password}), 
 	}});

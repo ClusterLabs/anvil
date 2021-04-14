@@ -5,6 +5,7 @@ EXTRA_DIST		= \
 			  watch_drbd
 
 dist_sbin_SCRIPTS	= \
+			  anvil-boot-server \
 			  anvil-change-password \
 			  anvil-check-memory \
 			  anvil-configure-host \
@@ -24,6 +25,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-provision-server \
 			  anvil-safe-start \
 			  anvil-scan-network \
+			  anvil-shutdown-server \
 			  anvil-sync-shared \
 			  anvil-update-issue \
 			  anvil-update-states \

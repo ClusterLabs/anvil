@@ -357,6 +357,12 @@ The error was:
 		</key>
 		<key name="error_0254">Failed to read the lvm.conf file. The reason why should be logged above.</key>
 		<key name="error_0255">Failed to write the lvm.conf file. The reason why should be logged above.</key>
+		<key name="error_0256">
+The attempt to start the cluster appears to have failed. The return code '0' was expected, but: [#!variable!return_code!#] was received. The output was:
+====
+#!variable!output!#
+====
+		</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -1450,6 +1456,11 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0605">Failed to acess over the peer: [#!variable!peer!#] over the network: [#!variable!network!#] via the peer's IP: [#!variable!peer_ip!#].</key>
 		<key name="log_0606">At least one network connection to the peer: [#!variable!peer!#] is still down. Waiting a bit and then will check again.</key>
 		<key name="log_0607">All connections to the peer: [#!variable!peer!#] are up!</key>
+		<key name="log_0608">The cluster does not appear to be running, starting it now.</key>
+		<key name="log_0609">The cluster isn't up yet, waiting a bit before checking again.</key>
+		<key name="log_0610">We're online as: [#!variable!node_name!#], but we're not quorate yet. Continuing to wait.</key>
+		<key name="log_0611">We're online as: [#!variable!node_name!#] and quorate!</key>
+		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

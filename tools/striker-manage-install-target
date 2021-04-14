@@ -1245,21 +1245,25 @@ ORDER BY
 					short_host_name => $short_host_name, 
 				}});
 				$anvil->Network->load_ips({
-					debug     => 3, 
+					debug     => 2, 
 					host_uuid => $host_uuid,
 					host      => $short_host_name, 
 				});
 
 				my $access  = 0;
 				my ($match) = $anvil->Network->find_matches({
-					debug  => 3,
+					debug  => 2,
 					first  => $local_short_host_name, 
 					second => $short_host_name,
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
+				if (ref($match) eq "HASH")
+				{
+					my $keys = keys %{$match};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'keys' => $keys }});
+				}
 				
-				my $keys = keys %{$match};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'keys' => $keys }});
-				if ($keys)
+				if (ref($match) eq "HASH")
 				{
 					foreach my $interface (sort {$a cmp $b} keys %{$match->{$short_host_name}})
 					{
