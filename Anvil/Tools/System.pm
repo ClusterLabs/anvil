@@ -4768,7 +4768,7 @@ sub update_hosts
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0481", variables => { 
 						old_ip => $current_ip,
 						new_ip => $ip_address, 
-						name   => $name,
+						host   => $name,
 					}});
 					$changes = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});

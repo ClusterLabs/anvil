@@ -1115,6 +1115,7 @@ sub _set_paths
 				'chown'				=>	"/usr/bin/chown",
 				chronyc				=>	"/usr/bin/chronyc",
 				cibadmin			=>	"/usr/sbin/cibadmin",
+				'corosync-quorumtool'		=>	"/usr/sbin/corosync-quorumtool", 
 				cp				=>	"/usr/bin/cp",
 				createdb			=>	"/usr/bin/createdb",
 				createrepo_c			=>	"/usr/bin/createrepo_c",

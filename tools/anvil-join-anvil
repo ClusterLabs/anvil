@@ -146,7 +146,7 @@ sub configure_pacemaker
 	### TODO: Move these to variables in the 'sys' hash
 	my $anvil_name       =  $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
 	my $anvil_uuid       =  $anvil->data->{sys}{anvil_uuid};
-	my $host_name        =  $anvil->data->{sys}{host_name};
+	my $host_name        =  $anvil->Get->host_name;
 	my $new_password     =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid  =  $anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name  =  $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
@@ -157,7 +157,7 @@ sub configure_pacemaker
 	my $peer_host_name   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_name : $node1_host_name;
 	my $peer_host_uuid   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
 	my $escaped_password =  shell_quote($new_password);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		machine          => $machine, 
 		anvil_uuid       => $anvil_uuid, 
 		anvil_name       => $anvil_name, 
@@ -333,7 +333,7 @@ sub configure_pacemaker
 		{
 			# Try to authenticate against the peer.
 			my $auth_shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { auth_shell_call => $auth_shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { auth_shell_call => $auth_shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -1665,6 +1665,9 @@ sub check_local_network
 				# No databases, sleep and then try again.
 				sleep 2;
 			}
+			
+			# reload the job data.
+			load_job($anvil);
 		}
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0084"});

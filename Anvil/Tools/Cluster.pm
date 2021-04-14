@@ -26,6 +26,8 @@ my $THIS_FILE = "Cluster.pm";
 # is_primary
 # migrate_server
 # parse_cib
+# parse_crm_mon
+# parse_quorum
 # shutdown_server
 # start_cluster
 # which_node
@@ -2261,7 +2263,7 @@ sub parse_cib
 	# call is to determine what resources are running, and where they are running.
 	$anvil->Cluster->parse_crm_mon({
 		debug       => $debug,
-		password    => $anvil->Log->is_secure($password),
+		password    => $password,
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
@@ -2517,6 +2519,113 @@ sub parse_crm_mon
 	}
 	
 	return($problem);
+}
+
+
+=head2 parse_quorum
+
+This parses C<< corosync-quorumtool -s -p >> to check the status of quorum, as it is more reliable that the CIB's c<< have-quorum >> flag. This does not parse out per-node information.
+
+b<< Note >>: See c<< man corosync-quorumtool >> for details on what these values store.
+
+If the cluster is down, C<< 1 >> is returned. Otherwise, C<< 1 >> is returned.
+
+Data is stored as: 
+ quorum::expected-votes
+ quorum::flags
+ quorum::nodes
+ quorum::quorate
+ quorum::ring_id
+ quorum::total-votes
+
+This method takes no parameters.
+
+=cut
+sub parse_quorum
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->shutdown_server()" }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'corosync-quorumtool'}." -p -s"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	if ($return_code)
+	{
+		# Cluster is down
+		return(1);
+	}
+	else
+	{
+		$anvil->data->{quorum}{'expected-votes'} = "";
+		$anvil->data->{quorum}{flags}            = "";
+		$anvil->data->{quorum}{nodes}            = "";
+		$anvil->data->{quorum}{quorate}          = "";
+		$anvil->data->{quorum}{ring_id}          = "";
+		$anvil->data->{quorum}{'total-votes'}    = "";
+	}
+	
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /Expected votes:\s+(\d+)$/)
+		{
+			$anvil->data->{quorum}{'expected-votes'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"quorum::expected-votes" => $anvil->data->{quorum}{'expected-votes'},
+			}});
+			next;
+		}
+		if ($line =~ /Flags:\s+(.*)$/)
+		{
+			$anvil->data->{quorum}{flags} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"quorum::flags" => $anvil->data->{quorum}{flags},
+			}});
+			next;
+		}
+		if ($line =~ /Nodes:\s+(\d+)$/)
+		{
+			$anvil->data->{quorum}{nodes} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"quorum::nodes" => $anvil->data->{quorum}{nodes},
+			}});
+			next;
+		}
+		if ($line =~ /Quorate:\s+(.*)$/)
+		{
+			$anvil->data->{quorum}{quorate} = lc($1) eq "yes" ? 1 : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"quorum::quorate" => $anvil->data->{quorum}{quorate},
+			}});
+			next;
+		}
+		if ($line =~ /Ring ID:\s+(.*)$/)
+		{
+			$anvil->data->{quorum}{ring_id} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"quorum::ring_id" => $anvil->data->{quorum}{ring_id},
+			}});
+			next;
+		}
+		if ($line =~ /Nodes:\s+(\d+)$/)
+		{
+			$anvil->data->{quorum}{'total-votes'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"quorum::total-votes" => $anvil->data->{quorum}{'total-votes'},
+			}});
+			next;
+		}
+	}
+	
+	return(0);
 }
 
 
