@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-// import { Paper, Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { PANEL_BACKGROUND, TEXT } from '../lib/consts/DEFAULT_THEME';
 
