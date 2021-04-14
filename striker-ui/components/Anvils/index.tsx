@@ -1,4 +1,3 @@
-import { Grid } from '@material-ui/core';
 import Panel from '../Panel';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import SelectedAnvil from './SelectedAnvil';
@@ -21,10 +20,8 @@ const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
 
   return (
     <Panel>
-      <Grid container alignItems="center" justify="space-around">
-        <SelectedAnvil anvil={anvils[0]} />
-        <AnvilList list={anvils} />
-      </Grid>
+      <SelectedAnvil anvil={anvils[0]} />
+      <AnvilList list={anvils} />
     </Panel>
   );
 };
