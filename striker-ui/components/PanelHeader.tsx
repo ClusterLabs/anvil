@@ -30,7 +30,7 @@ const PanelHeader = ({ children }: Props): JSX.Element => {
   const classes = useStyles();
 
   return (
-    <Box className={classes.innerHeader} style={{ whiteSpace: 'pre-wrap' }}>
+    <Box className={classes.innerHeader} whiteSpace="pre-wrap">
       {children}
     </Box>
   );
