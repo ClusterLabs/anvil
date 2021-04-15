@@ -240,8 +240,9 @@ sub start_pacemaker
 							# Keep waiting, or fence the peer?
 							if (time > $wait_for_peer)
 							{
-								### TODO: See above, not implemented yet.
-								# Time to fence.
+								### TODO: See above, not implemented yet. Do we want to do this? If so:
+								# Time to fence. Use 'pcs stonith fence <peer>', verify it succeeded, 
+								# then do 'pcs quorum unblock --force' to finish startup.
 							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0610", variables => { node_name => $node_name }});
 						}

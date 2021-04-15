@@ -1461,6 +1461,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0610">We're online as: [#!variable!node_name!#], but we're not quorate yet. Continuing to wait.</key>
 		<key name="log_0611">We're online as: [#!variable!node_name!#] and quorate!</key>
 		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
+		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the Anvil! [#!variable!anvil_name!#] yet. Registering it now as not sync'ed to this Anvil! system.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
