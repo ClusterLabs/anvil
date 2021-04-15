@@ -652,7 +652,7 @@ sub check_for_schema
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
 		my $host_name = $anvil->Database->get_host_from_uuid({debug => $debug, short => 1, host_uuid => $uuid});
-		my $count     = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		my $count     = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:count'     => $count,
 			's2:host_name' => $host_name,
@@ -1485,7 +1485,7 @@ sub connect
 			
 			# Read the DB identifier and then check that we've not already connected to this DB.
 			my $query      = "SELECT system_identifier FROM pg_control_system();";
-			my $identifier = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $identifier = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				query      => $query,
 				identifier => $identifier,
@@ -1513,7 +1513,7 @@ sub connect
 				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
 				if ($count < 1)
@@ -1529,7 +1529,7 @@ sub connect
 			$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($test_table)." AND schemaname='public';";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
-			my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			if ($count < 1)
@@ -1673,7 +1673,7 @@ sub connect
 # 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->Database->quote($anvil->data->{database}{$uuid}{host}).";";
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 # 
-# 		my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+# 		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 # 		
 # 		if ($count > 0)
@@ -4263,7 +4263,7 @@ sub get_storage_group_data
 	my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='scan_lvm_vgs' AND schemaname='public';";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	my $count = $anvil->Database->query({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 	
 	if ($count)
@@ -13546,7 +13546,7 @@ sub log_connections
 		}});
 		
 		my $query      = "SELECT system_identifier FROM pg_control_system();";
-		my $identifier = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		my $identifier = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0540", variables => { 
 			uuid       => $uuid,
 			identifier => $identifier, 
@@ -14518,7 +14518,7 @@ sub refresh_timestamp
 	my $query = "SELECT cast(now() AS timestamp with time zone);";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	$anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp} }});
 	
 	return($anvil->data->{sys}{database}{timestamp});
@@ -14877,7 +14877,7 @@ sub resync_databases
 							###       INSERT)
 							my $count_query = "SELECT COUNT(*) FROM public.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($row_uuid).";";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count_query => $count_query }});
-							my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $count_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+							my $count = $anvil->Database->query({uuid => $uuid, query => $count_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 							if ($count)
 							{
@@ -15379,7 +15379,7 @@ sub _archive_table
 		my $query  = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 		if (not $count)
 		{
@@ -15391,7 +15391,7 @@ sub _archive_table
 		$query = "SELECT COUNT(*) FROM history.".$table.";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		$count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:uuid"  => $uuid,
 			"s2:count" => $count,
@@ -15423,7 +15423,7 @@ sub _archive_table
 		$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->Database->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 		
-		my $columns      = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		my $columns      = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 		my $column_count = @{$columns};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			columns      => $columns, 
@@ -15456,7 +15456,7 @@ COPY history.".$table." (";
 				"s3:sql_file" => $sql_file,
 			}});
 			
-			my $modified_date = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $modified_date = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
 			
 			# Build the query.
@@ -15472,7 +15472,7 @@ COPY history.".$table." (";
 				sql_file => $sql_file,
 				query    => $query,
 			}});
-			my $results = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				results => $results, 
@@ -15672,7 +15672,7 @@ sub _find_behind_databases
 			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
-			my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			
 			if ($count == 1)
@@ -15703,7 +15703,7 @@ sub _find_behind_databases
 						# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
 						# it later to restrict resync activity to these columns with the local 
 						# 'sys::host_uuid'.
-						my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+						my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 						
 						if ($count)
@@ -15719,7 +15719,7 @@ sub _find_behind_databases
 				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
 				my $schema = $count ? "history" : "public";
@@ -15744,7 +15744,7 @@ ORDER BY
 				}});
 				
 				# Get the count of columns as well as the most recent one.
-				my $results   = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $results   = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 				my $row_count = @{$results};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					results   => $results, 

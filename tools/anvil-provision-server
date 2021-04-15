@@ -32,6 +32,7 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{'anvil-name'}    = "";
 $anvil->data->{switches}{'anvil-uuid'}    = "";
 $anvil->data->{switches}{os}              = "";
 $anvil->data->{switches}{cpu}             = "";
@@ -42,8 +43,9 @@ $anvil->data->{switches}{ram}             = "";
 $anvil->data->{switches}{'storage-group'} = "";
 $anvil->data->{switches}{'storage-size'}  = "";
 $anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::anvil-name'    => $anvil->data->{switches}{'anvil-name'},
 	'switches::anvil-uuid'    => $anvil->data->{switches}{'anvil-uuid'},
 	'switches::os'            => $anvil->data->{switches}{os},
 	'switches::cpu'           => $anvil->data->{switches}{cpu},
@@ -94,7 +96,6 @@ else
 {
 	# Interactive!
 	interactive_question($anvil);
-	
 }
 
 $anvil->nice_exit({exit_code => 0});
@@ -123,12 +124,44 @@ sub run_jobs
 	# This parses the jobs::job_data intp variables.
 	parse_job_data($anvil);
 	
+	# Wait for the cluster to be up, if it's not.
+	my $waiting          = 1;
+	my $waiting_reported = 0;
+	while($waiting)
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Cluster isn't up yet, wait.
+			if (not $waiting_reported)
+			{
+				$anvil->Job->update_progress({
+					progress   => 5,
+					message    => "job_0275", 
+				});
+				$waiting_reported = 1;
+			}
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0275"});
+			sleep 10;
+		}
+		else
+		{
+			$waiting = 0;
+			$anvil->Job->update_progress({
+				progress   => 8,
+				message    => "job_0276", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0276"});
+		}
+	}
+	
 	# Sanity checks passed
 	$anvil->Job->update_progress({
 		progress   => 10,
 		message    => "job_0185", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0185"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0185"});
 	
 	# This picks out the next free DRBD minor number and TCP port if it's not set in the job data.
 	check_drbd_minor_and_port($anvil);
@@ -138,7 +171,7 @@ sub run_jobs
 		progress => 20,
 		message  => "job_0186,!!minor!".$anvil->data->{job}{drbd_minor}."!!,!!port!".$anvil->data->{job}{drbd_tcp_port}."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0186", variables => {
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0186", variables => {
 		minor => $anvil->data->{job}{drbd_minor}, 
 		port  => $anvil->data->{job}{drbd_tcp_port}, 
 	}});
@@ -238,7 +271,7 @@ sub run_jobs
 			progress => 25,
 			message  => "job_0188,!!job_uuid!".$job_uuid."!!,!!peer_name!".$peer_name."!!", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0188", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0188", variables => {
 			job_uuid  => $job_uuid, 
 			peer_name => $peer_name, 
 		}});
@@ -282,7 +315,7 @@ sub run_jobs
 		progress => 100,
 		message  => "job_0202", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0202"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0202"});
 
 	return(0);
 }
@@ -296,7 +329,7 @@ sub add_server_to_cluster
 		progress => 90,
 		message  => "job_0207", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0207"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0207"});
 	
 	# Is our peer in the cluster? For that matter, are we?
 	my $problem = $anvil->Cluster->add_server({server_name => $anvil->data->{job}{server_name}});
@@ -309,7 +342,7 @@ sub add_server_to_cluster
 			message    => "error_0215", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0215"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0215"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -332,7 +365,7 @@ sub write_definition
 			progress => 70,
 			message  => "job_0205", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0205"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0205"});
 		
 		while (not -f $xml_file)
 		{
@@ -340,7 +373,7 @@ sub write_definition
 			$anvil->Database->get_server_definitions();
 			
 			my $server_uuid       = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
-			my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
+			my $server_definition = exists $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid} ? $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
 			if ($server_definition)
 			{
@@ -358,7 +391,7 @@ sub write_definition
 						progress => 80,
 						message  => "job_0206,!!file!".$xml_file."!!", 
 					});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0206", variables => { file => $xml_file }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0206", variables => { file => $xml_file }});
 				}
 			}
 			else
@@ -373,7 +406,7 @@ sub write_definition
 		progress => 100,
 		message  => "job_0204", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0204"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0204"});
 	
 	return(0);
 }
@@ -424,7 +457,7 @@ sub provision_server
 		progress => 70,
 		message  => "job_0199,!!shell_call!".$shell_call."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0199", variables => { shell_call => $shell_call }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0199", variables => { shell_call => $shell_call }});
 	
 	# Call as a background process.
 	my ($handle, $return_code) = $anvil->System->call({
@@ -443,7 +476,7 @@ sub provision_server
 		progress => 80,
 		message  => "job_0200", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0200"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0200"});
 	
 	# Loop for up to 10 seconds waiting to see the server start running.
 	my $wait_until = time + 60;
@@ -488,7 +521,7 @@ sub provision_server
 					message    => "error_0210,!!status!".$status."!!", 
 					job_status => "failed", 
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0210", variables => { status => $status }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0210", variables => { status => $status }});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			sleep 1;
@@ -499,7 +532,7 @@ sub provision_server
 		progress => 85,
 		message  => "job_0201", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0201"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0201"});
 	
 	# Dump the server's XML.
 	(my $server_definition_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server});
@@ -522,7 +555,7 @@ sub provision_server
 			message    => "error_0209,!!shell_call!".$shell_call."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0209", variables => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0209", variables => { shell_call => $shell_call }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -594,7 +627,7 @@ sub startup_resource
 	}
 	else
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0434", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0434", variables => { 
 			resource => $anvil->data->{job}{server_name},
 			role     => $role, 
 		}});
@@ -603,7 +636,7 @@ sub startup_resource
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
 	if (not $startup_needed)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0431"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0431"});
 	}
 	else
 	{
@@ -612,7 +645,7 @@ sub startup_resource
 			progress => 52,
 			message  => "job_0192", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0192"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0192"});
 		$anvil->DRBD->manage_resource({
 			debug    => 2,
 			resource => $anvil->data->{job}{server_name}, 
@@ -651,7 +684,7 @@ sub startup_resource
 						progress => 54,
 						message  => "job_0193,!!volume!".$volume."!!,!!disk_state!".$disk_state."!!", 
 					});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0193", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0193", variables => { 
 						volume     => $volume,
 						disk_state => $disk_state,
 					}});
@@ -668,7 +701,7 @@ sub startup_resource
 							message    => "error_0206,!!resource!".$anvil->data->{job}{server_name}."!!", 
 							job_status => "failed", 
 						});
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0206", variables => { resource => $anvil->data->{job}{server_name} }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0206", variables => { resource => $anvil->data->{job}{server_name} }});
 						$anvil->nice_exit({exit_code => 1});
 					}
 					if (lc($disk_state) ne "uptodate")
@@ -681,7 +714,7 @@ sub startup_resource
 							progress => 56,
 							message  => "job_0194,!!resource!".$anvil->data->{job}{server_name}."!!", 
 						});
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0194", variables => { resource => $anvil->data->{job}{server_name} }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0194", variables => { resource => $anvil->data->{job}{server_name} }});
 					}
 				}
 				
@@ -694,7 +727,7 @@ sub startup_resource
 						progress => 58,
 						message  => "job_0195", 
 					});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0195"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0195"});
 					
  					my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$anvil->data->{job}{server_name}." ".$anvil->data->{job}{drbd_peer_node_id}." --set-defaults --_name=".$anvil->data->{job}{peer_short_name}." --protocol=C --fencing=dont-care";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -723,13 +756,13 @@ sub startup_resource
 							message    => "error_0205,!!return_code!".$return_code."!!,!!output!".$output."!!", 
 							job_status => "failed", 
 						});
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0205", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0205", variables => { 
 							return_code => $return_code,
 							output      => $output, 
 						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0580", variables => { resource => $anvil->data->{job}{server_name} }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0580", variables => { resource => $anvil->data->{job}{server_name} }});
 					
 					# set the fencing back
 					$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$anvil->data->{job}{server_name};
@@ -760,7 +793,7 @@ sub startup_resource
 							message    => "error_0207,!!resource!".$anvil->data->{job}{server_name}."!!,!!disk_state!".$disk_state."!!", 
 							job_status => "failed", 
 						});
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0207", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0207", variables => { 
 							resource   => $anvil->data->{job}{server_name},
 							disk_state => $disk_state, 
 						}});
@@ -787,7 +820,7 @@ sub startup_resource
 		progress => 60,
 		message  => "job_0203,!!resource!".$anvil->data->{job}{server_name}."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0203", variables => { resource => $anvil->data->{job}{server_name} }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0203", variables => { resource => $anvil->data->{job}{server_name} }});
 	
 	return(0);
 }
@@ -799,7 +832,7 @@ sub create_md
 	
 	### NOTE: The '--max-peers=3' is needed to make space for future DR additions
 	# Create the DRBD metadata
-	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." -- --force create-md --max-peers=3 ".$anvil->data->{job}{server_name};
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$anvil->data->{job}{server_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -810,8 +843,9 @@ sub create_md
 	
 	### Return codes
 	# 0 == Success
+	# 1 == ?
 	# 3 == Configuration not found.
-	if ($return_code eq "3")
+	if ($return_code)
 	{
 		# Metadata creation failed.
 		$anvil->Job->update_progress({
@@ -819,19 +853,19 @@ sub create_md
 			message    => "error_0204,!!return_code!".$return_code."!!,!!output!".$output."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0204", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0204", variables => { 
 			return_code => $return_code,
 			output      => $output, 
 		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0579", variables => { resource => $anvil->data->{job}{server_name} }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0579", variables => { resource => $anvil->data->{job}{server_name} }});
 	
 	$anvil->Job->update_progress({
 		progress => 50,
 		message  => "job_0191,!!resource!".$anvil->data->{job}{server_name}."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0191", variables => { resource => $anvil->data->{job}{server_name} }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0191", variables => { resource => $anvil->data->{job}{server_name} }});
 	
 	return(0);
 }
@@ -918,7 +952,7 @@ sub create_resource_file
 			message    => "error_0202,!!drbd_res_file!".$drbd_res_file."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0202", variables => { drbd_res_file => $drbd_res_file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0202", variables => { drbd_res_file => $drbd_res_file }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -936,7 +970,7 @@ sub create_resource_file
 			message    => "error_0203,!!drbd_res_file!".$drbd_res_file."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0203", variables => { drbd_res_file => $drbd_res_file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0203", variables => { drbd_res_file => $drbd_res_file }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -948,7 +982,7 @@ sub create_resource_file
 			progress => 35,
 			message  => "job_0218", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0218"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0218"});
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
@@ -960,7 +994,7 @@ sub create_resource_file
 		progress => 40,
 		message  => "job_0190,!!resource!".$anvil->data->{job}{server_name}."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0190", variables => { resource => $anvil->data->{job}{server_name} }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0190", variables => { resource => $anvil->data->{job}{server_name} }});
 	
 	return(0);
 }
@@ -982,7 +1016,7 @@ sub create_lv
 			progress => 30,
 			message  => "job_0187,!!lv_path!".$lv_path."!!", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0187", variables => { lv_path => $lv_path }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0187", variables => { lv_path => $lv_path }});
 	}
 	else
 	{
@@ -999,7 +1033,7 @@ sub create_lv
 				message    => "error_0194,!!server_name!".$anvil->data->{job}{server_name}."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0194", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0194", variables => { 
 				server_name    => $anvil->data->{job}{server_name}, 
 				available_size => $say_available_size, 
 				requested_size => $say_requested_size, 
@@ -1035,7 +1069,7 @@ sub create_lv
 				message    => "error_0201,!!lv_path!".$lv_path."!!,!!lv_create!".$shell_call."!!,!!return_code!".$return_code."!!,!!output!".$output."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0201", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0201", variables => { 
 				lv_path     => $lv_path, 
 				lv_create   => $shell_call, 
 				return_code => $return_code, 
@@ -1049,7 +1083,7 @@ sub create_lv
 			progress => 30,
 			message  => "job_0189,!!lv_path!".$lv_path."!!", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0189", variables => { lv_path => $lv_path }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0189", variables => { lv_path => $lv_path }});
 	}
 	
 	return(0);
@@ -1071,7 +1105,7 @@ sub check_drbd_minor_and_port
 			message    => "error_0199,!!storage_group_uuid!".$anvil->data->{job}{storage_group_uuid}."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0199", variables => { storage_group_uuid => $anvil->data->{job}{storage_group_uuid} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0199", variables => { storage_group_uuid => $anvil->data->{job}{storage_group_uuid} }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1098,7 +1132,7 @@ sub check_drbd_minor_and_port
 			message    => "error_0200", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0200"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0200"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1194,7 +1228,7 @@ sub parse_job_data
 			message    => "error_0187,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0187", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0187", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	if (not $anvil->data->{job}{storage_group_uuid})
@@ -1204,7 +1238,7 @@ sub parse_job_data
 			message    => "error_0192,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0192", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0192", variables => { 
 			server_name => $anvil->data->{job}{server_name}, 
 			job_uuid    => $anvil->data->{switches}{'job-uuid'},
 		}});
@@ -1217,7 +1251,7 @@ sub parse_job_data
 			message    => "error_0193,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 			job_status => "failed", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0193", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0193", variables => { 
 			server_name => $anvil->data->{job}{server_name}, 
 			job_uuid    => $anvil->data->{switches}{'job-uuid'},
 		}});
@@ -1255,7 +1289,7 @@ sub parse_job_data
 					message    => "error_0198,!!server_name!".$anvil->data->{job}{server_name}."!!", 
 					job_status => "failed", 
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
@@ -1268,7 +1302,7 @@ sub parse_job_data
 				message    => "error_0188,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0188", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0188", variables => { 
 				server_name => $anvil->data->{job}{server_name}, 
 				job_uuid    => $anvil->data->{switches}{'job-uuid'},
 			}});
@@ -1282,7 +1316,7 @@ sub parse_job_data
 				message    => "error_0189,!!server_name!".$anvil->data->{job}{server_name}."!!,!!available_cores!".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."!!,!!requested_cores!".$anvil->data->{job}{cpu_cores}."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0189", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0189", variables => { 
 				server_name     => $anvil->data->{job}{server_name}, 
 				available_cores => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}, 
 				requested_cores => $anvil->data->{job}{server_name}, 
@@ -1297,7 +1331,7 @@ sub parse_job_data
 				message    => "error_0190,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0190", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0190", variables => { 
 				server_name => $anvil->data->{job}{server_name}, 
 				job_uuid    => $anvil->data->{switches}{'job-uuid'},
 			}});
@@ -1313,7 +1347,7 @@ sub parse_job_data
 				message    => "error_0191,!!server_name!".$anvil->data->{job}{server_name}."!!,!!available_ram!".$say_available_ram."!!,!!requested_ram!".$say_requested_ram."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0191", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0191", variables => { 
 				server_name   => $anvil->data->{job}{server_name}, 
 				available_ram => $say_available_ram, 
 				requested_ram => $say_requested_ram, 
@@ -1328,7 +1362,7 @@ sub parse_job_data
 				message    => "error_0195,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0195", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0195", variables => { 
 				server_name => $anvil->data->{job}{server_name}, 
 				job_uuid    => $anvil->data->{switches}{'job-uuid'},
 			}});
@@ -1354,7 +1388,7 @@ sub parse_job_data
 				message    => "error_0196,!!server_name!".$anvil->data->{job}{server_name}."!!,!!install_iso!".$install_iso."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0196", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0196", variables => { 
 				server_name => $anvil->data->{job}{server_name}, 
 				install_iso => $install_iso,
 			}});
@@ -1380,7 +1414,7 @@ sub parse_job_data
 					message    => "error_0197,!!server_name!".$anvil->data->{job}{server_name}."!!,!!driver_iso!".$driver_iso."!!", 
 					job_status => "failed", 
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0197", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0197", variables => { 
 					server_name => $anvil->data->{job}{server_name}, 
 					driver_iso => $driver_iso,
 				}});
@@ -1395,7 +1429,7 @@ sub parse_job_data
 				message    => "error_0208,!!server_name!".$anvil->data->{job}{server_name}."!!,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
 				job_status => "failed", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0208", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0208", variables => { 
 				server_name => $anvil->data->{job}{server_name}, 
 				job_uuid    => $anvil->data->{switches}{'job-uuid'},
 			}});
@@ -1882,10 +1916,7 @@ sub interactive_ask_server_storage_group
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
-		}});
+		$anvil->Get->available_resources({debug => 2, anvil_uuid => $anvil_uuid});
 		
 		# I need a list of Storage groups,
 		my $say_ram               = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}});
@@ -1899,13 +1930,16 @@ sub interactive_ask_server_storage_group
 			my $storage_group_uuid = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
 			my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
 			my $vg_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
-			my $dr_size            = 0;
-			my $dr_free            = 0;
-			if ($anvil->data->{anvil_resources}{$anvil_uuid}{has_dr})
-			{
-				$dr_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
-				$dr_free = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
-			}
+			my $dr_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   : 0;
+			my $dr_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:storage_group_name' => $storage_group_name,
+				's2:storage_group_uuid' => $storage_group_uuid, 
+				's3:vg_size'            => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")",
+				's4:vg_free'            => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")",
+				's5:dr_size'            => $dr_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size}).")",
+				's6:dr_free'            => $dr_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free}).")",
+			}});
 			
 			if ($anvil->data->{switches}{'storage-group'})
 			{
@@ -1984,21 +2018,54 @@ sub interactive_ask_server_storage_size
 	my $retry = 0;
 	while(1)
 	{
-		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		my $anvil_uuid         = $anvil->data->{new_server}{anvil_uuid};
+		my $storage_group_uuid = $anvil->data->{new_server}{storage_group};
+		my $storage_group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+		my $vg_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+		my $dr_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   : 0;
+		my $dr_free            = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_uuid'         => $anvil_uuid,
+			's2:storage_group_name' => $storage_group_name,
+			's3:storage_group_uuid' => $storage_group_uuid, 
+			's4:vg_size'            => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")",
+			's5:vg_free'            => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")",
+			's6:dr_size'            => $dr_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size}).")",
+			's7:dr_free'            => $dr_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free}).")",
+		}});
+		
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Database->get_storage_group_data();
+		$anvil->Get->available_resources({debug => 2, anvil_uuid => $anvil_uuid});
+		
+		$vg_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+		$vg_free = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+		$dr_size = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   : 0;
+		$dr_free = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:vg_size' => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")",
+			's2:vg_free' => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")",
+			's3:dr_size' => $dr_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_size}).")",
+			's4:dr_free' => $dr_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr_free}).")",
+		}});
 		
 		# I need a list of Storage groups,
 		my $default_storage_size = 0;
-		my $storage_group_uuid   = $anvil->data->{new_server}{storage_group};
-		my $vg_free              = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+		   $vg_free              = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 		   $default_storage_size = $anvil->data->{switches}{'storage-size'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			vg_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})." (".$anvil->Convert->add_commas({number => $vg_free}).")",
+			default_storage_size => $default_storage_size, 
+		}});
+		   
 		if (not $default_storage_size)
 		{
 			if ($vg_free < (80 * (2**30)))
 			{
 				# Too small for default
 				$default_storage_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_storage_size => $default_storage_size }});
 			}
 			else
 			{

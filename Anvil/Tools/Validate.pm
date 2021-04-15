@@ -834,13 +834,13 @@ Parameters;
 This is the UUID to verify.
 
 =cut
+### NOTE: Don't call Log->entry from here, causes a deep recursion.
 sub uuid
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->uuid()" }});
 	
 	my $uuid  = defined $parameter->{uuid} ? $parameter->{uuid} : 0;
 	my $valid = 0;
