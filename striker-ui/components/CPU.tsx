@@ -1,4 +1,4 @@
-import { Grid } from '@material-ui/core';
+import { Box } from '@material-ui/core';
 import Panel from './Panel';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
@@ -15,27 +15,27 @@ const CPU = ({ uuid }: { uuid: string }): JSX.Element => {
 
   return (
     <Panel>
-      <Grid container alignItems="center" justify="space-around">
-        <Grid item xs={12}>
-          <HeaderText text="CPU" />
-        </Grid>
-        <Grid item xs={3}>
+      <HeaderText text="CPU" />
+      <Box display="flex" width="100%">
+        <Box flexGrow={1}>
           <BodyText text={`Allocated: ${cpuData.allocated}`} />
-        </Grid>
-        <Grid item xs={3}>
+        </Box>
+        <Box>
           <BodyText text={`Free: ${cpuData.cores - cpuData.allocated}`} />
-        </Grid>
-        <Grid item xs={10}>
+        </Box>
+      </Box>
+      <Box display="flex" width="100%">
+        <Box flexGrow={1}>
           <AllocationBar
             allocated={(cpuData.allocated / cpuData.cores) * 100}
           />
-        </Grid>
-        <Grid item xs={4}>
-          <BodyText
-            text={`Total Cores: ${cpuData.cores}c | ${cpuData.threads}t`}
-          />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
+      <Box display="flex" justifyContent="center" width="100%">
+        <BodyText
+          text={`Total Cores: ${cpuData.cores}c | ${cpuData.threads}t`}
+        />
+      </Box>
     </Panel>
   );
 };

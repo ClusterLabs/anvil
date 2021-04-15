@@ -1,4 +1,4 @@
-import { Grid } from '@material-ui/core';
+import { Box } from '@material-ui/core';
 import * as prettyBytes from 'pretty-bytes';
 import Panel from './Panel';
 import { AllocationBar } from './Bars';
@@ -15,11 +15,9 @@ const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
 
   return (
     <Panel>
-      <Grid container alignItems="center" justify="space-around">
-        <Grid item xs={12}>
-          <HeaderText text="Memory" />
-        </Grid>
-        <Grid item xs={5}>
+      <HeaderText text="Memory" />
+      <Box display="flex" width="100%">
+        <Box flexGrow={1}>
           <BodyText
             text={`Allocated: ${prettyBytes.default(
               memoryData.total - memoryData.free,
@@ -28,29 +26,31 @@ const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
               },
             )}`}
           />
-        </Grid>
-        <Grid item xs={4}>
+        </Box>
+        <Box>
           <BodyText
             text={`Free: ${prettyBytes.default(memoryData.free, {
               binary: true,
             })}`}
           />
-        </Grid>
-        <Grid item xs={10}>
+        </Box>
+      </Box>
+      <Box display="flex" width="100%">
+        <Box flexGrow={1}>
           <AllocationBar
             allocated={
               ((memoryData.total - memoryData.free) / memoryData.total) * 100
             }
           />
-        </Grid>
-        <Grid item xs={5}>
-          <BodyText
-            text={`Total Memory: ${prettyBytes.default(memoryData.total, {
-              binary: true,
-            })}`}
-          />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
+      <Box display="flex" justifyContent="center" width="100%">
+        <BodyText
+          text={`Total Memory: ${prettyBytes.default(memoryData.total, {
+            binary: true,
+          })}`}
+        />
+      </Box>
     </Panel>
   );
 };
