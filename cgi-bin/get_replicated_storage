@@ -82,6 +82,7 @@ else
 		$anvil->data->{raw}{newest_record}{$dr1_uuid} = 0;
 	}
 	
+	$hash->{total_resync_rate} = 0;
 	foreach my $host_uuid (@hosts)
 	{
 		my $host_name       =  $anvil->Get->host_name_from_uuid({host_uuid => $host_uuid});
@@ -266,6 +267,10 @@ WHERE
 						}});
 					}
 					
+					if ($scan_drbd_peer_replication_speed)
+					{
+						$hash->{total_resync_rate} += $scan_drbd_peer_replication_speed;
+					}
 					push @{$connections}, {
 						protocol   => "async_".lc($scan_drbd_peer_protocol),
 						connection => $scan_drbd_peer_connection_state,

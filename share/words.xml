@@ -2106,7 +2106,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0277">No UPSes</key>
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
-		<key name="striker_0280">Storage Pool #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
+		<key name="striker_0280">Storage group #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
 		<key name="striker_0281">Manage this file.</key>
 		<key name="striker_0282">This will remove the file from all systems.</key>
 		<key name="striker_0283">There are no #!string!brand_0006!# configured yet. Existing files will automatically sync to new clusters.</key>
