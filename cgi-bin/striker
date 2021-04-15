@@ -1593,7 +1593,7 @@ WHERE
 				# value from the database is '1' or '0'. We'll convert the database version 
 				# for comparison versions.
 				my $file_location_uuid       = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
-				my $old_file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active} ? "true" : "falsa";
+				my $old_file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active} ? "true" : "false";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					file_location_uuid       => $file_location_uuid,
 					old_file_location_active => $old_file_location_active, 
@@ -1697,9 +1697,8 @@ sub process_file_menu
 		process_file_change($anvil);
 	}
 	
-	# (Re)load the data.
-	$anvil->Database->get_files();
-	$anvil->Database->get_file_locations();
+	# Make sure that all files are registered with all Anvil! systems, This also (re)loads the data.
+	$anvil->Database->check_file_locations({debug => 2});
 
 	# Build the list of existing files.
 	my $file_list = $anvil->Template->get({file => "files.html", name => "open-file-list"});
@@ -1753,8 +1752,8 @@ sub process_file_menu
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { select_file_type => $select_file_type }});
 			
 			# Build the anvil list
-			$anvil->Database->get_anvils();
-			$anvil->Database->get_file_locations();
+			$anvil->Database->get_anvils({debug => 3});
+			$anvil->Database->get_file_locations({debug => 3});
 			
 			my $say_save_confirm  = "&nbsp;";
 			my $say_purge_confirm = "&nbsp;";

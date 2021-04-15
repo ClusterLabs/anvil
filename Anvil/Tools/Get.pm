@@ -683,28 +683,55 @@ ORDER BY
 	
 	foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
 	{
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name}      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}         = 0;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}       = 0;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   = 0;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = 0;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::group_name" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name},
+		}});
 		
-		if ((exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}) && 
-		    (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}))
+		my $node1_vg_size = 0;
+		my $node1_vg_free = 0;
+		my $node2_vg_size = 0;
+		my $node2_vg_free = 0;
+		my $dr1_vg_size = 0;
+		my $dr1_vg_free = 0;
+		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid})
 		{
-			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_size};
-			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free};
-			if ($anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free} < $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free})
-			{
-				$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_size};
-				$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free};
-			}
+			$node1_vg_size = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_size};
+			$node1_vg_free = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_free};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				node1_vg_size => $node1_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node1_vg_size}).")",
+				node1_vg_free => $node1_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node1_vg_free}).")",
+			}});
+		}
+		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid})
+		{
+			$node2_vg_size = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_size};
+			$node2_vg_free = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node2_host_uuid}{vg_free};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				node2_vg_size => $node2_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_vg_size}).")",
+				node2_vg_free => $node2_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_vg_free}).")",
+			}});
 		}
 		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
 		{
-			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_size};
-			$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
+			$dr1_vg_size = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_size};
+			$dr1_vg_free = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				dr1_vg_size => $dr1_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr1_vg_size}).")",
+				dr1_vg_free => $dr1_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr1_vg_free}).")",
+			}});
 		}
+		
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}         = $node2_vg_size < $node1_vg_size ? $node2_vg_size : $node1_vg_size;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}       = $node2_vg_free < $node1_vg_free ? $node2_vg_free : $node1_vg_free;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   = $dr1_vg_size;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = $dr1_vg_free;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::vg_size"         => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::free_size"       => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::vg_size_on_dr"   => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::available_on_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}}).")",
+		}});
 		
 		# Make it easy to sort by group name
 		my $storage_group_name = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};

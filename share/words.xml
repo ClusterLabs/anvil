@@ -670,7 +670,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0190">The DRBD resource: [#!variable!resource!#] configuration has been created and loaded.</key>
 		<key name="job_0191">The DRBD resource: [#!variable!resource!#] metadata has been created.</key>
 		<key name="job_0192">Bringing up the new resource.</key>
-		<key name="job_0193">Waiting for the disk state to be ready. The current volume: [#!variable!volume!#] disk state is: [#!variale!disk_state!#], waiting for it to become 'UpToDate', 'Consistent', 'Outdated' or 'Inconsistent'.</key>
+		<key name="job_0193">Waiting for the disk state to be ready. The current volume: [#!variable!volume!#] disk state is: [#!variable!disk_state!#], waiting for it to become 'UpToDate', 'Consistent', 'Outdated' or 'Inconsistent'.</key>
 		<key name="job_0194">The LV(s) behind the resource: [#!variable!resource!#] already existed, and the DRBD resource is not in the disk state 'UpToDate'. As such, we'll keep waiting before provisioning the server.</key>
 		<key name="job_0195">The resource needs to be forced to UpToDate as it is brand now, doing that now.</key>
 		<key name="job_0196">-=] OS Short List</key>
@@ -755,6 +755,8 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0272">The cluster still hasn't started. Calling startup again (will try once per minute).</key>
 		<key name="job_0273">Successfully added/confirmed the filter in lvm.conf.</key>
 		<key name="job_0274">Failed to add/confirmed the filter in lvm.conf! This should be corrected later by 'scan-drbd' though.</key>
+		<key name="job_0275">The cluster isn't up. Provisioning the server will hold until it is. Will check every 10 seconds.</key>
+		<key name="job_0276">The cluster is up.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1461,6 +1463,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0610">We're online as: [#!variable!node_name!#], but we're not quorate yet. Continuing to wait.</key>
 		<key name="log_0611">We're online as: [#!variable!node_name!#] and quorate!</key>
 		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
+		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the Anvil! [#!variable!anvil_name!#] yet. Registering it now as not sync'ed to this Anvil! system.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

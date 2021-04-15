@@ -329,10 +329,18 @@ WHERE
 	$anvil->Database->get_storage_group_data({debug => $debug});
 	
 	# Look for ungrouped VGs and see if we can group them by matching identical sizes together.
-	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	my $hosts = [$node1_host_uuid, $node2_host_uuid];
+	if ($dr1_host_uuid)
 	{
-		# If DR isn't defined, it'll be blank.
-		next if not $host_uuid;
+		push @{$hosts}, $dr1_host_uuid;
+	}
+	else
+	{
+		# No DR.
+		$anvil->data->{ungrouped_vg_count}{dr1} = 0;
+	}
+	foreach my $host_uuid (@{$hosts})
+	{
 		my $this_is = "node1";
 		if ($host_uuid eq $node2_host_uuid)  { $this_is = "node2"; }
 		elsif ($host_uuid eq $dr1_host_uuid) { $this_is = "dr1";   }
