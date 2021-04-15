@@ -8,3 +8,4 @@ export const PANEL_BORDER = '#000000';
 export const PURPLE_OFF = '#7353BA';
 export const BLUE = '#4785FF';
 export const GREY = '#E5E5E5';
+export const HOVER = '#444';

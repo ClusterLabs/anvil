@@ -1,22 +1,25 @@
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
 import { List, Box, Divider, ListItem } from '@material-ui/core';
-import { BLUE, PURPLE_OFF, RED_ON, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import {
+  BLUE,
+  PURPLE_OFF,
+  RED_ON,
+  TEXT,
+  HOVER,
+} from '../../lib/consts/DEFAULT_THEME';
 import Anvil from './Anvil';
 
 const useStyles = makeStyles(() => ({
   root: {
     width: '100%',
-    '&:hover $child': {
-      backgroundColor: '#00ff00',
-    },
   },
   divider: {
     background: TEXT,
   },
   button: {
     '&:hover': {
-      backgroundColor: '#F6F6E8',
+      backgroundColor: HOVER,
     },
     paddingLeft: 0,
   },
