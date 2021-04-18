@@ -108,11 +108,11 @@ if (not $anvil->data->{sys}{database}{connections})
 
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
-$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv07-el6
+$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; 
 # This is our node name
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : ""; # mk-a02n01.digimer.ca
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : ""; 
 # This says "UUID", but it's the node ID.
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : ""; # 1
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : ""; # Not used here, contains the pacemaker node ID
 # This is the timeout for the called action in millisecond.
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 20000
 # If this is set, we'll bump our log level as well.
@@ -149,12 +149,16 @@ if ($anvil->data->{environment}{PCMK_debug})
 # behaviour.
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
 
-# Get any command line switches.
+# We're used by anvil-boot-server and anvil-stop-server. They don't set environment variables, but instead 
+# use switches. Pick those up, if passed.
+
+$anvil->data->{switches}{migrate_to}   = "";	# Sets 'meta_migrate_target'
+$anvil->data->{switches}{migrate_from} = "";	# Sets 'meta_migrate_source' When set without 'migrate_to', does a status check after migration
+$anvil->data->{switches}{server}       = "";	# Sets 'name'.
 $anvil->Get->switches({debug => 2});
 
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
-
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = 1;
@@ -163,44 +167,60 @@ if ($anvil->data->{switches}{stop_drbd_resources})
 # Something for the logs
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, key => "log_0298"});
 
-### TEST: to be removed later
-if ($anvil->data->{switches}{test1})
+=cut
+
+server --server 
+-=] Boot (on an-a01n01)
+2021/04/17 18:41:30:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_name: [start]
+2021/04/17 18:41:30:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n01]
+
+-=] Stop (on an-a01n01)
+2021/04/17 18:33:50:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_name: [stop]
+2021/04/17 18:33:50:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n01]
+
+-=] Migration - source (before - from an-a01n01)
+2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a01n01]
+2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a01n02]
+2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_name: [migrate_to]
+2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n01]
+
+-=] Migration - target (after - to an-a01n02)
+2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a01n01]
+2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a01n02]
+2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_name: [migrate_from]
+2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n02]
+
+=cut
+
+foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{environment}})
 {
-	$anvil->data->{switches}{migrate_to}                            = "#!SET!#";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "mk-a02n02";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "mk-a02n01";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_name}           = "migrate_to";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "mk-a02n01";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = "600000";
-	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv07-el6";
-	print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		"environment::${key}" => $anvil->data->{environment}{$key}, 
+	}});
 }
-if ($anvil->data->{switches}{test2})
+
+# Set environment variables from switches, if otherwise not set.
+if (($anvil->data->{switches}{migrate_to}) && (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}))
 {
-	$anvil->data->{switches}{migrate_to}                            = "#!SET!#";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "mk-a02n01";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "mk-a02n02";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_name}           = "migrate_to";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "mk-a02n01";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = "600000";
-	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv07-el6";
-	print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = $anvil->data->{switches}{migrate_to};
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = $anvil->data->{switches}{migrate_to};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"environment::OCF_RESKEY_CRM_meta_migrate_target" => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}, 
+	}});
 }
-if ($anvil->data->{switches}{test3})
+if (($anvil->data->{switches}{migrate_from}) && (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}))
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}             = $anvil->data->{switches}{server};
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01";
-	print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = $anvil->data->{switches}{migrate_from};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"environment::OCF_RESKEY_CRM_meta_migrate_source" => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}, 
+	}});
 }
-if ($anvil->data->{switches}{test4})
+if (($anvil->data->{switches}{server}) && (not $anvil->data->{environment}{OCF_RESKEY_name}))
 {
-	$anvil->data->{switches}{monitor}                        = "#!SET!#";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_name}    = "monitor";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_fail} = "block";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = "20000";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01";
-	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv07-el6";
-	print "Status check of: [".$anvil->data->{environment}{OCF_RESKEY_name}."] on: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}."].\n";
+	$anvil->data->{environment}{OCF_RESKEY_name} = $anvil->data->{switches}{server};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"environment::OCF_RESKEY_name" => $anvil->data->{environment}{OCF_RESKEY_name}, 
+	}});
 }
 
 # This is for debugging.
@@ -639,8 +659,8 @@ shut off    - The domain is not running.  Usually this indicates the domain has 
 crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if
               the domain has been configured not to restart on crash.
 pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3 state.
-=cut
 
+=cut
 # This boots the server if possible.
 sub start_server
 {
@@ -958,7 +978,7 @@ sub stop_server
 	my ($anvil) = @_;
 	
 	# Stopping the server is simply a question of "is the server running?" and, if so, stop it. Once 
-	# stopped, we stop the DRBD resource on both nodes.
+	# stopped, and if enabled, we stop the DRBD resource on both nodes.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0582", variables => { server => $server }});
 	

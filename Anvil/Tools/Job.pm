@@ -678,7 +678,7 @@ WHERE
 		}
 	}
 	
-	### NOTE: This is used by 'anvil-update-system'.
+	### NOTE: This is used by 'anvil-update-system'. It should be moved back over to it later.
 	# Insert counts
 	if ($job_status =~ /message_0058/gs)
 	{
@@ -704,7 +704,7 @@ WHERE
 	# This is used by 'anvil-download-file'
 	if ($job_status =~ /message_0142/gs)
 	{
-		### NOTE: Left off here.
+		### NOTE: Is this needed anymore?
 # 		my $downloaded = $anvil->data->{counts}{downloaded} ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}}) : 0;
 # 		my $installed  = $anvil->data->{counts}{installed}  ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}})  : 0;
 # 		my $verified   = $anvil->data->{counts}{verified}   ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}})   : 0;

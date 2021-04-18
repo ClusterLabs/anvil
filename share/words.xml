@@ -363,6 +363,18 @@ The attempt to start the cluster appears to have failed. The return code '0' was
 #!variable!output!#
 ====
 		</key>
+		<key name="error_0257"><![CDATA[No server specified to boot. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
+		<key name="error_0258">This host is not a node or DR, unable to boot servers.</key>
+		<key name="error_0259">The definition file: [#!variable!definition_file!#] doesn't exist, unable to boot the server.</key>
+		<key name="error_0260">This host is not in an Anvil! system, aborting.</key>
+		<key name="error_0261">The definition file: [#!variable!definition_file!#] exists, but the server: [#!variable!server!#] does not appear to be in the cluster. Unable to boot it.</key>
+		<key name="error_0262">The server: [#!variable!server!#] status is: [#!variable!status!#]. We can only boot servers that are off, not booting it.</key>
+		<key name="error_0263"><![CDATA[No server specified to shut down. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
+		<key name="error_0264">This host is not a node or DR, unable to shut down servers.</key>
+		<key name="error_0265">This feature isn't enabled on DR hosts yet.</key>
+		<key name="error_0266">The server: [#!variable!server!#] does not appear to be in the cluster. Unable to shut it down.</key>
+		<key name="error_0267">The server: [#!variable!server!#] failed to boot. The reason why should be in the logs.</key>
+		<key name="error_0268">The server: [#!variable!server!#] failed to shut down. The reason why should be in the logs.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -757,6 +769,19 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0274">Failed to add/confirmed the filter in lvm.conf! This should be corrected later by 'scan-drbd' though.</key>
 		<key name="job_0275">The cluster isn't up. Provisioning the server will hold until it is. Will check every 10 seconds.</key>
 		<key name="job_0276">The cluster is up.</key>
+		<key name="job_0277">The cluster is not started yet, waiting. Will check again shortly.</key>
+		<key name="job_0278">The cluster is up, but waiting for this node to become ready. Will check again shortly.</key>
+		<key name="job_0279">The cluster is up and the node is ready.</key>
+		<key name="job_0280">The server: [#!variable!server!#] has booted!</key>
+		<key name="job_0281">Done!</key>
+		<key name="job_0282">Booting server(s)...</key>
+		<key name="job_0283">Shutting down server(s)...</key>
+		<key name="job_0284">The server: [#!variable!server!#] is already off, nothing to do.</key>
+		<key name="job_0285">The server: [#!variable!server!#] has shut down.</key>
+		<key name="job_0286">The server: [#!variable!server!#] has been asked to stop. You may need to verify that it is actually stopped (some OSes ignore power button events).</key>
+		<key name="job_0287">The server: [#!variable!server!#] has been asked to boot. It should come up soon.</key>
+		<key name="job_0288">The server: [#!variable!server!#] will now be booted...</key>
+		<key name="job_0289">The server: [#!variable!server!#] will now be asked to shut down. If the server doesn't stop, please log into it and make sure it reacted to the power button event. Shut it down manually, if needed.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1399,7 +1424,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0550">Waiting for the server: [#!variable!server!#] to finish migrating to the node: [#!variable!requested_node!#]...</key>
 		<key name="log_0551">The migration of the server: [#!variable!server!#] to the node: [#!variable!requested_node!#] is complete!</key>
 		<key name="log_0552">Waiting for the server: [#!variable!server!#] to boot...</key>
-		<key name="log_0553">The server: [#!variable!server!#] has booted!</key>
+		<key name="log_0553">The server: [#!variable!server!#] has booted on: [#!variable!host_name!#]!</key>
 		<key name="log_0554">Waiting for the server: [#!variable!server!#] to shut down...</key>
 		<key name="log_0555">The server: [#!variable!server!#] is now off.</key>
 		<key name="log_0556">The server: [#!variable!server!#] (#!variable!server_uuid!#) has a definition change:

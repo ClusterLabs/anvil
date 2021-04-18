@@ -615,7 +615,7 @@ sub boot_server
 	
 	# Is the server already running? If so, do nothing.
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
@@ -667,19 +667,22 @@ sub boot_server
 	while($waiting)
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
-		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			status => $status,
-			host   => $host, 
+			status    => $status,
+			host_name => $host_name, 
 		}});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0552", variables => { server => $server }});
-		if ($host eq "running")
+		if ($status eq "running")
 		{
 			# It's up.
 			$waiting = 0;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0553", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0553", variables => { 
+				server    => $server,
+				host_name => $host_name, 
+			}});
 		}
 		else
 		{
@@ -798,7 +801,7 @@ sub delete_server
 	
 	# Is the server running? If so, stop it first.
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
-	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
@@ -894,6 +897,7 @@ sub get_anvil_name
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 	return($anvil_name);
 }
+
 
 =head2 get_anvil_uuid
 
@@ -1611,7 +1615,7 @@ sub migrate_server
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 
@@ -2714,7 +2718,7 @@ sub shutdown_server
 	
 	# Is the server already stopped? If so, do nothing.
 	my $status =         $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host} : "";
+	my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
@@ -2756,7 +2760,7 @@ sub shutdown_server
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status =         $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host}   ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host} : "";
+		my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 

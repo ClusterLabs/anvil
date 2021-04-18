@@ -1346,6 +1346,18 @@ sub host_name
 	{
 		# The environment variable isn't set. Call 'hostnamectl' on the command line.
 		($host_name, my $return_code) = $anvil->System->call({debug => 9999, shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
+		if ($return_code)
+		{
+			# We can't trust the hostname. This could be an error like "Could not get property: 
+			# Refusing activation, D-Bus is shutting down.". Try reading in the '/etc/hostname'
+			# file instead.
+			$host_name = $anvil->Storage->read_file({debug => 9999, file => $anvil->data->{path}{configs}{hostname}});
+			if ($host_name eq "!!error!!")
+			{
+				# Failed to read the file, too. What the hell? Exit out.
+				print "Failed to query the hostname using 'hostnamectl --static' and failed to read the content of: [".$anvil->data->{path}{configs}{hostname}."]. Something is very wrong, exiting.\n";
+			}
+		}
 	}
 	
 	return($host_name);

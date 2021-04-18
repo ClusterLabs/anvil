@@ -4639,6 +4639,9 @@ sub update_hosts
 	my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
 	$anvil->Database->get_ip_addresses({debug => $debug});
 	
+	# Load the IPs we manage. If we find any entries for these that we don't expect, we'll remove them.
+	$anvil->Database->get_ip_addresses({debug => $debug});
+	
 	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 	{
 		my $host_name       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
@@ -4694,6 +4697,10 @@ sub update_hosts
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
 	
+	# This will track the IPs we've seen. We'll only write these out once, and skip any futher entries 
+	# that may be found.
+	my $written_ips = {};
+	
 	# Parse the existing 
 	foreach my $line (split/\n/, $old_body)
 	{
@@ -4735,7 +4742,7 @@ sub update_hosts
 		}});
 		
 		# Make sure the IP is valid.
-		my $is_ip = $anvil->Validate->ip({ip => $ip_address, debug => $debug});
+		my $is_ip = $anvil->Validate->ip({ip => $ip_address, debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_ip => $is_ip }});
 		if (not $is_ip)
 		{
@@ -4746,6 +4753,16 @@ sub update_hosts
 			}});
 			next;
 		}
+		
+		if (exists $written_ips->{$ip_address})
+		{
+			# Skipping at least one line, rewrite the file.
+			$changes = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			next;
+		}
+		$written_ips->{$ip_address} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "written_ips->{".$ip_address."}" => $written_ips->{$ip_address} }});
 		
 		foreach my $name (split/\s+/, $names)
 		{
@@ -4855,7 +4872,8 @@ sub update_hosts
 	{
 		$changes = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
-		$new_body .= "\n# ".$anvil->Words->string({key => "message_0178", variables => { date => $anvil->Get->date_and_time({debug => $debug}) }})."\n";
+		$new_body .= "\n";
+		#$new_body .= "\n# ".$anvil->Words->string({key => "message_0178", variables => { date => $anvil->Get->date_and_time({debug => $debug}) }})."\n";
 		
 		foreach my $ip_address (@{$ip_order})
 		{
@@ -4864,6 +4882,10 @@ sub update_hosts
 		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:changes'  => $changes,
+		's2:new_body' => $new_body,
+	}});
 	if ($changes)
 	{
 		# Write the new file.
