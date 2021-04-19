@@ -48,7 +48,7 @@ if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
 	# again after we exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0075"});
 	sleep 10;
 	$anvil->nice_exit({exit_code => 1});
 }
@@ -111,6 +111,15 @@ if ($anvil->data->{switches}{'server-uuid'})
 			'switches::server' => $anvil->data->{switches}{'server'},
 		}});
 	}
+	else
+	{
+		# Invalid server UUID. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0269", variables => {
+			server_uuid => $anvil->data->{switches}{'server-uuid'}, 
+		}});
+		$anvil->Job->update_progress({progress => 100, message => "error_0269,!!server_uuid!".$anvil->data->{switches}{'server-uuid'}."!!"});
+		$anvil->nice_exit({exit_code => 1});
+	}
 }
 
 # Do we have a server name?
@@ -152,7 +161,7 @@ if (not $anvil->data->{sys}{anvil_uuid})
 # being up.
 wait_for_pacemaker($anvil);
 
-# If 'server' is 'all', boot all servers.
+# If 'server' is 'all', shut down all servers.
 if (lc($anvil->data->{switches}{'server'}) eq "all")
 {
 	shutdown_all_servers($anvil);
@@ -177,7 +186,7 @@ sub wait_for_pacemaker
 {
 	my ($anvil) = @_;
 
-	# Boot the server using pcs, but of course, wait for the node to be up.
+	# Shutdown the server using pcs, but of course, wait for the node to be up.
 	my $waiting = 1;
 	while($waiting)
 	{

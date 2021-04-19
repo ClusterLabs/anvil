@@ -28,8 +28,20 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{'job-uuid'}    = "";
+$anvil->data->{switches}{'no-wait'}     = "";	# We normall wait for each migation to finish. This skips that. With '--all', this causes all migrations to run in parallel
+$anvil->data->{switches}{'parallel'}    = ""; 
+$anvil->data->{switches}{'server'}      = "";
+$anvil->data->{switches}{'server-uuid'} = "";
+$anvil->data->{switches}{'target'}      = "";
 $anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::job-uuid'    => $anvil->data->{switches}{'job-uuid'}, 
+	'switches::no-wait'     => $anvil->data->{switches}{'no-wait'},
+	'switches::server'      => $anvil->data->{switches}{'server'},
+	'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'}, 
+	'switches::target'      => $anvil->data->{switches}{'target'},
+}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source  => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 
@@ -37,14 +49,12 @@ $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
-	# No databases, sleep for a bit and then exit. The daemon will retry after we exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0218"});
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0075"});
 	sleep 10;
 	$anvil->nice_exit({exit_code => 1});
 }
-
-$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({debug => 2});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid} }});
 
 # If we don't have a job UUID, try to find one.
 if (not $anvil->data->{switches}{'job-uuid'})
@@ -54,7 +64,6 @@ if (not $anvil->data->{switches}{'job-uuid'})
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
 }
 
-# If we still don't have a job-uuit, go into interactive mode.
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
@@ -64,43 +73,113 @@ if ($anvil->data->{switches}{'job-uuid'})
 		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0218", 
+		message          => "job_0290", 
 	});
-
-	# Are we in an Anvil! system?
-	if (not $anvil->data->{sys}{anvil_uuid})
+	
+	# Pull out the job data.
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
-		# We're not in an Anvil!.
-		if ($anvil->data->{switches}{'job-uuid'})
+		if ($line =~ /server=(.*?)$/)
 		{
-			# Mark the job as failed.
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0231", 
-				job_status => "failed", 
-			});
+			$anvil->data->{switches}{'server'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'switches::server' => $anvil->data->{switches}{'server'},
+			}});
 		}
-		
-		# Log an exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0231"});
+		if ($line =~ /server-uuid=(.*?)$/)
+		{
+			$anvil->data->{switches}{'server-uuid'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'},
+			}});
+		}
+	}
+}
+
+# Now check that we have a server. If it's a server_uuid, read the server name.
+if ($anvil->data->{switches}{'server-uuid'})
+{
+	# Convert the server_uuid to a server_name.
+	my $query = "SELECT server_name FROM servers WHERE server_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'server-uuid'}).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $server_name = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	   $server_name = "" if not defined $server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+	
+	if ($server_name)
+	{
+		$anvil->data->{switches}{'server'} = $server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'switches::server' => $anvil->data->{switches}{'server'},
+		}});
+	}
+	else
+	{
+		# Invalid server UUID. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0269", variables => {
+			server_uuid => $anvil->data->{switches}{'server-uuid'}, 
+		}});
+		$anvil->Job->update_progress({progress => 100, message => "error_0269,!!server_uuid!".$anvil->data->{switches}{'server-uuid'}."!!"});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	
-	# Job data will be in $anvil->data->{jobs}{job_data}
-	run_jobs($anvil);
+}
+
+# Do we have a server name?
+if (not $anvil->data->{switches}{'server'})
+{
+	# Unable to proceed.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0270"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0270"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Are we a node or DR host?
+$anvil->data->{sys}{host_type} = $anvil->Get->host_type();
+if ($anvil->data->{sys}{host_type} ne "node")
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0271"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0271"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Make sure that we're in an Anvil! system.
+$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
+if (not $anvil->data->{sys}{anvil_uuid})
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0260"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Do we have a target?
+if (not $anvil->data->{switches}{'target'})
+{
+	# Unable to proceed.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0272"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0272"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# This is copied from anvil-boot-server, but it works here as well. We can't use 'pcs' without pacemaker 
+# being up.
+wait_for_pacemaker($anvil);
+
+# Make sure the target node is valid.
+find_target($anvil);
+
+# If 'server' is 'all', migrate all servers.
+if (lc($anvil->data->{switches}{'server'}) eq "all")
+{
+	migrate_all_servers($anvil);
 }
 else
 {
-	if (not $anvil->data->{sys}{anvil_uuid})
-	{
-		# We can't do anything, exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0231"});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
-	# Interactive!
-	ask_for_server($anvil);
+	migrate_server($anvil, $anvil->data->{switches}{'server'}, 50);
 }
+
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
+$anvil->Job->update_progress({progress => 100, message => "job_0281"});
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -109,132 +188,236 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-
-# This actually provisions a VM.
-sub run_jobs
+sub migrate_server
 {
-	my ($anvil) = @_;
+	my ($anvil, $server, $progress) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server   => $server,
+		progress => $progress, 
+	}});
 	
-	# This parses the jobs::job_data intp variables.
-	parse_job_data($anvil);
-	
-	
-
-	return(0);
-}
-
-# This parses and verifies the job data
-sub parse_job_data
-{
-	my ($anvil) = @_;
-	
-	$anvil->data->{job}{server_uuid} = "";
-	$anvil->data->{job}{peer_mode}   = 0;
-	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	# Is the server in the cluster?
+	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		if ($line =~ /server_uuid=(.*)$/)
-		{
-			$anvil->data->{job}{server_uuid} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::server_uuid' => $anvil->data->{job}{server_uuid} }});
-		}
-		if ($line =~ /target_host_uuid=(.*)$/)
-		{
-			$anvil->data->{job}{target_host_uuid} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::target_host_uuid' => $anvil->data->{job}{target_host_uuid} }});
-		}
-	}
-	
-	# Did we get a server UUID?
-	if (not $anvil->data->{job}{server_uuid})
-	{
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0232,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0232", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		# Nope.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0548", variables => { server => $server }});
+		$anvil->Job->update_progress({progress => 100, message => "log_0548,!!server!".$server."!!"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	# Does the server UUID match to a server?
-	$anvil->Database->get_servers();
-	my $server_uuid = $anvil->data->{job}{server_uuid};
-	if (($server_uuid ne "all") && (not exists $anvil->data->{servers}{server_uuid}{$server_uuid}))
+	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
+	if ($status eq "off")
 	{
-		# Server UUID is invalid
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0220,!!server_uuid!".$server_uuid."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0220", variables => { server_uuid => $server_uuid }});
-		$anvil->nice_exit({exit_code => 1});
+		# It's off already
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0284", variables => { server => $server }});
+		$anvil->Job->update_progress({progress => $progress, message => "job_0284,!!server!".$server."!!"});
+		return(0);
 	}
 	
-	# Is the target_host_uuid a host in our Anvil! system?
-	if (not $anvil->data->{job}{target_host_uuid})
+	### TODO: Record past migration times so that we give the user a estimate of how long it will take.
+	# Now migrate.
+	my $wait = $anvil->data->{switches}{'no-wait'} ? 0 : 1;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0293", variables => { 
+		server => $server,
+		target => $anvil->data->{sys}{target}, 
+	}});
+	$anvil->Job->update_progress({progress => $progress, message => "job_0293,!!server!".$server."!!,!!target!".$anvil->data->{sys}{target}."!!"});
+	my $problem = $anvil->Cluster->migrate_server({
+		debug  => 2, 
+		server => $server, 
+		node   => $anvil->data->{sys}{target}, 
+		'wait' => $wait,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
 	{
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0234,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0234", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+		# Failed, abort.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0274", variables => { server => $server }});
+		$anvil->Job->update_progress({progress => 100, message => "error_0274,!!server!".$server."!!"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	else
 	{
-		my $anvil_uuid      = $anvil->data->{sys}{anvil_uuid};
-		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			anvil_uuid      => $anvil_uuid,
-			node1_host_uuid => $node1_host_uuid, 
-			node2_host_uuid => $node2_host_uuid, 
-		}});
-		if (($anvil->data->{job}{target_host_uuid} ne $node1_host_uuid) && 
-		    ($anvil->data->{job}{target_host_uuid} ne $node2_host_uuid))
+		if ($wait)
 		{
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0235,!!target_host_uuid!".$anvil->data->{job}{target_host_uuid}."!!", 
-				job_status => "failed", 
-			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0235", variables => { target_host_uuid => $anvil->data->{job}{target_host_uuid} }});
-			$anvil->nice_exit({exit_code => 1});
+			# Migrated!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0292", variables => { 
+				server => $server,
+				target => $anvil->data->{sys}{target}, 
+			}});
+			$anvil->Job->update_progress({progress => $progress, message => "job_0292,!!server!".$server."!!,!!target!".$anvil->data->{sys}{target}."!!"});
+		}
+		else
+		{
+			# Migration requested.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0294", variables => { server => $server }});
+			$anvil->Job->update_progress({progress => $progress, message => "job_0294,!!server!".$server."!!"});
 		}
 	}
 	
-	my $host_type = $anvil->Get->host_type();
-	if ($host_type eq "node")
+	return(0);
+}
+
+sub migrate_all_servers
+{
+	my ($anvil) = @_;
+	
+	# We top out at 90, bottom is 20. 
+	my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
+	my $increment    = int(70 / $server_count);
+	my $percent      = 15;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_count => $server_count, 
+		increment    => $increment,
+	}});
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	{
+		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
+		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
+		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server'    => $server,
+			's2:status'    => $status,
+			's2:host_name' => $host_name,
+			's4:role'      => $role,
+			's5:active'    => $active, 
+		}});
+		
+		if ($status ne "off")
+		{
+			# Migrate it.
+			$percent += $increment;
+			migrate_server($anvil, $server, $percent);
+		}
+	}
+	
+	return(0);
+}
+
+sub find_target
+{
+	my ($anvil) = @_;
+	
+	# Convert the host names to short names for easier matching.
+	my $short_target_name =  $anvil->data->{switches}{'target'};
+	   $short_target_name =~ s/\..*$//;
+	my $short_local_name  =  $anvil->data->{cib}{parsed}{'local'}{name};
+	   $short_local_name  =~ s/\..*$//;
+	my $short_peer_name   =  $anvil->data->{cib}{parsed}{peer}{name};
+	   $short_peer_name   =~ s/\..*$//;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:short_target_name" => $short_target_name, 
+		"s2:short_local_name"  => $short_local_name, 
+		"s3:short_peer_name"   => $short_peer_name, 
+	}});
+	
+	$anvil->data->{sys}{source} = "";
+	$anvil->data->{sys}{target} = "";
+	if (lc($anvil->data->{switches}{'target'}) eq "peer")
+	{
+		# Migrate to the peer.
+		$anvil->data->{sys}{source} = $anvil->data->{cib}{parsed}{'local'}{name};
+		$anvil->data->{sys}{target} = $anvil->data->{cib}{parsed}{peer}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::source" => $anvil->data->{sys}{source}, 
+			"sys::target" => $anvil->data->{sys}{target}, 
+		}});
+	}
+	elsif ((lc($anvil->data->{switches}{'target'}) eq "local") or (lc($anvil->data->{switches}{'target'}) eq "here"))
+	{
+		# Migrate to the this machine.
+		$anvil->data->{sys}{source} = $anvil->data->{cib}{parsed}{peer}{name};
+		$anvil->data->{sys}{target} = $anvil->data->{cib}{parsed}{'local'}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::source" => $anvil->data->{sys}{source}, 
+			"sys::target" => $anvil->data->{sys}{target}, 
+		}});
+	}
+	elsif (lc($short_target_name) eq lc($short_peer_name))
+	{
+		# Migrate to the peer.
+		$anvil->data->{sys}{source} = $anvil->data->{cib}{parsed}{'local'}{name};
+		$anvil->data->{sys}{target} = $anvil->data->{cib}{parsed}{peer}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::source" => $anvil->data->{sys}{source}, 
+			"sys::target" => $anvil->data->{sys}{target}, 
+		}});
+	}
+	elsif (lc($short_target_name) eq lc($short_local_name))
+	{
+		# Migrate to the this machine.
+		$anvil->data->{sys}{source} = $anvil->data->{cib}{parsed}{peer}{name};
+		$anvil->data->{sys}{target} = $anvil->data->{cib}{parsed}{'local'}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::source" => $anvil->data->{sys}{source}, 
+			"sys::target" => $anvil->data->{sys}{target}, 
+		}});
+	}
+	else
+	{
+		# No match.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0273", variables => {
+			target     => $anvil->data->{switches}{'target'},
+			local_name => $anvil->data->{cib}{parsed}{'local'}{name},
+			peer_name  => $anvil->data->{cib}{parsed}{peer}{name},
+		}});
+		$anvil->Job->update_progress({progress => 100, message => "error_0273,!!target!".$anvil->data->{switches}{'target'}."!!,!!local_name!".$anvil->data->{cib}{parsed}{'local'}{name}."!!,!!peer_name!".$anvil->data->{cib}{parsed}{peer}{name}."!!"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Record that we have our target.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0291", variables => {
+		source => $anvil->data->{sys}{source}, 
+		target => $anvil->data->{sys}{target}, 
+	}});
+	$anvil->Job->update_progress({progress => 18, message => "job_0291,!!source!".$anvil->data->{sys}{source}."!!,!!target!".$anvil->data->{sys}{target}."!!"});
+	
+	return(0);
+}
+
+sub wait_for_pacemaker
+{
+	my ($anvil) = @_;
+
+	# Wait for the node to be up.
+	my $waiting = 1;
+	while($waiting)
 	{
 		my $problem = $anvil->Cluster->parse_cib({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		if ($problem)
+		if (not $problem)
 		{
-			# The cluster isn't running, sleep and exit.
-			$anvil->Job->update_progress({
-				progress => 0,
-				message  => "error_0233", 
-			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0233"});
-			sleep 10;
-			$anvil->nice_exit({exit_code => 1});
+			my $node_name = $anvil->data->{cib}{parsed}{'local'}{name};
+			my $ready     = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ready => $ready }});
+			if ($ready)
+			{
+				# We're good. 
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0279"});
+				$anvil->Job->update_progress({progress => 15, message => "job_0279"});
+			}
+			else
+			{
+				# Node isn't ready yet.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0278"});
+				$anvil->Job->update_progress({progress => 10, message => "job_0278"});
+			}
 		}
-	}
-	else
-	{
-		# This is not the tool to move to DR.
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0221", 
-			job_status => "failed", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => 'err', key => "error_0221"});
-		$anvil->nice_exit({exit_code => 1});
+		else
+		{
+			# Cluster hasn't started.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0277"});
+			$anvil->Job->update_progress({progress => 5, message => "job_0277"});
+		}
+		if ($waiting)
+		{
+			sleep 10;
+		}
 	}
 	
 	return(0);
 }
-

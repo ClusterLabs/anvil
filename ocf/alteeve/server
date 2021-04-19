@@ -995,7 +995,7 @@ sub stop_server
 	}
 	
 	# Now stop the DRBD resource(s).
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		'environment::OCF_RESKEY_CRM_meta_stop_drbd_resources' => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources}, 
 	}});
 	if ($anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources})

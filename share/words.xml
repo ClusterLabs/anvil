@@ -375,6 +375,18 @@ The attempt to start the cluster appears to have failed. The return code '0' was
 		<key name="error_0266">The server: [#!variable!server!#] does not appear to be in the cluster. Unable to shut it down.</key>
 		<key name="error_0267">The server: [#!variable!server!#] failed to boot. The reason why should be in the logs.</key>
 		<key name="error_0268">The server: [#!variable!server!#] failed to shut down. The reason why should be in the logs.</key>
+		<key name="error_0269">The server UUID: [#!variable!server_uuid!#] is not valid.</key>
+		<key name="error_0270"><![CDATA[No server specified to migrate. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
+		<key name="error_0271">This host is not a node, unable to migrate servers.</key>
+		<key name="error_0272"><![CDATA[No target node specified. Please use '--target <node_name>'.]]></key>
+		<key name="error_0273">The target: [#!variable!target!#] appears to be invalid. The --target switch needs to be set to 'peer', 'local', '#!variable!local_name!#' or '#!variable!peer_name!#'.</key>
+		<key name="error_0274">The server: [#!variable!server!#] failed to migrate. The reason why should be in the logs.</key>
+		<key name="error_0275">
+The attempt to start the servers appears to have failed. The return code '0' was expected, but: [#!variable!return_code!#] was received. The output was:
+====
+#!variable!output!#
+====
+		</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -782,6 +794,11 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0287">The server: [#!variable!server!#] has been asked to boot. It should come up soon.</key>
 		<key name="job_0288">The server: [#!variable!server!#] will now be booted...</key>
 		<key name="job_0289">The server: [#!variable!server!#] will now be asked to shut down. If the server doesn't stop, please log into it and make sure it reacted to the power button event. Shut it down manually, if needed.</key>
+		<key name="job_0290">Booting server(s)...</key>
+		<key name="job_0291">Source node: [#!variable!source!#], target node is: [#!variable!target!#].</key>
+		<key name="job_0292">The server: [#!variable!server!#] has been migrated to: [#!variable!target!#].</key>
+		<key name="job_0293">The server: [#!variable!server!#] will now be migrated to: [#!variable!target!#]. This could take some time! How much RAM is allocated to this server, the speed of the back-channel network and how busy the server is all contribute to migration time. Please be patient!</key>
+		<key name="job_0294">The server: [#!variable!server!#] has been asked to migrate. We are not waiting for it to complete.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1489,6 +1506,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0611">We're online as: [#!variable!node_name!#] and quorate!</key>
 		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
 		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the Anvil! [#!variable!anvil_name!#] yet. Registering it now as not sync'ed to this Anvil! system.</key>
+		<key name="log_0614">Asking 'anvil-boot-server' to boot the servers now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

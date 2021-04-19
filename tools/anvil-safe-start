@@ -101,6 +101,7 @@ start_pacemaker($anvil);
 # Boot servers.
 boot_servers($anvil);
 
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -113,9 +114,24 @@ sub boot_servers
 {
 	my ($anvil) = @_;
 	
-	### TODO: We need to handle boot ordering, once the WebUI is at that stage. For now, bling-boot all
-	###       servers.
-	
+	# Call 'anvil-boot-server --server all' to boot the servers now.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0614"});
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-boot-server'}." --server all";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# What?! Fail out, we're done.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0275", variables => {
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	return(0);
 }
@@ -149,7 +165,8 @@ sub start_pacemaker
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0608"});
 		
 		### TODO: A lot more testing is needed for degraded single-node start later. 
-		#my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
+		###       Should we use --all, or wait for our peer? For now, we wait.
+		#my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start --all";
 		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
