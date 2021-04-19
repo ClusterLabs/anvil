@@ -6,7 +6,7 @@ declare type AnvilSharedStorageNode = {
 };
 
 declare type AnvilSharedStorageFileSystem = {
-  mountPoint: string;
+  mount_point: string;
   nodes: Array<AnvilSharedStorageNode>;
 };
 
