@@ -3,16 +3,14 @@ import { makeStyles } from '@material-ui/core/styles';
 
 import * as prettyBytes from 'pretty-bytes';
 
-import InnerPanel from './InnerPanel';
 import { AllocationBar } from './Bars';
 import { BodyText } from './Text';
-import PanelHeader from './PanelHeader';
 
 const useStyles = makeStyles(() => ({
   fs: {
     paddingLeft: '10px',
     paddingRight: '10px',
-    paddingTop: '20px',
+    paddingTop: '10px',
   },
   bar: {
     paddingLeft: '10px',
@@ -28,14 +26,12 @@ const SharedStorageNode = ({
   const classes = useStyles();
 
   return (
-    <InnerPanel>
-      <PanelHeader>
-        <Box display="flex" width="100%">
-          <Box>
-            <BodyText text={node.nodeInfo?.node_name} />
-          </Box>
+    <>
+      <Box display="flex" width="100%" className={classes.fs}>
+        <Box>
+          <BodyText text={node.nodeInfo?.node_name} />
         </Box>
-      </PanelHeader>
+      </Box>
       <Box display="flex" width="100%" className={classes.fs}>
         <Box flexGrow={1}>
           <BodyText
@@ -66,7 +62,7 @@ const SharedStorageNode = ({
           })}`}
         />
       </Box>
-    </InnerPanel>
+    </>
   );
 };
 
