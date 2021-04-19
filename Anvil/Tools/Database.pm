@@ -2997,6 +2997,12 @@ sub get_ip_addresses
 	# Make sure we've loaded host data.
 	$anvil->Database->get_hosts({debug => $debug});
 	
+	# Purge any previously known data.
+	if (exists $anvil->data->{ip_addresses})
+	{
+		delete $anvil->data->{ip_addresses};
+	}
+	
 	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
@@ -3116,6 +3122,7 @@ AND
 		$query = "
 SELECT 
     ip_address_uuid, 
+    ip_address_host_uuid, 
     ip_address_on_type, 
     ip_address_on_uuid, 
     ip_address_address, 
@@ -3138,11 +3145,14 @@ AND
 		foreach my $row (@{$results})
 		{
 			my $ip_address_uuid        = $row->[0];
-			my $ip_address_on_type     = $row->[1];
-			my $ip_address_on_uuid     = $row->[2];
-			my $ip_address_address     = $row->[3];
-			my $ip_address_subnet_mask = $row->[4];
+			my $ip_address_host_uuid   = $row->[1];
+			my $ip_address_on_type     = $row->[2];
+			my $ip_address_on_uuid     = $row->[3];
+			my $ip_address_address     = $row->[4];
+			my $ip_address_subnet_mask = $row->[5];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				ip_address_uuid        => $ip_address_uuid, 
+				ip_address_host_uuid   => $ip_address_host_uuid, 
 				ip_address_on_type     => $ip_address_on_type, 
 				ip_address_on_uuid     => $ip_address_on_uuid,
 				ip_address_address     => $ip_address_address, 
@@ -3195,6 +3205,14 @@ AND
 				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::subnet_mask"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}, 
 				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface}, 
 				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_network"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network}, 
+			}});
+			
+			# We also want to be able to map IPs to hosts.
+			$anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}       = $ip_address_host_uuid;
+			$anvil->data->{ip_addresses}{$ip_address_address}{ip_address_uuid} = $ip_address_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"ip_addresses::${ip_address_address}::host_uuid"       => $anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}, 
+				"ip_addresses::${ip_address_address}::ip_address_uuid" => $anvil->data->{ip_addresses}{$ip_address_address}{ip_address_uuid}, 
 			}});
 		}
 		

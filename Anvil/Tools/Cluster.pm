@@ -427,12 +427,15 @@ ORDER BY
 	{
 		# If there are two or three VGs, we can create a group.
 		my $count = keys %{$anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size}{host_uuid}};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_lvm_vg_size => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+			count            => $count,
+		}});
 		if (($count == 2) or ($count == 3))
 		{
 			# Create the volume group ... group. First we need a group number
 			my $storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
-				debug                    => $debug,
+				debug                    => 2,
 				storage_group_anvil_uuid => $anvil_uuid, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
@@ -448,7 +451,7 @@ ORDER BY
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_vg_uuid => $storage_group_member_vg_uuid }});
 				
 				my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
-					debug                                   => $debug, 
+					debug                                   => 2, 
 					storage_group_member_storage_group_uuid => $storage_group_uuid, 
 					storage_group_member_host_uuid          => $host_uuid, 
 					storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
@@ -460,6 +463,9 @@ ORDER BY
 					"ungrouped_vg_count::${this_is}" => $anvil->data->{ungrouped_vg_count}{$this_is},
 				}});
 			}
+			
+			# Delete this so we don't keel creating new Storage groups.
+			delete $anvil->data->{ungrouped_vgs}{$scan_lvm_vg_size};
 			
 			# Reload storage group data
 			$reload_storage_groups = 1;
@@ -609,7 +615,7 @@ sub boot_server
 	
 	# Is the server already running? If so, do nothing.
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
@@ -661,19 +667,22 @@ sub boot_server
 	while($waiting)
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
-		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			status => $status,
-			host   => $host, 
+			status    => $status,
+			host_name => $host_name, 
 		}});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0552", variables => { server => $server }});
-		if ($host eq "running")
+		if ($status eq "running")
 		{
 			# It's up.
 			$waiting = 0;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0553", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0553", variables => { 
+				server    => $server,
+				host_name => $host_name, 
+			}});
 		}
 		else
 		{
@@ -792,7 +801,7 @@ sub delete_server
 	
 	# Is the server running? If so, stop it first.
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
-	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
@@ -888,6 +897,7 @@ sub get_anvil_name
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 	return($anvil_name);
 }
+
 
 =head2 get_anvil_uuid
 
@@ -1605,7 +1615,7 @@ sub migrate_server
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 
@@ -2708,7 +2718,7 @@ sub shutdown_server
 	
 	# Is the server already stopped? If so, do nothing.
 	my $status =         $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host} : "";
+	my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		status => $status,
 		host   => $host, 
@@ -2750,7 +2760,7 @@ sub shutdown_server
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
 		my $status =         $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host}   ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host} : "";
+		my $host   = defined $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} ? $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			status => $status,
 			host   => $host, 

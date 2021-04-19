@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+# 
+# This renames a server (and the DRBD resources and LVs below it). Given the nature of this program, it runs 
+# on the node directly, and SSH's into the peer(s) to update the DRBD config files and rename LVs. Normally,
+# this should run on Node 1. 
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Any problem that causes an early exit.
+# 
+# TODO: 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{'new-name'} = "";
+$anvil->data->{switches}{'old-name'} = "";
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::new-name' => $anvil->data->{switches}{'new-name'},
+	'switches::old-name' => $anvil->data->{switches}{'old-name'},
+	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
+}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# If we don't have a job UUID, try to find one.
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+}
+
+# If we still don't have a job-uuit, go into interactive mode.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->Job->clear();
+	$anvil->Job->get_job_details();
+	$anvil->Job->update_progress({
+		progress         => 1,
+		job_picked_up_by => $$, 
+		job_picked_up_at => time, 
+		message          => "message_0190", 
+	});
+	
+	# Job data will be in $anvil->data->{jobs}{job_data}
+	run_jobs($anvil);
+}
+else
+{
+	# Interactive!
+	interactive_question($anvil);
+}
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This actually provisions a VM.
+sub run_jobs
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}

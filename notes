@@ -943,4 +943,27 @@ OS10(config)# interface range ethernet 1/1/15-1/1/24
 OS10(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
 OS10(conf-range-eth1/1/15-1/1/24)# exit
 
+====================================
+-=] Rename a resource (ex: srv09-few-tcpremote1 -> srv09-fea-tcpremote1)
+1. pacemaker - 
+1.1 - Record current settings:
+	# pcs resource config srv09-few-tcpremote1
+	Resource: srv09-few-tcpremote1 (class=ocf provider=alteeve type=server)
+	Attributes: name=srv09-few-tcpremote1
+	Meta Attrs: allow-migrate=true target-role=Stopped
+	Operations: migrate_from interval=0s timeout=600 (srv09-few-tcpremote1-migrate_from-interval-0s)
+		migrate_to interval=0s timeout=86400 (srv09-few-tcpremote1-migrate_to-interval-0s)
+		monitor interval=60 (srv09-few-tcpremote1-monitor-interval-60)
+		notify interval=0s timeout=20 (srv09-few-tcpremote1-notify-interval-0s)
+		start interval=0s on-fail=block timeout=300 (srv09-few-tcpremote1-start-interval-0s)
+		stop interval=0s on-fail=block timeout=86400 (srv09-few-tcpremote1-stop-interval-0s)
+1.2 - Delete the resource
 
+
+====================================
+
+
+# Hosts added or updated by the Anvil! on: [2021/04/17 16:24:52]:
+10.201.10.2     Could not get property: Refusing activation, D-Bus is shutting down Could not get property: Refusing activation, D-Bus is shutting down. Could not get property: Refusing activation, D-Bus is shutting down.bcn1
+192.168.122.12  Could not get property: Refusing activation, D-Bus is shutting down.ifn1
+10.101.10.2     Could not get property: Refusing activation, D-Bus is shutting down.sn1

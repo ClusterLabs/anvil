@@ -23,6 +23,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-migrate-server \
 			  anvil-parse-fence-agents \
 			  anvil-provision-server \
+			  anvil-rename-server \
 			  anvil-safe-start \
 			  anvil-scan-network \
 			  anvil-shutdown-server \

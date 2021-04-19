@@ -1027,6 +1027,7 @@ sub _set_paths
 				'dnf.conf'			=>	"/etc/dnf/dnf.conf",
 				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
 				'global-common.conf'		=>	"/etc/drbd.d/global_common.conf",
+				hostname			=>	"/etc/hostname", 
 				hosts				=>	"/etc/hosts", 
 				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
@@ -1087,6 +1088,7 @@ sub _set_paths
 				units				=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
+				ocf_alteeve			=>	"/usr/lib/ocf/resource.d/alteeve/server",
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
 				'anvil-check-memory'		=>	"/usr/sbin/anvil-check-memory",
 				'anvil-configure-host'		=>	"/usr/sbin/anvil-configure-host",
