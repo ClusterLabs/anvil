@@ -1614,18 +1614,18 @@ sub migrate_server
 	while($waiting)
 	{
 		$anvil->Cluster->parse_cib({debug => $debug});
-		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
+		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			status => $status,
-			host   => $host, 
+			status    => $status,
+			host_name => $host_name, 
 		}});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0550", variables => { 
 			server         => $server,
 			requested_node => $node, 
 		}});
-		if (($host eq "running") && ($host eq $node))
+		if (($status eq "running") && ($host_name eq $node))
 		{
 			# It's done.
 			$waiting = 0;
