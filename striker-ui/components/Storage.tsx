@@ -17,7 +17,7 @@ const Storage = ({ uuid }: { uuid: string }): JSX.Element => {
     <Panel>
       <Grid container alignItems="center" justify="space-around">
         <Grid item xs={12}>
-          <HeaderText text="Storage" />
+          <HeaderText text="Storage Resync" />
         </Grid>
         <Grid item xs={5}>
           <BodyText
