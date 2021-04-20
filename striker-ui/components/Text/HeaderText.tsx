@@ -9,7 +9,7 @@ const WhiteTypography = withStyles({
 })(Typography);
 
 const HeaderText = ({ text }: { text: string }): JSX.Element => {
-  return <WhiteTypography variant="h5">{text}</WhiteTypography>;
+  return <WhiteTypography variant="h4">{text}</WhiteTypography>;
 };
 
 export default HeaderText;
