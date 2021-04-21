@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hpacucli_log_0001'.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent for HPE machines with RAID controllers managed by the 'hpacucli' tool.">
+		
+		<!-- Strings that can change by rebranding -->
+		<key name="scan_hpacucli_brand_0001">HP Enterprise RAID controller scan agent using the 'hpacucli' tool</key>
+		
+		<!-- Storcli Agent-specific messages -->
+		<key name="scan_hpacucli_message_0001">Starting #!string!scan_hpacucli_brand_0001!#:</key>
+		<key name="scan_hpacucli_message_0002">#!free!#</key>
+	
+		<!-- Warnings -->
+		<key name="scan_hpacucli_warning_0001">Diagnostics not available for the drive: [#!variable!serial_number!#] in port: [#!variable!port!#], box: [#!variable!box!#], bay: [#!variable!bay!#]. Unable to predict failures! Is this a third-party drive?</key>
+		<key name="scan_hpacucli_warning_0002">The RAID controller's properties have changed:
+- Model: ................. [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: ......... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Status: ................ [#!variable!old_status!#] -> [#!variable!new_status!#]
+- Status: ................ [#!variable!old_alarm_state!#] -> [#!variable!new_alarm_state!#]
+- Cache Present: ......... [#!variable!old_cache_present!#] -> [#!variable!new_cache_present!#]
+- Drive Write Cache: ..... [#!variable!old_drive_write_cache!#] -> [#!variable!new_drive_write_cache!#]
+- Firmware Version: ...... [#!variable!old_firmware_version!#] -> [#!variable!new_firmware_version!#]
+- Unsafe Write-Back Cache: [#!variable!old_unsafe_writeback_cache!#] -> [#!variable!new_unsafe_writeback_cache!#]
+		</key>
+		<key name="scan_hpacucli_warning_0003">The RAID controller has returned:
+- Model: ................. [#!variable!new_model!#]
+- Serial Number: ......... [#!variable!new_serial_number!#]
+- Status: ................ [#!variable!new_status!#]
+- Status: ................ [#!variable!new_alarm_state!#]
+- Cache Present: ......... [#!variable!new_cache_present!#]
+- Drive Write Cache: ..... [#!variable!new_drive_write_cache!#]
+- Firmware Version: ...... [#!variable!new_firmware_version!#]
+- Unsafe Write-Back Cache: [#!variable!new_unsafe_writeback_cache!#]
+		</key>
+		<key name="scan_hpacucli_warning_0004">The RAID controller's cache module has changed:
+- Serial Number: ......... [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+- Controller: ............ [#!variable!old_controller_serial_number!#] -> [#!variable!new_controller_serial_number!#]
+- Status: ................ [#!variable!old_status!#] -> [#!variable!new_status!#]
+- Type: .................. [#!variable!old_type!#] -> [#!variable!new_type!#]
+- Size: .................. [#!variable!say_old_size!#] -> [#!variable!say_new_size!#]
+		</key>
+		<key name="scan_hpacucli_warning_0005">The RAID controller's cache module has returned:
+- Serial Number: ......... [#!variable!new_serial_number!#]
+- Controller: ............ [#!variable!new_controller_serial_number!#]
+- Status: ................ [#!variable!new_status!#]
+- Type: .................. [#!variable!new_type!#]
+- Size: .................. [#!variable!say_new_size!#]
+		</key>
+		
+		<!-- Errors -->
+		<key name="scan_hpacucli_error_0001">The 'hpacucli' program was not found at: [#!variable!path!#], exiting.</key>
+		<key name="scan_hpacucli_error_0002">The 'hpacucli' program was found at: [#!variable!path!#], but it is not executable. exiting.</key>
+		<key name="scan_hpacucli_error_0003">No HPE-type RAID controllers were found, exiting.</key>
+		<key name="scan_hpacucli_error_0004">Failed to find the serial number for the adapter: [#!variable!adapter!#]. Please check the output of '#!data!path::hpacucli!# #!data!sys::arguments::controller_info!#' and look for the 'Serial Number = X' string. Exiting.</key>
+		<key name="scan_hpacucli_error_0005">The attempt to generate the XML diagnostics file: [#!variable!file!#] appears to have failed.</key>
+		<key name="scan_hpacucli_error_0006">Non-numeric value in a numeric variable; controller last diagnostics (unix time): [#!variable!last_diagnostics!#]. This is likely a program error.</key>
+		<key name="scan_hpacucli_error_0007">Non-numeric value in a numeric variable; cache module size: [#!variable!size!#]. This is likely a program error.</key>
+		<key name="scan_hpacucli_error_0008">Non-numeric value in a numeric variable; array unused space: [#!variable!unused_space!#]. This is likely a program error.</key>
+		<key name="scan_hpacucli_error_0009">Non-numeric value in a numeric variable; logical drive size: [#!variable!logical_drive_size!#], strip size: [#!variable!strip_size!#], or stripe size: [#!variable!stripe_size!#]. This is likely a program error.</key>
+		<key name="scan_hpacucli_error_0010">Non-numeric value in a numeric variable; drive size: [#!variable!size!#], RPM: [#!variable!rpm!#] or temperature: [#!variable!temperature!#]. This is likely a program error.</key>
+		<key name="scan_hpacucli_error_0011">Failed to find the serial number of the physical drive at the following location:
+- RAID Controller Serial Number: [#!variable!serial_number!#]
+- Array Name: .................. [#!variable!array_name!#]
+- Logical Drive Name: .......... [#!variable!logical_drive_name!#]
+- Port: ........................ [#!variable!port!#]
+- Box: ......................... [#!variable!box!#]
+- Bay: ......................... [#!variable!bay!#]
+		</key>
+		
+		<!-- Notices -->
+		<key name="scan_hpacucli_note_0001">A new HP RAID controller has been found.
+- Model Name: .............. [#!variable!model!#]
+- Serial Number: ........... [#!variable!serial_number!#]
+- Status: .................. [#!variable!status!#]
+- Drive Write Cache: ....... [#!variable!drive_write_cache!#]
+- Firmware: ................ [#!variable!firmware_version!#]
+- Write-Back on bad FBU/BBU: [#!variable!unsafe_writeback_cache!#]
+		</key>
+		<key name="scan_hpacucli_note_0002">A new cache module has been found.
+- Serial Number: [#!variable!serial_number!#]
+- Cache Size: .. [#!variable!cache_size!#]
+- Status: ...... [#!variable!status!#]
+- Type: ........ [#!variable!type!#]
+		</key>
+		<key name="scan_hpacucli_note_0003">Other detected variables (if any):</key>
+		<key name="scan_hpacucli_note_0004">- #!variable!name!#: [#!variable!value!#]</key>
+		<key name="scan_hpacucli_note_0005">
+The temperature sensor: [#!variable!sensor_name!#] on the controller: [#!variable!serial_number!#] is above the high critical temperature of: [#!variable!high_critical_temperature!#]!:
+- #!variable!name!#: [#!variable!value!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0006">
+The temperature sensor: [#!variable!sensor_name!#] on the controller: [#!variable!serial_number!#] is above the high warning temperature of: [#!variable!high_warning_temperature!#]. It will go critical at: [#!variable!high_critical_temperature!#]!:
+- #!variable!name!#: [#!variable!value!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0007">
+The temperature sensor: [#!variable!sensor_name!#] on the controller: [#!variable!serial_number!#] is below the low critical temperature of: [#!variable!low_critical_temperature!#]!:
+- #!variable!name!#: [#!variable!value!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0008">
+The temperature sensor: [#!variable!sensor_name!#] on the controller: [#!variable!serial_number!#] is below the low warning temperature of: [#!variable!low_warning_temperature!#]. It will go critical at: [#!variable!low_critical_temperature!#]!:
+- #!variable!name!#: [#!variable!value!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0009">- The variable: [#!variable!name!#] has changed:
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0010">- Controller: [#!variable!serial_number!#]: '#!variable!name!#' has returned: [#!variable!new_value!#]</key>
+		<key name="scan_hpacucli_note_0011">- Controller: [#!variable!serial_number!#]: Temperature sensor: '#!variable!name!#' is no longer critically hot.
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0012">- Controller: [#!variable!serial_number!#]: Temperature sensor: '#!variable!name!#' is no longer hot enough to be in a warning state.
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0013">- Controller: [#!variable!serial_number!#]: Temperature sensor: '#!variable!name!#' is no longer critically cold.
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0014">- Controller: [#!variable!serial_number!#]: Temperature sensor: '#!variable!name!#' is no longer cold enough to be in a warning state.
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0015">- Controller: [#!variable!serial_number!#]: Temperature sensor: '#!variable!name!#' has jumped: [#!variable!delta!#] since the last scan.
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0016">- Controller: [#!variable!serial_number!#]: Temperature sensor: '#!variable!name!#' has dropped: [#!variable!delta!#] since the last scan.
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0017">The HP RAID controller: [#!variable!model!#] with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0018">The HP RAID cache module with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0019">The temperature sensor: [#!variable!name!#] on the HP RAID controller with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0020">The sensor: [#!variable!name!#] on the HP RAID controller with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0021">A new array has been found: [#!variable!name!#]. It is a: [#!variable!type!#] array and it's status is: [#!variable!status!#]!</key>
+		<key name="scan_hpacucli_note_0022">A new array has been found: [#!variable!name!#] and it appears to have a problem. It is a: [#!variable!type!#] array and it's status is: [#!variable!status!#]. The error message is: [#!variable!error!#]!</key>
+		<key name="scan_hpacucli_note_0023">The status of the HP RAID array: [#!variable!name!#] has changed:
+- [#!variable!old_status!#] -> [#!variable!new_status!#]
+		</key>
+		<key name="scan_hpacucli_note_0024">The HP RAID array: [#!variable!name!#] has changed is back to a healthy state.</key>
+		<key name="scan_hpacucli_note_0025">The HP RAID array: [#!variable!name!#] has moved to a new controller.
+- [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+		</key>
+		<key name="scan_hpacucli_note_0026">The error message for the HP RAID array: [#!variable!name!#] has changed:
+- [#!variable!old_error_message!#] -> [#!variable!new_error_message!#]
+		</key>
+		<key name="scan_hpacucli_note_0027">The HP RAID array: [#!variable!name!#] has cleared the old error message: [#!variable!old_error_message!#]</key>
+		<key name="scan_hpacucli_note_0028">The HP RAID array: [#!variable!name!#] has an error message: [#!variable!new_error_message!#]</key>
+		<key name="scan_hpacucli_note_0029">The error message for the HP RAID array: [#!variable!name!#] has changed:
+- [#!variable!old_error_message!#] -> [#!variable!new_error_message!#]
+		</key>
+		<key name="scan_hpacucli_note_0030">The HP RAID array: [#!variable!name!#] type has changed:
+- [#!variable!old_type!#] -> [#!variable!new_type!#]
+		</key>
+		<key name="scan_hpacucli_note_0031">The HP RAID array: [#!variable!name!#] on the controller: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0032">The HP RAID array: [#!variable!name!#] on the controller: [#!variable!serial_number!#] has returned.</key>
+		<key name="scan_hpacucli_note_0033">The HP RAID array: [#!variable!name!#] has a new logical drive: [#!variable!logical_drive!#]:
+- Status: .............. [#!variable!new_status!#]
+- Write-Back Caching: .. [#!variable!new_caching!#]
+- Device Name in the OS: [#!variable!new_os_device_name!#]
+- Drive Type: .......... [#!variable!new_type!#]
+- RAID Level: .......... [#!variable!new_raid_level!#]
+- Logical Drive Size: .. [#!variable!new_size!#]
+- Strip Size: .......... [#!variable!new_strip_size!#]
+- Stripe Size: ......... [#!variable!new_stripe_size!#]
+		</key>
+		<key name="scan_hpacucli_note_0034">The write-back caching on the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has changed!
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0035">The write-back caching has been re-enabled on the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#].</key>
+		<key name="scan_hpacucli_note_0036">The write-back caching has been disabled on the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#].
+WARNING: Storage performance can be significantly impacted when write-back caching has been disabled! This can be caused by a failed battery or capacitor on the RAID controller.
+		</key>
+		<key name="scan_hpacucli_note_0037">The status on the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has changed!
+- [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0038">The HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] is back to normal.</key>
+		<key name="scan_hpacucli_note_0039">The HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] is has begun recovering.
+NOTE: The array is still degraded, and will remain so until the rebuild process is complete. How long this rebuild will take is a factor of the replacement drive's speed and size.
+		</key>
+		<key name="scan_hpacucli_note_0040">The rebuild of the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] is now at: [#!variable!recovered!# %].</key>
+		<key name="scan_hpacucli_note_0041">The HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] is degraded!
+WARNING: This is generally caused by a drive failing or having been removed. Please replace the drive as soon as possible.
+		</key>
+		<key name="scan_hpacucli_note_0042">The HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has changed!
+- Drive Name in OS: [#!variable!old_os_drive_name!#] -> [#!variable!new_os_drive_name!#]
+- Drive Type: ..... [#!variable!old_type!#] -> [#!variable!new_type!#]
+- RAID Level: ..... [#!variable!old_raid_level!#] -> [#!variable!new_raid_level!#]
+- Drive Size: ..... [#!variable!old_size!#] -> [#!variable!new_size!#]
+- Strip Size: ..... [#!variable!old_strip_size!#] -> [#!variable!new_strip_size!#]
+- Stripe Size: .... [#!variable!old_stripe_size!#] -> [#!variable!new_stripe_size!#]
+		</key>
+		<key name="scan_hpacucli_note_0043">A variable on the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has changed!
+- #!variable!variable_name!#: [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0044">The HP RAID logical drive: [#!variable!logical_drive!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0045">The HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has returned!</key>
+		<key name="scan_hpacucli_note_0046">A new physical disk was found on the HP RAID controller: [#!variable!controller_serial_number!#]:
+- Serial Number: ..... [#!variable!drive_serial_number!#]
+- Model: ............. [#!variable!model!#]
+- Size: .............. [#!variable!size!#]
+- Status: ............ [#!variable!status!#]
+- Temperature: ....... [#!variable!temperature!#]
+- Interface: ......... [#!variable!interface!#]
+- Location: .......... [#!variable!port!#:#!variable!box!#:#!variable!bay!#] (Port:Box:Bay)
+- Type: .............. [#!variable!rpm!#]
+- Array: ............. [#!variable!array_name!#]
+- Logical Drive: ..... [#!variable!logical_drive_name!#]
+- Last Failure Reason: [#!variable!last_failure_reason!#]
+		</key>
+		<key name="scan_hpacucli_note_0047">The physical disk: [#!variable!drive_serial_number!#] has moved to a new logical disk.
+- Host: ........................ [#!variable!old_host_name!#] -> [#!variable!new_host_name!#]
+- RAID Controller Serial Number: [#!variable!old_controller_serial_number!#] -> [#!variable!new_controller_serial_number!#]
+- Array Name: .................. [#!variable!old_array_name!#] -> [#!variable!new_array_name!#]
+- Logical Drive Name: .......... [#!variable!old_logical_drive_name!#] -> [#!variable!new_logical_drive_name!#]
+		</key>
+		<key name="scan_hpacucli_note_0048">The status of the physical disk [#!variable!serial_number!#] has changed! [#!variable!old_status!#] -> [#!variable!new_status!#]</key>
+		<key name="scan_hpacucli_note_0049">The physical disk: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0050">The physical disk: [#!variable!serial_number!#] has returned.</key>
+		<key name="scan_hpacucli_note_0051">The physical disk: [#!variable!serial_number!#] is back to normal.</key>
+		<key name="scan_hpacucli_note_0052">The physical disk: [#!variable!serial_number!#] has changed in an unusual way:
+- Model: ............. [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Interface: ......... [#!variable!old_interface!#] -> [#!variable!new_interface!#]
+- Size: .............. [#!variable!old_size!#] -> [#!variable!new_size!#]
+- RPM: ............... [#!variable!old_rpm!#] -> [#!variable!new_rpm!#]
+- Last Failure Reason: [#!variable!old_last_failure_reason!#] -> [#!variable!new_last_failure_reason!#]
+- Location: .......... [#!variable!old_port!#:#!variable!old_box!#:#!variable!old_bay!#] -> [#!variable!new_port!#:#!variable!new_box!#:#!variable!new_bay!#] (Port:Box:Bay)
+		</key>
+		<key name="scan_hpacucli_note_0053">The temperature of the physical disk [#!variable!serial_number!#] has changed: [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]</key>
+		<key name="scan_hpacucli_note_0054">The temperature of the physical disk: [#!variable!serial_number!#] is no longer critically hot.
+- [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]
+		</key>
+		<key name="scan_hpacucli_note_0055">The temperature of the physical disk: [#!variable!serial_number!#] is no longer hot enough to be in a warning state.
+- [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]
+		</key>
+		<key name="scan_hpacucli_note_0056">The temperature of the physical disk: [#!variable!serial_number!#] is no longer critically cold.
+- [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]
+		</key>
+		<key name="scan_hpacucli_note_0057">The temperature of the physical disk: [#!variable!serial_number!#] is no longer cold enough to be in a warning state.
+- [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]
+		</key>
+		<key name="scan_hpacucli_note_0058">The temperature of the physical disk: [#!variable!serial_number!#] has jumped: [#!variable!delta!#] since the last scan.
+- [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]
+		</key>
+		<key name="scan_hpacucli_note_0059">The temperature of the physical disk: [#!variable!serial_number!#] has dropped: [#!variable!delta!#] since the last scan.
+- [#!variable!old_temperature!#] -> [#!variable!new_temperature!#]
+		</key>
+		<key name="scan_hpacucli_note_0060">
+The temperature of the physical drive: [#!variable!serial_number!#] is above the high critical temperature of: [#!variable!high_critical_temperature!#]!:
+- Current temperature: [#!variable!new_temperature!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough temperature sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0061">
+The temperature of the physical drive: [#!variable!serial_number!#] is above the high warning temperature of: [#!variable!high_warning_temperature!#]. It will go critical at: [#!variable!high_critical_temperature!#]!:
+- Current temperature: [#!variable!new_temperature!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough temperature sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0062">
+The temperature of the physical drive: [#!variable!serial_number!#] is below the low critical temperature of: [#!variable!low_critical_temperature!#]!:
+- Current temperature: [#!variable!new_temperature!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0063">
+The temperature of the physical drive: [#!variable!serial_number!#] is below the low warning temperature of: [#!variable!low_warning_temperature!#]. It will go critical at: [#!variable!low_critical_temperature!#]!:
+- Current temperature: [#!variable!new_temperature!#]
+NOTE:    If the other node is cooler, automatic live migration of hosted servers (if any) will occur soon.
+NOTE:    If enough sensors go into warning or critical on both nodes, load shedding will occur to slow room heating.
+WARNING: If enough sensors go critical, emergency power off will occure to protect the node from damage.
+		</key>
+		<key name="scan_hpacucli_note_0064">The new physical disk with the serial number: [#!variable!drive_serial_number!#] is not healthy!</key>
+		<key name="scan_hpacucli_note_0065">A variable on the physical drive: [#!variable!serial_number!#] has changed:
+- #!variable!variable_name!#: [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0066">A variable on the logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has changed:
+- #!variable!variable_name!#: [#!variable!old_value!#] -> [#!variable!new_value!#]
+		</key>
+		<key name="scan_hpacucli_note_0067">The variable: [#!variable!name!#] on the physical drive with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0068">The diagnostics variable: [#!variable!name!#] on the physical drive with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		
+		<!-- Log strings -->
+		<key name="scan_hpacucli_log_0001">Found: [#!variable!count!#] controller(s).</key>
+		<key name="scan_hpacucli_log_0002">The thermal sensor named: [#!variable!sensor_name!#], on: [#!variable!sensor_host!#] has not changed.</key>
+		<key name="scan_hpacucli_log_0003">Running: [#!variable!shell_call!#] to gather drive diagnostics. This will take up to fifteen seconds to run.</key>
+		
+	</language>
+</words>

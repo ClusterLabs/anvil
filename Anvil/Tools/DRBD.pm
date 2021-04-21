@@ -563,7 +563,7 @@ sub gather_data
 					my $this_host_name = $host->{name};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
 					
-					next if (($this_host_name ne $anvil->Get->host_name) && ($this_host_name ne $anvil->Get->short_host_name));
+					# Record the details under the hosts
 					foreach my $volume_vnr ($host->findnodes('./volume'))
 					{
 						my $volume    = $volume_vnr->{vnr};
@@ -573,15 +573,29 @@ sub gather_data
 							's2:meta_disk' => $meta_disk, 
 						}});
 						
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
-						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}         = 0;
+						$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
+						$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
+						$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
+						$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{size}         = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"s1:new::resource::${resource}::volume::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path},
-							"s2:new::resource::${resource}::volume::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk},
-							"s3:new::resource::${resource}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor},
+							"s1:new::resource::${resource}::host::${this_host_name}::volume::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path},
+							"s2:new::resource::${resource}::host::${this_host_name}::volume::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk},
+							"s3:new::resource::${resource}::host::${this_host_name}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor},
 						}});
+						
+						# Record the local data only.
+						if (($this_host_name ne $anvil->Get->host_name) && ($this_host_name ne $anvil->Get->short_host_name))
+						{
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
+							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{size}         = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"s1:new::resource::${resource}::volume::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path},
+								"s2:new::resource::${resource}::volume::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk},
+								"s3:new::resource::${resource}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_minor},
+							}});
+						}
 					}
 				}
 				
@@ -1383,14 +1397,8 @@ sub get_status
 	my $host       = $anvil->Get->short_host_name();
 	if ($anvil->Network->is_local({host => $target}))
 	{
-		# Clear the hash where we'll store the data.
-		if (exists $anvil->data->{drbd}{status}{$host})
-		{
-			delete $anvil->data->{drbd}{status}{$host};
-		}
-		
 		# Local.
-		($output, $anvil->data->{drbd}{status}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		($output, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output                               => $output,
 			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
@@ -1398,14 +1406,8 @@ sub get_status
 	}
 	else
 	{
-		# Clear the hash where we'll store the data.
-		$host = $target;
-		if (exists $anvil->data->{drbd}{status}{$host})
-		{
-			delete $anvil->data->{drbd}{status}{$host};
-		}
-		
 		# Remote call.
+		$host = $target;
 		($output, my $error, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
@@ -1421,6 +1423,7 @@ sub get_status
 		}});
 	}
 	
+	# Clear the hash where we'll store the data.
 	if (exists $anvil->data->{drbd}{status}{$host})
 	{
 		delete $anvil->data->{drbd}{status}{$host};
@@ -1655,6 +1658,8 @@ sub manage_resource
 		return(1);
 	}
 	
+	### TODO: When taking down a resource, check to see if any machine is SyncTarget and take it/them 
+	###       down first. See anvil-rename-server -> verify_server_is_off() for the logic.
 	### TODO: Sanity check the resource name and task requested.
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";

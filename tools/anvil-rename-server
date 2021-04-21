@@ -14,7 +14,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
-require POSIX;
+use Data::Dumper;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -30,15 +30,17 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->data->{switches}{'new-name'} = "";
-$anvil->data->{switches}{'old-name'} = "";
+$anvil->data->{switches}{'job-uuid'}    = "";
+$anvil->data->{switches}{'new-name'}    = "";
+$anvil->data->{switches}{'server'}      = "";
+$anvil->data->{switches}{'server-uuid'} = "";
 $anvil->Get->switches;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::new-name' => $anvil->data->{switches}{'new-name'},
-	'switches::old-name' => $anvil->data->{switches}{'old-name'},
-	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
+	'switches::job-uuid'    => $anvil->data->{switches}{'job-uuid'},
+	'switches::new-name'    => $anvil->data->{switches}{'new-name'},
+	'switches::server'      => $anvil->data->{switches}{'server'},
+	'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'},
 }});
 
 $anvil->Database->connect();
@@ -70,18 +72,142 @@ if ($anvil->data->{switches}{'job-uuid'})
 		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0190", 
+		message          => "message_0234", 
 	});
 	
-	# Job data will be in $anvil->data->{jobs}{job_data}
-	run_jobs($anvil);
-}
-else
-{
-	# Interactive!
-	interactive_question($anvil);
+	# Pull out the job data.
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		if ($line =~ /server=(.*?)$/)
+		{
+			$anvil->data->{switches}{'server'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'switches::server' => $anvil->data->{switches}{'server'},
+			}});
+		}
+		if ($line =~ /server-uuid=(.*?)$/)
+		{
+			$anvil->data->{switches}{'server-uuid'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'},
+			}});
+		}
+		if ($line =~ /new-name=(.*?)$/)
+		{
+			$anvil->data->{switches}{'new-name'} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'switches::new-name' => $anvil->data->{switches}{'new-name'},
+			}});
+		}
+	}
 }
 
+# Make sure we're in an Anvil!
+$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
+if (not $anvil->data->{sys}{anvil_uuid})
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0260"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Now check that we have a server. If it's a server_uuid, read the server name.
+$anvil->Database->get_servers();
+if ($anvil->data->{switches}{'server-uuid'})
+{
+	# Convert the server_uuid to a server_name.
+	my $server_uuid = $anvil->data->{switches}{'server-uuid'};
+	if (not exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+	{
+		# Invalid server UUID. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0269", variables => {
+			server_uuid => $anvil->data->{switches}{'server-uuid'}, 
+		}});
+		$anvil->Job->update_progress({progress => 100, message => "error_0269,!!server_uuid!".$anvil->data->{switches}{'server-uuid'}."!!"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->data->{switches}{'server'} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::server' => $anvil->data->{switches}{'server'},
+	}});
+}
+
+# Do we have a server name?
+if (not $anvil->data->{switches}{'server'})
+{
+	# Unable to proceed.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0276"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0276"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Do we have a new server name?
+if (not $anvil->data->{switches}{'new-name'})
+{
+	# Unable to proceed.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0279"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0279"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Make sure there are no spaces in the name
+$anvil->data->{switches}{'new-name'} =~ s/^\s+//;
+$anvil->data->{switches}{'new-name'} =~ s/\s$//;
+if ($anvil->data->{switches}{'new-name'} =~ /\s/)
+{
+	# Bad new server name
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0280", variables => {
+		new_name => $anvil->data->{switches}{'new-name'}, 
+	}});
+	$anvil->Job->update_progress({progress => 100, message => "error_0280,!!new_name!".$anvil->data->{switches}{'new-name'}."!!"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# We're going to need a server UUID. If we don't have it, find it from the current name.
+if (not $anvil->data->{switches}{'server-uuid'})
+{
+	# Convert the server name to a server_uuid.
+	my $anvil_uuid  = $anvil->data->{sys}{anvil_uuid};
+	my $server_name = $anvil->data->{switches}{'server'};
+	if (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name})
+	{
+		# Invalid server UUID. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0277", variables => { server => $server_name }});
+		$anvil->Job->update_progress({progress => 100, message => "error_0277,!!server!".$server_name."!!"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->data->{switches}{'server-uuid'} = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'},
+	}});
+}
+
+# Are we a node?
+$anvil->data->{sys}{host_type} = $anvil->Get->host_type();
+if ($anvil->data->{sys}{host_type} ne "node")
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0264"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0264"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# This is copied from anvil-boot-server, but it works here as well. We can't use 'pcs' without pacemaker 
+# being up.
+wait_for_pacemaker($anvil);
+
+# Now we're ready.
+gather_server_data($anvil);
+
+# Verify that the server is off everywhere.
+verify_server_is_off($anvil);
+
+# Now start renaming things.
+#rename_server($anvil);
+
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
+$anvil->Job->update_progress({progress => 100, message => "job_0281"});
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -90,12 +216,408 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-# This actually provisions a VM.
-sub run_jobs
+# This does the actual rename. It removes the resource from the cluster, makes sure the DRBD resource is down
+# on all machines, renames the XML definition file
+
+# Calls virsh locally and on peer(s) to ensure that the server is not running. 
+sub verify_server_is_off
 {
 	my ($anvil) = @_;
 	
+	# Is the server running from pacemaker's perspective?
+	my $waiting         = 1;
+	my $old_server_name = $anvil->data->{switches}{'server'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_server_name => $old_server_name }});
+	while ($waiting)
+	{
+		$waiting = 0;
+		$anvil->Cluster->parse_cib({debug => 2});
+		if (not exists $anvil->data->{cib}{parsed}{data}{server}{$old_server_name})
+		{
+			# Server wasn't found in the cluster config. Wat?!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0281"});
+			$anvil->Job->update_progress({progress => 100, message => "error_0281"});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$old_server_name}{status};
+		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$old_server_name}{host_name};
+		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$old_server_name}{role};
+		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$old_server_name}{active};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:old_server_name' => $old_server_name,
+			's2:status'          => $status,
+			's2:host_name'       => $host_name,
+			's4:role'            => $role,
+			's5:active'          => $active, 
+		}});
+		
+		if ($status ne "off")
+		{
+			$waiting = 1;
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0299", variables => { 
+				server => $old_server_name,
+				status => $status,
+			}});
+			$anvil->Job->update_progress({progress => 22, message => "job_0299,!!server!".$old_server_name."!!,!!status!".$status."!!"});
+			sleep 10;
+		}
+	}
 	
+	# Now check virsh.
+	$waiting = 1;
+	while ($waiting)
+	{
+		$waiting = 0;
+		$anvil->Server->find({refresh => 1});
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{rename_server}{host}})
+		{
+			next if $anvil->data->{rename_server}{host}{$host_name}{is_peer};
+			my $peers_ip = $anvil->data->{rename_server}{host}{$host_name}{use_ip};
+			my $password = $anvil->data->{rename_server}{host}{$host_name}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peers_ip => $peers_ip,
+				password => $anvil->Log->is_secure($password), 
+			}});
+			$anvil->Server->find({
+				refresh  => 0,
+				target   => $peers_ip,
+				password => $password, 
+			});
+		}
+		if ((exists $anvil->data->{server}{location}{$old_server_name}) && ($anvil->data->{server}{location}{$old_server_name}{status} ne "shut off"))
+		{
+			my $status = $anvil->data->{server}{location}{$old_server_name}{status};
+			my $host   = $anvil->data->{server}{location}{$old_server_name}{host_name};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0299", variables => { 
+				server => $old_server_name,
+				status => $status,
+				host   => $host,
+			}});
+			$anvil->Job->update_progress({progress => 26, message => "job_0299,!!server!".$old_server_name."!!,!!status!".$status."!!,!!host!".$host."!!"});
+			sleep 10;
+		}
+	}
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0300", variables => { server => $old_server_name }});
+	$anvil->Job->update_progress({progress => 28, message => "job_0300,!!server!".$old_server_name."!!"});
+	
+	# Now make sure the DRBD resource is down on all machines.
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+	
+	# Wait until the resource is not sync'ing (if it is at all).
+	$waiting = 1;
+	while ($waiting)
+	{
+		# (Re)fresh my view of the storage.
+		$waiting = 0;
+		$anvil->DRBD->get_status({debug => 2});
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{rename_server}{host}})
+		{
+			next if not $anvil->data->{rename_server}{host}{$host_name}{is_peer};
+			my $peers_ip = $anvil->data->{rename_server}{host}{$host_name}{use_ip};
+			my $password = $anvil->data->{rename_server}{host}{$host_name}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peers_ip => $peers_ip,
+				password => $anvil->Log->is_secure($password), 
+			}});
+			$anvil->DRBD->get_status({
+				debug    => 2,
+				target   => $peers_ip,
+				password => $password,
+			});
+		}
+		
+		# Now check to see if anything is sync'ing.
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:old_server_name' => $old_server_name, 
+				's2:host_name'       => $host_name,
+			}});
+			next if not exists $anvil->data->{drbd}{status}{$host_name}{resource}{$old_server_name};
+			
+			foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$host_name}{resource}{$old_server_name}{connection}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_name => $peer_name }});
+				foreach my $volume (sort {$a cmp $b} %{$anvil->data->{drbd}{status}{$host_name}{resource}{$old_server_name}{connection}{$peer_name}{volume}})
+				{
+					next if not exists $anvil->data->{drbd}{status}{$host_name}{resource}{$old_server_name}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+					my $replication_state = $anvil->data->{drbd}{status}{$host_name}{resource}{$old_server_name}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						volume            => $volume,
+						replication_state => $replication_state, 
+					}});
+					
+					if ($replication_state =~ /Sync/i)
+					{
+						$waiting = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0301", variables => { 
+							source_host       => $host_name,
+							peer_host         => $peer_name,
+							resource          => $old_server_name,
+							volume            => $volume,
+							replication_state => $replication_state, 
+						}});
+						$anvil->Job->update_progress({progress => 30, message => "job_0301,!!source_host!".$host_name."!!,!!peer_host!".$peer_name."!!,!!resource!".$old_server_name."!!,!!volume!".$volume."!!,!!replication_state!".$replication_state."!!"});
+					}
+				}
+			}
+		}
+		if ($waiting)
+		{
+			sleep 10;
+		}
+	}
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0302"});
+	$anvil->Job->update_progress({progress => 33, message => "job_0302"});
+	
+	# Shut down the peers first
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{rename_server}{host}})
+	{
+		next if not $anvil->data->{rename_server}{host}{$host_name}{is_peer};
+		my $peers_ip = $anvil->data->{rename_server}{host}{$host_name}{use_ip};
+		my $password = $anvil->data->{rename_server}{host}{$host_name}{password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			peers_ip => $peers_ip,
+			password => $anvil->Log->is_secure($password), 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0303", variables => { 
+			peer     => $host_name, 
+			resource => $old_server_name, 
+			ip       => $peers_ip,
+		}});
+		$anvil->Job->update_progress({progress => 35, message => "job_0303,!!peer!".$host_name."!!,!!resource!".$old_server_name."!!,!!ip!".$peers_ip."!!"});
+		$anvil->DRBD->manage_resource({
+			debug    => 2,
+			resource => $old_server_name,
+			task     => "down",
+			target   => $peers_ip,
+			password => $password,
+		});
+	}
+	$anvil->DRBD->manage_resource({
+		debug    => 2,
+		resource => $old_server_name,
+		task     => "down",
+	});
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0304"});
+	$anvil->Job->update_progress({progress => 38, message => "job_0304"});
+	
+	return(0);
+}
+
+# This figures out the names of the definition and DRBD resource files, LV names and other details that will
+# be needed to rename the server. This will abort if anything seems wrong.
+sub gather_server_data
+{
+	my ($anvil) = @_;
+	
+	my $old_server_name = $anvil->data->{switches}{'server'};
+	my $new_server_name = $anvil->data->{switches}{'new-name'};
+	
+	$anvil->data->{rename_server}{old_definition_file}    = $anvil->data->{path}{directories}{shared}{definitions}."/".$old_server_name.".xml";
+	$anvil->data->{rename_server}{new_definition_file}    = $anvil->data->{path}{directories}{shared}{definitions}."/".$new_server_name.".xml";
+	$anvil->data->{rename_server}{old_drbd_resource_file} = $anvil->data->{path}{directories}{drbd_resources}."/".$old_server_name.".res";
+	$anvil->data->{rename_server}{new_drbd_resource_file} = $anvil->data->{path}{directories}{drbd_resources}."/".$new_server_name.".res";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"rename_server::old_definition_file"    => $anvil->data->{rename_server}{old_definition_file},
+		"rename_server::new_definition_file"    => $anvil->data->{rename_server}{new_definition_file}, 
+		"rename_server::old_drbd_resource_file" => $anvil->data->{rename_server}{old_drbd_resource_file}, 
+		"rename_server::new_drbd_resource_file" => $anvil->data->{rename_server}{new_drbd_resource_file}, 
+	}});
+	
+	# Parse the DRBD resource file to see if we have a DR target for this server.
+	$anvil->DRBD->gather_data({debug => 2});
+	$anvil->Database->get_hosts();
+	
+	# We'll store our name for finding matches later.
+	my $local_drbd_node_name = "";
+	
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$old_server_name}{host}})
+	{
+		my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => $host_name});
+		my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $peer      = $host_uuid eq $anvil->Get->host_uuid ? 0 : 1;
+		$anvil->data->{rename_server}{host}{$host_name}{host_uuid} = $host_uuid;
+		$anvil->data->{rename_server}{host}{$host_name}{host_type} = $host_type;
+		$anvil->data->{rename_server}{host}{$host_name}{is_peer}   = $peer;
+		$anvil->data->{rename_server}{host}{$host_name}{use_ip}    = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"rename_server::host::${host_name}::host_uuid" => $anvil->data->{rename_server}{host}{$host_name}{host_uuid}, 
+			"rename_server::host::${host_name}::host_type" => $anvil->data->{rename_server}{host}{$host_name}{host_type}, 
+			"rename_server::host::${host_name}::is_peer"   => $anvil->data->{rename_server}{host}{$host_name}{is_peer}, 
+		}});
+		
+		if (not $peer)
+		{
+			$local_drbd_node_name = $host_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_drbd_node_name => $local_drbd_node_name }});
+			$anvil->Network->load_ips({
+				host      => $local_drbd_node_name, 
+				host_uuid => $host_uuid, 
+			});
+		}
+		
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$old_server_name}{host}{$host_name}{volume}})
+		{
+			my $old_device_path  =  $anvil->data->{new}{resource}{$old_server_name}{host}{$host_name}{volume}{$volume}{device_path};
+			my $new_device_path  =  $old_device_path;
+			   $new_device_path  =~ s/$old_server_name/$new_server_name/g;
+			my $old_backing_disk =  $anvil->data->{new}{resource}{$old_server_name}{host}{$host_name}{volume}{$volume}{backing_disk};
+			my $new_backing_disk =  $old_backing_disk;
+			   $new_backing_disk =~ s/$old_server_name/$new_server_name/g;
+			$anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{old_device_path}  = $old_device_path;
+			$anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{new_device_path}  = $new_device_path;
+			$anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{old_backing_disk} = $old_backing_disk;
+			$anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{new_backing_disk} = $new_backing_disk;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"rename_server::host::${host_name}::volume::${volume}::old_device_path"  => $anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{old_device_path}, 
+				"rename_server::host::${host_name}::volume::${volume}::new_device_path"  => $anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{new_device_path}, 
+				"rename_server::host::${host_name}::volume::${volume}::old_backing_disk" => $anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{old_backing_disk}, 
+				"rename_server::host::${host_name}::volume::${volume}::new_backing_disk" => $anvil->data->{rename_server}{host}{$host_name}{volume}{$volume}{new_backing_disk}, 
+			}});
+		}
+	}
+	
+	# Make sure we can talk to peers.
+	my $waiting = 1;
+	while($waiting)
+	{
+		$waiting = 0;
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{rename_server}{host}})
+		{
+			next if not $anvil->data->{rename_server}{host}{$host_name}{is_peer};
+			my $host_uuid  = $anvil->data->{rename_server}{host}{$host_name}{host_uuid};
+			my $anvil_uuid = $anvil->data->{sys}{anvil_uuid};
+			my $password   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host_name  => $host_name, 
+				host_uuid  => $host_uuid, 
+				anvil_uuid => $anvil_uuid, 
+				password   => $anvil->Log->is_secure($password), 
+			}});
+			
+			$anvil->Network->load_ips({
+				host      => $host_name, 
+				host_uuid => $host_uuid, 
+			});
+			
+			my $peers_ip = "";
+			my ($match)  = $anvil->Network->find_matches({
+				debug  => 2,
+				first  => $local_drbd_node_name,
+				second => $host_name, 
+			});
+			
+			my $access = 0;
+			if ($match)
+			{
+				# Yup!
+				foreach my $interface (sort {$a cmp $b} keys %{$match->{$host_name}})
+				{
+					my $peers_ip = $match->{$host_name}{$interface}{ip};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_ip => $peers_ip }});
+					
+					$access = $anvil->Remote->test_access({
+						target   => $peers_ip,
+						password => $password,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+					if ($access)
+					{
+						$anvil->data->{rename_server}{host}{$host_name}{use_ip}   = $peers_ip;
+						$anvil->data->{rename_server}{host}{$host_name}{password} = $password;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"rename_server::host::${host_name}::use_ip" => $anvil->data->{rename_server}{host}{$host_name}{use_ip}, 
+						}});
+						last;
+					}
+				}
+			}
+			if (not $access)
+			{
+				# Unable to reach this peer, so we need to keep waiting.
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0297", variables => { host_name => $host_name }});
+				$anvil->Job->update_progress({progress => 18, message => "job_0297,!!host_name!".$host_name."!!"});
+			}
+		}
+		
+		if ($waiting)
+		{
+			sleep 10;
+		}
+	}
+	
+	# All peer(s) are ready!
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0298"});
+	$anvil->Job->update_progress({progress => 20, message => "job_0298"});
+	
+	return(0);
+}
+
+sub wait_for_pacemaker
+{
+	my ($anvil) = @_;
+
+	# We need to rename the server in the cluster, and we need both nodes up to do it. 
+	my $waiting = 1;
+	while($waiting)
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if (not $problem)
+		{
+			my $local_name   = $anvil->data->{cib}{parsed}{'local'}{name};
+			my $peer_name   = $anvil->data->{cib}{parsed}{peer}{name};
+			my $local_ready = $anvil->data->{cib}{parsed}{data}{node}{$local_name}{node_state}{ready};
+			my $peer_ready  = $anvil->data->{cib}{parsed}{data}{node}{$local_name}{node_state}{ready};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				local_name  => $local_name,
+				peer_name   => $peer_name, 
+				local_ready => $local_ready, 
+				peer_ready  => $peer_ready, 
+			}});
+			if (($local_ready) && ($peer_ready))
+			{
+				# We're good. 
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0295"});
+				$anvil->Job->update_progress({progress => 15, message => "job_0295"});
+			}
+			else
+			{
+				# One or both nods are not online yet.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0296", variables => {
+					local_name  => $local_name,
+					peer_name   => $peer_name, 
+					local_ready => $local_ready, 
+					peer_ready  => $peer_ready, 
+				}});
+				$anvil->Job->update_progress({progress => 10, message => "job_0296,!!local_name!".$local_name."!!,!!peer_name!".$peer_name."!!,!!local_ready!".$local_ready."!!,!!peer_ready!".$peer_ready."!!"});
+			}
+		}
+		else
+		{
+			# Cluster hasn't started.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0277"});
+			$anvil->Job->update_progress({progress => 5, message => "job_0277"});
+		}
+		if ($waiting)
+		{
+			sleep 10;
+		}
+	}
 	
 	return(0);
 }

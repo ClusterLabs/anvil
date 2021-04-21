@@ -45,6 +45,13 @@ dist_hardware_DATA		= \
 dist_hardware_SCRIPTS		= \
 				  scan-hardware/scan-hardware
 
+hpacuclidir			= ${targetdir}/scan-hpacucli
+dist_hpacucli_DATA		= \
+				  scan-hpacucli/scan-hpacucli.xml \
+				  scan-hpacucli/scan-hpacucli.sql
+dist_hpacucli_SCRIPTS		= \
+				  scan-hpacucli/scan-hpacucli
+
 ipmitooldir			= ${targetdir}/scan-ipmitool
 dist_ipmitool_DATA		= \
 				  scan-ipmitool/scan-ipmitool.sql \
