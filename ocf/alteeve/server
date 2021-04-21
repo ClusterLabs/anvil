@@ -734,7 +734,7 @@ sub stop_drbd_resource
 		peer    => $peer,
 	}});
 	
-	# Start DRBD locally. 
+	# Stop the DRBD resource. 
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
 		my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};

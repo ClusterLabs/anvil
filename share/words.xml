@@ -387,6 +387,12 @@ The attempt to start the servers appears to have failed. The return code '0' was
 #!variable!output!#
 ====
 		</key>
+		<key name="error_0276"><![CDATA[No server specified to rename. Please use '--server <name>' or '--server-uuid <UUID>.]]></key>
+		<key name="error_0277">Could not find the server: [#!variable!server!#] on this Anvil! in the database.</key>
+		<key name="error_0278">This host is not a node, unable to rename the server from here.</key>
+		<key name="error_0279"><![CDATA[The new name for the server was not given. Please use '--new-name <name>'. The new name can not contain spaces.]]></key>
+		<key name="error_0280"><![CDATA[The new name for the server: [#!variable!new_name!#] is not valid. The new name can not contain spaces.]]></key>
+		<key name="error_0281">The server wasn't found in the cluster configuration... Did a previous attempt to rename fail? Aborting.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -799,6 +805,16 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0292">The server: [#!variable!server!#] has been migrated to: [#!variable!target!#].</key>
 		<key name="job_0293">The server: [#!variable!server!#] will now be migrated to: [#!variable!target!#]. This could take some time! How much RAM is allocated to this server, the speed of the back-channel network and how busy the server is all contribute to migration time. Please be patient!</key>
 		<key name="job_0294">The server: [#!variable!server!#] has been asked to migrate. We are not waiting for it to complete.</key>
+		<key name="job_0295">The cluster is up and both nodes are ready.</key>
+		<key name="job_0296">The cluster is up and both one or both nodes are not yet ready. Will wait until both are up. Current states; [#!variable!local_name!#] is: [#!variable!local_ready!#], and [#!variable!peer_name!#] is: [#!variable!peer_ready!#].</key>
+		<key name="job_0297">The peer: [#!variable!host_name!#] can't be reached yet. Will wait for it to be available before proceeding with the rename.</key>
+		<key name="job_0298">The peer(s) of this server are accessible. Ready to proceed with the rename.</key>
+		<key name="job_0299">The server: [#!variable!server!#] status is: [#!variable!status!#]. Waiting for it to be off.</key>
+		<key name="job_0300">The server: [#!variable!server!#] is verified to be off everywhere.</key>
+		<key name="job_0301">The DRBD connection from: [#!variable!source_host!#] to: [#!variable!peer_host!#] for the resource/volume: [#!variable!resource!#/#!variable!volume!#] is: [#!variable!replication_state!#]. Will wait for the sync to finish before taking down the resource.</key>
+		<key name="job_0302">The DRBD resource behind the server is ready to be taken down.</key>
+		<key name="job_0303">Taking down the DRBD resource: [#!variable!resource!#] on the peer: [#!variable!peer!#] via the IP: [#!variable!ip!#].</key>
+		<key name="job_0304">The DRBD resource is down.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1836,6 +1852,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0231">The 'anvil-safe-start' tool is disabled, exiting. Use '--force' to run anyway.</key>
 		<key name="message_0232">The 'anvil-safe-start' tool is disabled, but '--force' was used, so proceeding.</key>
 		<key name="message_0233">It appears that another instance of 'anvil-safe-start' is already runing. Please wait for it to complete (or kill it manually if needed).</key>
+		<key name="message_0234">Preparing to rename a server.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
