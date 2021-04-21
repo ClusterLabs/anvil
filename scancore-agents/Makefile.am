@@ -49,7 +49,7 @@ hpacuclidir			= ${targetdir}/scan-hpacucli
 dist_hpacucli_DATA		= \
 				  scan-hardware/scan-hpacucli.xml \
 				  scan-hardware/scan-hpacucli.sql
-dist_hardware_SCRIPTS		= \
+dist_hpacucli_SCRIPTS		= \
 				  scan-hardware/scan-hpacucli
 
 ipmitooldir			= ${targetdir}/scan-ipmitool
