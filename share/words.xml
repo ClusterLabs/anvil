@@ -393,6 +393,14 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0279"><![CDATA[The new name for the server was not given. Please use '--new-name <name>'. The new name can not contain spaces.]]></key>
 		<key name="error_0280"><![CDATA[The new name for the server: [#!variable!new_name!#] is not valid. The new name can not contain spaces.]]></key>
 		<key name="error_0281">The server wasn't found in the cluster configuration... Did a previous attempt to rename fail? Aborting.</key>
+		<key name="error_0282">Failed to read the file: [#!variable!file!#] from the host: [#!variable!host!#].</key>
+		<key name="error_0283">Failed to rename the old LV: [#!variable!old_lv!#] to: [#!variable!new_lv!#] on the host: [#!variable!host_name!#]! Aborting.</key>
+		<key name="error_0284">Failed to delete the file: [#!variable!file!#]. The error, if any, was: [#!variable!error!#].</key>
+		<key name="error_0285">Failed to delete the file: [#!variable!file!#] on the host: [#!variable!target!#].</key>
+		<key name="error_0286">Failed to delete the file: [#!variable!file!#] on the host: [#!variable!target!#]. This might be a connection issue. The call's error was: [#!variable!error!#] output was: [#!variable!output!#].</key>
+		<key name="error_0287">Failed to write the file: [#!variable!file!#] on the host: [#!variable!target!#].</key>
+		<key name="error_0288">Failed to add the server: [#!variable!server_name!#] to the cluster. The return code from the pcs command was: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
+		<key name="error_0289">The server: [#!variable!server!#] already exists on this Anvil!. Please use a different new name.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -815,6 +823,13 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0302">The DRBD resource behind the server is ready to be taken down.</key>
 		<key name="job_0303">Taking down the DRBD resource: [#!variable!resource!#] on the peer: [#!variable!peer!#] via the IP: [#!variable!ip!#].</key>
 		<key name="job_0304">The DRBD resource is down.</key>
+		<key name="job_0305">On the host: [#!variable!host_name!#], we'll now rename the LV: [#!variable!old_lv!#] to: [#!variable!new_lv!#].</key>
+		<key name="job_0306">The new LV: [#!variable!new_lv!#] now exists on the host: [#!variable!host_name!#].</key>
+		<key name="job_0307">Successfully wrote the file: [#!variable!file!#] on the host: [#!variable!host_name!#].</key>
+		<key name="job_0308">Successfully added the new server name: [#!variable!server_name!#] to the cluster!</key>
+		<key name="job_0309">Verifying that the server name: [#!variable!server_name!#] is not defined.</key>
+		<key name="job_0310">Verifying that the server name: [#!variable!server_name!#] is not defined on: [#!variable!host_name!#].</key>
+		<key name="job_0311">Renamed the server name to: [#!variable!server_name!#] in the database.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1523,6 +1538,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
 		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the Anvil! [#!variable!anvil_name!#] yet. Registering it now as not sync'ed to this Anvil! system.</key>
 		<key name="log_0614">Asking 'anvil-boot-server' to boot the servers now.</key>
+		<key name="log_0615">We were asked to delete the file: [#!variable!file!#], but it doesn't exist, so nothing to do.</key>
+		<key name="log_0616">The file: [#!variable!file!#] has been successfully removed.</key>
+		<key name="log_0617">We were asked to delete the file: [#!variable!file!#] on the target: [#!variable!target!#], but it doesn't exist, so nothing to do.</key>
+		<key name="log_0618">Successfully deleted the file: [#!variable!file!#] on the target: [#!variable!target!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

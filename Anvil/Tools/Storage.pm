@@ -21,6 +21,7 @@ my $THIS_FILE = "Storage.pm";
 # change_owner
 # check_md5sums
 # copy_file
+# delete_file
 # find
 # get_file_stats
 # get_storage_group_details
@@ -1007,6 +1008,7 @@ fi
 	return(1);
 }
 
+
 =head2 copy_file
 
 This copies a file, with a few additional checks like creating the target directory if it doesn't exist, aborting if the file has already been backed up before, etc. It can copy files on the local or a remote machine.
@@ -1250,6 +1252,167 @@ fi";
 				error  => $error,
 				output => $output,
 			}});
+		}
+	}
+	
+	return(0);
+}
+
+
+=head3 delete_file
+
+This deletes a file. Pretty much what it says on the tin. When run locally, it uses C<< unlink >>. When run on a remote machine, it uses C<< rm -f >>. As such, this will not delete directories, nor will it delete recursively.
+
+ # Example
+ $anvil->Storage->delete_file({file => "/some/file"});
+
+On success, or if the file is already gone, C<< 0 >> is returned. On failure, C<< 1 >> is returned.
+
+Parameters;
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 file (required)
+
+This is the file to delete.
+
+=head3 target (optional)
+
+If set, the file will be copied on the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+=cut
+sub delete_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->delete_file()" }});
+	
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file        => $file, 
+		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target,
+	}});
+	
+	if (not $file)
+	{
+		# No source passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->delete_file()", parameter => "file" }});
+		return(1);
+	}
+	
+	
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Deleting locally
+		if (not -e $file)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0615", variables => { file => $file }});
+			return(0);
+		}
+		
+		unlink $file;
+		if (-e $file)
+		{
+			# Failed to delete.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0284", variables => { file => $file, error => $! }});
+			return(1);
+		}
+		else
+		{
+			# Success
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0616", variables => { file => $file }});
+		}
+	}
+	else
+	{
+		# Deleting on a remote system
+		my $proceed    = 1;
+		my $shell_call = "
+if [ -e '".$file."' ]; 
+then
+    rm -f ".$file.";
+    if [ -e '".$file."' ]; 
+    then
+        echo 'delete_failed'
+    else
+        echo 'deleted'
+    fi;
+else
+    echo 'not_found'
+fi
+";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { 
+			shell_call  => $shell_call, 
+			target      => $target, 
+			remote_user => $remote_user,
+		}});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			target      => $target,
+			port        => $port, 
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+			shell_call  => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($output eq "deleted")
+		{
+			# File existed and was deleted.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0618", variables => { 
+				file   => $file,
+				target => $target, 
+			}});
+		}
+		elsif ($output eq "not_found")
+		{
+			# File is already gone.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0617", variables => { 
+				file   => $file,
+				target => $target, 
+			}});
+		}
+		elsif ($output eq "delete_failed")
+		{
+			# Delete failed.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0285", variables => { 
+				file   => $file,
+				target => $target, 
+			}});
+			return(1);
+		}
+		else
+		{
+			# Huh? Lost connection?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0286", variables => { 
+				file   => $file,
+				target => $target, 
+				error  => $error,
+				output => $output,
+			}});
+			return(1);
 		}
 	}
 	
