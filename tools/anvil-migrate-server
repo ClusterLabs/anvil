@@ -30,7 +30,6 @@ my $anvil = Anvil::Tools->new();
 # passed directly, it will be used. Otherwise, the password will be read from the database.
 $anvil->data->{switches}{'job-uuid'}    = "";
 $anvil->data->{switches}{'no-wait'}     = "";	# We normall wait for each migation to finish. This skips that. With '--all', this causes all migrations to run in parallel
-$anvil->data->{switches}{'parallel'}    = ""; 
 $anvil->data->{switches}{'server'}      = "";
 $anvil->data->{switches}{'server-uuid'} = "";
 $anvil->data->{switches}{'target'}      = "";

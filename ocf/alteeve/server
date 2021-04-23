@@ -983,11 +983,11 @@ sub stop_server
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0582", variables => { server => $server }});
 	
 	# Read in an parse the server's XML.
-	$anvil->System->check_storage({debug => 3});
-	$anvil->Server->get_status({debug => 3, server => $server});
+	$anvil->System->check_storage();
+	$anvil->Server->get_status({server => $server});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0313", variables => { server => $server }});
-	my $success = $anvil->Server->shutdown_virsh({debug => 3, server => $server});
+	my $success = $anvil->Server->shutdown_virsh({server => $server});
 	if (not $success)
 	{
 		# Something went wrong. Details should be in the logs.
