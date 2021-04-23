@@ -834,10 +834,17 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0313">The cluster has stopped.</key>
 		<key name="job_0314">Stopping all DRBD resources.</key>
 		<key name="job_0315">The server: [#!variable!server_name!#] is migrating. Will check again shortly to see if it is done.</key>
-		<key name="job_0316">Asking the cluster to shut down the server: [#!variable!server_name!#] now.</key>
+		<key name="job_0316">Asking the cluster to shut down the server: [#!variable!server!#] now.</key>
 		<key name="job_0317">The server: [#!variable!server!#] has not shut down yet. Asking 'virsh' to shut it down. If the cluster stop woke it up, this should trigger a shutdown. If not, manual shutdown will be required.</key>
 		<key name="job_0318">The server: [#!variable!server!#] will now be migrated to: [#!variable!node!#]. This could take some time, depending on the amount of RAM allocated to the server, the speed of the BCN and the activity on the server. Please be patient!</key>
 		<key name="job_0319">No servers are running on this node now.</key>
+		<key name="job_0320">Will now shut down any servers running on the cluster.</key>
+		<key name="job_0321">Will now migrate any servers running on the cluster.</key>
+		<key name="job_0322">Checking to see if we're "SyncSource" for any peer's replicated storage.</key>
+		<key name="job_0323">Withdrawing this node from the cluster now.</key>
+		<key name="job_0324">Waiting for the node to finish withdrawing from the cluster.</key>
+		<key name="job_0325">Shutdown complete, powering off now.</key>
+		<key name="job_0326">Done. This node is no longer in the cluster.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

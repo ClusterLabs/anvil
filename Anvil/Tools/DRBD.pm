@@ -1661,6 +1661,41 @@ sub manage_resource
 	### TODO: When taking down a resource, check to see if any machine is SyncTarget and take it/them 
 	###       down first. See anvil-rename-server -> verify_server_is_off() for the logic.
 	### TODO: Sanity check the resource name and task requested.
+	### NOTE: For an unknown reason, sometimes a resource is left with allow-two-primary enabled. This
+	###       can block startup, so to be safe, during start, we'll call adjust
+	if ($task eq "up")
+	{
+		my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
+		my $output      = "";
+		my $return_code = 255; 
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			# Local.
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+		else
+		{
+			# Remote call.
+			($output, my $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error       => $error,
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+	}
+	
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";
 	my $return_code = 255; 

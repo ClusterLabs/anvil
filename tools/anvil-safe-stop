@@ -38,7 +38,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	'switches::stop-servers' => $anvil->data->{switches}{'stop-servers'},
 }});
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -50,7 +50,7 @@ if (($< != 0) && ($> != 0))
 }
 
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
@@ -123,24 +123,117 @@ process_servers($anvil);
 # This waits on DRBD if we're SyncSource
 wait_on_drbd($anvil);
 
-
-exit(0);
-
-# This stops pacemaker, migrating or shutting down servers before hand. It will also shut 
+# This stops pacemaker
 stop_cluster($anvil);
 
+# Are we powering off?
+if ($anvil->data->{switches}{'power-off'})
+{
+	# Yup
+	$anvil->Database->update_host_status({
+		debug       => 2,
+		host_uuid   => $anvil->Get->host_uuid,
+		host_status => "stopping",
+	});
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0325"});
+	$anvil->Job->update_progress({progress => 100, message => "job_0325"});
+	
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." poweroff";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	
+	# Unlikely we're still alive, but 'poweroff' does return once enqueued, so...
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
+}
+else
+{
+	# We're not shutting down, so we're done
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0326"});
+	$anvil->Job->update_progress({progress => 100, message => "job_0326"});
+}
 
 $anvil->nice_exit({exit_code => 0});
+
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This takes down or migrates VMs, then withdraws from the cluster.
+sub stop_cluster
+{
+	my ($anvil) = @_;
+	
+	# We need to rename the server in the cluster, and we need both nodes up to do it. 
+	my $pacemaker_stopped = 0;
+	my $waiting           = 1;
+	while($waiting)
+	{
+		   $waiting = 0;
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Cluster has stopped.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0324"});
+			$anvil->Job->update_progress({progress => 5, message => "job_0324"});
+		}
+		else
+		{
+			$waiting = 1;
+			if (not $pacemaker_stopped)
+			{
+				# Stop pacemaker now.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0323"});
+				$anvil->Job->update_progress({progress => 70, message => "job_0323"});
+				
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster stop";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code,
+				}});
+				
+				$pacemaker_stopped = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pacemaker_stopped => $pacemaker_stopped }});
+			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0313"});
+				$anvil->Job->update_progress({progress => 80, message => "job_0313"});
+			}
+		}
+		if ($waiting)
+		{
+			sleep 5;
+		}
+	}
+	
+	return(0);
+}
 
 # This will migrate or stop 
 sub process_servers
 {
 	my ($anvil) = @_;
 	
+	if ($anvil->data->{switches}{'stop-servers'})
+	{
+		# Tell the user we're about to shut down servers.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0320"});
+		$anvil->Job->update_progress({progress => 10, message => "job_0320"});
+	}
+	else
+	{
+		# Tell the user we're about to migrate servers.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0321"});
+		$anvil->Job->update_progress({progress => 10, message => "job_0321"});
+	}
 	my $waiting = 1;
 	while ($waiting)
 	{
@@ -152,7 +245,7 @@ sub process_servers
 		{
 			# Nope.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0313"});
-			$anvil->Job->update_progress({progress => 90, message => "job_0313"});
+			$anvil->Job->update_progress({progress => 80, message => "job_0313"});
 		}
 		else
 		{
@@ -172,6 +265,7 @@ sub process_servers
 					's4:role'      => $role,
 					's5:active'    => $active, 
 				}});
+				next if lc($role) eq "stopped";
 				
 				if (lc($role) eq "migrating")
 				{
@@ -180,7 +274,7 @@ sub process_servers
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0315", variables => { server => $server }});
-					$anvil->Job->update_progress({progress => 30, message => "job_0315,!!server!".$server."!!"});
+					$anvil->Job->update_progress({progress => 20, message => "job_0315,!!server!".$server."!!"});
 				}
 				elsif ($host_name eq $local_name)
 				{
@@ -198,7 +292,7 @@ sub process_servers
 						{
 							# Use PCS.
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0316", variables => { server => $server }});
-							$anvil->Job->update_progress({progress => 30, message => "job_0316,!!server!".$server."!!"});
+							$anvil->Job->update_progress({progress => 20, message => "job_0316,!!server!".$server."!!"});
 							$anvil->Cluster->shutdown_server({
 								debug  => 2,
 								server => $server,
@@ -217,7 +311,7 @@ sub process_servers
 						{
 							# Use virsh
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0317", variables => { server => $server }});
-							$anvil->Job->update_progress({progress => 30, message => "job_0317,!!server!".$server."!!"});
+							$anvil->Job->update_progress({progress => 20, message => "job_0317,!!server!".$server."!!"});
 							$anvil->Cluster->shutdown_server({
 								debug  => 2,
 								server => $server,
@@ -239,7 +333,7 @@ sub process_servers
 							server => $server,
 							node   => $peer_name,
 						}});
-						$anvil->Job->update_progress({progress => 30, message => "job_0318,!!server!".$server."!!,!!node!".$peer_name."!!"});
+						$anvil->Job->update_progress({progress => 20, message => "job_0318,!!server!".$server."!!,!!node!".$peer_name."!!"});
 						$anvil->Cluster->migrate_server({
 							server => $server,
 							node   => $peer_name, 
@@ -257,65 +351,6 @@ sub process_servers
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0319"});
 	$anvil->Job->update_progress({progress => 30, message => "job_0319"});
-	exit(0);
-	
-	return(0);
-}
-
-# This takes down or migrates VMs, then withdraws from the cluster.
-sub stop_cluster
-{
-	my ($anvil) = @_;
-
-	# We need to rename the server in the cluster, and we need both nodes up to do it. 
-	my $waiting = 1;
-	while($waiting)
-	{
-		my $problem = $anvil->Cluster->parse_cib({debug => 2});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		if (not $problem)
-		{
-			my $local_name   = $anvil->data->{cib}{parsed}{'local'}{name};
-			my $peer_name   = $anvil->data->{cib}{parsed}{peer}{name};
-			my $local_ready = $anvil->data->{cib}{parsed}{data}{node}{$local_name}{node_state}{ready};
-			my $peer_ready  = $anvil->data->{cib}{parsed}{data}{node}{$local_name}{node_state}{ready};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				local_name  => $local_name,
-				peer_name   => $peer_name, 
-				local_ready => $local_ready, 
-				peer_ready  => $peer_ready, 
-			}});
-			if (($local_ready) && ($peer_ready))
-			{
-				# We're good. 
-				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0295"});
-				$anvil->Job->update_progress({progress => 15, message => "job_0295"});
-			}
-			else
-			{
-				# One or both nods are not online yet.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0296", variables => {
-					local_name  => $local_name,
-					peer_name   => $peer_name, 
-					local_ready => $local_ready, 
-					peer_ready  => $peer_ready, 
-				}});
-				$anvil->Job->update_progress({progress => 10, message => "job_0296,!!local_name!".$local_name."!!,!!peer_name!".$peer_name."!!,!!local_ready!".$local_ready."!!,!!peer_ready!".$peer_ready."!!"});
-			}
-		}
-		else
-		{
-			# Cluster hasn't started.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0277"});
-			$anvil->Job->update_progress({progress => 5, message => "job_0277"});
-		}
-		if ($waiting)
-		{
-			sleep 10;
-		}
-	}
 	
 	return(0);
 }
@@ -325,6 +360,8 @@ sub wait_on_drbd
 {
 	my ($anvil) = @_;
 	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0322"});
+	$anvil->Job->update_progress({progress => 40, message => "job_0322"});
 	my $short_host_name = $anvil->Get->short_host_name();
 	my $waiting         = 1;
 	while ($waiting)
@@ -358,7 +395,7 @@ sub wait_on_drbd
 							resource  => $server_name,
 							volume    => $volume,
 						}});
-						$anvil->Job->update_progress({progress => 30, message => "job_0312,!!peer_host!".$peer_name."!!,!!resource!".$server_name."!!,!!volume!".$volume."!!"});
+						$anvil->Job->update_progress({progress => 50, message => "job_0312,!!peer_host!".$peer_name."!!,!!resource!".$server_name."!!,!!volume!".$volume."!!"});
 					}
 				}
 			}
@@ -371,11 +408,15 @@ sub wait_on_drbd
 	
 	# All servers should be down now, so stop DRBD.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0314"});
-	$anvil->Job->update_progress({progress => 50, message => "job_0314"});
+	$anvil->Job->update_progress({progress => 60, message => "job_0314"});
 	
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." down all";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
 	
 	return(0);
 }
-
