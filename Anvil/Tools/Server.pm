@@ -1713,7 +1713,7 @@ B<WARNING>: Setting this to C<< 1 >> results in the immediate shutdown of the se
 
 This is the name of the server (as it appears in C<< virsh >>) to shut down.
 
-=head3 wait (optional, default '0')
+=head3 wait_time (optional, default '0', wait indefinitely)
 
 By default, this method will wait indefinetly for the server to shut down before returning. If this is set to a non-zero number, the method will wait that number of seconds for the server to shut dwwn. If the server is still not off by then, C<< 0 >> is returned.
 
@@ -1726,14 +1726,15 @@ sub shutdown_virsh
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->shutdown_virsh()" }});
 	
-	my $server      = defined $parameter->{server} ? $parameter->{server} : "";
-	my $force       = defined $parameter->{force}  ? $parameter->{force}  : 0;
-	my $wait        = defined $parameter->{'wait'} ? $parameter->{'wait'} : 0;
+	my $server      = defined $parameter->{server}    ? $parameter->{server}    : "";
+	my $force       = defined $parameter->{force}     ? $parameter->{force}     : 0;
+	my $wait_time   = defined $parameter->{wait_time} ? $parameter->{wait_time} : 0;
 	my $success     = 0;
 	my $server_uuid = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		force  => $force, 
-		server => $server, 
+		force     => $force, 
+		server    => $server, 
+		wait_time => $wait_time, 
 	}});
 	
 	if (not $server)
@@ -1741,10 +1742,10 @@ sub shutdown_virsh
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->shutdown_virsh()", parameter => "server" }});
 		return($success);
 	}
-	if (($wait) && ($wait =~ /\D/))
+	if (($wait_time) && ($wait_time =~ /\D/))
 	{
 		# Bad value.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0422", variables => { server => $server, 'wait' => $wait }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0422", variables => { server => $server, wait_time => $wait_time }});
 		return($success);
 	}
 	
@@ -1895,12 +1896,12 @@ WHERE
 	
 	# Wait indefinetely for the server to exit.
 	my $stop_waiting = 0;
-	if ($wait)
+	if ($wait_time)
 	{
-		$stop_waiting = time + $wait;
+		$stop_waiting = time + $wait_time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_waiting => $stop_waiting }});
 	};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'wait' => $wait }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_time => $wait_time }});
 	until($success)
 	{
 		# Update
@@ -1959,8 +1960,8 @@ WHERE
 		{
 			# Give up waiting.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0427", variables => { 
-				server => $server,
-				'wait' => $wait,
+				server    => $server,
+				wait_time => $wait_time,
 			}});
 		}
 		else

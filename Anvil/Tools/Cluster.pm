@@ -2277,7 +2277,7 @@ sub parse_cib
 	}
 	
 	# Now call 'crm_mon --output-as=xml' to determine which resource are running where. As of the time 
-	# of writting this (late 2020), stopped resources are not displayed. So the principle purpose of this
+	# of writing this (late 2020), stopped resources are not displayed. So the principle purpose of this
 	# call is to determine what resources are running, and where they are running.
 	$anvil->Cluster->parse_crm_mon({
 		debug       => $debug,
@@ -2348,7 +2348,6 @@ sub parse_cib
 				}
 			}
 		}
-		
 		
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{status}    = $status;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} = $host_name;
@@ -2565,7 +2564,7 @@ sub parse_quorum
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->shutdown_server()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_quorum()" }});
 	
 	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'corosync-quorumtool'}." -p -s"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

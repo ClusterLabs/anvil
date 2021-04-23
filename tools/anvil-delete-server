@@ -260,7 +260,6 @@ sub remove_from_pacemaker
 		my $success = $anvil->Server->shutdown_virsh({
 			debug  => 2, 
 			force  => 1,
-			'wait' => 1,
 			server => $server_name,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
@@ -307,7 +306,6 @@ sub remove_from_pacemaker
 		my $success = $anvil->Server->shutdown_virsh({
 			debug  => 2, 
 			force  => 1,
-			'wait' => 1,
 			server => $server_name,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});

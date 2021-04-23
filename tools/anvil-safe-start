@@ -12,6 +12,7 @@
 # 1 = Any problem that causes an early exit.
 # 
 # TODO: 
+# - Add job support
 # - Make this work on DR hosts.
 # - 'pcs quorum unblock' could be useful in sole-survivor cold starts.
 # 
@@ -50,13 +51,21 @@ if (($< != 0) && ($> != 0))
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 
-$anvil->data->{switches}{disable} = "";
-$anvil->data->{switches}{enable}  = "";
-$anvil->data->{switches}{force}   = "";
-$anvil->data->{switches}{'local'} = "";
-$anvil->data->{switches}{status}  = "";
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{disable}    = "";
+$anvil->data->{switches}{enable}     = "";
+$anvil->data->{switches}{force}      = "";
+$anvil->data->{switches}{'local'}    = "";
+$anvil->data->{switches}{status}     = "";
 $anvil->Get->switches;
-
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
+	'switches::disable'  => $anvil->data->{switches}{disable},
+	'switches::enable'   => $anvil->data->{switches}{enable},
+	'switches::force'    => $anvil->data->{switches}{force},
+	'switches::local'    => $anvil->data->{switches}{'local'},
+	'switches::status'   => $anvil->data->{switches}{status},
+}});
 
 # If I have no databases, sleep until I do
 if (not $anvil->data->{sys}{database}{connections})
