@@ -4,22 +4,10 @@ import { ClassNameMap } from '@material-ui/styles';
 import Panel from './Panel';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import { BLUE, GREY, TEXT, HOVER } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, PURPLE_OFF } from '../lib/consts/DEFAULT_THEME';
 import processNetworkData from './processNetwork';
 
 const useStyles = makeStyles(() => ({
-  root: {
-    width: '100%',
-  },
-  divider: {
-    background: TEXT,
-  },
-  button: {
-    '&:hover': {
-      backgroundColor: HOVER,
-    },
-    paddingLeft: 0,
-  },
   noPaddingLeft: {
     paddingLeft: 0,
   },
@@ -28,24 +16,24 @@ const useStyles = makeStyles(() => ({
     height: '100%',
     borderRadius: 2,
   },
-  started: {
+  optimal: {
     backgroundColor: BLUE,
   },
-  stopped: {
-    backgroundColor: GREY,
+  degraded: {
+    backgroundColor: PURPLE_OFF,
   },
 }));
 
 const selectDecorator = (
   state: string,
-): keyof ClassNameMap<'started' | 'stopped'> => {
+): keyof ClassNameMap<'optimal' | 'degraded'> => {
   switch (state) {
-    case 'Started':
-      return 'started';
-    case 'Stopped':
-      return 'stopped';
+    case 'optimal':
+      return 'optimal';
+    case 'degraded':
+      return 'degraded';
     default:
-      return 'stopped';
+      return 'degraded';
   }
 };
 
@@ -58,7 +46,6 @@ const Network = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
   );
 
   const processed = processNetworkData(data);
-
   return (
     <Panel>
       <HeaderText text="Network" />
@@ -70,7 +57,7 @@ const Network = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
                 <Box p={1} className={classes.noPaddingLeft}>
                   <div
                     className={`${classes.decorator} ${
-                      classes[selectDecorator('Started')]
+                      classes[selectDecorator('optimal')]
                     }`}
                   />
                 </Box>
@@ -82,7 +69,7 @@ const Network = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
                   (node): JSX.Element => (
                     <Box p={1} key={node.host_name}>
                       <Box>
-                        <BodyText text={node.host_name} />
+                        <BodyText text={node.host_name} selected={false} />
                         <BodyText text={node.link.link_name} />
                       </Box>
                     </Box>
