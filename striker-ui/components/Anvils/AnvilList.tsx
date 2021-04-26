@@ -46,11 +46,11 @@ const selectDecorator = (
   state: string,
 ): keyof ClassNameMap<'optimal' | 'notReady' | 'degraded'> => {
   switch (state) {
-    case 'Optimal':
+    case 'optimal':
       return 'optimal';
-    case 'Not Ready':
+    case 'not_ready':
       return 'notReady';
-    case 'Degraded':
+    case 'degraded':
       return 'degraded';
     default:
       return 'optimal';
