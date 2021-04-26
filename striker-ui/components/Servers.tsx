@@ -84,13 +84,20 @@ const Servers = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
                       <BodyText text={server.server_name} />
                       <BodyText text={server.server_state} />
                     </Box>
-                    {server.server_state === 'Started' && (
-                      <Box p={1}>
-                        <BodyText
-                          text={`${anvil.nodes[0].node_name} | ${anvil.nodes[1].node_name}`}
-                        />
-                      </Box>
-                    )}
+                    {server.server_state === 'Started' &&
+                      anvil.nodes.map(
+                        (
+                          node: AnvilListItemNode,
+                          index: number,
+                        ): JSX.Element => (
+                          <Box p={1} key={node.node_uuid}>
+                            <BodyText
+                              text={node.node_name}
+                              selected={server.server_host_index === index}
+                            />
+                          </Box>
+                        ),
+                      )}
                   </Box>
                 </ListItem>
                 <Divider className={classes.divider} />
