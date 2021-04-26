@@ -13,6 +13,8 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
         displayBonds.bonds.push({
           bond_name: bond.bond_name,
           bond_uuid: bond.bond_uuid,
+          bond_speed: 0,
+          bond_state: 'degraded',
           nodes: [
             {
               host_name: node.host_name,
@@ -31,6 +33,14 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
     });
   });
 
+  /* eslint-disable no-param-reassign */
+  displayBonds.bonds.forEach((bond) => {
+    const nodeIndex =
+      bond.nodes[0].link.link_speed > bond.nodes[1].link.link_speed ? 1 : 0;
+
+    bond.bond_speed = bond.nodes[nodeIndex].link.link_speed;
+    bond.bond_state = bond.nodes[nodeIndex].link.link_state;
+  });
   return displayBonds;
 };
 
