@@ -25,6 +25,8 @@ declare type AnvilNetwork = {
 declare type ProcessedBond = {
   bond_name: string;
   bond_uuid: string;
+  bond_speed: number;
+  bond_state: 'optimal' | 'degraded';
   nodes: Array<{
     host_name: string;
     host_uuid: string;
