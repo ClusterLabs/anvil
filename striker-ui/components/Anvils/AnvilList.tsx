@@ -5,17 +5,19 @@ import {
   BLUE,
   PURPLE_OFF,
   RED_ON,
-  TEXT,
   HOVER,
+  GREY,
 } from '../../lib/consts/DEFAULT_THEME';
 import Anvil from './Anvil';
 
 const useStyles = makeStyles(() => ({
   root: {
     width: '100%',
+    overflow: 'auto',
+    height: '30vh',
   },
   divider: {
-    background: TEXT,
+    background: GREY,
   },
   button: {
     '&:hover': {

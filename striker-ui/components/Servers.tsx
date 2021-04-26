@@ -4,14 +4,16 @@ import { ClassNameMap } from '@material-ui/styles';
 import Panel from './Panel';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
-import { BLUE, GREY, TEXT, HOVER } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, GREY, HOVER } from '../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles(() => ({
   root: {
     width: '100%',
+    overflow: 'auto',
+    height: '100vh',
   },
   divider: {
-    background: TEXT,
+    background: GREY,
   },
   button: {
     '&:hover': {
