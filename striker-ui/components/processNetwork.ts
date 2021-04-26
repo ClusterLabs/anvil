@@ -1,6 +1,6 @@
 const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
   const processedBonds: string[] = [];
-  const thingy: ProcessedNetwork = { bonds: [] };
+  const displayBonds: ProcessedNetwork = { bonds: [] };
 
   data?.nodes.forEach((node) => {
     node.bonds.forEach((bond) => {
@@ -10,7 +10,7 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
 
       if (index === -1) {
         processedBonds.push(bond.bond_name);
-        thingy.bonds.push({
+        displayBonds.bonds.push({
           bond_name: bond.bond_name,
           bond_uuid: bond.bond_uuid,
           nodes: [
@@ -22,7 +22,7 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
           ],
         });
       } else {
-        thingy.bonds[index].nodes.push({
+        displayBonds.bonds[index].nodes.push({
           host_name: node.host_name,
           host_uuid: node.host_uuid,
           link: bond.links[0].is_active ? bond.links[0] : bond.links[1],
@@ -30,7 +30,8 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
       }
     });
   });
-  return thingy;
+
+  return displayBonds;
 };
 
 export default processNetworkData;
