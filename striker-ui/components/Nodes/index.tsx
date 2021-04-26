@@ -8,14 +8,13 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=`,
     anvil?.anvil_uuid,
   );
-  /* eslint-disable no-param-reassign */
 
   return (
     <Panel>
       <Text text="Nodes" />
       <AnvilNode
-        node={anvil?.nodes.map((n, index) => {
-          return { ...n, ...data?.nodes[index] };
+        nodes={anvil?.nodes.map((node, index) => {
+          return { ...node, ...data?.nodes[index] };
         })}
       />
     </Panel>

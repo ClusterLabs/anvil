@@ -60,32 +60,32 @@ const selectDecorator = (
 };
 
 const AnvilNode = ({
-  node,
+  nodes,
 }: {
-  node: Array<AnvilStatusNode & AnvilListItemNode>;
+  nodes: Array<AnvilStatusNode & AnvilListItemNode>;
 }): JSX.Element => {
   const classes = useStyles();
   return (
     <>
-      {node &&
-        node.map(
-          (n): JSX.Element => {
+      {nodes &&
+        nodes.map(
+          (node): JSX.Element => {
             return (
-              <InnerPanel key={n.node_uuid}>
+              <InnerPanel key={node.node_uuid}>
                 <PanelHeader>
                   <Box display="flex" width="100%">
                     <Box flexGrow={1}>
-                      <BodyText text={n.node_name} />
+                      <BodyText text={node.node_name} />
                     </Box>
                     <Box className={classes.decoratorBox}>
                       <div
                         className={`${classes.decorator} ${
-                          classes[selectDecorator(n.state)]
+                          classes[selectDecorator(node.state)]
                         }`}
                       />
                     </Box>
                     <Box>
-                      <BodyText text={n.state} />
+                      <BodyText text={node.state} />
                     </Box>
                   </Box>
                 </PanelHeader>
@@ -103,19 +103,19 @@ const AnvilNode = ({
                     <Switch checked />
                   </Box>
                 </Box>
-                {n.state !== 'ready' && (
+                {node.state !== 'ready' && (
                   <>
                     <Box display="flex" width="100%" className={classes.state}>
                       <Box flexGrow={1}>
-                        <BodyText text={`State: ${n.state}`} />
+                        <BodyText text={`State: ${node.state}`} />
                       </Box>
                       <Box>
-                        <BodyText text={n.state_message} />
+                        <BodyText text={node.state_message} />
                       </Box>
                     </Box>
                     <Box display="flex" width="100%" className={classes.bar}>
                       <Box flexGrow={1}>
-                        <ProgressBar progressPercentage={n.state_percent} />
+                        <ProgressBar progressPercentage={node.state_percent} />
                       </Box>
                     </Box>
                   </>
