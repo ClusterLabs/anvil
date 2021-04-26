@@ -1,15 +1,36 @@
 import { Typography } from '@material-ui/core';
-import { withStyles } from '@material-ui/core/styles';
-import { TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { makeStyles } from '@material-ui/core/styles';
+import { TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
-const WhiteTypography = withStyles({
-  root: {
+interface TextProps {
+  text: string;
+  selected?: boolean;
+}
+
+const useStyles = makeStyles(() => ({
+  selected: {
     color: TEXT,
   },
-})(Typography);
+  unselected: {
+    color: UNSELECTED,
+  },
+}));
 
-const BodyText = ({ text }: { text: string }): JSX.Element => {
-  return <WhiteTypography variant="subtitle1">{text}</WhiteTypography>;
+const BodyText = ({ text, selected }: TextProps): JSX.Element => {
+  const classes = useStyles();
+
+  return (
+    <Typography
+      variant="subtitle1"
+      className={selected ? classes.selected : classes.unselected}
+    >
+      {text}
+    </Typography>
+  );
+};
+
+BodyText.defaultProps = {
+  selected: true,
 };
 
 export default BodyText;
