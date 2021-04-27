@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { AppProps } from 'next/app';
 import { ThemeProvider } from '@material-ui/core/styles';
 import theme from '../theme';
-import Header from '../components/Header';
 import '../styles/globals.css';
 
 const App = ({ Component, pageProps }: AppProps): JSX.Element => {
@@ -19,12 +18,10 @@ const App = ({ Component, pageProps }: AppProps): JSX.Element => {
   // eslint-disable-next-line react/jsx-props-no-spreading
   return (
     <ThemeProvider theme={theme}>
-      <Header />
       <Component
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...pageProps}
       />
-      ;
     </ThemeProvider>
   );
 };
