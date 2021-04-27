@@ -1,3 +1,4 @@
+import { useContext } from 'react';
 import { List, ListItem, Divider, Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
@@ -5,12 +6,13 @@ import Panel from './Panel';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
 import { BLUE, GREY, HOVER } from '../lib/consts/DEFAULT_THEME';
+import { AnvilContext } from './AnvilContext';
 
 const useStyles = makeStyles(() => ({
   root: {
     width: '100%',
     overflow: 'auto',
-    height: '100vh',
+    height: '100%',
   },
   divider: {
     background: GREY,
@@ -50,12 +52,13 @@ const selectDecorator = (
   }
 };
 
-const Servers = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
+const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+  const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
 
   const { data } = PeriodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_servers?anvil_uuid=`,
-    anvil?.anvil_uuid,
+    uuid,
   );
   return (
     <Panel>
@@ -87,7 +90,9 @@ const Servers = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
                       <BodyText text={server.server_state} />
                     </Box>
                     {server.server_state === 'Started' &&
-                      anvil.nodes.map(
+                      anvil[
+                        anvil.findIndex((a) => a.anvil_uuid === uuid)
+                      ].nodes.map(
                         (
                           node: AnvilListItemNode,
                           index: number,
