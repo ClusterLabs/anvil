@@ -18,6 +18,7 @@ my $THIS_FILE = "ScanCore.pm";
 # agent_startup
 # call_scan_agents
 # check_power
+# check_temperature
 # post_scan_analysis
 # post_scan_analysis_dr
 # post_scan_analysis_node
@@ -324,21 +325,17 @@ If no UPSes were found, health of '0' is returned (unknown). If  If both/all UPS
 
 Parameters;
 
-=head3 anvil_uuid (required)
+=head3 anvil_uuid (Optional, if 'host_uuid' is in an Anvil!)
 
 This is the Anvil! UUID that the machine belongs to. This is required to find the manifest that shows which UPSes power the host.
 
-=head3 anvil_name (required)
+=head3 anvil_name (Optional, if 'host_uuid' is in an Anvil!)
 
 This is the Anvil! name that the machine is a member of. This is used for logging.
 
-=head3 host_uuid (required)
+=head3 host_uuid (Optional, default Get->host_uuid)
 
 This is the host's UUID that we're checking the UPSes powering it.
-
-=head3 host_name (required)
-
-This is the host's name that we're checking. This is used for logging.
 
 =cut
 sub check_power
@@ -352,27 +349,48 @@ sub check_power
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
 	my $anvil_name = defined $parameter->{anvil_name} ? $parameter->{anvil_name} : "";
 	my $host_uuid  = defined $parameter->{host_uuid}  ? $parameter->{host_uuid}  : "";
-	my $host_name  = defined $parameter->{host_name}  ? $parameter->{host_name}  : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid => $anvil_uuid,
 		anvil_name => $anvil_name,
 		host_uuid  => $host_uuid,
-		host_name  => $host_name,
 	}});
 	
-	if ((not $anvil_uuid) or (not $anvil_name) or (not $host_uuid) or (not $host_name))
+	# Try to divine missing data. If the 'host_uuid' wasn't passed, use the caller's host UUID.
+	if (not $host_uuid)
 	{
-		# Woops
-		return("!!error!!");
+		$host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	}
+	
+	if (not $anvil_uuid)
+	{
+		# Can we read an Anvil! UUID for this host?
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		if (not $anvil_uuid)
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->check_power()", parameter => "anvil_uuid" }});
+			return("!!error!!");
+		}
+	}
+	
+	if (not $anvil_name)
+	{
+		$anvil_name = $anvil->Cluster->get_anvil_name({debug => $debug, anvil_uuid => $anvil_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+	}
+	
+	my $host_name = $anvil->Database->get_host_from_uuid({debug => $debug, host_uuid => $host_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
 	
 	# We'll need the UPS data
 	$anvil->Database->get_upses({debug => $debug});
 	
-	my $power_health              = 0;
-	my $shorted_time_on_batteries = 99999;
-	my $highest_charge_percentage = 0;
-	my $estimated_hold_up_time    = 0;
+	my $power_health               = 0;
+	my $shortest_time_on_batteries = 99999;
+	my $highest_charge_percentage  = 0;
+	my $estimated_hold_up_time     = 0;
 	
 	my $query = "SELECT manifest_uuid FROM manifests WHERE manifest_name = ".$anvil->Database->quote($anvil_name).";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -389,7 +407,7 @@ sub check_power
 			anvil_name => $anvil_name, 
 			host_name  => $host_name, 
 		}});
-		return($power_health, $shorted_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time)
+		return($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time)
 	}
 	
 	my $manifest_uuid = $results->[0]->[0];
@@ -411,7 +429,7 @@ sub check_power
 				anvil_name    => $anvil_name, 
 				host_name     => $host_name, 
 			}});
-			return($power_health, $shorted_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time)
+			return($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time)
 		}
 	}
 	
@@ -499,7 +517,7 @@ LIMIT 1
 					if (not $count)
 					{
 						# The only way this could happen is if we've never seen the UPS on mains...
-						$shorted_time_on_batteries = 0;
+						$shortest_time_on_batteries = 0;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0571", variables => { 
 							power_uuid => $power_uuid, 
 							host_name  => $host_name, 
@@ -512,11 +530,11 @@ LIMIT 1
 							time_on_batteries => $time_on_batteries." (".$anvil->Convert->time({'time' => $time_on_batteries, long => 1, translate => 1}).")",
 						}});
 						
-						if ($time_on_batteries < $shorted_time_on_batteries)
+						if ($time_on_batteries < $shortest_time_on_batteries)
 						{
-							$shorted_time_on_batteries = $shorted_time_on_batteries;
+							$shortest_time_on_batteries = $shortest_time_on_batteries;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-								shorted_time_on_batteries => $shorted_time_on_batteries." (".$anvil->Convert->time({'time' => $shorted_time_on_batteries, long => 1, translate => 1}).")",
+								shortest_time_on_batteries => $shortest_time_on_batteries." (".$anvil->Convert->time({'time' => $shortest_time_on_batteries, long => 1, translate => 1}).")",
 							}});
 						}
 					}
@@ -524,12 +542,12 @@ LIMIT 1
 				else
 				{
 					# See how charged up this UPS is. 
-					$power_health              = 1;
-					$ups_with_mains_found      = 1;
-					$shorted_time_on_batteries = 0;
+					$power_health               = 1;
+					$ups_with_mains_found       = 1;
+					$shortest_time_on_batteries = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						ups_with_mains_found      => $ups_with_mains_found,
-						shorted_time_on_batteries => $shorted_time_on_batteries, 
+						ups_with_mains_found       => $ups_with_mains_found,
+						shortest_time_on_batteries => $shortest_time_on_batteries, 
 					}});
 						
 					if ($power_charge_percentage > $highest_charge_percentage)
@@ -545,12 +563,328 @@ LIMIT 1
 	if ($ups_count)
 	{
 		# No UPSes found.
-		$shorted_time_on_batteries = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shorted_time_on_batteries => $shorted_time_on_batteries }});
+		$shortest_time_on_batteries = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shortest_time_on_batteries => $shortest_time_on_batteries }});
 	}
 	
-	return($power_health, $shorted_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time);
+	return($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time);
 }
+
+
+=head2 check_temperature
+
+This pulls in the list of temperatures for the given node and checks to see if they are healthy enough to power the node back up.
+
+B<< Note >>: This method does NOT check the age of the temperature data. When checking the temperature state on another machine, the caller needs to decide if the data is fresh or stale.
+
+Returned values are;
+
+ 1 = Temperature is OK
+ 2 = Temperature is not OK
+ 3 = Temperature is in a warning state; evaluate load shed
+ 4 = Temperature is critical; Shut down regardless of peer state
+
+These values are determined this way;
+
+* If all temperature sensors are nominal, '1' is returned.
+* If any temperature sensors warning or critical, '2' is the minimum value returned.
+* If the sum of all non-nominal temperature sensor weights are >= 5, then '3' is returned.
+* If the sum of all critical temperatire sensors is >= 5, then '4' is returned.
+
+B<< Note >>: Temperature sensors that are in the "high" state are summed separately from sensors in the "low" state. 
+
+Parameters;
+
+=head3 host_uuid (Optional, default Get->host_uuid)
+
+This is the host whose temperature data is being collected. Usually this is the local machine, the peer in an assembled cluster, or a DR host when migrating out of an over-heating DC.
+
+=cut
+sub check_temperature
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->post_scan_analysis_node()" }});
+	
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+	}});
+	
+	# This will get set to '2' or higher if the temperature is not OK.
+	my $temperature_health = 1;
+	
+	# These will store the temperature scores
+	$anvil->data->{temperature}{high}{warning}  = 0;
+	$anvil->data->{temperature}{high}{critical} = 0;
+	$anvil->data->{temperature}{low}{warning}   = 0;
+	$anvil->data->{temperature}{low}{critical}  = 0;
+	
+	# Read in all of the temperature entries for this node 
+	my $query = "
+SELECT 
+    temperature_agent_name, 
+    temperature_sensor_name, 
+    temperature_state, 
+    temperature_is, 
+    temperature_weight 
+FROM 
+    temperature 
+WHERE 
+    temperature_host_uuid = ".$anvil->Database->quote($host_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	
+	foreach my $row (@{$results})
+	{
+		my $temperature_agent_name  = $row->[0];
+		my $temperature_sensor_name = $row->[1];
+		my $temperature_state       = $row->[2];
+		my $temperature_is          = $row->[3];
+		my $temperature_weight      = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:temperature_agent_name'  => $temperature_agent_name, 
+			's2:temperature_sensor_name' => $temperature_sensor_name, 
+			's3:temperature_state'       => $temperature_state, 
+			's4:temperature_is'          => $temperature_is, 
+			's5:temperature_weight'      => $temperature_weight, 
+		}});
+		
+		# If this is OK, we can ignore it
+		next if $temperature_is eq "nominal";
+		
+		# If we're here, a temperature variable is out of spec. Determine how and add the scores.
+		if ($temperature_health)
+		{
+			$temperature_health = 2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_health => $temperature_health }});
+		}
+		
+		# Record the score
+		if ($temperature_state eq "critical")
+		{
+			# Add the weight to the warning and the critical values.
+			$anvil->data->{temperature}{$temperature_is}{warning}  += $temperature_weight ? $temperature_weight : 1;
+			$anvil->data->{temperature}{$temperature_is}{critical} += $temperature_weight ? $temperature_weight : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"temperature::${temperature_is}::warning"  => $anvil->data->{temperature}{$temperature_is}{warning},
+				"temperature::${temperature_is}::critical" => $anvil->data->{temperature}{$temperature_is}{critical},
+			}});
+		}
+		elsif ($temperature_state eq "warning")
+		{
+			# Add the weight to the warning value
+			$anvil->data->{temperature}{$temperature_is}{warning} += $temperature_weight ? $temperature_weight : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"temperature::${temperature_is}::warning" => $anvil->data->{temperature}{$temperature_is}{warning},
+			}});
+		}
+	}
+	
+	# If we're not the host, and the temperatures look OK, see how often the target as shut off for 
+	# thermal reasons.
+	if (($host_uuid ne $anvil->Get->host_uuid) && ($temperature_health eq "1"))
+	{
+		# When a node has gone into emergency stop because of an over-temperature event, we want to 
+		# give it time to cool down before we boot it back up.
+		# 
+		# Likewise, if we rebooted it and it went back down quickly, give it more time before 
+		# starting it back up. We do this by reading in how many times the node went into thermal 
+		# shutdown over the last six hours. The number of returned shut-downs will determine how long
+		# I wait before booting the node back up.
+		# 
+		# The default schedule is:
+		# Reboots | Wait until boot
+		# --------+-----------------
+		#  1      | 10m
+		#  2      | 30m
+		#  3      | 60m
+		#  4      | 120m
+		#  >4     | 6h
+		# --------+-----------------
+		# 
+		# To determine the number or reboots, do the following query:
+		my $last_shutdown = 0;
+		my $query         = "
+SELECT 
+    round(extract(epoch from modified_date)) 
+FROM 
+    history.variables 
+WHERE 
+    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)."
+AND
+    variable_source_table = 'hosts'
+AND 
+    variable_name         = 'system::stop_reason' 
+AND 
+    modified_date > (now() - interval '6h') 
+ORDER BY 
+    modified_date ASC
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		my $results        = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $shutdown_count = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results        => $results, 
+			shutdown_count => $shutdown_count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $this_shutdown = $row->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_shutdown => $this_shutdown }});
+			if ($this_shutdown > $last_shutdown)
+			{
+				$last_shutdown = $this_shutdown;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_shutdown => $last_shutdown }});
+			}
+		}
+		
+		### TODO: Let this be set by 'variables' table
+		# Set default delays, if not already set.
+		if ((not exists $anvil->data->{scancore}{thermal_reboot_delay}{more}) or ($anvil->data->{scancore}{thermal_reboot_delay}{more} !~ /^\d+$/))
+		{
+			$anvil->data->{scancore}{thermal_reboot_delay}{more} = 21600;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::thermal_reboot_delay::more" => $anvil->data->{scancore}{thermal_reboot_delay}{more},
+			}});
+		}
+		if ((not exists $anvil->data->{scancore}{thermal_reboot_delay}{'4'}) or ($anvil->data->{scancore}{thermal_reboot_delay}{'4'} !~ /^\d+$/))
+		{
+			$anvil->data->{scancore}{thermal_reboot_delay}{'4'} = 7200;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::thermal_reboot_delay::4" => $anvil->data->{scancore}{thermal_reboot_delay}{'4'},
+			}});
+		}
+		if ((not exists $anvil->data->{scancore}{thermal_reboot_delay}{'3'}) or ($anvil->data->{scancore}{thermal_reboot_delay}{'3'} !~ /^\d+$/))
+		{
+			$anvil->data->{scancore}{thermal_reboot_delay}{'3'} = 3600;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::thermal_reboot_delay::3" => $anvil->data->{scancore}{thermal_reboot_delay}{'3'},
+			}});
+		}
+		if ((not exists $anvil->data->{scancore}{thermal_reboot_delay}{'2'}) or ($anvil->data->{scancore}{thermal_reboot_delay}{'2'} !~ /^\d+$/))
+		{
+			$anvil->data->{scancore}{thermal_reboot_delay}{'2'} = 1800;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::thermal_reboot_delay::2" => $anvil->data->{scancore}{thermal_reboot_delay}{'2'},
+			}});
+		}
+		if ((not exists $anvil->data->{scancore}{thermal_reboot_delay}{'1'}) or ($anvil->data->{scancore}{thermal_reboot_delay}{'1'} !~ /^\d+$/))
+		{
+			$anvil->data->{scancore}{thermal_reboot_delay}{'1'} = 600;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scancore::thermal_reboot_delay::1" => $anvil->data->{scancore}{thermal_reboot_delay}{'1'},
+			}});
+		}
+		
+		# Now that we know when the host last shut down, and how many times it shut down in the last 
+		# 6 hours, How long should we wait until we mark the temperature as "ok"?
+		my $delay = 0;
+		if ($shutdown_count > 4)
+		{
+			# 6 hours
+			$delay = $anvil->data->{scancore}{thermal_reboot_delay}{more};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+		}
+		elsif ($shutdown_count == 4)
+		{
+			# 2 hours
+			$delay = $anvil->data->{scancore}{thermal_reboot_delay}{'4'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+		}
+		elsif ($shutdown_count == 3)
+		{
+			# 1 hour
+			$delay = $anvil->data->{scancore}{thermal_reboot_delay}{'3'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+		}
+		elsif ($shutdown_count == 2)
+		{
+			# 30 minutes
+			$delay = $anvil->data->{scancore}{thermal_reboot_delay}{'2'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+		}
+		elsif ($shutdown_count == 1)
+		{
+			# 10 minutes
+			$delay = $anvil->data->{scancore}{thermal_reboot_delay}{'1'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+		}
+		else
+		{
+			# No delay
+			$delay = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+		}
+		
+		# Now, see if the last reboot time is more than delay time ago.
+		if ($delay)
+		{
+			my $now_time          = time;
+			my $last_shutdown_was = ($now_time - $last_shutdown);
+			my $wait_for          = $delay - $last_shutdown_was;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				now_time          => $now_time, 
+				last_shutdown_was => $last_shutdown_was, 
+				delay             => $delay, 
+				wait_for          => $wait_for, 
+			}});
+			if ($last_shutdown_was < $delay)
+			{
+				# Wait longer.
+				   $temperature_health = 2;
+				my $say_wait_for        = $anvil->Convert->time({debug => $debug, 'time' => $wait_for});
+				my $host_name           = $anvil->Database->get_host_from_uuid({debug => $debug});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					temperature_health => $temperature_health,
+					say_wait_for        => $say_wait_for,
+					host_name           => $host_name, 
+				}});
+				
+				# Log that we're waiting because of the shutdown delay being in effect.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0619", variables => { 
+					wait_for  => $say_wait_for,
+					host_name => $host_name, 
+					count     => $shutdown_count, 
+				}});
+			}
+		}
+	}
+	
+	# If the temperature is not safe, see if it's warning or critical.
+	# 1 = OK, 
+	# 2 = Not OK
+	# 3 = Warning, 
+	# 4 = Critical (should shut down), 
+	if ($temperature_health == 2)
+	{
+		# This doesn't fully separate high scores from low scores, but the chances of enough sensors 
+		# being high while others are low at the same time isn't very realistic.
+		if (($anvil->data->{temperature}{high}{critical} >= 5) or ($anvil->data->{temperature}{low}{critical} >= 5))
+		{
+			# We're critical
+			$temperature_health = 4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_health => $temperature_health }});
+		}
+		if (($anvil->data->{temperature}{high}{warning} >= 5) or ($anvil->data->{temperature}{low}{warning} >= 5))
+		{
+			# We're in a warning
+			$temperature_health = 3;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_health => $temperature_health }});
+		}
+	}
+	
+	return($temperature_health);
+}
+
 
 =head2 post_scan_analysis
 
@@ -622,7 +956,408 @@ sub post_scan_analysis_node
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->post_scan_analysis_node()" }});
 	
+	my $host_name       = $anvil->Get->host_name;
+	my $short_host_name = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_name       => $host_name,
+		short_host_name => $short_host_name, 
+	}});
 	
+	# The power health, the shortest "time on batteries", the highest charge percentage and etimated hold-up time are returned. 
+	#
+	# Power health values;
+	# * '!!error!!' - There was a missing input variable.
+	# * 0 - No UPSes found for the host
+	# * 1 - One or more UPSes found and at least one has input power from mains.
+	# * 2 - One or more UPSes found, all are running on battery.
+	# 
+	# If the health is '0', all other values will also be '0'.
+	# If the health is '1', the "time on batteries" and "estimated hold up time" will be '0' and the highest charge percentage will be set.
+	# If the health is '2', the "time on batteries" will be the number of seconds since the last UPS to lose power was found to be running on batteries, The estimated hold up time of the strongest UPS is also returned in seconds.
+	# If no UPSes were found, health of '0' is returned (unknown). If  If both/all UPSes are 
+	my ($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time) = $anvil->ScanCore->check_power({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		power_health               => $power_health,
+		shortest_time_on_batteries => $shortest_time_on_batteries, 
+		highest_charge_percentage  => $highest_charge_percentage, 
+		estimated_hold_up_time     => $estimated_hold_up_time, 
+	}});
+	
+	# Check the temperature status.
+	my ($temperature_health) = $anvil->ScanCore->check_temperature({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_health => $temperature_health }});
+=cut
+	
+	# 1 = OK, 
+	# 2 = Warning, 
+	# 3 = Critical (should shut down), 
+	# 4 = Warning:load_shed (if peer is also).
+	my ($node_temperature_ok) = check_local_temperature_health($an);
+	$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+		name1 => "node_temperature_ok", value1 => $node_temperature_ok,
+	}, file => $THIS_FILE, line => __LINE__});
+	
+	# Check the node's health. If we're healthier than our peer, we'll live migrate nodes off. If we're 
+	# sicker than our peer, we will do nothing (so that we don't get dueling migration commands).
+	# Values are:
+	# 1 = Both nodes have the same health.
+	# 2 = We're healther than our peer (migrate)
+	# 3 = We're sicker than our peer (do nothing)
+	my ($node_health_ok) = check_node_health($an);
+	$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+		name1 => "node_health_ok", value1 => $node_health_ok,
+	}, file => $THIS_FILE, line => __LINE__});
+	
+	# OK, if both are '1', make sure our health is set to 'OK'. If either returned '2', make sure our 
+	# health is set to 'Warning'. If either returned '3', set the health to 'Critical' and set the hosts
+	# -> host_emergency_stop to TRUE and then call 'anvil-safe-stop --local'.
+	if (($power_health eq "3") or ($node_temperature_ok eq "3"))
+	{
+		# Set the health to 'Critical'.
+		$anvil->ScanCore->host_state({set => "critical"});
+		
+		# Why exactly are we shutting down?
+		my $host_stop_reason = $power_health eq "3" ? "power" : "temperature";
+		
+		# Update hosts to set host_emergency_stop to TRUE
+		my $query = "
+UPDATE 
+    hosts 
+SET 
+    host_emergency_stop = TRUE, 
+    host_stop_reason    = ".$anvil->data->{sys}{use_db_fh}->quote($host_stop_reason).", 
+    host_health         = 'critical', 
+    modified_date       = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+WHERE 
+    host_uuid           = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).";";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->entry({log_level => 1, message_key => "an_variables_0001", message_variables => {
+			name1 => "query", value1 => $query,
+		}, file => $THIS_FILE, line => __LINE__});
+		$anvil->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		my $do_shutdown = 1;
+		my $message_key = "scancore_error_0015";
+		if ((($host_stop_reason eq "power")       && ($anvil->data->{scancore}{disable}{power_shutdown})) or 
+		    (($host_stop_reason eq "temperature") && ($anvil->data->{scancore}{disable}{thermal_shutdown})))
+		{
+			# Shutdown has been disabled.
+			$do_shutdown = 0;
+			$message_key = "scancore_error_0016";
+			
+			# Tell the user what's (not) happening
+			if ($host_stop_reason eq "power")
+			{
+				# Power shutdown disabled.
+				$anvil->Log->entry({log_level => 0, message_key => "scancore_warning_0017", file => $THIS_FILE, line => __LINE__});
+			}
+			elsif ($host_stop_reason eq "temperature")
+			{
+				# Thermal shutdown disabled.
+				$anvil->Log->entry({log_level => 0, message_key => "scancore_warning_0018", file => $THIS_FILE, line => __LINE__});
+			}
+		}
+		elsif ($host_stop_reason eq "power")
+		{
+			# Power shutdown enabled, we're going down.
+			$anvil->Log->entry({log_level => 0, message_key => "scancore_warning_0019", file => $THIS_FILE, line => __LINE__});
+		}
+		elsif ($host_stop_reason eq "temperature")
+		{
+			# Thermal shutdown enabled, we're going down
+			$anvil->Log->entry({log_level => 0, message_key => "scancore_warning_0020", file => $THIS_FILE, line => __LINE__});
+		}
+		# Send our final email.
+		$anvil->Alert->register_alert({
+			alert_level		=>	"critical", 
+			alert_agent_name	=>	$THIS_FILE,
+			alert_title_key		=>	"an_alert_title_0005",
+			alert_message_key	=>	$message_key,
+			alert_message_variables	=>	{
+				node			=>	$anvil->host_name,
+			},
+		});
+		
+		# Send the email
+		process_alerts($an, 0);
+		if ($do_shutdown)
+		{
+			# Stop the anvil-kick-apc-ups if it is in use.
+			my $stop_kicking = 0;
+			my $shell_call   = $anvil->data->{path}{'anvil-kick-apc-ups'}." --status";
+			$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+				name1 => "shell_call", value1 => $shell_call, 
+			}, file => $THIS_FILE, line => __LINE__});
+			open (my $file_handle, "$shell_call 2>&1 |") or $anvil->Alert->error({title_key => "an_0003", message_key => "error_title_0014", message_variables => { shell_call => $shell_call, error => $! }, code => 2, file => $THIS_FILE, line => __LINE__});
+			while(<$file_handle>)
+			{
+				chomp;
+				my $line = $_;
+				$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1 => "line", value1 => $line, 
+				}, file => $THIS_FILE, line => __LINE__});
+				if ($line =~ /\[enabled\]/)
+				{
+					$stop_kicking = 1;
+					$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+						name1 => "stop_kicking", value1 => $stop_kicking, 
+					}, file => $THIS_FILE, line => __LINE__});
+				}
+			}
+			close $file_handle;
+			if ($stop_kicking)
+			{
+				my $shell_call = $anvil->data->{path}{'anvil-kick-apc-ups'}." --cancel";
+				$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1 => "shell_call", value1 => $shell_call, 
+				}, file => $THIS_FILE, line => __LINE__});
+				open (my $file_handle, "$shell_call 2>&1 |") or $anvil->Alert->error({title_key => "an_0003", message_key => "error_title_0014", message_variables => { shell_call => $shell_call, error => $! }, code => 2, file => $THIS_FILE, line => __LINE__});
+				while(<$file_handle>)
+				{
+					chomp;
+					my $line = $_;
+					$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+						name1 => "line", value1 => $line, 
+					}, file => $THIS_FILE, line => __LINE__});
+				}
+				close $file_handle;
+			}
+			
+			# And now die via 'anvil-safe-stop'. We should be dead before this exits. So ya, so 
+			# long and thanks for all the fish.
+			$shell_call = $anvil->data->{path}{'anvil-safe-stop'}." --local --suicide";
+			$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+				name1 => "shell_call", value1 => $shell_call, 
+			}, file => $THIS_FILE, line => __LINE__});
+			open ($file_handle, "$shell_call 2>&1 |") or $anvil->Alert->error({title_key => "an_0003", message_key => "error_title_0014", message_variables => { shell_call => $shell_call, error => $! }, code => 2, file => $THIS_FILE, line => __LINE__});
+			while(<$file_handle>)
+			{
+				chomp;
+				my $line = $_;
+				$line =~ s/\n//g;
+				$line =~ s/\r//g;
+				$anvil->Log->entry({log_level => 1, message_key => "scancore_warning_0021", message_variables => { line => $line }, file => $THIS_FILE, line => __LINE__});
+			}
+			close $file_handle;
+			
+			# Why are we still alive? die already.
+			$anvil->nice_exit({exit_code => 999});
+		}
+		else
+		{
+			# We're not going to die, so record that we've warned the user.
+			my $cleared = $anvil->Alert->check_alert_sent({
+				type			=>	"warning",
+				alert_sent_by		=>	$THIS_FILE,
+				alert_record_locator	=>	$anvil->host_name,
+				alert_name		=>	"shutdown_should_have_happened",
+				modified_date		=>	$anvil->data->{sys}{db_timestamp},
+			});
+		}
+	}
+	elsif (($power_health eq "4") or ($node_temperature_ok eq "4"))
+	{
+		# Which message?
+		my $message_key = "scancore_warning_0026";
+		my $shell_call  = $anvil->data->{path}{'anvil-safe-stop'}." --shed-load --reason power_loss";
+		if ($node_temperature_ok eq "4")
+		{
+			# It's a thermal load shed.
+			$message_key = "scancore_warning_0027";
+			$shell_call  = $anvil->data->{path}{'anvil-safe-stop'}." --shed-load --reason temperature";
+		}
+		
+		# Load shed! Tell the user.
+		my $set = $anvil->Alert->check_alert_sent({
+			type			=>	"warning",
+			alert_sent_by		=>	$THIS_FILE,
+			alert_record_locator	=>	$anvil->host_name,
+			alert_name		=>	"load_shed_needed",
+			modified_date		=>	$anvil->data->{sys}{db_timestamp},
+		});
+		if ($set)
+		{
+			$anvil->Alert->register_alert({
+				alert_level		=>	"warning", 
+				alert_agent_name	=>	$THIS_FILE,
+				alert_title_key		=>	"an_alert_title_0004",
+				alert_message_key	=>	$message_key,
+			});
+		}
+		
+		# Send the email, because we might be about to die.
+		process_alerts($an, 0);
+		
+		# Now call the load shedding.
+		$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+			name1 => "shell_call", value1 => $shell_call, 
+		}, file => $THIS_FILE, line => __LINE__});
+		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Alert->error({title_key => "an_0003", message_key => "error_title_0014", message_variables => { shell_call => $shell_call, error => $! }, code => 2, file => $THIS_FILE, line => __LINE__});
+		while(<$file_handle>)
+		{
+			chomp;
+			my $line = $_;
+			$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+				name1 => "line", value1 => $line, 
+			}, file => $THIS_FILE, line => __LINE__});
+		}
+		close $file_handle;
+	}
+	elsif (($power_health eq "2") or ($node_temperature_ok eq "2"))
+	{
+		### We're sick
+		# Set the health to 'Warning'.
+		$anvil->ScanCore->host_state({set => "warning"});
+		
+		# Tell the user that we're no longer a migration target.
+		my $set = $anvil->Alert->check_alert_sent({
+			type			=>	"warning",
+			alert_sent_by		=>	$THIS_FILE,
+			alert_record_locator	=>	$anvil->host_name,
+			alert_name		=>	"node_sick",
+			modified_date		=>	$anvil->data->{sys}{db_timestamp},
+		});
+		if ($set)
+		{
+			$anvil->Alert->register_alert({
+				alert_level		=>	"warning", 
+				alert_agent_name	=>	$THIS_FILE,
+				alert_title_key		=>	"an_alert_title_0004",
+				alert_message_key	=>	"scancore_warning_0012",
+				alert_message_variables	=>	{
+					node			=>	$anvil->host_name,
+				},
+			});
+			
+			# Send the email
+			process_alerts($an, 0);
+		}
+	}
+	else
+	{
+		### We're healthy
+		# Set the health to 'OK'.
+		$anvil->ScanCore->host_state({set => "ok"});
+		
+		# If we were previously sick, tell the user that we're OK now.
+		my $cleared_node_sick = $anvil->Alert->check_alert_sent({
+			type			=>	"clear",
+			alert_sent_by		=>	$THIS_FILE,
+			alert_record_locator	=>	$anvil->host_name,
+			alert_name		=>	"node_sick",
+			modified_date		=>	$anvil->data->{sys}{db_timestamp},
+		});
+		my $cleared_poweroff = $anvil->Alert->check_alert_sent({
+			type			=>	"clear",
+			alert_sent_by		=>	$THIS_FILE,
+			alert_record_locator	=>	$anvil->host_name,
+			alert_name		=>	"shutdown_should_have_happened",
+			modified_date		=>	$anvil->data->{sys}{db_timestamp},
+		});
+		my $cleared_load_shed = $anvil->Alert->check_alert_sent({
+			type			=>	"clear",
+			alert_sent_by		=>	$THIS_FILE,
+			alert_record_locator	=>	$anvil->host_name,
+			alert_name		=>	"load_shed_needed",
+			modified_date		=>	$anvil->data->{sys}{db_timestamp},
+		});
+		if ($cleared_node_sick)
+		{
+			# Tell the user that we're OK.
+			$anvil->Alert->register_alert({
+				alert_level		=>	"warning", 
+				alert_agent_name	=>	$THIS_FILE,
+				alert_title_key		=>	"an_alert_title_0006",
+				alert_message_key	=>	"scancore_warning_0013",
+				alert_message_variables	=>	{
+					node			=>	$anvil->host_name,
+				},
+			});
+			
+			# Send the email
+			process_alerts($an, 0);
+		}
+		
+	}
+	
+	### Log the state, if needed. Note that load shedding is handled in 'anvil-safe-stop', not here.
+	# Power
+	if ($power_health eq "3")
+	{
+		if (not $anvil->data->{sys}{reported}{power_is_critical})
+		{
+			$anvil->Log->entry({log_level => 1, message_key => "scancore_log_0079", file => $THIS_FILE, line => __LINE__});
+			$anvil->data->{sys}{reported}{power_is_critical} = 1;
+			$anvil->data->{sys}{reported}{power_is_warning}  = 0;
+		}
+	}
+	elsif (($power_health eq "2") or ($power_health eq "4"))
+	{
+		if (not $anvil->data->{sys}{reported}{power_is_warning})
+		{
+			$anvil->Log->entry({log_level => 1, message_key => "scancore_log_0077", file => $THIS_FILE, line => __LINE__});
+			$anvil->data->{sys}{reported}{power_is_critical} = 0;
+			$anvil->data->{sys}{reported}{power_is_warning}  = 1;
+		}
+	}
+	else
+	{
+		if (($anvil->data->{sys}{reported}{power_is_critical}) or ($anvil->data->{sys}{reported}{power_is_warning}))
+		{
+			# Clear
+			$anvil->Log->entry({log_level => 1, message_key => "scancore_log_0081", file => $THIS_FILE, line => __LINE__});
+			$anvil->data->{sys}{reported}{power_is_critical} = 0;
+			$anvil->data->{sys}{reported}{power_is_warning}  = 0;
+		}
+	}
+	
+	# Temperature
+	if ($node_temperature_ok eq "3")
+	{
+		if (not $anvil->data->{sys}{reported}{temperature_is_critical})
+		{
+			$anvil->Log->entry({log_level => 1, message_key => "scancore_log_0080", file => $THIS_FILE, line => __LINE__});
+			$anvil->data->{sys}{reported}{temperature_is_critical} = 1;
+			$anvil->data->{sys}{reported}{temperature_is_warning}  = 0;
+		}
+	}
+	elsif (($node_temperature_ok eq "2") or ($node_temperature_ok eq "4"))
+	{
+		if (not $anvil->data->{sys}{reported}{temperature_is_warning})
+		{
+			$anvil->Log->entry({log_level => 1, message_key => "scancore_log_0078", file => $THIS_FILE, line => __LINE__});
+			$anvil->data->{sys}{reported}{temperature_is_critical} = 0;
+			$anvil->data->{sys}{reported}{temperature_is_warning}  = 1;
+		}
+	}
+	else
+	{
+		if (($anvil->data->{sys}{reported}{temperature_is_critical}) or ($anvil->data->{sys}{reported}{temperature_is_warning}))
+		{
+			# Clear
+			$anvil->Log->entry({log_level => 1, message_key => "scancore_log_0082", file => $THIS_FILE, line => __LINE__});
+			$anvil->data->{sys}{reported}{temperature_is_critical} = 0;
+			$anvil->data->{sys}{reported}{temperature_is_warning}  = 0;
+		}
+	}
+	
+	# Finally, migrate servers if necessary. 
+	# 1 = Both nodes have the same health.
+	# 2 = We're healther than our peer (migrate)
+	# 3 = We're sicker than our peer (do nothing)
+	my $return = 0;
+	$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+		name1 => "node_health_ok", value1 => $node_health_ok, 
+	}, file => $THIS_FILE, line => __LINE__});
+	if ($node_health_ok == 2)
+	{
+		# Migrate all servers to us.
+		$return = migrate_all_servers_to_here($an);
+		$anvil->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+			name1 => "return", value1 => $return, 
+		}, file => $THIS_FILE, line => __LINE__});
+	}
+=cut
 	
 	return(0);
 }
@@ -964,40 +1699,26 @@ LIMIT 1;";
 		}
 		
 		# Still here? See if we know why the node is off.
-		my $boot_target = 0;
-		my $stop_reason = "unknown";
-		   $query       = "
-SELECT 
-    variable_value 
-FROM 
-    variables 
-WHERE 
-    variable_name         = 'system::stop_reason' 
-AND 
-    variable_source_table = 'hosts' 
-AND 
-    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)."
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
+		my ($stop_reason, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+			variable_name         => "system::stop_reason",
+			variable_source_table => "hosts",
+			variable_source_uuid  => $host_uuid, 
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			results => $results, 
-			count   => $count, 
+			stop_reason   => $stop_reason, 
+			variable_uuid => $variable_uuid, 
+			modified_date => $modified_date, 
 		}});
-		if ($count)
-		{
-			$stop_reason = $results->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_reason => $stop_reason }});
-		}
 		
 		if (not $stop_reason)
 		{
-			# Nothing to do.
+			$stop_reason = "unknown";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_reason => $stop_reason }});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0565", variables => { host_name => $host_name }});
 			next;
 		}
-		elsif ($stop_reason eq "user")
+		
+		if ($stop_reason eq "user")
 		{
 			# Nothing to do.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0566", variables => { host_name => $host_name }});
@@ -1007,18 +1728,17 @@ AND
 		{
 			# Check now if the power is OK
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0567", variables => { host_name => $host_name }});
-			my ($power_health, $shorted_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time) = $anvil->ScanCore->check_power({
+			my ($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time) = $anvil->ScanCore->check_power({
 				debug      => $debug,
 				anvil_uuid => $anvil_uuid,
 				anvil_name => $anvil_name,
 				host_uuid  => $host_uuid,
-				host_name  => $host_name,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				power_health              => $power_health,
-				shorted_time_on_batteries => $shorted_time_on_batteries, 
-				highest_charge_percentage => $highest_charge_percentage, 
-				estimated_hold_up_time    => $estimated_hold_up_time, 
+				power_health               => $power_health,
+				shortest_time_on_batteries => $shortest_time_on_batteries, 
+				highest_charge_percentage  => $highest_charge_percentage, 
+				estimated_hold_up_time     => $estimated_hold_up_time, 
 			}});
 			# * 0 - No UPSes found for the host
 			# * 1 - One or more UPSes found and at least one has input power from mains.
@@ -1056,6 +1776,7 @@ AND
 		}
 		elsif ($stop_reason eq "thermal")
 		{
+			### TODO: Switch to  ->check_temperature()
 			# Check now if the temperature is OK.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0568", variables => { host_name => $host_name }});
 			

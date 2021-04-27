@@ -1557,6 +1557,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0616">The file: [#!variable!file!#] has been successfully removed.</key>
 		<key name="log_0617">We were asked to delete the file: [#!variable!file!#] on the target: [#!variable!target!#], but it doesn't exist, so nothing to do.</key>
 		<key name="log_0618">Successfully deleted the file: [#!variable!file!#] on the target: [#!variable!target!#].</key>
+		<key name="log_0619">The host: [#!variable!host_name!#] has shut down for thermal reasons: [#!variable!count!#] times. To prevent a frequent boot / thermal excursion / shutdown loop, we will wait: [#!variable!wait_for!#] before marking it's temperature as being OK again.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

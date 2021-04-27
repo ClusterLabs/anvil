@@ -1863,7 +1863,7 @@ CREATE TABLE temperature (
     temperature_weight         numeric                     not null,       -- This is the weight of the sensor value. This is the value added to the sum when testing against 'scancore::threshold::warning_temperature' and 'scancore::threshold::warning_critical'.
     temperature_state          text                        not null,       -- This is a string represnting the state of the sensor. Valid values are 'ok', 'warning', and 'critical'
     temperature_is             text                        not null,       -- This indicate if the temperature 'nominal', 'high' or 'low'. 
-    modified_date              timestamp with time zone    not null,
+    modified_date              timestamp with time zone    not null, 
     
     FOREIGN KEY(temperature_host_uuid) REFERENCES hosts(host_uuid)
 );
