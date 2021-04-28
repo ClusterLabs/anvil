@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
 import { List, Box, Divider, ListItem } from '@material-ui/core';
@@ -63,8 +63,12 @@ const selectDecorator = (
 };
 
 const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
-  const { setAnvilUuid } = useContext(AnvilContext);
+  const { uuid, setAnvilUuid } = useContext(AnvilContext);
   const classes = useStyles();
+
+  useEffect(() => {
+    setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
+  }, [uuid, list, setAnvilUuid]);
 
   return (
     <List component="nav" className={classes.root} aria-label="mailbox folders">
