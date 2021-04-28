@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 
 import { Box } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
 import { BodyText, HeaderText } from './Text';
 import Panel from './Panel';
 import SharedStorageNode from './SharedStorageNode';
@@ -9,7 +10,15 @@ import PanelHeader from './PanelHeader';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { AnvilContext } from './AnvilContext';
 
+const useStyles = makeStyles(() => ({
+  header: {
+    paddingTop: '3px',
+    paddingRight: '10px',
+  },
+}));
+
 const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+  const classes = useStyles();
   const { uuid } = useContext(AnvilContext);
   const { data } = PeriodicFetch<AnvilSharedStorage>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_shared_storage?anvil_uuid=`,
@@ -23,7 +32,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
           (fs: AnvilSharedStorageFileSystem): JSX.Element => (
             <InnerPanel key={fs.mount_point}>
               <PanelHeader>
-                <Box display="flex" width="100%">
+                <Box display="flex" width="100%" className={classes.header}>
                   <Box>
                     <BodyText text={fs.mount_point} />
                   </Box>
