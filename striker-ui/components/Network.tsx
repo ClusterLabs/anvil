@@ -1,11 +1,13 @@
+import { useContext } from 'react';
 import { Box, Divider } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
 import Panel from './Panel';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import { BLUE, PURPLE_OFF, GREY } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, PURPLE_OFF, DIVIDER } from '../lib/consts/DEFAULT_THEME';
 import processNetworkData from './processNetwork';
+import { AnvilContext } from './AnvilContext';
 
 const useStyles = makeStyles(() => ({
   container: {
@@ -21,7 +23,7 @@ const useStyles = makeStyles(() => ({
     paddingLeft: 0,
   },
   divider: {
-    background: GREY,
+    background: DIVIDER,
   },
   decorator: {
     width: '20px',
@@ -49,12 +51,13 @@ const selectDecorator = (
   }
 };
 
-const Network = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
+const Network = (): JSX.Element => {
+  const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
 
   const { data } = PeriodicFetch<AnvilNetwork>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_network?anvil_uuid=`,
-    anvil?.anvil_uuid,
+    uuid,
   );
 
   const processed = processNetworkData(data);

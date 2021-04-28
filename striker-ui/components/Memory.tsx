@@ -1,11 +1,14 @@
+import { useContext } from 'react';
 import { Box } from '@material-ui/core';
 import * as prettyBytes from 'pretty-bytes';
 import Panel from './Panel';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import { AnvilContext } from './AnvilContext';
 
-const Memory = ({ uuid }: { uuid: string }): JSX.Element => {
+const Memory = (): JSX.Element => {
+  const { uuid } = useContext(AnvilContext);
   const { data, isLoading } = PeriodicFetch<AnvilMemory>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_memory?anvil_uuid=`,
     uuid,

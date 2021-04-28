@@ -1,16 +1,19 @@
-import { Box } from '@material-ui/core';
+import { useContext } from 'react';
 
+import { Box } from '@material-ui/core';
 import { BodyText, HeaderText } from './Text';
 import Panel from './Panel';
 import SharedStorageNode from './SharedStorageNode';
 import InnerPanel from './InnerPanel';
 import PanelHeader from './PanelHeader';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import { AnvilContext } from './AnvilContext';
 
-const SharedStorage = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
+const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+  const { uuid } = useContext(AnvilContext);
   const { data } = PeriodicFetch<AnvilSharedStorage>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_shared_storage?anvil_uuid=`,
-    anvil?.anvil_uuid,
+    uuid,
   );
   return (
     <Panel>
@@ -33,8 +36,13 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
                     index: number,
                   ): JSX.Element => (
                     <SharedStorageNode
-                      node={{ ...node, nodeInfo: anvil.nodes[index] }}
-                      key={anvil.nodes[index].node_uuid}
+                      node={{
+                        ...node,
+                        nodeInfo:
+                          anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)]
+                            .nodes[index],
+                      }}
+                      key={fs.nodes[index].free}
                     />
                   ),
                 )}

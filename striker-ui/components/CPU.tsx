@@ -1,10 +1,14 @@
+import { useContext } from 'react';
 import { Box } from '@material-ui/core';
 import Panel from './Panel';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import { AnvilContext } from './AnvilContext';
 
-const CPU = ({ uuid }: { uuid: string }): JSX.Element => {
+const CPU = (): JSX.Element => {
+  const { uuid } = useContext(AnvilContext);
+
   const { data, isLoading } = PeriodicFetch<AnvilCPU>(
     `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_cpu?anvil_uuid=`,
     uuid,
