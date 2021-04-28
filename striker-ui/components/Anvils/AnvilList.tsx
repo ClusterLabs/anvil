@@ -7,7 +7,7 @@ import {
   PURPLE_OFF,
   RED_ON,
   HOVER,
-  GREY,
+  DIVIDER,
 } from '../../lib/consts/DEFAULT_THEME';
 import Anvil from './Anvil';
 import { AnvilContext } from '../AnvilContext';
@@ -20,7 +20,7 @@ const useStyles = makeStyles(() => ({
     height: '30vh',
   },
   divider: {
-    background: GREY,
+    background: DIVIDER,
   },
   button: {
     '&:hover': {

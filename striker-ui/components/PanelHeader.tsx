@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { TEXT } from '../lib/consts/DEFAULT_THEME';
+import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
 type Props = {
   children: ReactNode;
@@ -17,7 +17,7 @@ const useStyles = makeStyles(() => ({
       padding: '10px 0',
       position: 'absolute',
       content: '""',
-      borderColor: TEXT,
+      borderColor: DIVIDER,
       borderWidth: '1px',
       borderRadius: '3px',
       borderStyle: 'solid',

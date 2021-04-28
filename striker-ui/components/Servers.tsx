@@ -5,7 +5,7 @@ import { ClassNameMap } from '@material-ui/styles';
 import Panel from './Panel';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
-import { BLUE, GREY, HOVER } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, GREY, HOVER, DIVIDER } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 
 const useStyles = makeStyles(() => ({
@@ -15,7 +15,7 @@ const useStyles = makeStyles(() => ({
     height: '100%',
   },
   divider: {
-    background: GREY,
+    background: DIVIDER,
   },
   button: {
     '&:hover': {
