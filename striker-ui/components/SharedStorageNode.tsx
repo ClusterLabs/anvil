@@ -50,7 +50,7 @@ const SharedStorageNode = ({
     <>
       <Box display="flex" width="100%" className={classes.fs}>
         <Box flexGrow={1}>
-          <BodyText text={node.nodeInfo?.node_name} />
+          <BodyText text={node.nodeInfo?.node_name || 'Not Available'} />
         </Box>
         <Box className={classes.decoratorBox}>
           <div
