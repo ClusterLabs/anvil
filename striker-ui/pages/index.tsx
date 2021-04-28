@@ -47,18 +47,18 @@ const Home = (): JSX.Element => {
             <>
               <Box p={1} className={classes.child}>
                 <Anvils list={data} />
-                <Nodes anvil={data.anvils[0]} />
+                <Nodes anvil={data.anvils} />
               </Box>
               <Box p={1} className={classes.server}>
                 <Servers anvil={data.anvils} />
               </Box>
               <Box p={1} className={classes.child}>
-                <SharedStorage anvil={data.anvils[0]} />
+                <SharedStorage anvil={data.anvils} />
               </Box>
               <Box p={1} className={classes.child}>
-                <Network anvil={data.anvils[0]} />
-                <CPU uuid={data.anvils[0].anvil_uuid} />
-                <Memory uuid={data.anvils[0].anvil_uuid} />
+                <Network />
+                <CPU />
+                <Memory />
               </Box>
             </>
           )}
