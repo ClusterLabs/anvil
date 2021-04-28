@@ -1886,7 +1886,7 @@ sub load_packages
 			"kexec-tools.x86_64",
 			"keyutils-libs.x86_64",
 			"keyutils.x86_64",
-			"kmod-drbd90.x86_64",
+			"kmod-drbd91.x86_64",
 			"kmod-libs.x86_64",
 			"kmod.x86_64",
 			"kpartx.x86_64",
