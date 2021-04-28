@@ -1,6 +1,6 @@
 import AppBar from '@material-ui/core/AppBar';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
-import { Grid } from '@material-ui/core';
+import { Box } from '@material-ui/core';
 import Image from 'next/image';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 
@@ -18,6 +18,9 @@ const useStyles = makeStyles((theme) =>
       backgroundColor: theme.palette.secondary.main,
       borderRadius: '3px',
     },
+    barElement: {
+      padding: '0',
+    },
   }),
 );
 
@@ -25,14 +28,20 @@ const Header = (): JSX.Element => {
   const classes = useStyles();
   return (
     <AppBar position="static" className={classes.appBar}>
-      <Grid container alignItems="center" justify="space-between">
-        <Grid item>
+      <Box
+        display="flex"
+        flexDirection="row"
+        width="100%"
+        justifyContent="space-between"
+        alignContent="flex-start"
+      >
+        <Box p={1} className={classes.barElement}>
           <Image src="/pngs/logo.png" width="160" height="40" />
-        </Grid>
-        <Grid item>
+        </Box>
+        <Box p={1} className={classes.barElement}>
           <input className={classes.input} list="search-suggestions" />
-        </Grid>
-        <Grid item>
+        </Box>
+        <Box p={1} className={classes.barElement}>
           {ICONS.map(
             (icon): JSX.Element => (
               <Image
@@ -42,8 +51,8 @@ const Header = (): JSX.Element => {
               />
             ),
           )}
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </AppBar>
   );
 };
