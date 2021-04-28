@@ -14,7 +14,7 @@ const useStyles = makeStyles((theme) =>
     },
     input: {
       height: '40px',
-      width: '500px',
+      width: '30vw',
       backgroundColor: theme.palette.secondary.main,
       borderRadius: '3px',
     },
@@ -28,20 +28,14 @@ const Header = (): JSX.Element => {
   const classes = useStyles();
   return (
     <AppBar position="static" className={classes.appBar}>
-      <Box
-        display="flex"
-        flexDirection="row"
-        width="100%"
-        justifyContent="space-between"
-        alignContent="flex-start"
-      >
-        <Box p={1} className={classes.barElement}>
+      <Box display="flex" justifyContent="space-between" flexDirection="row">
+        <Box className={classes.barElement}>
           <Image src="/pngs/logo.png" width="160" height="40" />
         </Box>
-        <Box p={1} className={classes.barElement}>
+        <Box className={classes.barElement}>
           <input className={classes.input} list="search-suggestions" />
         </Box>
-        <Box p={1} className={classes.barElement}>
+        <Box className={classes.barElement}>
           {ICONS.map(
             (icon): JSX.Element => (
               <Image

@@ -1,7 +1,6 @@
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
-import Header from '../components/Header';
 import Anvils from '../components/Anvils';
 import Nodes from '../components/Nodes';
 import CPU from '../components/CPU';
@@ -10,7 +9,7 @@ import Memory from '../components/Memory';
 import Network from '../components/Network';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import Servers from '../components/Servers';
-
+import Header from '../components/Header';
 import AnvilProvider from '../components/AnvilContext';
 
 const useStyles = makeStyles(() => ({
@@ -34,35 +33,32 @@ const Home = (): JSX.Element => {
 
   return (
     <>
-      <Header />
       <AnvilProvider>
-        <Box
-          display="flex"
-          flexDirection="row"
-          width="100%"
-          justifyContent="space-between"
-          alignContent="flex-start"
-        >
-          {data?.anvils && (
-            <>
-              <Box p={1} className={classes.child}>
-                <Anvils list={data} />
-                <Nodes anvil={data.anvils} />
-              </Box>
-              <Box p={1} className={classes.server}>
-                <Servers anvil={data.anvils} />
-              </Box>
-              <Box p={1} className={classes.child}>
-                <SharedStorage anvil={data.anvils} />
-              </Box>
-              <Box p={1} className={classes.child}>
-                <Network />
-                <CPU />
-                <Memory />
-              </Box>
-            </>
-          )}
-        </Box>
+        <Header />
+        {data?.anvils && (
+          <Box
+            display="flex"
+            flexDirection="row"
+            width="100%"
+            justifyContent="space-between"
+          >
+            <Box p={1} className={classes.child}>
+              <Anvils list={data} />
+              <Nodes anvil={data.anvils} />
+            </Box>
+            <Box p={1} className={classes.server}>
+              <Servers anvil={data.anvils} />
+            </Box>
+            <Box p={1} className={classes.child}>
+              <SharedStorage anvil={data.anvils} />
+            </Box>
+            <Box p={1} className={classes.child}>
+              <Network />
+              <CPU />
+              <Memory />
+            </Box>
+          </Box>
+        )}
       </AnvilProvider>
     </>
   );
