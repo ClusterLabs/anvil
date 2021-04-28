@@ -11,18 +11,18 @@ const useStyles = makeStyles(() => ({
   innerHeader: {
     position: 'relative',
     padding: '0 10px',
-    '&::before': {
-      top: '-5px',
-      left: '-5px',
-      padding: '10px 0',
-      position: 'absolute',
-      content: '""',
-      borderColor: DIVIDER,
-      borderWidth: '1px',
-      borderRadius: '3px',
-      borderStyle: 'solid',
-      width: '100%',
-    },
+  },
+  header: {
+    top: '-5px',
+    left: '-5px',
+    padding: '20px 0',
+    position: 'absolute',
+    content: '""',
+    borderColor: DIVIDER,
+    borderWidth: '1px',
+    borderRadius: '3px',
+    borderStyle: 'solid',
+    width: '100%',
   },
 }));
 
@@ -31,6 +31,7 @@ const PanelHeader = ({ children }: Props): JSX.Element => {
 
   return (
     <Box className={classes.innerHeader} whiteSpace="pre-wrap">
+      <div className={classes.header} />
       {children}
     </Box>
   );
