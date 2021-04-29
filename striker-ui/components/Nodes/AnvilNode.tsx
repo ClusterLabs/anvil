@@ -106,7 +106,7 @@ const AnvilNode = ({
                     <BodyText text="Power: " />
                   </Box>
                   <Box flexGrow={1}>
-                    <Switch checked />
+                    <Switch checked={node.state === 'ready'} />
                   </Box>
                   <Box className={classes.label}>
                     <BodyText text="Member: " />
