@@ -5,8 +5,16 @@ import { ClassNameMap } from '@material-ui/styles';
 import Panel from './Panel';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
-import { BLUE, GREY, HOVER, DIVIDER } from '../lib/consts/DEFAULT_THEME';
+import {
+  BLUE,
+  GREY,
+  HOVER,
+  DIVIDER,
+  PURPLE_OFF,
+  RED_ON,
+} from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
+import serverState from '../lib/consts/SERVERS';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -31,24 +39,32 @@ const useStyles = makeStyles(() => ({
     height: '100%',
     borderRadius: 2,
   },
-  started: {
+  running: {
     backgroundColor: BLUE,
   },
-  stopped: {
+  shut_off: {
     backgroundColor: GREY,
+  },
+  crashed: {
+    backgroundColor: RED_ON,
+  },
+  warning: {
+    backgroundColor: PURPLE_OFF,
   },
 }));
 
 const selectDecorator = (
   state: string,
-): keyof ClassNameMap<'started' | 'stopped'> => {
+): keyof ClassNameMap<'running' | 'shut_off' | 'crashed' | 'warning'> => {
   switch (state) {
-    case 'Started':
-      return 'started';
-    case 'Stopped':
-      return 'stopped';
+    case 'running':
+      return 'running';
+    case 'shut_off':
+      return 'shut_off';
+    case 'crashed':
+      return 'crashed';
     default:
-      return 'stopped';
+      return 'warning';
   }
 };
 
@@ -87,9 +103,15 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     </Box>
                     <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
                       <BodyText text={server.server_name} />
-                      <BodyText text={server.server_state} />
+                      <BodyText
+                        text={
+                          serverState.get(server.server_state) ||
+                          'Not Available'
+                        }
+                      />
                     </Box>
-                    {server.server_state === 'Started' &&
+                    {server.server_state !== 'shut_off' &&
+                      server.server_state !== 'crashed' &&
                       anvil[
                         anvil.findIndex((a) => a.anvil_uuid === uuid)
                       ].nodes.map(
