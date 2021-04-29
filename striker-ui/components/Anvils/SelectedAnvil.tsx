@@ -4,7 +4,7 @@ import { ClassNameMap } from '@material-ui/styles';
 import { makeStyles } from '@material-ui/core/styles';
 import { HeaderText } from '../Text';
 import { BLUE, PURPLE_OFF, RED_ON } from '../../lib/consts/DEFAULT_THEME';
-import anvilState from './CONSTS';
+import anvilState from '../../lib/consts/ANVILS';
 import { AnvilContext } from '../AnvilContext';
 
 const useStyles = makeStyles(() => ({

@@ -1,5 +1,5 @@
 import { BodyText } from '../Text';
-import anvilState from './CONSTS';
+import anvilState from '../../lib/consts/ANVILS';
 
 const Anvil = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => {
   return (

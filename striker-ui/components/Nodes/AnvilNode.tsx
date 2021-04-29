@@ -7,6 +7,7 @@ import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import PanelHeader from '../PanelHeader';
 import { BLUE, RED_ON, TEXT, PURPLE_OFF } from '../../lib/consts/DEFAULT_THEME';
+import nodeState from '../../lib/consts/NODES';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -94,7 +95,9 @@ const AnvilNode = ({
                       />
                     </Box>
                     <Box>
-                      <BodyText text={node.state} />
+                      <BodyText
+                        text={nodeState.get(node.state) || 'Not Available'}
+                      />
                     </Box>
                   </Box>
                 </PanelHeader>
