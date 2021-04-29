@@ -12,14 +12,35 @@ import Servers from '../components/Servers';
 import Header from '../components/Header';
 import AnvilProvider from '../components/AnvilContext';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   child: {
     width: '22%',
     height: '100%',
+    [theme.breakpoints.down('lg')]: {
+      width: '25%',
+    },
+    [theme.breakpoints.down('md')]: {
+      width: '100%',
+    },
   },
   server: {
     width: '35%',
     height: '100%',
+    [theme.breakpoints.down('lg')]: {
+      width: '25%',
+    },
+    [theme.breakpoints.down('md')]: {
+      width: '100%',
+    },
+  },
+  container: {
+    display: 'flex',
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    [theme.breakpoints.down('md')]: {
+      display: 'block',
+    },
   },
 }));
 
@@ -36,12 +57,7 @@ const Home = (): JSX.Element => {
       <AnvilProvider>
         <Header />
         {data?.anvils && (
-          <Box
-            display="flex"
-            flexDirection="row"
-            width="100%"
-            justifyContent="space-between"
-          >
+          <Box className={classes.container}>
             <Box p={1} className={classes.child}>
               <Anvils list={data} />
               <Nodes anvil={data.anvils} />
