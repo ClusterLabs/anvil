@@ -8,13 +8,13 @@ type Props = {
 
 const useStyles = makeStyles(() => ({
   paper: {
-    // margin: 20,
     padding: '30px',
     backgroundColor: PANEL_BACKGROUND,
     opacity: 0.8,
     zIndex: 999,
   },
   container: {
+    margin: 15,
     position: 'relative',
   },
   square: {
