@@ -1,58 +1,55 @@
 import { ReactNode } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { PANEL_BACKGROUND, TEXT, DIVIDER } from '../lib/consts/DEFAULT_THEME';
+import { PANEL_BACKGROUND, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 type Props = {
   children: ReactNode;
 };
 
-const decorationBoxProps = {
-  content: '""',
-  position: 'absolute',
-  width: '30px',
-  height: '30px',
-  border: '1px',
-  borderColor: TEXT,
-  borderWidth: '1px',
-  borderRadius: '3px',
-  borderStyle: 'solid',
-  padding: 0,
-  margin: 0,
-  zIndex: -1,
-};
-
 const useStyles = makeStyles(() => ({
-  rectangle: {
+  paper: {
+    // margin: 20,
+    padding: '30px',
+    backgroundColor: PANEL_BACKGROUND,
+    opacity: 0.8,
+    zIndex: 999,
+  },
+  container: {
+    position: 'relative',
+  },
+  square: {
+    content: '""',
+    position: 'absolute',
     width: '30px',
     height: '30px',
+    border: '1px',
+    borderColor: TEXT,
     borderWidth: '1px',
     borderRadius: '3px',
     borderStyle: 'solid',
-    borderColor: DIVIDER,
+    padding: 0,
+    margin: 0,
   },
-  paper: {
-    margin: 10,
-    padding: '30px',
-    backgroundColor: PANEL_BACKGROUND,
-    position: 'relative',
-    zIndex: 999,
-    '&::before': {
-      ...decorationBoxProps,
-      top: '-5px',
-      left: '-5px',
-    },
-    '&::after': {
-      ...decorationBoxProps,
-      bottom: '-5px',
-      right: '-5px',
-    },
+  topSquare: {
+    top: '-5px',
+    left: '-5px',
+  },
+  bottomSquare: {
+    bottom: '-5px',
+    right: '-5px',
   },
 }));
 
 const Panel = ({ children }: Props): JSX.Element => {
   const classes = useStyles();
 
-  return <div className={classes.paper}>{children}</div>;
+  return (
+    <div className={classes.container}>
+      <div className={`${classes.square} ${classes.topSquare}`} />
+      <div className={`${classes.square} ${classes.bottomSquare}`} />
+      <div className={classes.paper}>{children}</div>
+    </div>
+  );
 };
 
 export default Panel;
