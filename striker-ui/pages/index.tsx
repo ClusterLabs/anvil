@@ -58,17 +58,17 @@ const Home = (): JSX.Element => {
         <Header />
         {data?.anvils && (
           <Box className={classes.container}>
-            <Box p={2} className={classes.child}>
+            <Box className={classes.child}>
               <Anvils list={data} />
               <Nodes anvil={data.anvils} />
             </Box>
-            <Box p={2} className={classes.server}>
+            <Box className={classes.server}>
               <Servers anvil={data.anvils} />
             </Box>
-            <Box p={2} className={classes.child}>
+            <Box className={classes.child}>
               <SharedStorage anvil={data.anvils} />
             </Box>
-            <Box p={2} className={classes.child}>
+            <Box className={classes.child}>
               <Network />
               <CPU />
               <Memory />
