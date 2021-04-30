@@ -4,9 +4,9 @@ import { ClassNameMap } from '@material-ui/styles';
 
 import * as prettyBytes from 'pretty-bytes';
 
-import { AllocationBar } from './Bars';
-import { BodyText } from './Text';
-import { BLUE, RED_ON } from '../lib/consts/DEFAULT_THEME';
+import { AllocationBar } from '../Bars';
+import { BodyText } from '../Text';
+import { BLUE, RED_ON } from '../../lib/consts/DEFAULT_THEME';
 
 const selectDecorator = (
   state: boolean,

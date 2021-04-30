@@ -2,11 +2,11 @@ import { useContext } from 'react';
 
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { BodyText, HeaderText } from './Text';
-import { Panel, InnerPanel, PanelHeader } from './Panels';
+import { BodyText, HeaderText } from '../Text';
+import { Panel, InnerPanel, PanelHeader } from '../Panels';
 import SharedStorageNode from './SharedStorageNode';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import { AnvilContext } from './AnvilContext';
+import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import { AnvilContext } from '../AnvilContext';
 
 const useStyles = makeStyles((theme) => ({
   header: {
