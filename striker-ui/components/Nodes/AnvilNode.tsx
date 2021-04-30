@@ -1,4 +1,4 @@
-import { Box, List, Switch } from '@material-ui/core';
+import { Box, Switch } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
 
@@ -9,11 +9,15 @@ import PanelHeader from '../PanelHeader';
 import { BLUE, RED_ON, TEXT, PURPLE_OFF } from '../../lib/consts/DEFAULT_THEME';
 import nodeState from '../../lib/consts/NODES';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
-    width: '100%',
     overflow: 'auto',
     height: '30vh',
+    paddingLeft: '5px',
+    [theme.breakpoints.down('md')]: {
+      height: '100%',
+      overflow: 'hidden',
+    },
   },
   state: {
     paddingLeft: '10px',
@@ -76,7 +80,7 @@ const AnvilNode = ({
 }): JSX.Element => {
   const classes = useStyles();
   return (
-    <List component="nav" className={classes.root} aria-label="mailbox folders">
+    <Box className={classes.root}>
       {nodes &&
         nodes.map(
           (node): JSX.Element => {
@@ -136,7 +140,7 @@ const AnvilNode = ({
             );
           },
         )}
-    </List>
+    </Box>
   );
 };
 

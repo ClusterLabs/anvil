@@ -10,10 +10,18 @@ import PanelHeader from './PanelHeader';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { AnvilContext } from './AnvilContext';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   header: {
     paddingTop: '3px',
     paddingRight: '10px',
+  },
+  root: {
+    overflow: 'auto',
+    height: '80vh',
+    paddingLeft: '5px',
+    [theme.breakpoints.down('md')]: {
+      height: '100%',
+    },
   },
 }));
 
@@ -27,37 +35,39 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   return (
     <Panel>
       <HeaderText text="Shared Storage" />
-      {data?.file_systems &&
-        data.file_systems.map(
-          (fs: AnvilSharedStorageFileSystem): JSX.Element => (
-            <InnerPanel key={fs.mount_point}>
-              <PanelHeader>
-                <Box display="flex" width="100%" className={classes.header}>
-                  <Box>
-                    <BodyText text={fs.mount_point} />
+      <Box className={classes.root}>
+        {data?.file_systems &&
+          data.file_systems.map(
+            (fs: AnvilSharedStorageFileSystem): JSX.Element => (
+              <InnerPanel key={fs.mount_point}>
+                <PanelHeader>
+                  <Box display="flex" width="100%" className={classes.header}>
+                    <Box>
+                      <BodyText text={fs.mount_point} />
+                    </Box>
                   </Box>
-                </Box>
-              </PanelHeader>
-              {fs?.nodes &&
-                fs.nodes.map(
-                  (
-                    node: AnvilSharedStorageNode,
-                    index: number,
-                  ): JSX.Element => (
-                    <SharedStorageNode
-                      node={{
-                        ...node,
-                        nodeInfo:
-                          anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)]
-                            .nodes[index],
-                      }}
-                      key={fs.nodes[index].free}
-                    />
-                  ),
-                )}
-            </InnerPanel>
-          ),
-        )}
+                </PanelHeader>
+                {fs?.nodes &&
+                  fs.nodes.map(
+                    (
+                      node: AnvilSharedStorageNode,
+                      index: number,
+                    ): JSX.Element => (
+                      <SharedStorageNode
+                        node={{
+                          ...node,
+                          nodeInfo:
+                            anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)]
+                              .nodes[index],
+                        }}
+                        key={fs.nodes[index].free}
+                      />
+                    ),
+                  )}
+              </InnerPanel>
+            ),
+          )}
+      </Box>
     </Panel>
   );
 };
