@@ -11,3 +11,4 @@ export const GREY = '#E5E5E5';
 export const HOVER = '#444';
 export const UNSELECTED = '#666';
 export const DIVIDER = '#888';
+export const SELECTED_ANVIL = '#00ff00';
