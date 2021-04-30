@@ -16,11 +16,14 @@ import {
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     width: '100%',
     overflow: 'auto',
-    height: '100%',
+    height: '80vh',
+    [theme.breakpoints.down('md')]: {
+      height: '100%',
+    },
   },
   divider: {
     background: DIVIDER,
@@ -79,61 +82,59 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   return (
     <Panel>
       <HeaderText text="Servers" />
-      <List
-        component="nav"
-        className={classes.root}
-        aria-label="mailbox folders"
-      >
-        {data &&
-          data.servers.map((server: AnvilServer) => {
-            return (
-              <>
-                <ListItem
-                  button
-                  className={classes.button}
-                  key={server.server_uuid}
-                >
-                  <Box display="flex" flexDirection="row" width="100%">
-                    <Box p={1} className={classes.noPaddingLeft}>
-                      <div
-                        className={`${classes.decorator} ${
-                          classes[selectDecorator(server.server_state)]
-                        }`}
-                      />
+      <Box className={classes.root}>
+        <List component="nav">
+          {data &&
+            data.servers.map((server: AnvilServer) => {
+              return (
+                <>
+                  <ListItem
+                    button
+                    className={classes.button}
+                    key={server.server_uuid}
+                  >
+                    <Box display="flex" flexDirection="row" width="100%">
+                      <Box p={1} className={classes.noPaddingLeft}>
+                        <div
+                          className={`${classes.decorator} ${
+                            classes[selectDecorator(server.server_state)]
+                          }`}
+                        />
+                      </Box>
+                      <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
+                        <BodyText text={server.server_name} />
+                        <BodyText
+                          text={
+                            serverState.get(server.server_state) ||
+                            'Not Available'
+                          }
+                        />
+                      </Box>
+                      {server.server_state !== 'shut_off' &&
+                        server.server_state !== 'crashed' &&
+                        anvil[
+                          anvil.findIndex((a) => a.anvil_uuid === uuid)
+                        ].nodes.map(
+                          (
+                            node: AnvilListItemNode,
+                            index: number,
+                          ): JSX.Element => (
+                            <Box p={1} key={node.node_uuid}>
+                              <BodyText
+                                text={node.node_name}
+                                selected={server.server_host_index === index}
+                              />
+                            </Box>
+                          ),
+                        )}
                     </Box>
-                    <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
-                      <BodyText text={server.server_name} />
-                      <BodyText
-                        text={
-                          serverState.get(server.server_state) ||
-                          'Not Available'
-                        }
-                      />
-                    </Box>
-                    {server.server_state !== 'shut_off' &&
-                      server.server_state !== 'crashed' &&
-                      anvil[
-                        anvil.findIndex((a) => a.anvil_uuid === uuid)
-                      ].nodes.map(
-                        (
-                          node: AnvilListItemNode,
-                          index: number,
-                        ): JSX.Element => (
-                          <Box p={1} key={node.node_uuid}>
-                            <BodyText
-                              text={node.node_name}
-                              selected={server.server_host_index === index}
-                            />
-                          </Box>
-                        ),
-                      )}
-                  </Box>
-                </ListItem>
-                <Divider className={classes.divider} />
-              </>
-            );
-          })}
-      </List>
+                  </ListItem>
+                  <Divider className={classes.divider} />
+                </>
+              );
+            })}
+        </List>
+      </Box>
     </Panel>
   );
 };

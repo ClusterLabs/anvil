@@ -13,11 +13,15 @@ import Anvil from './Anvil';
 import { AnvilContext } from '../AnvilContext';
 import sortAnvils from './sortAnvils';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     width: '100%',
     overflow: 'auto',
     height: '30vh',
+    [theme.breakpoints.down('md')]: {
+      height: '100%',
+      overflow: 'hidden',
+    },
   },
   divider: {
     background: DIVIDER,
@@ -67,7 +71,7 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
   const classes = useStyles();
 
   useEffect(() => {
-    setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
+    if (uuid === '') setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
   }, [uuid, list, setAnvilUuid]);
 
   return (
