@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { PANEL_BACKGROUND, TEXT } from '../lib/consts/DEFAULT_THEME';
+import { PANEL_BACKGROUND, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
 type Props = {
   children: ReactNode;

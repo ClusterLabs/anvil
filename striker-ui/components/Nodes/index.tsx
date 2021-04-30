@@ -1,6 +1,6 @@
 import { useContext } from 'react';
-import Panel from '../Panel';
-import Text from '../Text/HeaderText';
+import { Panel } from '../Panels';
+import { HeaderText } from '../Text';
 import AnvilNode from './AnvilNode';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
@@ -15,7 +15,7 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   return (
     <Panel>
-      <Text text="Nodes" />
+      <HeaderText text="Nodes" />
       {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && (
         <AnvilNode
           nodes={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].nodes.map(

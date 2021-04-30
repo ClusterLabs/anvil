@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { Box, Divider } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
-import Panel from './Panel';
+import { Panel } from './Panels';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { BLUE, PURPLE_OFF, DIVIDER } from '../lib/consts/DEFAULT_THEME';

@@ -1,4 +1,4 @@
-import Panel from '../Panel';
+import { Panel } from '../Panels';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import SelectedAnvil from './SelectedAnvil';
 import AnvilList from './AnvilList';

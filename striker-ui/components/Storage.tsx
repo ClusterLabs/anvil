@@ -1,6 +1,6 @@
 import { Grid } from '@material-ui/core';
 import * as prettyBytes from 'pretty-bytes';
-import Panel from './Panel';
+import { Panel } from './Panels';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';

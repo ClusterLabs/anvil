@@ -3,10 +3,8 @@ import { useContext } from 'react';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { BodyText, HeaderText } from './Text';
-import Panel from './Panel';
+import { Panel, InnerPanel, PanelHeader } from './Panels';
 import SharedStorageNode from './SharedStorageNode';
-import InnerPanel from './InnerPanel';
-import PanelHeader from './PanelHeader';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { AnvilContext } from './AnvilContext';
 

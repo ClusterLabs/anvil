@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Box } from '@material-ui/core';
-import Panel from './Panel';
+import { Panel } from './Panels';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
