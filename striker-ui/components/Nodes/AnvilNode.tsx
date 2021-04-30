@@ -9,31 +9,31 @@ import Decorator, { Colours } from '../Decorator';
 const useStyles = makeStyles((theme) => ({
   root: {
     overflow: 'auto',
-    height: '24vh',
-    paddingLeft: '0.3em',
+    height: '28vh',
+    paddingLeft: '.3em',
     [theme.breakpoints.down('md')]: {
       height: '100%',
       overflow: 'hidden',
     },
   },
   state: {
-    paddingLeft: '0.7em',
-    paddingRight: '0.7em',
+    paddingLeft: '.7em',
+    paddingRight: '.7em',
     paddingTop: '1em',
   },
   bar: {
-    paddingLeft: '0.7em',
-    paddingRight: '0.7em',
+    paddingLeft: '.7em',
+    paddingRight: '.7em',
   },
   header: {
-    paddingTop: '0.3em',
-    paddingRight: '0.7em',
+    paddingTop: '.3em',
+    paddingRight: '.7em',
   },
   label: {
-    paddingTop: '0.3em',
+    paddingTop: '.3em',
   },
   decoratorBox: {
-    paddingRight: '0.3em',
+    paddingRight: '.3em',
   },
 }));
 

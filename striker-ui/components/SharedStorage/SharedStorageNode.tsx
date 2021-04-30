@@ -7,16 +7,16 @@ import Decorator from '../Decorator';
 
 const useStyles = makeStyles(() => ({
   fs: {
-    paddingLeft: '0.7em',
-    paddingRight: '0.7em',
+    paddingLeft: '.7em',
+    paddingRight: '.7em',
     paddingTop: '1.2em',
   },
   bar: {
-    paddingLeft: '0.7em',
-    paddingRight: '0.7em',
+    paddingLeft: '.7em',
+    paddingRight: '.7em',
   },
   decoratorBox: {
-    paddingRight: '0.3em',
+    paddingRight: '.3em',
   },
 }));
 

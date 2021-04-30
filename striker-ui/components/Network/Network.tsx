@@ -20,8 +20,8 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   root: {
-    paddingTop: '0.7em',
-    paddingBottom: '0.7em',
+    paddingTop: '.7em',
+    paddingBottom: '.7em',
   },
   noPaddingLeft: {
     paddingLeft: 0,

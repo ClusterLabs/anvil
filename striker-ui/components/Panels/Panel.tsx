@@ -31,12 +31,12 @@ const useStyles = makeStyles(() => ({
     margin: 0,
   },
   topSquare: {
-    top: '-0.3em',
-    left: '-0.3em',
+    top: '-.3em',
+    left: '-.3em',
   },
   bottomSquare: {
-    bottom: '-0.3em',
-    right: '-0.3em',
+    bottom: '-.3em',
+    right: '-.3em',
   },
 }));
 

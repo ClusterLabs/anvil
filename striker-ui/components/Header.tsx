@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme) =>
       borderRadius: '3px',
     },
     barElement: {
-      padding: '0',
+      padding: 0,
     },
   }),
 );

@@ -10,13 +10,13 @@ import { AnvilContext } from '../AnvilContext';
 
 const useStyles = makeStyles((theme) => ({
   header: {
-    paddingTop: '0.1em',
-    paddingRight: '0.7em',
+    paddingTop: '.1em',
+    paddingRight: '.7em',
   },
   root: {
     overflow: 'auto',
     height: '78vh',
-    paddingLeft: '0.3em',
+    paddingLeft: '.3em',
     [theme.breakpoints.down('md')]: {
       height: '100%',
     },
