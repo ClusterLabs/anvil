@@ -1,16 +1,11 @@
 import { useState, useContext } from 'react';
 import { Switch, Box } from '@material-ui/core';
-import { ClassNameMap } from '@material-ui/styles';
 import { makeStyles } from '@material-ui/core/styles';
 import { HeaderText } from '../Text';
-import {
-  BLUE,
-  PURPLE_OFF,
-  RED_ON,
-  SELECTED_ANVIL,
-} from '../../lib/consts/DEFAULT_THEME';
+import { SELECTED_ANVIL } from '../../lib/consts/DEFAULT_THEME';
 import anvilState from '../../lib/consts/ANVILS';
 import { AnvilContext } from '../AnvilContext';
+import Decorator, { Colours } from '../Decorator';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -22,34 +17,18 @@ const useStyles = makeStyles(() => ({
   anvilName: {
     paddingLeft: 0,
   },
-  decorator: {
-    width: '20px',
-    height: '100%',
-    borderRadius: 2,
-  },
-  optimal: {
-    backgroundColor: BLUE,
-  },
-  notReady: {
-    backgroundColor: PURPLE_OFF,
-  },
-  degraded: {
-    backgroundColor: RED_ON,
-  },
 }));
 
-const selectDecorator = (
-  state: string,
-): keyof ClassNameMap<'optimal' | 'notReady' | 'degraded'> => {
+const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'optimal':
-      return 'optimal';
+      return 'ok';
     case 'not_ready':
-      return 'notReady';
+      return 'warning';
     case 'degraded':
-      return 'degraded';
+      return 'error';
     default:
-      return 'optimal';
+      return 'error';
   }
 };
 
@@ -67,11 +46,7 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
       {uuid !== '' && (
         <>
           <Box p={1}>
-            <div
-              className={`${classes.decorator} ${
-                classes[selectDecorator(list[index].anvil_state)]
-              }`}
-            />
+            <Decorator colour={selectDecorator(list[index].anvil_state)} />
           </Box>
           <Box p={1} flexGrow={1} className={classes.anvilName}>
             <HeaderText text={list[index].anvil_name} />
