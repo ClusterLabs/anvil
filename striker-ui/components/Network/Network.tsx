@@ -1,13 +1,13 @@
 import { useContext } from 'react';
 import { Box, Divider } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { ClassNameMap } from '@material-ui/styles';
 import { Panel } from '../Panels';
 import { HeaderText, BodyText } from '../Text';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
-import { BLUE, PURPLE_OFF, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 import processNetworkData from './processNetwork';
 import { AnvilContext } from '../AnvilContext';
+import Decorator, { Colours } from '../Decorator';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -29,29 +29,16 @@ const useStyles = makeStyles((theme) => ({
   divider: {
     background: DIVIDER,
   },
-  decorator: {
-    width: '20px',
-    height: '100%',
-    borderRadius: 2,
-  },
-  optimal: {
-    backgroundColor: BLUE,
-  },
-  degraded: {
-    backgroundColor: PURPLE_OFF,
-  },
 }));
 
-const selectDecorator = (
-  state: string,
-): keyof ClassNameMap<'optimal' | 'degraded'> => {
+const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'optimal':
-      return 'optimal';
+      return 'ok';
     case 'degraded':
-      return 'degraded';
+      return 'warning';
     default:
-      return 'degraded';
+      return 'warning';
   }
 };
 
@@ -80,11 +67,7 @@ const Network = (): JSX.Element => {
                   className={classes.root}
                 >
                   <Box p={1} className={classes.noPaddingLeft}>
-                    <div
-                      className={`${classes.decorator} ${
-                        classes[selectDecorator(bond.bond_state)]
-                      }`}
-                    />
+                    <Decorator colour={selectDecorator(bond.bond_state)} />
                   </Box>
                   <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
                     <BodyText text={bond.bond_name} />

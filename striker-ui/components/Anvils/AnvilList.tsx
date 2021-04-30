@@ -1,17 +1,11 @@
 import { useContext, useEffect } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { ClassNameMap } from '@material-ui/styles';
 import { List, Box, Divider, ListItem } from '@material-ui/core';
-import {
-  BLUE,
-  PURPLE_OFF,
-  RED_ON,
-  HOVER,
-  DIVIDER,
-} from '../../lib/consts/DEFAULT_THEME';
+import { HOVER, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 import Anvil from './Anvil';
 import { AnvilContext } from '../AnvilContext';
 import sortAnvils from './sortAnvils';
+import Decorator, { Colours } from '../Decorator';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -35,34 +29,18 @@ const useStyles = makeStyles((theme) => ({
   anvil: {
     paddingLeft: 0,
   },
-  decorator: {
-    width: '20px',
-    height: '100%',
-    borderRadius: 2,
-  },
-  optimal: {
-    backgroundColor: BLUE,
-  },
-  notReady: {
-    backgroundColor: PURPLE_OFF,
-  },
-  degraded: {
-    backgroundColor: RED_ON,
-  },
 }));
 
-const selectDecorator = (
-  state: string,
-): keyof ClassNameMap<'optimal' | 'notReady' | 'degraded'> => {
+const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'optimal':
-      return 'optimal';
+      return 'ok';
     case 'not_ready':
-      return 'notReady';
+      return 'warning';
     case 'degraded':
-      return 'degraded';
+      return 'error';
     default:
-      return 'optimal';
+      return 'off';
   }
 };
 
@@ -88,11 +66,7 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
             >
               <Box display="flex" flexDirection="row" width="100%">
                 <Box p={1}>
-                  <div
-                    className={`${classes.decorator} ${
-                      classes[selectDecorator(anvil.anvil_state)]
-                    }`}
-                  />
+                  <Decorator colour={selectDecorator(anvil.anvil_state)} />
                 </Box>
                 <Box p={1} flexGrow={1} className={classes.anvil}>
                   <Anvil anvil={anvil} />

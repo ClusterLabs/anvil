@@ -1,12 +1,10 @@
 import { Box, Switch } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { ClassNameMap } from '@material-ui/styles';
-
 import { InnerPanel, PanelHeader } from '../Panels';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
-import { BLUE, RED_ON, TEXT, PURPLE_OFF } from '../../lib/consts/DEFAULT_THEME';
 import nodeState from '../../lib/consts/NODES';
+import Decorator, { Colours } from '../Decorator';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -34,41 +32,22 @@ const useStyles = makeStyles((theme) => ({
   label: {
     paddingTop: '5px',
   },
-  decorator: {
-    width: '20px',
-    height: '100%',
-    borderRadius: 2,
-  },
   decoratorBox: {
     paddingRight: '5px',
   },
-  ready: {
-    backgroundColor: BLUE,
-  },
-  onAccessible: {
-    backgroundColor: PURPLE_OFF,
-  },
-  off: {
-    backgroundColor: TEXT,
-  },
-  unknown: {
-    backgroundColor: RED_ON,
-  },
 }));
 
-const selectDecorator = (
-  state: string,
-): keyof ClassNameMap<'unknown' | 'off' | 'onAccessible' | 'ready'> => {
+const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'ready':
-      return 'ready';
+      return 'ok';
     case 'off':
       return 'off';
     case 'accessible':
     case 'on':
-      return 'onAccessible';
+      return 'warning';
     default:
-      return 'unknown';
+      return 'error';
   }
 };
 
@@ -91,11 +70,7 @@ const AnvilNode = ({
                       <BodyText text={node.node_name} />
                     </Box>
                     <Box className={classes.decoratorBox}>
-                      <div
-                        className={`${classes.decorator} ${
-                          classes[selectDecorator(node.state)]
-                        }`}
-                      />
+                      <Decorator colour={selectDecorator(node.state)} />
                     </Box>
                     <Box>
                       <BodyText

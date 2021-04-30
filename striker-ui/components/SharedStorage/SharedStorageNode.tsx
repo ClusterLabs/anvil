@@ -1,18 +1,9 @@
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { ClassNameMap } from '@material-ui/styles';
-
 import * as prettyBytes from 'pretty-bytes';
-
 import { AllocationBar } from '../Bars';
 import { BodyText } from '../Text';
-import { BLUE, RED_ON } from '../../lib/consts/DEFAULT_THEME';
-
-const selectDecorator = (
-  state: boolean,
-): keyof ClassNameMap<'mounted' | 'notMounted'> => {
-  return state ? 'mounted' : 'notMounted';
-};
+import Decorator from '../Decorator';
 
 const useStyles = makeStyles(() => ({
   fs: {
@@ -24,19 +15,8 @@ const useStyles = makeStyles(() => ({
     paddingLeft: '10px',
     paddingRight: '10px',
   },
-  decorator: {
-    width: '20px',
-    height: '100%',
-    borderRadius: 2,
-  },
   decoratorBox: {
     paddingRight: '5px',
-  },
-  mounted: {
-    backgroundColor: BLUE,
-  },
-  notMounted: {
-    backgroundColor: RED_ON,
   },
 }));
 
@@ -53,11 +33,7 @@ const SharedStorageNode = ({
           <BodyText text={node.nodeInfo?.node_name || 'Not Available'} />
         </Box>
         <Box className={classes.decoratorBox}>
-          <div
-            className={`${classes.decorator} ${
-              classes[selectDecorator(node.is_mounted)]
-            }`}
-          />
+          <Decorator colour={node.is_mounted ? 'ok' : 'error'} />
         </Box>
         <Box>
           <BodyText text={node.is_mounted ? 'Mounted' : 'Not Mounted'} />

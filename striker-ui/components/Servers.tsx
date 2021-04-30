@@ -1,20 +1,13 @@
 import { useContext } from 'react';
 import { List, ListItem, Divider, Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { ClassNameMap } from '@material-ui/styles';
 import { Panel } from './Panels';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
-import {
-  BLUE,
-  GREY,
-  HOVER,
-  DIVIDER,
-  PURPLE_OFF,
-  RED_ON,
-} from '../lib/consts/DEFAULT_THEME';
+import { HOVER, DIVIDER } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
+import Decorator, { Colours } from './Decorator';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -37,35 +30,16 @@ const useStyles = makeStyles((theme) => ({
   noPaddingLeft: {
     paddingLeft: 0,
   },
-  decorator: {
-    width: '20px',
-    height: '100%',
-    borderRadius: 2,
-  },
-  running: {
-    backgroundColor: BLUE,
-  },
-  shut_off: {
-    backgroundColor: GREY,
-  },
-  crashed: {
-    backgroundColor: RED_ON,
-  },
-  warning: {
-    backgroundColor: PURPLE_OFF,
-  },
 }));
 
-const selectDecorator = (
-  state: string,
-): keyof ClassNameMap<'running' | 'shut_off' | 'crashed' | 'warning'> => {
+const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'running':
-      return 'running';
+      return 'ok';
     case 'shut_off':
-      return 'shut_off';
+      return 'off';
     case 'crashed':
-      return 'crashed';
+      return 'error';
     default:
       return 'warning';
   }
@@ -95,10 +69,8 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                   >
                     <Box display="flex" flexDirection="row" width="100%">
                       <Box p={1} className={classes.noPaddingLeft}>
-                        <div
-                          className={`${classes.decorator} ${
-                            classes[selectDecorator(server.server_state)]
-                          }`}
+                        <Decorator
+                          colour={selectDecorator(server.server_state)}
                         />
                       </Box>
                       <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
