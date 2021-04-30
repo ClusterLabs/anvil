@@ -2,12 +2,12 @@ import { useContext } from 'react';
 import { Box, Divider } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { ClassNameMap } from '@material-ui/styles';
-import { Panel } from './Panels';
-import { HeaderText, BodyText } from './Text';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import { BLUE, PURPLE_OFF, DIVIDER } from '../lib/consts/DEFAULT_THEME';
+import { Panel } from '../Panels';
+import { HeaderText, BodyText } from '../Text';
+import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import { BLUE, PURPLE_OFF, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 import processNetworkData from './processNetwork';
-import { AnvilContext } from './AnvilContext';
+import { AnvilContext } from '../AnvilContext';
 
 const useStyles = makeStyles((theme) => ({
   container: {
