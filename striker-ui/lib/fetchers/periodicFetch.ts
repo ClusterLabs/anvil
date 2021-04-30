@@ -5,7 +5,7 @@ const PeriodicFetch = <T>(
   url: string,
   refreshInterval = 5000,
 ): GetResponses => {
-  const { data, error } = useSWR<T>(`${url}`, fetcher, {
+  const { data, error } = useSWR<T>(url, fetcher, {
     refreshInterval,
   });
   return {
