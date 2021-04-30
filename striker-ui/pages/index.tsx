@@ -48,8 +48,7 @@ const Home = (): JSX.Element => {
   const classes = useStyles();
 
   const { data } = PeriodicFetch<AnvilList>(
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
-    '/anvils/get_anvils',
+    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_anvils`,
   );
 
   return (

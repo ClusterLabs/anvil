@@ -10,8 +10,7 @@ import { AnvilContext } from './AnvilContext';
 const Memory = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
   const { data, isLoading } = PeriodicFetch<AnvilMemory>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_memory?anvil_uuid=`,
-    uuid,
+    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_memory?anvil_uuid=${uuid}`,
   );
 
   const memoryData = isLoading || !data ? { total: 0, free: 0 } : data;

@@ -9,8 +9,7 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const { data } = PeriodicFetch<AnvilStatus>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=`,
-    uuid,
+    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=${uuid}`,
   );
 
   return (

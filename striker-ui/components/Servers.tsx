@@ -50,8 +50,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const classes = useStyles();
 
   const { data } = PeriodicFetch<AnvilServers>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_servers?anvil_uuid=`,
-    uuid,
+    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_servers?anvil_uuid=${uuid}`,
   );
   return (
     <Panel>

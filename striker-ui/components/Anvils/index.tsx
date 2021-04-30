@@ -10,8 +10,8 @@ const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
 
   list?.anvils.forEach((anvil: AnvilListItem) => {
     const { data } = PeriodicFetch<AnvilStatus>(
-      `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=`,
-      anvil.anvil_uuid,
+      `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_status?anvil_uuid=
+      ${anvil.anvil_uuid}`,
     );
     /* eslint-disable no-param-reassign */
     anvils.push({

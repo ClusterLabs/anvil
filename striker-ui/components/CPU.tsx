@@ -10,8 +10,7 @@ const CPU = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const { data, isLoading } = PeriodicFetch<AnvilCPU>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_cpu?anvil_uuid=`,
-    uuid,
+    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_cpu?anvil_uuid=${uuid}`,
   );
 
   const cpuData =
