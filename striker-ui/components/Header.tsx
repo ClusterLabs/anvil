@@ -1,7 +1,6 @@
 import AppBar from '@material-ui/core/AppBar';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
 import { Box } from '@material-ui/core';
-import Image from 'next/image';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 
 const useStyles = makeStyles((theme) =>
@@ -30,7 +29,7 @@ const Header = (): JSX.Element => {
     <AppBar position="static" className={classes.appBar}>
       <Box display="flex" justifyContent="space-between" flexDirection="row">
         <Box className={classes.barElement}>
-          <Image src="/pngs/logo.png" width="160" height="40" />
+          <img alt="" src="/pngs/logo.png" width="160" height="40" />
         </Box>
         <Box className={classes.barElement}>
           <input className={classes.input} list="search-suggestions" />
@@ -38,7 +37,8 @@ const Header = (): JSX.Element => {
         <Box className={classes.barElement}>
           {ICONS.map(
             (icon): JSX.Element => (
-              <Image
+              <img
+                alt=""
                 key="icon"
                 src={icon} // eslint-disable-next-line react/jsx-props-no-spreading
                 {...ICON_SIZE}
