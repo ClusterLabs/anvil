@@ -27,8 +27,8 @@ const useStyles = makeStyles((theme) => ({
     },
     paddingLeft: 0,
   },
-  noPaddingLeft: {
-    paddingLeft: 0,
+  headerPadding: {
+    paddingLeft: '.3em',
   },
 }));
 
@@ -54,7 +54,9 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   );
   return (
     <Panel>
-      <HeaderText text="Servers" />
+      <div className={classes.headerPadding}>
+        <HeaderText text="Servers" />
+      </div>
       <Box className={classes.root}>
         <List component="nav">
           {data &&
@@ -67,12 +69,12 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     key={server.server_uuid}
                   >
                     <Box display="flex" flexDirection="row" width="100%">
-                      <Box p={1} className={classes.noPaddingLeft}>
+                      <Box p={1}>
                         <Decorator
                           colour={selectDecorator(server.server_state)}
                         />
                       </Box>
-                      <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
+                      <Box p={1} flexGrow={1}>
                         <BodyText text={server.server_name} />
                         <BodyText
                           text={
