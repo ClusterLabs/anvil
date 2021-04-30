@@ -10,12 +10,12 @@ type Props = {
 const useStyles = makeStyles(() => ({
   innerHeader: {
     position: 'relative',
-    padding: '0 10px',
+    padding: '0 0.7em',
   },
   header: {
-    top: '-5px',
-    left: '-5px',
-    padding: '20px 0',
+    top: '-0.3em',
+    left: '-0.3em',
+    padding: '1.4em 0',
     position: 'absolute',
     content: '""',
     borderColor: DIVIDER,

@@ -10,14 +10,14 @@ const completed = 100;
 
 const BorderLinearProgress = withStyles({
   root: {
-    height: 15,
-    borderRadius: 2,
+    height: '1em',
+    borderRadius: '2px',
   },
   colorPrimary: {
     backgroundColor: PANEL_BACKGROUND,
   },
   bar: {
-    borderRadius: 3,
+    borderRadius: '3px',
   },
 })(LinearProgress);
 

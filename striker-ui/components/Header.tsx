@@ -13,7 +13,7 @@ const useStyles = makeStyles((theme) =>
       paddingRight: theme.spacing(3),
     },
     input: {
-      height: '40px',
+      height: '2.8em',
       width: '30vw',
       backgroundColor: theme.palette.secondary.main,
       borderRadius: '3px',

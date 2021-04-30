@@ -8,20 +8,20 @@ type Props = {
 
 const useStyles = makeStyles(() => ({
   paper: {
-    padding: '30px',
+    padding: '2.1em',
     backgroundColor: PANEL_BACKGROUND,
     opacity: 0.8,
     zIndex: 999,
   },
   container: {
-    margin: 15,
+    margin: '1em',
     position: 'relative',
   },
   square: {
     content: '""',
     position: 'absolute',
-    width: '30px',
-    height: '30px',
+    width: '2.1em',
+    height: '2.1em',
     border: '1px',
     borderColor: TEXT,
     borderWidth: '1px',
@@ -31,12 +31,12 @@ const useStyles = makeStyles(() => ({
     margin: 0,
   },
   topSquare: {
-    top: '-5px',
-    left: '-5px',
+    top: '-0.3em',
+    left: '-0.3em',
   },
   bottomSquare: {
-    bottom: '-5px',
-    right: '-5px',
+    bottom: '-0.3em',
+    right: '-0.3em',
   },
 }));
 

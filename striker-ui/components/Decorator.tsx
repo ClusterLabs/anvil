@@ -5,7 +5,7 @@ export type Colours = 'ok' | 'off' | 'error' | 'warning';
 
 const useStyles = makeStyles(() => ({
   decorator: {
-    width: '20px',
+    width: '1.4em',
     height: '100%',
     borderRadius: 2,
   },

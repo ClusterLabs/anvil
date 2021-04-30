@@ -13,9 +13,9 @@ const useStyles = makeStyles(() => ({
     borderRadius: '3px',
     borderStyle: 'solid',
     borderColor: DIVIDER,
-    marginTop: '20px',
-    marginBottom: '20px',
-    paddingBottom: '10px',
+    marginTop: '1.4em',
+    marginBottom: '1.4em',
+    paddingBottom: '0.7em',
     position: 'relative',
   },
 }));

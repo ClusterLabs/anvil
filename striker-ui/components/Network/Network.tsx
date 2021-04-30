@@ -13,15 +13,15 @@ const useStyles = makeStyles((theme) => ({
   container: {
     width: '100%',
     overflow: 'auto',
-    height: '30vh',
+    height: '32vh',
     [theme.breakpoints.down('md')]: {
       height: '100%',
       overflow: 'hidden',
     },
   },
   root: {
-    paddingTop: '10px',
-    paddingBottom: '10px',
+    paddingTop: '0.7em',
+    paddingBottom: '0.7em',
   },
   noPaddingLeft: {
     paddingLeft: 0,
