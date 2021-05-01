@@ -240,7 +240,7 @@ The error was:
 		<key name="error_0162">The 'anvil_uuid': [#!variable!anvil_uuid!#] in invalid.</key>
 		<key name="error_0163">The MIB file: [#!variable!mib!#] doesn't exist or can't be read.</key>
 		<key name="error_0164">The date: [#!variable!date!#] is not in either the 'mm/dd/yy' or 'mm/dd/yyyy' formats. Can't convert to 'yyyy/mm/dd'.</key>
-		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid..</key>
+		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid.</key>
 		<key name="error_0166">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, but does not appear to be a valid UUID: [#!variable!uuid!#].</key>
 		<key name="error_0167">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, and we were asked to replace the 'scan_drbd_resource_uuid' but the new UUID: [#!variable!uuid!#] is not a valud UUID.</key>
 		<key name="error_0168">The 'fence_ipmilan' command: [#!variable!command!#] does not appear to be valid.</key>
@@ -833,7 +833,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0312">We are the SyncSource for the peer: [#!variable!peer_host!#] for the resource/volume: [#!variable!resource!#/#!variable!volume!#]. We have to wait for the peer to complete the sync or close it's connection before we can proceed with shut down.</key>
 		<key name="job_0313">The cluster has stopped.</key>
 		<key name="job_0314">Stopping all DRBD resources.</key>
-		<key name="job_0315">The server: [#!variable!server_name!#] is migrating. Will check again shortly to see if it is done.</key>
+		<key name="job_0315">The server: [#!variable!server!#] is migrating. Will check again shortly to see if it is done.</key>
 		<key name="job_0316">Asking the cluster to shut down the server: [#!variable!server!#] now.</key>
 		<key name="job_0317">The server: [#!variable!server!#] has not shut down yet. Asking 'virsh' to shut it down. If the cluster stop woke it up, this should trigger a shutdown. If not, manual shutdown will be required.</key>
 		<key name="job_0318">The server: [#!variable!server!#] will now be migrated to: [#!variable!node!#]. This could take some time, depending on the amount of RAM allocated to the server, the speed of the BCN and the activity on the server. Please be patient!</key>
@@ -1262,7 +1262,7 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0351">The attempt to enable dual-primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0352">The migration of: [#!variable!server!#] to the node: [#!variable!target!#] will now begin.</key>
 		<key name="log_0353">The attempt to migrate the server: [#!variable!server!#] to the node: [#!variable!target!#] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
-		<key name="log_0354">It looks like the migration was successful.</key>
+		<key name="log_0354">The migration was successfully completed in: [#!variable!migration_time!#].</key>
 		<key name="log_0355">Re-disabling dual primary by restoring config file settings.</key>
 		<key name="log_0356">The attempt to reset DRBD to config file settings returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0357">Failure, exiting with '1'.</key>
@@ -1558,6 +1558,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0617">We were asked to delete the file: [#!variable!file!#] on the target: [#!variable!target!#], but it doesn't exist, so nothing to do.</key>
 		<key name="log_0618">Successfully deleted the file: [#!variable!file!#] on the target: [#!variable!target!#].</key>
 		<key name="log_0619">The host: [#!variable!host_name!#] has shut down for thermal reasons: [#!variable!count!#] times. To prevent a frequent boot / thermal excursion / shutdown loop, we will wait: [#!variable!wait_for!#] before marking it's temperature as being OK again.</key>
+		<key name="log_0620">This host has been running for: [#!variable!uptime!#]. The cluster will not be started (uptime must be less than 10 minutes for 'anvil-safe-start' to be called automatically).</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1889,6 +1890,10 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0233">It appears that another instance of 'anvil-safe-start' is already runing. Please wait for it to complete (or kill it manually if needed).</key>
 		<key name="message_0234">Preparing to rename a server.</key>
 		<key name="message_0235">Preparing to rename stop this node.</key>
+		<key name="message_0236">This records how long it took to migate a given server. The average of the last five migations is used to guess how long future migrations will take.</key>
+		<key name="message_0237">One or more servers are migrating. While this is the case, ScanCore post-scan checks are not performed.</key>
+		<key name="message_0238">Preventative live migration has completed.</key>
+		<key name="message_0239">Preventative live migration has been disabled. We're healthier than our peer, but we will take no action.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2476,6 +2481,41 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0079">[ Warning ] - Failed to read the JSON formatted output of 'lsblk'. Expected the return code '0' but received: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="warning_0080">[ Warning ] - Failed to read the XML formatted output of 'lshw'. Expected the return code '0' but received: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="warning_0081">[ Warning ] - The temporary file: [#!variable!temp_file!#] vanished (or failed to be created) before it could be copied to: [#!variable!target!#].</key>
+		<key name="warning_0082">[ Warning ] - This host is not in the cluster, and all UPSes are running on batteries, and have been for at least: [#!variable!time_on_batteries!#]. Shutting down to conserve power.</key>
+		<key name="warning_0083">[ Warning ] - This host is not in the cluster, and the temperatures is anomalous. Shutting down to limit thermal loading.</key>
+		<key name="warning_0084">[ Warning ] - We are healthier than our peer: [#!variable!peer_name!#]! Scores (local/peer): [#!variable!local_health!# / #!variable!peer_health!#]. This has been the case for: [#!variable!age!# seconds]. After 120 seconds, preventative migration will be triggered.</key>
+		<key name="warning_0085">[ Warning ] - Initiating preventative live migration, taking the servers from our peer: [#!variable!peer_name!#]! Scores (local/peer): [#!variable!local_health!# / #!variable!peer_health!#]. This has been so for over two minutes, so we will not perform a preventative migration of server.</key>
+		<key name="warning_0086">[ Warning ] - We're not a cluster member, but the server: [#!variable!server_name!#] is in the status: [#!variable!status!#]. ScanCore will take no action on this node.</key>
+		<key name="warning_0087">[ Warning ] - We're alone in the cluster, and our temperature is now critical. Gracefully stopping servers and then shutting down.</key>
+		<key name="warning_0088">[ Warning ] - We're alone in the cluster, we've been running on batteries for more than 2 minutes, and the strongest UPS shows less than ten minutes hold up time left. Gracefully stopping servers and then shutting down.</key>
+		<key name="warning_0089">[ Warning ] - This host is not in the cluster, and all UPSes are running on batteries. The most recent UPS to lose power was roughly: [#!variable!time_on_batteries!#] seconds ago. After 120 seconds, this node will power down to conserve battery power.</key>
+		<key name="warning_0090">[ Warning ] - This host is not in the cluster, and the temperatures is anomalous. This has been the case for roughly: [#!variable!age!#] seconds. After 120 seconds, this node will shut down to reduce thermal loading.</key>
+		<key name="warning_0091">[ Warning ] - Both nodes have been running on batteries for more than two minutes, and both show the strongest UPS as having less than 10 minutes runtime left. Full power loss is highly likely, and imminent. Gracefully shutting down servers and powering off.</key>
+		<key name="warning_0092">[ Warning ] - Both nodes have been running on batteries for more than two minutes. To conserve battery power, load shedding will begin. A node will be selected for shutdown momentarily.</key>
+		<key name="warning_0093">[ Warning ] - Both nodes are running on batteries, but this has been so for less than two minutes. Will take no action yet in the hopes that this is a transient issue.</key>
+		<key name="warning_0094">[ Warning ] - Our peer node: [#!variable!host_name!#] has been running on batteries for more than two minutes. We've still got power, so we will pull the servers off of our peer and on to this machine.</key>
+		<key name="warning_0095">[ Warning ] - Our peer node: [#!variable!host_name!#] is running on batteries, but it has been less than two minutes. Not doing anything, yet.</key>
+		<key name="warning_0096">[ Warning ] - We're running on batteries, have been so for more than two minutes, and the strongest UPS has an estimated hold up time below ten minutes. Power loss is innevitable, so we will start a graceful shutdown now.</key>
+		<key name="warning_0097">[ Warning ] - We're running on batteries, and have been for more than two minutes. We'll shut down to conserve battery power now.</key>
+		<key name="warning_0098">[ Warning ] - We're running on batteries, but it's been less than two minutes. We'll wait to see if this is a transient event before taking any action.</key>
+		<key name="warning_0099">[ Warning ] - Both node's temperatures have been anomolous for more than two minutes. We'll shut down to reduce thermal loading of the room we're in.</key>
+		<key name="warning_0100">[ Warning ] - Both node's temperatures are anomolous, and we've been critically anomolous for more than two minutes. Hardware shutdown is very likely, so we'll gracefully shutdown now.</key>
+		<key name="warning_0101">[ Warning ] - Both node's temperatures are anomolous, but this has been the case for less than two minutes. We'll wait to see if the temperatures clear before taking action.</key>
+		<key name="warning_0102">[ Warning ] - Our peer node: [#!variable!host_name!#]'s temperature has been anomolous for more than two minutes. We're still thermally nominal, so we will pull the servers off of our peer and on to this machine.</key>
+		<key name="warning_0103">[ Warning ] - Our peer node: [#!variable!host_name!#]'s is anomolous, but it hasn't been so for two minutes yet. Not doing anything, yet.</key>
+		<key name="warning_0104">[ Warning ] - Our temperature is anomolous, and have been so for more than two minutes. We'll shut down to reduce thermal loading in the room.</key>
+		<key name="warning_0105">[ Warning ] - We are "SyncSource" for at least one resource, meaning that a peer is copying data from our storage in order to synchronize. As such, all shut down options are disabled until the sync ends or the peer goes offline.</key>
+		<key name="warning_0106">[ Warning ] - Our temperature is critically anomolous, and has been so for more than two minutes. Hardware shutdown is highly likely, so will gracefully shut down now.</key>
+		<key name="warning_0107">[ Warning ] - We're doing a load shed to conserve UPS power, and we're SyncSource (meaning our data is more complete than our peer's data). We will stay up and pull the servers to us.</key>
+		<key name="warning_0108">[ Warning ] - We're doing a load shed to reduce thermal loading, and we're SyncSource (meaning our data is more complete than our peer's data). We will stay up and pull the servers to us.</key>
+		<key name="warning_0109">[ Warning ] - We're doing a load shed to conserve UPS power, and we have no servers running locally. We will shut down now.</key>
+		<key name="warning_0110">[ Warning ] - We're doing a load shed to reduce thermal loading, and we have no servers running locally. We will shut down now.</key>
+		<key name="warning_0111">[ Warning ] - We're doing a load shed to conserve UPS power, and the amount of RAM allocated to servers on our peer is less than the amount of RAM allocated to servers running locally. As such, we'll pull the peer's servers to here.</key>
+		<key name="warning_0112">[ Warning ] - We're doing a load shed to reduce thermal loading, and the amount of RAM allocated to servers on our peer is less than the amount of RAM allocated to servers running locally. As such, we'll pull the peer's servers to here.</key>
+		<key name="warning_0113">[ Warning ] - We're doing a load shed to conserve UPS power, and the estimated migration time to pull the servers to us from our peer is shorter than the reverse. As such, we'll pull the peer's servers to here.</key>
+		<key name="warning_0114">[ Warning ] - We're doing a load shed to reduce thermal loading, and the estimated migration time to pull the servers to us from our peer is shorter than the reverse. As such, we'll pull the peer's servers to here.</key>
+		<key name="warning_0115">[ Warning ] - We're doing a load shed to conserve UPS power, and by all measures, the time to migrate off either node is equal. We're node 1, so we will pull the servers to us now.</key>
+		<key name="warning_0116">[ Warning ] - We're doing a load shed to reduce thermal loading, and by all measures, the time to migrate off either node is equal. We're node 1, so we will pull the servers to us now.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

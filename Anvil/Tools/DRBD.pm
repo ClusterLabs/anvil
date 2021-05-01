@@ -15,6 +15,8 @@ my $THIS_FILE = "DRBD.pm";
 
 ### Methods;
 # allow_two_primaries
+# check_if_syncsource
+# check_if_synctarget
 # delete_resource
 # gather_data
 # get_devices
@@ -234,6 +236,98 @@ sub allow_two_primaries
 	}
 	
 	return($return_code);
+}
+
+
+=head2 check_if_syncsource
+
+This method checks to see if the local machine is C<< SyncSource >>. If so, this returns C<< 1 >>. Otherwise, it returns C<< 0 >>.
+
+This method takes no parameters.
+
+=cut
+sub check_if_syncsource
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->check_if_syncsource()" }});
+	
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->DRBD->get_status({debug => $debug});
+		
+	# Now check to see if anything is sync'ing.
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}})
+	{
+		foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { peer_name => $peer_name }});
+			foreach my $volume (sort {$a cmp $b} %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{volume}})
+			{
+				next if not exists $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+				my $replication_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					volume            => $volume,
+					replication_state => $replication_state, 
+				}});
+				
+				if ($replication_state =~ /SyncSource/i)
+				{
+					# We're SyncSource
+					return(1);
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
+
+
+=head2 check_if_synctarget
+
+This method checks to see if the local machine is C<< SyncTarget >>. If so, this returns C<< 1 >>. Otherwise, it returns C<< 0 >>.
+
+This method takes no parameters.
+
+=cut
+sub check_if_synctarget
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->check_if_synctarget()" }});
+	
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->DRBD->get_status({debug => $debug});
+		
+	# Now check to see if anything is sync'ing.
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}})
+	{
+		foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { peer_name => $peer_name }});
+			foreach my $volume (sort {$a cmp $b} %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{volume}})
+			{
+				next if not exists $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+				my $replication_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					volume            => $volume,
+					replication_state => $replication_state, 
+				}});
+				
+				if ($replication_state =~ /SyncTarget/i)
+				{
+					# We're SyncTarget
+					return(1);
+				}
+			}
+		}
+	}
+	
+	return(0);
 }
 
 
@@ -2019,7 +2113,7 @@ sub resource_uuid
 
 =head2 update_global_common
 
-This configures C<< global_common.conf >> on the local host. Returns C<< !!error!! >> if there is a problem, C<< 0 >> if no update was needed and C<< 1 >> if a change was made.
+This configures C<< global_common.conf >> on the local host. Returns C<< !!error!! >> if there is a problem, an empty string if no update was needed and a unified C<< diff >> of the changes made, if any.
 
 Parameters;
 
@@ -2061,6 +2155,7 @@ sub update_global_common
 	
 	# These values will be used to track where we are in processing the config file and what values are needed.
 	my $update                   = 0;
+	my $difference               = "";
 	my $usage_count_seen         = 0;
 	my $udev_always_use_vnr_seen = 0;
 	my $fence_peer_seen          = 0;
@@ -2702,9 +2797,10 @@ sub update_global_common
 	}});
 	if ($update)
 	{
+		$difference = diff \$old_global_common, \$new_global_common, { STYLE => 'Unified' };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0517", variables => { 
 			file => $anvil->data->{path}{configs}{'global-common.conf'},
-			diff => diff \$old_global_common, \$new_global_common, { STYLE => 'Unified' },
+			diff => $difference,
 		}});
 
 		my $failed = $anvil->Storage->write_file({
@@ -2725,7 +2821,7 @@ sub update_global_common
 		}
 	}
 	
-	return($update);
+	return($difference);
 }
 
 # =head3

@@ -97,11 +97,39 @@ collect_data($anvil);
 # Find changes.
 find_changes($anvil);
 
+# Check the cluster config.
+check_config($anvil);
+
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub check_config
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_manifests();
+	my $anvil_name    = $anvil->Cluster->get_anvil_name({});
+	my $manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_name    => $anvil_name,
+		manifest_uuid => $manifest_uuid, 
+	}});
+	
+	if ($manifest_uuid)
+	{
+		my ($host_ipmi) = $anvil->System->configure_ipmi({
+			debug         => 2,
+			manifest_uuid => $manifest_uuid,
+		});
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_ipmi => $host_ipmi }});
+	}
+	
+	return(0);
+}
 
 # Looks for changes.
 sub find_changes
