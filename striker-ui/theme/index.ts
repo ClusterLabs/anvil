@@ -2,7 +2,7 @@ import createMuiTheme, { Theme } from '@material-ui/core/styles/createMuiTheme';
 import {
   PANEL_BACKGROUND,
   TEXT,
-  PURPLE_OFF,
+  PURPLE,
   BLUE,
 } from '../lib/consts/DEFAULT_THEME';
 
@@ -35,7 +35,7 @@ const theme: Theme = createMuiTheme({
       track: {
         borderRadius: 0,
         border: 3,
-        backgroundColor: PURPLE_OFF,
+        backgroundColor: PURPLE,
         '$checked$checked + &': {
           // Controls checked color for the track
           backgroundColor: BLUE,

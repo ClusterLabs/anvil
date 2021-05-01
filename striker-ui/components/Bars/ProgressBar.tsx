@@ -1,10 +1,6 @@
 import { makeStyles, withStyles } from '@material-ui/core/styles';
 import { LinearProgress } from '@material-ui/core';
-import {
-  PURPLE_OFF,
-  BLUE,
-  PANEL_BACKGROUND,
-} from '../../lib/consts/DEFAULT_THEME';
+import { PURPLE, BLUE, PANEL_BACKGROUND } from '../../lib/consts/DEFAULT_THEME';
 
 const completed = 100;
 
@@ -26,7 +22,7 @@ const useStyles = makeStyles(() => ({
     backgroundColor: BLUE,
   },
   barInProgress: {
-    backgroundColor: PURPLE_OFF,
+    backgroundColor: PURPLE,
   },
 }));
 

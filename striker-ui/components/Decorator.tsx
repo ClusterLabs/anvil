@@ -1,5 +1,5 @@
 import { makeStyles } from '@material-ui/core/styles';
-import { BLUE, GREY, PURPLE_OFF, RED_ON } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, GREY, PURPLE, RED } from '../lib/consts/DEFAULT_THEME';
 
 export type Colours = 'ok' | 'off' | 'error' | 'warning';
 
@@ -13,10 +13,10 @@ const useStyles = makeStyles(() => ({
     backgroundColor: BLUE,
   },
   warning: {
-    backgroundColor: PURPLE_OFF,
+    backgroundColor: PURPLE,
   },
   error: {
-    backgroundColor: RED_ON,
+    backgroundColor: RED,
   },
   off: {
     backgroundColor: GREY,

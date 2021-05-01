@@ -1,8 +1,8 @@
 import { makeStyles, withStyles } from '@material-ui/core/styles';
 import { LinearProgress } from '@material-ui/core';
 import {
-  PURPLE_OFF,
-  RED_ON,
+  PURPLE,
+  RED,
   BLUE,
   PANEL_BACKGROUND,
 } from '../../lib/consts/DEFAULT_THEME';
@@ -28,10 +28,10 @@ const useStyles = makeStyles(() => ({
     backgroundColor: BLUE,
   },
   barWarning: {
-    backgroundColor: PURPLE_OFF,
+    backgroundColor: PURPLE,
   },
   barAlert: {
-    backgroundColor: RED_ON,
+    backgroundColor: RED,
   },
 }));
 
