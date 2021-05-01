@@ -179,8 +179,8 @@ sub stop_cluster
 		if ($problem)
 		{
 			# Cluster has stopped.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0324"});
-			$anvil->Job->update_progress({progress => 5, message => "job_0324"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0313"});
+			$anvil->Job->update_progress({progress => 5, message => "job_0313"});
 		}
 		else
 		{
@@ -191,7 +191,9 @@ sub stop_cluster
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0323"});
 				$anvil->Job->update_progress({progress => 70, message => "job_0323"});
 				
-				my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster stop";
+				### NOTE: '--force' is needed or else sole-running nodes can't exit 
+				###       (complains about the loss of quorum)
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster stop --force";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -204,8 +206,8 @@ sub stop_cluster
 			}
 			else
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0313"});
-				$anvil->Job->update_progress({progress => 80, message => "job_0313"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0324"});
+				$anvil->Job->update_progress({progress => 80, message => "job_0324"});
 			}
 		}
 		if ($waiting)
@@ -312,10 +314,10 @@ sub process_servers
 							# Use virsh
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0317", variables => { server => $server }});
 							$anvil->Job->update_progress({progress => 20, message => "job_0317,!!server!".$server."!!"});
-							$anvil->Cluster->shutdown_server({
-								debug  => 2,
-								server => $server,
-								'wait' => 0,
+							$anvil->Server->shutdown_virsh({
+								debug     => 2,
+								server    => $server,
+								wait_time => 1,
 							});
 							$anvil->data->{server_shutdown}{$server}{virsh_called} = 1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

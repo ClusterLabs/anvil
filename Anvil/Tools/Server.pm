@@ -12,6 +12,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Server.pm";
 
 ### Methods;
+# active_migrations
 # boot_virsh
 # find
 # get_definition
@@ -80,6 +81,45 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 active_migrations
+
+This method returns C<< 1 >> if any servers are migrating to or from the local system. It returns C<< 0 >> otherwise.
+
+This method takes no parameters.
+
+=cut
+sub active_migrations
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->active_migrations()" }});
+	
+	# Are we in an Anvil! system?
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	if (not $anvil_uuid)
+	{
+		# We're not in an Anvil.
+		return(0);
+	}
+	
+	$anvil->Database->get_servers({debug => $debug});
+	foreach my $server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
+	{
+		my $server_name  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		if ($server_state eq "migrating")
+		{
+			return(1);
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 boot_virsh
 
@@ -950,6 +990,7 @@ sub migrate_virsh
 	{
 		$anvil->Database->get_servers({debug => 2});
 	}
+	my $migation_started = time;
 	my $server_uuid      = "";
 	my $old_server_state = "";
 	foreach my $this_server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
@@ -981,7 +1022,11 @@ WHERE
 	
 	# The virsh command switches host names to IPs and needs to have both the source and target IPs in 
 	# the known_hosts file to work.
-	my $live_migrate = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration} ? "--live" : "";
+	my $live_migrate = "";
+	if (($server_uuid) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}))
+	{
+		$live_migrate = "--live";
+	}
 	my $target_ip    = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target_ip    => $target_ip,
@@ -995,6 +1040,7 @@ WHERE
 			target => $host,
 		});
 	}
+	
 	my $migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
 	if ($source)
 	{
@@ -1054,20 +1100,28 @@ WHERE
 	}
 	else
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0354"});
+		my $migration_took     = time - $migation_started;
+		my $say_migration_time = $anvil->Convert->time({'time' => $migration_took});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			migration_took     => $migration_took, 
+			say_migration_time => $say_migration_time,
+		}});
+		
+		# Log the migration.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0354", variables => { migration_time => $say_migration_time }});
 		
 		$success = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 		
 		# Revert the server state and update the server host.
 		my $server_host_uuid = $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $target});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_host_uuid => $server_host_uuid }});
 		if (not $server_host_uuid)
 		{
 			# We didn't find the target's host_uuid, so use the old one and let scan-server 
 			# handle it.
 			$server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_host_uuid => $server_host_uuid }});
 		}
 		if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 		{
@@ -1102,6 +1156,19 @@ WHERE
 				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
 				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
 				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+			});
+			
+			# Record the migration time.
+			my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+				file                  => $THIS_FILE, 
+				line                  => __LINE__, 
+				variable_name         => "server::migration_duration", 
+				variable_value        => $migration_took, 
+				variable_default      => "", 
+				variable_description  => "message_0236", 
+				variable_section      => "servers", 
+				variable_source_uuid  => $server_uuid, 
+				variable_source_table => "servers", 
 			});
 		}
 	}
@@ -1717,6 +1784,8 @@ This is the name of the server (as it appears in C<< virsh >>) to shut down.
 
 By default, this method will wait indefinetly for the server to shut down before returning. If this is set to a non-zero number, the method will wait that number of seconds for the server to shut dwwn. If the server is still not off by then, C<< 0 >> is returned.
 
+Setting this to C<< 1 >> effectively disables waiting.
+
 =cut
 sub shutdown_virsh
 {
@@ -1777,7 +1846,7 @@ sub shutdown_virsh
 		elsif ($status eq "paused")
 		{
 			# The server is paused. Resume it, wait a few, then proceed with the shutdown.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0314", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0314", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." resume $server"});
 			if ($return_code)
 			{
@@ -1789,13 +1858,13 @@ sub shutdown_virsh
 				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0316"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0316"});
 			sleep 3;
 		}
 		elsif ($status eq "pmsuspended")
 		{
 			# The server is suspended. Resume it, wait a few, then proceed with the shutdown.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0317", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0317", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." dompmwakeup $server"});
 			if ($return_code)
 			{
@@ -1807,14 +1876,14 @@ sub shutdown_virsh
 				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0319"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0319"});
 			sleep 30;
 		}
 		elsif (($status eq "idle") or ($status eq "crashed"))
 		{
 			# The server needs to be destroyed.
 			$task = "destroy";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0322", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0322", variables => { 
 				server => $server,
 				status => $status, 
 			}});
@@ -1823,7 +1892,7 @@ sub shutdown_virsh
 		{
 			# The server is already shutting down
 			$shutdown = 0;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0320", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0320", variables => { server => $server }});
 		}
 		elsif ($status ne "running")
 		{
@@ -1875,7 +1944,7 @@ WHERE
 					}
 				}
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0520", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0520", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({
 				debug      => $debug, 
 				shell_call => $anvil->data->{path}{exe}{virsh}." ".$task." ".$server,

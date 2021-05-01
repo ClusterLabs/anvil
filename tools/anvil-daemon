@@ -799,10 +799,10 @@ AND
 			variable_default      => '', 
 			variable_description  => 'striker_0279', 
 			variable_section      => 'system', 
-			variable_source_uuid  => '4c4c4544-0043-4210-8042-c3c04f523533', 
+			variable_source_uuid  => $host_uuid, 
 			variable_source_table => 'hosts', 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 	}
 	
 	# Now look for jobs that have a job status of 'scancore_startup'

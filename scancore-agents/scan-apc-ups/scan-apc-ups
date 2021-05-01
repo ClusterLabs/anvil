@@ -11,6 +11,7 @@
 # 255 - The host's UUID isn't in the hosts table yet, ScanCore itself hasn't been run.
 # 
 # TODO: 
+# - Set a health score if we lose one or both/all UPSes.
 # - Support UPSes with extended runtime batteries
 # - Pick a battery temperature where the UPS will automatically shut down if it passes over.
 # - Add support for sudden temperature jumps in process_temperature().

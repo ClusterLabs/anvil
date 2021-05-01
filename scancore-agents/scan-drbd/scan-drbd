@@ -101,6 +101,7 @@ read_last_scan($anvil);
 
 find_changes($anvil);
 
+check_config($anvil);
 
 # Update the database
 $anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
@@ -112,6 +113,34 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This looks at the global-common.conf file and updates it, if needed.
+sub check_config
+{
+	my ($anvil) = @_;
+	
+	if (not exists $anvil->data->{sys}{privacy}{strong})
+	{
+		$anvil->data->{sys}{privacy}{strong} = 0;
+	}
+	
+	my $updated = $anvil->DRBD->update_global_common({
+		usage_count => $anvil->data->{sys}{privacy}{strong} ? 0 : 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { updated => $updated }});
+	if ($updated)
+	{
+		# Send a notice-level alert
+		my $variables = {
+			file => $anvil->data->{path}{configs}{'global-common.conf'},
+			diff => $updated, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0034", variables => $variables});
+		$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0034", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+	}
+	
+	return(0);
+}
 
 sub process_drbd
 {
@@ -159,7 +188,6 @@ sub process_drbd
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0002", variables => $variables});
 			$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0002", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
-			
 		}
 		if ($new_scan_drbd_flush_md ne $old_scan_drbd_flush_md)
 		{

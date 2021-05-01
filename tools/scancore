@@ -100,6 +100,26 @@ while(1)
 	my $start_time = time;
 	prepare_for_run($anvil);
 	
+	# Set our sleep time
+	my $run_interval = 30;
+	if ((exists $anvil->data->{scancore}{timing}{run_interval}) && ($anvil->data->{scancore}{timing}{run_interval} =~ /^\d+$/))
+	{
+		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { 
+		run_interval => $run_interval,
+		runtime      => (time - $start_time),
+	}});
+	
+	# If we're in maintenance mode, do nothing.
+	my $maintenance_mode = $anvil->System->maintenance_mode({debug => $debug});
+	if ($maintenance_mode)
+	{
+		# Sleep and skip.
+		sleep($run_interval);
+		next;
+	}
+	
 	# Do we have at least one database?
 	my $agent_runtime = 0;
 	if ($anvil->data->{sys}{database}{connections})
@@ -143,15 +163,6 @@ while(1)
 	cleanup_after_run($anvil);
 	
 	# Sleep until it's time to run again.
-	my $run_interval = 30;
-	if ((exists $anvil->data->{scancore}{timing}{run_interval}) && ($anvil->data->{scancore}{timing}{run_interval} =~ /^\d+$/))
-	{
-		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
-	}
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { 
-		run_interval => $run_interval,
-		runtime      => (time - $start_time),
-	}});
 	sleep($run_interval);
 	
 	# In case something has changed, exit.
@@ -327,7 +338,7 @@ sub startup_tasks
 		variable_default      => '', 
 		variable_description  => 'striker_0279', 
 		variable_section      => 'system', 
-		variable_source_uuid  => '4c4c4544-0043-4210-8042-c3c04f523533', 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
 		variable_source_table => 'hosts', 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
@@ -335,10 +346,19 @@ sub startup_tasks
 	# If we've been up for less than ten minutes, call anvil-safe-start as a background process. It will 
 	# exit if it is disabled.
 	my $uptime = $anvil->Get->uptime;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
 	if ($uptime < 600)
 	{
-		
+		# Run it as a background task
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-start'};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0210", variables => { command => $shell_call }});
+		$anvil->System->call({shell_call => $shell_call, background => 1});
+	}
+	else
+	{
+		# Log that we've been up too long to auto-start the cluster.
+		my $say_uptime = $anvil->Convert->time({'time' => $uptime});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0620", variables => { uptime => $say_uptime }});
 	}
 	
 	return(0);

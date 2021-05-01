@@ -872,7 +872,7 @@ sub get_anvil_name
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_anvil_name()" }});
 	
-	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : $anvil->Get->anvil_uuid;
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : $anvil->Cluster->get_anvil_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid => $anvil_uuid,
 	}});
@@ -2127,11 +2127,13 @@ sub parse_cib
 		else
 		{
 			# It's our peer.
-			$anvil->data->{cib}{parsed}{peer}{ready} = $ready;
-			$anvil->data->{cib}{parsed}{peer}{name}  = $node_name;
+			$anvil->data->{cib}{parsed}{peer}{ready}     = $ready;
+			$anvil->data->{cib}{parsed}{peer}{name}      = $node_name;
+			$anvil->data->{cib}{parsed}{peer}{host_uuid} = $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $node_name});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"cib::parsed::peer::ready" => $anvil->data->{cib}{parsed}{peer}{ready}, 
-				"cib::parsed::peer::name"  => $anvil->data->{cib}{parsed}{peer}{name}, 
+				"cib::parsed::peer::ready"     => $anvil->data->{cib}{parsed}{peer}{ready}, 
+				"cib::parsed::peer::name"      => $anvil->data->{cib}{parsed}{peer}{name}, 
+				"cib::parsed::peer::host_uuid" => $anvil->data->{cib}{parsed}{peer}{host_uuid}, 
 			}});
 		}
 	}

@@ -15,6 +15,7 @@
 # 255 - The host's UUID isn't in the hosts table yet, ScanCore itself hasn't been run.
 # 
 # TODO:
+# - Set a health score for over/under-temp events.
 # - Don't bother scanning other hosts.... ScanCore does direct calls to decide if/when to reboot an offline 
 #   node.
 # - Decide if we should parse 'ipmitool sel list'

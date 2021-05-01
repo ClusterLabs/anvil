@@ -1106,6 +1106,8 @@ sub _set_paths
 				'anvil-parse-fence-agents'	=>	"/usr/sbin/anvil-parse-fence-agents",
 				'anvil-provision-server'	=>	"/usr/sbin/anvil-provision-server",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
+				'anvil-safe-start'		=>	"/usr/sbin/anvil-safe-start",
+				'anvil-safe-stop'		=>	"/usr/sbin/anvil-safe-stop",
 				'anvil-shutdown-server'		=>	"/usr/sbin/anvil-shutdown-server",
 				'anvil-sync-shared'		=>	"/usr/sbin/anvil-sync-shared",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
