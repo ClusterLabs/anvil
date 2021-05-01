@@ -32,6 +32,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-update-states \
 			  anvil-update-system \
 			  scancore \
+			  striker-boot-machine \
 			  striker-get-peer-data \
 			  striker-initialize-host \
 			  striker-manage-install-target \

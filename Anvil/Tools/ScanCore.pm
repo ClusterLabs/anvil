@@ -2057,7 +2057,7 @@ sub post_scan_analysis_striker
 		
 		# Compile host's data.
 		my $host_name       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
-		my $short_host_name = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
+		my $short_host_name = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{short_host_name};
 		my $host_type       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
 		my $host_key        = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
 		my $host_ipmi       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
@@ -2219,6 +2219,7 @@ LIMIT 1;";
 		# Do we have IPMI info?
 		if ((not $host_ipmi) && ($host_type eq "node") && ($anvil_uuid))
 		{
+			
 			# No host IPMI (that we know of). Can we check using another (non PDU) fence method?
 			my $query = "SELECT scan_cluster_cib FROM scan_cluster WHERE scan_cluster_anvil_uuid = ".$anvil->Database->quote($anvil_uuid).";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -2249,8 +2250,9 @@ LIMIT 1;";
 							's3:agent'  => $agent 
 						}});
 						
-						# We can't trust a PDU's output, so skip them.
+						# We can't trust a PDU's output, so skip them. We also can't use the fake 'fence_delay' agent.
 						next if $agent =~ /pdu/;
+						next if $agent eq "fence_delay";
 						
 						my $shell_call = $agent." ";
 						foreach my $stdin_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$method}{argument}})
@@ -2312,9 +2314,7 @@ LIMIT 1;";
 				}
 			}
 			
-			### TODO: Add support for power-cycling a target using PDUs. Until this, this
-			###       will never be hit as we next on no host_ipmi, but will be useful 
-			###       when PDU support is added.
+			### TODO: Add support for power-cycling a target using PDUs.
 			# Nothing we can do (for now)
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0559", variables => { host_name => $host_name }});
 			next;
