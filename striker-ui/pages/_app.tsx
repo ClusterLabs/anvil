@@ -5,7 +5,6 @@ import theme from '../theme';
 import '../styles/globals.css';
 
 const App = ({ Component, pageProps }: AppProps): JSX.Element => {
-  // return <Component {...pageProps} />;
   // This hook is for ensuring the styling is in sync between client and server
   useEffect(() => {
     // Remove the server-side injected CSS.
