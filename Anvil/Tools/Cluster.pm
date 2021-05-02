@@ -19,6 +19,7 @@ my $THIS_FILE = "Cluster.pm";
 # boot_server
 # check_node_status
 # delete_server
+# get_fence_methods
 # get_anvil_name
 # get_anvil_uuid
 # get_peers
@@ -843,6 +844,169 @@ sub delete_server
 			output      => $output, 
 		}});
 		return('!!error!!');
+	}
+	
+	return(0);
+}
+
+
+=head2 get_fence_methods
+
+This takes a host UUID, looks up which Anvil! it belongs to, and then load and parses the recorded CIB, if possible. If one is found for the Anvil!, it parses the fence methods and stores them in a hash.
+
+If the target host is not in an Anvil!, or there is no CIB recorded for the Anvi!, C<< 1 >> is returned. 
+
+B<< Note >>: There is usually only one method, but if there are two or more, they must all be confirmed off before the fence action can be considered successful.
+
+* fence_method::<short_host_name>::order::<X>::method::<method>::command
+
+Parameters;
+
+=head3 host_uuid (Optional, default Get->host_uuid)
+
+This is the host whose fence methods we're looking for.
+
+=cut
+sub get_fence_methods
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_fence_methods()" }});
+	
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $host_name = $anvil->Get->host_name_from_uuid({debug => $debug, host_uuid => $host_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+		host_name => $host_name, 
+	}});
+	
+	my $short_host_name =  $host_name;
+	   $short_host_name =~ s/\..*$//;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+	
+	# Find the Anvil! UUID.
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({host_uuid => $host_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	if (not $anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0295", variables => { host_name => $host_name }});
+		return(1);
+	}
+	
+	# Get the Anvil! name now, for logging.
+	my $anvil_name = $anvil->Get->anvil_name_from_uuid({
+		debug      => $debug,
+		anvil_uuid => $anvil_uuid, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_name => $anvil_name }});
+	
+	### NOTE: This probably won't work with fence methods that require multiple calls be run in parallel.
+	###       As this is PDUs usually, and we skip them anyway, this shouldn't be an issue.
+	my $query = "SELECT scan_cluster_cib FROM scan_cluster WHERE scan_cluster_anvil_uuid = ".$anvil->Database->quote($anvil_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $scan_cluster_cib = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	   $scan_cluster_cib = "" if not defined $scan_cluster_cib; 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan_cluster_cib => $scan_cluster_cib }});
+	if (not $scan_cluster_cib)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0296", variables => { anvil_name => $anvil_name }});
+		return(1);
+	}
+	
+	# Delete past data, if any.
+	if (exists $anvil->data->{fence_method}{$short_host_name})
+	{
+		delete $anvil->data->{fence_method}{$short_host_name};
+	}
+	
+	# Reading in fence data is expensive, so we only do it as needed.
+	my $update_fence_data = 1;
+	if ((exists $anvil->data->{fence_data}{updated}) && ($anvil->data->{fence_data}{updated}))
+	{
+		my $age = time - $anvil->data->{fence_data}{updated};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+		if ($age < 86400)
+		{
+			# Only refresh daily.
+			$update_fence_data = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_fence_data => $update_fence_data }});
+		}
+	}
+	if ($update_fence_data)
+	{
+		$anvil->Striker->get_fence_data({debug => ($debug + 1)});
+	}
+	
+	# Parse out the fence methods for this host. 
+	my $problem = $anvil->Cluster->parse_cib({
+		debug => $debug,
+		cib   => $scan_cluster_cib, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if (not $problem)
+	{
+		# Parsed! Do we have a fence method we can trust to check the power 
+		# state of this node?
+		my $node_name = exists $anvil->data->{cib}{parsed}{data}{node}{$short_host_name} ? $short_host_name : $host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_name => $node_name }});
+		foreach my $order (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}})
+		{
+			my $method = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$order}{devices};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:order'  => $order,
+				's2:method' => $method, 
+			}});
+			
+			foreach my $this_method (split/,/, $method)
+			{
+				my $agent = $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$this_method}{agent};
+				
+				# We ignore the fake, delay method 
+				next if $agent eq "fence_delay";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:this_method' => $this_method,
+					's2:agent'       => $agent,
+				}});
+				
+				my $shell_call = $agent." ";
+				foreach my $stdin_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$this_method}{argument}})
+				{
+					next if $stdin_name =~ /pcmk_o\w+_action/;
+					my $switch = "";
+					my $value  = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$this_method}{argument}{$stdin_name}{value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:stdin_name' => $stdin_name,
+						's2:value'      => $value, 
+					}});
+					
+					foreach my $this_switch (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$agent}{switch}})
+					{
+						my $this_name = $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
+						if ($stdin_name eq $this_name)
+						{
+								$switch  =  $this_switch;
+							my $dashes  =  (length($switch) > 1) ? "--" : "-";
+							$shell_call .= $dashes.$switch." \"".$value."\" ";
+							last;
+						}
+					}
+					if (not $switch)
+					{
+						if ($anvil->data->{fence_data}{$agent}{switch}{$stdin_name}{name})
+						{
+							my $dashes  =  (length($stdin_name) > 1) ? "--" : "-";
+							$shell_call .= $dashes.$stdin_name." \"".$value."\" ";
+						}
+					}
+				}
+				$anvil->data->{fence_method}{$short_host_name}{order}{$order}{method}{$this_method}{command} = $shell_call;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fence_method::${short_host_name}::order::${order}::method::${this_method}::command" => $anvil->data->{fence_method}{$short_host_name}{order}{$order}{method}{$this_method}{command},
+				}});
+			}
+		}
 	}
 	
 	return(0);

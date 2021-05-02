@@ -401,6 +401,14 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0287">Failed to write the file: [#!variable!file!#] on the host: [#!variable!target!#].</key>
 		<key name="error_0288">Failed to add the server: [#!variable!server_name!#] to the cluster. The return code from the pcs command was: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0289">The server: [#!variable!server!#] already exists on this Anvil!. Please use a different new name.</key>
+		<key name="error_0290"><![CDATA[No machine was specified to boot. Please use '--host-name <name>' or '--host-uuid UUID'.]]></key>
+		<key name="error_0291"><![CDATA[The host name: [#!variable!host_name!#] was not found in the database.]]></key>
+		<key name="error_0292">The attempt to boot the machine failed! The output, if anything, was: [#!variable!output!#].</key>
+		<key name="error_0293">The attempt to check the power status of the machine failed. The output, if anything, was: [#!variable!output!#].</key>
+		<key name="error_0294">There is no IPMI information or fence options available to boot this machine, unable to proceed.</key>
+		<key name="error_0295">The host: [#!variable!host_name!#] is not in an Anvil!, unable to parse fence methods.</key>
+		<key name="error_0296">The Anvil!: [#!variable!anvil_name!#] does not have a recored CIB in the database, unable to parse fence methods.</key>
+		<key name="error_0297">Either we failed to find a fence method, or all fence methods failed to boot this machine, unable to proceed.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -845,6 +853,11 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0324">Waiting for the node to finish withdrawing from the cluster.</key>
 		<key name="job_0325">Shutdown complete, powering off now.</key>
 		<key name="job_0326">Done. This node is no longer in the cluster.</key>
+		<key name="job_0327">The machine: [#!variable!host_name!#] appears to have IPMI, trying to boot it using that...</key>
+		<key name="job_0328">The target machine is already on, nothing to do.</key>
+		<key name="job_0329">The target machine is confirmed off, will try to start now.</key>
+		<key name="job_0330">The target machine is now booting!</key>
+		<key name="job_0331">The machine: [#!variable!host_name!#] does not have a (known) IPMI BMC, but it is a member of the Anvil! [#!variable!anvil_name!#]. Searching for a fence method to boot it...</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
