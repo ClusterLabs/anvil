@@ -32,6 +32,11 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 		<key name="scan_cluster_alert_0009">The node: [#!variable!old_node_name!#] has been renamed to: [#!variable!new_node_name!#]</key>
 		<key name="scan_cluster_alert_0010">The node: [#!variable!host_name!#] is no longer in the cluster.</key>
 		<key name="scan_cluster_alert_0011">The node: [#!variable!host_name!#] is returning back into the cluster.</key>
+		<key name="scan_cluster_alert_0012">The Cluster CIB for the cluster: [#!variable!cluster_name!#] has changed. The difference is:
+====
+#!variable!difference!#
+====
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_cluster_log_0001">Starting: [#!variable!program!#].</key>
