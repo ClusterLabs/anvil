@@ -1750,7 +1750,7 @@ LIMIT 1
 				$manufacturer = "Fujitsu";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
 			}
-			elsif ($manufacturer =~ /dekk/i)
+			elsif ($manufacturer =~ /dell/i)
 			{
 				$manufacturer = "Dell";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
@@ -2017,7 +2017,18 @@ LIMIT 1
 	{
 		# We're good! 
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
-
+		
+		# Update the database, in case needed.
+		my $host_uuid = $anvil->Get->host_uuid();
+		$anvil->Database->insert_or_update_hosts({
+			host_ipmi   => $host_ipmi, 
+			host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+			host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+			host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+			host_uuid   => $host_uuid, 
+			host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+		});
+		
 		$try_again = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try_again => $try_again }});
 	}
@@ -2039,6 +2050,17 @@ LIMIT 1
 		{
 			# We're good! 
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0512"});
+		
+			# Update the database, in case needed.
+			my $host_uuid = $anvil->Get->host_uuid();
+			$anvil->Database->insert_or_update_hosts({
+				host_ipmi   => $host_ipmi, 
+				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+				host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+				host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+				host_uuid   => $host_uuid, 
+				host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+			});
 			
 			$try_again = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try_again => $try_again }});
@@ -2139,6 +2161,17 @@ LIMIT 1
 		{
 			# We're good, password was changed! 
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
+		
+			# Update the database, in case needed.
+			my $host_uuid = $anvil->Get->host_uuid();
+			$anvil->Database->insert_or_update_hosts({
+				host_ipmi   => $host_ipmi, 
+				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+				host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+				host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+				host_uuid   => $host_uuid, 
+				host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+			});
 		}
 		else
 		{
@@ -2158,6 +2191,17 @@ LIMIT 1
 			{
 				# We're good! 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
+		
+				# Update the database, in case needed.
+				my $host_uuid = $anvil->Get->host_uuid();
+				$anvil->Database->insert_or_update_hosts({
+					host_ipmi   => $host_ipmi, 
+					host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+					host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+					host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+					host_uuid   => $host_uuid, 
+					host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+				});
 			}
 			else
 			{

@@ -157,8 +157,6 @@ $anvil->data->{switches}{migrate_from} = "";	# Sets 'meta_migrate_source' When s
 $anvil->data->{switches}{server}       = "";	# Sets 'name'.
 $anvil->Get->switches({debug => 2});
 
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = 1;

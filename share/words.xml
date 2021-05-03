@@ -409,6 +409,10 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0295">The host: [#!variable!host_name!#] is not in an Anvil!, unable to parse fence methods.</key>
 		<key name="error_0296">The Anvil!: [#!variable!anvil_name!#] does not have a recored CIB in the database, unable to parse fence methods.</key>
 		<key name="error_0297">Either we failed to find a fence method, or all fence methods failed to boot this machine, unable to proceed.</key>
+		<key name="error_0298"><![CDATA[The method Cluster->check_stonith_config() only runs on nodes, and this host is a: [#!variable!host_type!#].]]></key>
+		<key name="error_0299">This host is not in a cluster, or it's in the cluster but not ready yet. Either way, unable to check the config.</key>
+		<key name="error_0300">Failed to find the install manifest for the: [#!variable!anvil_name!#] Anvil! system. Unable to check or update the fence configuration.</key>
+		<key name="error_0301">Failed to parse the install manifest with UUID: [#!variable!manifest_uuid!#]. Unable to check or update the fence configuration.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
