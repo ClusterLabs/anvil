@@ -120,12 +120,8 @@ sub check_config
 	
 	if ($manifest_uuid)
 	{
-		my ($host_ipmi) = $anvil->System->configure_ipmi({
-			debug         => 2,
-			manifest_uuid => $manifest_uuid,
-		});
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_ipmi => $host_ipmi }});
+		# Check to see if the stonith config needs to be updated.
+		$anvil->Cluster->check_stonith_config({debug => 2});
 	}
 	
 	return(0);

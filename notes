@@ -1005,3 +1005,14 @@ OS10(conf-range-eth1/1/15-1/1/24)# exit
 10.201.10.2     Could not get property: Refusing activation, D-Bus is shutting down Could not get property: Refusing activation, D-Bus is shutting down. Could not get property: Refusing activation, D-Bus is shutting down.bcn1
 192.168.122.12  Could not get property: Refusing activation, D-Bus is shutting down.ifn1
 10.101.10.2     Could not get property: Refusing activation, D-Bus is shutting down.sn1
+
+
+ausearch -c 'drbdsetup' --raw | audit2allow -M my-drbdsetup && semodule -X 300 -i my-drbdsetup.pp
+
+
+May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t. For complete SELinux messages run: sealert -l 4079c288-db4a-4f44-a588-94f1dbfff269
+May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t.
+                                                                 If you believe that drbdsetup should be allowed create access on netlink_generic_socket labeled drbd_t by default.
+                                                                 # ausearch -c 'drbdsetup' --raw | audit2allow -M my-drbdsetup
+                                                                 # semodule -X 300 -i my-drbdsetup.pp
+

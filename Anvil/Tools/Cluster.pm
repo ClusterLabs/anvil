@@ -6,9 +6,10 @@ package Anvil::Tools::Cluster;
 use strict;
 use warnings;
 use Data::Dumper;
-use XML::Simple qw(:strict);
-use XML::LibXML;
 use Scalar::Util qw(weaken isweak);
+use String::ShellQuote;
+use XML::LibXML;
+use XML::Simple qw(:strict);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Cluster.pm";
@@ -18,6 +19,7 @@ my $THIS_FILE = "Cluster.pm";
 # assemble_storage_groups
 # boot_server
 # check_node_status
+# check_stonith_config
 # delete_server
 # get_fence_methods
 # get_anvil_name
@@ -193,7 +195,7 @@ sub add_server
 	my $server_state = $anvil->data->{server}{location}{$server_name}{status};
 	my $server_host  = $anvil->data->{server}{location}{$server_name}{host_name};
 	my $target_role  = $server_state eq "running" ? "started" : "stopped";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name    => $host_name, 
 		server_state => $server_state, 
 		server_host  => $server_host,
@@ -208,7 +210,7 @@ sub add_server
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
 
 	my ($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
@@ -229,7 +231,7 @@ sub add_server
 	undef $output;
 	undef $return_code;
 	($output, $return_code) = $anvil->System->call({shell_call => $constraint_command});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
@@ -627,7 +629,7 @@ sub boot_server
 		# Nothing to do.
 		if ((not $node) or ($host eq $node))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0548", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0548", variables => { server => $server }});
 			return(0);
 		}
 		else
@@ -675,7 +677,7 @@ sub boot_server
 			host_name => $host_name, 
 		}});
 		
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0552", variables => { server => $server }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0552", variables => { server => $server }});
 		if ($status eq "running")
 		{
 			# It's up.
@@ -744,6 +746,715 @@ sub check_node_status
 		"cib::parsed::data::node::${node_name}::node_state::ready"  => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready},
 	}});
 	return($anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready});
+}
+
+
+=head2 check_stonith_config
+
+This loads the running CIB and compares the fence (stonith) configuration against the records in the database. If a method needs to be updated, added or removed, this method will make those changes. As such, this method must be called on an active Anvil! node in order to work.
+
+This method will return C<< !!error!! >> if called on a node that is not in a cluster, or called on a machine that isn't a node. Otherwise it returns C<< 1 >> if something was changed, and returns C<< 0 >> if no changes were made.
+
+This method takes no parameters.
+
+=cut
+sub check_stonith_config
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->check_stonith_config()" }});
+	
+	# Are we a node?
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0298", variables => { host_type => $host_type }});
+		return('!!error!!');
+	}
+	
+	# See if we already have a parsed CIB. Generally we're called by scan-cluster, so we should.
+	if (not exists $anvil->data->{cib}{parsed})
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+		if (($problem) or (not $anvil->data->{cib}{parsed}{'local'}{ready}))
+		{
+			# We're not in a cluster or we're not ready
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0299"});
+			return('!!error!!');
+		}
+	}
+	
+	# Get the list of fence methods for my peer and I and make sure their configs are valid.
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+	my $anvil_name      = $anvil->Get->anvil_name_from_uuid({debug => $debug, anvil_uuid => $anvil_uuid });
+	my $local_node_name = $anvil->data->{cib}{parsed}{'local'}{name};
+	my $local_host_uuid = $anvil->Get->host_uuid();
+	my $peer_node_name  = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_host_uuid  = $anvil->data->{cib}{parsed}{peer}{host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid      => $anvil_uuid, 
+		anvil_name      => $anvil_name, 
+		local_node_name => $local_node_name,
+		local_host_uuid => $local_host_uuid, 
+		peer_node_name  => $peer_node_name, 
+		peer_host_uuid  => $peer_host_uuid, 
+	}});
+	
+	# Load host information so that we can check for IPMI configs, if needed.
+	$anvil->Database->get_hosts({debug => $debug});
+	$anvil->Database->get_anvils({debug => $debug});
+	$anvil->Database->get_manifests({debug => $debug});
+	
+	# Parse the manifest for the Anvil! so that we know what fence methods should be used.
+	my $manifest_uuid = exists $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid} ? $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+	
+	# If we don't have a manifest_uuid, abort.
+	if (not $manifest_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0300", variables => { anvil_name => $anvil_name }});
+		return('!!error!!');
+	}
+	my $problem = $anvil->Striker->load_manifest({debug => $debug, manifest_uuid => $manifest_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0301", variables => { manifest_uuid => $manifest_uuid }});
+		return('!!error!!');
+	}
+	
+	# If we have a local host_IPMI, test it.
+	my $check_ipmi_config = 1;
+	if ($anvil->data->{hosts}{host_uuid}{$local_host_uuid}{host_ipmi})
+	{
+		my $shell_call = $anvil->data->{hosts}{host_uuid}{$local_host_uuid}{host_ipmi}." -o status";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, secure => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		
+		if ($return_code eq "0")
+		{
+			# IPMI is fine.
+			$check_ipmi_config = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_ipmi_config => $check_ipmi_config }});
+		}
+		
+	}
+	if ($check_ipmi_config)
+	{
+		# See if it needs to be configured or updated.
+		$anvil->System->configure_ipmi({debug => $debug, manifest_uuid => $manifest_uuid});
+	}
+	
+	# now lets check the stonith config.
+	$anvil->Cluster->get_peers({debug => $debug});
+	my $local_node_is = $anvil->data->{sys}{anvil}{i_am};
+	my $peer_node_is  = $anvil->data->{sys}{anvil}{peer_is};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		local_node_is => $local_node_is, 
+		peer_node_is  => $peer_node_is, 
+	}});
+	
+	# Collecting fence data is expensive, so lets only load if needed.
+	my $update_fence_data = 1;
+	if ((exists $anvil->data->{fence_data}{updated}) && ($anvil->data->{fence_data}{updated}))
+	{
+		my $age = time - $anvil->data->{fence_data}{updated};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+		if ($age < 86400)
+		{
+			# Only refresh daily.
+			$update_fence_data = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_fence_data => $update_fence_data }});
+		}
+	}
+	if ($update_fence_data)
+	{
+		$anvil->Striker->get_fence_data({debug => ($debug + 1)});
+	}
+	
+	### NOTE: This was copied from 'anvil-join-anvil' and modified.
+	# Now I know what I have, lets see what I should have.
+	my $host_name        =  $anvil->Get->host_name;
+	my $new_password     =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $escaped_password =  shell_quote($new_password);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_name        => $host_name, 
+		new_password     => $anvil->Log->is_secure($new_password), 
+		escaped_password => $anvil->Log->is_secure($escaped_password),
+	}});
+	
+	$anvil->data->{machine}{node1}{host_name} = "";
+	$anvil->data->{machine}{node1}{host_uuid} = "";
+	$anvil->data->{machine}{node1}{use_delay} = 0;
+	$anvil->data->{machine}{node2}{host_name} = "";
+	$anvil->data->{machine}{node2}{host_uuid} = "";
+	$anvil->data->{machine}{node2}{use_delay} = 0;
+	if ($local_node_is eq "node1")
+	{
+		# We're node 1
+		$anvil->data->{machine}{node1}{host_name} = $local_node_name;
+		$anvil->data->{machine}{node1}{host_uuid} = $local_host_uuid;
+		$anvil->data->{machine}{node2}{host_name} = $peer_node_name;
+		$anvil->data->{machine}{node2}{host_uuid} = $peer_host_uuid;
+	}
+	else
+	{
+		# Our peer is node 1
+		$anvil->data->{machine}{node1}{host_name} = $peer_node_name;
+		$anvil->data->{machine}{node1}{host_uuid} = $peer_host_uuid;
+		$anvil->data->{machine}{node2}{host_name} = $local_node_name;
+		$anvil->data->{machine}{node2}{host_uuid} = $local_host_uuid;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"machine::node1::host_name" => $anvil->data->{machine}{node1}{host_name}, 
+		"machine::node1::host_uuid" => $anvil->data->{machine}{node1}{host_uuid}, 
+		"machine::node2::host_name" => $anvil->data->{machine}{node2}{host_name}, 
+		"machine::node2::host_uuid" => $anvil->data->{machine}{node2}{host_uuid}, 
+	}});
+	
+	my $something_changed = {};
+	my $fence_order       = {};
+	my $fence_devices     = {};
+	foreach my $node ("node1", "node2")
+	{
+		my $node_name         = $anvil->data->{machine}{$node}{host_name};
+		my $host_uuid         = $anvil->data->{machine}{$node}{host_uuid};
+		my $host_ipmi         = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi};
+		my $ipmi_stonith_name = "ipmilan_".$node; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			node_name         => $node_name, 
+			host_uuid         => $host_uuid, 
+			host_ipmi         => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
+			ipmi_stonith_name => $ipmi_stonith_name, 
+		}});
+		
+		# This will store the fence level order. If something changes
+		$fence_order->{$node_name} = [];
+		
+		# This will switch to '1' if something changed, triggering a reconfig of the fencing levels.
+		$something_changed->{$node_name} = 0;
+		
+		# Does this stonith method already exist?
+		my $create_entry    = 0;
+		my $delete_old      = 0;
+		my $pcs_add_command = "";
+		if ($host_ipmi)
+		{
+			push @{$fence_order->{$node_name}}, "fence_ipmilan";
+			$fence_devices->{$node_name}{fence_ipmilan} = [$ipmi_stonith_name];
+			
+			# The --action switch needs to be 'pcmk_off_action' in pcs, so we convert it here.
+			$host_ipmi =~ s/--action status//;
+			$host_ipmi =~ s/--action/--pcmk_off_action/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
+			}});
+			
+			# We have IPMI, so we also want fence_delay for this node.
+			$anvil->data->{machine}{$node}{use_delay} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"machine::${node}::use_delay" => $anvil->data->{machine}{$node}{use_delay},
+			}});
+			
+			# If we're here, break up the command and turn it into the pcs call.
+			my $old_switches              = {};
+			my ($fence_agent, $arguments) = ($host_ipmi =~ /^\/.*\/(.*?)\s+(.*)$/);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				fence_agent  => $fence_agent,
+				arguments    => $arguments =~ /passw/ ? $anvil->Log->is_secure($arguments) : $arguments,
+			}});
+			
+			   $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$ipmi_stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ";
+			my $switches        = $anvil->System->parse_arguments({arguments => $arguments});
+			foreach my $switch (sort {$a cmp $b} keys %{$switches})
+			{
+				# Ignore 'delay', we handle that in Cluster->set_delay(); Also, 
+				# convert '#!SET!#' to 'true'.
+				my $value =  $switches->{$switch};
+					$value =~ s/"/\\"/g;
+					$value =~ s/#!SET!#/true/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					switch => $switch,
+					value  => $value,
+				}});
+				next if $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name} eq "delay";
+				next if $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name} eq "action";
+				
+				# Find the argument=value version.
+				my $argument        =  $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
+				   $pcs_add_command .= $argument."=\"".$value."\" ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					argument        => $argument,
+					value           => $argument        =~ /passw/ ? $anvil->Log->is_secure($value)           : $value,
+					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
+				}});
+				
+				# Store this to see if it's different from what's already in the CIB.
+				$old_switches->{$argument} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"old_switches->{$argument}" => $old_switches->{$argument},
+				}});
+			}
+			$pcs_add_command .= "op monitor interval=\"60\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
+			}});
+			
+			# If there's an entry in the CIB, so if it's different somehow
+			if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
+			{
+				foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}})
+				{
+					next if $argument eq "delay";
+					next if $argument eq "action";
+					my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}{$argument}{value};
+					my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:argument'  => $argument, 
+						's2:old_entry' => $old_entry,
+						's3:new_entry' => $new_entry,
+					}});
+					
+					if ($old_entry ne $new_entry)
+					{
+						# Changed, delete and recreate.
+						$delete_old   = 1;
+						$create_entry = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							delete_old   => $delete_old,
+							create_entry => $create_entry,
+						}});
+						
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0117"});
+						last;
+					}
+					
+					# Delete the old switch.
+					delete $old_switches->{$argument};
+				}
+				
+				# Are there any old switches left?
+				my $old_switch_count = keys %{$old_switches};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					delete_old       => $delete_old, 
+					old_switch_count => $old_switch_count,
+				}});
+				if ((not $delete_old) && ($old_switch_count))
+				{
+					# Delete and recreate. 
+					$delete_old   = 1;
+					$create_entry = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						delete_old   => $delete_old,
+						create_entry => $create_entry,
+					}});
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0117"});
+				}
+			}
+			else
+			{
+				# No existing entry, add a new one.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0116"});
+		
+				$create_entry = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_entry => $create_entry }});
+			}
+		}
+		elsif (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
+		{
+			# There was an existing fence config, but there's no entry in 'host_ipmi'. 
+			# Remove the stonith entry.
+			$delete_old = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_old => $delete_old }});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0118"});
+		}
+		
+		# Process the IPMI entry.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			delete_old   => $delete_old,
+			create_entry => $create_entry, 
+		}});
+		if ($delete_old)
+		{
+			# Delete
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0119", variables => { device => $ipmi_stonith_name }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith delete ".$ipmi_stonith_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				# Something went wrong.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+					shell_call  => $shell_call, 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
+				return(1);
+			}
+			
+			$something_changed->{$node_name} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+		}
+		if ($create_entry)
+		{
+			# Create.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $ipmi_stonith_name }});
+			
+			my $shell_call = $pcs_add_command;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				# Something went wrong.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+					shell_call  => $shell_call, 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
+				return(1);
+			}
+			
+			$something_changed->{$node_name} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+		}
+		
+		
+		### Now any other fence devices.
+		foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}})
+		{
+			my $delete_old      = 0;
+			my $create_entry    = 0;
+			my $old_switches    = {};
+			my $fence_uuid      = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$device}{uuid};
+			my $fence_name      = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
+			my $fence_arguments = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments};
+			my $fence_agent     = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
+			my $stonith_name    = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node."_".$fence_name; 
+			my $port            = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}{$device}{port};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				device          => $device, 
+				fence_uuid      => $fence_uuid, 
+				fence_name      => $fence_name, 
+				fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments,
+				stonith_name    => $stonith_name, 
+				port            => $port, 
+			}});
+			
+			# We use this to tell if there are two or more entries per agent. If there
+			# are, we link them later when setting up the fence levels.
+			if (not exists $fence_devices->{$node_name}{$fence_agent})
+			{
+				push @{$fence_order->{$node_name}}, $fence_agent;
+				$fence_devices->{$node_name}{$fence_agent} = [];
+			}
+			push @{$fence_devices->{$node_name}{$fence_agent}}, $stonith_name;
+			
+			# Fence arguments use 'action', but pcs deprecated it in favour of 'pcmk_off_action', so rename it.
+			$fence_arguments =~ s/action=/pcmk_off_action=/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+			}});
+			
+			# Build the pcs command
+			my $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ".$fence_arguments." ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
+			}});
+			while ($fence_arguments =~ /=/)
+			{
+				# Ignore 'delay', we handle that in Cluster->set_delay();
+				my $pair               =  ($fence_arguments =~ /(\S*?=".*?")/)[0];
+					$fence_arguments    =~ s/$pair//;
+					$fence_arguments    =~ s/^\s+//;
+					$fence_arguments    =~ s/\s+$//;
+				my ($argument, $value) =  ($pair =~ /(.*)="(.*)"/);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:fence_arguments' => $fence_arguments, 
+					's2:pair'            => $pair =~ /passw/ ? $anvil->Log->is_secure($pair) : $pair,
+					's3:argument'        => $argument,
+					's4:value'           => $argument =~ /passw/ ? $anvil->Log->is_secure($value) : $value,
+				}});
+				
+				# Ignore 'delay', we handle that in Cluster->set_delay();
+				if (($argument ne "pcmk_off_action")                                           && 
+					(exists $anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name}) && 
+					($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
+				{
+					next;
+				}
+				
+				# Store this to see if it's different from what's already in the CIB.
+				$old_switches->{$argument} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"old_switches->{$argument}" => $old_switches->{$argument},
+				}});
+			}
+			if ($port)
+			{
+				$port                 =~ s/"/\\"/g;
+				$pcs_add_command      .= "port=\"".$port."\" ";
+				$old_switches->{port} =  $port;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
+					"old_switches->{port}" => $old_switches->{port},
+				}});
+			}
+			$pcs_add_command .= "op monitor interval=\"60\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
+			}});
+			
+			# Does this device exist already?
+			if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
+			{
+				foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name}{argument}})
+				{
+					next if $argument eq "delay";
+					my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name}{argument}{$argument}{value};
+					my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:argument'  => $argument, 
+						's2:old_entry' => $old_entry,
+						's3:new_entry' => $new_entry,
+					}});
+					
+					if ($old_entry ne $new_entry)
+					{
+						# Changed, delete and recreate.
+						$delete_old   = 1;
+						$create_entry = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							delete_old   => $delete_old,
+							create_entry => $create_entry,
+						}});
+						
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
+						last;
+					}
+					
+					# Delete the old switch.
+					delete $old_switches->{$argument};
+				}
+				
+				# Are there any old switches left?
+				my $old_switch_count = keys %{$old_switches};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_switch_count => $old_switch_count }});
+				if ((not $delete_old) && ($old_switch_count))
+				{
+					# Delete and recreate. 
+					$delete_old   = 1;
+					$create_entry = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						delete_old   => $delete_old,
+						create_entry => $create_entry,
+					}});
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
+				}
+			}
+			else
+			{
+				# No existing entry, add a new one.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0122", variables => { device => $stonith_name }});
+				
+				$create_entry = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_entry => $create_entry }});
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				delete_old   => $delete_old,
+				create_entry => $create_entry, 
+			}});
+			if ($delete_old)
+			{
+				# Delete
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0119", variables => { device => $stonith_name }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith delete ".$stonith_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+						shell_call  => $shell_call, 
+						output      => $output, 
+						return_code => $return_code, 
+					}});
+					return(1);
+				}
+				
+				$something_changed->{$node_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+			}
+			if ($create_entry)
+			{
+				# Create.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $stonith_name }});
+				
+				my $shell_call = $pcs_add_command;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+						shell_call  => $shell_call, 
+						output      => $output, 
+						return_code => $return_code, 
+					}});
+					return(1);
+				}
+				
+				$something_changed->{$node_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+			}
+		}
+		
+		
+		### If we had a fence_ipmilan entry, add a 'fence_delay' entry, if needed.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"machine::${node}::use_delay" => $anvil->data->{machine}{$node}{use_delay}, 
+		}});
+		if ($anvil->data->{machine}{$node}{use_delay})
+		{
+			my $stonith_name = "delay_".$node; 
+			push @{$fence_order->{$node_name}}, "fence_delay";
+			$fence_devices->{$node_name}{fence_delay} = [$stonith_name];
+			
+			# Add the fence delay if it doesn't exist yet.
+			if (not exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
+			{
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+						shell_call  => $shell_call, 
+						output      => $output, 
+						return_code => $return_code, 
+					}});
+					return(1);
+				}
+			}
+		}
+	}
+	
+	# Setup fence levels.
+	foreach my $node_name (sort {$a cmp $b} keys %{$fence_order})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+		if ($something_changed->{$node_name})
+		{
+			# Update our view of the cluster.
+			my $problem = $anvil->Cluster->parse_cib({debug => 2});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			
+			# Delete any existing fence levels
+			if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name})
+			{
+				foreach my $index (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}})
+				{
+					# pcs stonith level delete <index> <target>
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith level delete ".$index." ".$node_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					if ($return_code)
+					{
+						# Something went wrong.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+							shell_call  => $shell_call, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
+						return(1);
+					}
+				}
+			}
+			
+			# Create the new fence levels
+			my $i = 1;
+			foreach my $fence_agent (@{$fence_order->{$node_name}})
+			{
+				my $devices = "";
+				foreach my $device (sort {$a cmp $b} @{$fence_devices->{$node_name}{$fence_agent}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					$devices .= $device.",";
+				}
+				$devices =~ s/,$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { devices => $devices }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith level add ".$i." ".$node_name." ".$devices;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+						shell_call  => $shell_call, 
+						output      => $output, 
+						return_code => $return_code, 
+					}});
+					return(1);
+				}
+				
+				$i++;
+			}
+		}
+	}
+	
+	
+	return(0);
 }
 
 
@@ -884,11 +1595,11 @@ sub get_fence_methods
 	
 	my $short_host_name =  $host_name;
 	   $short_host_name =~ s/\..*$//;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
 	
 	# Find the Anvil! UUID.
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({host_uuid => $host_uuid});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 	if (not $anvil_uuid)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0295", variables => { host_name => $host_name }});
@@ -900,7 +1611,7 @@ sub get_fence_methods
 		debug      => $debug,
 		anvil_uuid => $anvil_uuid, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_name => $anvil_name }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 	
 	### NOTE: This probably won't work with fence methods that require multiple calls be run in parallel.
 	###       As this is PDUs usually, and we skip them anyway, this shouldn't be an issue.
@@ -1722,7 +2433,7 @@ sub migrate_server
 	elsif (($status eq "running") && ($host eq $node))
 	{
 		# Already running on the target.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0549", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0549", variables => { 
 			server         => $server,
 			requested_node => $node,
 		}});
@@ -1785,7 +2496,7 @@ sub migrate_server
 			host_name => $host_name, 
 		}});
 		
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0550", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0550", variables => { 
 			server         => $server,
 			requested_node => $node, 
 		}});
@@ -2524,7 +3235,7 @@ sub parse_cib
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{failed}    = $failed;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{managed}   = $managed;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{orphaned}  = $orphaned;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cib::parsed::data::server::${server}::status"    => $anvil->data->{cib}{parsed}{data}{server}{$server}{status},
 			"cib::parsed::data::server::${server}::host_name" => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name},
 			"cib::parsed::data::server::${server}::host_id"   => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_id},
@@ -2544,7 +3255,7 @@ sub parse_cib
 		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
 		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
 		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:server'    => $server,
 			's2:status'    => $status,
 			's2:host_name' => $host_name,
@@ -2892,7 +3603,7 @@ sub shutdown_server
 	if (($status eq "off") or ($status eq "stopped"))
 	{
 		# Already off.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0548", variables => { server => $server }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0548", variables => { server => $server }});
 		return(0);
 	}
 	elsif ($status ne "running")
@@ -2931,7 +3642,7 @@ sub shutdown_server
 			host   => $host, 
 		}});
 		
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0554", variables => { server => $server }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0554", variables => { server => $server }});
 		if ($status eq "running")
 		{
 			# Wait a bit and check again.
@@ -2941,7 +3652,7 @@ sub shutdown_server
 		{
 			# It's down.
 			$waiting = 0;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0555", variables => { server => $server }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0555", variables => { server => $server }});
 		}
 	}
 	
