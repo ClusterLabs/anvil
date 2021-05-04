@@ -1000,6 +1000,10 @@ OS10(conf-range-eth1/1/15-1/1/24)# exit
 
 ====================================
 
+$body = $cgi->param('POSTDATA') # gives you the body of the request as a string, which you can then process as JSON
+
+====================================
+
 
 # Hosts added or updated by the Anvil! on: [2021/04/17 16:24:52]:
 10.201.10.2     Could not get property: Refusing activation, D-Bus is shutting down Could not get property: Refusing activation, D-Bus is shutting down. Could not get property: Refusing activation, D-Bus is shutting down.bcn1
@@ -1008,7 +1012,6 @@ OS10(conf-range-eth1/1/15-1/1/24)# exit
 
 
 ausearch -c 'drbdsetup' --raw | audit2allow -M my-drbdsetup && semodule -X 300 -i my-drbdsetup.pp
-
 
 May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t. For complete SELinux messages run: sealert -l 4079c288-db4a-4f44-a588-94f1dbfff269
 May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t.

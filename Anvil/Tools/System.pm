@@ -1495,10 +1495,11 @@ sub collect_ipmi_data
 	}
 	
 	# Record how long it took.
-	my $sensor_read_time = $anvil->Convert->time({'time' => (time - $read_start_time)});
+	my $sensor_read_time = (time - $read_start_time);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_read_time => $sensor_read_time }});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_log_0003", variables => { 
 		host_name => $host_name, 
-		'time'    => $sensor_read_time
+		'time'    => $anvil->Convert->time({'time' => $sensor_read_time}),
 	}});
 	
 	

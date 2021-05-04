@@ -372,6 +372,10 @@ sub entry
 		$job_uuid =~ s/^(\w+?)-.*$/$1/;
 		$string   .= "[".$job_uuid."]:";
 	}
+	if (exists $anvil->data->{'log'}{scan_agent})
+	{
+		$string   .= "[".$anvil->data->{'log'}{scan_agent}."]:";
+	}
 	if (($source) && ($line))
 	{
 		$string .= $source.":".$line."; ";
