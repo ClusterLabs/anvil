@@ -413,6 +413,8 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0299">This host is not in a cluster, or it's in the cluster but not ready yet. Either way, unable to check the config.</key>
 		<key name="error_0300">Failed to find the install manifest for the: [#!variable!anvil_name!#] Anvil! system. Unable to check or update the fence configuration.</key>
 		<key name="error_0301">Failed to parse the install manifest with UUID: [#!variable!manifest_uuid!#]. Unable to check or update the fence configuration.</key>
+		<key name="error_0302">The passed in Anvil! UUID: [#!variable!anvil_uuid!#] was not found in the database.</key>
+		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
@@ -1911,6 +1913,13 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0237">One or more servers are migrating. While this is the case, ScanCore post-scan checks are not performed.</key>
 		<key name="message_0238">Preventative live migration has completed.</key>
 		<key name="message_0239">Preventative live migration has been disabled. We're healthier than our peer, but we will take no action.</key>
+		<key name="message_0240"><![CDATA[Please specify the Anvil! or host you want to purge. Use '--anvil <name_or_uuid>' or '--host <name_or_uuid>'.]]></key>
+		<key name="message_0241"><![CDATA[Used '-y' or '--yes', proceeding automatically.]]></key>
+		<key name="message_0242">Are you sure that you want to completely purge: [#!variable!host_name!#] (UUID: [#!variable!host_uuid!#] from the Anvil! database(s)?</key>
+		<key name="message_0243">Are you sure that you want to completely purge the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#] along with the machines:</key>
+		<key name="message_0244">- Host name: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
+		<key name="message_0245">Now purging: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
+		<key name="message_0246">Purging the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#]:</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

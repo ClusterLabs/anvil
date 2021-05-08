@@ -179,6 +179,7 @@ sub run_jobs
 	# Make sure the server is flagged as DELETEd.
 	$anvil->Database->get_servers();
 	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_state => $server_state }});
 	if ($server_state ne "DELETED")
 	{
 		my $query = "

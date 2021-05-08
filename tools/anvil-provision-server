@@ -32,6 +32,7 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{anvil}           = "";
 $anvil->data->{switches}{'anvil-name'}    = "";
 $anvil->data->{switches}{'anvil-uuid'}    = "";
 $anvil->data->{switches}{os}              = "";
@@ -45,6 +46,7 @@ $anvil->data->{switches}{'storage-size'}  = "";
 $anvil->Get->switches;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::anvil'         => $anvil->data->{switches}{anvil},
 	'switches::anvil-name'    => $anvil->data->{switches}{'anvil-name'},
 	'switches::anvil-uuid'    => $anvil->data->{switches}{'anvil-uuid'},
 	'switches::os'            => $anvil->data->{switches}{os},
@@ -1444,6 +1446,25 @@ sub parse_job_data
 sub interactive_question
 {
 	my ($anvil) = @_;
+	
+	# If 'switches::anvil' is set, see if it's a UUID and then set either 'anvil-uuid' or 'anvil-name'.
+	if (($anvil->data->{switches}{anvil}) && (not $anvil->data->{switches}{'anvil-uuid'}) && (not $anvil->data->{switches}{'anvil-name'}))
+	{
+		if ($anvil->Validate->uuid({uuid => $anvil->data->{switches}{anvil}}))
+		{
+			$anvil->data->{switches}{'anvil-uuid'} = $anvil->data->{switches}{anvil};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
+			}});
+		}
+		else
+		{
+			$anvil->data->{switches}{'anvil-name'} = $anvil->data->{switches}{anvil};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new_server::anvil_name" => $anvil->data->{new_server}{anvil_name},
+			}});
+		}
+	}
 	
 	# Do we know or can we find the Anvil! UUID?
 	$anvil->data->{new_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";

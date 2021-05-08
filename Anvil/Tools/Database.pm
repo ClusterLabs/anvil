@@ -23,6 +23,7 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
+# find_host_uuid_columns
 # get_alerts
 # get_anvils
 # get_bridges
@@ -91,6 +92,7 @@ my $THIS_FILE = "Database.pm";
 # update_host_status
 # write
 # _archive_table
+# _find_column
 # _find_behind_database
 # _mark_database_as_behind
 # _test_access
@@ -1723,7 +1725,7 @@ sub connect
 	
 	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
 	# date.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
 		no_resync                    => $no_resync, 
 	}});
@@ -1825,6 +1827,102 @@ sub disconnect
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 	
 	return(0);
+}
+
+
+=head2 find_host_uuid_columns
+
+This looks through all ScanCore agent schemas, then all core tables and looks for tables with columns that end in C<< X_host_uuid >>. These are stored in an array, ordered such that you can delete records for a given host without deleting primary keys before all foreign keys are gone.
+
+The array is stored in C<< sys::database::uuid_tables >>. Each array entry will be hash references with C<< table >> and C<< host_uuid_column >> keys containing the table name, and the C<< X_host_uuid >> column.
+
+ ### NOTE: Don't sort the array! It's ordered for safe deletions.
+ $anvil->Database->find_host_uuid_columns();
+ foreach my $hash_ref (@{$anvil->data->{sys}{database}{uuid_tables}})
+ {
+ 	my $table            = $hash_ref->{table};
+ 	my $host_uuid_column = $hash_ref->{host_uuid_column};
+	print "Table: [".$table."], host UUID column: [".$host_uuid_column."]\n";
+ }
+
+The array reference is returned.
+
+Parameters;
+
+=head3 main_table (optional, default 'hosts')
+
+This is the "parent" table, generally the top table with no further foreign keys above it.
+
+=head3 search_column (optional, default 'host_uuid')
+
+This is the UUID column used as a suffix in the parent table to search for.
+
+=cut
+sub find_host_uuid_columns
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->find_host_uuid_columns()" }});
+	
+	my $main_table    = defined $parameter->{main_table}    ? $parameter->{main_table}    : "hosts";
+	my $search_column = defined $parameter->{search_column} ? $parameter->{search_column} : "host_uuid";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		main_table    => $main_table, 
+		search_column => $search_column,
+	}});
+	
+	$anvil->data->{sys}{database}{uuid_tables} = [];
+	
+	$anvil->ScanCore->_scan_directory({
+		debug     => $debug, 
+		directory => $anvil->data->{path}{directories}{scan_agents},
+	});
+	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+	{
+		my $sql_path = $anvil->data->{scancore}{agent}{$agent_name}.".sql";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			agent_name => $agent_name, 
+			sql_path   => $sql_path,
+		}});
+		if (not -e $sql_path)
+		{
+			next;
+		}
+		my $tables = $anvil->Database->get_tables_from_schema({
+			debug       => $debug, 
+			schema_file => $sql_path,
+		});
+		foreach my $table (reverse @{$tables})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+			$anvil->Database->_find_column({
+				debug         => $debug, 
+				table         => $table,
+				search_column => $search_column,
+			});
+		}
+	}
+
+	my $tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => $anvil->data->{path}{sql}{'anvil.sql'}});
+	foreach my $table (reverse @{$tables})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+		$anvil->Database->_find_column({
+			debug         => $debug, 
+			table         => $table,
+			search_column => $search_column,
+		});
+	}
+	
+	# Manually push 'hosts'
+	push @{$anvil->data->{sys}{database}{uuid_tables}}, {
+		table            => $main_table, 
+		host_uuid_column => $search_column,
+	};
+
+	return($anvil->data->{sys}{database}{uuid_tables});
 }
 
 
@@ -4525,12 +4623,29 @@ sub get_tables_from_schema
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		$line =~ s/--.*?//;
 		
-		next if $line =~ /CREATE TABLE history\./;
+		if ($line =~ /CREATE TABLE history\.(.*?) \(/)
+		{
+			my $table = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+			
+			$anvil->data->{sys}{database}{history_table}{$table} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::history_table::${table}" => $anvil->data->{sys}{database}{history_table}{$table},
+			}});
+		}
 		if ($line =~ /CREATE TABLE (.*?) \(/i)
 		{
 			my $table = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
 			push @{$tables}, $table;
+			
+			if (not exists $anvil->data->{sys}{database}{history_table}{$table})
+			{
+				$anvil->data->{sys}{database}{history_table}{$table} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::database::history_table::${table}" => $anvil->data->{sys}{database}{history_table}{$table},
+				}});
+			}
 		}
 	}
 	
@@ -15615,6 +15730,57 @@ COPY history.".$table." (";
 			my $query = "VACUUM FULL;";
 			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 		}
+	}
+	
+	return(0);
+}
+
+
+=head2 _find_column
+
+This takes a table name and looks for a column that ends in C<< _host_uuid >> and, if found, stores it in the C<< sys::database::uuid_tables >> array.
+
+Parameters;
+
+=head3 table (required)
+
+This is the table being queried.
+
+=cut
+sub _find_column
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_find_column()" }});
+	
+	my $table         = defined $parameter->{table}         ? $parameter->{table}         : "";
+	my $search_column = defined $parameter->{search_column} ? $parameter->{search_column} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		table         => $table, 
+		search_column => $search_column, 
+	}});
+	
+	return('!!error!!') if not $table;
+	
+	my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->Database->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name LIKE '\%_".$search_column."';";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		table => $table, 
+		count => $count,
+	}});
+	if ($count)
+	{
+		my $host_uuid_column = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_uuid_column => $host_uuid_column }});
+		
+		push @{$anvil->data->{sys}{database}{uuid_tables}}, {
+			table            => $table, 
+			host_uuid_column => $host_uuid_column,
+		};
 	}
 	
 	return(0);

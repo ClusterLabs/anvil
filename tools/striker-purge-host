@@ -64,6 +64,10 @@ sub purge
 	# hosts without any further references. As each delete is done, delete it. Loop until all entries are
 	# gone.
 	
+	
+	
+	die;
+	
 	# Load all the known tables in the DB.
 	my $query = "SELECT schemaname||'.'||tablename AS table_name FROM pg_catalog.pg_tables WHERE schemaname = 'history' ORDER BY tablename ASC, schemaname ASC;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});

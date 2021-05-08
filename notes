@@ -7,6 +7,15 @@ TODO:
 
 ============
 
+# Dump
+su - postgres -c "pg_dump anvil > /tmp/anvil.out" && mv /tmp/anvil.out /root/
+su - postgres -c "pg_dump --schema-only anvil > /tmp/anvil.out" && mv /tmp/anvil.out /root/
+
+cp /root/anvil.out /; su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out"
+su postgres -c "psql anvil"
+
+============
+
 # ScanCore post-scan logic;
 
 Sole node:
@@ -761,17 +770,63 @@ resource srv01-sql {
 }
 ==================
 
+1. Battery, short = -, add + / - to cell icon
+
+
+
 mediawiki on EL8 install notes (starting from a minimal install);
 
 dnf module reset php
 dnf module enable php:7.4
-dnf install httpd php php-mysqlnd php-gd php-xml mariadb-server mariadb php-mbstring php-json \
-            vim postgresql-server postgresql-plperl bash-completion wget tar rsync mlocate php-pecl-apcu \
+dnf install httpd php php-gd php-xml php-mbstring php-json \
+            vim bash-completion wget tar rsync mlocate php-pecl-apcu \
             memcached php-pear icu php-intl php-pgsql bzip2 
 
+### PostgreSQL
+dnf install postgresql-server postgresql-plperl 
 postgresql-setup --initdb
 systemctl start postgresql.service 
 systemctl enable postgresql.service 
+
+### MariaDB
+dnf install php-mysqlnd php-gd php-xml mariadb-server mariadb
+systemctl start mariadb
+mysql_secure_installation
+|Set root password? [Y/n] y
+|New password: 
+|Re-enter new password: 
+|Password updated successfully!
+|Remove anonymous users? [Y/n] y
+|Disallow root login remotely? [Y/n] y
+|Remove test database and access to it? [Y/n] y
+|Reload privilege tables now? [Y/n] y
+mysql -u root -p
+### In mariadb
+MariaDB [(none)]> CREATE DATABASE digimer_wiki;
+MariaDB [(none)]> CREATE USER 'digimer'@'localhost' IDENTIFIED BY 'Initial1';
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON digimer_wiki.* TO 'digimer'@'localhost';
+MariaDB [(none)]> FLUSH PRIVILEGES;
+MariaDB [(none)]> SHOW DATABASES;
++--------------------+
+| Database           |
++--------------------+
+| digimer_wiki       |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+MariaDB [(none)]> SHOW GRANTS FOR 'digimer'@'localhost';
++----------------------------------------------------------------------------------------------------------------+
+| Grants for digimer@localhost                                                                                   |
++----------------------------------------------------------------------------------------------------------------+
+| GRANT USAGE ON *.* TO `digimer`@`localhost` IDENTIFIED BY PASSWORD '*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' |
+| GRANT ALL PRIVILEGES ON `digimer_wiki`.* TO `digimer`@`localhost`                                              |
++----------------------------------------------------------------------------------------------------------------+
+MariaDB [(none)]> exit
+# Back to terminal
+systemctl enable mariadb
+
+# Common
 systemctl start httpd.service 
 systemctl enable httpd.service 
 systemctl start memcached.service

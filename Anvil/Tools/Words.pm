@@ -501,6 +501,21 @@ sub parse_banged_string
 					"s3:value"    => $value, 
 				}});
 				
+				# We've built things to support unit translation, though it's not implemented
+				# (yet). This clears those up.
+				if ($value =~ /^name=(.*?):units=(.*)$/)
+				{
+					my $name = $1;
+					my $unit = $2; 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:name" => $name,
+						"s2:unit" => $unit, 
+					}});
+					
+					$value = $name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+				}
+				
 				# Remove this pair
 				$variable_string =~ s/^\Q$pair//;
 				$variable_string =~ s/^,//;
