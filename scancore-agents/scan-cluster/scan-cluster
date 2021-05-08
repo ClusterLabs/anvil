@@ -19,6 +19,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use Text::Diff;
 
 # Disable buffering
 $| = 1;
@@ -193,7 +194,7 @@ WHERE
 UPDATE 
     scan_cluster 
 SET 
-    scan_cluster_cib  = ".$anvil->Database->quote($cluster_name).", 
+    scan_cluster_cib  = ".$anvil->Database->quote($cluster_cib).", 
     modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE 
     scan_cluster_uuid = ".$anvil->Database->quote($scan_cluster_uuid)."
@@ -201,12 +202,15 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 			
+			my $difference = diff \$old_cluster_cib, \$cluster_cib, { STYLE => 'Unified' };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+			
 			my $variables = {
-				new_cluster_name => $cluster_name, 
-				old_cluster_name => $old_cluster_name, 
+				cluster_name => $cluster_name, 
+				difference   => $difference, 
 			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0002", variables => $variables});
-			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0002", variables => $variables, set_by => $THIS_FILE});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0012", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0012", variables => $variables, set_by => $THIS_FILE});
 		}
 	}
 	else

@@ -1897,6 +1897,7 @@ BEGIN
          temperature_sensor_host, 
          temperature_sensor_name,
          temperature_value_c,
+         temperature_weight, 
          temperature_state,
          temperature_is,
          modified_date)
@@ -1906,6 +1907,7 @@ BEGIN
          history_temperature.temperature_agent_name,
          history_temperature.temperature_sensor_host, 
          history_temperature.temperature_sensor_name,
+         history_temperature.temperature_weight, 
          history_temperature.temperature_value_c,
          history_temperature.temperature_state,
          history_temperature.temperature_is,

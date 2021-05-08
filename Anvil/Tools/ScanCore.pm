@@ -120,6 +120,9 @@ sub agent_startup
 		tables => $tables, 
 	}});
 	
+	# Setting this will prepend messages coming grom the agent with the agent's name
+	$anvil->data->{'log'}{scan_agent} = $agent;
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 	if ((not $tables) or (ref($tables) ne "ARRAY"))
 	{
@@ -151,7 +154,10 @@ sub agent_startup
 	}
 	
 	# Connect to DBs.
-	$anvil->Database->connect({debug => $debug});
+	$anvil->Database->connect({
+		debug     => $debug,
+		no_resync => 0,
+	});
 	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 	if (not $anvil->data->{sys}{database}{connections})
 	{
@@ -1521,7 +1527,7 @@ sub post_scan_analysis_node
 			}});
 			
 			# If we're SyncSource, we can't withdraw, but we can pull servers.
-			if (not $am_syncsource)
+			if ($am_syncsource)
 			{
 				# Log that we won't shutdown
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0105"});

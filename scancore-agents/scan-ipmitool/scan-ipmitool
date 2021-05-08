@@ -2061,8 +2061,14 @@ sub find_ipmi_targets
 		}
 	}
 	
+	### NOTE: This is changed. Now that striker's directly call the targets to check temperature when 
+	###       evaluating thermal boot conditions, we don't need to store this data.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmi_targets => $ipmi_targets }});
+	return($ipmi_targets);
+	
 	# Which hosts we scan depends on if we're a Striker dashboard or not. If we are, we'll try to scan 
 	# all machines in all Anvil! systems. Otherwise, we only scan ourselves.
+=cut
 	if ($host_type ne "striker")
 	{
 		# We're not a dashboard, so we don't scan others.
@@ -2180,7 +2186,6 @@ AND
 			}});
 		}
 	}
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ipmi_targets => $ipmi_targets }});
+=cut
 	return($ipmi_targets);
 }

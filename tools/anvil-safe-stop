@@ -117,6 +117,12 @@ if (not $anvil->data->{sys}{anvil_uuid})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# If no stop-reason was set, set it to 'user'
+if (not $anvil->data->{switches}{'stop-reason'})
+{
+	$anvil->data->{switches}{'stop-reason'} = "user";
+}
+
 # Migrate or stop the servers, if any servers are running here.
 process_servers($anvil);
 

@@ -65,7 +65,7 @@ $anvil->Storage->read_config();
 # Read switches
 $anvil->data->{switches}{'run-once'} = "";
 $anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Calculate my sum so that we can exit if it changes later.
 $anvil->Storage->record_md5sums();
@@ -105,11 +105,8 @@ while(1)
 	if ((exists $anvil->data->{scancore}{timing}{run_interval}) && ($anvil->data->{scancore}{timing}{run_interval} =~ /^\d+$/))
 	{
 		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { run_interval => $run_interval }});
 	}
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { 
-		run_interval => $run_interval,
-		runtime      => (time - $start_time),
-	}});
 	
 	# If we're in maintenance mode, do nothing.
 	my $maintenance_mode = $anvil->System->maintenance_mode();
@@ -163,6 +160,10 @@ while(1)
 	cleanup_after_run($anvil);
 	
 	# Sleep until it's time to run again.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { 
+		run_interval => $run_interval,
+		runtime      => (time - $start_time),
+	}});
 	sleep($run_interval);
 	
 	# In case something has changed, exit.
