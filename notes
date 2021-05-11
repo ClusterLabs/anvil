@@ -974,7 +974,7 @@ OS10# configure terminal
 OS10(config)# vlt-domain 1
 OS10(conf-vlt-1)# vlt-mac 00:00:00:00:00:02
 
-# show vlt 1 mismatch
+OS10# show vlt 1 mismatch
 (If no issues, VLT is OK)
 
 # See how I am and my role (* == switch you're on)
@@ -986,36 +986,47 @@ VLT Unit ID    Role
 
 =====] VLAN Config [========  
 
-
-zo-switch02# configure terminal 
-zo-switch02(config)# interface vlan 100
-zo-switch02(conf-if-vl-100)# description BCN1
-zo-switch02(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/10
-zo-switch02(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
-zo-switch02(conf-range-eth1/1/1-1/1/10)# exot
-% Error: Unrecognized command.
-zo-switch02(conf-range-eth1/1/1-1/1/10)# exit
-zo-switch02(config)# interface range ethernet 1/1/11-1/1/14
-zo-switch02(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
-zo-switch02(conf-range-eth1/1/11-1/1/14)# exit
-zo-switch02(config)# interface range ethernet 1/1/15-1/1/24
-zo-switch02(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
-ezo-switch02(conf-range-eth1/1/15-1/1/24)# exit
-zo-switch02(config)# show vlan
+OS10# configure terminal 
+OS10(config)# interface mgmt 1/1/1
+OS10(conf-if-ma-1/1/1)# no ip address dhcp 
+OS10(conf-if-ma-1/1/1)# ip address 10.201.1.2/16
+OS10(conf-if-ma-1/1/1)# no shutdown 
+OS10(conf-if-ma-1/1/1)# exit
+OS10(config)# write memory
+OS10(config)# hostname zo-switch01
+zo-switch01(config)# interface vlan 100
+zo-switch01(conf-if-vl-100)# description BCN1
+zo-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/10
+zo-switch01(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
+zo-switch01(conf-range-eth1/1/1-1/1/10)# no shutdown 
+zo-switch01(conf-range-eth1/1/1-1/1/10)# exit
+zo-switch01(config)# interface vlan 200
+zo-switch01(conf-if-vl-200)# description SN1
+zo-switch01(conf-if-vl-200)# interface range ethernet 1/1/11-1/1/14
+zo-switch01(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
+zo-switch01(conf-range-eth1/1/11-1/1/14)# no shutdown
+zo-switch01(conf-range-eth1/1/11-1/1/14)# exit
+zo-switch01(config)# interface vlan 300
+zo-switch01(conf-if-vl-300)# description IFN1
+zo-switch01(conf-if-vl-300)# interface range ethernet 1/1/15-1/1/24
+zo-switch01(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
+zo-switch01(conf-range-eth1/1/15-1/1/24)# no shutdown
+zo-switch01(conf-range-eth1/1/15-1/1/24)# exit
+zo-switch01(config)# show vlan
 Codes: * - Default VLAN, M - Management VLAN, R - Remote Port Mirroring VLANs,
-       @ – Attached to Virtual Network, P - Primary, C - Community, I - Isolated
+       @ - Attached to Virtual Network, P - Primary, C - Community, I - Isolated
 Q: A - Access (Untagged), T - Tagged
     NUM    Status    Description                     Q Ports
 *   1      Active                                    A Eth1/1/27-1/1/30 
                                                      A Po1000 
     100    Active    BCN1                            T Po1000 
                                                      A Eth1/1/1-1/1/10 
-    200    Active                                    T Po1000 
+    200    Active    SN1                             T Po1000 
                                                      A Eth1/1/11-1/1/14 
-    300    Active                                    T Po1000 
+    300    Active    IFN1                            T Po1000 
                                                      A Eth1/1/15-1/1/24 
     4094   Active                                    T Po1000 
-
+zo-switch01(config)# write memory
     
 ### Delete a VLAN:
 
@@ -1023,18 +1034,109 @@ zo-switch02(config)# no interface vlan 3400
 zo-switch02(config)# show vlan
 
 
-# Configure VLANs.
-OS10(config)# interface range vlan 100,200,300
-OS10(conf-range-vl-100,200,300)# exit
-OS10(config)# interface range ethernet 1/1/1-1/1/10
-OS10(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
-OS10(conf-range-eth1/1/1-1/1/10)# exit
-OS10(config)# interface range ethernet 1/1/11-1/1/14
-OS10(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
-OS10(conf-range-eth1/1/11-1/1/14)# exit
-OS10(config)# interface range ethernet 1/1/15-1/1/24
-OS10(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
-OS10(conf-range-eth1/1/15-1/1/24)# exit
+=== Firmware Update ===
+
+Download the firmware from the Dell digital locker. Once downloaded, extracted and the sum verified, copy the 'PKGS_OS10-Enterprise-xxx-installer-x86_64.bin' file to one of the striker's /var/lib/tftpboot/' directory and start the dhcpd service.
+
+### NOTE: Use the striker NOT connected to the switch being upgraded! If necessary, move the uplink interfaces off of the switch to be upgraded!
+Once ready, connect to the switch over serial port.
+
+### WARNING: The firmware update completely resets the switch! Backup you config before hand, if necessary. Also, watch for the loss of VLANs causing switch loops when 2+ uplinks are connected!
+
+# screen /dev/ttyUSB0 115200
+
+# Reboot the switches;
+reload   <confirm with 'yes'>
+
+When the grub boot menu appears, choose 
++--------------------------------------------------------+
+|*ONIE: Install OS                                       |
+| ONIE: Rescue                                           |
+| ONIE: Uninstall OS                                     |
+| ONIE: Update ONIE                                      |
+| ONIE: Embed ONIE                                       |
+| ONIE: Diag ONIE                                        |
++--------------------------------------------------------+
+
+# This will start a constant scan of IP addresses and local storage looking for the firmware. To stop this, type:
+ONIE:/ # onie-discovery-stop 
+
+# Set the IP address so that we can talk to the striker with the firmware.
+
+ONIE:/ # ifconfig eth0 10.201.1.1 netmask 255.255.0.0 up
+ONIE:/ # ping 10.201.4.1
+PING 10.201.4.1 (10.201.4.1): 56 data bytes
+64 bytes from 10.201.4.1: seq=0 ttl=64 time=0.247 ms
+64 bytes from 10.201.4.1: seq=1 ttl=64 time=0.506 ms
+
+
+ONIE:/ # onie-nos-install tftp://10.201.4.1/PKGS_OS10-Enterprise-10.5.2.3.316stretch-installer-x86_64.bin
+
+discover: installer mode detected.
+Stopping: discover... done.
+Info: Fetching tftp://10.201.4.1/PKGS_OS10-Enterprise-10.5.2.3.316stretch-installer-x86_64.bin ...            <- This step takes a while
+PKGS_OS10-Enterprise 100% |*******************************|   744M  0:00:00 ETA
+ONIE: Executing installer: tftp://10.201.4.1/PKGS_OS10-Enterprise-10.5.2.3.316stretch-installer-x86_64.bin
+Initializing installer ... OK
+Verifying image checksum ... OK
+OS10 Installer: machine: dellemc_s4100_c2338/s4128t
+Fixing up partitions ... OK
+Deleting logical volume CONFIG ... OK
+Deleting logical volume SYSROOT1 ... OK
+Deleting logical volume SYSROOT2 ... OK
+Creating logical volume SYSROOT ... OK
+Creating ext4 filesystem on SYSROOT ... OK
+Extracting OS10 ... OK
+Installing OS10 on primary volume ... OK                                                                      <- This takes a long time, be patient
+Setting up shared data ... OK
+Synchronizing standby image ... 
+OS10 installation is complete.
+Creating ext4 filesystem on sda4 ... OK
+Installing GRUB-UEFI ... OK
+Saving system information ... OK
+Saving ONIE support information ... OK
+ONIE: NOS install successful: tftp://10.201.4.1/PKGS_OS10-Enterprise-10.5.2.3.316stretch-installer-x86_64.bin
+ONIE: Rebooting...
+ONIE:/ # discover: installer mode detected.
+Stopping: discover...start-stop-daemon: warning: killing process 2881: No such process
+ done.
+Stopping: dropbear ssh daemon... done.
+Stopping: telnetd... done.
+Stopping: syslogd... done.
+Info: Unmounting kernel filesystems
+umount: can't umount /: Invalid argument
+The system is going down NOW!
+Sent SIGTERM to all processes
+Sent SIGKILL tosd 4:0:0:0: [sda] Synchronizing SCSI cache
+reboot: Restarting system
+reboot: machine restart
+
+### NOTE: The login prompt will appear before the system is ready to log in. The default username and password revert to 'admin' / 'admin', but this won't work for the first couple of minutes.
+## OLD
+zo-switch02# show version 
+Dell EMC Networking OS10 Enterprise
+Copyright (c) 1999-2020 by Dell Inc. All Rights Reserved.
+OS Version: 10.5.0.4
+Build Version: 10.5.0.4.638
+Build Time: 2020-01-30T21:08:56+0000
+System Type: S4128T-ON
+Architecture: x86_64
+Up Time: 22:49:57
+zo-switch02# 
+
+## New
+zo-a01n01# show version
+Dell EMC Networking OS10 Enterprise
+Copyright (c) 1999-2021 by Dell Inc. All Rights Reserved.
+OS Version: 10.5.2.3
+Build Version: 10.5.2.3.316
+Build Time: 2021-02-26T20:03:25+0000
+System Type: S4128T-ON
+Architecture: x86_64
+
+
+
+
 
 ====================================
 -=] Rename a resource (ex: srv09-few-tcpremote1 -> srv09-fea-tcpremote1)
@@ -1074,3 +1176,10 @@ May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is prev
                                                                  # ausearch -c 'drbdsetup' --raw | audit2allow -M my-drbdsetup
                                                                  # semodule -X 300 -i my-drbdsetup.pp
 
+                                                                  If you believe that virsh should be allowed read access on the srv16-zo-psql-qa.xml file by default.
+                                                                  # ausearch -c 'virsh' --raw | audit2allow -M my-virsh
+                                                                  # semodule -X 300 -i my-virsh.pp
+
+                                                                  
+                                                                  
+                                                                  

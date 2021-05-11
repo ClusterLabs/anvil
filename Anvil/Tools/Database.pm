@@ -4633,7 +4633,7 @@ sub get_tables_from_schema
 				"sys::database::history_table::${table}" => $anvil->data->{sys}{database}{history_table}{$table},
 			}});
 		}
-		if ($line =~ /CREATE TABLE (.*?) \(/i)
+		elsif ($line =~ /CREATE TABLE (.*?) \(/i)
 		{
 			my $table = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});

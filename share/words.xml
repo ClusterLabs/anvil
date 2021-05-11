@@ -1578,6 +1578,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0618">Successfully deleted the file: [#!variable!file!#] on the target: [#!variable!target!#].</key>
 		<key name="log_0619">The host: [#!variable!host_name!#] has shut down for thermal reasons: [#!variable!count!#] times. To prevent a frequent boot / thermal excursion / shutdown loop, we will wait: [#!variable!wait_for!#] before marking it's temperature as being OK again.</key>
 		<key name="log_0620">This host has been running for: [#!variable!uptime!#]. The cluster will not be started (uptime must be less than 10 minutes for 'anvil-safe-start' to be called automatically).</key>
+		<key name="log_0621">- The Scan agent: [#!variable!agent_name!#] ran a bit long, exiting after: [#!variable!runtime!#] seconds with the return code: [#!variable!return_code!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
