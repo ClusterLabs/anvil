@@ -290,10 +290,16 @@ sub call_scan_agents
 		}
 		
 		# If an agent takes a while to run, log it with higher verbosity
-		my $runtime   = (time - $start_time);
-		my $log_level = $runtime > 10 ? 1 : $debug;
+		my $runtime    = (time - $start_time);
+		my $log_level  = $debug;
+		my $string_key = "log_0557";
+		if ($runtime > 10)
+		{
+			$log_level  = 1;
+			$string_key = "log_0621";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, runtime => $runtime }});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $log_level, key => "log_0557", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $log_level, key => $string_key, variables => {
 			agent_name  => $agent_name,
 			runtime     => $runtime,
 			return_code => $return_code,

@@ -97,8 +97,9 @@ $| = 1;
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
 
-# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations
-$anvil->Database->connect();
+# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing reasons
+# we don't let the RA do resyncs.
+$anvil->Database->connect({no_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
@@ -155,7 +156,7 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
 $anvil->data->{switches}{migrate_to}   = "";	# Sets 'meta_migrate_target'
 $anvil->data->{switches}{migrate_from} = "";	# Sets 'meta_migrate_source' When set without 'migrate_to', does a status check after migration
 $anvil->data->{switches}{server}       = "";	# Sets 'name'.
-$anvil->Get->switches({debug => 2});
+$anvil->Get->switches();
 
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
