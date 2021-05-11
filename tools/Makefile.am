@@ -40,7 +40,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-parse-os-list \
 			  striker-parse-oui \
 			  striker-prep-database \
-			  striker-purge-host \
+			  striker-purge-target \
 			  striker-scan-network \
 			  striker-auto-initialize-all
 
