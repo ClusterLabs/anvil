@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import AppBar from '@material-ui/core/AppBar';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
-import { Box } from '@material-ui/core';
+import { Box, Button } from '@material-ui/core';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
+import AnvilDrawer from './AnvilDrawer';
 
 const useStyles = makeStyles((theme) =>
   createStyles({
@@ -25,29 +27,38 @@ const useStyles = makeStyles((theme) =>
 
 const Header = (): JSX.Element => {
   const classes = useStyles();
+  const [open, setOpen] = useState(false);
+
+  const toggleDrawer = (): void => setOpen(!open);
+
   return (
-    <AppBar position="static" className={classes.appBar}>
-      <Box display="flex" justifyContent="space-between" flexDirection="row">
-        <Box className={classes.barElement}>
-          <img alt="" src="/pngs/logo.png" width="160" height="40" />
+    <>
+      <AppBar position="static" className={classes.appBar}>
+        <Box display="flex" justifyContent="space-between" flexDirection="row">
+          <Box className={classes.barElement}>
+            <Button onClick={toggleDrawer}>
+              <img alt="" src="/pngs/logo.png" width="160" height="40" />
+            </Button>
+          </Box>
+          <Box className={classes.barElement}>
+            <input className={classes.input} list="search-suggestions" />
+          </Box>
+          <Box className={classes.barElement}>
+            {ICONS.map(
+              (icon): JSX.Element => (
+                <img
+                  alt=""
+                  key="icon"
+                  src={icon} // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...ICON_SIZE}
+                />
+              ),
+            )}
+          </Box>
         </Box>
-        <Box className={classes.barElement}>
-          <input className={classes.input} list="search-suggestions" />
-        </Box>
-        <Box className={classes.barElement}>
-          {ICONS.map(
-            (icon): JSX.Element => (
-              <img
-                alt=""
-                key="icon"
-                src={icon} // eslint-disable-next-line react/jsx-props-no-spreading
-                {...ICON_SIZE}
-              />
-            ),
-          )}
-        </Box>
-      </Box>
-    </AppBar>
+      </AppBar>
+      <AnvilDrawer open={open} setOpen={setOpen} />
+    </>
   );
 };
 
