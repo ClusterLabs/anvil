@@ -34,6 +34,6 @@ export const ICONS = [
 ];
 
 export const ICON_SIZE = {
-  width: 40,
-  height: 40,
+  width: '40em',
+  height: '40em',
 };
