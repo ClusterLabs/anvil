@@ -22,6 +22,17 @@ const useStyles = makeStyles((theme) =>
     barElement: {
       padding: 0,
     },
+    icons: {
+      [theme.breakpoints.down('sm')]: {
+        display: 'none',
+      },
+    },
+    searchBar: {
+      [theme.breakpoints.down('sm')]: {
+        flexGrow: 1,
+        paddingLeft: '15vw',
+      },
+    },
   }),
 );
 
@@ -40,10 +51,10 @@ const Header = (): JSX.Element => {
               <img alt="" src="/pngs/logo.png" width="160" height="40" />
             </Button>
           </Box>
-          <Box className={classes.barElement}>
+          <Box className={`${classes.barElement} ${classes.searchBar}`}>
             <input className={classes.input} list="search-suggestions" />
           </Box>
-          <Box className={classes.barElement}>
+          <Box className={`${classes.barElement} ${classes.icons}`}>
             {ICONS.map(
               (icon): JSX.Element => (
                 <img
