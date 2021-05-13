@@ -1,8 +1,9 @@
-import { Drawer, List, ListItem } from '@material-ui/core';
+import { Divider, Drawer, List, ListItem, Box } from '@material-ui/core';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
 import { Dispatch, SetStateAction } from 'react';
 import { BodyText } from './Text';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
+import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
 interface DrawerProps {
   open: boolean;
@@ -12,9 +13,16 @@ interface DrawerProps {
 const useStyles = makeStyles(() =>
   createStyles({
     list: {
-      width: '15vw',
-      backdropFilter: 'blur(10px)',
-      opacity: 0.7,
+      width: '200px',
+      backdropFilter: 'blur(5px) opacity(0)',
+    },
+    container: {},
+    divider: {
+      background: DIVIDER,
+    },
+    text: {
+      paddingTop: '0.5em',
+      paddingLeft: '1em',
     },
   }),
 );
@@ -23,19 +31,34 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
   const classes = useStyles();
 
   return (
-    <Drawer anchor="left" open={open} onClose={() => setOpen(!open)}>
-      <div role="presentation">
+    <Drawer
+      BackdropProps={{ invisible: true }}
+      anchor="left"
+      open={open}
+      onClose={() => setOpen(!open)}
+    >
+      <div role="presentation" className={classes.container}>
         <List className={classes.list}>
+          <ListItem button>
+            <BodyText text="Admin" />
+          </ListItem>
+          <Divider className={classes.divider} />
           {ICONS.map(
             (icon): JSX.Element => (
               <ListItem button key={icon.image}>
-                <img
-                  alt=""
-                  key="icon"
-                  src={icon.image} // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...ICON_SIZE}
-                />
-                <BodyText text={icon.text} />
+                <Box display="flex" flexDirection="row" width="100%">
+                  <Box>
+                    <img
+                      alt=""
+                      key="icon"
+                      src={icon.image} // eslint-disable-next-line react/jsx-props-no-spreading
+                      {...ICON_SIZE}
+                    />
+                  </Box>
+                  <Box flexGrow={1} className={classes.text}>
+                    <BodyText text={icon.text} />
+                  </Box>
+                </Box>
               </ListItem>
             ),
           )}
