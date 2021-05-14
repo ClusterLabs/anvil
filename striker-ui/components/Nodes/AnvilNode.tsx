@@ -90,7 +90,7 @@ const AnvilNode = ({
                     <BodyText text="Member: " />
                   </Box>
                   <Box>
-                    <Switch checked />
+                    <Switch checked disabled={!node.removable} />
                   </Box>
                 </Box>
                 {node.state !== 'ready' && (
