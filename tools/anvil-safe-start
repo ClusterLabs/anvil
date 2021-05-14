@@ -15,6 +15,7 @@
 # - Add job support
 # - Make this work on DR hosts.
 # - 'pcs quorum unblock' could be useful in sole-survivor cold starts.
+# - Start DRBD resources if the VMs are running already on the peer.
 # 
 
 use strict;
@@ -110,6 +111,9 @@ start_pacemaker($anvil);
 # Boot servers.
 boot_servers($anvil);
 
+# Start DRBD resources locally for VMs running on the peer already
+check_drbd($anvil);
+
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
 
 $anvil->nice_exit({exit_code => 0});
@@ -117,6 +121,15 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub check_drbd
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
 
 # This boots the servers.
 sub boot_servers

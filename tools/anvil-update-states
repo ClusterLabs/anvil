@@ -437,7 +437,7 @@ sub update_network
 	closedir(DIRECTORY);
 	
 	# Find what interfaces are connected to which bridges
-	$anvil->Network->bridge_info({debug => 3});
+	$anvil->Network->bridge_info({debug => 2});
 	delete $anvil->data->{interface_to_bridge} if exists $anvil->data->{interface_to_bridge};
 	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{$local_host}})
 	{
@@ -538,7 +538,7 @@ sub update_network
 					if (($bridge_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
-							debug                      => 3,
+							debug                      => 2,
 							file                       => $THIS_FILE,
 							line                       => __LINE__,
 							ip_address_on_type         => $type, 
@@ -595,7 +595,7 @@ sub update_network
 					if (($bond_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
-							debug                      => 3,
+							debug                      => 2,
 							file                       => $THIS_FILE,
 							line                       => __LINE__,
 							ip_address_on_type         => $type, 
@@ -658,7 +658,7 @@ sub update_network
 					if (($network_interface_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
-							debug                      => 3,
+							debug                      => 2,
 							file                       => $THIS_FILE,
 							line                       => __LINE__,
 							ip_address_on_type         => $type, 
@@ -951,7 +951,7 @@ WHERE
 		my $ip_address_default_gateway = $row->[6];
 		my $ip_address_dns             = $row->[7];
 		my $ip_address_note            = $row->[8];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			ip_address_on_type         => $ip_address_on_type,
 			ip_address_on_uuid         => $ip_address_on_uuid,
 			ip_address_address         => $ip_address_address,

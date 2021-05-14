@@ -223,7 +223,7 @@ sub call_scan_agents
 	$anvil->ScanCore->_scan_directory({directory => $anvil->data->{path}{directories}{scan_agents}});
 	
 	# Now loop through the agents I found and call them.
-	my $timeout = 30;
+	my $timeout = 60;
 	if ((exists $anvil->data->{scancore}{timing}{agent_runtime}) && ($anvil->data->{scancore}{timing}{agent_runtime} =~ /^\d+$/))
 	{
 		$timeout = $anvil->data->{scancore}{timing}{agent_runtime};
@@ -298,11 +298,18 @@ sub call_scan_agents
 			$log_level  = 1;
 			$string_key = "log_0621";
 		}
+		if ($return_code eq "124")
+		{
+			# Timed out
+			$log_level  = 1;
+			$string_key = "message_0180";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, runtime => $runtime }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $log_level, key => $string_key, variables => {
 			agent_name  => $agent_name,
 			runtime     => $runtime,
 			return_code => $return_code,
+			timeout     => $timeout,
 		}});
 		
 		# If the return code is '124', timeout popped.
@@ -2121,7 +2128,7 @@ LIMIT 1;";
 			if ($last_update_age < 120)
 			{
 				# It was alive less than two minutes ago, we don't need to check anything.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0596", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0596", variables => { 
 					host_name  => $host_name,
 					difference => $last_update_age, 
 				}});

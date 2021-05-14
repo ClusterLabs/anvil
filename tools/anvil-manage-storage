@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+# 
+# This program will manage storage; Growing virtual disks, adding virtual disks, inserting and ejecting ISO 
+# images into virtual optical media.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connection.
+# 
+# TODO: 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->data->{switches}{'server'}     = "";	# server name or uuid
+$anvil->data->{switches}{'anvil'}      = "";	# Only required for server name collisions
+$anvil->data->{switches}{'drive'}      = "";	# drive
+$anvil->data->{switches}{'expand-to'}  = "";
+$anvil->data->{switches}{'insert-iso'} = "";
+$anvil->data->{switches}{'eject-iso'}  = "";
+$anvil->data->{switches}{'show'}       = "";
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::job-uuid'  => $anvil->data->{switches}{'job-uuid'},
+	'switches::host-uuid' => $anvil->data->{switches}{'host-uuid'},
+	'switches::host-name' => $anvil->data->{switches}{'host-name'}, 
+}});

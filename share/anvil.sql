@@ -1088,8 +1088,8 @@ BEGIN
          ip_address_subnet_mask, 
          ip_address_gateway, 
          ip_address_default_gateway, 
-         ip_address_dns, 
          ip_address_note, 
+         ip_address_dns, 
          modified_date)
     VALUES
         (history_ip_addresses.ip_address_uuid, 
@@ -1907,8 +1907,8 @@ BEGIN
          history_temperature.temperature_agent_name,
          history_temperature.temperature_sensor_host, 
          history_temperature.temperature_sensor_name,
-         history_temperature.temperature_weight, 
          history_temperature.temperature_value_c,
+         history_temperature.temperature_weight, 
          history_temperature.temperature_state,
          history_temperature.temperature_is,
          history_temperature.modified_date);
