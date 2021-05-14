@@ -769,10 +769,11 @@ sub find_changes
 				}});
 				
 				my $variables = {
-					say_new_link_speed_mbps => $say_new_link_speed_mbps, 
-					say_new_link_speed_hr   => $say_new_link_speed_hr, 
-					say_old_link_speed_mbps => $say_old_link_speed_mbps, 
-					say_old_link_speed_hr   => $say_old_link_speed_hr, 
+					name                => $pdu_host_name,
+					new_link_speed_mbps => $say_new_link_speed_mbps, 
+					new_link_speed_hr   => $say_new_link_speed_hr, 
+					old_link_speed_mbps => $say_old_link_speed_mbps, 
+					old_link_speed_hr   => $say_old_link_speed_hr, 
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0015", variables => $variables});
 				$anvil->Alert->register({

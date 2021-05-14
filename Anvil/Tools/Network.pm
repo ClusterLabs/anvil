@@ -185,6 +185,7 @@ sub bridge_info
 	my $bridge_data = $json->decode($output);
 	foreach my $hash_ref (@{$bridge_data})
 	{
+		next if not defined $hash_ref->{master};
 		my $bridge    = $hash_ref->{master};
 		my $interface = $hash_ref->{ifname};
 		my $host      = $target ? $target : $anvil->Get->short_host_name();

@@ -1294,13 +1294,11 @@ sub collect_ipmi_data
 		return_code => $return_code,
 	}});
 	
-	# Delete the temp file.
-	unlink $temp_file;
-	
-	my $temp_count = 1;
+	my $delete_entries   = [];
+	my $duplicate_exists = 0;
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> line" => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ">> line" => $line }});
 		
 		# Clean up the output
 		$line =~ s/^\s+//;
@@ -1390,11 +1388,23 @@ sub collect_ipmi_data
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
 		}
 		
-		# Dells have two sensors called simply "Temp". 
-		if ($sensor_name eq "Temp")
+		if (exists $anvil->data->{seen_sensors}{$sensor_name})
 		{
-			$sensor_name = "Temp".$temp_count++;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+			$duplicate_exists                                     = 1;
+			$anvil->data->{seen_sensors}{$sensor_name}{duplicate} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				duplicate_exists                          => $duplicate_exists,
+				"seen_sensors::${sensor_name}::duplicate" => $anvil->data->{seen_sensors}{$sensor_name}{duplicate}, 
+			}});
+			
+			push @{$delete_entries}, $sensor_name;
+		}
+		else
+		{
+			$anvil->data->{seen_sensors}{$sensor_name}{duplicate} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"seen_sensors::${sensor_name}::duplicate" => $anvil->data->{seen_sensors}{$sensor_name}{duplicate}, 
+			}});
 		}
 		
 		# Thresholds that are 'na' need to be converted to numeric
@@ -1494,6 +1504,104 @@ sub collect_ipmi_data
 		}});
 	}
 	
+	### NOTE: This is a dirty hack... It assumes the duplicates share the same thresholds, which works 
+	###       for the 'Temp' duplicates, but could well not apply to future duplicates. The real fix is
+	###       for hardware vendors to not duplicate sensor names.
+	# If there were two or more sensors with the same name, call 'ipmitool sdr elist' and change their 
+	# names to include the address and pull the values from here.
+	if ($duplicate_exists)
+	{
+		my $shell_call = $ipmitool_command." sdr elist full";
+		if ($ipmi_password)
+		{
+			$shell_call = $ipmitool_command." -f ".$temp_file." sdr elist full";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({timeout => 30, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		
+		my $duplicate_exists = 0;
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> line" => $line }});
+			
+			# Clean up the output
+			$line =~ s/^\s+//;
+			$line =~ s/\s+$//;
+			$line =~ s/\s+\|/|/g;
+			$line =~ s/\|\s+/|/g;
+			
+			# current value -----------------.
+			#     entity ID -------------.   |
+			#        status ---------.   |   |
+			#   Hex address -----.   |   |   |
+			#   sensor name -.   |   |   |   |
+			# Columns:       |   |   |   |   |
+			#                x | x | x | x | x 
+			my ($sensor_name, 
+			    $hex_address,
+			    $status, 
+			    $entity_id, 
+			    $current_value) = split /\|/, $line;
+			next if not $sensor_name;
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				sensor_name   => $sensor_name, 
+				hex_address   => $hex_address, 
+				status        => $status, 
+				entity_id     => $entity_id, 
+				current_value => $current_value, 
+			}});
+			
+			# This is a duplicate, over write the name 
+			if ((exists $anvil->data->{seen_sensors}{$sensor_name}) && ($anvil->data->{seen_sensors}{$sensor_name}{duplicate}))
+			{
+				my $units = "";
+				if ($current_value =~ /^(.*?)\s+degrees C/)
+				{
+					$current_value = $1;
+					$units         = "degrees C";
+				}
+				my $new_sensor_name = $sensor_name." (".$hex_address.")";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					new_sensor_name => $new_sensor_name, 
+					current_value   => $current_value, 
+				}});
+				
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_value_sensor_value}   = $current_value;
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_units}         = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units};
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_status}        = $status;
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_high_critical} = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_critical};
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_high_warning}  = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_high_warning};
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_low_critical}  = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_critical};
+				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_low_warning}   = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_low_warning};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_value_sensor_value"   => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_value_sensor_value}, 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_sensor_units"         => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_units}, 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_sensor_status"        => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_status}, 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_sensor_high_critical" => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_high_critical}, 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_sensor_high_warning"  => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_high_warning}, 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_sensor_low_critical"  => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_low_critical}, 
+					"ipmi::${host_name}::scan_ipmitool_sensor_name::${new_sensor_name}::scan_ipmitool_sensor_low_warning"   => $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$new_sensor_name}{scan_ipmitool_sensor_low_warning}, 
+				}});
+			}
+		}
+		
+		# Delete duplicate sensor names 
+		foreach my $sensor_name (@{$delete_entries})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_name => $sensor_name }});
+			delete $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name};
+		}
+	}
+	
+	# Delete the temp file.
+	unlink $temp_file;
+	
 	# Record how long it took.
 	my $sensor_read_time = (time - $read_start_time);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sensor_read_time => $sensor_read_time }});
@@ -1501,7 +1609,6 @@ sub collect_ipmi_data
 		host_name => $host_name, 
 		'time'    => $anvil->Convert->time({'time' => $sensor_read_time}),
 	}});
-	
 	
 	return($problem);
 }

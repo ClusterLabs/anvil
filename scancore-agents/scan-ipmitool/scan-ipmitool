@@ -180,17 +180,8 @@ $anvil->data->{'scan-ipmitool'} = {
 		'RAID Controller'		=>	{
 			jump				=>	15,
 		},
-		# On Dells, 'Temp{1..4}' change a lot, so we bump the jump.
-		'Temp1'				=>	{
-			jump				=>	20,
-		},
-		'Temp2'				=>	{
-			jump				=>	20,
-		},
-		'Temp3'				=>	{
-			jump				=>	20,
-		},
-		'Temp4'				=>	{
+		# On Dells, 'Temp (xxh)' change a lot, so we bump the jump.
+		'Temp'				=>	{
 			jump				=>	20,
 		},
 	},
@@ -735,11 +726,13 @@ INSERT INTO
     scan_ipmitool_values 
 (
     scan_ipmitool_value_uuid, 
+    scan_ipmitool_value_host_uuid, 
     scan_ipmitool_value_scan_ipmitool_uuid, 
     scan_ipmitool_value_sensor_value, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($scan_ipmitool_value_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
     ".$anvil->Database->quote($scan_ipmitool_uuid).", 
     ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).",  
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
@@ -1577,6 +1570,18 @@ sub process_temperature_change
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump => $jump }});
 	}
 	
+	# We append the hex address some sensor names when there are duplicates. This deals with those.
+	if ($scan_ipmitool_sensor_name =~ /^(.*?) \(.*?h\)$/)
+	{
+		my $jump_name = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump_name => $jump_name }});
+		if ((exists $anvil->data->{'scan-ipmitool'}{thresholds}{$jump_name}) && ($anvil->data->{'scan-ipmitool'}{thresholds}{$jump_name}{jump}))
+		{
+			$jump = $anvil->data->{'scan-ipmitool'}{thresholds}{$jump_name}{jump};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump => $jump }});
+		}
+	}
+	
 	# Final levels
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		host_name                 => $host_name, 
@@ -1935,6 +1940,7 @@ sub query_ipmi_targets
 		# ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_low_critical
 		# ipmi::<host_name>::scan_ipmitool_sensor_name::$sensor_name::scan_ipmitool_sensor_low_warning
 		$anvil->System->collect_ipmi_data({
+			debug            => 3,
 			host_name        => $host_name, 
 			ipmitool_command => $ipmitool_command, 
 			ipmi_password    => $ipmi_password, 

@@ -14716,7 +14716,7 @@ sub resync_databases
 		
 		# If the 'schema' is 'public', there is no table in the history schema. If there is a host 
 		# column, the resync will be restricted to entries from this host uuid.
-		my $schema      = $anvil->data->{sys}{database}{table}{$table}{schema};
+		my $schema      = $anvil->data->{sys}{database}{table}{$table}{schema} ? $anvil->data->{sys}{database}{table}{$table}{schema} : "public";
 		my $host_column = $anvil->data->{sys}{database}{table}{$table}{host_column};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			table       => $table, 
@@ -14837,9 +14837,15 @@ sub resync_databases
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 				results => $results, 
 				count   => $count,
+			}});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:database'     => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+				's2:schema.table' => $schema.".".$table,
+				's3:count'        => $count,
 			}});
 			next if not $count;
 			
@@ -15024,15 +15030,14 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
-							### NOTE: On some occasions, for as-yet unknown 
-							###       reasons, a record can end up in the public 
-							###       schema while nothing exists in the history 
-							###       schema (which is what we read during a 
-							###       resync). To deal with this, we'll do an
-							###       explicit check before confirming the 
-							###       INSERT)
+							### NOTE: After an archive operationg, a record can 
+							###       end up in the public schema while nothing 
+							###       exists in the history schema (which is what
+							###       we read during a resync). To deal with 
+							###       this, we'll do an explicit check before 
+							###       confirming the INSERT)
 							my $count_query = "SELECT COUNT(*) FROM public.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($row_uuid).";";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count_query => $count_query }});
 							my $count = $anvil->Database->query({uuid => $uuid, query => $count_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -15049,12 +15054,14 @@ sub resync_databases
 									query     => $query, 
 								}});
 								$query =~ s/INSERT INTO public./INSERT INTO history./;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 								
 								push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
 							}
 							else
 							{
 								# No problem, record the query in the array
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 								push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
 							}
 						} # if not exists
@@ -15102,7 +15109,7 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							# Now record the query in the array
 							push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
@@ -15128,6 +15135,7 @@ sub resync_databases
 			
 			# If the merged array has any entries, push them in.
 			my $to_write_count = @{$merged};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { to_write_count => $to_write_count }});
 			if ($to_write_count > 0)
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0221", variables => { 
@@ -16073,9 +16081,9 @@ ORDER BY
 			if ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
 				# Resync needed.
-				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}) });
+				my $difference = ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"s1:difference"                                               => $difference, 
+					"s1:difference"                                               => $anvil->Convert->add_commas({number => $difference }), 
 					"s2:sys::database::table::${table}::row_count"                => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
 					"s3:sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 				}});

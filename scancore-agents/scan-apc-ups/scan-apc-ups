@@ -1459,9 +1459,10 @@ WHERE
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { battery_changed => $battery_changed }});
 						
 						my $variables = {
-							ups_name  => $scan_apc_ups_name,
-							new_value => $scan_apc_ups_battery_model,
-							old_value => $old_scan_apc_ups_battery_model,
+							battery_number => $battery_number, 
+							ups_name       => $scan_apc_ups_name,
+							new_value      => $scan_apc_ups_battery_model,
+							old_value      => $old_scan_apc_ups_battery_model,
 						};
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_ups_message_0012", variables => $variables});
 						$anvil->Alert->register({alert_level => "notice", message => "scan_apc_ups_message_0012", variables => $variables, sort_position => $anvil->data->{'scan-apc-ups'}{alert_sort}++, set_by => $THIS_FILE});
