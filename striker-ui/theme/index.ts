@@ -4,6 +4,7 @@ import {
   TEXT,
   PURPLE,
   BLUE,
+  DISABLED,
 } from '../lib/consts/DEFAULT_THEME';
 
 const theme: Theme = createMuiTheme({
@@ -27,26 +28,28 @@ const theme: Theme = createMuiTheme({
     MuiSwitch: {
       switchBase: {
         // Controls default (unchecked) color for the thumb
-        color: '#fff',
+        color: TEXT,
       },
       root: {
         padding: 8,
       },
       track: {
-        borderRadius: 0,
+        borderRadius: 3,
         border: 3,
         backgroundColor: PURPLE,
+        opacity: 1,
         '$checked$checked + &': {
           // Controls checked color for the track
           backgroundColor: BLUE,
-        },
-        '&$checked + $track': {
           opacity: 1,
+        },
+        '$disabled$disabled + &': {
+          backgroundColor: DISABLED,
         },
       },
       thumb: {
         color: TEXT,
-        borderRadius: 0,
+        borderRadius: 3,
       },
     },
   },
