@@ -1,7 +1,7 @@
 import { Divider, Drawer, List, ListItem, Box } from '@material-ui/core';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
 import { Dispatch, SetStateAction } from 'react';
-import { BodyText } from './Text';
+import { BodyText, HeaderText } from './Text';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
@@ -21,8 +21,8 @@ const useStyles = makeStyles(() =>
       background: DIVIDER,
     },
     text: {
-      paddingTop: '0.5em',
-      paddingLeft: '1em',
+      paddingTop: '.5em',
+      paddingLeft: '1.5em',
     },
   }),
 );
@@ -40,7 +40,7 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
       <div role="presentation" className={classes.container}>
         <List className={classes.list}>
           <ListItem button>
-            <BodyText text="Admin" />
+            <HeaderText text="Admin" />
           </ListItem>
           <Divider className={classes.divider} />
           {ICONS.map(
