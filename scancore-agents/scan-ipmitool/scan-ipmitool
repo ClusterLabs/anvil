@@ -180,17 +180,8 @@ $anvil->data->{'scan-ipmitool'} = {
 		'RAID Controller'		=>	{
 			jump				=>	15,
 		},
-		# On Dells, 'Temp{1..4}' change a lot, so we bump the jump.
-		'Temp1'				=>	{
-			jump				=>	20,
-		},
-		'Temp2'				=>	{
-			jump				=>	20,
-		},
-		'Temp3'				=>	{
-			jump				=>	20,
-		},
-		'Temp4'				=>	{
+		# On Dells, 'Temp (xxh)' change a lot, so we bump the jump.
+		'Temp'				=>	{
 			jump				=>	20,
 		},
 	},
@@ -1577,6 +1568,18 @@ sub process_temperature_change
 	{
 		$jump = $anvil->data->{'scan-ipmitool'}{thresholds}{$scan_ipmitool_sensor_name}{jump};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump => $jump }});
+	}
+	
+	# We append the hex address some sensor names when there are duplicates. This deals with those.
+	if ($scan_ipmitool_sensor_name =~ /^(.*?) \(.*?h\)$/)
+	{
+		my $jump_name = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump_name => $jump_name }});
+		if ((exists $anvil->data->{'scan-ipmitool'}{thresholds}{$jump_name}) && ($anvil->data->{'scan-ipmitool'}{thresholds}{$jump_name}{jump}))
+		{
+			$jump = $anvil->data->{'scan-ipmitool'}{thresholds}{$jump_name}{jump};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jump => $jump }});
+		}
 	}
 	
 	# Final levels
