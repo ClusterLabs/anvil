@@ -126,7 +126,59 @@ sub check_drbd
 {
 	my ($anvil) = @_;
 	
+	# Find the servers running on the peer.
+	my $short_host_name      = $anvil->Get->short_host_name();
+	my $peer_host_uuid       = $anvil->data->{sys}{peer_host_uuid};
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	my $peer_password        = $anvil->data->{sys}{peer_password};
+	my $peer_ip_address      = $anvil->data->{sys}{peer_target_ip};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		short_host_name      => $short_host_name, 
+		peer_host_uuid       => $peer_host_uuid, 
+		peer_short_host_name => $peer_short_host_name, 
+		peer_password        => $anvil->Log->is_secure($peer_password), 
+		peer_ip_address      => $peer_ip_address, 
+	}});
 	
+	# Get the list of resources up on the peer.
+	$anvil->DRBD->get_status({debug => 2});
+	$anvil->DRBD->get_status({
+		debug    => 2,
+		password => $peer_password,
+		target   => $peer_ip_address, 
+	});
+	
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$peer_ip_address}{resource}})
+	{
+		foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$peer_ip_address}{resource}{$resource}{connection}})
+		{
+			my $peer_is_me = $anvil->Network->is_local({host => $peer_name});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peer_host_uuid       => $peer_host_uuid, 
+				peer_short_host_name => $peer_short_host_name, 
+				peer_password        => $anvil->Log->is_secure($peer_password), 
+				peer_ip_address      => $peer_ip_address, 
+			}});
+			
+			my $peer_connection_state  = $anvil->data->{drbd}{status}{$peer_ip_address}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+			my $local_connection_state = exists $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{'connection-state'} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{'connection-state'} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peer_connection_state  => $peer_connection_state, 
+				local_connection_state => $local_connection_state, 
+			}});
+			
+			if (($peer_connection_state =~ /Connecting/i) && ($local_connection_state !~ /StandAlone/i))
+			{
+				# Start the DRBD resource locally.
+				my $return_code = $anvil->DRBD->manage_resource({
+					debug    => 2, 
+					resource => $resource, 
+					task     => "up",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+			}
+		}
+	}
 	
 	return(0);
 }
@@ -414,6 +466,11 @@ sub wait_for_access
 							peer    => $peer_short_host_name, 
 							network => $this_network, 
 							peer_ip => $peer_ip_address,
+						}});
+						
+						$anvil->data->{sys}{peer_target_ip} = $peer_ip_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"sys::peer_target_ip" => $anvil->data->{sys}{peer_target_ip},
 						}});
 					}
 					else

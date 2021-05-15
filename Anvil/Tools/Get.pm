@@ -780,11 +780,11 @@ sub bridges
 	if (not $test)
 	{
 		# JSON parse failed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0140", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0140", variables => { 
 			json  => $output,
 			error => $@,
 		}});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0519"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0519"});
 		
 		# NOTE: This is not design to be normally used. It was created as a stop-gap while waiting 
 		#       for resolution on: https://bugzilla.redhat.com/show_bug.cgi?id=1868467
