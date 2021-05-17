@@ -18,6 +18,43 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
+sub set_anvil_power
+{
+	# Expects the first element of @_ (argument array) to be a hash.
+	my $parameters = shift;
+	my $anvil_uuid = $parameters->{anvil_uuid};
+	my $on = $parameters->{on};
+
+	$anvil->Log->variables({
+		source => $THIS_FILE,
+		line => __LINE__,
+		level => $debug,
+		list => {
+			anvil_uuid => $anvil_uuid,
+			on => $on
+		}
+	});
+
+	# Use anvil-safe-* start/stop all components that belong to the given anvil.
+}
+
+sub set_host_power
+{
+	my $parameters = shift;
+	my $host_uuid = $parameters->{host_uuid};
+	my $on = $parameters->{on};
+
+	$anvil->Log->variables({
+		source => $THIS_FILE,
+		line => __LINE__,
+		level => $debug,
+		list => {
+			host_uuid => $host_uuid,
+			on => $on
+		}
+	});
+}
+
 my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches;
@@ -42,20 +79,39 @@ print $anvil->Template->get({file => "shared.html", name => "json_headers", show
 my $hash = {};
 my $anvil_uuid = exists $anvil->data->{cgi}{anvil_uuid}{value} ? $anvil->data->{cgi}{anvil_uuid}{value} : "";
 my $host_uuid  = exists $anvil->data->{cgi}{host_uuid}{value}  ? $anvil->data->{cgi}{host_uuid}{value}  : "";
-if (($anvil_uuid) && (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}))
+if ($anvil_uuid)
 {
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!anvil_uuid!!";
+	if (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		set_anvil_power({
+			anvil_uuid => $anvil_uuid,
+			on => $anvil->{cgi}{PUTDATA}{value}
+		});
+	}
+	else
+	{
+		$anvil->data->{anvil_status}{anvil_name} = "!!invalid!anvil_uuid!!";
+	}
 }
-elsif (($host_uuid) && (not exists $anvil->data->{hosts}{host_uuid}{$anvil_uuid}))
+elsif ($host_uuid)
 {
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!host_uuid!!";
-}
-elsif ((not $host_uuid) && (not $anvil_uuid))
-{
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!no_target!!";
+	if (exists $anvil->data->{hosts}{host_uuid}{$anvil_uuid})
+	{
+		set_host_power({
+			host_uuid => $host_uuid,
+			on => $anvil->{cgi}{PUTDATA}{value}
+		});
+	}
+	else
+	{
+		$anvil->data->{anvil_status}{anvil_name} = "!!invalid!host_uuid!!";
+	}
 }
 else
 {
+	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!no_target!!";
+}
+
 	# Are we managing the power of a node or an Anvil! system? If the later, we're controlling both.
 	
 # 	$anvil->data->{anvil_status}{anvil_name}        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
@@ -77,6 +133,5 @@ else
 # 	$hash->{nodes}     = [];
 # 	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node1}{host_status} };
 # 	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node2}{host_status} };
-}
 
 print JSON->new->utf8->encode($hash)."\n";
