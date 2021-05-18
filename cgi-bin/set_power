@@ -137,7 +137,7 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
-my $hash = {};
+my $response_body = {};
 
 # Decode request body (JSON string) to a hash
 my $request_body;
@@ -239,4 +239,4 @@ elsif ($host_uuid)
 	}
 }
 
-print JSON->new->utf8->encode($hash)."\n";
+print JSON->new->utf8->encode($response_body)."\n";
