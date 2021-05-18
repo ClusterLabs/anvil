@@ -203,7 +203,16 @@ if ($anvil_uuid)
 	}
 	else
 	{
-		$anvil->data->{anvil_status}{anvil_name} = "!!invalid!anvil_uuid!!";
+		$anvil->Log->entry({
+			source		=> $THIS_FILE,
+			line		=> __LINE__,
+			level		=> 0,
+			'print'		=> 1,
+			priority	=> "err",
+			key			=> "error_0160",
+			variables	=> { name => "anvil UUID", uuid => $anvil_uuid }
+		});
+		$anvil->nice_exit({ exit_code => 1 });
 	}
 }
 elsif ($host_uuid)
@@ -217,7 +226,16 @@ elsif ($host_uuid)
 	}
 	else
 	{
-		$anvil->data->{anvil_status}{anvil_name} = "!!invalid!host_uuid!!";
+		$anvil->Log->entry({
+			source		=> $THIS_FILE,
+			line		=> __LINE__,
+			level		=> 0,
+			'print'		=> 1,
+			priority	=> "err",
+			key			=> "error_0160",
+			variables	=> { name => "host UUID", uuid => $host_uuid }
+		});
+		$anvil->nice_exit({ exit_code => 1 });
 	}
 }
 else
