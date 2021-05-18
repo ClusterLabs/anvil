@@ -1073,6 +1073,14 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0329">The target machine is confirmed off, will try to start now.</key>
 		<key name="job_0330">The target machine is now booting!</key>
 		<key name="job_0331">The machine: [#!variable!host_name!#] does not have a (known) IPMI BMC, but it is a member of the Anvil! [#!variable!anvil_name!#]. Searching for a fence method to boot it...</key>
+		<!-- cgi-bin/set_power,on,job_title -->
+		<key name="job_0332">Power On Host</key>
+		<!-- cgi-bin/set_power,on,job_description -->
+		<key name="job_0333">Power on the target host by executing a start script on a striker.</key>
+		<!-- cgi-bin/set_power,off,job_title -->
+		<key name="job_0334">Power Off Host</key>
+		<!-- cgi-bin/set_power,off,job_description -->
+		<key name="job_0335">Power off the target host by executing a stop script on the host itself.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

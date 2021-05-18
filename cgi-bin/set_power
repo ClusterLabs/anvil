@@ -32,19 +32,43 @@ sub set_anvil_power
 		line => __LINE__,
 		level => 2,
 		list => {
-			anvil_uuid => $anvil_uuid,
-			on => $on
+			anvil_data => Dumper($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
 		}
 	});
 
-	# Use anvil-safe-* start/stop all components that belong to the given anvil.
+	# Get all mandatory hosts inside the anvil identified by the given UUID.
+	my @host_uuids = (
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid},
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}
+	);
+
+	# Check for DR host outside of the loop to avoid duplicating checks.
+	if (length($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}))
+	{
+		push(
+			@host_uuids,
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}
+		);
+	}
+
+	foreach (@host_uuids)
+	{
+		set_host_power({
+			host_uuid => $_,
+			on => $on
+		});
+	}
 }
 
 sub set_host_power
 {
+	# Expects the first element of @_ (argument array) to be a hash.
 	my $parameters = shift;
 	my $host_uuid = $parameters->{host_uuid};
 	my $on = $parameters->{on};
+
+	# Check the host's status before trying to power it up/down.
+	my $is_host_on = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status} eq "online" ? 1 : 0;
 
 	$anvil->Log->variables({
 		source => $THIS_FILE,
@@ -52,9 +76,41 @@ sub set_host_power
 		level => 2,
 		list => {
 			host_uuid => $host_uuid,
+			is_host_on => $is_host_on,
 			on => $on
 		}
 	});
+
+	# When host is ON and request is to power OFF.
+	#
+	# Power OFF should invoke anvil-safe-stop on a host.
+	if ($is_host_on && not $on)
+	{
+		# TODO: Uncomment when testing against real hosts.
+		#
+		#$anvil->Database->insert_or_update_jobs({
+		#	job_command => $anvil->data->{path}{exe}{'anvil-safe-stop'}." --power-off",
+		#	job_description => "job_0333",
+		#	job_name => "cgi-bin::set_power::off",
+		#	job_progress => 0,
+		#	job_title => "job_0332"
+		#});
+	}
+	# When host is OFF and request is to power ON.
+	#
+	# Power ON should invoke striker-boot-machine on this striker.
+	elsif (not $is_host_on && $on)
+	{
+		# TODO: Uncomment when testing against real hosts.
+		#
+		#$anvil->Database->insert_or_update_jobs({
+		#	job_command => $anvil->data->{path}{directories}{tools}."/striker-boot-machine --host-uuid ".$host_uuid,
+		#	job_description => "job_0335",
+		#	job_name => "cgi-bin::set_power::on",
+		#	job_progress => 0,
+		#	job_title => "job_0334"
+		#});
+	}
 }
 
 $anvil->Get->switches;
