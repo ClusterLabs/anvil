@@ -238,31 +238,5 @@ elsif ($host_uuid)
 		$anvil->nice_exit({ exit_code => 1 });
 	}
 }
-else
-{
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!no_target!!";
-}
-
-	# Are we managing the power of a node or an Anvil! system? If the later, we're controlling both.
-	
-# 	$anvil->data->{anvil_status}{anvil_name}        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
-# 	$anvil->data->{anvil_status}{anvil_description} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
-# 	$anvil->data->{anvil_status}{timestamp}         = time;
-# 	
-# 	my $node1_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-# 	my $node2_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-# 	my $node2_status = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_status} eq "online" ? 1 : 0;
-# 	
-# 	$anvil->data->{anvil_status}{nodes}{node1}{host_name}   = $anvil->data->{hosts}{host_uuid}{$node1_uuid}{host_name};
-# 	$anvil->data->{anvil_status}{nodes}{node1}{host_uuid}   = $node1_uuid;
-# 	$anvil->data->{anvil_status}{nodes}{node1}{host_status} = $anvil->data->{hosts}{host_uuid}{$node1_uuid}{host_status} eq "online" ? 1 : 0;
-# 	$anvil->data->{anvil_status}{nodes}{node2}{host_name}   = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_name};
-# 	$anvil->data->{anvil_status}{nodes}{node2}{host_uuid}   = $node2_uuid;
-# 	$anvil->data->{anvil_status}{nodes}{node2}{host_status} = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_status} eq "online" ? 1 : 0;
-# 	
-# 	$hash->{timestamp} = time;
-# 	$hash->{nodes}     = [];
-# 	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node1}{host_status} };
-# 	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node2}{host_status} };
 
 print JSON->new->utf8->encode($hash)."\n";
