@@ -82,8 +82,48 @@ $anvil->Database->get_anvils();
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
 my $hash = {};
-my $anvil_uuid = exists $anvil->data->{cgi}{anvil_uuid}{value} ? $anvil->data->{cgi}{anvil_uuid}{value} : "";
-my $host_uuid  = exists $anvil->data->{cgi}{host_uuid}{value}  ? $anvil->data->{cgi}{host_uuid}{value}  : "";
+
+# Decode request body (JSON string) to a hash
+my $request_body;
+
+$anvil->Log->variables({
+	source => $THIS_FILE,
+	line => __LINE__,
+	level => 2,
+	list => {
+		# Requests made with the PUT method won't have query params
+		CGI => Dumper($anvil->data->{cgi})
+	}
+});
+
+my $is_decode_json_success = eval {
+	$request_body = decode_json(
+		$anvil->data->{cgi}{PUTDATA}{value}
+	);
+};
+
+if (not $is_decode_json_success)
+{
+	$anvil->Log->entry({
+		source => $THIS_FILE,
+		line => __LINE__,
+		level => 0,
+		'print' => 1,
+		priority => "err",
+		key => "error_0304",
+		variables => {
+			request_body_string => $anvil->data->{cgi}{PUTDATA}{value},
+			json_decode_error => $_
+		}
+	});
+	$anvil->nice_exit({
+		exit_code => 1
+	});
+}
+
+my $anvil_uuid = exists $request_body->{anvil_uuid} ? $request_body->{anvil_uuid} : "";
+my $host_uuid  = exists $request_body->{host_uuid}  ? $request_body->{host_uuid}  : "";
+my $is_on      = exists $request_body->{is_on}      ? $request_body->{is_on}      : 0;
 
 $anvil->Log->variables({
 	source => $THIS_FILE,
@@ -92,9 +132,7 @@ $anvil->Log->variables({
 	list => {
 		anvil_uuid => $anvil_uuid,
 		host_uuid => $host_uuid,
-		# Requests made with the PUT method won't have query params
-		CGI => Dumper($anvil->data->{cgi}),
-		PUTDATA => Dumper($anvil->data->{cgi}{PUTDATA})
+		is_on => $is_on
 	}
 });
 
@@ -104,7 +142,7 @@ if ($anvil_uuid)
 	{
 		set_anvil_power({
 			anvil_uuid => $anvil_uuid,
-			on => $anvil->data->{cgi}{PUTDATA}{value}
+			on => $is_on
 		});
 	}
 	else
@@ -118,7 +156,7 @@ elsif ($host_uuid)
 	{
 		set_host_power({
 			host_uuid => $host_uuid,
-			on => $anvil->data->{cgi}{PUTDATA}{value}
+			on => $is_on
 		});
 	}
 	else
