@@ -415,6 +415,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0301">Failed to parse the install manifest with UUID: [#!variable!manifest_uuid!#]. Unable to check or update the fence configuration.</key>
 		<key name="error_0302">The passed in Anvil! UUID: [#!variable!anvil_uuid!#] was not found in the database.</key>
 		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
+		<key name="error_0304">Failed to parse the request body: [#!variable!request_body_string!#]. Reason: [#!variable!json_decode_error!#]</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
