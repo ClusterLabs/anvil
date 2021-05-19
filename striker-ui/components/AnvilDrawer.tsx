@@ -35,7 +35,7 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
       open={open}
       onClose={() => setOpen(!open)}
     >
-      <div role="presentation" className={classes.container}>
+      <div role="presentation">
         <List className={classes.list}>
           <ListItem button>
             <HeaderText text="Admin" />
