@@ -60,7 +60,8 @@ const Header = (): JSX.Element => {
                 <img
                   alt=""
                   key="icon"
-                  src={icon.image} // eslint-disable-next-line react/jsx-props-no-spreading
+                  src={icon.image}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
                   {...ICON_SIZE}
                 />
               ),
