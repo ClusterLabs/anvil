@@ -14,9 +14,7 @@ const useStyles = makeStyles(() =>
   createStyles({
     list: {
       width: '200px',
-      backdropFilter: 'blur(5px) opacity(0)',
     },
-    container: {},
     divider: {
       background: DIVIDER,
     },
