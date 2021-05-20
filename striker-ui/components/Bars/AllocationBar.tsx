@@ -5,6 +5,7 @@ import {
   RED,
   BLUE,
   PANEL_BACKGROUND,
+  BORDER_RADIUS,
 } from '../../lib/consts/DEFAULT_THEME';
 
 const breakpointWarning = 70;
@@ -13,13 +14,13 @@ const breakpointAlert = 90;
 const BorderLinearProgress = withStyles({
   root: {
     height: '1em',
-    borderRadius: '2px',
+    borderRadius: BORDER_RADIUS,
   },
   colorPrimary: {
     backgroundColor: PANEL_BACKGROUND,
   },
   bar: {
-    borderRadius: '3px',
+    borderRadius: BORDER_RADIUS,
   },
 })(LinearProgress);
 

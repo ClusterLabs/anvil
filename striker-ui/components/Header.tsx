@@ -3,6 +3,7 @@ import AppBar from '@material-ui/core/AppBar';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
 import { Box, Button } from '@material-ui/core';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
+import { BORDER_RADIUS } from '../lib/consts/DEFAULT_THEME';
 import AnvilDrawer from './AnvilDrawer';
 
 const useStyles = makeStyles((theme) =>
@@ -17,7 +18,7 @@ const useStyles = makeStyles((theme) =>
       height: '2.8em',
       width: '30vw',
       backgroundColor: theme.palette.secondary.main,
-      borderRadius: '3px',
+      borderRadius: BORDER_RADIUS,
     },
     barElement: {
       padding: 0,

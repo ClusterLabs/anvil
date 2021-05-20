@@ -1,5 +1,11 @@
 import { makeStyles } from '@material-ui/core/styles';
-import { BLUE, GREY, PURPLE, RED } from '../lib/consts/DEFAULT_THEME';
+import {
+  BLUE,
+  GREY,
+  PURPLE,
+  RED,
+  BORDER_RADIUS,
+} from '../lib/consts/DEFAULT_THEME';
 
 export type Colours = 'ok' | 'off' | 'error' | 'warning';
 
@@ -7,7 +13,7 @@ const useStyles = makeStyles(() => ({
   decorator: {
     width: '1.4em',
     height: '100%',
-    borderRadius: 2,
+    borderRadius: BORDER_RADIUS,
   },
   ok: {
     backgroundColor: BLUE,

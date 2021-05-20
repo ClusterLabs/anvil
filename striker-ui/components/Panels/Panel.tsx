@@ -1,6 +1,10 @@
 import { ReactNode } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { PANEL_BACKGROUND, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import {
+  BORDER_RADIUS,
+  PANEL_BACKGROUND,
+  TEXT,
+} from '../../lib/consts/DEFAULT_THEME';
 
 type Props = {
   children: ReactNode;
@@ -25,7 +29,7 @@ const useStyles = makeStyles(() => ({
     border: '1px',
     borderColor: TEXT,
     borderWidth: '1px',
-    borderRadius: '3px',
+    borderRadius: BORDER_RADIUS,
     borderStyle: 'solid',
     padding: 0,
     margin: 0,

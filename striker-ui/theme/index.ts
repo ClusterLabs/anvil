@@ -5,6 +5,7 @@ import {
   PURPLE,
   BLUE,
   DISABLED,
+  BORDER_RADIUS,
 } from '../lib/consts/DEFAULT_THEME';
 
 const theme: Theme = createMuiTheme({
@@ -34,7 +35,7 @@ const theme: Theme = createMuiTheme({
         padding: 8,
       },
       track: {
-        borderRadius: 3,
+        borderRadius: BORDER_RADIUS,
         border: 3,
         backgroundColor: PURPLE,
         opacity: 1,
@@ -49,7 +50,7 @@ const theme: Theme = createMuiTheme({
       },
       thumb: {
         color: TEXT,
-        borderRadius: 3,
+        borderRadius: BORDER_RADIUS,
       },
     },
   },
