@@ -316,7 +316,7 @@ sub archive_database
 
 =head2 check_file_locations
 
-This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< falsa >>.
+This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< false >>.
 
 This method takes no parameters.
 
@@ -8966,9 +8966,17 @@ AND
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		$network_interface_uuid = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
-		$network_interface_uuid = "" if not defined $network_interface_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		if ($count)
+		{
+			$network_interface_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
+		}
 		
 		if (($link_only) && (not $network_interface_uuid))
 		{
@@ -15459,6 +15467,9 @@ sub write
 		undef $query_set;
 	}
 	
+	# Refresh the timestamp.
+	$anvil->Database->refresh_timestamp({debug => $debug});
+	
 	return(0);
 }
 
@@ -16099,11 +16110,11 @@ ORDER BY
 						uuid    => $uuid,
 						host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
 					}});
+					
+					# Mark it as behind.
+					$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+					last;
 				}
-				
-				# Mark it as behind.
-				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
-				last;
 			}
 		}
 		last if $anvil->data->{sys}{database}{resync_needed};

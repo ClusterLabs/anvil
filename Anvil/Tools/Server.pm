@@ -1687,7 +1687,7 @@ sub parse_definition
 			$anvil->data->{server}{$target}{$server}{device}{$device_path}{target}   = $device_target;
 			$anvil->data->{server}{$target}{$server}{resource}{$resource}            = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				host                                                  => $host,
+				host                                                             => $host,
 				"server::${target}::${server}::device::${device_path}::on_lv"    => $anvil->data->{server}{$target}{$server}{device}{$device_path}{on_lv},
 				"server::${target}::${server}::device::${device_path}::resource" => $anvil->data->{server}{$target}{$server}{device}{$device_path}{resource},
 				"server::${target}::${server}::device::${device_path}::target"   => $anvil->data->{server}{$target}{$server}{device}{$device_path}{target},

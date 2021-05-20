@@ -100,7 +100,7 @@ if (($conf->{'system'}{action} eq "monitor") or ($conf->{'system'}{action} eq "l
 do_wait($conf, $log);
 
 # Cleanup and exit.
-do_exit($conf, $log, );
+do_exit($conf, $log);
 
 
 ###############################################################################

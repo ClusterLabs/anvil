@@ -464,7 +464,7 @@ sub update_network
 			# Skip if this isn't the device type we're working on.
 			next if not defined  $anvil->data->{network}{$local_host}{interface}{$interface}{type};
 			my $type = $anvil->data->{network}{$local_host}{interface}{$interface}{type};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:interface'  => $interface, 
 				's2:type'       => $type, 
 				's3:processing' => $processing, 
@@ -531,10 +531,10 @@ sub update_network
 						bridge_mtu         => $mtu, 
 						bridge_stp_enabled => $bridge_stp_enabled, 
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge_uuid => $bridge_uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_uuid => $bridge_uuid }});
 					
 					$anvil->data->{bridge_by_name}{$interface} = $bridge_uuid;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "bridge_by_name::${interface}" => $anvil->data->{bridge_by_name}{$interface} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "bridge_by_name::${interface}" => $anvil->data->{bridge_by_name}{$interface} }});
 					if (($bridge_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
@@ -617,19 +617,19 @@ sub update_network
 				# Is this interface connected to a bridge?
 				my $network_interface_bridge_uuid = "";
 				my $network_interface_on_bridge   = exists $anvil->data->{interface_to_bridge}{$interface} ? $anvil->data->{interface_to_bridge}{$interface} : "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_on_bridge => $network_interface_on_bridge }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_on_bridge => $network_interface_on_bridge }});
 				if ($network_interface_on_bridge)
 				{
 					$network_interface_bridge_uuid = $anvil->data->{bridge_by_name}{$network_interface_on_bridge};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_bridge_uuid => $network_interface_bridge_uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_bridge_uuid => $network_interface_bridge_uuid }});
 				}
 				
 				my $say_bond_uuid = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bond_master => $bond_master }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_master => $bond_master }});
 				if (($bond_master) && ($anvil->data->{bond_by_name}{$bond_master}))
 				{
 					$say_bond_uuid = $anvil->data->{bond_by_name}{$bond_master};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"bond_by_name::${bond_master}" => $anvil->data->{bond_by_name}{$bond_master}, 
 						say_bond_uuid                  => $say_bond_uuid,
 					}});
@@ -637,7 +637,7 @@ sub update_network
 				if ($anvil->data->{sys}{database}{connections})
 				{
 					my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
-						debug                         => 3,
+						debug                         => 2,
 						file                          => $THIS_FILE,
 						line                          => __LINE__,
 						network_interface_bond_uuid   => $say_bond_uuid, 
@@ -651,10 +651,10 @@ sub update_network
 						network_interface_mtu         => $mtu, 
 						network_interface_speed       => $speed, 
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_uuid => $network_interface_uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
 					
 					$anvil->data->{interface_by_name}{$interface} = $network_interface_uuid;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "interface_by_name::${interface}" => $anvil->data->{interface_by_name}{$interface} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interface_by_name::${interface}" => $anvil->data->{interface_by_name}{$interface} }});
 					if (($network_interface_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({

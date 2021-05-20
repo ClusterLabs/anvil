@@ -1263,7 +1263,7 @@ sub _set_paths
 			urls			=>	{
 				skins				=>	"/skins",
 				oui_file			=>	"http://standards.ieee.org/develop/regauth/oui/oui.txt",
-				alteeve_repo			=>	"https://www.alteeve.com/an-repo/el8/alteeve-el8-repo-latest.noarch.rpm",
+				alteeve_repo			=>	"https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm",
 			},
 			words			=>	{
 				'words.xml'			=>	"/usr/share/anvil/words.xml",

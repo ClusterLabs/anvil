@@ -1921,6 +1921,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0244">- Host name: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
 		<key name="message_0245">Now purging: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
 		<key name="message_0246">Purging the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#]:</key>
+		<key name="message_0247"><![CDATA[Please specify which server you want to manage with '--server <name_or_uuid>'. Available servers on this Anvil! system;]]></key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
