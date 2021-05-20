@@ -1,13 +1,14 @@
+import { useRouter } from 'next/router';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
-import CPU from '../components/CPU';
-import Memory from '../components/Memory';
-import Resource from '../components/Resource';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import Display from '../components/Display';
-import Header from '../components/Header';
-import Domain from '../components/Domain';
+import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import CPU from '../../components/CPU';
+import Memory from '../../components/Memory';
+import Resource from '../../components/Resource';
+import Display from '../../components/Display';
+import Header from '../../components/Header';
+import Domain from '../../components/Domain';
 
 const useStyles = makeStyles((theme) => ({
   child: {
@@ -40,17 +41,20 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const Home = (): JSX.Element => {
+const Server = (): JSX.Element => {
   const classes = useStyles();
 
-  const { data } = PeriodicFetch<AnvilList>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_anvils`,
+  const router = useRouter();
+  const { uuid } = router.query;
+
+  const { data } = PeriodicFetch<AnvilReplicatedStorage>(
+    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_replicated_storage?server_uuid=${uuid}`,
   );
 
   return (
     <>
       <Header />
-      {data?.anvils && (
+      {typeof uuid === 'string' && data && (
         <Box className={classes.container}>
           <Box className={classes.child}>
             <CPU />
@@ -61,7 +65,7 @@ const Home = (): JSX.Element => {
             <Domain />
           </Box>
           <Box className={classes.child}>
-            <Resource />
+            <Resource resource={data} />
           </Box>
         </Box>
       )}
@@ -69,4 +73,4 @@ const Home = (): JSX.Element => {
   );
 };
 
-export default Home;
+export default Server;
