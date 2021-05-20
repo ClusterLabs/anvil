@@ -20,6 +20,47 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub is_active_member
+{
+	my $parameters = shift;
+	my $host_uuid  = $parameters->{host_uuid};
+
+	my $query = "
+SELECT
+	scan_cluster_node_in_ccm,
+	scan_cluster_node_crmd_member,
+	scan_cluster_node_cluster_member
+FROM
+	scan_cluster_nodes
+WHERE
+	scan_cluster_node_host_uuid = ".$anvil->Database->quote($host_uuid)."
+";
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query } });
+	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
+	my $count   = @{$results};
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		results => $results,
+		count   => $count
+	} });
+
+	if ($count == 1)
+	{
+		my $row                    = $results->[0];
+		my $is_in_ccm         = $row->[0];
+		my $is_crmd_member    = $row->[1];
+		my $is_cluster_member = $row->[2];
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			is_in_ccm         => $is_in_ccm,
+			is_crmd_member    => $is_crmd_member,
+			is_cluster_member => $is_cluster_member
+		} });
+
+		return $is_in_ccm && $is_crmd_member && $is_cluster_member;
+	}
+
+	return 0;
+}
+
 sub alter_host_membership
 {
 	# Expects the first of positional parameters to be a hash.
@@ -27,14 +68,12 @@ sub alter_host_membership
 	my $host_uuid    = $parameters->{host_uuid};
 	my $join_cluster = $parameters->{join_cluster};
 
-	$anvil->Log->variables({
-		source => $THIS_FILE,
-		line   => __LINE__,
-		level  => 2,
-		list   => {
-			host_membership_status => Dumper($anvil->data->{hosts}{host_uuid}{$host_uuid})
-		}
-	});
+	# Determine whether host is already a cluster member.
+	my $is_already_member = is_active_member({ host_uuid => $host_uuid });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		is_already_member => $is_already_member
+	} });
 }
 
 # Re-adds a host to its anvil cluster.
