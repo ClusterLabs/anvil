@@ -1,10 +1,14 @@
 import { Panel } from './Panels';
 import { HeaderText } from './Text';
 
-const Resource = (): JSX.Element => {
+const Resource = ({
+  resource,
+}: {
+  resource: AnvilReplicatedStorage;
+}): JSX.Element => {
   return (
     <Panel>
-      <HeaderText text="Resource" />
+      <HeaderText text={`Resource: ${resource.resource_name}`} />
     </Panel>
   );
 };
