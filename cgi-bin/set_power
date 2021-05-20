@@ -182,7 +182,7 @@ if ($anvil_uuid)
 }
 elsif ($host_uuid)
 {
-	if (exists $anvil->data->{hosts}{host_uuid}{$anvil_uuid})
+	if (exists $anvil->data->{hosts}{host_uuid}{$host_uuid})
 	{
 		set_host_power({ host_uuid => $host_uuid, on => $is_on });
 	}
