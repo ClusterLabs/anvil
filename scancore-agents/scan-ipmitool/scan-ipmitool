@@ -182,7 +182,7 @@ $anvil->data->{'scan-ipmitool'} = {
 		},
 		# On Dells, 'Temp (xxh)' change a lot, so we bump the jump.
 		'Temp'				=>	{
-			jump				=>	20,
+			jump				=>	30,
 		},
 	},
 	# TODO: Remove this and have Striker pull the list of thermal sensors read in the 
@@ -235,7 +235,7 @@ if ($anvil->data->{switches}{purge})
 if (not find_ipmi_targets($anvil))
 {
 	# No targets found. 
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_message_0001"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_ipmitool_message_0001"});
 	$anvil->nice_exit({exit_code => 1});
 }
 

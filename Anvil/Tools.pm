@@ -834,7 +834,7 @@ sub _set_defaults
 	$anvil->data->{scancore} = {
 		timing				=>	{
 			# Delay between DB connection attempts when no databases are available?
-			agent_runtime			=>	30,
+			agent_runtime			=>	60,
 			db_retry_interval		=>	2,
 			# Delay between scans?
 			run_interval			=>	30,
@@ -1263,7 +1263,7 @@ sub _set_paths
 			urls			=>	{
 				skins				=>	"/skins",
 				oui_file			=>	"http://standards.ieee.org/develop/regauth/oui/oui.txt",
-				alteeve_repo			=>	"https://www.alteeve.com/an-repo/el8/alteeve-el8-repo-latest.noarch.rpm",
+				alteeve_repo			=>	"https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm",
 			},
 			words			=>	{
 				'words.xml'			=>	"/usr/share/anvil/words.xml",

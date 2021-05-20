@@ -1,0 +1,198 @@
+#!/usr/bin/perl
+# 
+# This program will manage servers; Changing RAM, CPU cores, Growing virtual disks, adding virtual disks, 
+# inserting and ejecting ISO images into virtual optical media.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connection.
+# 
+# TODO: 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->data->{switches}{'boot'}      = "";	# This is a comma-separated list of ordered boot devices
+$anvil->data->{switches}{'cores'}     = "";	# This sets the server to use this number of CPU cores.
+$anvil->data->{switches}{'drive'}     = "";	# drive being modified (insert/eject ISO, growing drive)
+$anvil->data->{switches}{'eject'}     = "";	# This will eject whatever ISO (if any) in the '--drive'. 
+$anvil->data->{switches}{'expand-to'} = "";	# When the drive is a disk (backed by a DRBD resource), this is the new desired size to grow to.
+$anvil->data->{switches}{'insert'}    = "";	# This is the ISO to insert into the --drive
+$anvil->data->{switches}{'job-uuid'}  = "";
+$anvil->data->{switches}{'ram'}       = "";	# This is the amount of RAM to set the server to use.
+$anvil->data->{switches}{'server'}    = "";	# server name or uuid
+$anvil->data->{switches}{'y'}         = "";	# Don't prompt for confirmation. Only useful when there isn't a job UUID.
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::boot'      => $anvil->data->{switches}{'boot'},
+	'switches::cores'     => $anvil->data->{switches}{'cores'},
+	'switches::drive'     => $anvil->data->{switches}{'drive'},
+	'switches::eject'     => $anvil->data->{switches}{'eject'},
+	'switches::expand-to' => $anvil->data->{switches}{'expand-to'},
+	'switches::insert'    => $anvil->data->{switches}{'insert'}, 
+	'switches::job-uuid'  => $anvil->data->{switches}{'job-uuid'},
+	'switches::ram'       => $anvil->data->{switches}{'ram'}, 
+	'switches::server'    => $anvil->data->{switches}{'server'}, 
+	'switches::y'         => $anvil->data->{switches}{'y'}, 
+}});
+
+# Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
+# is to setup the database server.
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+
+# Make sure we're in an Anvil!
+$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid}, 
+}});
+if (not $anvil->data->{sys}{anvil_uuid})
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0260"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Load servers and resources.
+$anvil->Database->get_servers();
+$anvil->DRBD->gather_data({debug => 2});
+$anvil->Get->available_resources({
+	debug      => 2,
+	anvil_uuid => $anvil->data->{sys}{anvil_uuid}, 
+});
+
+# Do we have a server (name or UUID)?
+if ($anvil->Validate->uuid({uuid => $anvil->data->{switches}{server}}))
+{
+	$anvil->data->{sys}{server_uuid} = $anvil->data->{switches}{server};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::server_uuid" => $anvil->data->{sys}{server_uuid},
+	}});
+	
+	# Find the server name
+	my $server_uuid = $anvil->data->{sys}{server_uuid};
+	if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+	{
+		$anvil->data->{sys}{server_name} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::server_name" => $anvil->data->{sys}{server_name},
+		}});
+	}
+}
+elsif ($anvil->data->{switches}{server})
+{
+	$anvil->data->{sys}{server_name} = $anvil->data->{switches}{server};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::server_name" => $anvil->data->{sys}{server_name},
+	}});
+	
+	# Get the server UUID.
+	my $anvil_uuid  = $anvil->data->{sys}{anvil_uuid}; 
+	my $server_name = $anvil->data->{sys}{server_name}; 
+	if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name})
+	{
+		$anvil->data->{sys}{server_uuid} = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid}; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::server_uuid" => $anvil->data->{sys}{server_uuid},
+		}});
+	}
+}
+
+# Do we have a valid server?
+if ((not $anvil->data->{sys}{server_name}) or (not $anvil->data->{sys}{server_uuid}))
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0247"});
+	
+	my $anvil_uuid = $anvil->data->{sys}{anvil_uuid};
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+	{
+		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		print "- ".$server_name." (".$server_uuid.")\n";
+	}
+}
+
+# Show the server's existing stats.
+show_stats($anvil);
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub show_stats
+{
+	my ($anvil) = @_;
+	
+	# Load the server's details.
+	my $server_xml      = $anvil->Server->get_definition({server_uuid => $anvil->data->{sys}{server_uuid}});
+	my $server_name     = $anvil->data->{sys}{server_name};
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name' => $short_host_name, 
+		's2:server_name'     => $server_name, 
+		's3:server_xml'      => $server_xml,
+	}});
+	
+	$anvil->Server->parse_definition({
+		debug      => 2,
+		source     => "from_db",
+		definition => $server_xml, 
+		server     => $server_name,
+	});
+	
+	my $cpu_cores = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{total_cores};
+	my $ram_bytes = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{memory};
+	my $say_ram   = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_bytes});
+	print "Cores: [".$cpu_cores."], RAM: [".$say_ram."] (".$ram_bytes." bytes)\n";
+	
+	# Show disks
+	foreach my $device ("disk", "cdrom")
+	{
+		print "- Device: [".$device."]\n";
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{from_db}{device}{$device}{target}})
+		{
+			my $boot_order = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{device}{$device}{target}{$device_target}{boot_order};
+			my $type       = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{device}{$device}{target}{$device_target}{type};
+			my $device_bus = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{device}{$device}{target}{$device_target}{device_bus};
+			my $path       = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{device}{$device}{target}{$device_target}{path};
+			print " - Target: [".$device_target."], type: [".$type."], boot order: [".$boot_order."], bus: [".$device_bus."]\n";
+			print "  - Path: [".$path."]\n";
+			if ($device eq "disk")
+			{
+				# Pull the size
+				my $volume = ($path =~ /\/(\d+)$/)[0];
+				print "  - Volume: [".$volume."]\n";
+				foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{host}})
+				{
+					my $host_uuid    = $anvil->Get->host_uuid_from_name({host_name => $host_name});
+					my $device_path  = $anvil->data->{new}{resource}{$server_name}{host}{$host_name}{volume}{$volume}{device_path};
+					my $backing_disk = $anvil->data->{new}{resource}{$server_name}{host}{$host_name}{volume}{$volume}{backing_disk};
+					print "   - Host: [".$host_name."] (".$host_uuid."), path: [".$device_path."], backing disk: [".$backing_disk."]\n";
+				}
+			}
+			else
+			{
+			}
+		}
+	}
+	
+	return(0);
+}

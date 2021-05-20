@@ -865,9 +865,9 @@ sub check_stonith_config
 	
 	# Collecting fence data is expensive, so lets only load if needed.
 	my $update_fence_data = 1;
-	if ((exists $anvil->data->{fence_data}{updated}) && ($anvil->data->{fence_data}{updated}))
+	if ((exists $anvil->data->{sys}{fence_data_updated}) && ($anvil->data->{sys}{fence_data_updated}))
 	{
-		my $age = time - $anvil->data->{fence_data}{updated};
+		my $age = time - $anvil->data->{sys}{fence_data_updated};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
 		if ($age < 86400)
 		{
@@ -1634,9 +1634,9 @@ sub get_fence_methods
 	
 	# Reading in fence data is expensive, so we only do it as needed.
 	my $update_fence_data = 1;
-	if ((exists $anvil->data->{fence_data}{updated}) && ($anvil->data->{fence_data}{updated}))
+	if ((exists $anvil->data->{sys}{fence_data_updated}) && ($anvil->data->{sys}{fence_data_updated}))
 	{
-		my $age = time - $anvil->data->{fence_data}{updated};
+		my $age = time - $anvil->data->{sys}{fence_data_updated};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
 		if ($age < 86400)
 		{

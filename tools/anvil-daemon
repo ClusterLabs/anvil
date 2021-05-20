@@ -781,9 +781,11 @@ AND
 		# Update our status 
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0572"});
 		
-		$anvil->Database->get_hosts({debug => 3});
-		my $host_uuid = $anvil->Get->host_uuid();
+		$anvil->Database->get_hosts({debug => 2});
+		my $host_uuid = $anvil->Get->host_uuid({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_uuid => $host_uuid }});
 		$anvil->Database->insert_or_update_hosts({
+			debug       => 2,
 			host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
 			host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 			host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 

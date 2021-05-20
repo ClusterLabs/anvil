@@ -780,11 +780,11 @@ sub bridges
 	if (not $test)
 	{
 		# JSON parse failed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0140", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0140", variables => { 
 			json  => $output,
 			error => $@,
 		}});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0519"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0519"});
 		
 		# NOTE: This is not design to be normally used. It was created as a stop-gap while waiting 
 		#       for resolution on: https://bugzilla.redhat.com/show_bug.cgi?id=1868467
@@ -1337,10 +1337,11 @@ sub host_name
 	my $anvil = $self->parent;
 	
 	my $host_name = "";
-	if ($ENV{HOSTNAME})
+	# NOTE: Don't use 'ENV{HOSTNAME}'! It lags behind changes made by 'hostnamectl'.
+	if ($anvil->data->{sys}{host_name})
 	{
 		# We have an environment variable, so use it.
-		$host_name = $ENV{HOSTNAME};
+		$host_name = $anvil->data->{sys}{host_name};
 	}
 	else
 	{
@@ -1357,6 +1358,11 @@ sub host_name
 				# Failed to read the file, too. What the hell? Exit out.
 				print "Failed to query the hostname using 'hostnamectl --static' and failed to read the content of: [".$anvil->data->{path}{configs}{hostname}."]. Something is very wrong, exiting.\n";
 			}
+		}
+		else
+		{
+			# Cache the answer
+			$anvil->data->{sys}{host_name} = $host_name;
 		}
 	}
 	

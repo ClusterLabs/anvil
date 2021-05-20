@@ -1139,6 +1139,171 @@ Architecture: x86_64
 
 
 ====================================
+
+Configure a pair of Dell N-Series switch pair (OS6)
+
+# Using the micro-USB serial interface;
+screen /dev/ttyUSB0 115200
+
+console>enable
+console#
+
+# Assemble the stack
+Port 1 -> 2, 2 -> 1
+The stack auto-forms.
+
+# Set management IP address
+
+console#configure terminal 
+console(config)#interface out-of-band 
+console(config-if)#ip address 10.201.1.1 255.255.0.0
+console(config-if)#exit     
+
+# Set a web user and password (obviously, use a better password)
+console(config)#no passwords min-length                   
+console(config)#username admin password admin privilege 15
+# You should now be able to connect to the web interface
+
+# Show interfaces
+console(config)#show interfaces configuration 
+
+Port      Description                    Duplex Speed   Neg  MTU   Admin
+                                                                   State
+--------- ------------------------------ ------ ------- ---- ----- -----
+Gi1/0/1                                  N/A    Unknown Auto 1518  Up
+Gi1/0/2                                  N/A    Unknown Auto 1518  Up
+Gi1/0/3                                  Full   100     Auto 1518  Up
+Gi1/0/4                                  Full   100     Auto 1518  Up
+Gi1/0/5                                  N/A    Unknown Auto 1518  Up
+Gi1/0/6                                  N/A    Unknown Auto 1518  Up
+Gi1/0/7                                  N/A    Unknown Auto 1518  Up
+Gi1/0/8                                  N/A    Unknown Auto 1518  Up
+Gi1/0/9                                  N/A    Unknown Auto 1518  Up
+Gi1/0/10                                 Full   1000    Auto 1518  Up
+Gi1/0/11                                 N/A    Unknown Auto 1518  Up
+Gi1/0/12                                 N/A    Unknown Auto 1518  Up
+Gi1/0/13                                 N/A    Unknown Auto 1518  Up
+Gi1/0/14                                 N/A    Unknown Auto 1518  Up
+Gi1/0/15                                 N/A    Unknown Auto 1518  Up
+Gi1/0/16                                 N/A    Unknown Auto 1518  Up
+Gi1/0/17                                 N/A    Unknown Auto 1518  Up
+Gi1/0/18                                 N/A    Unknown Auto 1518  Up
+Gi1/0/19                                 N/A    Unknown Auto 1518  Up
+Gi1/0/20                                 N/A    Unknown Auto 1518  Up
+Gi1/0/21                                 N/A    Unknown Auto 1518  Up
+Gi1/0/22                                 N/A    Unknown Auto 1518  Up
+Gi1/0/23                                 N/A    Unknown Auto 1518  Up
+Gi1/0/24                                 Full   1000    Auto 1518  Up
+Tw1/0/1                                  Full   25000   Off  1518  Up
+Tw1/0/2                                  Full   25000   Off  1518  Up
+Tw1/0/3                                  Full   25000   Off  1518  Up
+Tw1/0/4                                  Full   25000   Off  1518  Up
+Fo1/0/1                                  Full   40000   Off  1518  Up
+Fo1/0/2                                  Full   40000   Off  1518  Up
+Gi2/0/1                                  N/A    Unknown Auto 1518  Up
+Gi2/0/2                                  N/A    Unknown Auto 1518  Up
+Gi2/0/3                                  N/A    Unknown Auto 1518  Up
+Gi2/0/4                                  N/A    Unknown Auto 1518  Up
+Gi2/0/5                                  Full   100     Auto 1518  Up
+Gi2/0/6                                  Full   100     Auto 1518  Up
+Gi2/0/7                                  Full   1000    Auto 1518  Up
+Gi2/0/8                                  Full   1000    Auto 1518  Up
+Gi2/0/9                                  N/A    Unknown Auto 1518  Up
+Gi2/0/10                                 N/A    Unknown Auto 1518  Up
+Gi2/0/11                                 N/A    Unknown Auto 1518  Up
+Gi2/0/12                                 N/A    Unknown Auto 1518  Up
+Gi2/0/13                                 N/A    Unknown Auto 1518  Up
+Gi2/0/14                                 N/A    Unknown Auto 1518  Up
+Gi2/0/15                                 N/A    Unknown Auto 1518  Up
+Gi2/0/16                                 N/A    Unknown Auto 1518  Up
+Gi2/0/17                                 N/A    Unknown Auto 1518  Up
+Gi2/0/18                                 N/A    Unknown Auto 1518  Up
+Gi2/0/19                                 N/A    Unknown Auto 1518  Up
+Gi2/0/20                                 N/A    Unknown Auto 1518  Up
+Gi2/0/21                                 N/A    Unknown Auto 1518  Up
+Gi2/0/22                                 N/A    Unknown Auto 1518  Up
+Gi2/0/23                                 N/A    Unknown Auto 1518  Up
+Gi2/0/24                                 N/A    Unknown Auto 1518  Up
+Tw2/0/1                                  Full   25000   Off  1518  Up
+Tw2/0/2                                  Full   25000   Off  1518  Up
+Tw2/0/3                                  Full   25000   Off  1518  Up
+Tw2/0/4                                  Full   25000   Off  1518  Up
+Fo2/0/1                                  Full   40000   Off  1518  Up
+Fo2/0/2                                  Full   40000   Off  1518  Up
+
+
+Oob  Type                            Admin
+                                     State
+---  ------------------------------  -----
+oob  Out-Of-Band                     Up
+
+# Configure VLANs
+console(config)#vlan 200
+console(config-vlan200)#name SN     
+
+
+
+# Form the stack;
+
+
+# Firmware update
+console#copy tftp://10.201.4.1/N2200v6.6.3.10.stk backup
+====
+
+Transfer Mode.................................. TFTP  
+Server IP Address.............................. 10.201.4.1
+Source File Path............................... ./
+Source Filename................................ N2200v6.6.3.10.stk
+Data Type...................................... Code            
+Destination Filename........................... backup
+
+Management access will be blocked for the duration of the transfer
+Are you sure you want to start? (y/n) y
+
+File transfer in progress. Management access will be blocked for the duration of the transfer. Please wait...
+
+
+TFTP Code transfer starting...
+
+40602956 bytes transferred   
+
+Attempting to send the STK file to other units in the stack...
+
+
+File transfer operation completed successfully.
+====
+console#show version
+
+Machine Description............... Dell EMC Networking Switch
+System Model ID................... N2224X-ON
+Machine Type...................... Dell EMC Networking N2224X-ON
+Serial Number..................... TH0X621WCET000A800GV
+Manufacturer...................... 0xbc00
+Burned In MAC Address............. 8C47.BE75.9D0F
+System Object ID.................. 1.3.6.1.4.1.674.10895.3097
+SOC Version....................... BCM56172_B0
+HW Version........................ 2
+CPLD Version...................... 260
+Image File........................ N2200v6.6.1.1
+Software Capability............... Stack Limit = 12, VLAN Limit = 4093
+
+unit active      backup      current-active next-active
+---- ----------- ----------- -------------- --------------
+1    6.6.1.1     6.6.3.10    6.6.1.1        6.6.1.1
+2    6.6.1.1     6.6.3.10    6.6.1.1        6.6.1.1
+
+console#boot system backup 
+Activating image backup ..
+
+console#reload
+
+Are you sure you want to reload the stack? (y/n) y
+
+<reboots switches, upgrades, reboots again>
+
+
+
+====================================
 -=] Rename a resource (ex: srv09-few-tcpremote1 -> srv09-fea-tcpremote1)
 1. pacemaker - 
 1.1 - Record current settings:

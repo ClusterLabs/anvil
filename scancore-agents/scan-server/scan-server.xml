@@ -63,7 +63,7 @@ The definition for the server: [#!variable!server!#] was edited outside of the A
 ======================
 		</key>
 		<key name="scan_server_alert_0004">The name of the server: [#!variable!old_name!#] has changed to: [#!variable!new_name!#]</key>
-		<key name="scan_server_alert_0005">The server: [#!variable!name!#] state has changed from: [#!variable!old_state!#] to: [#!variable!new_state!#].</key>
+		<key name="scan_server_alert_0005">The server: [#!variable!server!#] state has changed from: [#!variable!old_state!#] to: [#!variable!new_state!#].</key>
 		<key name="scan_server_alert_0006">
 A new server named: [#!variable!server!#] has been found. The definition XML is:
 ====

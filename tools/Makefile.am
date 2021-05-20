@@ -20,7 +20,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-firewall \
 			  anvil-manage-keys \
 			  anvil-manage-power \
-			  anvil-manage-storage \
+			  anvil-manage-server \
 			  anvil-migrate-server \
 			  anvil-parse-fence-agents \
 			  anvil-provision-server \

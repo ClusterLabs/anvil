@@ -2138,9 +2138,12 @@ LIMIT 1;";
 		
 		# Read in the unified fence data, if it's not already loaded.
 		my $update_fence_data = 1;
-		if ($anvil->data->{fence_data}{updated}) 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::fence_data_updated" => $anvil->data->{sys}{fence_data_updated},
+		}});
+		if ($anvil->data->{sys}{fence_data_updated}) 
 		{
-			my $age = time - $anvil->data->{fence_data}{updated};
+			my $age = time - $anvil->data->{sys}{fence_data_updated};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
 			if ($age < 86400)
 			{
@@ -2283,6 +2286,10 @@ LIMIT 1;";
 							foreach my $this_switch (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$agent}{switch}})
 							{
 								my $this_name = $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									this_switch => $this_switch,
+									this_name   => $this_name, 
+								}});
 								if ($stdin_name eq $this_name)
 								{
 									   $switch  =  $this_switch;

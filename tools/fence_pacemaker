@@ -249,7 +249,7 @@ sub get_drbd_status
 	return(0);
 }
 
-# This identifies the pacemaker name of the target node. If it can't find 
+# This identifies the pacemaker name of the target node. If it can't find the peer, it exits with '1'.
 sub identify_peer
 {
 	my ($conf) = @_;
@@ -270,13 +270,15 @@ sub identify_peer
 		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
 		if ($line =~ /^$target_ip\s+(.*)$/)
 		{
+			# This could be multiple names.
 			$target_host = $1;
-			to_log($conf, {message => ">> target_host: [$target_host]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "target_host: [$target_host]", 'line' => __LINE__, level => 2});
+			#to_log($conf, {message => ">> target_host: [$target_host]", 'line' => __LINE__, level => 2});
 			
 			# Strip off any suffix, we only want the short name.
-			$target_host =~ s/\..*//;
-			to_log($conf, {message => "<< target_host: [$target_host]", 'line' => __LINE__, level => 2});
-			last;
+			#$target_host =~ s/\..*//;
+			#to_log($conf, {message => "<< target_host: [$target_host]", 'line' => __LINE__, level => 2});
+			#last;
 		}
 	}
 	close $file_handle;
@@ -294,30 +296,38 @@ sub identify_peer
 		my $host_name       =  $ENV{HOSTNAME};
 		my $short_host_name =  $ENV{HOSTNAME};
 		   $short_host_name =~ s/\..*$//;
+		to_log($conf, {message => "host_name: [$host_name], short_host_name: [".$short_host_name."]", 'line' => __LINE__, level => 2});
 		
 		foreach my $hash_ref (sort {$a cmp $b} @{$body->{configuration}{nodes}{node}})
 		{
 			my $node = $hash_ref->{uname};
 			my $id   = $hash_ref->{id};
-			if ($node =~ /^$target_host/)
+			to_log($conf, {message => "node: [$node], id: [$id]", 'line' => __LINE__, level => 2});
+			foreach my $target_name (split/ /, $target_host)
 			{
-				$conf->{cluster}{target_node} = $node;
-				to_log($conf, {message => "Found the pacemaker name of the target node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
-			}
-			elsif ($node =~ /^$short_host_name/)
-			{
-				# THis is me. Am I in maintenance mode?
-				if (exists $hash_ref->{instance_attributes})
+				to_log($conf, {message => ">> target_name: [$target_name]", 'line' => __LINE__, level => 2});
+				$target_name  =~ s/\..*//;
+				to_log($conf, {message => "<< target_name: [$target_name]", 'line' => __LINE__, level => 2});
+				if ($node =~ /^$target_name/)
 				{
-					# We've got some data...
-					my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
-					my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
-					to_log($conf, {message => "node: [$node] instance attribyte name: [$name], value: [$value]", 'line' => __LINE__, level => 1});
-					if (($name eq "maintenance") and ($value eq "on"))
+					$conf->{cluster}{target_node} = $node;
+					to_log($conf, {message => "Found the pacemaker name of the target node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
+				}
+				elsif ($node =~ /^$short_host_name/)
+				{
+					# This is me. Am I in maintenance mode?
+					if (exists $hash_ref->{instance_attributes})
 					{
-						# We're in maintenance mode, abort.
-						to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
-						exit(1);
+						# We've got some data...
+						my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
+						my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
+						to_log($conf, {message => "node: [$node] instance attribyte name: [$name], value: [$value]", 'line' => __LINE__, level => 1});
+						if (($name eq "maintenance") and ($value eq "on"))
+						{
+							# We're in maintenance mode, abort.
+							to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
+							exit(1);
+						}
 					}
 				}
 			}

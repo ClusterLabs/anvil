@@ -38,7 +38,7 @@ my $conf = {
 		action		=>	"off",
 		agent_version	=>	"1.0",
 		log_level	=>	1,
-		wait		=>	60,
+		'wait'		=>	60,
 		device		=>	"",
 		list		=>	"",
 		'log'		=>	"/var/log/fence_delay.log",
@@ -55,7 +55,7 @@ my $conf = {
 
 # Log file for output.
 my $log = IO::Handle->new();
-open ($log, ">>".$conf->{'system'}{'log'}) || die "Failed to open: [".$conf->{'system'}{'log'}."] for writing; Error: $!\n";
+open ($log, ">>".$conf->{'system'}{'log'}) || warn "Failed to open: [".$conf->{'system'}{'log'}."] for writing; Error: $!\n";
 # Set $log and STDOUT to hot (unbuffered) output.
 if (1)
 {
@@ -74,7 +74,7 @@ read_cla($conf, $log);
 read_stdin($conf, $log);
 
 # If I've been asked to show the metadata XML, do so and then exit.
-if ($conf->{'system'}{action} eq "metadata")
+if (($conf->{'system'}{action} eq "metadata") or ($conf->{'system'}{action} eq "meta-data"))
 {
 	metadata($conf, $log);
 	do_exit($conf, $log, 0);
@@ -100,7 +100,7 @@ if (($conf->{'system'}{action} eq "monitor") or ($conf->{'system'}{action} eq "l
 do_wait($conf, $log);
 
 # Cleanup and exit.
-do_exit($conf, $log, );
+do_exit($conf, $log);
 
 
 ###############################################################################
@@ -274,36 +274,36 @@ sub read_cla
 		{
 			# Print the version information and then exit.
 			$conf->{'system'}{version} = 1;
-			record($conf, $log, "[ Debug ] - 'system::version': [".$conf->{'system'}{version}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::version': . [".$conf->{'system'}{version}."]\n", 1);
 		}
 		elsif (($arg eq "-q") or ($arg eq "--quiet"))
 		{
 			# Suppress all messages, including critical messages, from STDOUT.
 			$conf->{'system'}{log_level} = 0;
-			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{quiet}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{quiet}."]\n", 1);
 		}
 		elsif ($arg eq "--debug")
 		{
 			# Enable debug mode.
 			$conf->{'system'}{log_level} = 2;
-			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{log_level}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{log_level}."]\n", 1);
 		}
 		elsif (($arg eq "-w") or ($arg eq "--wait"))
 		{
 			# How long to wait before exiting.
 			$set_next = "wait";
-			record($conf, $log, "[ Debug ] - 'set_next': [".$set_next."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'set_next': ........ [".$set_next."]\n", 1);
 		}
 		elsif (($arg eq "-o") or ($arg eq "--action"))
 		{
 			# This is the action to take.
 			$set_next = "action";
-			record($conf, $log, "[ Debug ] - 'set_next': [".$set_next."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'set_next': ........ [".$set_next."]\n", 1);
 		}
 		else
 		{
 			# Bad argument.
-			record($conf, $log, "[ Warning ] - Argument: [".$arg."] is not valid arguments.\n", 2);
+			record($conf, $log, "[ Warning ] - Argument: [".$arg."] is not valid arguments.\n", 1);
 		}
 	}
 	
@@ -344,7 +344,7 @@ sub read_stdin
 		my ($name, $value) = split /\s*=\s*/, $option;
 		
 		# Record the line for now, but comment this out before release.
-		record ($conf, $log, "Name: [$name], value: [$value].\n");
+		record ($conf, $log, "Name: [$name], value: [$value].\n", 2);
 		
 		# Set my variables depending on the veriable name.
 		if ($name eq "agent")
@@ -352,27 +352,27 @@ sub read_stdin
 			# This is only used by 'fenced', but I record it for
 			# potential debugging.
 			$conf->{'system'}{agent} = $value;
-			record($conf, $log, "[ Debug ] - 'system::agent': [".$conf->{'system'}{agent}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::agent': ... [".$conf->{'system'}{agent}."]\n", 1);
 		}
 		elsif ($name eq "action")
 		{
 			$conf->{'system'}{action} = $value;
-			record($conf, $log, "[ Debug ] - 'system::action': [".$conf->{'system'}{action}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::action': .. [".$conf->{'system'}{action}."]\n", 1);
 		}
 		elsif ($name eq "quiet")
 		{
 			$conf->{'system'}{log_level} = 0;
-			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{log_level}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{log_level}."]\n", 1);
 		}
 		elsif ($name eq "debug")
 		{
 			$conf->{'system'}{log_level} = 2;
-			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{log_level}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::log_level': [".$conf->{'system'}{log_level}."]\n", 1);
 		}
 		elsif ($name eq "wait")
 		{
 			$conf->{'system'}{wait} = $value;
-			record($conf, $log, "[ Debug ] - 'system::wait': [".$conf->{'system'}{wait}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::wait': .... [".$conf->{'system'}{'wait'}."]\n", 1);
 		}
 		else
 		{
@@ -392,7 +392,7 @@ sub record
 	return if $level > $conf->{'system'}{log_level};
 	
 	# Print to the log
-	print $log $msg;
+	print $log get_date_time($conf)." - ".$msg;
 	
 	# Print to the screen if we're not 'quiet'.
 	print $msg if not $conf->{'system'}{quiet};

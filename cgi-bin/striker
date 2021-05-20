@@ -4773,6 +4773,13 @@ sub process_fences
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{description}  = "#!string!striker_0223!#";
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{content_type} = "string";
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{'default'}    = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"fence_data::${fence_agent}::parameters::fence_name::unique"       => $anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{unique},
+			"fence_data::${fence_agent}::parameters::fence_name::required"     => $anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{required},
+			"fence_data::${fence_agent}::parameters::fence_name::description"  => $anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{description},
+			"fence_data::${fence_agent}::parameters::fence_name::content_type" => $anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{content_type},
+			"fence_data::${fence_agent}::parameters::fence_name::default"      => $anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{'default'},
+		}});
 		
 		# Walk through the list of options
 		my $option_form = "";
@@ -4872,6 +4879,11 @@ sub process_fences
 			my $fence_name_seen = 0;
 			foreach my $name ("fence_name", sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$fence_agent}{parameters}})
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					fence_agent => $fence_agent,
+					name        => $name,
+				}});
+				
 				# We don't show deprecated or replaced options.
 				next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement};
 				next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated};
@@ -4881,6 +4893,7 @@ sub process_fences
 				if ($name eq "fence_name")
 				{
 					$fence_name_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_name_seen => $fence_name_seen }});
 				}
 				
 				my $option_key  =  $name."_".$i;
@@ -4903,6 +4916,7 @@ sub process_fences
 				$anvil->data->{cgi}{$option_key}{alert} = ""       if not defined $anvil->data->{cgi}{$option_key}{alert};
 				$anvil->data->{cgi}{$option_key}{value} = $default if not defined $anvil->data->{cgi}{$option_key}{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					"cgi::".$option_key."::alert" => $anvil->data->{cgi}{$option_key}{alert},
 					"cgi::".$option_key."::value" => $anvil->data->{cgi}{$option_key}{value},
 				}});
 				
@@ -5187,6 +5201,7 @@ sub show_fence_config_main_menu
 	foreach my $fence_agent (sort {$a cmp $b} keys %{$anvil->data->{fence_data}})
 	{
 		# We don't care about IPMI-based fence agents here.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { fence_agent => $fence_agent }});
 		next if $fence_agent eq "fence_drac5";
 		next if $fence_agent eq "fence_idrac";
 		next if $fence_agent =~ /^fence_ilo/;
@@ -5198,6 +5213,7 @@ sub show_fence_config_main_menu
 		push @{$agents}, $fence_agent;
 		
 		my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fence_data}{$fence_agent}{description});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { agent_description => $agent_description }});
 		
 		$description_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-description", variables => {
 			name        => $fence_agent, 
@@ -8300,7 +8316,7 @@ sub config_step1
 		
 		# If we don't have an organization name, prefix, domain name or sequence number, try to parse it from
 		# the current static and pretty host_names.
-		my ($traditional_host_name, $descriptive_host_name) = $anvil->System->host_name();
+		my ($traditional_host_name, $descriptive_host_name) = $anvil->System->host_name({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			traditional_host_name => $traditional_host_name, 
 			descriptive_host_name => $descriptive_host_name, 
