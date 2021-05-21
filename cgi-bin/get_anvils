@@ -55,10 +55,10 @@ foreach my $anvil_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}})
 	push @{$json_hash->{anvils}}, {
 		anvil_name => $anvil_name,
 		anvil_uuid => $anvil_uuid,
-		nodes      => [
-			{ node_name => $anvil_node1_host_name, node_uuid => $anvil_node1_host_uuid },
-			{ node_name => $anvil_node2_host_name, node_uuid => $anvil_node2_host_uuid },
-			{ node_name => $anvil_dr1_host_name, node_uuid => $anvil_dr1_host_uuid }
+		hosts      => [
+			{ host_name => $anvil_node1_host_name, host_uuid => $anvil_node1_host_uuid },
+			{ host_name => $anvil_node2_host_name, host_uuid => $anvil_node2_host_uuid },
+			{ host_name => $anvil_dr1_host_name,   host_uuid => $anvil_dr1_host_uuid }
 		]
 	};
 }
