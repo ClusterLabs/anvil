@@ -39,7 +39,7 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
-my $hash       = {};
+my $hash       = { file_systems => [] };
 my $anvil_uuid = "";
 if ($anvil->data->{cgi}{anvil_uuid}{value})
 {
@@ -130,13 +130,14 @@ ORDER BY
 		}});
 	}
 	
-	$anvil->data->{file_systems} = [];
-	
 	foreach my $mount_point (sort {$a cmp $b} keys %{$anvil->data->{raw}{file_systems}})
 	{
+		# Make a FS hash, which will be pushed into the file_systems array in the response body.
+		my $file_system = {};
+
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mount_point => $mount_point }});
-		   $hash->{mount_point} = $mount_point;
-		   $hash->{nodes}       = [];
+		   $file_system->{mount_point} = $mount_point;
+		   $file_system->{nodes}       = [];
 		my $nodes               = [$node1_uuid, $node2_uuid];
 		if ($dr1_uuid)
 		{
@@ -151,7 +152,7 @@ ORDER BY
 			}});
 			if (exists $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid})
 			{
-				push @{$hash->{nodes}}, {
+				push @{$file_system->{nodes}}, {
 					host_uuid  => $host_uuid, 
 					host_name  => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name},
 					is_mounted => 1,
@@ -161,7 +162,7 @@ ORDER BY
 			}
 			else
 			{
-				push @{$hash->{nodes}}, {
+				push @{$file_system->{nodes}}, {
 					host_uuid  => $host_uuid, 
 					host_name  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name},
 					is_mounted => 0,
@@ -170,6 +171,9 @@ ORDER BY
 				}
 			}
 		}
+
+		# Push the filled FS has into the response body's file_systems array.
+		push(@{$hash->{file_systems}}, $file_system);
 	}
 }
 
