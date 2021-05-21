@@ -149,7 +149,8 @@ WHERE
 				scan_cluster_node_maintenance_mode => $scan_cluster_node_maintenance_mode, 
 			}});
 			
-			$hash->{nodes}->[$i]->{maintenance_mode} = $scan_cluster_node_maintenance_mode ? 1 : 0;
+			# Ensure the maintenance_mode is set to a value that can be converted to JSON booleans.
+			$hash->{nodes}->[$i]->{maintenance_mode} = $scan_cluster_node_maintenance_mode ? \1 : \0;
 			if ($scan_cluster_node_cluster_member)
 			{
 				$hash->{nodes}->[$i]->{'state'}       = "online";
