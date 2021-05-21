@@ -33,6 +33,8 @@ if (not $anvil->data->{sys}{database}{connections})
 
 # Read in any CGI variables, if needed.
 $anvil->Get->cgi();
+
+$anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 
 my $json_hash = {};
@@ -40,13 +42,25 @@ $json_hash->{anvils} = [];
 
 foreach my $anvil_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}})
 {
-	push @{$json_hash->{anvils}}, { uuid => $anvil_uuid };
-	
+	my $anvil_name            = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 	my $anvil_description     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $anvil_node1_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{host_name};
 	my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $anvil_node2_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{host_name};
 	my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	my $anvil_dr1_host_name   = $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{host_name};
+
+	push @{$json_hash->{anvils}}, {
+		anvil_name => $anvil_name,
+		anvil_uuid => $anvil_uuid,
+		nodes      => [
+			{ node_name => $anvil_node1_host_name, node_uuid => $anvil_node1_host_uuid },
+			{ node_name => $anvil_node2_host_name, node_uuid => $anvil_node2_host_uuid },
+			{ node_name => $anvil_dr1_host_name, node_uuid => $anvil_dr1_host_uuid }
+		]
+	};
 }
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
