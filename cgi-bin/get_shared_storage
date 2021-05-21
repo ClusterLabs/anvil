@@ -155,7 +155,8 @@ ORDER BY
 				push @{$file_system->{nodes}}, {
 					host_uuid  => $host_uuid, 
 					host_name  => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name},
-					is_mounted => 1,
+					# \1 will be transformed to the JSON boolean "true" by the JSON module.
+					is_mounted => \1,
 					total      => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total},
 					free       => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free},
 				}
@@ -165,7 +166,8 @@ ORDER BY
 				push @{$file_system->{nodes}}, {
 					host_uuid  => $host_uuid, 
 					host_name  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name},
-					is_mounted => 0,
+					# \0 will be transformed to the JSON boolean "false" by the JSON module.
+					is_mounted => \0,
 					total      => 0,
 					free       => 0,
 				}
