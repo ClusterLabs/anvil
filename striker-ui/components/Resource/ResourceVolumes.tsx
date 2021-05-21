@@ -1,6 +1,5 @@
 import * as prettyBytes from 'pretty-bytes';
-import { makeStyles } from '@material-ui/core/styles';
-import { Box } from '@material-ui/core';
+import { makeStyles, Box, Divider } from '@material-ui/core';
 import InsertLinkIcon from '@material-ui/icons/InsertLink';
 import { InnerPanel, PanelHeader } from '../Panels';
 import { BodyText } from '../Text';
@@ -20,6 +19,7 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: '.7em',
     paddingRight: '.7em',
     paddingTop: '1em',
+    paddingBottom: '.7em',
   },
   bar: {
     paddingLeft: '.7em',
@@ -34,6 +34,9 @@ const useStyles = makeStyles((theme) => ({
   },
   decoratorBox: {
     paddingRight: '.3em',
+  },
+  divider: {
+    background: DIVIDER,
   },
 }));
 
@@ -78,22 +81,41 @@ const ResourceVolumes = ({
               {volume.connections.map(
                 (connection): JSX.Element => {
                   return (
-                    <Box
-                      key={connection.fencing}
-                      display="flex"
-                      width="100%"
-                      className={classes.connection}
-                    >
-                      <Box className={classes.decoratorBox}>
-                        <Decorator
-                          colour={selectDecorator(connection.connection_state)}
-                        />
+                    <>
+                      <Box
+                        key={connection.fencing}
+                        display="flex"
+                        width="100%"
+                        className={classes.connection}
+                      >
+                        <Box className={classes.decoratorBox}>
+                          <Decorator
+                            colour={selectDecorator(
+                              connection.connection_state,
+                            )}
+                          />
+                        </Box>
+                        <Box>
+                          <Box display="flex" width="100%">
+                            <BodyText
+                              text={connection.targets[0].target_name}
+                            />
+                            <InsertLinkIcon style={{ color: DIVIDER }} />
+                            <BodyText
+                              text={connection.targets[1].target_name}
+                            />
+                          </Box>
+                          <Box
+                            display="flex"
+                            justifyContent="center"
+                            width="100%"
+                          >
+                            <BodyText text={connection.connection_state} />
+                          </Box>
+                        </Box>
                       </Box>
-                      <BodyText text={connection.targets[0].target_name} />
-                      <InsertLinkIcon style={{ color: DIVIDER }} />
-                      <BodyText text={connection.targets[1].target_name} />
-                      <BodyText text={connection.connection_state} />
-                    </Box>
+                      <Divider className={classes.divider} />
+                    </>
                   );
                 },
               )}
