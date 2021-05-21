@@ -157,7 +157,8 @@ ORDER BY
 					host_name  => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name},
 					# \1 will be transformed to the JSON boolean "true" by the JSON module.
 					is_mounted => \1,
-					total      => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total},
+					# FS total size is required by the spec to be an JSON number rather than string.
+					total      => int($anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}),
 					free       => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free},
 				}
 			}
