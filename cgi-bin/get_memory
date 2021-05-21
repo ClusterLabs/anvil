@@ -40,7 +40,7 @@ $anvil->Database->get_anvils();
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
 my $target     = $anvil->Get->short_host_name();
-my $hash       = {};
+my $hash       = { reserved => 68719476736 };
 my $anvil_uuid = "";
 if ($anvil->data->{cgi}{anvil_uuid}{value})
 {
