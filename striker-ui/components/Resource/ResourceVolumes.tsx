@@ -1,8 +1,11 @@
 import * as prettyBytes from 'pretty-bytes';
 import { makeStyles } from '@material-ui/core/styles';
 import { Box } from '@material-ui/core';
+import InsertLinkIcon from '@material-ui/icons/InsertLink';
 import { InnerPanel, PanelHeader } from '../Panels';
 import { BodyText } from '../Text';
+import Decorator, { Colours } from '../Decorator';
+import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -13,7 +16,7 @@ const useStyles = makeStyles((theme) => ({
       overflow: 'hidden',
     },
   },
-  state: {
+  connection: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
     paddingTop: '1em',
@@ -33,6 +36,17 @@ const useStyles = makeStyles((theme) => ({
     paddingRight: '.3em',
   },
 }));
+
+const selectDecorator = (state: string): Colours => {
+  switch (state) {
+    case 'connected':
+      return 'ok';
+    case 'connecting':
+      return 'warning';
+    default:
+      return 'error';
+  }
+};
 
 const ResourceVolumes = ({
   resource,
@@ -61,6 +75,28 @@ const ResourceVolumes = ({
                   </Box>
                 </Box>
               </PanelHeader>
+              {volume.connections.map(
+                (connection): JSX.Element => {
+                  return (
+                    <Box
+                      key={connection.fencing}
+                      display="flex"
+                      width="100%"
+                      className={classes.connection}
+                    >
+                      <Box className={classes.decoratorBox}>
+                        <Decorator
+                          colour={selectDecorator(connection.connection_state)}
+                        />
+                      </Box>
+                      <BodyText text={connection.targets[0].target_name} />
+                      <InsertLinkIcon style={{ color: DIVIDER }} />
+                      <BodyText text={connection.targets[1].target_name} />
+                      <BodyText text={connection.connection_state} />
+                    </Box>
+                  );
+                },
+              )}
             </InnerPanel>
           );
         })}
