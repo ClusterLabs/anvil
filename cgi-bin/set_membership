@@ -20,7 +20,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-sub is_active_member
+sub get_active_member
 {
 	my $parameters = shift;
 	my $host_uuid  = $parameters->{host_uuid};
@@ -64,29 +64,80 @@ WHERE
 sub alter_host_membership
 {
 	# Expects the first of positional parameters to be a hash.
-	my $parameters   = shift;
-	my $host_uuid    = $parameters->{host_uuid};
-	my $join_cluster = $parameters->{join_cluster};
+	my $parameters      = shift;
+	my $host_uuid       = $parameters->{host_uuid};
+	my $is_join_cluster = $parameters->{is_join_cluster};
 
-	# Determine whether host is already a cluster member.
-	my $is_already_member = is_active_member({ host_uuid => $host_uuid });
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		is_already_member => $is_already_member
-	} });
+	if ($is_join_cluster)
+	{
+		join_cluster({ host_uuid => $host_uuid });
+	}
+	else
+	{
+		leave_cluster({ host_uuid => $host_uuid });
+	}
 }
 
 # Re-adds a host to its anvil cluster.
 #
 # Note: not to be confused wtih adding a new host the an anvil.
-#sub join_cluster
-#{}
+sub join_cluster
+{
+	my $parameters = shift;
+	my $host_uuid  = $parameters->{host_uuid};
+
+	# Determine whether host is already a cluster member.
+	my $is_active_member = get_active_member({ host_uuid => $host_uuid });
+	# Find out whether the host is online before trying to make it join the cluster.
+	my $is_online = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status} eq "online" ? 1 : 0;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		is_active_member => $is_active_member,
+		is_online        => $is_online
+	} });
+
+	if (not $is_active_member && $is_online)
+	{
+		# TODO: Uncomment when testing against real hosts.
+		#
+		#$anvil->Database->insert_or_update_jobs({
+		#	job_command     => $anvil->data->{path}{exe}{'anvil-safe-start'},
+		#	job_description => "",
+		#	job_name        => "cgi-bin::set_membership::join",
+		#	job_progress    => 0,
+		#	job_title       => ""
+		#});
+	}
+}
 
 # Removes a host from its anvil cluster.
 #
 # Note: does not permanently remove the host; can be re-added.
-#sub leave_cluster
-#{}
+sub leave_cluster
+{
+	my $parameters = shift;
+	my $host_uuid  = $parameters->{host_uuid};
+
+	# Determine whether host is already a cluster member.
+	my $is_active_member = get_active_member({ host_uuid => $host_uuid });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		is_active_member => $is_active_member
+	} });
+
+	if ($is_active_member)
+	{
+		# TODO: Uncomment when testing against real hosts.
+		#
+		#$anvil->Database->insert_or_update_jobs({
+		#	job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'},
+		#	job_description => "",
+		#	job_name        => "cgi-bin::set_membership::leave",
+		#	job_progress    => 0,
+		#	job_title       => ""
+		#});
+	}
+}
 
 $anvil->Get->switches;
 
@@ -140,7 +191,7 @@ if ($host_uuid)
 {
 	if (exists $anvil->data->{hosts}{host_uuid}{$host_uuid})
 	{
-		alter_host_membership({ host_uuid => $host_uuid, join_cluster => $is_member });
+		alter_host_membership({ host_uuid => $host_uuid, is_join_cluster => $is_member });
 	}
 	else
 	{
