@@ -16112,8 +16112,10 @@ ORDER BY
 				
 				# To avoid resyncs triggered by the differences that might occur if the row 
 				# count changed slightly between counting both/all DBs, we won't resync 
-				# until there's at least 10 rows different.
-				if ($difference > 10)
+				# until there's at least 10 rows different. The exception is the hosts file,
+				# as it needs to resync on a single line difference when adding peer Striker
+				# dashboards.
+				if (($table eq "hosts") or ($difference > 10))
 				{
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
 						missing => $difference, 
