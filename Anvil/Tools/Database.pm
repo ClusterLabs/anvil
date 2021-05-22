@@ -15598,7 +15598,11 @@ sub _archive_table
 			$loop++;
 			
 			# Are we archiving to disk?
-			$do_delete = 1;
+			my $modified_date =  "";
+			   $do_delete     =  1;
+			my $archive_file  =  $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
+			   $archive_file  =~ s/\/\//\//g;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { archive_file => $archive_file }});
 			if ($anvil->data->{sys}{database}{archive}{save_to_disk})
 			{
 				if (not -d $anvil->data->{sys}{database}{archive}{directory})
@@ -15641,7 +15645,7 @@ COPY history.".$table." (";
 					"s3:sql_file" => $sql_file,
 				}});
 				
-				my $modified_date = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$modified_date = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
 				
 				# Build the query.
@@ -15695,10 +15699,6 @@ COPY history.".$table." (";
 				$sql_file .= "\\.\n\n";;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql_file => $sql_file }});
 				
-				my $archive_file =  $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
-				$archive_file =~ s/\/\//\//g;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { archive_file => $archive_file }});
-				
 				# It may not be secure, but we play it safe.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0454", variables => { 
 					records => $anvil->Convert->add_commas({number => $count}),
@@ -15727,7 +15727,7 @@ COPY history.".$table." (";
 			}
 			
 			# Do Delete.
-			if ($do_delete)
+			if (($do_delete) && ($modified_date))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0283"});
 				$vacuum = 1;
