@@ -219,7 +219,7 @@ sub archive_database
 	$anvil->data->{sys}{database}{archive}{count}        = 25000 if not defined $anvil->data->{sys}{database}{archive}{count};
 	$anvil->data->{sys}{database}{archive}{division}     = 30000 if not defined $anvil->data->{sys}{database}{archive}{division};
 	$anvil->data->{sys}{database}{archive}{trigger}      = 50000 if not defined $anvil->data->{sys}{database}{archive}{trigger};
-	$anvil->data->{sys}{database}{archive}{save_to_disk} = 0 
+	$anvil->data->{sys}{database}{archive}{save_to_disk} = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::archive::compress" => $anvil->data->{sys}{database}{archive}{compress},
 		"sys::database::archive::count"    => $anvil->data->{sys}{database}{archive}{count},
