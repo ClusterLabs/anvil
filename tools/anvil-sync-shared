@@ -375,7 +375,7 @@ sub process_rename_file
 			progress => 100,
 			message  => "job_0140,!!file_path!".$old_file_path."!!", 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0140", variables => { old_file_path => $old_file_path }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0140", variables => { file_path => $old_file_path }});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
