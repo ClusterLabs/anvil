@@ -2188,6 +2188,7 @@ sub update_global_common
 	my $say_after_sb_1pri       = "discard-secondary";
 	my $say_after_sb_2pri       = "disconnect";
 	my $say_timeout             = "100";
+	my $say_ping_timeout        = "30";
 	my $say_wfc_timeout         = 120;
 	
 	# Read in the existing config.
