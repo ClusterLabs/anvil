@@ -215,10 +215,11 @@ sub archive_database
 	}
 	
 	# Make sure I have sane values.
-	$anvil->data->{sys}{database}{archive}{compress}  = 1     if not defined $anvil->data->{sys}{database}{archive}{compress};
-	$anvil->data->{sys}{database}{archive}{count}     = 10000 if not defined $anvil->data->{sys}{database}{archive}{count};
-	$anvil->data->{sys}{database}{archive}{division}  = 25000 if not defined $anvil->data->{sys}{database}{archive}{division};
-	$anvil->data->{sys}{database}{archive}{trigger}   = 20000 if not defined $anvil->data->{sys}{database}{archive}{trigger};
+	$anvil->data->{sys}{database}{archive}{compress}     = 1     if not defined $anvil->data->{sys}{database}{archive}{compress};
+	$anvil->data->{sys}{database}{archive}{count}        = 25000 if not defined $anvil->data->{sys}{database}{archive}{count};
+	$anvil->data->{sys}{database}{archive}{division}     = 30000 if not defined $anvil->data->{sys}{database}{archive}{division};
+	$anvil->data->{sys}{database}{archive}{trigger}      = 50000 if not defined $anvil->data->{sys}{database}{archive}{trigger};
+	$anvil->data->{sys}{database}{archive}{save_to_disk} = 0 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::archive::compress" => $anvil->data->{sys}{database}{archive}{compress},
 		"sys::database::archive::count"    => $anvil->data->{sys}{database}{archive}{count},
@@ -233,25 +234,6 @@ sub archive_database
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::archive::directory" => $anvil->data->{sys}{database}{archive}{directory},
 		}});
-	}
-	if (not -d $anvil->data->{sys}{database}{archive}{directory})
-	{
-		my $failed = $anvil->Storage->make_directory({
-			debug     => $debug,
-			directory => $anvil->data->{sys}{database}{archive}{directory},
-			mode      => "0700",
-			user      => "root",
-			group     => "root",
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
-		if ($failed)
-		{
-			# No directory to archive into...
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "err", key => "error_0098", variables => { 
-				directory => $anvil->data->{sys}{database}{archive}{directory},
-			}});
-			return("!!error!!");
-		}
 	}
 	
 	# Make sure the numerical values are sane
@@ -15607,13 +15589,39 @@ sub _archive_table
 			column_count => $column_count 
 		}});
 		
-		my $offset = $count - $records_per_loop;
-		my $loop   = 0;
+		my $offset    = $count - $records_per_loop;
+		my $loop      = 0;
+		my $do_delete = 1;
 		for (1..$loops)
 		{
 			# We need to date stamp from the closest record to the offset.
-			   $loop++;
-			my $sql_file = "
+			$loop++;
+			
+			# Are we archiving to disk?
+			$do_delete = 1;
+			if ($anvil->data->{sys}{database}{archive}{save_to_disk})
+			{
+				if (not -d $anvil->data->{sys}{database}{archive}{directory})
+				{
+					my $failed = $anvil->Storage->make_directory({
+						debug     => $debug,
+						directory => $anvil->data->{sys}{database}{archive}{directory},
+						mode      => "0700",
+						user      => "root",
+						group     => "root",
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+					if ($failed)
+					{
+						# No directory to archive into...
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "err", key => "error_0098", variables => { 
+							directory => $anvil->data->{sys}{database}{archive}{directory},
+						}});
+						return("!!error!!");
+					}
+				}
+				
+				my $sql_file = "
 -- Dump created at: [".$anvil->Get->date_and_time()."]
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -15626,96 +15634,100 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 COPY history.".$table." (";
-			my $query = "SELECT modified_date FROM history.".$table." ORDER BY modified_date ASC OFFSET ".$offset." LIMIT 1;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:loop"     => $loop,
-				"s2:query"    => $query,
-				"s3:sql_file" => $sql_file,
-			}});
-			
-			my $modified_date = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
-			
-			# Build the query.
-			$query = "SELECT ";
-			foreach my $column (sort {$a cmp $b} @{$columns})
-			{
-				$sql_file .= $column->[0].", ";
-				$query    .= $column->[0].", ";
-			}
-			$sql_file .= "modified_date) FROM stdin;\n";
-			$query    .= "modified_date FROM history.".$table." WHERE modified_date >= '".$modified_date."' ORDER BY modified_date ASC;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				sql_file => $sql_file,
-				query    => $query,
-			}});
-			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			
-			foreach my $row (@{$results})
-			{
-				# Build the string.
-				my $line = "";
-				my $i    = 0;
-				foreach my $column (@{$columns})
-				{
-					my $value = defined $row->[$i] ? $row->[$i] : '\N';
-					$i++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"s1:i"      => $i, 
-						"s2:column" => $column, 
-						"s3:value"  => $value, 
-					}});
-					
-					# We need to convert tabs and newlines into \t and \n
-					$value =~ s/\t/\\t/g;
-					$value =~ s/\n/\\n/g;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
-					
-					$line .= $value."\t";
-				}
-				# Add the modified_date column.
-				$line .= $row->[$i]."\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-				
-				$sql_file .= $line;
-			}
-			$sql_file .= "\\.\n\n";;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql_file => $sql_file }});
-			
-			my $archive_file =  $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
-			   $archive_file =~ s/\/\//\//g;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { archive_file => $archive_file }});
-			
-			# It may not be secure, but we play it safe.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0454", variables => { 
-				records => $anvil->Convert->add_commas({number => $count}),
-				file    => $archive_file,
-			}});
-			my ($failed) = $anvil->Storage->write_file({
-				debug  => $debug, 
-				body   => $sql_file,
-				file   => $archive_file, 
-				user   => "root", 
-				group  => "root", 
-				mode   => "0600",
-				secure => 1.
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
-			
-			if ($failed)
-			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0099", variables => { 
-					file  => $archive_file,
-					table => $table, 
+				my $query = "SELECT modified_date FROM history.".$table." ORDER BY modified_date ASC OFFSET ".$offset." LIMIT 1;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:loop"     => $loop,
+					"s2:query"    => $query,
+					"s3:sql_file" => $sql_file,
 				}});
-				last;
+				
+				my $modified_date = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
+				
+				# Build the query.
+				$query = "SELECT ";
+				foreach my $column (sort {$a cmp $b} @{$columns})
+				{
+					$sql_file .= $column->[0].", ";
+					$query    .= $column->[0].", ";
+				}
+				$sql_file .= "modified_date) FROM stdin;\n";
+				$query    .= "modified_date FROM history.".$table." WHERE modified_date >= '".$modified_date."' ORDER BY modified_date ASC;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					sql_file => $sql_file,
+					query    => $query,
+				}});
+				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				
+				foreach my $row (@{$results})
+				{
+					# Build the string.
+					my $line = "";
+					my $i    = 0;
+					foreach my $column (@{$columns})
+					{
+						my $value = defined $row->[$i] ? $row->[$i] : '\N';
+						$i++;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:i"      => $i, 
+							"s2:column" => $column, 
+							"s3:value"  => $value, 
+						}});
+						
+						# We need to convert tabs and newlines into \t and \n
+						$value =~ s/\t/\\t/g;
+						$value =~ s/\n/\\n/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+						
+						$line .= $value."\t";
+					}
+					# Add the modified_date column.
+					$line .= $row->[$i]."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					
+					$sql_file .= $line;
+				}
+				$sql_file .= "\\.\n\n";;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql_file => $sql_file }});
+				
+				my $archive_file =  $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
+				$archive_file =~ s/\/\//\//g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { archive_file => $archive_file }});
+				
+				# It may not be secure, but we play it safe.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0454", variables => { 
+					records => $anvil->Convert->add_commas({number => $count}),
+					file    => $archive_file,
+				}});
+				my ($failed) = $anvil->Storage->write_file({
+					debug  => $debug, 
+					body   => $sql_file,
+					file   => $archive_file, 
+					user   => "root", 
+					group  => "root", 
+					mode   => "0600",
+					secure => 1.
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+				
+				if ($failed)
+				{
+					$do_delete = 0;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0099", variables => { 
+						file  => $archive_file,
+						table => $table, 
+					}});
+					last;
+				}
 			}
-			else
+			
+			# Do Delete.
+			if ($do_delete)
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0283"});
 				$vacuum = 1;
@@ -15739,7 +15751,6 @@ COPY history.".$table." (";
 			
 			$offset -= $records_per_loop;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { offset => $offset }});
-			
 		}
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vacuum => $vacuum }});
@@ -16101,8 +16112,10 @@ ORDER BY
 				
 				# To avoid resyncs triggered by the differences that might occur if the row 
 				# count changed slightly between counting both/all DBs, we won't resync 
-				# until there's at least 10 rows different.
-				if ($difference > 10)
+				# until there's at least 10 rows different. The exception is the hosts file,
+				# as it needs to resync on a single line difference when adding peer Striker
+				# dashboards.
+				if (($table eq "hosts") or ($difference > 10))
 				{
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
 						missing => $difference, 

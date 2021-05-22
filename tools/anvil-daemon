@@ -17,6 +17,9 @@
 # - Write a script that runs in crontab at UTC 17:00 that sends an email if Scancore or anvil-daemon are disabled.
 # - Examine limites in: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#LimitCPU=
 # - Write a background program to scan the BCN and uses OUI data to try and find / auto-configure PDUs and UPSes
+# - 
+# - Increase DRBD's default timeout
+# - Check for and enable persistent journald logging
 # 
 # NOTE:
 # - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
