@@ -2120,6 +2120,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0246">Purging the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#]:</key>
 		<key name="message_0247"><![CDATA[Please specify which server you want to manage with '--server <name_or_uuid>'. Available servers on this Anvil! system;]]></key>
 		<key name="message_0248">Created the journald directory: [#!variable!directory!#].</key>
+		<key name="message_0249">Checking that the daemon: [#!variable!daemon!#] is running.</key>
+		<key name="message_0250">The daemon: [#!variable!daemon!#] was not running, starting it now.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
