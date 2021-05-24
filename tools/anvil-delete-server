@@ -368,7 +368,7 @@ sub remove_from_pacemaker
 	{
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			debug           => 2, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-delete-server'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-delete-server'}.$anvil->Log->switches, 
 			job_data        => "server_uuid=".$server_uuid."\npeer_mode=true", 
 			job_name        => "server::delete", 
 			job_title       => "job_0208", 
@@ -655,7 +655,7 @@ sub ask_for_server
 		
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			debug           => 2, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-delete-server'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-delete-server'}.$anvil->Log->switches, 
 			job_data        => "server_uuid=".$delete_uuid, 
 			job_name        => "server::delete", 
 			job_title       => "job_0208", 

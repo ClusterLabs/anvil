@@ -86,6 +86,9 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# If, so some reason, anvil.conf is lost, create it.
+$anvil->System->_check_anvil_conf();
+
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
 $anvil->Database->connect({check_if_configured => 1});
@@ -100,9 +103,9 @@ if (not $anvil->data->{sys}{database}{connections})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0201"});
 		prep_database($anvil);
-		sleep 1;
 		
 		# Try connecting again
+		$anvil->refresh();
 		$anvil->Database->connect();
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 		if (not $anvil->data->{sys}{database}{connections})
@@ -195,6 +198,10 @@ while(1)
 {
 	# Reload defaults, re-read the config and then connect to the database(s)
 	$anvil->refresh();
+	
+	# If, so some reason, anvil.conf is lost, create it.
+	$anvil->System->_check_anvil_conf();
+	
 	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 	
@@ -402,7 +409,7 @@ sub handle_periodic_tasks
 		}});
 		
 		# Even when this runs, it should finish in under ten seconds so we don't need to background it.
-		my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}, source => $THIS_FILE, line => __LINE__});
+		my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { parse_output => $parse_output }});
 		
 		# Scan the local network.
@@ -459,7 +466,7 @@ sub handle_periodic_tasks
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --refresh", 
+				job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --refresh".$anvil->Log->switches, 
 				job_data        => "", 
 				job_name        => "install-target::refresh", 
 				job_title       => "job_0015", 
@@ -472,7 +479,7 @@ sub handle_periodic_tasks
 			($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}, 
+				job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}.$anvil->Log->switches, 
 				job_data        => "", 
 				job_name        => "oui-data::refresh", 
 				job_title       => "job_0064", 
@@ -485,7 +492,7 @@ sub handle_periodic_tasks
 			($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-scan-network'}, 
+				job_command     => $anvil->data->{path}{exe}{'striker-scan-network'}.$anvil->Log->switches, 
 				job_data        => "", 
 				job_name        => "scan-network::refresh", 
 				job_title       => "job_0066", 
@@ -522,7 +529,7 @@ sub check_install_target
 	}
 	
 	my $status                 = "unavailable";
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status --check --no-refresh"});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status --check --no-refresh".$anvil->Log->switches});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -579,9 +586,104 @@ sub run_once
 	# Check setuid wrappers
 	check_setuid_wrappers($anvil);
 	
+	# Check journald is configured for persistent storage.
+	check_journald($anvil);
+	
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub check_journald
+{
+	my ($anvil) = @_;
+	
+	# Check the journald.conf to ensure logging in configured to be persistent.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'path::configs::journald.conf' => $anvil->data->{path}{configs}{'journald.conf'} }});
+	my $peristent_seen    = 0;
+	my $change_storage    = 0;
+	my $old_journald_conf = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'journald.conf'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_journald_conf => $old_journald_conf }});
+	foreach my $line (split/\n/, $old_journald_conf)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /^Storage=(.*)$/)
+		{
+			my $value = $1;
+			if ($value eq "persistent")
+			{
+				$peristent_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { peristent_seen => $peristent_seen }});
+			}
+			else
+			{
+				$change_storage = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { change_storage => $change_storage }});
+			}
+		}
+	}
+	
+	# Make sure the journald directory 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'path::directories::journald' => $anvil->data->{path}{directories}{journald} }});
+	if (not -d $anvil->data->{path}{directories}{journald})
+	{
+		$anvil->Storage->make_directory({
+			debug     => 2,
+			directory => $anvil->data->{path}{directories}{journald},
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0248", variables => { directory => $anvil->data->{path}{directories}{journald} }});
+	}
+	
+	# Make sure the journald is configured for persistent storage.
+	if (not $peristent_seen)
+	{
+		my $storage_added     = 0;
+		my $new_journald_conf = "";
+		foreach my $line (split/\n/, $old_journald_conf)
+		{
+			if (($line =~ /^Storage=/) && ($change_storage))
+			{
+				if (not $storage_added)
+				{
+					$storage_added     =  1;
+					$new_journald_conf .= "Storage=persistent\n";
+				}
+				next;
+			}
+			if (($line =~ /^#Storage=/) && (not $storage_added))
+			{
+				$storage_added     =  1;
+				$new_journald_conf .= "Storage=persistent\n";
+			}
+			$new_journald_conf .= $line."\n";
+		}
+		if (not $storage_added)
+		{
+			$new_journald_conf .= "Storage=persistent\n";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_journald_conf => $new_journald_conf }});
+		
+		$anvil->Storage->write_file({
+			debug     => 3,
+			secure    => 0, 
+			file      => $anvil->data->{path}{configs}{'journald.conf'}, 
+			body      => $new_journald_conf, 
+			mode      => "0644",
+			overwrite => 1,
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0013", variables => { file => $anvil->data->{path}{configs}{'journald.conf'} }});
+		
+		# Restart the journald service.
+		my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart systemd-journald.service";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
 	}
 	
 	return(0);
@@ -692,7 +794,7 @@ sub check_firewall
 	# Check the firewall needs to be updated.
 	if ($configured)
 	{
-		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	}
 	
@@ -826,19 +928,14 @@ sub prep_database
 	
 	# Only run this if we're a dashboard.
 	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "striker")
 	{
-		my ($database_output, $return_code) = $anvil->System->call({
-			debug      => 3, 
-			shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}, 
-			source     => $THIS_FILE, 
-			line       => __LINE__,
-		});
-		if ($database_output)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_output => $database_output }});
-		}
+		my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__ });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			database_output => $database_output,
+			return_code     => $return_code, 
+		}});
 	}
 	
 	return(0);
@@ -1149,7 +1246,7 @@ sub update_state_file
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0480"});
 	
-	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}." -v", source => $THIS_FILE, line => __LINE__});
+	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		states_output => $states_output,
 		return_code   => $return_code, 

@@ -355,7 +355,7 @@ sub startup_tasks
 		if ($uptime < 600)
 		{
 			# Run it as a background task
-			my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-start'};
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-start'}.$anvil->Log->switches;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0210", variables => { command => $shell_call }});
 			$anvil->System->call({shell_call => $shell_call, background => 1});
 		}

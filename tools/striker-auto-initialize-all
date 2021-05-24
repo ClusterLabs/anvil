@@ -327,7 +327,7 @@ sub configure_machine_networks
 				
 				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 					job_host_uuid   => $machine_host_uuid, 
-					job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
 					job_data        => "form::config_step2", 
 					job_name        => "configure::network", 
 					job_title       => "job_0001", 
@@ -462,7 +462,7 @@ sub run_manifests
 		# Tell node 1 to join.
 		my ($node1_job_uuid) = $anvil->Database->insert_or_update_jobs({
 			job_host_uuid   => $node1_host_uuid, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
 			job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 			job_name        => "join_anvil::node1", 
 			job_title       => "job_0072", 
@@ -480,7 +480,7 @@ sub run_manifests
 		
 		my ($node2_job_uuid) = $anvil->Database->insert_or_update_jobs({
 			job_host_uuid   => $node2_host_uuid, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
 			job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 			job_name        => "join_anvil::node2", 
 			job_title       => "job_0072", 
@@ -500,7 +500,7 @@ sub run_manifests
 		{
 			my ($dr1_job_uuid) = $anvil->Database->insert_or_update_jobs({
 				job_host_uuid   => $dr1_host_uuid, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
 				job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 				job_name        => "join_anvil::dr1", 
 				job_title       => "job_0072", 
@@ -717,7 +717,7 @@ sub initialize_machines
 						debug           => 2,
 						file            => $THIS_FILE, 
 						line            => __LINE__, 
-						job_command     => $anvil->data->{path}{exe}{'striker-initialize-host'}, 
+						job_command     => $anvil->data->{path}{exe}{'striker-initialize-host'}.$anvil->Log->switches, 
 						job_data        => $job_data, 
 						job_name        => "initialize::".$machine_type."::".$use_ip, 
 						job_title       => $machine_type eq "dr" ? "job_0021" : "job_0020", 
@@ -1340,8 +1340,8 @@ fi;
 						
 						# Register a job and then wait for it to show up in our database.
 						my $job_data    =  "password=".$anvil->data->{base}{password}{desired}."\n";
-						   $job_data    .= "peer_job_command=".$anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$anvil->Get->host_uuid." --host ".$our_ip." --port 5432 --ping 1";
-						my $job_command =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$ip." --port 5432 --ping 1";
+						   $job_data    .= "peer_job_command=".$anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$anvil->Get->host_uuid." --host ".$our_ip." --port 5432 --ping 1".$anvil->Log->switches;
+						my $job_command =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$ip." --port 5432 --ping 1".$anvil->Log->switches;
 						   $waiting     =  0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							job_command => $job_command,
@@ -1665,7 +1665,7 @@ sub striker_stage1
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		debug           => 2,
 		job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
-		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
 		job_data        => "form::config_step2", 
 		job_name        => "configure::network", 
 		job_title       => "job_0001", 
@@ -1680,7 +1680,7 @@ sub striker_stage1
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			debug           => 2,
 			job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
-			job_command     => $anvil->data->{path}{exe}{'striker-auto-initialize-all'}." --config ".$anvil->data->{switches}{config}, 
+			job_command     => $anvil->data->{path}{exe}{'striker-auto-initialize-all'}." --config ".$anvil->data->{switches}{config}.$anvil->Log->switches, 
 			job_data        => "", 
 			job_name        => "configure::auto_initialize", 
 			job_title       => "job_0225", 

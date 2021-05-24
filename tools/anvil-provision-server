@@ -259,7 +259,7 @@ sub run_jobs
 		   $job_data   .= "drbd_tcp_port=".$anvil->data->{job}{drbd_tcp_port}."\n";
 		my ($job_uuid) =  $anvil->Database->insert_or_update_jobs({
 			debug           => 2, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}.$anvil->Log->switches, 
 			job_data        => $job_data, 
 			job_name        => "server::provision", 
 			job_title       => "job_0147", 
@@ -2515,7 +2515,7 @@ server_uuid=".$anvil->data->{new_server}{name};
 		}
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			debug           => 2, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}.$anvil->Log->switches, 
 			job_data        => $job_data, 
 			job_name        => "server::provision", 
 			job_title       => "job_0147", 

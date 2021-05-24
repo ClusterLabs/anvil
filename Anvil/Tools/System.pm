@@ -46,6 +46,7 @@ my $THIS_FILE = "System.pm";
 # stop_daemon
 # stty_echo
 # update_hosts
+# _check_anvil_conf
 # _load_firewalld_zones
 # _load_specific_firewalld_zone
 # _match_port_to_service
@@ -528,6 +529,7 @@ sub change_shell_user_password
 	return($return_code);
 }
 
+
 =head2 check_daemon
 
 This method checks to see if a daemon is running or not. If it is, it returns 'C<< 1 >>'. If the daemon isn't running, it returns 'C<< 0 >>'. If the daemon wasn't found, 'C<< 2 >>' is returned.
@@ -635,7 +637,7 @@ sub check_memory
 	
 	my $used_ram = 0;
 	
-	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'anvil-check-memory'}." --program $program_name"});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'anvil-check-memory'}." --program $program_name".$anvil->Log->switches});
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -5066,6 +5068,78 @@ sub update_hosts
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+
+=head2 _check_anvil_conf
+
+This looks for anvil.conf and, if it's missing, regenerates it.
+
+=cut
+sub _check_anvil_conf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_check_anvil_conf" }});
+	
+	# Make sure the 'admin' user exists...
+	my $admin_uid = getpwnam('admin');
+	my $admin_gid = getgrnam('admin');
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		admin_uid => $admin_uid,
+		admin_gid => $admin_gid, 
+	}});
+	if (not $admin_gid)
+	{
+		# Create the admin group 
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{groupadd}." --system admin"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		
+		$admin_gid = getgrnam('admin');
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0118", variables => { gid => $admin_gid }});
+	}
+	if (not $admin_uid)
+	{
+		# Create the admin user
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{useradd}." --create-home --gid admin --comment \"Anvil! user account\" admin"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		
+		my $admin_uid = getpwnam('admin');
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0119", variables => { uid => $admin_gid }});
+	}
+	
+	# Does the file exist?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "path::configs::anvil.conf" => $anvil->data->{path}{configs}{'anvil.conf'} }});
+	if (not -e $anvil->data->{path}{configs}{'anvil.conf'})
+	{
+		
+		# Nope! What the hell? Create it.
+		my $failed = $anvil->Storage->write_file({
+			debug     => $debug,
+			overwrite => 1, 
+			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
+			body      => $anvil->Words->string({key => "file_0002"}), 
+			user      => "admin", 
+			group     => "admin", 
+			mode      => "0644", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		if (not $failed)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0117", variables => { file => $anvil->data->{path}{configs}{'anvil.conf'} }});
+		}
+		return($failed);
+	}
+	
+	return(0);
+}
 
 =head2 _load_firewalld_zones
 
