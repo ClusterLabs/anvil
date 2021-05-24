@@ -579,9 +579,12 @@ sub run_once
 	# Check to see if we need to do boot-time tasks. We only run these if we've just booted
 	boot_time_tasks($anvil);
 	
+	# Check that the daemons we need are running.
+	check_daemons($anvil);
+	
 	# Check the ssh stuff. 
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
-	$anvil->System->check_ssh_keys({debug => 3});
+	$anvil->System->check_ssh_keys();
 	
 	# Check setuid wrappers
 	check_setuid_wrappers($anvil);
@@ -592,6 +595,28 @@ sub run_once
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub check_daemons
+{
+	my ($anvil) = @_;
+	
+	foreach my $daemon ("NetworkManager")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0249", variables => { daemon => $daemon }});
+		
+		my $running = $anvil->System->check_daemon({daemon => $daemon});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+		
+		if (not $running)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0250", variables => { daemon => $daemon }});
+			my $return_code = $anvil->System->start_daemon({daemon => $daemon});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		}
 	}
 	
 	return(0);
