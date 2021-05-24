@@ -13,6 +13,9 @@
 # 2 = Not a cluster member
 # 
 # TODO: 
+# - When a node is lost, update the location constraints to keep the servers on the surviving node when the
+#   peer returns.
+# - Test that the fence delay favours the host that has all the servers.
 # 
 
 use strict;

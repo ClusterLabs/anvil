@@ -417,7 +417,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
 		
 		<!-- Files templates -->
-		<!-- NOTE: Translating these files requires an understanding of which likes are translatable -->
+		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
 		<!--       comments and which are command lines that can't be changed! -->
 		<key name="file_0001"><![CDATA[# Resource for #!variable!server!#
 resource #!variable!server!# {
@@ -457,6 +457,203 @@ resource #!variable!server!# {
 		}
 	}
 }
+]]></key>
+		<!-- NOTE: If the core anvil.conf is updated, remember to update this as well. -->
+		<key name="file_0002"><![CDATA[### This is the main Anvil! configuration file.
+
+# To help understand how the Anvil! is used, some features will "call home" to record anonymous information
+# about a machine participating in an Anvil! system. An example is DRBD's 'usage-count' option. If you wish 
+# to not have this happen, set this to '1'.
+sys::privacy::strong						=	#!data!sys::privacy::strong!#
+
+### Features
+# Normally, if one node in the Anvil! is healthier than the other, it will pull the servers from the peer
+# on to it. This is a process called "preventative live migration". If you would like to disable this 
+# feature, set this to '1'.
+feature::scancore::disable::preventative-live-migration		=	0
+
+### Database
+# Database connections;
+# 
+# Each Anvil! database is defined below using an incrementing counter as the second variable. The value of 
+# the second variable is the local 'host_uuid' (via: dmidecode --string system-uuid | perl -ne 'print lc').
+# This ensures that entries can be moved and copied without causing conflicts.
+# 
+# There are six variables for each database definition;
+# host     = This is the (resolvable) host name or IP address of the peer database.
+# port     = This is the TCP port used to connect to the database. By default, it is 5432
+# password = This is the password used to connect to the database.
+#            NOTE: Do not directly change the database password. Please use 'anvil-update-password' so that
+#                  the WebUI, database, nodes and peers are all kept in sync.
+# ping     = If set, this will cause a ping to be made against the database server before the actual 
+#            connection is attempted. This can be useful when peer dashboards are offline for extended 
+#            periods of time. The value can be any real number and will be used as the timeout for the actual
+#            ping. If the peer dashboard is on the same subnet, a value of '0.25' (250ms) should be a good 
+#            balance between giving the peer a chance to reply and not waiting too long when it is offline. 
+#            If the peer is remote, you will want to set this to '1' (1000ms) or higher. 
+#            
+#            Setting this to '0' disables pinging before connecting entirely. In this case, if the peer is
+#            offline, it will take about 3 seconds on average for the connection attempt to timeout. This 
+#            might be necessary if the peer dashboard is behind a firewall/router or otherwise can't respond
+#            to ICMP pings.
+# NOTE: The database is called 'anvil' and the database owner is 'admin'.
+#database::eec27c2f-2308-4b4f-bd81-24118b53f8a3::host		=	localhost
+#database::eec27c2f-2308-4b4f-bd81-24118b53f8a3::port		=	5432
+#database::eec27c2f-2308-4b4f-bd81-24118b53f8a3::password	=	Initial1
+#database::eec27c2f-2308-4b4f-bd81-24118b53f8a3::ping		=	1
+
+# Below are the databases configured for use by this system. Please be careful manually editing them. They 
+# are updated by Striker and changes can be overwritten. Please do not alter or remove the 'start db list' 
+# and 'end db list' comments below.
+### start db list ###
+### end db list ###
+
+# To keep Anvil!'s database growth in check, an auto-archive mechanism is used by some agents where, at the 
+# end of each scan, the number of records in the history schema for a given table are counted (restricted to 
+# the agent's host, when appropriate). 
+# 
+# When the number exceeds the trigger, the number of records that are archived is approximately (number of 
+# records above trigger + 'count'). This is not an exact number because a representative timestamp will be 
+# selected from the hostory schema at this count, and then any record equal to or older than the time stamp 
+# is removed.
+# 
+# To protect against the potential of using too much disk space, archives are off by default. Under normal 
+# behaviour, old records are simple removed. To enable the archive function, set this to '1'.
+#sys::database::archive::save_to_disk				=	1
+# 
+# When archiving to disk is enabled, to protect against large memory use or long archive times in the case 
+# where the number of records to archive are particularly large, the 'division' value is used to break up the
+# archive job into "chunks". Generally speaking, the division should be greater than the count, and never be 
+# needed. However, if the archive process takes too long, or if the archive was triggered well above the 
+# trigger value, the division can help prevent using too much memory at once. If division is set to '0', 
+# archive jobs will never be divided.
+# 
+# The archives are all stored in the specified directory using the name format 
+# '<agent>.<table>.<timestamp>.bz2' and the archives are synced between dashboards for safe keeping. Archive 
+# files are never removed automatically.
+# 
+# To disable auto-archiving entirely, set 'trigger' to '0'.
+# 
+# NOTE: If the archive directory doesn't exist, Anvil! will create it 
+#       automatically the first time it is needed.
+sys::database::archive::compress				=	1
+sys::database::archive::trigger					=	50000
+sys::database::archive::count					=	25000
+sys::database::archive::division				=	30000
+sys::database::archive::directory				=	/usr/local/anvil/archives/
+
+# This puts a limit on how many queries (writes, generally) to make in a single batch transaction. This is 
+# useful when doing very large transacions, like resync'ing a large table, by limiting how long a given 
+# transaction can take and how much memory is used. 
+sys::database::maximum_batch_size				=	25000
+
+
+### Apache stuff
+# By default, we try to determine the host type which anvil RPM is installed. If, for some reason, you want
+# to statically assign the host type, you can do so with this variable. Note that this sets the host type of
+# this host only. You will need to set this appropriately on other hosts.
+# 
+# Normally, you should not need to set this.
+#sys::host_type							=	node
+# This configuration file provides a way to override Anvil::Tools' built-in defaults.
+
+# This controls the default language. The value is the ISO code of the country's language you want to use by
+# default. Note that the logging language is set with 'defaults::log::language' below.
+# NOTE: Be sure the language exists before changing it!
+defaults::languages::output					=	en_CA
+
+# This controls how many loops Anvil::Tools::Words is allow to make while processing a string. This acts as a 
+# mechanism to exit infinite loops, and generally should not need to be changed.
+defaults::limits::string_loops					=	1000
+
+
+### Logging options
+# This controls whether all database transactions are recorded or not. Genreally this should be left off 
+# unless you are debugging the program.
+# WARNING: This ignores 'secure', and will always be logged. Be careful about exposing sensitive data!
+sys::database::log_transactions					=	0
+
+# By default, if a configured database is not accessible, a log level 1 alert is registered. This can cause a
+# lot of log traffic. If you want to silence these log alerts, you can set the value below to be higher than
+# your current active log level (default is '1', so set to '2' or '3' to silence).
+# NOTE: It's important to only use this temporarily. 
+sys::database::failed_connection_log_level			=	1
+
+# This controls what log facility to use by default.
+# NOTE: This will always be 'authpriv' when a log entry is marked as secure.
+defaults::log::facility						=	local0
+
+# This controls what language logs are recorded in. Be sure that the language exists before changing it!
+defaults::log::language						=	en_CA
+
+# This controls the default log level. See 'perldoc Anvil::Tools::Logs' for details.
+defaults::log::level						=	1
+
+# This controls whether sensitive log entries are logged or not. Generally, this should be left disabled!
+defaults::log::secure						=	0
+
+# THis sets the default log server to send the log entries to. Leave it blank in most cases.
+#defaults::log::server						=	
+
+# This sets the default log tag used when logging an entry. Most programs will likely override this.
+defaults::log::tag						=	anvil
+
+
+### Templates
+# This sets the default template used when rendering HTML pages. It must be the same as the directory name
+# under /var/www/html/skins/
+defaults::template::html					=	alteeve
+
+
+### Install Target options
+# Note; Please see 'pxe.txt' for editable templates for 'dhcpd.conf', (tftpboot's BIOS) 'default' and the
+#       kickstart templates.
+# 
+# This section allows for adapting certain installations of systems via the Install Target feature. 
+# Generally, these don't need to be edited.
+# 
+# This controls the keyboard configuration. See: 
+# - https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/appendixes/Kickstart_Syntax_Reference/#sect-kickstart-commands-keyboard
+#kickstart::keyboard						=	--vckeymap=us --xlayouts='us'
+#
+# This sets the default password of newly stage-1 built machines. Generally, this shouldn't be change. It is
+# recorded in plain text and it is used in the stage-2 configuration tools. 
+#kickstart::password						=	Initial1
+#
+# This is the system timezone to be set. Generally, it's recommended to leave the Anvil! machines to UTC, but
+# you might want to change this is if you spend time working directly on the various Anvil! cluster machines.
+#kickstart::timezone						=	Etc/GMT --isUtc
+
+# If this is set to '1', the packages used to build machines via the Install Target feature will not 
+# auto-update.
+install-manifest::refresh-packages				=	1
+
+# This controls how often the local RPM repository is checked for updates. The default is '86400' seconds 
+# (one day). If anything, you might want to increase this. Common values;
+# 86400   = Once per day
+# 604800  = Once per week
+# 2419200 = Once per month (well, 4 weeks)
+install-manifest::refresh-period				=	86400
+
+
+### This controls Striker-specific features
+# This can be set a a comma-separated list of packages to be added to Striker's RPM repos. Note that this is
+# only useful is you want to store EL8-specific packages needed outside the Anvil!.
+striker::repo::extra-packages					=	
+
+### System functions
+# The machines used in the Anvil! are treated as appliances, and thus fully under our control. As such, much 
+# of the system is monitored, managed and auto-repaired. This can frustrate sysadmins. As such, an admin may
+# use the 'system::*' options to retake control over some system behaviour.
+
+# Setting this to '0' will disable auto-management of the firewall.
+sys::manage::firewall						=	1
+
+
+### Server related options
+# This is the "short list" of servers shown when provisioning a new server. To see the full list of options,
+# run '/usr/bin/osinfo-query os' on any machine in the Anvil!. 
+#sys::servers::os_short_list					=	debian10,fedora32,freebsd12.1,gentoo,macosx10.7,msdos6.22,openbsd6.7,opensuse15.2,rhel5.11,rhel6.10,rhel7.9,rhel8.3,sles12sp5,solaris11,ubuntu20.04,win10,win2k16,win2k19
 ]]></key>
 		
 		<!-- Table headers -->
@@ -1593,7 +1790,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
 		<key name="message_0012">Wrote the journald config file: [#!variable!file!#] to disable rate limiting to ensure high log levels are not lost.</key>
-		<key name="message_0013">#!free!#</key>
+		<key name="message_0013">Updated the journald config file: [#!variable!file!#] to enable persistent storage of logs to disk. Will restart the journald daemon now.</key>
 		<key name="message_0014">One or more files on disk have changed. Exiting to reload.</key>
 		<key name="message_0015">The reconfigure of the network has begun.</key>
 		<key name="message_0016">The host name: [#!variable!host_name!#] has been set.</key>
@@ -1922,6 +2119,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0245">Now purging: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
 		<key name="message_0246">Purging the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#]:</key>
 		<key name="message_0247"><![CDATA[Please specify which server you want to manage with '--server <name_or_uuid>'. Available servers on this Anvil! system;]]></key>
+		<key name="message_0248">Created the journald directory: [#!variable!directory!#].</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2544,6 +2742,10 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0114">[ Warning ] - We're doing a load shed to reduce thermal loading, and the estimated migration time to pull the servers to us from our peer is shorter than the reverse. As such, we'll pull the peer's servers to here.</key>
 		<key name="warning_0115">[ Warning ] - We're doing a load shed to conserve UPS power, and by all measures, the time to migrate off either node is equal. We're node 1, so we will pull the servers to us now.</key>
 		<key name="warning_0116">[ Warning ] - We're doing a load shed to reduce thermal loading, and by all measures, the time to migrate off either node is equal. We're node 1, so we will pull the servers to us now.</key>
+		<key name="warning_0117">[ Warning ] - The core Anvil! configuration file: [#!variable!file!#] was missing! It's been recreated using default values. It is possible that the database connection information will need to be restored manually.</key>
+		<key name="warning_0118">[ Warning ] - The 'admin' group was created as a system group with the group ID: [#!variable!gid!#].</key>
+		<key name="warning_0119">[ Warning ] - The 'admin' user was created with the user ID: [#!variable!uid!#].</key>
+		<key name="warning_0120">[ Warning ] - Timed out waiting for the database: [#!variable!uuid!#] to become available.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

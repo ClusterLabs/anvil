@@ -19,6 +19,7 @@ my $THIS_FILE = "Log.pm";
 # language
 # level
 # secure
+# switches
 # variables
 # _adjust_log_level
 
@@ -743,6 +744,59 @@ sub secure
 	
 	return($anvil->data->{defaults}{'log'}{secure});
 }
+
+
+=head2 switches
+
+This method returns switches to append to Alteeve tools to pass the active log level (and log secure) to our tools we call as shell calls.
+
+Examples;
+
+If the active log level is 1, and we're not logging secure messages;
+
+ my $switches = $anvil->Log->switches();
+ 
+In this case, C<< $switches >> would contain C<< -v >>.
+
+If the active log level is 2, and we are logging secure messages;
+
+ my $switches = $anvil->Log->switches();
+ 
+In this case, C<< $switches >> would contain C<< -vv --log-secure >>.
+
+B<< Note >>: The string returned is padded with a leading space so that this method can be called directly after the executable. Example;
+
+ my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}.$anvil->Log->switches();
+
+This method takes no parameters.
+
+=cut
+sub switches
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 0;
+	
+	my $log_level  = $anvil->Log->level;
+	my $log_secure = $anvil->Log->secure;
+	my $switches   = "";
+	if ($log_level)
+	{
+		$switches .= " -";
+		for (1..$log_level)
+		{
+			$switches .= "v";
+		}
+	}
+	if ($log_secure)
+	{
+		$switches .= " --log-secure";
+	}
+	
+	return($switches);
+}
+
 
 =head2 variables
 

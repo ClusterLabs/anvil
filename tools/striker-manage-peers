@@ -525,15 +525,71 @@ sub process_entry
 		update_progress($anvil, 80, "message_0073");
 		update_progress($anvil, 82, "job_0131");
 		
-		# Disconnect (if no connections exist, will still clear out known databases).
-		$anvil->Database->disconnect({debug => 2});
-		
-		# Re-read the config.
-		sleep 1;
-		$anvil->Storage->read_config({debug => 3});
-		
-		# Reconnect
-		$anvil->Database->connect({debug => 3});
+		# Reconnect. This can take a few tries as we ma need to initialize the DB as well.
+		my $waiting    = 1;
+		my $restarted  = 0;
+		my $abort_time = time + 5;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { abort_time => $abort_time }});
+		while($waiting)
+		{
+			$waiting = 0;
+			
+			# Disconnect (if no connections exist, will still clear out known databases).
+			$anvil->Database->disconnect();
+			
+			# Re-read the config.
+			$anvil->refresh();
+			
+			# Connect, and configure, if needed.
+			$anvil->Database->connect({
+				debug               => 3,
+				check_if_configured => $host_uuid eq $anvil->Get->host_uuid ? 1 : 0,
+			});
+			
+			my $target_handle = $anvil->data->{cache}{database_handle}{$host_uuid} ? $anvil->data->{cache}{database_handle}{$host_uuid} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_handle => $target_handle }});
+			
+			if ((not $target_handle) or ($target_handle !~ /^DBI::db=HASH/))
+			{
+				# not connected yet.
+				my $time = time;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'time'     => $time, 
+					abort_time => $abort_time,
+				}});
+				if ($time < $abort_time)
+				{
+					# sleep and try again.
+					$anvil->Database->disconnect();
+					
+					# Try restarting the database if the $host_uuid is us.
+					if (($host_uuid eq $anvil->Get->host_uuid) && (not $restarted))
+					{
+						my $stop_return_code  = $anvil->System->stop_daemon({debug => 2, daemon => "postgresql.service"});
+						my $start_return_code = $anvil->System->start_daemon({debug => 2, daemon => "postgresql.service"});
+						   $restarted   = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:restarted'         => $restarted, 
+							's2:stop_return_code'  => $stop_return_code,
+							's3:start_return_code' => $start_return_code, 
+						}});
+					}
+					
+					$waiting = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					sleep 1;
+				}
+				else
+				{
+					# Timed out.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0120", variables => { uuid => $host_uuid }});
+				}
+			}
+			else
+			{
+				# Connected!
+			}
+		}
 	}
 	
 	# If I've been asked to have the peer add us, disconnect from the database, re-read the new config 

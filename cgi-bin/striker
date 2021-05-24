@@ -1312,7 +1312,7 @@ sub process_keys
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
 				job_data        => $job_data, 
 				job_name        => "manage::broken_keys", 
 				job_title       => "job_0056", 
@@ -1483,7 +1483,7 @@ WHERE
 			file            => $THIS_FILE, 
 			line            => __LINE__,
 			job_host_uuid   => "all", 
-			job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
 			job_data        => "file_uuid=".$file_uuid, 
 			job_name        => "storage::purge", 
 			job_title       => "job_0136", 
@@ -1525,7 +1525,7 @@ WHERE
 				file            => $THIS_FILE, 
 				line            => __LINE__,
 				job_host_uuid   => "all", 
-				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
 				job_data        => "file_uuid=".$file_uuid."\nold_name=".$file_name."\nnew_name=".$anvil->data->{cgi}{new_file_name}{value}, 
 				job_name        => "storage::rename", 
 				job_title       => "job_0138", 
@@ -1563,7 +1563,7 @@ WHERE
 				file            => $THIS_FILE, 
 				line            => __LINE__,
 				job_host_uuid   => "all", 
-				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
 				job_data        => "file_uuid=".$file_uuid, 
 				job_name        => "storage::check_mode", 
 				job_title       => "job_0143", 
@@ -1653,7 +1653,7 @@ WHERE
 							file            => $THIS_FILE, 
 							line            => __LINE__,
 							job_host_uuid   => $host_uuid, 
-							job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+							job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
 							job_data        => "file_uuid=".$file_uuid, 
 							job_name        => $job_type, 
 							job_title       => $job_title, 
@@ -2179,7 +2179,7 @@ sub run_manifest
 				file            => $THIS_FILE, 
 				line            => __LINE__,
 				job_host_uuid   => $node1_host_uuid, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
 				job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 				job_name        => "join_anvil::node1", 
 				job_title       => "job_0072", 
@@ -2193,7 +2193,7 @@ sub run_manifest
 				file            => $THIS_FILE, 
 				line            => __LINE__,
 				job_host_uuid   => $node2_host_uuid, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
 				job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 				job_name        => "join_anvil::node2", 
 				job_title       => "job_0072", 
@@ -2209,7 +2209,7 @@ sub run_manifest
 					file            => $THIS_FILE, 
 					line            => __LINE__,
 					job_host_uuid   => $dr1_host_uuid, 
-					job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
 					job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 					job_name        => "join_anvil::dr1", 
 					job_title       => "job_0072", 
@@ -5831,7 +5831,7 @@ sub process_prep_network
 				file            => $THIS_FILE, 
 				line            => __LINE__,
 				job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
 				job_data        => "form::config_step2", 
 				job_name        => "configure::network", 
 				job_title       => "job_0001", 
@@ -6083,7 +6083,7 @@ sub process_prep_host_page
 	if (($connect) && ($confirm))
 	{
 		# Save the job
-		my $job_command = $anvil->data->{path}{exe}{'striker-initialize-host'};
+		my $job_command = $anvil->data->{path}{exe}{'striker-initialize-host'}.$anvil->Log->switches;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			job_command => $job_command,
 			password    => $anvil->Log->is_secure($host_password),
@@ -6369,7 +6369,7 @@ sub process_install_target
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --".$anvil->data->{cgi}{subtask}{value}, 
+			job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --".$anvil->data->{cgi}{subtask}{value}.$anvil->Log->switches, 
 			job_data        => "", 
 			job_name        => "install-target::".$anvil->data->{cgi}{task}{value}, 
 			job_title       => "job_0015", 
@@ -6412,14 +6412,14 @@ sub process_power
 	if ($anvil->data->{cgi}{confirm}{value})
 	{
 		# Record the job!
-		my $job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y";
+		my $job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches;
 		my $job_title       = "job_0009";
 		my $job_description = "job_0006";
 		my $say_title       = "#!string!job_0005!#";
 		my $say_description = "#!string!job_0006!#";
 		if ($task eq "poweroff")
 		{
-			$job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --poweroff -y";
+			$job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --poweroff -y".$anvil->Log->switches;
 			$job_title       = "job_0010";
 			$job_description = "job_0008";
 			$say_title       = "#!string!job_0007!#";
@@ -6478,7 +6478,7 @@ sub process_update
 			debug           => 1,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-update-system'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-update-system'}.$anvil->Log->switches, 
 			job_data        => "", 
 			job_name        => "update::system", 
 			job_title       => "job_0003", 
@@ -6740,7 +6740,7 @@ sub delete_sync_peer
 			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'striker-manage-peers'}." --remove --host-uuid ".$uuid, 
+			job_command     => $anvil->data->{path}{exe}{'striker-manage-peers'}." --remove --host-uuid ".$uuid.$anvil->Log->switches, 
 			job_data        => "", 
 			job_name        => "striker-peer::remove", 
 			job_title       => "job_0013", 
@@ -6955,7 +6955,7 @@ sub add_sync_peer
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
 			# OK, save the job!
-			my $job_command = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_host_uuid." --host ".$host." --port ".$pgsql_port." --ping ".$ping;
+			my $job_command = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_host_uuid." --host ".$host." --port ".$pgsql_port." --ping ".$ping.$anvil->Log->switches;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				job_command => $job_command,
 				password    => $anvil->Log->is_secure($password),
@@ -6975,7 +6975,7 @@ sub add_sync_peer
 				# See which of our IPs match theirs. If the peer is a host name, first
 				my $host_uuid   =  $anvil->Get->host_uuid;
 				my $sql_port    =  $anvil->data->{database}{$host_uuid}{port};
-				my $job_command =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$use_ip." --port ".$sql_port." --ping ".$ping;
+				my $job_command =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$use_ip." --port ".$sql_port." --ping ".$ping.$anvil->Log->switches;
 				   $job_data    .= "\npeer_job_command=".$job_command;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					job_command => $job_command,
@@ -7096,7 +7096,7 @@ sub configure_striker
 			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
 			job_data        => "form::config_step2", 
 			job_name        => "configure::network", 
 			job_title       => "job_0001", 
@@ -8463,7 +8463,7 @@ sub get_network_details
 	
 	### TODO: Daemonize this or solve selinux issues
 	### Refresh the network.xml
-	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}});
+	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}.$anvil->Log->switches});
 	
 	# Now read the network.xml
 	my $file = $anvil->data->{path}{directories}{html}."/status/network.xml";

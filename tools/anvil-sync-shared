@@ -706,7 +706,7 @@ sub process_incoming_file
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
 				job_data        => "file_uuid=".$file_uuid, 
 				job_name        => "storage::pull_file", 
 				job_title       => "job_0132", 

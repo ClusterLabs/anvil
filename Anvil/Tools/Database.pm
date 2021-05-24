@@ -1383,6 +1383,7 @@ sub connect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			db_connect_string => $db_connect_string, 
 			user              => $user, 
+			password          => $anvil->Log->is_secure($password),
 		}});
 		local $@;
 		my $test = eval { $dbh = DBI->connect($db_connect_string, $user, $password, {
@@ -1390,6 +1391,10 @@ sub connect
 			AutoCommit     => 1,
 			pg_enable_utf8 => 1
 		}); };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:test' => $test,
+			's2:$@'   => $@,
+		}});
 		if (not $test)
 		{
 			# Something went wrong...
@@ -1793,6 +1798,7 @@ sub disconnect
 		
 		$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
 		delete $anvil->data->{cache}{database_handle}{$uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	}
 	
 	# Delete the stored DB-related values.
@@ -14706,8 +14712,8 @@ sub resync_databases
 		
 		# If the 'schema' is 'public', there is no table in the history schema. If there is a host 
 		# column, the resync will be restricted to entries from this host uuid.
-		my $schema      = $anvil->data->{sys}{database}{table}{$table}{schema} ? $anvil->data->{sys}{database}{table}{$table}{schema} : "public";
-		my $host_column = $anvil->data->{sys}{database}{table}{$table}{host_column};
+		my $schema      = $anvil->data->{sys}{database}{table}{$table}{schema}      ? $anvil->data->{sys}{database}{table}{$table}{schema}      : "public";
+		my $host_column = $anvil->data->{sys}{database}{table}{$table}{host_column} ? $anvil->data->{sys}{database}{table}{$table}{host_column} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			table       => $table, 
 			schema      => $schema, 
@@ -16110,24 +16116,23 @@ ORDER BY
 					"s3:sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 				}});
 				
-				# To avoid resyncs triggered by the differences that might occur if the row 
-				# count changed slightly between counting both/all DBs, we won't resync 
-				# until there's at least 10 rows different. The exception is the hosts file,
-				# as it needs to resync on a single line difference when adding peer Striker
-				# dashboards.
-				if (($table eq "hosts") or ($difference > 10))
+				if ((($table eq "jobs") or ($table eq "variables")) && ($difference < 10))
 				{
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
-						missing => $difference, 
-						table   => $table, 
-						uuid    => $uuid,
-						host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
-					}});
-					
-					# Mark it as behind.
-					$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
-					last;
+					# These often fall out of sync and trigger resyncs when in fact it 
+					# was just a change that happened between counting columns. 
+					next;
 				}
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
+					missing => $difference, 
+					table   => $table, 
+					uuid    => $uuid,
+					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+				}});
+				
+				# Mark it as behind.
+				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+				last;
 			}
 		}
 		last if $anvil->data->{sys}{database}{resync_needed};

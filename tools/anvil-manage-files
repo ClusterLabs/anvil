@@ -458,7 +458,7 @@ AND
 				my $remote_size                    = 0;
 				my $remote_md5sum                  = "";
 				my ($output, $error, $return_code) = $anvil->Remote->call({
-					shell_call  => $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path." --with-md5sum", 
+					shell_call  => $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path." --with-md5sum".$anvil->Log->switches, 
 					remote_user => $remote_user, 
 					password    => $password,
 					target      => $ip, 

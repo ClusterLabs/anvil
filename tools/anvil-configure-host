@@ -139,7 +139,7 @@ sub update_passwords
 		}
 		else
 		{
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file });
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches });
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output, return_code => $return_code }});
 			foreach my $line (split/\n/, $output)
 			{

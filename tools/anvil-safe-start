@@ -189,7 +189,7 @@ sub boot_servers
 	
 	# Call 'anvil-boot-server --server all' to boot the servers now.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0614"});
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-boot-server'}." --server all";
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-boot-server'}." --server all".$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
