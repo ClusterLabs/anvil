@@ -82,7 +82,7 @@ selinux --permissive
 
 %packages
 @^minimal-environment
-#alteeve-el8-repo
+#alteeve-release
 #createrepo
 #dhcp-server
 #firefox

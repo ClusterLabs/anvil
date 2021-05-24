@@ -939,36 +939,22 @@ sub check_alteeve_repo
 {
 	my ($anvil) = @_;
 	
-	my $repo_url  = "";
-	my $repo_file = "";
-	### NOTE: This adds 'b' for the beta repo
-	if (1)
-	{
-		### TODO: Remove this and the check when the signed el8 repo is ready
-		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}.".repo";
-		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."b/alteeve-el".$anvil->data->{host_os}{version}."b-repo-latest.noarch.rpm";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			repo_file => $repo_file,
-			repo_url  => $repo_url, 
-		}});
-	}
-	else
-	{
-		### TODO: Update this when rhel8 is out
-		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}."b.repo";
-		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."/alteeve-el".$anvil->data->{host_os}{version}."-repo-latest.noarch.rpm";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			repo_file => $repo_file,
-			repo_url  => $repo_url, 
-		}});
-	}
+	my $repo_file = "/etc/yum.repos.d/alteeve-anvil.repo";
+	my $repo_url  = "https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		repo_file => $repo_file,
+		repo_url  => $repo_url, 
+	}});
 	
 	# If the repo file doesn't exist, try to install it.
 	if (not -e $repo_file)
 	{
 		# Install the repo
-		my ($handle, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{rpm}." -Uvh ".$repo_url });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle, return_code => $return_code }});
+		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." -y install ".$repo_url });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
 	}
 	
 	# If it still doesn't exist, we're done.
@@ -1489,7 +1475,7 @@ sub load_packages
 			"adwaita-gtk2-theme.x86_64",
 			"adwaita-icon-theme.noarch",
 			"alsa-lib.x86_64",
-			"alteeve-el8-repo.noarch", 
+			"alteeve-release.noarch", 
 			"annobin.x86_64",
 			"anvil-core.noarch",
 			"anvil-dr.noarch",

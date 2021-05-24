@@ -16116,13 +16116,6 @@ ORDER BY
 					"s3:sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 				}});
 				
-				if ((($table eq "jobs") or ($table eq "variables")) && ($difference < 10))
-				{
-					# These often fall out of sync and trigger resyncs when in fact it 
-					# was just a change that happened between counting columns. 
-					next;
-				}
-				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
 					missing => $difference, 
 					table   => $table, 
