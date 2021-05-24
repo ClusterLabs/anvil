@@ -326,6 +326,7 @@ sub configure_machine_networks
 				}
 				
 				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					debug           => 2,
 					job_host_uuid   => $machine_host_uuid, 
 					job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
 					job_data        => "form::config_step2", 
@@ -334,7 +335,6 @@ sub configure_machine_networks
 					job_description => "job_0071", 
 					job_progress    => 0,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0266", variables => {
 					host_name => $host_name,
 					job_uuid  => $job_uuid, 

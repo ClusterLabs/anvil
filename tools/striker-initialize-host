@@ -59,6 +59,7 @@ set_host_name($anvil);
 add_repos($anvil);
 configure_lvm($anvil);
 add_databases($anvil);
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0047"});
 update_progress($anvil, 100, "job_0047");
 
 $anvil->nice_exit({exit_code => 0});
@@ -371,8 +372,30 @@ sub add_repos
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0028");
 	
 	# Add the local repo.
-	my $repo = $anvil->Striker->get_local_repo({debug => 3});
+	my $repo = $anvil->Striker->get_local_repo({debug => 2});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { repo => $repo }});
+	
+	# If this striker is an enterprise user, get the key for when we initialize targets.
+	my $enterprise_key = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"path::configs::alteeve-release.repo" => $anvil->data->{path}{configs}{'alteeve-release.repo'},
+	}});
+	if (-e $anvil->data->{path}{configs}{'alteeve-release.repo'})
+	{
+		# Read the file
+		my $alteeve_repo = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'alteeve-release.repo'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alteeve_repo => $alteeve_repo }});
+		foreach my $line (split/\n/, $alteeve_repo)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /baseurl=.*?\/enterprise\/.*?\/(.*?)\//)
+			{
+				$enterprise_key = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { enterprise_key => $enterprise_key }});
+				last;
+			}
+		}
+	}
 	
 	if ($repo)
 	{
@@ -612,7 +635,6 @@ EOF
 	
 	# If this is a CentOS Stream OS, enable the HA repo.
 	my ($os_type, $os_arch) = $anvil->Get->os_type({
-		debug    => 2,
 		password => $anvil->data->{data}{password}, 
 		port     => $anvil->data->{data}{ssh_port}, 
 		target   => $anvil->data->{data}{host_ip_address},
@@ -728,7 +750,7 @@ EOF
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		
 		next if $line =~ /anvil-core/;
-		if ($line =~ /alteeve.*repo.noarch/)
+		if ($line =~ /alteeve-release.noarch/)
 		{
 			$alteeve_repo = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alteeve_repo => $alteeve_repo }});
@@ -774,6 +796,27 @@ EOF
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				($output, $error, $return_code) = $anvil->Remote->call({
 					debug       => 3,
+					shell_call  => $shell_call,
+					password    => $anvil->data->{data}{password}, 
+					port        => $anvil->data->{data}{ssh_port}, 
+					target      => $anvil->data->{data}{host_ip_address},
+					remote_user => "root", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					error       => $error, 
+					return_code => $return_code,
+				}});
+				
+				# If successful, we now need to configure the repo.
+				$shell_call = $anvil->data->{path}{exe}{'alteeve-repo-setup'}." --yes";
+				if ($enterprise_key)
+				{
+					$shell_call = $anvil->data->{path}{exe}{'alteeve-repo-setup'}." --key ".$enterprise_key." --yes";
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				($output, $error, $return_code) = $anvil->Remote->call({
+					debug       => 2,
 					shell_call  => $shell_call,
 					password    => $anvil->data->{data}{password}, 
 					port        => $anvil->data->{data}{ssh_port}, 

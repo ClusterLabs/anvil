@@ -1017,7 +1017,7 @@ sub _set_paths
 	# Executables
 	$anvil->data->{path} = {
 			configs			=>	{
-				'alteeve-el8.repo'		=>	"/etc/yum.repos.d/alteeve-el8.repo",
+				'alteeve-release.repo'		=>	"/etc/yum.repos.d/alteeve-release.repo",
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
@@ -1090,7 +1090,7 @@ sub _set_paths
 				units				=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
-				ocf_alteeve			=>	"/usr/lib/ocf/resource.d/alteeve/server",
+				'alteeve-repo-setup'		=>	"/usr/sbin/alteeve-repo-setup",
 				'anvil-boot-server'		=>	"/usr/sbin/anvil-boot-server",
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
 				'anvil-check-memory'		=>	"/usr/sbin/anvil-check-memory",
@@ -1179,6 +1179,7 @@ sub _set_paths
 				mv				=>	"/usr/bin/mv",
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",
+				ocf_alteeve			=>	"/usr/lib/ocf/resource.d/alteeve/server",
 				openssl				=>	"/usr/bin/openssl", 
 				'osinfo-query'			=>	"/usr/bin/osinfo-query",
 				passwd				=>	"/usr/bin/passwd",
