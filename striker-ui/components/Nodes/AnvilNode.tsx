@@ -6,6 +6,8 @@ import { BodyText } from '../Text';
 import nodeState from '../../lib/consts/NODES';
 import Decorator, { Colours } from '../Decorator';
 
+import putJSON from '../../lib/fetchers/putJSON';
+
 const useStyles = makeStyles((theme) => ({
   root: {
     overflow: 'auto',
@@ -84,13 +86,30 @@ const AnvilNode = ({
                     <BodyText text="Power: " />
                   </Box>
                   <Box flexGrow={1}>
-                    <Switch checked={node.state === 'ready'} />
+                    <Switch
+                      checked={node.state === 'ready'}
+                      onChange={() =>
+                        putJSON('/anvils/set_power', {
+                          host_uuid: node.node_uuid,
+                          is_on: !(node.state === 'ready'),
+                        })
+                      }
+                    />
                   </Box>
                   <Box className={classes.label}>
                     <BodyText text="Member: " />
                   </Box>
                   <Box>
-                    <Switch checked disabled={!node.removable} />
+                    <Switch
+                      checked={node.state === 'ready'}
+                      disabled={!node.removable}
+                      onChange={() =>
+                        putJSON('/anvils/set_membership', {
+                          host_uuid: node.node_uuid,
+                          is_member: !(node.state === 'ready'),
+                        })
+                      }
+                    />
                   </Box>
                 </Box>
                 {node.state !== 'ready' && (
