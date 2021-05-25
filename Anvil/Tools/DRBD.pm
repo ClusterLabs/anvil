@@ -2769,36 +2769,6 @@ sub update_global_common
 				}
 			}
 			
-			if ($line =~ /(\s*)timeout(\s+)(.*?)(;.*)$/)
-			{
-				my $left_space   = $1;
-				my $middle_space = $2;
-				my $value        = $3;
-				my $right_side   = $4;
-				   $timeout_seen = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					's1:left_space'   => $left_space,
-					's2:middle_space' => $middle_space, 
-					's3:value'        => $value, 
-					's4:right_side'   => $right_side,
-					's5:timeout_seen' => $timeout_seen, 
-				}});
-				
-				if ($value ne $say_timeout)
-				{
-					   $update   = 1;
-					my $new_line = $left_space."timeout".$middle_space.$say_timeout.$right_side;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						's1:update'   => $update,
-						's2:new_line' => $new_line, 
-					}});
-					
-					$new_global_common .= $new_line.$comment."\n";
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
-					next;
-				}
-			}
-			
 			if ($line =~ /(\s*)ping-timeout(\s+)(.*?)(;.*)$/)
 			{
 				my $left_space        = $1;
@@ -2818,6 +2788,36 @@ sub update_global_common
 				{
 					   $update   = 1;
 					my $new_line = $left_space."ping-timeout".$middle_space.$say_ping_timeout.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
+				}
+			}
+			# For some reason, this matches 'ping-timeout' hence the 'else'.
+			elsif ($line =~ /(\s*)timeout(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space   = $1;
+				my $middle_space = $2;
+				my $value        = $3;
+				my $right_side   = $4;
+				   $timeout_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'   => $left_space,
+					's2:middle_space' => $middle_space, 
+					's3:value'        => $value, 
+					's4:right_side'   => $right_side,
+					's5:timeout_seen' => $timeout_seen, 
+				}});
+				
+				if ($value ne $say_timeout)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."timeout".$middle_space.$say_timeout.$right_side;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						's1:update'   => $update,
 						's2:new_line' => $new_line, 
