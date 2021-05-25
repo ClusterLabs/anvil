@@ -4,6 +4,7 @@ import { InnerPanel, PanelHeader } from '../Panels';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
+import NODE_STATUS from '../../lib/consts/NODES';
 
 import putJSON from '../../lib/fetchers/putJSON';
 
@@ -38,6 +39,15 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const selectStateMessage = (regex: RegExp, message: string): string => {
+  const msg = regex.exec(message);
+
+  if (msg) {
+    return NODE_STATUS.get(msg[0]) || 'Error code not recognized';
+  }
+  return 'Error code not found';
+};
+
 const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'ready':
@@ -58,7 +68,8 @@ const AnvilNode = ({
   nodes: Array<AnvilStatusNode & AnvilListItemNode>;
 }): JSX.Element => {
   const classes = useStyles();
-  const regex = /(^|| )+[a-zA-Z0-9]/;
+  const stateRegex = /^[a-zA-Z]/;
+  const messageRegex = /^(message_[0-9]+)/;
 
   return (
     <Box className={classes.root}>
@@ -78,8 +89,9 @@ const AnvilNode = ({
                     <Box>
                       <BodyText
                         text={
-                          node?.state?.replace(regex, (c) => c.toUpperCase()) ||
-                          'Not Available'
+                          node?.state?.replace(stateRegex, (c) =>
+                            c.toUpperCase(),
+                          ) || 'Not Available'
                         }
                       />
                     </Box>
@@ -119,11 +131,13 @@ const AnvilNode = ({
                 {node.state !== 'ready' && (
                   <>
                     <Box display="flex" width="100%" className={classes.state}>
-                      <Box flexGrow={1}>
-                        <BodyText text={`State: ${node.state}`} />
-                      </Box>
                       <Box>
-                        <BodyText text={node.state_message} />
+                        <BodyText
+                          text={selectStateMessage(
+                            messageRegex,
+                            node.state_message,
+                          )}
+                        />
                       </Box>
                     </Box>
                     <Box display="flex" width="100%" className={classes.bar}>
