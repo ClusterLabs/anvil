@@ -46,11 +46,11 @@ foreach my $anvil_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}})
 	my $anvil_description     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	my $anvil_node1_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{host_name};
+	my $anvil_node1_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name};
 	my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $anvil_node2_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{host_name};
+	my $anvil_node2_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{short_host_name};
 	my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $anvil_dr1_host_name   = $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{host_name};
+	my $anvil_dr1_host_name   = $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{short_host_name};
 
 	push @{$json_hash->{anvils}}, {
 		anvil_name => $anvil_name,
