@@ -79,16 +79,60 @@ sub get_host_networks
 	};
 
 	my $build_bond_link_hash = sub {
-		my $parameters = shift;
-		my $bond_data  = $parameters->{bond_data};
-		my $link_name  = $parameters->{link_name};
-		my $link_data  = $parameters->{link_data};
+		my $parameters  = shift;
+		my $bond_data   = $parameters->{bond_data};
+		my $link_name   = $parameters->{link_name};
+		my $link_data   = $parameters->{link_data};
+		my $known_links = $parameters->{known_links};
+
+		my $link_speed = $link_data->{speed};
+		my $link_state = $link_data->{operational} eq "up" ? "optimal" : "down";
+
+		my $degrade_link_state = sub {
+			my $current_link_state = shift;
+
+			return $current_link_state eq "optimal" ? "degraded" : $current_link_state;
+		};
+
+		# When at lease 1 link has already been processed, check this link against them.
+		if ($known_links)
+		{
+			my $known_links_index   = 0;
+			my $known_links_length  = scalar(@$known_links);
+
+			foreach (@$known_links)
+			{
+				# Degrade the link with lower speed.
+				if ($_->{link_speed} < $link_speed)
+				{
+					$_->{link_state} = &$degrade_link_state($_->{link_state});
+				}
+				elsif ($_->{link_state} > $link_speed)
+				{
+					$link_state = &$degrade_link_state($link_state);
+				}
+
+				$anvil->Log->variables({
+					source => $THIS_FILE,
+					line   => __LINE__,
+					level  => 2,
+					list   => {
+						known_link_name  => $_->{link_name},
+						known_link_speed => $_->{link_speed},
+						known_link_state => $_->{link_state},
+						link_speed       => $link_speed,
+						link_name        => $link_name,
+						link_state       => $link_state
+					}
+				});
+			}
+		}
 
 		return {
 			link_name  => $link_name,
 			link_uuid  => $link_data->{uuid},
-			link_speed => $link_data->{speed},
-			link_state => "",
+			link_speed => $link_speed,
+			link_state => $link_state,
 			is_active  => $link_name eq $bond_data->{active_interface} ? \1 : \0
 		};
 	};
@@ -98,16 +142,6 @@ sub get_host_networks
 		my $interface = $interfaces->{$interface_name};
 		# Only a bond's link will have the bond_uuid entry.
 		my $bond_uuid = $interface->{bond_uuid};
-
-		$anvil->Log->variables({
-			source => $THIS_FILE,
-			line   => __LINE__,
-			level  => 2,
-			list   => {
-				interface_name => $interface_name,
-				bond_uuid      => $bond_uuid
-			}
-		});
 
 		if ($bond_uuid)
 		{
@@ -128,20 +162,11 @@ sub get_host_networks
 			{
 				my $bond = @{$host_networks->{bonds}}[$bond_index];
 
-				$anvil->Log->variables({
-					source => $THIS_FILE,
-					line   => __LINE__,
-					level  => 2,
-					list   => {
-						message => "INDEX DEFINED",
-						bond  => Dumper($bond)
-					}
-				});
-
 				push(@{$bond->{links}}, &$build_bond_link_hash({
-					bond_data => $interfaces->{$bond_name},
-					link_name => $interface_name,
-					link_data => $interface
+					bond_data   => $interfaces->{$bond_name},
+					link_name   => $interface_name,
+					link_data   => $interface,
+					known_links => $bond->{links}
 				}));
 			}
 			else
@@ -151,17 +176,6 @@ sub get_host_networks
 					bond_data => $interfaces->{$bond_name},
 					link_name => $interface_name,
 					link_data => $interface
-				});
-
-				$anvil->Log->variables({
-					source => $THIS_FILE,
-					line   => __LINE__,
-					level  => 2,
-					list   => {
-						message => "INDEX UNDEFINED",
-						bond    => Dumper($bond),
-						'link'  => Dumper($link)
-					}
 				});
 
 				push(@{$bond->{links}}, $link);
