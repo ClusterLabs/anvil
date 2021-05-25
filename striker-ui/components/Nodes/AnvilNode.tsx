@@ -3,7 +3,6 @@ import { makeStyles } from '@material-ui/core/styles';
 import { InnerPanel, PanelHeader } from '../Panels';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
-import nodeState from '../../lib/consts/NODES';
 import Decorator, { Colours } from '../Decorator';
 
 import putJSON from '../../lib/fetchers/putJSON';
@@ -59,6 +58,8 @@ const AnvilNode = ({
   nodes: Array<AnvilStatusNode & AnvilListItemNode>;
 }): JSX.Element => {
   const classes = useStyles();
+  const regex = /(^|| )+[a-zA-Z0-9]/;
+
   return (
     <Box className={classes.root}>
       {nodes &&
@@ -76,7 +77,10 @@ const AnvilNode = ({
                     </Box>
                     <Box>
                       <BodyText
-                        text={nodeState.get(node.state) || 'Not Available'}
+                        text={
+                          node?.state?.replace(regex, (c) => c.toUpperCase()) ||
+                          'Not Available'
+                        }
                       />
                     </Box>
                   </Box>
