@@ -137,7 +137,7 @@ ORDER BY
 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mount_point => $mount_point }});
 		   $file_system->{mount_point} = $mount_point;
-		   $file_system->{nodes}       = [];
+		   $file_system->{hosts}       = [];
 		my $nodes               = [$node1_uuid, $node2_uuid];
 		if ($dr1_uuid)
 		{
@@ -152,7 +152,7 @@ ORDER BY
 			}});
 			if (exists $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid})
 			{
-				push @{$file_system->{nodes}}, {
+				push @{$file_system->{hosts}}, {
 					host_uuid  => $host_uuid, 
 					host_name  => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name},
 					# \1 will be transformed to the JSON boolean "true" by the JSON module.
@@ -164,7 +164,7 @@ ORDER BY
 			}
 			else
 			{
-				push @{$file_system->{nodes}}, {
+				push @{$file_system->{hosts}}, {
 					host_uuid  => $host_uuid, 
 					host_name  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name},
 					# \0 will be transformed to the JSON boolean "false" by the JSON module.
