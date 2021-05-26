@@ -224,7 +224,7 @@ if ($anvil_uuid)
 	{
 		my $anvil_networks = get_anvil_networks({ anvil_uuid => $anvil_uuid });
 
-		$response_body->{nodes} = $anvil_networks;
+		$response_body->{hosts} = $anvil_networks;
 	}
 	else
 	{
