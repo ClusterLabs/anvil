@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useContext } from 'react';
 import { Switch, Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { HeaderText } from '../Text';
@@ -6,6 +6,7 @@ import { SELECTED_ANVIL } from '../../lib/consts/DEFAULT_THEME';
 import anvilState from '../../lib/consts/ANVILS';
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
+import putJSON from '../../lib/fetchers/putJSON';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -32,10 +33,15 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
+const isAnvilOn = (anvil: AnvilListItem): boolean =>
+  !(
+    anvil.nodes.findIndex(({ state }: AnvilStatusNode) => state !== 'off') ===
+    -1
+  );
+
 const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
-  const [checked, setChecked] = useState<boolean>(true);
 
   const index = list.findIndex(
     (anvil: AnvilListItem) => anvil.anvil_uuid === uuid,
@@ -57,7 +63,15 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
             />
           </Box>
           <Box p={1}>
-            <Switch checked={checked} onChange={() => setChecked(!checked)} />
+            <Switch
+              checked={isAnvilOn(list[index])}
+              onChange={() =>
+                putJSON('/anvils/set_power', {
+                  anvil_uuid: list[index].anvil_uuid,
+                  is_on: !isAnvilOn(list[index]),
+                })
+              }
+            />
           </Box>
         </>
       )}
