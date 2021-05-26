@@ -70,7 +70,7 @@ else
 	
 	$hash->{total}     = 0;
 	$hash->{allocated} = 0;
-	$hash->{nodes}     = [];
+	$hash->{hosts}     = [];
 	
 	my @hosts = ($node1_uuid, $node2_uuid);
 	if ($dr1_uuid)
@@ -131,7 +131,7 @@ AND
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->total' => $hash->{total} }});
 			}
 			
-			push @{$hash->{nodes}}, {
+			push @{$hash->{hosts}}, {
 				host_uuid  => $host_uuid, 
 				total      => int($scan_hardware_ram_total),
 				free       => int($scan_hardware_memory_free),
