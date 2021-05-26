@@ -14,7 +14,7 @@ const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
     );
     anvils.push({
       ...anvil,
-      anvil_state: data?.anvil_state,
+      ...data,
     });
   });
   return (

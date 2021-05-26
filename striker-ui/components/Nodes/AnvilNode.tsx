@@ -65,7 +65,7 @@ const selectDecorator = (state: string): Colours => {
 const AnvilNode = ({
   nodes,
 }: {
-  nodes: Array<AnvilStatusNode & AnvilListItemNode>;
+  nodes: Array<AnvilStatusNode>;
 }): JSX.Element => {
   const classes = useStyles();
   const stateRegex = /^[a-zA-Z]/;
@@ -77,11 +77,11 @@ const AnvilNode = ({
         nodes.map(
           (node): JSX.Element => {
             return (
-              <InnerPanel key={node.node_uuid}>
+              <InnerPanel key={node.host_uuid}>
                 <PanelHeader>
                   <Box display="flex" width="100%" className={classes.header}>
                     <Box flexGrow={1}>
-                      <BodyText text={node.node_name} />
+                      <BodyText text={node.host_name} />
                     </Box>
                     <Box className={classes.decoratorBox}>
                       <Decorator colour={selectDecorator(node.state)} />
@@ -106,7 +106,7 @@ const AnvilNode = ({
                       checked={node.state === 'ready'}
                       onChange={() =>
                         putJSON('/anvils/set_power', {
-                          host_uuid: node.node_uuid,
+                          host_uuid: node.host_uuid,
                           is_on: !(node.state === 'ready'),
                         })
                       }
@@ -121,7 +121,7 @@ const AnvilNode = ({
                       disabled={!node.removable}
                       onChange={() =>
                         putJSON('/anvils/set_membership', {
-                          host_uuid: node.node_uuid,
+                          host_uuid: node.host_uuid,
                           is_member: !(node.state === 'ready'),
                         })
                       }

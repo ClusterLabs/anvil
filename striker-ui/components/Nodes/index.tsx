@@ -15,11 +15,11 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   return (
     <Panel>
       <HeaderText text="Nodes" />
-      {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && (
+      {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && data && (
         <AnvilNode
           nodes={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].nodes.map(
             (node, index) => {
-              return { ...node, ...data?.nodes[index] };
+              return data.nodes[index];
             },
           )}
         />
