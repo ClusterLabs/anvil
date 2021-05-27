@@ -37,6 +37,8 @@ const selectDecorator = (state: string): Colours => {
       return 'ok';
     case 'degraded':
       return 'warning';
+    case 'down':
+      return 'error';
     default:
       return 'warning';
   }

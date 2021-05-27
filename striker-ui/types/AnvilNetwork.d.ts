@@ -2,7 +2,7 @@ declare type AnvilNetworkBondLink = {
   link_name: string;
   link_uuid: string;
   link_speed: number;
-  link_state: 'optimal' | 'degraded';
+  link_state: 'optimal' | 'degraded' | 'down';
   is_active: boolean;
 };
 
@@ -26,7 +26,7 @@ declare type ProcessedBond = {
   bond_name: string;
   bond_uuid: string;
   bond_speed: number;
-  bond_state: 'optimal' | 'degraded';
+  bond_state: 'optimal' | 'degraded' | 'down';
   hosts: Array<{
     host_name: string;
     host_uuid: string;
@@ -34,7 +34,7 @@ declare type ProcessedBond = {
       link_name: string;
       link_uuid: string;
       link_speed: number;
-      link_state: 'optimal' | 'degraded';
+      link_state: 'optimal' | 'degraded' | 'down';
       is_active: boolean;
     };
   }>;
