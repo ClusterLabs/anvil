@@ -1,0 +1,673 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Term::ANSIColor;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+=cut colours (from the Term::ANSIColor source)
+%ATTRIBUTES = ('clear'      => 0,
+               'reset'      => 0,
+               'bold'       => 1,
+               'dark'       => 2,
+               'faint'      => 2,
+               'underline'  => 4,
+               'underscore' => 4,
+               'blink'      => 5,
+               'reverse'    => 7,
+               'concealed'  => 8,
+
+               'black'      => 30,   'on_black'   => 40,
+               'red'        => 31,   'on_red'     => 41,
+               'green'      => 32,   'on_green'   => 42,
+               'yellow'     => 33,   'on_yellow'  => 43,
+               'blue'       => 34,   'on_blue'    => 44,
+               'magenta'    => 35,   'on_magenta' => 45,
+               'cyan'       => 36,   'on_cyan'    => 46,
+               'white'      => 37,   'on_white'   => 47);
+=cut 
+
+$anvil->data->{colours} = {
+	anvil		=>	{
+		name		=>	"bold cyan",
+		hostnames	=>	"bold blue",
+		node_offline	=>	"bold white",
+		node_hung	=>	"bold red",
+		node_starting	=>	"yellow",
+		short_hostnames	=>	"bold blue",
+		servers		=>	{
+			name		=>	"bold blue",
+			node1_host	=>	"bold green",		# The idea is to have a quick visual queue to tell when all servers are on the same node
+			node2_host	=>	"bold cyan",
+		},
+	},
+	bond	=>	{
+		active_iface	=>	
+		{
+			is_primary	=>	"bold green", 
+			is_other	=>	"yellow",
+		},
+		bond_name	=>	"bold cyan",
+		duplex		=>	{
+			down		=>	"faint white",
+			full		=>	"bold green", 
+			half		=>	"yellow",
+			unknown_entry	=>	"bold magenta",
+		},
+		failure_count	=>	"bold white",
+		interface	=>	"cyan",
+		irrelevant	=>	"faint white",
+		mac_address	=>	"bold cyan",
+		mode		=>	"bold cyan",
+		speed		=>	{
+			'10'		=>	"red", 
+			'100'		=>	"yellow",
+			'1000'		=>	"bold green", 
+			'10000'		=>	"bold cyan", 	# Anything over 10 Gbps will get this
+			down		=>	"faint white",
+			unknown_entry	=>	"bold magenta",
+		},
+		'state'		=>	{
+			up		=>	"bold green",
+			down		=>	"yellow", 
+			going_back	=>	"bold magenta", 
+			unknown_entry	=>	"magenta",
+		},
+		updelay		=>	{
+			good		=>	"bold green",
+			unknown_entry	=>	"bold magenta",
+		},
+	},
+	drbd		=>	{
+		connection_state =>	{
+			StandAlone	=>	"bold cyan",
+			Disconnecting	=>	"yellow", 
+			Unconnected	=>	"yellow",
+			Timeout		=>	"bold red",
+			BrokenPipe	=>	"bold red",
+			NetworkFailure	=>	"bold red",
+			ProtocolError	=>	"bold red",
+			TearDown	=>	"yellow",
+			WFConnection	=>	"bold blue",
+			WFReportParams	=>	"bold blue",
+			Connected	=>	"bold green",
+			StartingSyncS	=>	"bold green",
+			StartingSyncT	=>	"yellow",
+			WFBitMapS	=>	"bold green",
+			WFBitMapT	=>	"yellow",
+			WFSyncUUID	=>	"bold cyan",
+			SyncSource	=>	"bold green",
+			SyncTarget	=>	"yellow",
+			PausedSyncS	=>	"bold green",
+			PausedSyncT	=>	"yellow",
+			VerifyS		=>	"bold green",
+			VerifyT		=>	"yellow",
+			unknown_entry	=>	"bold magenta",
+		},
+		disk_state	=>	{
+			Diskless	=>	"bold red",
+			Attaching	=>	"yellow",
+			Failed		=>	"bold red",
+			Negotiating	=>	"yellow",
+			Inconsistent	=>	"yellow",
+			Outdated	=>	"yellow",
+			DUnknown	=>	"yellow",
+			Consistent	=>	"bold cyan",
+			UpToDate	=>	"bold green",
+			unknown_entry	=>	"bold magenta",
+		},
+		module		=>	{
+			loaded		=>	"bold white",
+			unloaded	=>	"faint white",
+		},
+		resource	=>	{
+			name		=>	"bold blue", 
+			online		=>	"bold green",
+			offline		=>	"faint white",
+		},
+		role		=>	{
+			Primary		=>	"bold green",
+			Secondary	=>	"yellow",
+			Unknown		=>	"faint white",
+			unknown_entry	=>	"bold magenta",
+		},
+		starting	=>	"yellow",	# or stopping
+		to_resync	=>	{
+			nothing		=>	"faint white", 
+			something	=>	"yellow", 
+			eta		=>	"yellow",
+			percent		=>	"yellow",
+		},
+		timeout		=>	"bold white",
+		version		=>	"bold white",
+	},
+	# https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/High_Availability_Add-On_Overview/s2-rgmanager-opstates-states.html
+	services	=>	{
+		online		=>	"bold green",
+		offline		=>	"faint white",	# stopped or disabled
+		starting	=>	"yellow",	# or stopping, recovering
+		failed		=>	"bold red",
+		unknown_entry	=>	"bold magenta",
+	},
+};
+
+# $anvil->Database->connect({debug => 3});
+# $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+# if (not $anvil->data->{sys}{database}{connections})
+# {
+# 	# No databases, exit.
+# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
+# 	$anvil->nice_exit({exit_code => 1});
+# }
+$anvil->Get->switches();
+
+while(1)
+{
+	my $name_length     = 8;
+	my $mode_length     = 0;
+	my $speed_length    = 0;
+	my $fail_length     = 0;
+	my $status_length   = 4;
+	my $duplex_length   = 4;
+	my $failures_length = 1;
+	my $mac_length      = 17;
+	my $directory       = $anvil->data->{path}{directories}{bonds};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $full_path = $directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file      => $file,
+			full_path => $full_path,
+		}});
+		
+		# Get the MAC address of the interface.
+		my $in_slave    = "";
+		my $bond_name   = $file;
+		my $bond_mac    = "--";
+		my $bond_colour = $anvil->data->{colours}{bond}{irrelevant};
+		my $shell_call  = $anvil->data->{path}{exe}{ip}." addr list ".$bond_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if (not $return_code)
+		{
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				if ($line =~ /link\/ether (.*?) /)
+				{
+					$bond_mac    = $1;
+					$bond_colour = $anvil->data->{colours}{bond}{mac_address};
+				}
+			}
+		}
+		$anvil->data->{bond}{$bond_name}{mac_address}        = $bond_mac;
+		$anvil->data->{bond}{$bond_name}{mac_address_colour} = $bond_colour;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"bond::${bond_name}::mac_address"        => $anvil->data->{bond}{$bond_name}{mac_address},
+			"bond::${bond_name}::mac_address_colour" => $anvil->data->{bond}{$bond_name}{mac_address_colour}, 
+		}});
+		
+		my $bond_body = $anvil->Storage->read_file({file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bond_name => $bond_name,
+			bond_body => $bond_body,
+		}});
+		
+		if (length($bond_name) > $name_length)
+		{
+			$name_length = length($bond_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name_length => $name_length }});
+		}
+		
+		foreach my $line (split/\n/, $bond_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			
+			if ($in_slave)
+			{
+				if (not $line)
+				{
+					$in_slave = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_slave => $in_slave }});
+					next;
+				}
+				if ($line =~ /MII Status: (.*)$/i)
+				{
+					my $status = $1;
+					my $colour = $anvil->data->{colours}{bond}{'state'}{unknown_entry};
+					if (lc($status) eq "up")
+					{
+						$status = $anvil->Words->string({key => "unit_0013"});
+						$colour = $anvil->data->{colours}{bond}{'state'}{up};
+					}
+					elsif (lc($status) eq "down")
+					{
+						$status = $anvil->Words->string({key => "unit_0014"});
+						$colour = $anvil->data->{colours}{bond}{'state'}{down};
+					}
+					elsif (lc($status) eq "going back")
+					{
+						$status = $anvil->Words->string({key => "unit_0040"});
+						$colour = $anvil->data->{colours}{bond}{'state'}{going_back};
+					}
+					
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status}     = $status;
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status_raw} = $1;
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{status_colour}  = $colour;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::slave::${in_slave}::mii_status"     => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status},
+						"bond::${bond_name}::slave::${in_slave}::mii_status_raw" => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status_raw},
+						"bond::${bond_name}::slave::${in_slave}::status_colour"  => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{status_colour},
+					}});
+					if (length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status}) > $status_length)
+					{
+						$status_length = length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status_length => $status_length }});
+					}
+				}
+				if ($line =~ /Speed: (.*)$/i)
+				{
+					my $speed  =  $1;
+					$speed  =~ s/ Mbps//; 
+					my $colour =  $anvil->data->{colours}{bond}{speed}{down};
+					if ((not $speed) or ($speed =~ /Unknown/i))
+					{
+						# 10 Gbps or better
+						$speed  = "--";
+						$colour = $anvil->data->{colours}{bond}{speed}{down};
+					}
+					elsif ($speed > 1001)
+					{
+						# 10 Gbps or better
+						$speed  = $anvil->Convert->add_commas({number => $speed})." ".$anvil->Words->string({key => "unit_0031"});
+						$colour = $anvil->data->{colours}{bond}{speed}{'10000'};
+					}
+					elsif ($speed == 1000)
+					{
+						# Gbit
+						$speed  = $anvil->Convert->add_commas({number => $speed})." ".$anvil->Words->string({key => "unit_0031"});
+						$colour =  $anvil->data->{colours}{bond}{speed}{'1000'};
+					}
+					elsif ($speed == 100)
+					{
+						# 100 Mbit... uh oh
+						$speed  = $anvil->Convert->add_commas({number => $speed})." ".$anvil->Words->string({key => "unit_0031"});
+						$colour = $anvil->data->{colours}{bond}{speed}{'100'};
+					}
+					elsif ($speed == 10)
+					{
+						# 10 Mbit. Hello 90s.
+						$speed  = $anvil->Convert->add_commas({number => $speed})." ".$anvil->Words->string({key => "unit_0031"});
+						$colour = $anvil->data->{colours}{bond}{speed}{'10'};
+					}
+					else
+					{
+						# wat?
+						$speed  = "?".$speed."?";
+						$colour = $anvil->data->{colours}{bond}{speed}{unknown_entry};
+					}
+					
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed}        = $speed;
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed_colour} = $colour;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::slave::${in_slave}::speed"        => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed},
+						"bond::${bond_name}::slave::${in_slave}::speed_colour" => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed_colour},
+					}});
+					if (length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed}) > $speed_length)
+					{
+						$speed_length = length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed_length => $speed_length }});
+					}
+				}
+				if ($line =~ /Duplex: (.*)$/i)
+				{
+					my $duplex = $1;
+					my $colour = $anvil->data->{colours}{bond}{duplex}{unknown_entry};
+					if ($duplex =~ /Unknown/i)
+					{
+						# Full duplex
+						$duplex = "--";
+						$colour = $anvil->data->{colours}{bond}{duplex}{down};
+					}
+					elsif ($duplex eq "full")
+					{
+						# Full duplex
+						$duplex = $anvil->Words->string({key => "unit_0015"});
+						$colour = $anvil->data->{colours}{bond}{duplex}{full};
+					}
+					elsif ($duplex eq "half")
+					{
+						# Half duplex... not good.
+						$duplex = $anvil->Words->string({key => "unit_0016"});
+						$colour = $anvil->data->{colours}{bond}{duplex}{half};
+					}
+					else
+					{
+						# *sigh*
+						$duplex = "?".$duplex."?";
+						$colour = $anvil->data->{colours}{bond}{duplex}{unknown_entry};
+					}
+					
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex}        = $duplex;
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex_colour} = $colour;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::slave::${in_slave}::duplex"        => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex},
+						"bond::${bond_name}::slave::${in_slave}::duplex_colour" => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex_colour},
+					}});
+
+					if (length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex}) > $duplex_length)
+					{
+						$duplex_length = length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplex_length => $duplex_length }});
+					}
+				}
+				if ($line =~ /Link Failure Count: (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{link_failure_count} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::slave::${in_slave}::link_failure_count" => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{link_failure_count},
+					}});
+					
+					if (length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{link_failure_count}) > $failures_length)
+					{
+						$failures_length = length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{link_failure_count});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failures_length => $failures_length }});
+					}
+				}
+				if ($line =~ /Permanent HW addr: (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mac_address} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::slave::${in_slave}::mac_address" => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mac_address},
+					}});
+					
+					if (length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mac_address}) > $mac_length)
+					{
+						$mac_length = length($anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mac_address});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failures_length => $mac_length }});
+					}
+				}
+				if ($line =~ /Slave queue ID: (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{slave_queue_id} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::slave::${in_slave}::slave_queue_id" => $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{slave_queue_id},
+					}});
+				}
+			}
+			else
+			{
+				if ($line =~ /Bonding Mode: .* \((.*?)\)/i)
+				{
+					$anvil->data->{bond}{$bond_name}{mode} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::mode" => $anvil->data->{bond}{$bond_name}{mode},
+					}});
+					if (length($anvil->data->{bond}{$bond_name}{mode}) > $mode_length)
+					{
+						$mode_length = length($anvil->data->{bond}{$bond_name}{mode});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mode_length => $mode_length }});
+					}
+				}
+				if ($line =~ /Primary Slave: (.*?) \((.*?)\)/i)
+				{
+					$anvil->data->{bond}{$bond_name}{primary_slave}         = $1;
+					$anvil->data->{bond}{$bond_name}{primary_slave_options} = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::primary_slave"         => $anvil->data->{bond}{$bond_name}{primary_slave},
+						"bond::${bond_name}::primary_slave_options" => $anvil->data->{bond}{$bond_name}{primary_slave_options},
+					}});
+				}
+				if ($line =~ /Currently Active Slave: (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{active_slave} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::active_slave" => $anvil->data->{bond}{$bond_name}{active_slave},
+					}});
+				}
+				if ($line =~ /MII Status: (.*)$/i)
+				{
+					my $status = $1;
+					my $colour = $anvil->data->{colours}{bond}{'state'}{unknown_entry};
+					if (lc($status) eq "up")
+					{
+						$status = $anvil->Words->string({key => "unit_0013"});
+						$colour = $anvil->data->{colours}{bond}{'state'}{up};
+					}
+					elsif (lc($status) eq "down")
+					{
+						$status = $anvil->Words->string({key => "unit_0014"});
+						$colour = $anvil->data->{colours}{bond}{'state'}{down};
+					}
+					elsif (lc($status) eq "going back")
+					{
+						$status = $anvil->Words->string({key => "unit_0040"});
+						$colour = $anvil->data->{colours}{bond}{'state'}{going_back};
+					}
+					
+					$anvil->data->{bond}{$bond_name}{mii_status}    = $status;
+					$anvil->data->{bond}{$bond_name}{status_colour} = $colour;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::mii_status"    => $anvil->data->{bond}{$bond_name}{mii_status},
+						"bond::${bond_name}::status_colour" => $anvil->data->{bond}{$bond_name}{status_colour},
+					}});
+					if (length($anvil->data->{bond}{$bond_name}{mii_status}) > $status_length)
+					{
+						$status_length = length($anvil->data->{bond}{$bond_name}{mii_status});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status_length => $status_length }});
+					}
+				}
+				if ($line =~ /MII Polling Interval \(ms\): (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{mii_polling_interval_ms} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::mii_polling_interval_ms" => $anvil->data->{bond}{$bond_name}{mii_polling_interval_ms},
+					}});
+				}
+				if ($line =~ /Up Delay \(ms\): (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{up_delay} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::up_delay" => $anvil->data->{bond}{$bond_name}{up_delay},
+					}});
+				}
+				if ($line =~ /Down Delay \(ms\): (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{down_delay} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::down_delay" => $anvil->data->{bond}{$bond_name}{down_delay},
+					}});
+				}
+				if ($line =~ /Peer Notification Delay \(ms\): (.*)$/i)
+				{
+					$anvil->data->{bond}{$bond_name}{peer_notification_delay} = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond::${bond_name}::peer_notification_delay" => $anvil->data->{bond}{$bond_name}{peer_notification_delay},
+					}});
+				}
+				if ($line =~ /Slave Interface: (.*)$/i)
+				{
+					$in_slave = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_slave => $in_slave }});
+					
+					if ((length($in_slave) + 2) > $name_length)
+					{
+						$name_length = length($in_slave);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name_length => $name_length }});
+					}
+				}
+			}
+		}
+	}
+	closedir(DIRECTORY);
+	
+	
+	system ("/usr/bin/clear");    #clear the screen
+	#print "\033[0;0H";  #jump to 0,0
+	
+	# Print the title
+	print $anvil->Words->string({key => "header_0060", variables => { date => $anvil->Get->date_and_time() }})."\n";
+	my $say_interface = $anvil->Words->string({key => "header_0054"});
+	my $say_mode      = $anvil->Words->string({key => "header_0055"});
+	my $say_active    = $anvil->Words->string({key => "header_0056"});
+	my $say_status    = $anvil->Words->string({key => "header_0057"});
+	my $say_speed     = $anvil->Words->string({key => "header_0005"});
+	my $say_duplex    = $anvil->Words->string({key => "header_0058"});
+	my $say_failures  = $anvil->Words->string({key => "header_0059"});	# "Link Drops", to be less scary for users
+	my $say_mac       = $anvil->Words->string({key => "header_0002"});
+	if (length($say_interface) > $name_length)
+	{
+		$name_length = length($say_interface);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name_length => $name_length }});
+	}
+	if (length($say_active) > $name_length)
+	{
+		$name_length = length($say_active);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name_length => $name_length }});
+	}
+	if (length($say_mode) > $mode_length)
+	{
+		$mode_length = length($say_mode);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mode_length => $mode_length }});
+	}
+	if (length($say_status) > $status_length)
+	{
+		$status_length = length($say_status);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status_length => $status_length }});
+	}
+	if (length($say_speed) > $speed_length)
+	{
+		$speed_length = length($say_speed);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed_length => $speed_length }});
+	}
+	if (length($say_duplex) > $duplex_length)
+	{
+		$duplex_length = length($say_duplex);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplex_length => $duplex_length }});
+	}
+	if (length($say_failures) > $failures_length)
+	{
+		$failures_length = length($say_failures);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failures_length => $failures_length }});
+	}
+	if (length($say_mac) > $mac_length)
+	{
+		$mac_length = length($say_mac);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_length => $mac_length }});
+	}
+
+	my $centered_interface = $anvil->Words->center_text({string => $say_interface, width => $name_length});
+	my $centered_mode      = $anvil->Words->center_text({string => $say_mode,      width => $mode_length});
+	my $centered_active    = $anvil->Words->center_text({string => $say_active,    width => $name_length});
+	my $centered_status    = $anvil->Words->center_text({string => $say_status,    width => $status_length});
+	my $centered_speed     = $anvil->Words->center_text({string => $say_speed,     width => $speed_length});
+	my $centered_duplex    = $anvil->Words->center_text({string => $say_duplex,    width => $duplex_length});
+	my $centered_failures  = $anvil->Words->center_text({string => $say_failures,  width => $failures_length});
+	my $centered_mac       = $anvil->Words->center_text({string => $say_mac,       width => $mac_length});
+
+	my $interface_divider = ""; for (1..$name_length)     { $interface_divider .= "-"; }
+	my $mode_divider      = ""; for (1..$mode_length)     { $mode_divider      .= "-"; }
+	my $status_divider    = ""; for (1..$status_length)   { $status_divider    .= "-"; }
+	my $speed_divider     = ""; for (1..$speed_length)    { $speed_divider     .= "-"; }
+	my $duplex_divider    = ""; for (1..$duplex_length)   { $duplex_divider    .= "-"; }
+	my $failures_divider  = ""; for (1..$failures_length) { $failures_divider  .= "-"; }
+	my $mac_divider       = ""; for (1..$mac_length)      { $mac_divider       .= "-"; }
+
+	#         Interface             | Mode               | Active                  | Status               | Speed               | Duplux               | Failures               | MAC
+	print " ".$centered_interface." | ".$centered_mode." | ".$centered_interface." | ".$centered_status." | ".$centered_speed." | ".$centered_duplex." | ".$centered_failures." | ".$centered_mac."\n";
+	my $divider_line = "-".$interface_divider."-+-".$mode_divider."-+-".$interface_divider."-+-".$status_divider."-+-".$speed_divider."-+-".$duplex_divider."-+-".$failures_divider."-+-".$mac_divider."-";
+
+	foreach my $bond_name (sort {$a cmp $b} keys %{$anvil->data->{bond}})
+	{
+		print $divider_line."\n";
+		my $mode          = $anvil->data->{bond}{$bond_name}{mode};
+		my $primary_slave = $anvil->data->{bond}{$bond_name}{primary_slave};
+		my $active_slave  = $anvil->data->{bond}{$bond_name}{active_slave};
+		my $bond_status   = $anvil->data->{bond}{$bond_name}{mii_status};
+		my $bond_speed    = $anvil->data->{bond}{$bond_name}{slave}{$active_slave}{speed};
+		my $bond_duplex   = $anvil->data->{bond}{$bond_name}{slave}{$active_slave}{duplex};
+		my $bond_mac      = $anvil->data->{bond}{$bond_name}{mac_address};
+		
+		my $active_slave_colour = $anvil->data->{colours}{bond}{active_iface}{is_primary};
+		if ($primary_slave ne $active_slave)
+		{
+			$active_slave_colour = $anvil->data->{colours}{bond}{active_iface}{is_other};
+		}
+		
+		my $centered_bond_name    = $anvil->Words->center_text({string => $bond_name,    width => $name_length});
+		my $centered_mode         = $anvil->Words->center_text({string => $mode,         width => $mode_length});
+		my $centered_active_iface = $anvil->Words->center_text({string => $active_slave, width => $name_length});
+		my $centered_bond_status  = $anvil->Words->center_text({string => $bond_status,  width => $status_length});
+		my $centered_bond_speed   = $anvil->Words->center_text({string => $bond_speed,   width => $speed_length});
+		my $centered_bond_duplex  = $anvil->Words->center_text({string => $bond_duplex,  width => $duplex_length});
+		my $centered_failures     = $anvil->Words->center_text({string => "-",           width => $failures_length});
+		my $centered_mac_address  = $anvil->Words->center_text({string => $bond_mac,     width => $mac_length});
+		
+		my $say_bond_name        = colored($centered_bond_name,    $anvil->data->{colours}{bond}{bond_name});
+		my $say_mode             = colored($centered_mode,         $anvil->data->{colours}{bond}{mode});
+		my $say_active_iface     = colored($centered_active_iface, $active_slave_colour);
+		my $say_bond_status      = colored($centered_bond_status,  $anvil->data->{bond}{$bond_name}{status_colour});
+		my $say_bond_speed       = colored($centered_bond_speed,   $anvil->data->{bond}{$bond_name}{slave}{$active_slave}{speed_colour});
+		my $say_bond_duplex      = colored($centered_bond_duplex,  $anvil->data->{bond}{$bond_name}{slave}{$active_slave}{duplex_colour});
+		my $say_bond_failures    = colored($centered_failures,     $anvil->data->{colours}{bond}{irrelevant});
+		my $say_bond_mac_address = colored($centered_mac_address,  $anvil->data->{bond}{$bond_name}{mac_address_colour});
+		print " ".$say_bond_name." | ".$say_mode." | ".$say_active_iface." | ".$say_bond_status." | ".$say_bond_speed." | ".$say_bond_duplex." | ".$say_bond_failures." | ".$say_bond_mac_address." \n";
+		
+		foreach my $in_slave (sort {$a cmp $b} keys %{$anvil->data->{bond}{$bond_name}{slave}})
+		{
+			my $mii_status  = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status};
+			my $speed       = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed};
+			my $duplex      = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex};
+			my $fail_count  = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{link_failure_count};
+			my $mac_address = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mac_address};
+			
+			my $centered_iface_name   = $anvil->Words->center_text({string => "- ".$in_slave, width => $name_length});
+			my $centered_mode         = $anvil->Words->center_text({string => "--",           width => $mode_length});
+			my $centered_active_iface = $anvil->Words->center_text({string => "--",           width => $name_length});
+			my $centered_iface_status = $anvil->Words->center_text({string => $mii_status,    width => $status_length});
+			my $centered_iface_speed  = $anvil->Words->center_text({string => $speed,         width => $speed_length});
+			my $centered_iface_duplex = $anvil->Words->center_text({string => $duplex,        width => $duplex_length});
+			my $centered_failures     = $anvil->Words->center_text({string => $fail_count,    width => $failures_length});
+			my $centered_mac_address  = $anvil->Words->center_text({string => $mac_address,   width => $mac_length});
+			
+			my $iface_name_colour = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status_raw} eq "up" ? $anvil->data->{colours}{bond}{interface} : $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{status_colour};
+			
+			my $say_iface_name        = colored($centered_iface_name,   $iface_name_colour);
+			my $say_mode              = colored($centered_mode,         $anvil->data->{colours}{bond}{irrelevant});
+			my $say_active_iface      = colored($centered_active_iface, $anvil->data->{colours}{bond}{irrelevant});
+			my $say_iface_status      = colored($centered_iface_status, $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{status_colour});
+			my $say_iface_speed       = colored($centered_iface_speed,  $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{speed_colour});
+			my $say_iface_duplex      = colored($centered_iface_duplex, $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{duplex_colour});
+			my $say_iface_failures    = colored($centered_failures,     $anvil->data->{colours}{bond}{failure_count});
+			my $say_iface_mac_address = colored($centered_mac_address,  $anvil->data->{colours}{bond}{mac_address});
+			print " ".$say_iface_name." | ".$say_mode." | ".$say_active_iface." | ".$say_iface_status." | ".$say_iface_speed." | ".$say_iface_duplex." | ".$say_iface_failures." | ".$say_iface_mac_address." \n";
+		}
+	}
+	print $divider_line."\n";
+	print $anvil->Words->string({key => "header_0061"})."\n";
+	sleep 2;
+}
+
+
+$anvil->nice_exit({exit_code => 0});
