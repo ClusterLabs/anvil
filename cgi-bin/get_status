@@ -83,14 +83,16 @@ else
 	# Array index 0 is node 1, index 1 is node 2.
 	$hash->{anvil_state} = "optimal"; 
 	$hash->{hosts}->[0]  = {
-		host_uuid        =>  $node1_uuid,
+		host_uuid        => $node1_uuid,
+		host_name        => $node1_host_name,
 		'state'          => "offline",
 		state_percent    => 0,
 		state_message    => "message_0222,!!host_name!".$node1_host_name."!!",
 		maintenance_mode => 'undefined',
 	};
 	$hash->{hosts}->[1]  = {
-		host_uuid        =>  $node2_uuid,
+		host_uuid        => $node2_uuid,
+		host_name        => $node2_host_name,
 		'state'          => "offline",
 		state_percent    => 0,
 		state_message    => "message_0222,!!host_name!".$node2_host_name."!!",
