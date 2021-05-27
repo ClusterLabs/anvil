@@ -10,7 +10,7 @@ declare type AnvilServer = {
     | 'crashed'
     | 'pmsuspended'
     | 'migrating';
-  server_host_index: number;
+  server_host_uuid: string;
 };
 
 declare type AnvilServers = {
