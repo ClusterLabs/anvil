@@ -50,15 +50,12 @@ const selectStateMessage = (regex: RegExp, message: string): string => {
 
 const selectDecorator = (state: string): Colours => {
   switch (state) {
-    case 'ready':
+    case 'online':
       return 'ok';
-    case 'off':
+    case 'offline':
       return 'off';
-    case 'accessible':
-    case 'on':
-      return 'warning';
     default:
-      return 'error';
+      return 'warning';
   }
 };
 
@@ -103,11 +100,11 @@ const AnvilHost = ({
                   </Box>
                   <Box flexGrow={1}>
                     <Switch
-                      checked={host.state === 'ready'}
+                      checked={host.state === 'online'}
                       onChange={() =>
                         putJSON('/set_power', {
                           host_uuid: host.host_uuid,
-                          is_on: !(host.state === 'ready'),
+                          is_on: !(host.state === 'online'),
                         })
                       }
                     />
@@ -117,18 +114,18 @@ const AnvilHost = ({
                   </Box>
                   <Box>
                     <Switch
-                      checked={host.state === 'ready'}
+                      checked={host.state === 'online'}
                       disabled={!host.removable}
                       onChange={() =>
                         putJSON('/set_membership', {
                           host_uuid: host.host_uuid,
-                          is_member: !(host.state === 'ready'),
+                          is_member: !(host.state === 'online'),
                         })
                       }
                     />
                   </Box>
                 </Box>
-                {host.state !== 'ready' && (
+                {host.state !== 'online' && (
                   <>
                     <Box display="flex" width="100%" className={classes.state}>
                       <Box>

@@ -1,5 +1,5 @@
 declare type AnvilStatusHost = {
-  state: 'unknown' | 'off' | 'on' | 'accessible' | 'ready';
+  state: 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
   host_uuid: string;
   host_name: string;
   state_percent: number;

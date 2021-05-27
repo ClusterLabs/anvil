@@ -14,7 +14,7 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   return (
     <Panel>
-      <HeaderText text="Hosts" />
+      <HeaderText text="Nodes" />
       {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && data && (
         <AnvilHost
           hosts={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].hosts.map(
