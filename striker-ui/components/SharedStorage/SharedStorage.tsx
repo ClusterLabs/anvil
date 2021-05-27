@@ -27,7 +27,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const classes = useStyles();
   const { uuid } = useContext(AnvilContext);
   const { data } = PeriodicFetch<AnvilSharedStorage>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_shared_storage?anvil_uuid=${uuid}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/get_shared_storage?anvil_uuid=${uuid}`,
   );
   return (
     <Panel>

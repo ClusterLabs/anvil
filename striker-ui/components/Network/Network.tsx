@@ -47,7 +47,7 @@ const Network = (): JSX.Element => {
   const classes = useStyles();
 
   const { data } = PeriodicFetch<AnvilNetwork>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_network?anvil_uuid=${uuid}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/get_network?anvil_uuid=${uuid}`,
   );
 
   const processed = processNetworkData(data);

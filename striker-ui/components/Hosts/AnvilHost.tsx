@@ -105,7 +105,7 @@ const AnvilHost = ({
                     <Switch
                       checked={host.state === 'ready'}
                       onChange={() =>
-                        putJSON('/anvils/set_power', {
+                        putJSON('/set_power', {
                           host_uuid: host.host_uuid,
                           is_on: !(host.state === 'ready'),
                         })
@@ -120,7 +120,7 @@ const AnvilHost = ({
                       checked={host.state === 'ready'}
                       disabled={!host.removable}
                       onChange={() =>
-                        putJSON('/anvils/set_membership', {
+                        putJSON('/set_membership', {
                           host_uuid: host.host_uuid,
                           is_member: !(host.state === 'ready'),
                         })
