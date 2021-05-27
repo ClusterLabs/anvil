@@ -13,7 +13,8 @@ const Memory = (): JSX.Element => {
     `${process.env.NEXT_PUBLIC_API_URL}/get_memory?anvil_uuid=${uuid}`,
   );
 
-  const memoryData = isLoading || !data ? { total: 0, allocated: 0 } : data;
+  const memoryData =
+    isLoading || !data ? { total: 0, allocated: 0, reserved: 0 } : data;
 
   return (
     <Panel>
@@ -46,7 +47,9 @@ const Memory = (): JSX.Element => {
       </Box>
       <Box display="flex" justifyContent="center" width="100%">
         <BodyText
-          text={`Total Memory: ${prettyBytes.default(memoryData.total, {
+          text={`Total: ${prettyBytes.default(memoryData.total, {
+            binary: true,
+          })} | Reserved: ${prettyBytes.default(memoryData.reserved, {
             binary: true,
           })}`}
         />
