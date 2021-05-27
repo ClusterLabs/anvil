@@ -32,6 +32,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-update-issue \
 			  anvil-update-states \
 			  anvil-update-system \
+			  anvil-watch-bonds \
 			  scancore \
 			  striker-boot-machine \
 			  striker-get-peer-data \

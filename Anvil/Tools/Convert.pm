@@ -137,7 +137,7 @@ sub add_commas
 	$whole = $_;
 	
 	# Put it together
-	$number = $decimal ? "$whole.$decimal" : $whole;
+	$number = $decimal ? $whole.".".$decimal : $whole;
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
 	return ($number);

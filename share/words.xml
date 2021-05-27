@@ -710,6 +710,14 @@ sys::manage::firewall						=	1
 		<key name="header_0051">Synced</key>
 		<key name="header_0052">Remove</key>
 		<key name="header_0053">#!string!brand_0006!# Name</key>
+		<key name="header_0054">Active Interface</key>
+		<key name="header_0055">Bond Mode</key>
+		<key name="header_0056">Active Interface</key>
+		<key name="header_0057">Link State</key>
+		<key name="header_0058">Duplex</key>
+		<key name="header_0059">Link Drops</key>
+		<key name="header_0060"><![CDATA[-=[ Bond Status - #!variable!date!# ] =-]]></key>
+		<key name="header_0061"><![CDATA[-=[ Ctrl + C to exit ] =-]]></key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -2574,6 +2582,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0037">Fahrenheit</key>
 		<key name="unit_0038">%</key>
 		<key name="unit_0039">Amps</key>
+		<key name="unit_0040">Going Back</key>				<!-- Bond state -->
 		
 		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
 		     are used when adding UPSes to the system for use in Install Manifests.

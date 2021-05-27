@@ -18,6 +18,7 @@ my $THIS_FILE = "Words.pm";
 # $ENV{'PERL_UNICODE'} = 1;
 
 ### Methods;
+# center_text
 # clean_spaces
 # key
 # language
@@ -92,6 +93,92 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+
+=head2 center_text
+
+This takes a string and an integer and pads the string with spaces on either side until the length is that of the integer. For uneven splits, the smaller number of spaces will be on the left.
+
+Paramters;
+
+=head3 string
+
+This is the string being centered. If not given, and empty string is returned.
+
+B<< Note >>: This can be C<< #!string!x!# >>. If this is passed, the string will be translated before being centered.
+
+=head3 width
+
+This is an integer of how width the centered string should be. 
+
+=cut
+sub center_text
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->center_text()" }});
+	
+	# Pick up the parameters.
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	my $width  = defined $parameter->{width}  ? $parameter->{width}  : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		string => $string, 
+		width  => $width,
+	}});
+	
+	return($string) if $width eq "";
+	return("")      if $parameter->{string} eq "";
+	
+	### NOTE: If a '#!string!x!#' is passed, the Log->entry method will translate it in the log itself,
+	###       so you won't see that string.
+	if ($string =~ /#!string!(.*?)!#/)
+	{
+		$string = $anvil->Words->string({key => $1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+	}
+	
+	my $current_length = length($string);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_length => $current_length }});
+	if ($current_length < $width)
+	{
+		my $difference = $width - $current_length;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+		if ($difference == 1)
+		{
+			$string .= " ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+		}
+		else
+		{
+			my $remainder  =  $difference % 2;
+			   $difference -= $remainder;
+			my $spaces     =  $difference / 2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				remainder => $remainder,
+				spaces    => $spaces, 
+			}});
+			for (1..$spaces)
+			{
+				$string = " ".$string." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+			}
+			if ($remainder)
+			{
+				$string .= " ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		string   => $string,
+		'length' => length($string),
+	}});
+	return($string);
+}
+
 
 =head2 clean_spaces
 

@@ -1062,6 +1062,7 @@ sub _set_paths
 				alert_emails			=>	"/var/spool/anvil",
 				anvil				=>	"/etc/anvil",
 				backups				=>	"/root/anvil-backups",
+				bonds				=>	"/proc/net/bonding",
 				'cgi-bin'			=>	"/var/www/cgi-bin",
 				drbd_resources			=>	"/etc/drbd.d/",
 				fence_agents			=>	"/usr/sbin",
