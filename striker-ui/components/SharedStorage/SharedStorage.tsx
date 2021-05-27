@@ -4,7 +4,7 @@ import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { BodyText, HeaderText } from '../Text';
 import { Panel, InnerPanel, PanelHeader } from '../Panels';
-import SharedStorageNode from './SharedStorageNode';
+import SharedStorageHost from './SharedStorageHost';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
 
@@ -44,20 +44,20 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     </Box>
                   </Box>
                 </PanelHeader>
-                {fs?.nodes &&
-                  fs.nodes.map(
+                {fs?.hosts &&
+                  fs.hosts.map(
                     (
-                      node: AnvilSharedStorageNode,
+                      host: AnvilSharedStorageHost,
                       index: number,
                     ): JSX.Element => (
-                      <SharedStorageNode
-                        node={{
-                          ...node,
-                          nodeInfo:
-                            anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)]
-                              .nodes[index],
+                      <SharedStorageHost
+                        host={{
+                          ...host,
+                          ...anvil[
+                            anvil.findIndex((a) => a.anvil_uuid === uuid)
+                          ].hosts[index],
                         }}
-                        key={fs.nodes[index].free}
+                        key={fs.hosts[index].free}
                       />
                     ),
                   )}

@@ -1,11 +1,11 @@
-declare type NodeSet = {
+declare type HostSet = {
   host_uuid: string;
 };
 
-declare type NodeSetPower = NodeSet & {
+declare type HostSetPower = HostSet & {
   is_on: boolean;
 };
 
-declare type NodeSetMembership = NodeSet & {
+declare type HostSetMembership = HostSet & {
   is_membership: boolean;
 };

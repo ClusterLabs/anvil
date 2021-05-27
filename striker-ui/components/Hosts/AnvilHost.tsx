@@ -4,7 +4,7 @@ import { InnerPanel, PanelHeader } from '../Panels';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
-import NODE_STATUS from '../../lib/consts/NODES';
+import HOST_STATUS from '../../lib/consts/NODES';
 
 import putJSON from '../../lib/fetchers/putJSON';
 
@@ -43,7 +43,7 @@ const selectStateMessage = (regex: RegExp, message: string): string => {
   const msg = regex.exec(message);
 
   if (msg) {
-    return NODE_STATUS.get(msg[0]) || 'Error code not recognized';
+    return HOST_STATUS.get(msg[0]) || 'Error code not recognized';
   }
   return 'Error code not found';
 };
@@ -62,10 +62,10 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const AnvilNode = ({
-  nodes,
+const AnvilHost = ({
+  hosts,
 }: {
-  nodes: Array<AnvilStatusNode>;
+  hosts: Array<AnvilStatusHost>;
 }): JSX.Element => {
   const classes = useStyles();
   const stateRegex = /^[a-zA-Z]/;
@@ -73,23 +73,23 @@ const AnvilNode = ({
 
   return (
     <Box className={classes.root}>
-      {nodes &&
-        nodes.map(
-          (node): JSX.Element => {
+      {hosts &&
+        hosts.map(
+          (host): JSX.Element => {
             return (
-              <InnerPanel key={node.host_uuid}>
+              <InnerPanel key={host.host_uuid}>
                 <PanelHeader>
                   <Box display="flex" width="100%" className={classes.header}>
                     <Box flexGrow={1}>
-                      <BodyText text={node.host_name} />
+                      <BodyText text={host.host_name} />
                     </Box>
                     <Box className={classes.decoratorBox}>
-                      <Decorator colour={selectDecorator(node.state)} />
+                      <Decorator colour={selectDecorator(host.state)} />
                     </Box>
                     <Box>
                       <BodyText
                         text={
-                          node?.state?.replace(stateRegex, (c) =>
+                          host?.state?.replace(stateRegex, (c) =>
                             c.toUpperCase(),
                           ) || 'Not Available'
                         }
@@ -103,11 +103,11 @@ const AnvilNode = ({
                   </Box>
                   <Box flexGrow={1}>
                     <Switch
-                      checked={node.state === 'ready'}
+                      checked={host.state === 'ready'}
                       onChange={() =>
                         putJSON('/anvils/set_power', {
-                          host_uuid: node.host_uuid,
-                          is_on: !(node.state === 'ready'),
+                          host_uuid: host.host_uuid,
+                          is_on: !(host.state === 'ready'),
                         })
                       }
                     />
@@ -117,32 +117,32 @@ const AnvilNode = ({
                   </Box>
                   <Box>
                     <Switch
-                      checked={node.state === 'ready'}
-                      disabled={!node.removable}
+                      checked={host.state === 'ready'}
+                      disabled={!host.removable}
                       onChange={() =>
                         putJSON('/anvils/set_membership', {
-                          host_uuid: node.host_uuid,
-                          is_member: !(node.state === 'ready'),
+                          host_uuid: host.host_uuid,
+                          is_member: !(host.state === 'ready'),
                         })
                       }
                     />
                   </Box>
                 </Box>
-                {node.state !== 'ready' && (
+                {host.state !== 'ready' && (
                   <>
                     <Box display="flex" width="100%" className={classes.state}>
                       <Box>
                         <BodyText
                           text={selectStateMessage(
                             messageRegex,
-                            node.state_message,
+                            host.state_message,
                           )}
                         />
                       </Box>
                     </Box>
                     <Box display="flex" width="100%" className={classes.bar}>
                       <Box flexGrow={1}>
-                        <ProgressBar progressPercentage={node.state_percent} />
+                        <ProgressBar progressPercentage={host.state_percent} />
                       </Box>
                     </Box>
                   </>
@@ -155,4 +155,4 @@ const AnvilNode = ({
   );
 };
 
-export default AnvilNode;
+export default AnvilHost;

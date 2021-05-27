@@ -1,11 +1,11 @@
 import { useContext } from 'react';
 import { Panel } from '../Panels';
 import { HeaderText } from '../Text';
-import AnvilNode from './AnvilNode';
+import AnvilHost from './AnvilHost';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
 
-const Nodes = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const { data } = PeriodicFetch<AnvilStatus>(
@@ -14,12 +14,12 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   return (
     <Panel>
-      <HeaderText text="Nodes" />
+      <HeaderText text="Hosts" />
       {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && data && (
-        <AnvilNode
-          nodes={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].nodes.map(
-            (node, index) => {
-              return data.nodes[index];
+        <AnvilHost
+          hosts={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].hosts.map(
+            (host, index) => {
+              return data.hosts[index];
             },
           )}
         />
@@ -28,4 +28,4 @@ const Nodes = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   );
 };
 
-export default Nodes;
+export default Hosts;

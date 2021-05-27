@@ -6,20 +6,20 @@ declare type AnvilNetworkBondLink = {
   is_active: boolean;
 };
 
-declare type AnvilNetworkNodeBond = {
+declare type AnvilNetworkHostBond = {
   bond_name: string;
   bond_uuid: string;
   links: Array<AnvilNetworkBondLink>;
 };
 
-declare type AnvilNetworkNode = {
+declare type AnvilNetworkHosts = {
   host_name: string;
   host_uuid: string;
-  bonds: Array<AnvilNetworkNodeBond>;
+  bonds: Array<AnvilNetworkHostBond>;
 };
 
 declare type AnvilNetwork = {
-  nodes: Array<AnvilNetworkNode>;
+  hosts: Array<AnvilNetworkHosts>;
 };
 
 declare type ProcessedBond = {
@@ -27,7 +27,7 @@ declare type ProcessedBond = {
   bond_uuid: string;
   bond_speed: number;
   bond_state: 'optimal' | 'degraded';
-  nodes: Array<{
+  hosts: Array<{
     host_name: string;
     host_uuid: string;
     link: {

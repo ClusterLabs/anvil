@@ -72,12 +72,12 @@ const Network = (): JSX.Element => {
                     <BodyText text={bond.bond_name} />
                     <BodyText text={`${bond.bond_speed}Mbps`} />
                   </Box>
-                  {bond.nodes.map(
-                    (node): JSX.Element => (
-                      <Box p={1} key={node.host_name}>
+                  {bond.hosts.map(
+                    (host): JSX.Element => (
+                      <Box p={1} key={host.host_name}>
                         <Box>
-                          <BodyText text={node.host_name} selected={false} />
-                          <BodyText text={node.link.link_name} />
+                          <BodyText text={host.host_name} selected={false} />
+                          <BodyText text={host.link.link_name} />
                         </Box>
                       </Box>
                     ),

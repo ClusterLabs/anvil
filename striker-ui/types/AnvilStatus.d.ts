@@ -1,4 +1,4 @@
-declare type AnvilStatusNode = {
+declare type AnvilStatusHost = {
   state: 'unknown' | 'off' | 'on' | 'accessible' | 'ready';
   host_uuid: string;
   host_name: string;
@@ -9,5 +9,5 @@ declare type AnvilStatusNode = {
 
 declare type AnvilStatus = {
   anvil_state: 'optimal' | 'not_ready' | 'degraded';
-  nodes: Array<AnvilStatusNode>;
+  hosts: Array<AnvilStatusHost>;
 };

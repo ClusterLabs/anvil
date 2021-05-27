@@ -87,14 +87,14 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                         server.server_state !== 'crashed' &&
                         anvil[
                           anvil.findIndex((a) => a.anvil_uuid === uuid)
-                        ].nodes.map(
+                        ].hosts.map(
                           (
-                            node: AnvilListItemNode,
+                            host: AnvilStatusHost,
                             index: number,
                           ): JSX.Element => (
-                            <Box p={1} key={node.node_uuid}>
+                            <Box p={1} key={host.host_uuid}>
                               <BodyText
-                                text={node.node_name}
+                                text={host.host_name}
                                 selected={server.server_host_index === index}
                               />
                             </Box>

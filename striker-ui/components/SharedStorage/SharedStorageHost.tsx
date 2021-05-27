@@ -20,38 +20,38 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SharedStorageNode = ({
-  node,
+const SharedStorageHost = ({
+  host,
 }: {
-  node: AnvilSharedStorageNode;
+  host: AnvilSharedStorageHost;
 }): JSX.Element => {
   const classes = useStyles();
   return (
     <>
       <Box display="flex" width="100%" className={classes.fs}>
         <Box flexGrow={1}>
-          <BodyText text={node.nodeInfo?.node_name || 'Not Available'} />
+          <BodyText text={host.host_name || 'Not Available'} />
         </Box>
         <Box className={classes.decoratorBox}>
-          <Decorator colour={node.is_mounted ? 'ok' : 'error'} />
+          <Decorator colour={host.is_mounted ? 'ok' : 'error'} />
         </Box>
         <Box>
-          <BodyText text={node.is_mounted ? 'Mounted' : 'Not Mounted'} />
+          <BodyText text={host.is_mounted ? 'Mounted' : 'Not Mounted'} />
         </Box>
       </Box>
-      {node.is_mounted && (
+      {host.is_mounted && (
         <>
           <Box display="flex" width="100%" className={classes.fs}>
             <Box flexGrow={1}>
               <BodyText
-                text={`Used: ${prettyBytes.default(node.total - node.free, {
+                text={`Used: ${prettyBytes.default(host.total - host.free, {
                   binary: true,
                 })}`}
               />
             </Box>
             <Box>
               <BodyText
-                text={`Free: ${prettyBytes.default(node.free, {
+                text={`Free: ${prettyBytes.default(host.free, {
                   binary: true,
                 })}`}
               />
@@ -60,13 +60,13 @@ const SharedStorageNode = ({
           <Box display="flex" width="100%" className={classes.bar}>
             <Box flexGrow={1}>
               <AllocationBar
-                allocated={((node.total - node.free) / node.total) * 100}
+                allocated={((host.total - host.free) / host.total) * 100}
               />
             </Box>
           </Box>
           <Box display="flex" justifyContent="center" width="100%">
             <BodyText
-              text={`Total Storage: ${prettyBytes.default(node.total, {
+              text={`Total Storage: ${prettyBytes.default(host.total, {
                 binary: true,
               })}`}
             />
@@ -77,4 +77,4 @@ const SharedStorageNode = ({
   );
 };
 
-export default SharedStorageNode;
+export default SharedStorageHost;

@@ -2,7 +2,7 @@ import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
 import Anvils from '../components/Anvils';
-import Nodes from '../components/Nodes';
+import Hosts from '../components/Hosts';
 import CPU from '../components/CPU';
 import SharedStorage from '../components/SharedStorage';
 import Memory from '../components/Memory';
@@ -59,7 +59,7 @@ const Home = (): JSX.Element => {
           <Box className={classes.container}>
             <Box className={classes.child}>
               <Anvils list={data} />
-              <Nodes anvil={data.anvils} />
+              <Hosts anvil={data.anvils} />
             </Box>
             <Box className={classes.server}>
               <Servers anvil={data.anvils} />
