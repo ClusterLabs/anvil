@@ -89,7 +89,9 @@ ORDER BY
 		}});
 
 		push(@{$storage_groups}, {
-			name => $storage_group_name, total => $scan_lvm_vg_size, free => $scan_lvm_vg_free
+			name => $storage_group_name,
+			total => int($scan_lvm_vg_size),
+			free => int($scan_lvm_vg_free)
 		});
 	}
 
