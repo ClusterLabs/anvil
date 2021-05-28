@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+#
+# Prints JSON formatted data reporting the status of shared storage (a.k.a. storage groups/shared VGs)
+#
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use JSON;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->Get->switches;
+
+# Temporary; for debugging
+$anvil->Log->level({ set => 2 });
+
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Read in any CGI variables, if needed.
+$anvil->Get->cgi();
+
+$anvil->Database->get_hosts();
+$anvil->Database->get_anvils();
+
+print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
+
+my $response_body = {};
+
+print JSON->new->utf8->encode($response_body)."\n";
