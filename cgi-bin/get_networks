@@ -213,7 +213,7 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
-my $anvil_uuid               = $anvil->data->{cgi}{anvil_uuid}{value};
+my $anvil_uuid               = exists $anvil->data->{cgi}{anvil_uuid}{value} ? $anvil->data->{cgi}{anvil_uuid}{value} : $anvil->data->{switches}{'anvil-uuid'};
 my $anvil_uuid_variable_name = "anvil UUID";
 
 my $response_body = {};
