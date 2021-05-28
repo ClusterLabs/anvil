@@ -22,20 +22,20 @@ my $anvil = Anvil::Tools->new();
 
 sub handle_invalid_uuid
 {
-        my $parameters = shift;
-        my $name       = $parameters->{name};
-        my $uuid       = $parameters->{uuid};
+	my $parameters = shift;
+	my $name       = $parameters->{name};
+	my $uuid       = $parameters->{uuid};
 
-        $anvil->Log->entry({
-                source    => $THIS_FILE,
-                line      => __LINE__,
-                level     => 0,
-                'print'   => 1,
-                priority  => "err",
-                key       => "error_0160",
-                variables => { name => $name, uuid => $uuid }
-        });
-        $anvil->nice_exit({ exit_code => 1 });
+	$anvil->Log->entry({
+		source    => $THIS_FILE,
+		line      => __LINE__,
+		level     => 0,
+		'print'   => 1,
+		priority  => "err",
+		key       => "error_0160",
+		variables => { name => $name, uuid => $uuid }
+	});
+	$anvil->nice_exit({ exit_code => 1 });
 }
 
 sub set_anvil_power
