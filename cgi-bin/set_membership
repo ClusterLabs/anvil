@@ -20,6 +20,24 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub handle_invalid_uuid
+{
+	my $parameters = shift;
+	my $name       = $parameters->{name};
+	my $uuid       = $parameters->{uuid};
+
+	$anvil->Log->entry({
+		source    => $THIS_FILE,
+		line      => __LINE__,
+		level     => 0,
+		'print'   => 1,
+		priority  => "err",
+		key       => "error_0160",
+		variables => { name => $name, uuid => $uuid }
+	});
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
 sub get_active_member
 {
 	my $parameters = shift;
@@ -183,9 +201,10 @@ if (not $is_decode_json_success)
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-my $host_uuid = exists $request_body->{host_uuid} ? $request_body->{host_uuid} : "";
+my $host_uuid                = exists $request_body->{host_uuid} ? $request_body->{host_uuid} : $anvil->data->{switches}{'host-uuid'};
 # Defaults to join; will check whether host is already part of its anvil cluster.
-my $is_member = exists $request_body->{is_member} ? $request_body->{is_member} : 1;
+my $is_member                = exists $request_body->{is_member} ? $request_body->{is_member} : 1;
+my $host_uuid_variable_name  = "host UUID";
 
 if ($host_uuid)
 {
@@ -195,16 +214,7 @@ if ($host_uuid)
 	}
 	else
 	{
-		$anvil->Log->entry({
-			source    => $THIS_FILE,
-			line      => __LINE__,
-			level     => 0,
-			'print'   => 1,
-			priority  => "err",
-			key       => "error_0160",
-			variables => { name => "host UUID", uuid => $host_uuid }
-		});
-		$anvil->nice_exit({ exit_code => 1 });
+		handle_invalid_uuid({ name => $host_uuid_variable_name, uuid => $host_uuid });
 	}
 }
 
