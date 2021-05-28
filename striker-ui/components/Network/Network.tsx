@@ -8,6 +8,7 @@ import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 import processNetworkData from './processNetwork';
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
+import Spinner from '../Spinner';
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -48,7 +49,7 @@ const Network = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
 
-  const { data } = PeriodicFetch<AnvilNetwork>(
+  const { data, isLoading } = PeriodicFetch<AnvilNetwork>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_networks?anvil_uuid=${uuid}`,
   );
 
@@ -56,40 +57,44 @@ const Network = (): JSX.Element => {
   return (
     <Panel>
       <HeaderText text="Network" />
-      <Box className={classes.container}>
-        {data &&
-          processed.bonds.map((bond: ProcessedBond) => {
-            return (
-              <>
-                <Box
-                  display="flex"
-                  flexDirection="row"
-                  width="100%"
-                  className={classes.root}
-                >
-                  <Box p={1} className={classes.noPaddingLeft}>
-                    <Decorator colour={selectDecorator(bond.bond_state)} />
-                  </Box>
-                  <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
-                    <BodyText text={bond.bond_name} />
-                    <BodyText text={`${bond.bond_speed}Mbps`} />
-                  </Box>
-                  {bond.hosts.map(
-                    (host): JSX.Element => (
-                      <Box p={1} key={host.host_name}>
-                        <Box>
-                          <BodyText text={host.host_name} selected={false} />
-                          <BodyText text={host.link.link_name} />
+      {!isLoading ? (
+        <Box className={classes.container}>
+          {data &&
+            processed.bonds.map((bond: ProcessedBond) => {
+              return (
+                <>
+                  <Box
+                    display="flex"
+                    flexDirection="row"
+                    width="100%"
+                    className={classes.root}
+                  >
+                    <Box p={1} className={classes.noPaddingLeft}>
+                      <Decorator colour={selectDecorator(bond.bond_state)} />
+                    </Box>
+                    <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
+                      <BodyText text={bond.bond_name} />
+                      <BodyText text={`${bond.bond_speed}Mbps`} />
+                    </Box>
+                    {bond.hosts.map(
+                      (host): JSX.Element => (
+                        <Box p={1} key={host.host_name}>
+                          <Box>
+                            <BodyText text={host.host_name} selected={false} />
+                            <BodyText text={host.link.link_name} />
+                          </Box>
                         </Box>
-                      </Box>
-                    ),
-                  )}
-                </Box>
-                <Divider className={classes.divider} />
-              </>
-            );
-          })}
-      </Box>
+                      ),
+                    )}
+                  </Box>
+                  <Divider className={classes.divider} />
+                </>
+              );
+            })}
+        </Box>
+      ) : (
+        <Spinner />
+      )}
     </Panel>
   );
 };

@@ -5,6 +5,7 @@ import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { AnvilContext } from './AnvilContext';
+import Spinner from './Spinner';
 
 const CPU = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
@@ -19,26 +20,33 @@ const CPU = (): JSX.Element => {
   return (
     <Panel>
       <HeaderText text="CPU" />
-      <Box display="flex" width="100%">
-        <Box flexGrow={1}>
-          <BodyText text={`Allocated: ${cpuData.allocated}`} />
-        </Box>
-        <Box>
-          <BodyText text={`Free: ${cpuData.cores - cpuData.allocated}`} />
-        </Box>
-      </Box>
-      <Box display="flex" width="100%">
-        <Box flexGrow={1}>
-          <AllocationBar
-            allocated={(cpuData.allocated / cpuData.cores) * 100}
-          />
-        </Box>
-      </Box>
-      <Box display="flex" justifyContent="center" width="100%">
-        <BodyText
-          text={`Total Cores: ${cpuData.cores}c | ${cpuData.threads}t`}
-        />
-      </Box>
+      {!isLoading ? (
+        <>
+          {' '}
+          <Box display="flex" width="100%">
+            <Box flexGrow={1}>
+              <BodyText text={`Allocated: ${cpuData.allocated}`} />
+            </Box>
+            <Box>
+              <BodyText text={`Free: ${cpuData.cores - cpuData.allocated}`} />
+            </Box>
+          </Box>
+          <Box display="flex" width="100%">
+            <Box flexGrow={1}>
+              <AllocationBar
+                allocated={(cpuData.allocated / cpuData.cores) * 100}
+              />
+            </Box>
+          </Box>
+          <Box display="flex" justifyContent="center" width="100%">
+            <BodyText
+              text={`Total Cores: ${cpuData.cores}c | ${cpuData.threads}t`}
+            />
+          </Box>
+        </>
+      ) : (
+        <Spinner />
+      )}
     </Panel>
   );
 };

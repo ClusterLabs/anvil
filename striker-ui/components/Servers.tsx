@@ -8,6 +8,7 @@ import { HOVER, DIVIDER } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
 import Decorator, { Colours } from './Decorator';
+import Spinner from './Spinner';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -49,64 +50,69 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
 
-  const { data } = PeriodicFetch<AnvilServers>(
+  const { data, isLoading } = PeriodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
   );
+
   return (
     <Panel>
       <div className={classes.headerPadding}>
         <HeaderText text="Servers" />
       </div>
-      <Box className={classes.root}>
-        <List component="nav">
-          {data &&
-            data.servers.map((server: AnvilServer) => {
-              return (
-                <>
-                  <ListItem
-                    button
-                    className={classes.button}
-                    key={server.server_uuid}
-                  >
-                    <Box display="flex" flexDirection="row" width="100%">
-                      <Box p={1}>
-                        <Decorator
-                          colour={selectDecorator(server.server_state)}
-                        />
+      {!isLoading ? (
+        <Box className={classes.root}>
+          <List component="nav">
+            {data &&
+              data.servers.map((server: AnvilServer) => {
+                return (
+                  <>
+                    <ListItem
+                      button
+                      className={classes.button}
+                      key={server.server_uuid}
+                    >
+                      <Box display="flex" flexDirection="row" width="100%">
+                        <Box p={1}>
+                          <Decorator
+                            colour={selectDecorator(server.server_state)}
+                          />
+                        </Box>
+                        <Box p={1} flexGrow={1}>
+                          <BodyText text={server.server_name} />
+                          <BodyText
+                            text={
+                              serverState.get(server.server_state) ||
+                              'Not Available'
+                            }
+                          />
+                        </Box>
+                        {server.server_state !== 'shut_off' &&
+                          server.server_state !== 'crashed' &&
+                          anvil[
+                            anvil.findIndex((a) => a.anvil_uuid === uuid)
+                          ].hosts.map(
+                            (host: AnvilStatusHost): JSX.Element => (
+                              <Box p={1} key={host.host_uuid}>
+                                <BodyText
+                                  text={host.host_name}
+                                  selected={
+                                    server.server_host_uuid === host.host_uuid
+                                  }
+                                />
+                              </Box>
+                            ),
+                          )}
                       </Box>
-                      <Box p={1} flexGrow={1}>
-                        <BodyText text={server.server_name} />
-                        <BodyText
-                          text={
-                            serverState.get(server.server_state) ||
-                            'Not Available'
-                          }
-                        />
-                      </Box>
-                      {server.server_state !== 'shut_off' &&
-                        server.server_state !== 'crashed' &&
-                        anvil[
-                          anvil.findIndex((a) => a.anvil_uuid === uuid)
-                        ].hosts.map(
-                          (host: AnvilStatusHost): JSX.Element => (
-                            <Box p={1} key={host.host_uuid}>
-                              <BodyText
-                                text={host.host_name}
-                                selected={
-                                  server.server_host_uuid === host.host_uuid
-                                }
-                              />
-                            </Box>
-                          ),
-                        )}
-                    </Box>
-                  </ListItem>
-                  <Divider className={classes.divider} />
-                </>
-              );
-            })}
-        </List>
-      </Box>
+                    </ListItem>
+                    <Divider className={classes.divider} />
+                  </>
+                );
+              })}
+          </List>
+        </Box>
+      ) : (
+        <Spinner />
+      )}
     </Panel>
   );
 };
