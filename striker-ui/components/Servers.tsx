@@ -37,7 +37,7 @@ const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'running':
       return 'ok';
-    case 'shut_off':
+    case 'shut off':
       return 'off';
     case 'crashed':
       return 'error';
@@ -86,7 +86,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                             }
                           />
                         </Box>
-                        {server.server_state !== 'shut_off' &&
+                        {server.server_state !== 'shut off' &&
                           server.server_state !== 'crashed' &&
                           anvil[
                             anvil.findIndex((a) => a.anvil_uuid === uuid)

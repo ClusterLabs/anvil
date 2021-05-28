@@ -2,10 +2,10 @@ const serverState: ReadonlyMap<string, string> = new Map([
   ['running', 'Running'],
   ['idle', 'Idle'],
   ['paused', 'Paused'],
-  ['in_shutdown', 'Shutting Down'],
-  ['shut_off', 'Off'],
-  ['crashed', 'crashed'],
-  ['pmsuspended', 'Suspended'],
+  ['in shutdown', 'Shutting Down'],
+  ['shut off', 'Off'],
+  ['crashed', 'Crashed'],
+  ['pmsuspended', 'PM Suspended'],
   ['migrating', 'Migrating'],
 ]);
 

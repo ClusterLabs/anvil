@@ -5,8 +5,8 @@ declare type AnvilServer = {
     | 'running'
     | 'idle'
     | 'paused'
-    | 'in_shutdown'
-    | 'shut_off'
+    | 'in shutdown'
+    | 'shut off'
     | 'crashed'
     | 'pmsuspended'
     | 'migrating';
