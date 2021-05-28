@@ -89,30 +89,26 @@ sub set_host_power
 	# Power OFF should invoke anvil-safe-stop on a host.
 	if ($is_host_on && not $on)
 	{
-		# TODO: Uncomment when testing against real hosts.
-		#
-		#$anvil->Database->insert_or_update_jobs({
-		#	job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'}." --power-off",
-		#	job_description => "job_0333",
-		#	job_name        => "cgi-bin::set_power::off",
-		#	job_progress    => 0,
-		#	job_title       => "job_0332"
-		#});
+		$anvil->Database->insert_or_update_jobs({
+			job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'}." --power-off",
+			job_description => "job_0333",
+			job_name        => "cgi-bin::set_power::off",
+			job_progress    => 0,
+			job_title       => "job_0332"
+		});
 	}
 	# When host is OFF and request is to power ON.
 	#
 	# Power ON should invoke striker-boot-machine on this striker.
 	elsif (not $is_host_on && $on)
 	{
-		# TODO: Uncomment when testing against real hosts.
-		#
-		#$anvil->Database->insert_or_update_jobs({
-		#	job_command     => $anvil->data->{path}{directories}{tools}."/striker-boot-machine --host-uuid ".$host_uuid,
-		#	job_description => "job_0335",
-		#	job_name        => "cgi-bin::set_power::on",
-		#	job_progress    => 0,
-		#	job_title       => "job_0334"
-		#});
+		$anvil->Database->insert_or_update_jobs({
+			job_command     => $anvil->data->{path}{directories}{tools}."/striker-boot-machine --host-uuid ".$host_uuid,
+			job_description => "job_0335",
+			job_name        => "cgi-bin::set_power::on",
+			job_progress    => 0,
+			job_title       => "job_0334"
+		});
 	}
 }
 
