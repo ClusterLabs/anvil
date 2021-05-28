@@ -43,7 +43,7 @@ sub set_anvil_power
 	# Expects the first element of @_ (argument array) to be a hash.
 	my $parameters = shift;
 	my $anvil_uuid = $parameters->{anvil_uuid};
-	my $on = $parameters->{on};
+	my $on         = $parameters->{on};
 
 	# Get all mandatory hosts inside the anvil identified by the given UUID.
 	my @host_uuids = (
@@ -59,16 +59,17 @@ sub set_anvil_power
 
 	foreach (@host_uuids)
 	{
-		set_host_power({ host_uuid => $_, on => $on });
+		set_host_power({ host_uuid => $_, on => $on, stop_servers => 1 });
 	}
 }
 
 sub set_host_power
 {
 	# Expects the first element of @_ (argument array) to be a hash.
-	my $parameters = shift;
-	my $host_uuid = $parameters->{host_uuid};
-	my $on = $parameters->{on};
+	my $parameters   = shift;
+	my $host_uuid    = $parameters->{host_uuid};
+	my $on           = $parameters->{on};
+	my $stop_servers = exists $parameters->{stop_servers} ? "--stop-servers" : "";
 
 	# Check the host's status before trying to power it up/down.
 	my $is_host_on = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status} eq "online" ? 1 : 0;
@@ -90,7 +91,7 @@ sub set_host_power
 	if ($is_host_on && not $on)
 	{
 		$anvil->Database->insert_or_update_jobs({
-			job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'}." --power-off",
+			job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'}." --power-off ".$stop_servers,
 			job_host_uuid   => $host_uuid,
 			job_description => "job_0333",
 			job_name        => "cgi-bin::set_power::off",
