@@ -1,16 +1,10 @@
-declare type AnvilSharedStorageHost = {
-  host_uuid: string;
-  host_name: string;
-  is_mounted: boolean;
-  total: number;
-  free: number;
-};
-
-declare type AnvilSharedStorageFileSystem = {
-  mount_point: string;
-  hosts: Array<AnvilSharedStorageHost>;
+declare type AnvilSharedStorageGroup = {
+  storage_group_name: string;
+  storage_group_uuid: string;
+  storage_group_total: number;
+  storage_group_free: number;
 };
 
 declare type AnvilSharedStorage = {
-  file_systems: Array<AnvilSharedStorageFileSystem>;
+  storage_groups: Array<AnvilSharedStorageGroup>;
 };

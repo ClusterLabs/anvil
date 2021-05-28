@@ -65,7 +65,7 @@ const Home = (): JSX.Element => {
               <Servers anvil={data.anvils} />
             </Box>
             <Box className={classes.child}>
-              <SharedStorage anvil={data.anvils} />
+              <SharedStorage />
             </Box>
             <Box className={classes.child}>
               <Network />

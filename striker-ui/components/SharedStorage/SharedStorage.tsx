@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+const SharedStorage = (): JSX.Element => {
   const classes = useStyles();
   const { uuid } = useContext(AnvilContext);
   const { data, isLoading } = PeriodicFetch<AnvilSharedStorage>(
@@ -35,34 +35,21 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
       <HeaderText text="Shared Storage" />
       {!isLoading ? (
         <Box className={classes.root}>
-          {data?.file_systems &&
-            data.file_systems.map(
-              (fs: AnvilSharedStorageFileSystem): JSX.Element => (
-                <InnerPanel key={fs.mount_point}>
+          {data?.storage_groups &&
+            data.storage_groups.map(
+              (storageGroup: AnvilSharedStorageGroup): JSX.Element => (
+                <InnerPanel key={storageGroup.storage_group_uuid}>
                   <PanelHeader>
                     <Box display="flex" width="100%" className={classes.header}>
                       <Box>
-                        <BodyText text={fs.mount_point} />
+                        <BodyText text={storageGroup.storage_group_name} />
                       </Box>
                     </Box>
                   </PanelHeader>
-                  {fs?.hosts &&
-                    fs.hosts.map(
-                      (
-                        host: AnvilSharedStorageHost,
-                        index: number,
-                      ): JSX.Element => (
-                        <SharedStorageHost
-                          host={{
-                            ...host,
-                            ...anvil[
-                              anvil.findIndex((a) => a.anvil_uuid === uuid)
-                            ].hosts[index],
-                          }}
-                          key={fs.hosts[index].free}
-                        />
-                      ),
-                    )}
+                  <SharedStorageHost
+                    group={storageGroup}
+                    key={storageGroup.storage_group_uuid}
+                  />
                 </InnerPanel>
               ),
             )}

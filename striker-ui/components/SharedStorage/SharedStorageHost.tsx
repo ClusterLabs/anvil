@@ -3,7 +3,6 @@ import { makeStyles } from '@material-ui/core/styles';
 import * as prettyBytes from 'pretty-bytes';
 import { AllocationBar } from '../Bars';
 import { BodyText } from '../Text';
-import Decorator from '../Decorator';
 
 const useStyles = makeStyles(() => ({
   fs: {
@@ -21,58 +20,53 @@ const useStyles = makeStyles(() => ({
 }));
 
 const SharedStorageHost = ({
-  host,
+  group,
 }: {
-  host: AnvilSharedStorageHost;
+  group: AnvilSharedStorageGroup;
 }): JSX.Element => {
   const classes = useStyles();
   return (
     <>
       <Box display="flex" width="100%" className={classes.fs}>
         <Box flexGrow={1}>
-          <BodyText text={host.host_name || 'Not Available'} />
-        </Box>
-        <Box className={classes.decoratorBox}>
-          <Decorator colour={host.is_mounted ? 'ok' : 'error'} />
+          <BodyText
+            text={`Used: ${prettyBytes.default(
+              group.storage_group_total - group.storage_group_free,
+              {
+                binary: true,
+              },
+            )}`}
+          />
         </Box>
         <Box>
-          <BodyText text={host.is_mounted ? 'Mounted' : 'Not Mounted'} />
+          <BodyText
+            text={`Free: ${prettyBytes.default(group.storage_group_free, {
+              binary: true,
+            })}`}
+          />
         </Box>
       </Box>
-      {host.is_mounted && (
-        <>
-          <Box display="flex" width="100%" className={classes.fs}>
-            <Box flexGrow={1}>
-              <BodyText
-                text={`Used: ${prettyBytes.default(host.total - host.free, {
-                  binary: true,
-                })}`}
-              />
-            </Box>
-            <Box>
-              <BodyText
-                text={`Free: ${prettyBytes.default(host.free, {
-                  binary: true,
-                })}`}
-              />
-            </Box>
-          </Box>
-          <Box display="flex" width="100%" className={classes.bar}>
-            <Box flexGrow={1}>
-              <AllocationBar
-                allocated={((host.total - host.free) / host.total) * 100}
-              />
-            </Box>
-          </Box>
-          <Box display="flex" justifyContent="center" width="100%">
-            <BodyText
-              text={`Total Storage: ${prettyBytes.default(host.total, {
-                binary: true,
-              })}`}
-            />
-          </Box>
-        </>
-      )}
+      <Box display="flex" width="100%" className={classes.bar}>
+        <Box flexGrow={1}>
+          <AllocationBar
+            allocated={
+              ((group.storage_group_total - group.storage_group_free) /
+                group.storage_group_total) *
+              100
+            }
+          />
+        </Box>
+      </Box>
+      <Box display="flex" justifyContent="center" width="100%">
+        <BodyText
+          text={`Total Storage: ${prettyBytes.default(
+            group.storage_group_total,
+            {
+              binary: true,
+            },
+          )}`}
+        />
+      </Box>
     </>
   );
 };
