@@ -20,6 +20,24 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub handle_invalid_uuid
+{
+        my $parameters = shift;
+        my $name       = $parameters->{name};
+        my $uuid       = $parameters->{uuid};
+
+        $anvil->Log->entry({
+                source    => $THIS_FILE,
+                line      => __LINE__,
+                level     => 0,
+                'print'   => 1,
+                priority  => "err",
+                key       => "error_0160",
+                variables => { name => $name, uuid => $uuid }
+        });
+        $anvil->nice_exit({ exit_code => 1 });
+}
+
 sub set_anvil_power
 {
 	# Expects the first element of @_ (argument array) to be a hash.
@@ -145,9 +163,11 @@ if (not $is_decode_json_success)
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-my $anvil_uuid = exists $request_body->{anvil_uuid} ? $request_body->{anvil_uuid} : "";
-my $host_uuid  = exists $request_body->{host_uuid}  ? $request_body->{host_uuid}  : "";
-my $is_on      = exists $request_body->{is_on}      ? $request_body->{is_on}      : 0;
+my $anvil_uuid               = exists $request_body->{anvil_uuid} ? $request_body->{anvil_uuid} : $anvil->data->{switches}{'anvil-uuid'};
+my $host_uuid                = exists $request_body->{host_uuid}  ? $request_body->{host_uuid}  : $anvil->data->{switches}{'host-uuid'};
+my $is_on                    = exists $request_body->{is_on}      ? $request_body->{is_on}      : 0;
+my $anvil_uuid_variable_name = "anvil UUID";
+my $host_uuid_variable_name  = "host UUID";
 
 $anvil->Log->variables({
 	source => $THIS_FILE,
@@ -168,16 +188,7 @@ if ($anvil_uuid)
 	}
 	else
 	{
-		$anvil->Log->entry({
-			source    => $THIS_FILE,
-			line      => __LINE__,
-			level     => 0,
-			'print'   => 1,
-			priority  => "err",
-			key       => "error_0160",
-			variables => { name => "anvil UUID", uuid => $anvil_uuid }
-		});
-		$anvil->nice_exit({ exit_code => 1 });
+		handle_invalid_uuid({ name => $anvil_uuid_variable_name, uuid => $anvil_uuid });
 	}
 }
 elsif ($host_uuid)
@@ -188,16 +199,7 @@ elsif ($host_uuid)
 	}
 	else
 	{
-		$anvil->Log->entry({
-			source    => $THIS_FILE,
-			line      => __LINE__,
-			level     => 0,
-			'print'   => 1,
-			priority  => "err",
-			key       => "error_0160",
-			variables => { name => "host UUID", uuid => $host_uuid }
-		});
-		$anvil->nice_exit({ exit_code => 1 });
+		handle_invalid_uuid({ name => $host_uuid_variable_name, uuid => $host_uuid });
 	}
 }
 
