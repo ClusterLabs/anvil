@@ -49,7 +49,8 @@ sub get_storage_groups
 	# ORDER BY [free] ASC to only select the storage with lowest free space.
 	my $query = "
 SELECT
-	DISTINCT ON (sgr.storage_group_name) storage_group_name,
+	DISTINCT ON (sgr.storage_group_uuid) storage_group_uuid,
+	sgr.storage_group_name,
 	slv.scan_lvm_vg_size,
 	slv.scan_lvm_vg_free
 FROM
@@ -66,7 +67,7 @@ WHERE
 	AND
 	anv.anvil_uuid = ".$anvil->Database->quote($anvil_uuid)."
 ORDER BY
-	sgr.storage_group_name ASC,
+	sgr.storage_group_uuid ASC,
 	slv.scan_lvm_vg_free ASC
 ;";
 
@@ -79,19 +80,22 @@ ORDER BY
 	}});
 	foreach my $row (@{$results})
 	{
-		my $storage_group_name = $row->[0];
-		my $scan_lvm_vg_size   = $row->[1];
-		my $scan_lvm_vg_free   = $row->[2];
+		my $storage_group_uuid = $row->[0];
+		my $storage_group_name = $row->[1];
+		my $scan_lvm_vg_size   = $row->[2];
+		my $scan_lvm_vg_free   = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			storage_group_uuid => $storage_group_uuid,
 			storage_group_name => $storage_group_name,
 			scan_lvm_vg_size   => $scan_lvm_vg_size,
 			scan_lvm_vg_free   => $scan_lvm_vg_free
 		}});
 
 		push(@{$storage_groups}, {
-			name => $storage_group_name,
-			total => int($scan_lvm_vg_size),
-			free => int($scan_lvm_vg_free)
+			storage_group_uuid  => $storage_group_uuid,
+			storage_group_name  => $storage_group_name,
+			storage_group_total => int($scan_lvm_vg_size),
+			storage_group_free  => int($scan_lvm_vg_free)
 		});
 	}
 
