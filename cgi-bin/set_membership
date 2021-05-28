@@ -194,7 +194,6 @@ if (not $is_decode_json_success)
 		key       => "error_0304",
 		variables => { request_body_string => $anvil->data->{cgi}{PUTDATA}{value}, json_decode_error => $_ }
 	});
-	$anvil->nice_exit({ exit_code => 1 });
 }
 
 my $host_uuid                = exists $request_body->{host_uuid} ? $request_body->{host_uuid} : $anvil->data->{switches}{'host-uuid'};
