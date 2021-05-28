@@ -118,6 +118,7 @@ sub join_cluster
 	{
 		$anvil->Database->insert_or_update_jobs({
 			job_command     => $anvil->data->{path}{exe}{'anvil-safe-start'},
+			job_host_uuid   => $host_uuid,
 			job_description => "job_0337",
 			job_name        => "cgi-bin::set_membership::join",
 			job_progress    => 0,
@@ -145,6 +146,7 @@ sub leave_cluster
 	{
 		$anvil->Database->insert_or_update_jobs({
 			job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'},
+			job_host_uuid   => $host_uuid,
 			job_description => "job_0339",
 			job_name        => "cgi-bin::set_membership::leave",
 			job_progress    => 0,
