@@ -38,6 +38,64 @@ sub handle_invalid_uuid
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
+sub get_storage_groups
+{
+	my $parameters = shift;
+	my $anvil_uuid = $parameters->{anvil_uuid};
+
+	my $storage_groups = [];
+
+	# Use DISTINCT ON (...) to limit the occurence of a storage group to 1 and
+	# ORDER BY [free] ASC to only select the storage with lowest free space.
+	my $query = "
+SELECT
+	DISTINCT ON (sgr.storage_group_name) storage_group_name,
+	slv.scan_lvm_vg_size,
+	slv.scan_lvm_vg_free
+FROM
+	anvils anv,
+	storage_groups sgr,
+	storage_group_members sgm,
+	scan_lvm_vgs slv
+WHERE
+	anv.anvil_uuid = sgr.storage_group_anvil_uuid
+	AND
+	sgr.storage_group_uuid = sgm.storage_group_member_storage_group_uuid
+	AND
+	sgm.storage_group_member_vg_uuid = slv.scan_lvm_vg_internal_uuid
+	AND
+	anv.anvil_uuid = ".$anvil->Database->quote($anvil_uuid)."
+ORDER BY
+	sgr.storage_group_name ASC,
+	slv.scan_lvm_vg_free ASC
+;";
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		results => $results,
+		count   => $count
+	}});
+	foreach my $row (@{$results})
+	{
+		my $storage_group_name = $row->[0];
+		my $scan_lvm_vg_size   = $row->[1];
+		my $scan_lvm_vg_free   = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			storage_group_name => $storage_group_name,
+			scan_lvm_vg_size   => $scan_lvm_vg_size,
+			scan_lvm_vg_free   => $scan_lvm_vg_free
+		}});
+
+		push(@{$storage_groups}, {
+			name => $storage_group_name, total => $scan_lvm_vg_size, free => $scan_lvm_vg_free
+		});
+	}
+
+	return $storage_groups;
+}
+
 $anvil->Get->switches;
 
 # Temporary; for debugging
@@ -78,6 +136,8 @@ if ($anvil_uuid)
 				anvil_uuid => $anvil_uuid
 			}
 		});
+
+		$response_body->{storage_groups} = get_storage_groups({ anvil_uuid => $anvil_uuid });
 	}
 	else
 	{
