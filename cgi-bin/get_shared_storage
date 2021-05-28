@@ -20,6 +20,24 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub handle_invalid_uuid
+{
+	my $parameters = shift;
+	my $name       = $parameters->{name};
+	my $uuid       = $parameters->{uuid};
+
+	$anvil->Log->entry({
+		source    => $THIS_FILE,
+		line      => __LINE__,
+		level     => 0,
+		'print'   => 1,
+		priority  => "err",
+		key       => "error_0160",
+		variables => { name => $name, uuid => $uuid }
+	});
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
 $anvil->Get->switches;
 
 # Temporary; for debugging
@@ -42,6 +60,33 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
+my $anvil_uuid               = exists $anvil->data->{cgi}{anvil_uuid}{value} ? $anvil->data->{cgi}{anvil_uuid}{value} : $anvil->data->{switches}{'anvil-uuid'};
+my $anvil_uuid_variable_name = "anvil UUID";
+
 my $response_body = {};
+
+if ($anvil_uuid)
+{
+	if (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		$anvil->Log->variables({
+			source => $THIS_FILE,
+			line   => __LINE__,
+			level  => 2,
+			list   => {
+				message    => "Valid ".$anvil_uuid_variable_name." received.",
+				anvil_uuid => $anvil_uuid
+			}
+		});
+	}
+	else
+	{
+		handle_invalid_uuid({ name => $anvil_uuid_variable_name, uuid => $anvil_uuid });
+	}
+}
+else
+{
+	handle_invalid_uuid({ name => $anvil_uuid_variable_name, uuid => $anvil_uuid });
+}
 
 print JSON->new->utf8->encode($response_body)."\n";
