@@ -20,11 +20,11 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         <>
           {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && data && (
             <AnvilHost
-              hosts={anvil[
-                anvil.findIndex((a) => a.anvil_uuid === uuid)
-              ].hosts.map((host, index) => {
-                return data.hosts[index];
-              })}
+              hosts={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].hosts
+                .filter((host) => host.host_uuid)
+                .map((host, index) => {
+                  return data.hosts[index];
+                })}
             />
           )}
         </>
