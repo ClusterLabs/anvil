@@ -125,7 +125,7 @@ const AnvilHost = ({
                     />
                   </Box>
                 </Box>
-                {host.state !== 'online' && (
+                {host.state !== 'online' && host.state !== 'offline' && (
                   <>
                     <Box display="flex" width="100%" className={classes.state}>
                       <Box>
