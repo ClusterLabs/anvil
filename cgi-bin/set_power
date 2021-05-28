@@ -161,7 +161,7 @@ if (not $is_decode_json_success)
 
 my $anvil_uuid               = exists $request_body->{anvil_uuid} ? $request_body->{anvil_uuid} : $anvil->data->{switches}{'anvil-uuid'};
 my $host_uuid                = exists $request_body->{host_uuid}  ? $request_body->{host_uuid}  : $anvil->data->{switches}{'host-uuid'};
-my $is_on                    = exists $request_body->{is_on}      ? $request_body->{is_on}      : 0;
+my $is_on                    = exists $request_body->{is_on}      ? $request_body->{is_on}      : $anvil->data->{switches}{'is-on'};
 my $anvil_uuid_variable_name = "anvil UUID";
 my $host_uuid_variable_name  = "host UUID";
 
