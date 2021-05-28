@@ -116,15 +116,13 @@ sub join_cluster
 
 	if (not $is_active_member && $is_online)
 	{
-		# TODO: Uncomment when testing against real hosts.
-		#
-		#$anvil->Database->insert_or_update_jobs({
-		#	job_command     => $anvil->data->{path}{exe}{'anvil-safe-start'},
-		#	job_description => "job_0337",
-		#	job_name        => "cgi-bin::set_membership::join",
-		#	job_progress    => 0,
-		#	job_title       => "job_0336"
-		#});
+		$anvil->Database->insert_or_update_jobs({
+			job_command     => $anvil->data->{path}{exe}{'anvil-safe-start'},
+			job_description => "job_0337",
+			job_name        => "cgi-bin::set_membership::join",
+			job_progress    => 0,
+			job_title       => "job_0336"
+		});
 	}
 }
 
@@ -145,15 +143,13 @@ sub leave_cluster
 
 	if ($is_active_member)
 	{
-		# TODO: Uncomment when testing against real hosts.
-		#
-		#$anvil->Database->insert_or_update_jobs({
-		#	job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'},
-		#	job_description => "job_0339",
-		#	job_name        => "cgi-bin::set_membership::leave",
-		#	job_progress    => 0,
-		#	job_title       => "job_0338"
-		#});
+		$anvil->Database->insert_or_update_jobs({
+			job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'},
+			job_description => "job_0339",
+			job_name        => "cgi-bin::set_membership::leave",
+			job_progress    => 0,
+			job_title       => "job_0338"
+		});
 	}
 }
 
