@@ -4933,7 +4933,7 @@ sub update_hosts
 					# Matches, we don't need to deal with this name.
 					delete $anvil->data->{hosts}{needed}{$name};
 				}
-				else
+				elsif ($ip_address ne "127.0.0.1")
 				{
 					# The IP has changed. Skip this name (which removes it from the list).
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0481", variables => { 

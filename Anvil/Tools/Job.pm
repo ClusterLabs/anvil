@@ -616,7 +616,7 @@ sub update_progress
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message, picked_up_by => $picked_up_by }});
 	if ($message eq "clear")
 	{
-		$picked_up_by = 0;
+		$picked_up_by = $$;
 		$clear_status = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			picked_up_by => $picked_up_by,
