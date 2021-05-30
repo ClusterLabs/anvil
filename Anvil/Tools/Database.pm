@@ -91,6 +91,7 @@ my $THIS_FILE = "Database.pm";
 # resync_databases
 # update_host_status
 # write
+# _age_out_data
 # _archive_table
 # _find_column
 # _find_behind_database
@@ -156,6 +157,7 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
 
 =head2 archive_database
 
@@ -529,28 +531,34 @@ sub check_agent_data
 					
 				}});
 			}
+			
+			# Now check to see if a resync is required, it likely is.
+			if ($anvil->data->{sys}{database}{connections} > 1)
+			{
+				# The source is the agent
+				$anvil->Database->_find_behind_databases({
+					debug  => $debug, 
+					source => $agent, 
+					tables => $tables, 
+				});
+			}
+			
+			# Hold if a lock has been requested.
+			$anvil->Database->locking({debug => $debug});
+			
+			# Mark that we're not active.
+			$anvil->Database->mark_active({debug => $debug, set => 1});
+			
+			# Sync the database, if needed.
+			$anvil->Database->resync_databases({debug => $debug});
 		}
-	}
-	
-	# Now check to see if a resync is required...
-	if ($anvil->data->{sys}{database}{connections} > 1)
-	{
-		# The source is the agent
-		$anvil->Database->_find_behind_databases({
-			debug  => $debug, 
-			source => $agent, 
-			tables => $tables, 
-		});
 	}
 	
 	# Hold if a lock has been requested.
 	$anvil->Database->locking({debug => $debug});
 	
-	# Mark that we're not active.
+	# Mark that we're now active.
 	$anvil->Database->mark_active({debug => $debug, set => 1});
-	
-	# Sync the database, if needed.
-	$anvil->Database->resync_databases({debug => $debug});
 	
 	return(0);
 }
@@ -1072,6 +1080,14 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
+=head3 check_for_resync (optional, default 0)
+
+If set to C<< 1 >>, and there are 2 or more databases available, a check will be make to see if the databases need to be resync'ed or not. This is also set if the command line switch C<< --resync-db >> is used.
+
+B<< Note >>: For daemons like C<< anvil-daemon >> and C<< scancore >>, when a loop starts the current number of available databases is checked against the last number. If the new number is greater, a DB resync check is triggered.
+
+This can be expensive so should not be used in cases where responsiveness is important. It should be used if differences in data could cause issues.
+
 =head3 check_if_configured (optional, default '0')
 
 If set to C<< 1 >>, and if this is a locally hosted database, a check will be made to see if the database is configured. If it isn't, it will be configured.
@@ -1085,10 +1101,6 @@ If set, the connection will be made only to the database server matching the UUI
 =head3 no_ping (optional, default '0')
 
 If set to C<< 1 >>, no attempt to ping a target before connection will happen, even if C<< database::<uuid>::ping = 1 >> is set.
-
-=head3 no_resync (optional, default 0)
-
-If set to C<< 1 >>, no checks will be made to resync the database. Generally this is only useful to scan agents (as ScanCore itself is better at detecting and resyncing).
 
 =head3 source (optional)
 
@@ -1147,7 +1159,7 @@ sub connect
 	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
 	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
-	my $no_resync           = defined $parameter->{no_resync}           ? $parameter->{no_resync}           : 0;
+	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
 	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
 	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
@@ -1156,18 +1168,25 @@ sub connect
 		check_if_configured => $check_if_configured, 
 		db_uuid             => $db_uuid,
 		no_ping             => $no_ping,
-		no_resync           => $no_resync, 
+		check_for_resync    => $check_for_resync, 
 		source              => $source, 
 		sql_file            => $sql_file, 
 		tables              => $tables, 
 		test_table          => $test_table, 
 	}});
 	
-	# If I wasn't passed an array reference of tables, use the core tables.
+	# If I wasn't passed an array reference of tables, load them from file(s).
 	if (not $tables)
 	{
-		$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => $anvil->data->{path}{sql}{'anvil.sql'}});
+		$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => "all"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
+	}
+	
+	$anvil->data->{switches}{'resync-db'} = "" if not defined $anvil->data->{switches}{'resync-db'};
+	if ($anvil->data->{switches}{'resync-db'})
+	{
+		$check_for_resync = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 	}
 	
 	my $start_time = [gettimeofday];
@@ -1710,41 +1729,33 @@ sub connect
 		$anvil->Database->disconnect({debug => $debug});
 	}
 	
-	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
-	# date.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
-		no_resync                    => $no_resync, 
-	}});
-	if (($anvil->data->{sys}{database}{connections} > 1) && (not $no_resync))
+	# If we have a previous count and the new count is higher, resync.
+	if (exists $anvil->data->{sys}{database}{last_db_count})
 	{
-		# If we have a "last_db_count" and it's the same as the current number of connections, skip 
-		# checking for a resync. This is done because the databases change constantly so tables like
-		# jobs, which scancore and anvil-daemon constantly change, doesn't trigger a resync when 
-		# records change mid-check.
-		my $check = 1;
-		if (exists $anvil->data->{sys}{database}{last_db_count})
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count},
+			"sys::database::connections"   => $anvil->data->{sys}{database}{connections}, 
+		}});
+		if ($anvil->data->{sys}{database}{connections} > $anvil->data->{sys}{database}{last_db_count})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count},
-				"sys::database::connections"   => $anvil->data->{sys}{database}{connections}, 
-			}});
-			if ($anvil->data->{sys}{database}{last_db_count} eq $anvil->data->{sys}{database}{connections})
-			{
-				$check = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check => $check }});
-			}
+			$check_for_resync = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_for_resync => $check_for_resync }});
 		}
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check => $check }});
-		if ($check)
-		{
-			$anvil->Database->_find_behind_databases({
-				debug  => $debug, 
-				source => $source, 
-				tables => $tables,
-			});
-		}
+	}
+	
+	# If we have a "last_db_count" and it's the lower than the current number of connections, check for a
+	# resync. 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+		check_for_resync             => $check_for_resync, 
+	}});
+	if (($anvil->data->{sys}{database}{connections} > 1) && ($check_for_resync))
+	{
+		$anvil->Database->_find_behind_databases({
+			debug  => $debug, 
+			source => $source, 
+			tables => $tables,
+		});
 	}
 	
 	$anvil->data->{sys}{database}{last_db_count} = $anvil->data->{sys}{database}{connections};
@@ -1757,7 +1768,14 @@ sub connect
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
-	$anvil->Database->resync_databases({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed},
+		check_for_resync               => $check_for_resync, 
+	}});
+	if (($check_for_resync) && ($anvil->data->{sys}{database}{resync_needed}))
+	{
+		$anvil->Database->resync_databases({debug => $debug});
+	}
 	
 	# Add ourselves to the database, if needed.
 	$anvil->Database->insert_or_update_hosts({debug => $debug});
@@ -4574,7 +4592,7 @@ Parameters;
 
 =head3 schema_file (required)
 
-This is the full path to a SQL schema file to look for tables in.
+This is the full path to a SQL schema file to look for tables in. If set to C<< all >>, then C<< path::sql::anvil.sql >> will be used, as well schema for all scan agents.
 
 =cut
 sub get_tables_from_schema
@@ -4598,8 +4616,39 @@ sub get_tables_from_schema
 		return("!!error!!");
 	}
 	
-	my $schema = $anvil->Storage->read_file({debug => $debug, file => $schema_file});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
+	my $schema = "";
+	if ($schema_file eq "all")
+	{
+		# We're loading all schema files. Main first
+		$schema = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{sql}{'anvil.sql'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
+		
+		$anvil->ScanCore->_scan_directory({
+			debug     => $debug, 
+			directory => $anvil->data->{path}{directories}{scan_agents},
+		});
+		
+		# Now all agents
+		foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+		{
+			my $sql_path = $anvil->data->{scancore}{agent}{$agent_name}.".sql";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				agent_name => $agent_name, 
+				sql_path   => $sql_path,
+			}});
+			if (not -e $sql_path)
+			{
+				next;
+			}
+			$schema .= $anvil->Storage->read_file({debug => $debug, file => $sql_path});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
+		}
+	}
+	else
+	{
+		$schema = $anvil->Storage->read_file({debug => $debug, file => $schema_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
+	}
 	
 	if ($schema eq "!!error!!")
 	{
@@ -4609,7 +4658,7 @@ sub get_tables_from_schema
 	foreach my $line (split/\n/, $schema)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		$line =~ s/--.*?//;
+		$line =~ s/--.*$//;
 		
 		if ($line =~ /CREATE TABLE history\.(.*?) \(/)
 		{
@@ -4643,7 +4692,6 @@ sub get_tables_from_schema
 		tables                        => $tables,
 		'sys::database::check_tables' => $anvil->data->{sys}{database}{check_tables}, 
 	}});
-	
 	
 	my $table_count = @{$tables};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table_count => $table_count }});
@@ -14134,7 +14182,7 @@ sub manage_anvil_conf
 			$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 			
 			# Reconnect
-			$anvil->Database->connect();
+			$anvil->Database->connect({check_for_resync => 1});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 		}
 	}
@@ -15471,6 +15519,287 @@ sub write
 # Private functions                                                                                         #
 #############################################################################################################
 
+
+=head2 _age_out_data
+
+This deletes any data considered transient (power, thermal, etc) after C<< scancore::database::age_out >> hours old. 
+
+=cut
+sub _age_out_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_age_out_data()" }});
+	
+	# Get the timestamp to delete jobs and processed alert records older than 2h
+	my $query         = "SELECT now() - '2h'::interval";
+	my $old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		query         => $query, 
+		old_timestamp => $old_timestamp, 
+	}});
+	
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+	
+		my $queries = [];
+		my $query   = "SELECT job_uuid FROM jobs WHERE modified_date <= '".$old_timestamp."';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $job_uuid = $row->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+
+			# Delete
+			my $query = "DELETE FROM history.jobs WHERE job_uuid = ".$anvil->Database->quote($job_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			push @{$queries}, $query;
+			
+			$query = "DELETE FROM jobs WHERE job_uuid = ".$anvil->Database->quote($job_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			push @{$queries}, $query;
+		}
+		
+		my $commits = @{$queries};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commits => $commits }});
+		if ($commits)
+		{
+			# Commit the DELETEs.
+			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Remove old processed alerts.
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+	
+		my $queries = [];
+		my $query   = "SELECT alert_uuid FROM alerts WHERE alert_processed = 1 AND modified_date <= '".$old_timestamp."';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $alert_uuid = $row->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_uuid => $alert_uuid }});
+
+			# Delete
+			my $query = "DELETE FROM history.alerts WHERE alert_uuid = ".$anvil->Database->quote($alert_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			push @{$queries}, $query;
+			
+			$query = "DELETE FROM alerts WHERE alert_uuid = ".$anvil->Database->quote($alert_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			push @{$queries}, $query;
+		}
+		
+		my $commits = @{$queries};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commits => $commits }});
+		if ($commits)
+		{
+			# Commit the DELETEs.
+			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Now process power and tempoerature, if not disabled.
+	my $age = $anvil->data->{scancore}{database}{age_out};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+	
+	if ($age =~ /\D/)
+	{
+		# Age is not valid, set it to defaults.
+		$age = 48;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+	}
+	
+	if ($age == 0)
+	{
+		# Disabled, return.
+		return(0);
+	}
+	
+	# Get the timestamp to delete thermal and power records older than $age hours.
+	$query         = "SELECT now() - '".$age."h'::interval;";
+	$old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		query         => $query, 
+		old_timestamp => $old_timestamp, 
+	}});
+	
+	# Purge temperature and power data.
+	my $tables = {};
+	   $tables->{temperature}  = "temperature_uuid";
+	   $tables->{power}        = "power_uuid";
+	   $tables->{ip_addresses} = "ip_address_uuid";
+	foreach my $table (sort {$a cmp $b} keys %{$tables})
+	{
+		my $uuid_column = $tables->{$table};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			table       => $table,
+			uuid_column => $uuid_column, 
+		}});
+		foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		
+			my $queries = [];
+			my $query   = "SELECT ".$uuid_column." FROM ".$table;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				my $column_uuid = $row->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_uuid => $column_uuid }});
+				
+				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
+				my $query = "SELECT history_id FROM history.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date > '".$old_timestamp."';";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				if ($count)
+				{
+					# At least one record will be left.
+					my $query = "DELETE FROM history.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."';";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					push @{$queries}, $query;
+				}
+				else
+				{
+					# This would delete everything, reserve at least one record.
+					foreach my $row (@{$results})
+					{
+						my $history_id = $row->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
+						
+						my $query = "DELETE FROM history.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND hostory_id = '".$history_id."';";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+						push @{$queries}, $query;
+					}
+				}
+			}
+			
+			my $commits = @{$queries};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commits => $commits }});
+			if ($commits)
+			{
+				# Commit the DELETEs.
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+	}
+	
+	### Looks for scan agent data that grows quickly.
+	# scan-ipmitool
+	$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='scan_ipmitool_values' AND schemaname='public';";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+	if ($count)
+	{
+		foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+		
+			my $queries = [];
+			my $query   = "SELECT scan_ipmitool_value_uuid FROM scan_ipmitool_values;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				my $column_uuid = $row->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_uuid => $column_uuid }});
+				
+				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
+				my $query = "SELECT history_id FROM history.scan_ipmitool_values WHERE scan_ipmitool_value_uuid = ".$anvil->Database->quote($column_uuid)." AND modified_date > '".$old_timestamp."';";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				if ($count)
+				{
+					# At least one record will be left.
+					my $query = "DELETE FROM history.scan_ipmitool_values WHERE scan_ipmitool_value_uuid = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."';";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					push @{$queries}, $query;
+				}
+				else
+				{
+					# This would delete everything, reserve at least one record.
+					foreach my $row (@{$results})
+					{
+						my $history_id = $row->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
+						
+						my $query = "DELETE FROM history.scan_ipmitool_values WHERE scan_ipmitool_value_uuid = ".$anvil->Database->quote($column_uuid)." AND hostory_id = '".$history_id."';";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						push @{$queries}, $query;
+					}
+				}
+			}
+			
+			my $commits = @{$queries};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { commits => $commits }});
+			if ($commits)
+			{
+				# Commit the DELETEs.
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+	}
+	
+	# VACCUM
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		
+		my $query = "VACUUM FULL;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+
 =head2 _archive_table
 
 NOTE: Not implemented yet (will do so once enough records are in the DB.)
@@ -15887,6 +16216,7 @@ sub _find_behind_databases
 		$anvil->data->{sys}{database}{table}{$table}{row_count}    = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated},
+			"sys::database::table::${table}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{row_count},
 		}});
 	}
 	
@@ -16032,13 +16362,13 @@ ORDER BY
 			}
 			else
 			{
-				### TODO: Find the table in a .sql file and load it.
+				### NOTE: We could recover a lost table here if we tried to find the table in
+				###       a .sql file and load it. Might be worth adding later.
 			}
 		}
 	}
 	
 	# Are being asked to trigger a resync?
-	$anvil->data->{switches}{'resync-db'} = "" if not defined $anvil->data->{switches}{'resync-db'};
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -16077,36 +16407,28 @@ ORDER BY
 				"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 			}});
-			### TODO: Use locking to check for resync so things don't change during checks
-# 			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
-# 			{
-# 				### NOTE: This triggers often with just a few seconds difference, which is 
-# 				###       more likely caused by one database doing reads, something changes,
-# 				###       and the next database is read. As such, we won't trigger unless
-# 				###       the difference is more than 10 seconds.
-# 				# Resync needed.
-# 				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
-# 					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
-# 					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
-# 				}});
-# 				if ($difference > 10)
-# 				{
-# 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
-# 						seconds => $difference, 
-# 						table   => $table, 
-# 						uuid    => $uuid,
-# 						host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
-# 					}});
-# 					
-# 					# Mark it as behind.
-# 					$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
-# 					last;
-# 				}
-# 			}
-# 			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
-			if ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
+			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
+			{
+				# Resync needed.
+				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
+					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
+					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+				}});
+
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
+					seconds => $difference, 
+					table   => $table, 
+					uuid    => $uuid,
+					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+				}});
+				
+				# Mark it as behind.
+				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+				last;
+			}
+			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
 				# Resync needed.
 				my $difference = ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count});

@@ -839,6 +839,11 @@ sub _set_defaults
 			# Delay between scans?
 			run_interval			=>	30,
 		},
+		database			=>	{
+			# This is the number of hours, after which, transient data (like temperature and 
+			# power data) is considered "old" and gets deleted from the database.
+			age_out				=>	48,
+		},
 	};
 	$anvil->data->{sys} = {
 		apache				=>	{

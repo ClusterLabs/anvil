@@ -88,7 +88,7 @@ CREATE TABLE scan_ipmitool_values (
 ALTER TABLE scan_ipmitool_values OWNER TO admin;
 
 CREATE TABLE history.scan_ipmitool_values (
-    history_id                                uuid,
+    history_id                                bigserial,
     scan_ipmitool_value_uuid                  uuid,
     scan_ipmitool_value_host_uuid             uuid,
     scan_ipmitool_value_scan_ipmitool_uuid    uuid,
