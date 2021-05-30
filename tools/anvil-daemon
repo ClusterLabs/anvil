@@ -91,7 +91,7 @@ $anvil->System->_check_anvil_conf();
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
-$anvil->Database->connect({check_if_configured => 1});
+$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
 # If I have no databases, sleep for a second and then exit (systemd will restart us).

@@ -718,6 +718,9 @@ sys::manage::firewall						=	1
 		<key name="header_0059">Link Drops</key>
 		<key name="header_0060"><![CDATA[-=[ Bond Status - #!variable!date!# ] =-]]></key>
 		<key name="header_0061"><![CDATA[-=[ Ctrl + C to exit ] =-]]></key>
+		<key name="header_0062">Table</key>
+		<key name="header_0063">public</key>		<!-- SQL schema -->
+		<key name="header_0064">history</key>		<!-- SQL schema -->
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -2450,6 +2453,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0284">Cancel</key>
 		<key name="striker_0285">Close</key>
 		<key name="striker_0286">This controls if 'anvil-safe-start' is enabled on a node.</key>
+		<key name="striker_0287">The virtio NAT bridge: [#!variable!bridge!#] exists. Removing it...</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

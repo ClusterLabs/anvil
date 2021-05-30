@@ -1664,7 +1664,7 @@ sub check_local_network
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0464", variables => { interface => $interface_name }});
 			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up \"".$interface_name."\""});
 		}
-	
+		
 		# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
 		my $wait_until = time + 130;
 		until ($anvil->data->{sys}{database}{connections})

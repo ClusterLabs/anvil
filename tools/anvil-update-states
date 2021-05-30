@@ -139,6 +139,46 @@ sub update_network
 		ip        => {},
 	};
 	
+	# Make sure there are no virsh bridges, removing any found.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if (($host_type eq "node") or ($host_type eq "dr"))
+	{
+		my $shell_call = $anvil->data->{path}{exe}{virsh}." net-list --all --name";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		foreach my $line (split/\n/, $output)
+		{
+			$line =~ s/^\s+//;
+			$line =~ s/\s+$//;
+			next if not $line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "striker_0287", variables => { bridge => $line }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{virsh}." net-destroy ".$line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			
+			$shell_call = $anvil->data->{path}{exe}{virsh}." net-undefine ".$line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
+	}
+	
 	# Walk through the sysfs files.
 	local(*DIRECTORY);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
@@ -176,7 +216,7 @@ sub update_network
 			$duplex      =~ s/\n$//;
 			$operational =~ s/\n$//;
 			$speed       =~ s/\n$//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
 				speed       => $speed, 
 				mac_address => $mac_address,
@@ -204,7 +244,7 @@ sub update_network
 				$ip_address  = defined $anvil->data->{network}{$local_host}{interface}{$interface}{ip}          ? $anvil->data->{network}{$local_host}{interface}{$interface}{ip}          : "";
 				$subnet_mask = defined $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask} ? $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask} : "";
 				$type        = defined $anvil->data->{network}{$local_host}{interface}{$interface}{type}        ? $anvil->data->{network}{$local_host}{interface}{$interface}{type}        : "interface";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					ip_address  => $ip_address, 
 					subnet_mask => $subnet_mask,
 					type        => $type, 
@@ -314,7 +354,7 @@ sub update_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge_stp_enabled => $bridge_stp_enabled }});
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				active_interface     => $active_interface, 
 				bond_master          => $bond_master, 
 				bond_mode            => $bond_mode, 
@@ -373,7 +413,7 @@ sub update_network
 			if ($ip_address)
 			{
 				$anvil->data->{seen}{ip}{$ip_address} = $interface;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "seen::ip::${ip_address}" => $anvil->data->{seen}{ip}{$ip_address} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "seen::ip::${ip_address}" => $anvil->data->{seen}{ip}{$ip_address} }});
 			}
 			
 			# Store new information we found.
@@ -966,6 +1006,7 @@ WHERE
 		{
 			# This IP address no longer exists on this host, removing it.
 			my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+				debug           => 2,
 				file            => $THIS_FILE,
 				line            => __LINE__,
 				'delete'        => 1,

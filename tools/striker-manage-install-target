@@ -1461,6 +1461,8 @@ sub load_packages
 		}
 	}
 	
+	### TODO: Download 'alteeve-release.noarch' directly.
+	
 	### NOTE: If/when we support other archs, removing '.x86_64/.noarch' would cause all available archs 
 	###       to be downloaded (including .ix86, which would waste space...). Decide if it's best to 
 	###       explicitely declare archs vs using space/bandwidth to just grab all available.
@@ -1475,7 +1477,6 @@ sub load_packages
 			"adwaita-gtk2-theme.x86_64",
 			"adwaita-icon-theme.noarch",
 			"alsa-lib.x86_64",
-			"alteeve-release.noarch", 
 			"annobin.x86_64",
 			"anvil-core.noarch",
 			"anvil-dr.noarch",

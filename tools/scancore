@@ -18,6 +18,11 @@
 #   shutdown.
 # - Add a '--silence-alerts --anvil <name>' and '--restore-alerts --anvil <name>' to temporarily 
 #   disable/re-enable alerts. This is to allow for quiet maintenance without stopping scancore itself.
+#   
+# - Disable resync checks by default, and have a resync check happen on scancore startup, anvil-daemon 
+#   startup, and during configuration. 
+# - Delete records from temperature and power tables that are older than 48 hours, checking periodically in
+#   scancore on strikers only. Delete jobs records that are 100% complete for 48 hours or more.
 # 
 
 use strict;
@@ -142,8 +147,6 @@ while(1)
 		next;
 	}
 	
-	### TODO: Left off here 
-	###       - Agents are timing out?
 	# Send alerts.
 	$anvil->Email->send_alerts({debug => 2});
 	
@@ -240,7 +243,7 @@ sub wait_for_database
 {
 	my ($anvil) = @_;
 	
-	$anvil->Database->connect;
+	$anvil->Database->connect({check_for_resync => 1});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 	if (not $anvil->data->{sys}{database}{connections})
 	{
@@ -256,7 +259,7 @@ sub wait_for_database
 			$anvil->_set_paths();
 			$anvil->_set_defaults();
 			$anvil->Storage->read_config();
-			$anvil->Database->connect;
+			$anvil->Database->connect({check_for_resync => 1});
 			if ($anvil->data->{sys}{database}{connections})
 			{
 				# We're good
@@ -365,6 +368,12 @@ sub startup_tasks
 			my $say_uptime = $anvil->Convert->time({'time' => $uptime});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0620", variables => { uptime => $say_uptime }});
 		}
+	}
+	elsif ($host_type eq "striker")
+	{
+		# We're a striker, so we're going to check for / remove transient database records on tables
+		# that always grow (temperature, power, etc) and whose data loses value as it ages.
+
 	}
 	
 	return(0);
