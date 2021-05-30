@@ -63,7 +63,7 @@ if (($< != 0) && ($> != 0))
 }
 
 # We'll try to connect in case we're adding additional peers.
-$anvil->Database->connect();
+$anvil->Database->connect({check_for_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 
 # Am I adding, editing or deleting?
@@ -543,6 +543,7 @@ sub process_entry
 			# Connect, and configure, if needed.
 			$anvil->Database->connect({
 				debug               => 3,
+				check_for_resync    => 1,
 				check_if_configured => $host_uuid eq $anvil->Get->host_uuid ? 1 : 0,
 			});
 			
@@ -623,7 +624,7 @@ sub process_entry
 				
 				sleep 1;
 				
-				$anvil->Database->connect({db_uuid => $host_uuid});
+				$anvil->Database->connect({check_for_resync => 1, db_uuid => $host_uuid});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 			}
 		}

@@ -43,7 +43,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 
 # Connect to the database(s).
-$anvil->Database->connect;
+$anvil->Database->connect({check_for_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {

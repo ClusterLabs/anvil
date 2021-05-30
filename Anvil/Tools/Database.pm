@@ -15522,7 +15522,9 @@ sub write
 
 =head2 _age_out_data
 
-This deletes any data considered transient (power, thermal, etc) after C<< scancore::database::age_out >> hours old. 
+This deletes any data considered transient (power, thermal, etc) after C<< scancore::database::age_out >> hours old. The exception are completed jobs that are more than 2 hours old, which are purged.
+
+B<< Note >>:  Scan agents can have fast-growing tabled purged as well. This is done by setting the appropriate values in the C<< $to_clean >> hash contained within. This is hard coded so the source needs to be updated as the number of agents grow. 
 
 =cut
 sub _age_out_data
@@ -15532,6 +15534,10 @@ sub _age_out_data
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_age_out_data()" }});
+	
+	# Log our start, as this takes some time to run.
+	my $start_time = time;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0623"});
 	
 	# Get the timestamp to delete jobs and processed alert records older than 2h
 	my $query         = "SELECT now() - '2h'::interval";
@@ -15717,71 +15723,139 @@ sub _age_out_data
 	}
 	
 	### Looks for scan agent data that grows quickly.
-	# scan-ipmitool
-	$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='scan_ipmitool_values' AND schemaname='public';";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	# We don't use 'anvil->data' to prevent injecting SQL queries in anvil.conf
+	my $to_clean = {};
 	
-	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
-	if ($count)
+	# scan_apc_pdu
+	$to_clean->{table}{scan_apc_pdus}{child_table}{scan_apc_pdu_phases}{uuid_column}    = "scan_apc_pdu_phase_uuid";
+	$to_clean->{table}{scan_apc_pdus}{child_table}{scan_apc_pdu_variables}{uuid_column} = "scan_apc_pdu_variable_uuid";
+	
+	# scan_apc_ups
+	$to_clean->{table}{scan_apc_upses}{child_table}{scan_apc_ups_batteries}{uuid_column} = "scan_apc_ups_battery_uuid";
+	$to_clean->{table}{scan_apc_upses}{child_table}{scan_apc_ups_input}{uuid_column}     = "scan_apc_ups_input_uuid";
+	$to_clean->{table}{scan_apc_upses}{child_table}{scan_apc_ups_output}{uuid_column}    = "scan_apc_ups_output_uuid";
+	
+	# scan_filesystems
+	$to_clean->{table}{scan_filesystems}{child_table}{scan_filesystems}{uuid_column} = "scan_filesystem_uuid";
+	
+	# scan_hardware
+	$to_clean->{table}{scan_hardware}{child_table}{scan_hardware}{uuid_column} = "scan_hardware_uuid";
+	$to_clean->{table}{scan_hardware}{child_table}{scan_hardware}{uuid_column} = "scan_hardware_uuid";
+	
+	# scan_hpacucli
+	$to_clean->{table}{scan_hpacucli_variables}{child_table}{scan_hpacucli_variables}{uuid_column} = "scan_hpacucli_variable_uuid";
+	
+	# scan_ipmitool
+	$to_clean->{table}{scan_ipmitool}{child_table}{scan_ipmitool_values}{uuid_column} = "scan_ipmitool_value_uuid";
+	
+	# scan_storcli
+	$to_clean->{table}{scan_storcli_variables}{child_table}{scan_storcli_variables}{uuid_column} = "scan_storcli_variable_uuid";
+	
+	my $vacuum = 0;
+	foreach my $table (sort {$a cmp $b} keys %{$to_clean->{table}})
 	{
-		foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
 		
-			my $queries = [];
-			my $query   = "SELECT scan_ipmitool_value_uuid FROM scan_ipmitool_values;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-			
-			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			foreach my $row (@{$results})
+		# Does the table exist?
+		$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='scan_apc_pdus' AND schemaname='public';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+		if ($count)
+		{
+			# The table exists, clean up child tables.
+			foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 			{
-				my $column_uuid = $row->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_uuid => $column_uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 				
-				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
-				my $query = "SELECT history_id FROM history.scan_ipmitool_values WHERE scan_ipmitool_value_uuid = ".$anvil->Database->quote($column_uuid)." AND modified_date > '".$old_timestamp."';";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-				
-				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-				my $count   = @{$results};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					results => $results, 
-					count   => $count, 
-				}});
-				if ($count)
+				foreach my $child_table (sort {$a cmp $b} keys %{$to_clean->{table}{$table}{child_table}})
 				{
-					# At least one record will be left.
-					my $query = "DELETE FROM history.scan_ipmitool_values WHERE scan_ipmitool_value_uuid = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."';";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					push @{$queries}, $query;
-				}
-				else
-				{
-					# This would delete everything, reserve at least one record.
+					my $uuid_column = $to_clean->{table}{$table}{child_table}{$child_table}{uuid_column};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						child_table => $child_table,
+						uuid_column => $uuid_column, 
+					}});
+					
+					# Get a list of all records.
+					my $queries = [];
+					my $query   = "SELECT ".$uuid_column." FROM ".$child_table.";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					
+					my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
 					foreach my $row (@{$results})
 					{
-						my $history_id = $row->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
+						my $column_uuid = $row->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_uuid => $column_uuid }});
 						
-						my $query = "DELETE FROM history.scan_ipmitool_values WHERE scan_ipmitool_value_uuid = ".$anvil->Database->quote($column_uuid)." AND hostory_id = '".$history_id."';";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-						push @{$queries}, $query;
+						# Find out of there are any records to remove at all.
+						my $query = "SELECT history_id FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."';";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+						
+						my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+						my $count   = @{$results};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							results => $results, 
+							count   => $count, 
+						}});
+						
+						if ($count)
+						{
+							# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
+							my $query = "SELECT history_id FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date > '".$old_timestamp."';";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+							
+							my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+							my $count   = @{$results};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								results => $results, 
+								count   => $count, 
+							}});
+							if ($count)
+							{
+								# At least one record will be left, we can do a simple delete.
+								my $query = "DELETE FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."';";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+								push @{$queries}, $query;
+							}
+							else
+							{
+								# This would delete everything, reserve at least one record.
+								foreach my $row (@{$results})
+								{
+									my $history_id = $row->[0];
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
+									
+									my $query = "DELETE FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND history_id = '".$history_id."';";
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+									push @{$queries}, $query;
+								}
+							}
+						}
+					}
+					
+					my $commits = @{$queries};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commits => $commits }});
+					if ($commits)
+					{
+						# Commit the DELETEs.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0622", variables => { 
+							age      => $age,
+							table    => $child_table,
+							database => $anvil->Get->host_name_from_uuid({host_uuid => $uuid, debug => $debug}),
+						}});
+						$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+						
+						$vacuum += $commits;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vacuum => $vacuum }});
+						undef $queries;
 					}
 				}
-			}
-			
-			my $commits = @{$queries};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { commits => $commits }});
-			if ($commits)
-			{
-				# Commit the DELETEs.
-				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 			}
 		}
 	}
@@ -15795,6 +15869,9 @@ sub _age_out_data
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 	}
+	
+	my $runtime = time - $start_time;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0624", variables => { runtime => $runtime }});
 	
 	return(0);
 }
@@ -16133,7 +16210,7 @@ sub _find_column
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		table => $table, 
 		count => $count,
 	}});

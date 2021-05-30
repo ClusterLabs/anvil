@@ -462,6 +462,9 @@ sub handle_periodic_tasks
 		###       recently enough.
 		if ($type eq "striker")
 		{
+			# Age out old data. This takes up to a minute. 
+			$anvil->Database->_age_out_data();
+			
 			# Record a job, don't call it directly. It takes too long to run.
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
