@@ -186,7 +186,7 @@ sub archive_database
 	# If not given tables, use the system tables.
 	if (not $tables)
 	{
-		$tables = $anvil->data->{sys}{database}{check_tables};
+		$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => "all"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 	}
 	
@@ -216,11 +216,13 @@ sub archive_database
 		return(1);
 	}
 	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0451"});
+	
 	# Make sure I have sane values.
-	$anvil->data->{sys}{database}{archive}{compress}     = 1     if not defined $anvil->data->{sys}{database}{archive}{compress};
-	$anvil->data->{sys}{database}{archive}{count}        = 25000 if not defined $anvil->data->{sys}{database}{archive}{count};
-	$anvil->data->{sys}{database}{archive}{division}     = 30000 if not defined $anvil->data->{sys}{database}{archive}{division};
-	$anvil->data->{sys}{database}{archive}{trigger}      = 50000 if not defined $anvil->data->{sys}{database}{archive}{trigger};
+	$anvil->data->{sys}{database}{archive}{compress}     = 1      if not defined $anvil->data->{sys}{database}{archive}{compress};
+	$anvil->data->{sys}{database}{archive}{count}        = 100000 if not defined $anvil->data->{sys}{database}{archive}{count};
+	$anvil->data->{sys}{database}{archive}{division}     = 125000 if not defined $anvil->data->{sys}{database}{archive}{division};
+	$anvil->data->{sys}{database}{archive}{trigger}      = 500000 if not defined $anvil->data->{sys}{database}{archive}{trigger};
 	$anvil->data->{sys}{database}{archive}{save_to_disk} = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::archive::compress" => $anvil->data->{sys}{database}{archive}{compress},
@@ -14743,10 +14745,6 @@ sub resync_databases
 		return(0);
 	}
 	
-	# Archive old data before resync'ing
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0451"});
-	$anvil->Database->archive_database({debug => $debug});
-	
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
 	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
@@ -15535,6 +15533,9 @@ sub _age_out_data
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_age_out_data()" }});
 	
+	# Get a lock.
+	$anvil->Database->locking({debug => $debug, request => 1});
+	
 	# Log our start, as this takes some time to run.
 	my $start_time = time;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0623"});
@@ -15583,6 +15584,8 @@ sub _age_out_data
 			# Commit the DELETEs.
 			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
+		
+		$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
 	# Remove old processed alerts.
@@ -15622,6 +15625,7 @@ sub _age_out_data
 			# Commit the DELETEs.
 			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
+		$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
 	# Now process power and tempoerature, if not disabled.
@@ -15631,13 +15635,14 @@ sub _age_out_data
 	if ($age =~ /\D/)
 	{
 		# Age is not valid, set it to defaults.
-		$age = 48;
+		$age = 24;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
 	}
 	
 	if ($age == 0)
 	{
 		# Disabled, return.
+		$anvil->Database->locking({debug => $debug, release => 1});
 		return(0);
 	}
 	
@@ -15649,82 +15654,14 @@ sub _age_out_data
 		old_timestamp => $old_timestamp, 
 	}});
 	
-	# Purge temperature and power data.
-	my $tables = {};
-	   $tables->{temperature}  = "temperature_uuid";
-	   $tables->{power}        = "power_uuid";
-	   $tables->{ip_addresses} = "ip_address_uuid";
-	foreach my $table (sort {$a cmp $b} keys %{$tables})
-	{
-		my $uuid_column = $tables->{$table};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			table       => $table,
-			uuid_column => $uuid_column, 
-		}});
-		foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-		
-			my $queries = [];
-			my $query   = "SELECT ".$uuid_column." FROM ".$table;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			
-			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			foreach my $row (@{$results})
-			{
-				my $column_uuid = $row->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_uuid => $column_uuid }});
-				
-				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
-				my $query = "SELECT history_id FROM history.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date > '".$old_timestamp."';";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				
-				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-				my $count   = @{$results};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					results => $results, 
-					count   => $count, 
-				}});
-				if ($count)
-				{
-					# At least one record will be left.
-					my $query = "DELETE FROM history.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."';";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-					push @{$queries}, $query;
-				}
-				else
-				{
-					# This would delete everything, reserve at least one record.
-					foreach my $row (@{$results})
-					{
-						my $history_id = $row->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
-						
-						my $query = "DELETE FROM history.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND hostory_id = '".$history_id."';";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-						push @{$queries}, $query;
-					}
-				}
-			}
-			
-			my $commits = @{$queries};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commits => $commits }});
-			if ($commits)
-			{
-				# Commit the DELETEs.
-				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
-			}
-		}
-	}
-	
 	### Looks for scan agent data that grows quickly.
 	# We don't use 'anvil->data' to prevent injecting SQL queries in anvil.conf
 	my $to_clean = {};
+	
+	# Power, temperatures and ip addresses
+	$to_clean->{table}{temperature}{child_table}{temperature}{uuid_column}   = "temperature_uuid";
+	$to_clean->{table}{power}{child_table}{power}{uuid_column}               = "power_uuid";
+	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column} = "ip_address_uuid";
 	
 	# scan_apc_pdu
 	$to_clean->{table}{scan_apc_pdus}{child_table}{scan_apc_pdu_phases}{uuid_column}    = "scan_apc_pdu_phase_uuid";
@@ -15855,6 +15792,7 @@ sub _age_out_data
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vacuum => $vacuum }});
 						undef $queries;
 					}
+					$anvil->Database->locking({debug => $debug, renew => 1});
 				}
 			}
 		}
@@ -15868,10 +15806,14 @@ sub _age_out_data
 		my $query = "VACUUM FULL;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
 	my $runtime = time - $start_time;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0624", variables => { runtime => $runtime }});
+	
+	$anvil->Database->locking({debug => $debug, release => 1});
 	
 	return(0);
 }

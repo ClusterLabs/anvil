@@ -1596,7 +1596,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
 		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
 		<key name="log_0450">Skipping the network scan. The next scheduled scan will be done in: [#!variable!next_scan!#]. Override with '--force'.</key>
-		<key name="log_0451">Checking to see if any data needs to be archived before starting the resync.</key>
+		<key name="log_0451">Checking to see if any data needs to be archived.</key>
 		<key name="log_0452">Skipping archiving, not a Striker dashboard.</key>
 		<key name="log_0453">Archiving: [#!variable!records!#] over: [#!variable!loops!#] segments from the table: [#!variable!table!#] from the database on: [#!variable!host!#]. This might take a bit, please be patient.</key>
 		<key name="log_0454">Writing: [#!variable!records!#] to the file: [#!variable!file!#].</key>

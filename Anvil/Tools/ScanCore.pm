@@ -289,7 +289,7 @@ sub call_scan_agents
 		my $runtime    = (time - $start_time);
 		my $log_level  = $debug;
 		my $string_key = "log_0557";
-		if ($runtime > 10)
+		if ($runtime > 15)
 		{
 			$log_level  = 1;
 			$string_key = "log_0621";
@@ -2154,7 +2154,7 @@ LIMIT 1;";
 		}
 		
 		# Check this target's power state.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0561", variables => { host_name => $host_name }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0561", variables => { host_name => $host_name }});
 		
 		# Do we share a network with this system?
 		$anvil->Network->load_ips({
@@ -2206,7 +2206,7 @@ LIMIT 1;";
 				if ($access)
 				{
 					# It's up.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0562", variables => { host_name => $host_name }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0562", variables => { host_name => $host_name }});
 					
 					$check_power = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

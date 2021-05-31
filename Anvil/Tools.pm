@@ -842,7 +842,7 @@ sub _set_defaults
 		database			=>	{
 			# This is the number of hours, after which, transient data (like temperature and 
 			# power data) is considered "old" and gets deleted from the database.
-			age_out				=>	48,
+			age_out				=>	24,
 		},
 	};
 	$anvil->data->{sys} = {

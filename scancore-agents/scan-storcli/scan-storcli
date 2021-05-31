@@ -6093,7 +6093,7 @@ AND
 									$message_key = "scan_storcli_warning_0006";
 									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { message_key => $message_key }});
 								}
-								elsif ($old_variable_value > $new_variable_value)
+								elsif ($new_variable_value > $old_variable_value)
 								{
 									# Rising
 									my $jumped = ($new_variable_value - $old_variable_value);
