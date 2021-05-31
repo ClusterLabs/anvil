@@ -43,7 +43,16 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
           <Divider className={classes.divider} />
           {ICONS.map(
             (icon): JSX.Element => (
-              <ListItem button key={icon.image}>
+              <ListItem
+                button
+                key={icon.image}
+                component="a"
+                href={
+                  icon.uri.search(/^https?:/) !== -1
+                    ? icon.uri
+                    : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
+                }
+              >
                 <Box display="flex" flexDirection="row" width="100%">
                   <Box>
                     <img

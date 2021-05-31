@@ -58,13 +58,22 @@ const Header = (): JSX.Element => {
           <Box className={`${classes.barElement} ${classes.icons}`}>
             {ICONS.map(
               (icon): JSX.Element => (
-                <img
-                  alt=""
-                  key="icon"
-                  src={icon.image}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
-                  {...ICON_SIZE}
-                />
+                <a
+                  key={icon.uri}
+                  href={
+                    icon.uri.search(/^https?:/) !== -1
+                      ? icon.uri
+                      : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
+                  }
+                >
+                  <img
+                    alt=""
+                    key="icon"
+                    src={icon.image}
+                    // eslint-disable-next-line react/jsx-props-no-spreading
+                    {...ICON_SIZE}
+                  />
+                </a>
               ),
             )}
           </Box>
