@@ -162,6 +162,14 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 # Read switches
 $anvil->Get->switches;
 
+# Too many connections cause the UPS to lag out, so we only run on Strikers.
+my $host_type = $anvil->Get->host_type();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+if (($host_type ne "striker") && (not $anvil->data->{switches}{force}))
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
 # If we're disabled and '--force' wasn't used, exit.
 if (($anvil->data->{scancore}{'scan-apc-pdu'}{disable}) && (not $anvil->data->{switches}{force}))
 {

@@ -172,7 +172,7 @@ $anvil->data->{timing}{daily_checks}         = 86400;
 $anvil->data->{timing}{repo_update_interval} = 86400;
 $anvil->data->{timing}{next_minute_check}    = $now_time - 1;
 $anvil->data->{timing}{next_daily_check}     = ($now_time + $delay) - 1;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	"s1:timing::minute_checks"        => $anvil->data->{timing}{minute_checks}, 
 	"s2:timing::daily_checks"         => $anvil->data->{timing}{daily_checks}, 
 	"s3:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval}, 
@@ -337,7 +337,7 @@ sub set_delay
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
 	if ($type eq "striker")
 	{
-		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+		foreach my $uuid (keys %{$anvil->data->{database}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"sys::host_uuid" => $anvil->data->{sys}{host_uuid}, 
@@ -464,6 +464,9 @@ sub handle_periodic_tasks
 		{
 			# Age out old data. This takes up to a minute. 
 			$anvil->Database->_age_out_data();
+			
+			# Archive old data
+			$anvil->Database->archive_database();
 			
 			# Record a job, don't call it directly. It takes too long to run.
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({

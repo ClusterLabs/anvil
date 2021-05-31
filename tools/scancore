@@ -106,7 +106,7 @@ while(1)
 	prepare_for_run($anvil);
 	
 	# Set our sleep time
-	my $run_interval = 30;
+	my $run_interval = 60;
 	if ((exists $anvil->data->{scancore}{timing}{run_interval}) && ($anvil->data->{scancore}{timing}{run_interval} =~ /^\d+$/))
 	{
 		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
