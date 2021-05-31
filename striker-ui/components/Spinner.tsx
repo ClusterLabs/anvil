@@ -1,5 +1,6 @@
 import { makeStyles } from '@material-ui/core/styles';
 import CircularProgress from '@material-ui/core/CircularProgress';
+import { TEXT } from '../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -9,7 +10,7 @@ const useStyles = makeStyles(() => ({
     marginTop: '3em',
   },
   spinner: {
-    color: '#FFF',
+    color: TEXT,
     variant: 'indeterminate',
     size: '50em',
   },
