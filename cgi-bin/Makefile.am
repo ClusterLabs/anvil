@@ -6,6 +6,7 @@ dist_cgibin_SCRIPTS     = \
                           get_anvils \
                           get_cpu \
                           get_memory \
+                          get_networks \
                           get_replicated_storage \
                           get_servers \
                           get_shared_storage \
