@@ -116,9 +116,6 @@ sub set_host_power
 
 $anvil->Get->switches;
 
-# Temporary; for debugging
-$anvil->Log->level({ set => 2 });
-
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
