@@ -9,6 +9,7 @@ import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
 import Decorator, { Colours } from './Decorator';
 import Spinner from './Spinner';
+import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -22,6 +23,10 @@ const useStyles = makeStyles((theme) => ({
   divider: {
     background: DIVIDER,
   },
+  verticalDivider: {
+    height: '75%',
+    paddingTop: '1em',
+  },
   button: {
     '&:hover': {
       backgroundColor: HOVER,
@@ -30,6 +35,13 @@ const useStyles = makeStyles((theme) => ({
   },
   headerPadding: {
     paddingLeft: '.3em',
+  },
+  hostsBox: {
+    padding: '1em',
+    paddingRight: 0,
+  },
+  hostBox: {
+    paddingTop: 0,
   },
 }));
 
@@ -53,6 +65,8 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { data, isLoading } = PeriodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
   );
+
+  const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);
 
   return (
     <Panel>
@@ -86,22 +100,41 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                             }
                           />
                         </Box>
-                        {server.server_state !== 'shut off' &&
-                          server.server_state !== 'crashed' &&
-                          anvil[
-                            anvil.findIndex((a) => a.anvil_uuid === uuid)
-                          ].hosts.map(
-                            (host: AnvilStatusHost): JSX.Element => (
-                              <Box p={1} key={host.host_uuid}>
-                                <BodyText
-                                  text={host.host_name}
-                                  selected={
-                                    server.server_host_uuid === host.host_uuid
-                                  }
-                                />
-                              </Box>
-                            ),
-                          )}
+                        <Box display="flex" className={classes.hostsBox}>
+                          {server.server_state !== 'shut off' &&
+                            server.server_state !== 'crashed' &&
+                            hostsSanitizer(anvil[anvilIndex].hosts).map(
+                              (
+                                host: AnvilStatusHost,
+                                index: number,
+                              ): JSX.Element => (
+                                <>
+                                  <Box
+                                    p={1}
+                                    key={host.host_uuid}
+                                    className={classes.hostBox}
+                                  >
+                                    <BodyText
+                                      text={host.host_name}
+                                      selected={
+                                        server.server_host_uuid ===
+                                        host.host_uuid
+                                      }
+                                    />
+                                  </Box>
+                                  {index !==
+                                    hostsSanitizer(anvil[anvilIndex].hosts)
+                                      .length -
+                                      1 && (
+                                    <Divider
+                                      className={`${classes.divider} ${classes.verticalDivider}`}
+                                      orientation="vertical"
+                                    />
+                                  )}
+                                </>
+                              ),
+                            )}
+                        </Box>
                       </Box>
                     </ListItem>
                     <Divider className={classes.divider} />

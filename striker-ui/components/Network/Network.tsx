@@ -30,6 +30,9 @@ const useStyles = makeStyles((theme) => ({
   divider: {
     background: DIVIDER,
   },
+  verticalDivider: {
+    height: '3.5em',
+  },
 }));
 
 const selectDecorator = (state: string): Colours => {
@@ -76,16 +79,35 @@ const Network = (): JSX.Element => {
                       <BodyText text={bond.bond_name} />
                       <BodyText text={`${bond.bond_speed}Mbps`} />
                     </Box>
-                    {bond.hosts.map(
-                      (host): JSX.Element => (
-                        <Box p={1} key={host.host_name}>
-                          <Box>
-                            <BodyText text={host.host_name} selected={false} />
-                            <BodyText text={host.link.link_name} />
-                          </Box>
-                        </Box>
-                      ),
-                    )}
+                    <Box display="flex" style={{ paddingTop: '.5em' }}>
+                      {bond.hosts.map(
+                        (host, index: number): JSX.Element => (
+                          <>
+                            <Box
+                              p={1}
+                              key={host.host_name}
+                              style={{ paddingTop: 0, paddingBottom: 0 }}
+                            >
+                              <Box>
+                                <BodyText
+                                  text={host.host_name}
+                                  selected={false}
+                                />
+                                <BodyText text={host.link.link_name} />
+                              </Box>
+                            </Box>
+                            {index !== bond.hosts.length - 1 && (
+                              <Divider
+                                className={`${classes.divider} ${classes.verticalDivider}`}
+                                // className={classes.divider}
+                                orientation="vertical"
+                                flexItem
+                              />
+                            )}
+                          </>
+                        ),
+                      )}
+                    </Box>
                   </Box>
                   <Divider className={classes.divider} />
                 </>
