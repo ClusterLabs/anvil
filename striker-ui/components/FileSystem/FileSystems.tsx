@@ -37,7 +37,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         <Box className={classes.root}>
           {data?.file_systems &&
             data.file_systems.map(
-              (fs: AnvilSharedStorageFileSystem): JSX.Element => (
+              (fs: AnvilFileSystem): JSX.Element => (
                 <InnerPanel key={fs.mount_point}>
                   <PanelHeader>
                     <Box display="flex" width="100%" className={classes.header}>
@@ -49,7 +49,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                   {fs?.hosts &&
                     fs.hosts.map(
                       (
-                        host: AnvilSharedStorageHost,
+                        host: AnvilFileSystemHost,
                         index: number,
                       ): JSX.Element => (
                         <SharedStorageHost

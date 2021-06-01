@@ -23,7 +23,7 @@ const useStyles = makeStyles(() => ({
 const SharedStorageHost = ({
   host,
 }: {
-  host: AnvilSharedStorageHost;
+  host: AnvilFileSystemHost;
 }): JSX.Element => {
   const classes = useStyles();
   return (
