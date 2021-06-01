@@ -157,9 +157,6 @@ sub leave_cluster
 
 $anvil->Get->switches;
 
-# TODO: remove when done; temporarily set log level to 2
-$anvil->Log->level({ set => 2 });
-
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
