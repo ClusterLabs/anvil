@@ -99,7 +99,6 @@ const Network = (): JSX.Element => {
                             {index !== bond.hosts.length - 1 && (
                               <Divider
                                 className={`${classes.divider} ${classes.verticalDivider}`}
-                                // className={classes.divider}
                                 orientation="vertical"
                                 flexItem
                               />
