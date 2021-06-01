@@ -5,6 +5,7 @@ import AnvilHost from './AnvilHost';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
 import Spinner from '../Spinner';
+import hostsSanitizer from '../../lib/sanitizers/hostsSanitizer';
 
 const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
@@ -13,18 +14,20 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     `${process.env.NEXT_PUBLIC_API_URL}/get_status?anvil_uuid=${uuid}`,
   );
 
+  const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);
+
   return (
     <Panel>
       <HeaderText text="Nodes" />
       {!isLoading ? (
         <>
-          {anvil.findIndex((a) => a.anvil_uuid === uuid) !== -1 && data && (
+          {anvilIndex !== -1 && data && (
             <AnvilHost
-              hosts={anvil[anvil.findIndex((a) => a.anvil_uuid === uuid)].hosts
-                .filter((host) => host.host_uuid)
-                .map((host, index) => {
+              hosts={hostsSanitizer(anvil[anvilIndex].hosts).map(
+                (host, index) => {
                   return data.hosts[index];
-                })}
+                },
+              )}
             />
           )}
         </>
