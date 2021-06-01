@@ -120,52 +120,16 @@ Note: Node peers should always use protocol C and fencing set to 'resource-and-s
 
 Protocol A is suitable for DR hosts with higher latency connections, but the DR host will be allowed to fall slightly behind the nodes. Protocol C ensures that the DR host is never behind, but could hurt storage performance.
 		</key>
-		<key name="scan_drbd_message_0021">
-The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] connection state to: [#!variable!peer_name!#] has changed from: [#!variable!old_connection_state!#] to: [#!variable!new_connection_state!#].
-
-========
-#!variable!old_connection_state!# - #!variable!old_connection_state_explain!#
-#!variable!new_connection_state!# - #!variable!new_connection_state_explain!#
-========
-		</key>
-		<key name="scan_drbd_message_0022">
-The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] local disk state relative to: [#!variable!peer_name!#] has changed from: [#!variable!old_local_disk_state!#] to: [#!variable!new_local_disk_state!#].
-
-========
-#!variable!old_local_disk_state!# - #!variable!old_local_disk_state_explain!#
-#!variable!new_local_disk_state!# - #!variable!new_local_disk_state_explain!#
-========
-		</key>
-		<key name="scan_drbd_message_0023">
-The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] disk state has changed from: [#!variable!old_disk_state!#] to: [#!variable!new_disk_state!#].
-
-========
-#!variable!old_disk_state!# - #!variable!old_disk_state_explain!#
-#!variable!new_disk_state!# - #!variable!new_disk_state_explain!#
-========
-		</key>
-		<key name="scan_drbd_message_0024">
-The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] local role relative to: [#!variable!peer_name!#] has changed from: [#!variable!old_local_role!#] to: [#!variable!new_local_role!#].
-
-========
-#!variable!old_local_role!# - #!variable!old_local_role_explain!#
-#!variable!new_local_role!# - #!variable!new_local_role_explain!#
-========
-		</key>
-		<key name="scan_drbd_message_0025">
-The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] role has changed from: [#!variable!old_role!#] to: [#!variable!new_role!#].
-
-========
-#!variable!old_role!# - #!variable!old_role_explain!#
-#!variable!new_role!# - #!variable!new_role_explain!#
-========
-		</key>
+		<key name="scan_drbd_message_0021">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] connection state to: [#!variable!peer_name!#] has changed from: [#!variable!old_connection_state!#] to: [#!variable!new_connection_state!#].</key>
+		<key name="scan_drbd_message_0022">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] local disk state relative to: [#!variable!peer_name!#] has changed from: [#!variable!old_local_disk_state!#] to: [#!variable!new_local_disk_state!#].</key>
+		<key name="scan_drbd_message_0023">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] disk state has changed from: [#!variable!old_disk_state!#] to: [#!variable!new_disk_state!#].</key>
+		<key name="scan_drbd_message_0024">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] local role relative to: [#!variable!peer_name!#] has changed from: [#!variable!old_local_role!#] to: [#!variable!new_local_role!#].</key>
+		<key name="scan_drbd_message_0025">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] role has changed from: [#!variable!old_role!#] to: [#!variable!new_role!#].</key>
 		<key name="scan_drbd_message_0026">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#]'s out-of-sync size has changed from: [#!variable!old_out_of_sync_size!#] to: [#!variable!new_out_of_sync_size!#].</key>
 		<key name="scan_drbd_message_0027">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#]'s replication speed has changed from: [#!variable!old_replication_speed!#/sec] to: [#!variable!new_replication_speed!#/sec].</key>
 		<key name="scan_drbd_message_0028">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#]'s time to resync changed from: [#!variable!old_estimated_time_to_sync!#] to: [#!variable!new_estimated_time_to_sync!#].</key>
 		<key name="scan_drbd_message_0029">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] IP address/port used to replicate with the peer: [#!variable!peer_name!#] has changed from: [#!variable!old_ip_address!#:#!variable!old_tcp_port!#] to: [#!variable!new_ip_address!#:#!variable!new_tcp_port!#].</key>
-		<key name="scan_drbd_message_0030">
-The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] replication protocol used to sync with the peer: [#!variable!peer_name!#] has changed from: [#!variable!old_protocol!#] to: [#!variable!new_protocol!#].
+		<key name="scan_drbd_message_0030">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] replication protocol used to sync with the peer: [#!variable!peer_name!#] has changed from: [#!variable!old_protocol!#] to: [#!variable!new_protocol!#].
 
 Note: Protocol A is OK when replicating to a DR host. When used, it allows the DR host to fall behind the nodes, which helps avoids a performance hit when the network latency / speed to the DR host is higher than tolerable. Between nodes, protocol C must always be used, which ensures synchronous replication.
 		</key>

@@ -1663,7 +1663,7 @@ sub configure_ipmi
 	# Is this host in an Anvil!?
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
-			
+	
 	my $anvil_uuid = "";
 	my $host_uuid  = $anvil->Get->host_uuid;
 	if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}) && ($anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}))
@@ -1679,9 +1679,29 @@ sub configure_ipmi
 		return(0);
 	}
 	
-	# Look for a job for 'anvil-join-anvil' for this host. With it, we'll figure out the password and 
-	# which machine we are.
-	my $query = "
+	# Look for a match in the anvils table for this host uuid.
+	my $machine = "";
+	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid} eq $host_uuid)
+	{
+		$machine = "node1";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { machine => $machine }});
+	}
+	elsif ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid} eq $host_uuid)
+	{
+		$machine = "node2";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { machine => $machine }});
+	}
+	elsif ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} eq $host_uuid)
+	{
+		$machine = "dr1";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { machine => $machine }});
+	}
+	
+	if (not $machine)
+	{
+		# Look for a job for 'anvil-join-anvil' for this host. With it, we'll figure out the password
+		# and which machine we are.
+		my $query = "
 SELECT 
     job_uuid, 
     job_data
@@ -1695,35 +1715,36 @@ ORDER BY
     modified_date DESC 
 LIMIT 1
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	my $job_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
-	my $job_data = defined $results->[0]->[1] ? $results->[0]->[1] : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		job_uuid => $job_uuid, 
-		job_data => $anvil->Log->is_secure($job_data), 
-	}});
-	if (not $job_uuid)
-	{
-		# Unable to proceed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0501"});
-		return(0);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		my $job_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		my $job_data = defined $results->[0]->[1] ? $results->[0]->[1] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			job_uuid => $job_uuid, 
+			job_data => $anvil->Log->is_secure($job_data), 
+		}});
+		if (not $job_uuid)
+		{
+			# Unable to proceed.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0501"});
+			return(0);
+		}
+		
+		($machine, $manifest_uuid, $anvil_uuid) = ($job_data =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
+		$machine       = "" if not defined $machine;
+		$manifest_uuid = "" if not defined $manifest_uuid;
+		$anvil_uuid    = "" if not defined $anvil_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			machine       => $machine,
+			manifest_uuid => $manifest_uuid, 
+			anvil_uuid    => $anvil_uuid, 
+		}});
 	}
-	
-	(my $machine, $manifest_uuid, $anvil_uuid) = ($job_data =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
-	$machine       = "" if not defined $machine;
-	$manifest_uuid = "" if not defined $manifest_uuid;
-	$anvil_uuid    = "" if not defined $anvil_uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		machine       => $machine,
-		manifest_uuid => $manifest_uuid, 
-		anvil_uuid    => $anvil_uuid, 
-	}});
 	
 	# Load the manifest.
 	my $problem = $anvil->Striker->load_manifest({debug => $debug, manifest_uuid => $manifest_uuid});
