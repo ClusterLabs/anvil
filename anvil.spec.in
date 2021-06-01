@@ -23,6 +23,8 @@ BuildRequires:  systemd autoconf automake
 BuildRequires:  fence-agents-common
 # OCFROOT
 BuildRequires:  resource-agents
+# Includes the "npm" tool for building striker UI.
+BuildRequires:  nodejs-devel >= 14
 
 %description
 This package generates the anvil-core, anvil-striker, anvil-node and anvil-dr 
