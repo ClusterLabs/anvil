@@ -3,7 +3,7 @@ import AppBar from '@material-ui/core/AppBar';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
 import { Box, Button } from '@material-ui/core';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
-import { BORDER_RADIUS } from '../lib/consts/DEFAULT_THEME';
+import { BORDER_RADIUS, RED } from '../lib/consts/DEFAULT_THEME';
 import AnvilDrawer from './AnvilDrawer';
 
 const useStyles = makeStyles((theme) =>
@@ -13,6 +13,8 @@ const useStyles = makeStyles((theme) =>
       paddingBottom: theme.spacing(0.5),
       paddingLeft: theme.spacing(3),
       paddingRight: theme.spacing(3),
+      borderBottom: 'solid 1px',
+      borderBottomColor: RED,
     },
     input: {
       height: '2.8em',
@@ -51,9 +53,6 @@ const Header = (): JSX.Element => {
             <Button onClick={toggleDrawer}>
               <img alt="" src="/pngs/logo.png" width="160" height="40" />
             </Button>
-          </Box>
-          <Box className={`${classes.barElement} ${classes.searchBar}`}>
-            <input className={classes.input} list="search-suggestions" />
           </Box>
           <Box className={`${classes.barElement} ${classes.icons}`}>
             {ICONS.map(
