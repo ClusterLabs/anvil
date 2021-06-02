@@ -834,10 +834,10 @@ sub _set_defaults
 	$anvil->data->{scancore} = {
 		timing				=>	{
 			# Delay between DB connection attempts when no databases are available?
-			agent_runtime			=>	60,
+			agent_runtime			=>	30,
 			db_retry_interval		=>	2,
 			# Delay between scans?
-			run_interval			=>	30,
+			run_interval			=>	60,
 		},
 		database			=>	{
 			# This is the number of hours, after which, transient data (like temperature and 

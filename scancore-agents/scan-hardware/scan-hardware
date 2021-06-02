@@ -925,8 +925,8 @@ sub find_changes
 
 			my $new_swap_bytes_used   = $new_scan_hardware_swap_total - $new_scan_hardware_swap_free;
 			my $old_swap_bytes_used   = $old_scan_hardware_swap_total - $old_scan_hardware_swap_free;
-			my $new_swap_percent_used = $anvil->Math->round({number => (($new_swap_bytes_used / $new_scan_hardware_swap_total) * 100)});
-			my $old_swap_percent_used = $anvil->Math->round({number => (($old_swap_bytes_used / $old_scan_hardware_swap_total) * 100)});
+			my $new_swap_percent_used = $anvil->Convert->round({number => (($new_swap_bytes_used / $new_scan_hardware_swap_total) * 100)});
+			my $old_swap_percent_used = $anvil->Convert->round({number => (($old_swap_bytes_used / $old_scan_hardware_swap_total) * 100)});
 			my $swap_percent_high     = $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  =~ /^\d+/ ? $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  : 75;
 			my $swap_percent_low      = $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} =~ /^\d+/ ? $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} : 25;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1356,7 +1356,7 @@ sub process_health
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_uuid => $health_uuid }});
 		}
-		elsif (($peer_ram_total == $hardware_ram_total) or ($difference < $anvil->data->{scancore}{'scan-hardware'}{ram}{clear_threshold}))
+		elsif ((not $difference) or ($difference < $anvil->data->{scancore}{'scan-hardware'}{ram}{clear_threshold}))
 		{
 			my $age = $anvil->Alert->check_condition_age({
 				debug     => 2,
@@ -1364,6 +1364,7 @@ sub process_health
 				name      => "scan-hardware::less_ram_than_peer",
 				host_uuid => $anvil->Get->host_uuid, 
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
 			my $changed = $anvil->Alert->check_alert_sent({
 				debug          => 3,
 				record_locator => "scan_hardware::less_ram_than_peer",
@@ -1381,10 +1382,10 @@ sub process_health
 				$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0028", variables => $variables, set_by => $THIS_FILE});
 			}
 			my ($health_uuid) = $anvil->Database->insert_or_update_health({
-				debug                => 2,
-				health_agent_name    => $THIS_FILE,
-				health_source_name   => "less_ram_than_peer",
-				health_source_weight => 0,
+				debug              => 2,
+				health_agent_name  => $THIS_FILE,
+				health_source_name => "less_ram_than_peer",
+				'delete'           => 1,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_uuid => $health_uuid }});
 		}

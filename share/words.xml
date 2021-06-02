@@ -416,6 +416,8 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0302">The passed in Anvil! UUID: [#!variable!anvil_uuid!#] was not found in the database.</key>
 		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
 		<key name="error_0304">Failed to parse the request body: [#!variable!request_body_string!#]. Reason: [#!variable!json_decode_error!#]</key>
+		<key name="error_0305">Unable to connect to the database, unable to manage a server at this time.</key>
+		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2145,6 +2147,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0248">Created the journald directory: [#!variable!directory!#].</key>
 		<key name="message_0249">Checking that the daemon: [#!variable!daemon!#] is running.</key>
 		<key name="message_0250">The daemon: [#!variable!daemon!#] was not running, starting it now.</key>
+		<key name="message_0251">Preparing to manage a server.</key>
+		<key name="message_0252">Found the server: [#!variable!server_name!#] in the database, loading details now.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

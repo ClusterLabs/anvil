@@ -1340,10 +1340,10 @@ sub time
 		translate => $translate, 
 	}});
 	
-	# If the 'time' is '--', return silently.
-	if ($time eq "--")
+	# If the 'time' is '--' or '-1', return silently.
+	if (($time eq "--") or ($time eq "-1"))
 	{
-		return("--");
+		return($time);
 	}
 	
 	# Remote commas and verify we're left with a number.

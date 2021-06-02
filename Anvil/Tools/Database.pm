@@ -6840,10 +6840,50 @@ sub insert_or_update_health
 	{
 		if (not $health_uuid)
 		{
-			# Throw an error and exit.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_uuid" }});
-			return("");
+			# If we've got an agent and source name, try to find a health UUID.
+			if (($health_agent_name) && ($health_source_name))
+			{
+				# See if we can find an entry. If not, this might be a simple check to clear.
+				my $query = "
+SELECT 
+    health_uuid 
+FROM 
+    health 
+WHERE 
+    health_host_uuid   = ".$anvil->Database->quote($health_host_uuid)." 
+AND 
+    health_agent_name  = ".$anvil->Database->quote($health_agent_name)."
+AND 
+    health_source_name = ".$anvil->Database->quote($health_source_name)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				if ($count)
+				{
+					$health_uuid = $results->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { health_uuid => $health_uuid }});
+				}
+				else
+				{
+					# Silently exit.
+					return("");
+				}
+			}
+			else
+			{
+				# Throw an error and exit.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_uuid" }});
+				return("");
+			}
 		}
+		
+		# Still alive? do a DELETE.
 		my $query = "
 UPDATE 
     health 
@@ -6855,7 +6895,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-		
+
 		$query = "
 DELETE FROM 
     health 
@@ -12167,7 +12207,7 @@ sub insert_or_update_temperature
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_is" }});
 			return("");
 		}
-		elsif (($temperature_is ne "nominal") && ($temperature_is ne "warning") && ($temperature_is ne "critical"))
+		elsif (($temperature_is ne "nominal") && ($temperature_is ne "high") && ($temperature_is ne "low"))
 		{
 			# Invalid value.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0547", variables => { temperature_is => $temperature_is }});
