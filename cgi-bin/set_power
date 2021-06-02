@@ -20,6 +20,100 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub handle_invalid_uuid
+{
+	my $parameters = shift;
+	my $name       = $parameters->{name};
+	my $uuid       = $parameters->{uuid};
+
+	$anvil->Log->entry({
+		source    => $THIS_FILE,
+		line      => __LINE__,
+		level     => 0,
+		'print'   => 1,
+		priority  => "err",
+		key       => "error_0160",
+		variables => { name => $name, uuid => $uuid }
+	});
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
+sub set_anvil_power
+{
+	# Expects the first element of @_ (argument array) to be a hash.
+	my $parameters = shift;
+	my $anvil_uuid = $parameters->{anvil_uuid};
+	my $on         = $parameters->{on};
+
+	# Get all mandatory hosts inside the anvil identified by the given UUID.
+	my @host_uuids = (
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid},
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}
+	);
+
+	# Check for DR host outside of the loop to avoid duplicating checks.
+	if (length($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}))
+	{
+		push(@host_uuids, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid});
+	}
+
+	foreach (@host_uuids)
+	{
+		set_host_power({ host_uuid => $_, on => $on, stop_servers => 1 });
+	}
+}
+
+sub set_host_power
+{
+	# Expects the first element of @_ (argument array) to be a hash.
+	my $parameters   = shift;
+	my $host_uuid    = $parameters->{host_uuid};
+	my $on           = $parameters->{on};
+	my $stop_servers = exists $parameters->{stop_servers} ? "--stop-servers" : "";
+
+	# Check the host's status before trying to power it up/down.
+	my $is_host_on = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status} eq "online" ? 1 : 0;
+
+	$anvil->Log->variables({
+		source => $THIS_FILE,
+		line   => __LINE__,
+		level  => 2,
+		list   => {
+			host_uuid  => $host_uuid,
+			is_host_on => $is_host_on,
+			on         => $on
+		}
+	});
+
+	# When host is ON and request is to power OFF.
+	#
+	# Power OFF should invoke anvil-safe-stop on a host.
+	if ($is_host_on && not $on)
+	{
+		$anvil->Database->insert_or_update_jobs({
+			job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'}." --power-off ".$stop_servers,
+			job_host_uuid   => $host_uuid,
+			job_description => "job_0333",
+			job_name        => "cgi-bin::set_power::off",
+			job_progress    => 0,
+			job_title       => "job_0332"
+		});
+	}
+	# When host is OFF and request is to power ON.
+	#
+	# Power ON should invoke striker-boot-machine on this striker.
+	elsif (not $is_host_on && $on)
+	{
+		$anvil->Database->insert_or_update_jobs({
+			job_command     => $anvil->data->{path}{directories}{tools}."/striker-boot-machine --host-uuid ".$host_uuid,
+			job_description => "job_0335",
+			job_name        => "cgi-bin::set_power::on",
+			job_progress    => 0,
+			job_title       => "job_0334"
+		});
+	}
+}
+
 $anvil->Get->switches;
 
 $anvil->Database->connect;
@@ -39,44 +133,68 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
-my $hash = {};
-my $anvil_uuid = exists $anvil->data->{cgi}{anvil_uuid}{value} ? $anvil->data->{cgi}{anvil_uuid}{value} : "";
-my $host_uuid  = exists $anvil->data->{cgi}{host_uuid}{value}  ? $anvil->data->{cgi}{host_uuid}{value}  : "";
-if (($anvil_uuid) && (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}))
+my $response_body = {};
+
+# Decode request body (JSON string) to a hash.
+#
+# Note: requests made with the PUT method won't have query params.
+my $request_body;
+
+my $is_decode_json_success = eval {
+	$request_body = decode_json($anvil->data->{cgi}{PUTDATA}{value});
+};
+
+if (not $is_decode_json_success)
 {
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!anvil_uuid!!";
-}
-elsif (($host_uuid) && (not exists $anvil->data->{hosts}{host_uuid}{$anvil_uuid}))
-{
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!host_uuid!!";
-}
-elsif ((not $host_uuid) && (not $anvil_uuid))
-{
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!no_target!!";
-}
-else
-{
-	# Are we managing the power of a node or an Anvil! system? If the later, we're controlling both.
-	
-# 	$anvil->data->{anvil_status}{anvil_name}        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
-# 	$anvil->data->{anvil_status}{anvil_description} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
-# 	$anvil->data->{anvil_status}{timestamp}         = time;
-# 	
-# 	my $node1_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-# 	my $node2_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-# 	my $node2_status = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_status} eq "online" ? 1 : 0;
-# 	
-# 	$anvil->data->{anvil_status}{nodes}{node1}{host_name}   = $anvil->data->{hosts}{host_uuid}{$node1_uuid}{host_name};
-# 	$anvil->data->{anvil_status}{nodes}{node1}{host_uuid}   = $node1_uuid;
-# 	$anvil->data->{anvil_status}{nodes}{node1}{host_status} = $anvil->data->{hosts}{host_uuid}{$node1_uuid}{host_status} eq "online" ? 1 : 0;
-# 	$anvil->data->{anvil_status}{nodes}{node2}{host_name}   = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_name};
-# 	$anvil->data->{anvil_status}{nodes}{node2}{host_uuid}   = $node2_uuid;
-# 	$anvil->data->{anvil_status}{nodes}{node2}{host_status} = $anvil->data->{hosts}{host_uuid}{$node2_uuid}{host_status} eq "online" ? 1 : 0;
-# 	
-# 	$hash->{timestamp} = time;
-# 	$hash->{nodes}     = [];
-# 	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node1}{host_status} };
-# 	push @{$hash->{nodes}}, { on => $anvil->data->{anvil_status}{nodes}{node2}{host_status} };
+	$anvil->Log->entry({
+		source    => $THIS_FILE,
+		line      => __LINE__,
+		level     => 0,
+		'print'   => 1,
+		priority  => "err",
+		key       => "error_0304",
+		variables => { request_body_string => $anvil->data->{cgi}{PUTDATA}{value}, json_decode_error => $_ }
+	});
 }
 
-print JSON->new->utf8->encode($hash)."\n";
+my $anvil_uuid               = exists $request_body->{anvil_uuid} ? $request_body->{anvil_uuid} : $anvil->data->{switches}{'anvil-uuid'};
+my $host_uuid                = exists $request_body->{host_uuid}  ? $request_body->{host_uuid}  : $anvil->data->{switches}{'host-uuid'};
+my $is_on                    = exists $request_body->{is_on}      ? $request_body->{is_on}      : $anvil->data->{switches}{'is-on'};
+my $anvil_uuid_variable_name = "anvil UUID";
+my $host_uuid_variable_name  = "host UUID";
+
+$anvil->Log->variables({
+	source => $THIS_FILE,
+	line   => __LINE__,
+	level  => 2,
+	list   => {
+		anvil_uuid => $anvil_uuid,
+		host_uuid  => $host_uuid,
+		is_on      => $is_on
+	}
+});
+
+if ($anvil_uuid)
+{
+	if (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		set_anvil_power({ anvil_uuid => $anvil_uuid, on => $is_on });
+	}
+	else
+	{
+		handle_invalid_uuid({ name => $anvil_uuid_variable_name, uuid => $anvil_uuid });
+	}
+}
+elsif ($host_uuid)
+{
+	if (exists $anvil->data->{hosts}{host_uuid}{$host_uuid})
+	{
+		set_host_power({ host_uuid => $host_uuid, on => $is_on });
+	}
+	else
+	{
+		handle_invalid_uuid({ name => $host_uuid_variable_name, uuid => $host_uuid });
+	}
+}
+
+print JSON->new->utf8->encode($response_body)."\n";
