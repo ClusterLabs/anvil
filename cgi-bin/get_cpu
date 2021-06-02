@@ -118,25 +118,27 @@ ORDER BY
 			scan_hardware_cpu_cores   => $scan_hardware_cpu_cores, 
 			scan_hardware_cpu_threads => $scan_hardware_cpu_threads, 
 		}});
+
+		# Important: ensure the cores and threads are integers, which will be auto-transformed JSON number type.
 		
 		if (not $hash->{cores})
 		{
-			$hash->{cores} = $scan_hardware_cpu_cores;
+			$hash->{cores} = int($scan_hardware_cpu_cores);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->cores' => $hash->{cores} }});
 		}
 		elsif ($scan_hardware_cpu_cores < $hash->{cores})
 		{
-			$hash->{cores} = $scan_hardware_cpu_cores;
+			$hash->{cores} = int($scan_hardware_cpu_cores);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->cores' => $hash->{cores} }});
 		}
 		if (not $hash->{threads})
 		{
-			$hash->{threads} = $scan_hardware_cpu_threads;
+			$hash->{threads} = int($scan_hardware_cpu_threads);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->threads' => $hash->{threads} }});
 		}
 		elsif ($scan_hardware_cpu_threads < $hash->{threads})
 		{
-			$hash->{threads} = $scan_hardware_cpu_threads;
+			$hash->{threads} = int($scan_hardware_cpu_threads);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->threads' => $hash->{threads} }});
 		}
 	}
