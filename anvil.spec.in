@@ -208,6 +208,7 @@ Provides support for asynchronous disaster recovery hosts in an Anvil! cluster.
 ./autogen.sh
 %{configure}
 make %{_smp_mflags}
+make build -f striker-ui/Makefile
 
 %install
 rm -rf %{buildroot}
