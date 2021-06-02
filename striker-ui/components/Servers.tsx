@@ -68,6 +68,8 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);
 
+  const filteredHosts = hostsSanitizer(anvil[anvilIndex]?.hosts);
+
   return (
     <Panel>
       <div className={classes.headerPadding}>
@@ -103,7 +105,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                         <Box display="flex" className={classes.hostsBox}>
                           {server.server_state !== 'shut off' &&
                             server.server_state !== 'crashed' &&
-                            hostsSanitizer(anvil[anvilIndex].hosts).map(
+                            filteredHosts.map(
                               (
                                 host: AnvilStatusHost,
                                 index: number,
@@ -122,10 +124,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                                       }
                                     />
                                   </Box>
-                                  {index !==
-                                    hostsSanitizer(anvil[anvilIndex].hosts)
-                                      .length -
-                                      1 && (
+                                  {index !== filteredHosts.length - 1 && (
                                     <Divider
                                       className={`${classes.divider} ${classes.verticalDivider}`}
                                       orientation="vertical"
