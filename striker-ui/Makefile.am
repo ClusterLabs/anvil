@@ -108,8 +108,6 @@ all: build
 #       EXTRA_DIST.
 #
 build:
-	-@echo "Print working directory."
-	pwd
 	-@echo "Install node modules (dependencies) prior to building."
 	npm clean-install --ignore-scripts
 	-@echo "Generate endpoint prefix."
@@ -118,8 +116,6 @@ build:
 	npm run build
 
 install-data-hook:
-	-@echo "Print working directory."
-	pwd
 	-@echo "Place build output files."
 	cp -r $(outdir)/index.html $(outdir)/_next $(DESTDIR)/$(htmldir)/
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
