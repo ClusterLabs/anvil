@@ -121,3 +121,7 @@ install-data-hook:
 	cp -r $(outdir)/index.html $(outdir)/_next $(DESTDIR)/$(htmldir)/
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
 	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images pngs)
+
+uninstall-hook:
+	-@echo "Remove all installed files of the current module."
+	(cd $(DESTDIR)/$(htmldir); rm -rf index.html _next pngs)
