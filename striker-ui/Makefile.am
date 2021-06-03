@@ -99,6 +99,7 @@ EXTRA_DIST		= \
 			package-lock.json
 
 htmldir			= $(localstatedir)/www/html
+outdir			= out
 
 # Note: the input file to the generate endpoint prefix step must exist in
 #       EXTRA_DIST.
@@ -112,3 +113,11 @@ build:
 	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
 	npm run build
+
+install-data-hook:
+	-@echo "Print working directory."
+	pwd
+	-@echo "Place build output files."
+	cp -r $(outdir)/index.html $(outdir)/_next $(DESTDIR)/$(htmldir)/
+	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
+	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images pngs)
