@@ -101,6 +101,9 @@ EXTRA_DIST		= \
 htmldir			= $(localstatedir)/www/html
 outdir			= out
 
+# Trigger build target on make call without parameters.
+all: build
+
 # Note: the input file to the generate endpoint prefix step must exist in
 #       EXTRA_DIST.
 #
