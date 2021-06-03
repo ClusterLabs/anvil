@@ -103,7 +103,12 @@ EXTRA_DIST		= \
 htmldir			= $(localstatedir)/www/html
 
 build:
-	echo "Install node modules (dependencies) prior to building."
+	-@echo "Print working directory."
+	pwd
+	-@echo "Install node modules (dependencies) prior to building."
 	npm clean-install
-	echo "Build front-end project."
+	-@echo "Generate endpoint prefix."
+	# Note: the input file must exist in EXTRA_DIST.
+	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
+	-@echo "Build front-end project."
 	npm run build
