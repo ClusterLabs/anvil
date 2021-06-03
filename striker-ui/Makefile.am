@@ -9,6 +9,7 @@ MAINTAINERCLEANFILES	= Makefile.in
 # find . \
 #	-not \( -name node_modules -prune \) \	# Ignore ./node_modules directory
 #	-not \( -name *git* -prune \) \		# Ignore git related files
+#	-not \( -name *husky* -prune \) \	# Ignore husky related files
 #	-not \( -name public -prune \) \	# Ignore ./public directory
 #	-not \( -name *[Mm]ake* -prune \) \	# Ignore make related files
 #	-not \( -name *.md -prune \) \		# Ignore all markdown files
@@ -22,9 +23,6 @@ EXTRA_DIST		= \
 			theme/index.ts \
 			styles/globals.css \
 			.lintstagedrc.json \
-			.husky/pre-commit \
-			.husky/commit-msg \
-			.husky/_/husky.sh \
 			env.development \
 			package.json \
 			lib/extended_date/ExtendedDate.ts \
