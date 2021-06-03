@@ -107,7 +107,7 @@ build:
 	-@echo "Print working directory."
 	pwd
 	-@echo "Install node modules (dependencies) prior to building."
-	npm clean-install
+	npm clean-install --ignore-scripts
 	-@echo "Generate endpoint prefix."
 	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
