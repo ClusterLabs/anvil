@@ -4863,10 +4863,12 @@ sub update_hosts
 	}
 	
 	# Read in the existing hosts file
-	my $add_header = 1;
-	my $changes    = 0;
-	my $new_body   = "";
-	my $old_body   = $anvil->Storage->read_file({
+	my $add_header    = 1;
+	my $changes       = 0;
+	my $added_lo_ipv4 = 0; 
+	my $added_lo_ipv6 = 0;
+	my $new_body      = "";
+	my $old_body      = $anvil->Storage->read_file({
 		debug => $debug,
 		file  => $anvil->data->{path}{configs}{hosts},
 	});
@@ -4906,6 +4908,53 @@ sub update_hosts
 		{
 			$new_body .= "\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+			next;
+		}
+		
+		# If this line is localhost, set it statically. This is needed because cloud-init sets the 
+		# real host name to point to 127.0.0.1 / ::1. (WHY?!)
+		if ($line =~ /^127.0.0.1\s/)
+		{
+			if ($line ne "127.0.0.1\tlocalhost localhost.localdomain localhost4 localhost4.localdomain4")
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+				
+				if (not $added_lo_ipv4)
+				{
+					$new_body      .= "127.0.0.1\tlocalhost localhost.localdomain localhost4 localhost4.localdomain4\n";
+					$added_lo_ipv4 =  1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { added_lo_ipv4 => $added_lo_ipv4 }});
+				}
+			}
+			else
+			{
+				# Line is as expected.
+				$added_lo_ipv4 =  1;
+				$new_body      .= $line."\n";
+			}
+			next;
+		}
+		if ($line =~ /^::1\s/)
+		{
+			if ($line ne "::1\t\tlocalhost localhost.localdomain localhost6 localhost6.localdomain6")
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+				
+				if (not $added_lo_ipv6)
+				{
+					$new_body      .= "::1\t\tlocalhost localhost.localdomain localhost6 localhost6.localdomain6\n";
+					$added_lo_ipv6 =  1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { added_lo_ipv6 => $added_lo_ipv6 }});
+				}
+			}
+			else
+			{
+				# Line is as expected.
+				$added_lo_ipv6 =  1;
+				$new_body      .= $line."\n";
+			}
 			next;
 		}
 		
@@ -4954,7 +5003,7 @@ sub update_hosts
 					# Matches, we don't need to deal with this name.
 					delete $anvil->data->{hosts}{needed}{$name};
 				}
-				elsif ($ip_address ne "127.0.0.1")
+				else
 				{
 					# The IP has changed. Skip this name (which removes it from the list).
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0481", variables => { 

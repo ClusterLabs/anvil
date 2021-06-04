@@ -263,6 +263,12 @@ sub reconfigure_network
 	# Get the current list of IPs and MAC addresses.
 	$anvil->Network->get_ips({debug => 3});
 	
+	# If we're a striker, check apache's config.
+	if ($type eq "striker")
+	{
+		$anvil->Striker->check_httpd_conf({debug => 2});
+	}
+	
 	# Now configure the network.
 	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dns => $dns }});

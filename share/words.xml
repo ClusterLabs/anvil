@@ -416,6 +416,8 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0302">The passed in Anvil! UUID: [#!variable!anvil_uuid!#] was not found in the database.</key>
 		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
 		<key name="error_0304">Failed to parse the request body: [#!variable!request_body_string!#]. Reason: [#!variable!json_decode_error!#]</key>
+		<key name="error_0305">Unable to connect to the database, unable to manage a server at this time.</key>
+		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1807,6 +1809,11 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0622">Aging out one or more records that are more than: [#!variable!age!#] hours old from the table: [#!variable!table!#] on the database host: [#!variable!database!#].</key>
 		<key name="log_0623">Starting the process of aging out old data. This can take about a minute, please be patient.</key>
 		<key name="log_0624">Aging out old data completed after: [#!variable!runtime!#] seconds.</key>
+		<key name="log_0625">Updating the apache configuration file: [#!variable!file!#]. The changes are:
+====
+#!variable!difference!#
+====
+</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2153,6 +2160,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0248">Created the journald directory: [#!variable!directory!#].</key>
 		<key name="message_0249">Checking that the daemon: [#!variable!daemon!#] is running.</key>
 		<key name="message_0250">The daemon: [#!variable!daemon!#] was not running, starting it now.</key>
+		<key name="message_0251">Preparing to manage a server.</key>
+		<key name="message_0252">Found the server: [#!variable!server_name!#] in the database, loading details now.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2474,6 +2483,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0285">Close</key>
 		<key name="striker_0286">This controls if 'anvil-safe-start' is enabled on a node.</key>
 		<key name="striker_0287">The virtio NAT bridge: [#!variable!bridge!#] exists. Removing it...</key>
+		<key name="striker_0288">Manage existing Anvil! systems.</key>
+		<key name="striker_0289">Control when the database is locked for use by any system except the lock holder.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

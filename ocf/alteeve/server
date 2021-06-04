@@ -97,16 +97,6 @@ $| = 1;
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
 
-# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing reasons
-# we don't let the RA do resyncs.
-$anvil->Database->connect({no_resync => 1});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-if (not $anvil->data->{sys}{database}{connections})
-{
-	# No databases, we're only going to be able to do status checks..
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "warning_0073"});
-}
-
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
 $anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; 
@@ -117,20 +107,20 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{O
 # This is the timeout for the called action in millisecond.
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 20000
 # If this is set, we'll bump our log level as well.
-$anvil->data->{environment}{PCMK_debug}                         = defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : ""; # 0
+$anvil->data->{environment}{PCMK_debug}                         = defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : "0"; # Disable debug by default
 # These are other variables that are set, but we don't currently care about them
-$anvil->data->{environment}{OCF_EXIT_REASON_PREFIX}             = defined $ENV{OCF_EXIT_REASON_PREFIX}             ? $ENV{OCF_EXIT_REASON_PREFIX}             : ""; # ocf-exit-reason:
+$anvil->data->{environment}{OCF_EXIT_REASON_PREFIX}             = defined $ENV{OCF_EXIT_REASON_PREFIX}             ? $ENV{OCF_EXIT_REASON_PREFIX}             : "ocf-exit-reason:";
 $anvil->data->{environment}{OCF_RA_VERSION_MAJOR}               = defined $ENV{OCF_RA_VERSION_MAJOR}               ? $ENV{OCF_RA_VERSION_MAJOR}               : ""; # 1
 $anvil->data->{environment}{OCF_RA_VERSION_MINOR}               = defined $ENV{OCF_RA_VERSION_MINOR}               ? $ENV{OCF_RA_VERSION_MINOR}               : ""; # 0
-$anvil->data->{environment}{OCF_RESKEY_crm_feature_set}         = defined $ENV{OCF_RESKEY_crm_feature_set}         ? $ENV{OCF_RESKEY_crm_feature_set}         : ""; # 3.0.12
-$anvil->data->{environment}{OCF_RESOURCE_INSTANCE}              = defined $ENV{OCF_RESOURCE_INSTANCE}              ? $ENV{OCF_RESOURCE_INSTANCE}              : ""; # srv01-c7
-$anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{OCF_RESOURCE_PROVIDER}              ? $ENV{OCF_RESOURCE_PROVIDER}              : ""; # alteeve
-$anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : ""; # server
-$anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : ""; # /usr/lib/ocf
+$anvil->data->{environment}{OCF_RESKEY_crm_feature_set}         = defined $ENV{OCF_RESKEY_crm_feature_set}         ? $ENV{OCF_RESKEY_crm_feature_set}         : ""; # Pacemaker OCF version - 3.7.1
+$anvil->data->{environment}{OCF_RESOURCE_INSTANCE}              = defined $ENV{OCF_RESOURCE_INSTANCE}              ? $ENV{OCF_RESOURCE_INSTANCE}              : ""; # Name of server / resource being acted on.
+$anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{OCF_RESOURCE_PROVIDER}              ? $ENV{OCF_RESOURCE_PROVIDER}              : "alteeve";
+$anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : "server";
+$anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : "/usr/lib/ocf";
 # These are set during a migration
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : ""; # mk-a02n01.digimer.ca
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : ""; # mk-a02n02.digimer.ca
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_record_pending} = defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : ""; # true
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "";
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "";
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_record_pending} = defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : "";
 # Any variable=value arguments in the resource are set under 'OCF_RESKEY_CRM_meta_'
 foreach my $key (sort {$a cmp $b} keys %ENV)
 {
@@ -156,7 +146,28 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
 $anvil->data->{switches}{migrate_to}   = "";	# Sets 'meta_migrate_target'
 $anvil->data->{switches}{migrate_from} = "";	# Sets 'meta_migrate_source' When set without 'migrate_to', does a status check after migration
 $anvil->data->{switches}{server}       = "";	# Sets 'name'.
+$anvil->data->{switches}{start}        = "";
+$anvil->data->{switches}{stop}         = "";
+$anvil->data->{switches}{monitor}      = "";
 $anvil->Get->switches();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::migrate_to"   => $anvil->data->{switches}{migrate_to}, 
+	"switches::migrate_from" => $anvil->data->{switches}{migrate_from}, 
+	"switches::server"       => $anvil->data->{switches}{server}, 
+	"switches::start"        => $anvil->data->{switches}{start}, 
+	"switches::stop"         => $anvil->data->{switches}{stop}, 
+	"switches::monitor"      => $anvil->data->{switches}{monitor}, 
+}});
+
+# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing reasons
+# we don't let the RA do resyncs.
+$anvil->Database->connect({sensitive => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases,
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "warning_0073"});
+}
 
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
@@ -164,36 +175,187 @@ if ($anvil->data->{switches}{stop_drbd_resources})
 }
 
 # Something for the logs
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, key => "log_0298"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0298"});
 
 =cut
+Start:
 
-server --server 
--=] Boot (on an-a01n01)
-2021/04/17 18:41:30:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_name: [start]
-2021/04/17 18:41:30:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n01]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [start]
+environment::OCF_RESKEY_CRM_meta_on_fail: [block]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [300000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_ROOT: [/usr/lib/ocf]
 
--=] Stop (on an-a01n01)
-2021/04/17 18:33:50:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_name: [stop]
-2021/04/17 18:33:50:ocf:alteeve:server:236; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n01]
+Monitor after start:
 
--=] Migration - source (before - from an-a01n01)
-2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a01n01]
-2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a01n02]
-2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_name: [migrate_to]
-2021/04/17 19:33:12:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n01]
+environment::OCF_RESKEY_CRM_meta_interval: [60000]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [monitor]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [20000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_ROOT: [/usr/lib/ocf]
 
--=] Migration - target (after - to an-a01n02)
-2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a01n01]
-2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a01n02]
-2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_name: [migrate_from]
-2021/04/17 19:33:19:ocf:alteeve:server:196; environment::OCF_RESKEY_CRM_meta_on_node: [an-a01n02]
+Monitor one minute later:
+
+environment::OCF_RESKEY_CRM_meta_interval: [60000]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [monitor]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [20000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_ROOT: [/usr/lib/ocf]
+
+Migrate from an-a02n01 to an-a02n02
+
+environment::OCF_RESKEY_CRM_meta_interval: [60000]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [monitor]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [20000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_ROOT: [/usr/lib/ocf]
+<2 seconds later>
+environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a02n02]
+environment::OCF_RESKEY_CRM_meta_name: [migrate_to]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
+environment::OCF_RESKEY_CRM_meta_record_pending: [true]
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_ROOT: [/usr/lib/ocf]
+
+Post migration on an-a02n01
+
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [stop]
+environment::OCF_RESKEY_CRM_meta_on_fail: [block]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::PCMK_debug: [0]
+
+
+Post migration on an-a02n02
+
+environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a02n01]
+environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a02n02]
+environment::OCF_RESKEY_CRM_meta_name: [migrate_from]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [600000]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_PROVIDER: [alteeve]
+environment::OCF_RESOURCE_TYPE: [server]
+environment::OCF_ROOT: [/usr/lib/ocf]
+environment::PCMK_debug: [0]
+
+Checking server state after: [srv02-c8s-fujitsu] was migrated to this host.
+
+environment::OCF_EXIT_REASON_PREFIX: [ocf-exit-reason:]
+environment::OCF_RA_VERSION_MAJOR: [1]
+environment::OCF_RA_VERSION_MINOR: [0]
+environment::OCF_RESKEY_CRM_meta_interval: [60000]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [monitor]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [20000]
+environment::OCF_RESKEY_crm_feature_set: [3.7.1]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_PROVIDER: [alteeve]
+environment::OCF_RESOURCE_TYPE: [server]
+environment::OCF_ROOT: [/usr/lib/ocf]
+environment::PCMK_debug: [0]
+
+
+Monitor on an-a02n02 after a minute
+
+environment::OCF_EXIT_REASON_PREFIX: [ocf-exit-reason:]
+environment::OCF_RA_VERSION_MAJOR: [1]
+environment::OCF_RA_VERSION_MINOR: [0]
+environment::OCF_RESKEY_CRM_meta_interval: [60000]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [monitor]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [20000]
+environment::OCF_RESKEY_crm_feature_set: [3.7.1]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_PROVIDER: [alteeve]
+environment::OCF_RESOURCE_TYPE: [server]
+environment::OCF_ROOT: [/usr/lib/ocf]
+environment::PCMK_debug: [0]
+
+
+Stop server:
+
+environment::OCF_EXIT_REASON_PREFIX: [ocf-exit-reason:]
+environment::OCF_RA_VERSION_MAJOR: [1]
+environment::OCF_RA_VERSION_MINOR: [0]
+environment::OCF_RESKEY_CRM_meta_migrate_source: []
+environment::OCF_RESKEY_CRM_meta_migrate_target: []
+environment::OCF_RESKEY_CRM_meta_name: [stop]
+environment::OCF_RESKEY_CRM_meta_on_fail: [block]
+environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
+environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
+environment::OCF_RESKEY_CRM_meta_record_pending: []
+environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
+environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
+environment::OCF_RESKEY_crm_feature_set: [3.7.1]
+environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
+environment::OCF_RESOURCE_PROVIDER: [alteeve]
+environment::OCF_RESOURCE_TYPE: [server]
+environment::OCF_ROOT: [/usr/lib/ocf]
+environment::PCMK_debug: [0]
 
 =cut
 
 foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{environment}})
 {
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"environment::${key}" => $anvil->data->{environment}{$key}, 
 	}});
 }
@@ -336,7 +498,7 @@ sub check_daemons
 	# Is the peer running? We'll use this to know whether to try and start daemons on the peer.
 	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
 	my $peer_ready = $anvil->data->{cib}{parsed}{peer}{ready};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		peer_name  => $peer_name,
 		peer_ready => $peer_ready, 
 	}});
@@ -351,7 +513,7 @@ sub check_daemons
 			my $running_peer  = 0;
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
 				return_code => $return_code,
 			}});
@@ -360,7 +522,7 @@ sub check_daemons
 				# It is stopped, start it..
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0482", variables => { daemon => $daemon }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output, 
 					return_code => $return_code,
 				}});
@@ -370,7 +532,7 @@ sub check_daemons
 				until ($running)
 				{
 					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output, 
 						return_code => $return_code,
 					}});
@@ -410,7 +572,7 @@ sub check_daemons
 					target     => $peer_name,
 					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output, 
 					error       => $error, 
 					return_code => $return_code,
@@ -426,7 +588,7 @@ sub check_daemons
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output, 
 						error       => $error, 
 						return_code => $return_code,
@@ -440,7 +602,7 @@ sub check_daemons
 							target     => $peer_name,
 							shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							output      => $output, 
 							error       => $error, 
 							return_code => $return_code,
@@ -503,7 +665,7 @@ sub check_daemons
 		
 		# Call virsh list --all
 		my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			local_output      => $local_output, 
 			local_return_code => $local_return_code,
 		}});
@@ -513,12 +675,12 @@ sub check_daemons
 			foreach my $line (split/\n/, $local_output)
 			{
 				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				
 				if ($line =~ /(\d+)\s+(.*?)\s+running/)
 				{
 					$local_vm_count++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { local_vm_count => $local_vm_count }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_vm_count => $local_vm_count }});
 				}
 			}
 		}
@@ -527,7 +689,7 @@ sub check_daemons
 			target     => $peer_name,
 			shell_call => $anvil->data->{path}{exe}{virsh}." list --all",
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			remote_output      => $remote_output, 
 			remote_error       => $remote_error, 
 			remote_return_code => $remote_return_code,
@@ -538,17 +700,17 @@ sub check_daemons
 			foreach my $line (split/\n/, $remote_output)
 			{
 				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				
 				if ($line =~ /(\d+)\s+(.*?)\s+running/)
 				{
 					$remote_vm_count++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { remote_vm_count => $remote_vm_count }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { remote_vm_count => $remote_vm_count }});
 				}
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			local_vm_count  => $local_vm_count, 
 			remote_vm_count => $remote_vm_count,
 		}});
@@ -570,7 +732,7 @@ sub check_daemons
 				my $running_peer  = 0;
 				
 				my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					local_output      => $local_output, 
 					local_return_code => $local_return_code,
 				}});
@@ -584,7 +746,7 @@ sub check_daemons
 					# Running, stop it.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0493", variables => { daemon => $daemon }});
 					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output, 
 						return_code => $return_code,
 					}});
@@ -594,7 +756,7 @@ sub check_daemons
 					target     => $peer_name,
 					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					remote_output      => $remote_output, 
 					remote_error       => $remote_error, 
 					remote_return_code => $remote_return_code,
@@ -618,7 +780,7 @@ sub check_daemons
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output, 
 						error       => $error, 
 						return_code => $return_code,
@@ -994,7 +1156,7 @@ sub stop_server
 	}
 	
 	# Now stop the DRBD resource(s).
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'environment::OCF_RESKEY_CRM_meta_stop_drbd_resources' => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources}, 
 	}});
 	if ($anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources})
@@ -1010,8 +1172,6 @@ sub stop_server
 sub server_status
 {
 	my ($anvil) = @_;
-	
-	### NOTE: This method MUST always work, even without access to databases!
 	
 	# If the named server is running, return OCF_SUCCESS (rc: 0), otherwise OCF_NOT_RUNNING (rc: 7). If 
 	# the server is failed, return OCF_ERR_GENERIC (1).
@@ -1035,11 +1195,11 @@ sub server_status
 	while($libvirtd_wait)
 	{
 		my $running = $anvil->System->check_daemon({daemon => "libvirtd.service"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
 		if ($running)
 		{
 			$libvirtd_wait = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { libvirtd_wait => $libvirtd_wait }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { libvirtd_wait => $libvirtd_wait }});
 		}
 		else
 		{
@@ -1056,7 +1216,7 @@ sub server_status
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0057"});
 				$look_for_pid  = 1;
 				$libvirtd_wait = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					look_for_pid  => $look_for_pid,
 					libvirtd_wait => $libvirtd_wait, 
 				}});
@@ -1069,10 +1229,10 @@ sub server_status
 	{
 		my $server_up  = 0;
 		my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
 		}});
@@ -1081,18 +1241,18 @@ sub server_status
 			next if $line !~ /qemu-kvm/;
 			
 			$line = $anvil->Words->clean_spaces({ string => $line });
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			
 			if ($line =~ /guest=(.*?),/)
 			{
 				my $this_server = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { this_server => $this_server }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_server => $this_server }});
 				
 				if ($this_server eq $server)
 				{
 					# Found it.
 					$server_up = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_up => $server_up }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_up => $server_up }});
 					last;
 				}
 			}
@@ -1122,23 +1282,23 @@ sub server_status
 			   $loop       = 0;
 			my $found      = 0;
 			my $shell_call = $anvil->data->{path}{exe}{virsh}." list --all";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
 			foreach my $line (split/\n/, $output)
 			{
 				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				
 				if ($line =~ /\s\Q$server\E\s+(.*)/)
 				{
 					my $state = $1;
 					   $found = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						found   => $found, 
 						'state' => $state,
 					}});
@@ -1202,18 +1362,23 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 	$anvil->nice_exit({exit_code => 1});
 }
 
+### TODO: Write the migration duration to /tmp/anvil.migration.<server>.data and have 'anvil-migrate-server' read that in to update the DB.
 # Migrate the server
 sub migrate_server
 {
 	my ($anvil) = @_;
-	
-	# This requires a database
-	if (not $anvil->data->{sys}{database}{connections})
-	{
-		# No databases, exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-		return(1);
-	}
+
+	### This requires a database
+	# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing
+	# reasons we don't let the RA do resyncs.
+# 	$anvil->Database->connect({sensitive => 1});
+# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+# 	if (not $anvil->data->{sys}{database}{connections})
+# 	{
+# 		# No databases, exit.
+# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
+# 		return(1);
+# 	}
 	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
@@ -1309,7 +1474,7 @@ sub migrate_server
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
-		# Get a view of the servers locally and our peer.
+		# Get a view of the servers locally and on our peer.
 		validate_all($anvil);
 		
 		# Get the DRBD status.
@@ -1558,7 +1723,7 @@ sub validate_bridges
 		
 		if ($found)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0368", variables => { bridge => $bridge }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0368", variables => { bridge => $bridge }});
 		}
 		else
 		{
@@ -1590,7 +1755,7 @@ sub validate_storage
 	{
 		$xml_source = "from_virsh";
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server     => $server,
 		xml_source => $xml_source, 
 	}});
@@ -1729,7 +1894,7 @@ sub validate_emulator
 	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $emulator   = $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{emulator};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		emulator                                              => $emulator,
 		"server::${local_host}::${server}::from_disk::info::emulator" => $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{emulator}
 	}});
@@ -1760,7 +1925,7 @@ sub validate_name
 	
 	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server                                            => $server,
 		"server::${local_host}::${server}::from_disk::info::name" => $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{name}, 
 	}});
@@ -1799,7 +1964,7 @@ sub validate_ram
 	my $server           = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $server_ram_bytes = $anvil->data->{server}{$local_host}{$server}{from_disk}{memory};
 	my $available        = $anvil->Get->free_memory({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")", 
 		available        => $anvil->Convert->add_commas({number => $available})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available}).")", 
 	}});
@@ -1838,7 +2003,7 @@ sub read_server_definition
 	my ($anvil) = @_;
 	
 	my $server          =  $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server          => $server, 
 	}});
 	

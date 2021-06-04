@@ -7,7 +7,6 @@ jqueryuiver		= 1.12.1
 
 dist_html_DATA		= \
 			  favicon.ico \
-			  index.html \
 			  jquery-$(jqueryver).js
 
 # empty dir for now
