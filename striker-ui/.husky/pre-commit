@@ -1,0 +1,7 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Must cd because pwd/cwd is the root of this repository.
+cd striker-ui
+
+npx --no-install lint-staged

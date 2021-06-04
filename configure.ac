@@ -165,6 +165,7 @@ AC_CONFIG_FILES([Makefile
 		 scancore-agents/Makefile
 		 scripts/Makefile
 		 share/Makefile
+		 striker-ui/Makefile
 		 tools/Makefile
 		 units/Makefile])
 

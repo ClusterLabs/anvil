@@ -23,6 +23,8 @@ BuildRequires:  systemd autoconf automake
 BuildRequires:  fence-agents-common
 # OCFROOT
 BuildRequires:  resource-agents
+# Require the "npm" tool for building the web UI.
+BuildRequires:  npm >= 6
 
 %description
 This package generates the anvil-core, anvil-striker, anvil-node and anvil-dr 

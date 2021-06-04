@@ -2,11 +2,10 @@ MAINTAINERCLEANFILES    = Makefile.in
 
 cgibindir               = $(localstatedir)/www/cgi-bin
 dist_cgibin_SCRIPTS     = \
-                          cold_stop \
-                          get_anvil_status \
                           get_anvils \
                           get_cpu \
                           get_memory \
+                          get_networks \
                           get_replicated_storage \
                           get_servers \
                           get_shared_storage \
