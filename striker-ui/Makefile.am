@@ -129,6 +129,8 @@ uninstall-hook:
 	-@echo "Remove all installed files of the current module."
 	(cd $(DESTDIR)/$(htmldir); rm -rf index.html _next pngs)
 
-distclean-local:
-	-@echo "Clean up files copied for building."
-	rm -rf *
+clean-local:
+	-@echo "Clean up build output files."
+	test $(srcdir) == . && rm -rf $(outdir) || rm -rf *
+
+distclean-local: clean-local
