@@ -109,9 +109,9 @@ all: out
 #
 out:
 	-@echo "Copying required build files to build (current) directory."
-	find $(srcdir) -mindepth 1 -maxdepth 1 ! -name "[Mm]ake*" -exec rsync -a {} + ./
+	rsync -av --exclude "[Mm]ake*" $(srcdir)/ ./
 	-@echo "Allow tools to write to files in the build directory."
-	chmod -R +w ./*
+	chmod -R +w .
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
 	-@echo "Generate endpoint prefix."
