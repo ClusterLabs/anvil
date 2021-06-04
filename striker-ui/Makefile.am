@@ -131,6 +131,6 @@ uninstall-hook:
 
 clean-local:
 	-@echo "Clean up build output files."
-	test $(srcdir) == . && rm -rf $(outdir) || rm -rf *
+	test $(srcdir) == . && rm -rf $(outdir) .next || find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
 distclean-local: clean-local
