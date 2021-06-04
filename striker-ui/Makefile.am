@@ -108,12 +108,18 @@ all: out
 #       EXTRA_DIST.
 #
 out:
+	-@echo "Copying required build files to build (current) directory."
+	rsync -a $(srcdir)/* ./
+	-@echo "Allow tools to write to files in the build directory."
+	chmod -R +w ./*
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
 	-@echo "Generate endpoint prefix."
 	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
 	npm run build
+	-@echo "Clean up files copied for building."
+	find . -not \( -name $(outdir) -prune \) -exec rm -rf {} +
 
 install-data-hook:
 	-@echo "Place build output files."
