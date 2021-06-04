@@ -109,7 +109,7 @@ all: out
 #
 out:
 	-@echo "Copying required build files to build (current) directory."
-	rsync -a $(srcdir)/* ./
+	find $(srcdir) -mindepth 1 -maxdepth 1 ! -name "[Mm]ake*" -exec rsync -a {} + ./
 	-@echo "Allow tools to write to files in the build directory."
 	chmod -R +w ./*
 	-@echo "Install node modules (dependencies) prior to building."
@@ -118,8 +118,6 @@ out:
 	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
 	npm run build
-	-@echo "Clean up files copied for building."
-	find . -not \( -name $(outdir) -prune \) -exec rm -rf {} +
 
 install-data-hook:
 	-@echo "Place build output files."
@@ -130,3 +128,7 @@ install-data-hook:
 uninstall-hook:
 	-@echo "Remove all installed files of the current module."
 	(cd $(DESTDIR)/$(htmldir); rm -rf index.html _next pngs)
+
+distclean-local:
+	-@echo "Clean up files copied for building."
+	rm -rf *
