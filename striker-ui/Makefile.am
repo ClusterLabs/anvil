@@ -102,12 +102,12 @@ htmldir			= $(localstatedir)/www/html
 outdir			= out
 
 # Trigger build target on make call without parameters.
-all: build
+all: out
 
 # Note: the input file to the generate endpoint prefix step must exist in
 #       EXTRA_DIST.
 #
-build:
+out:
 	-@echo "Install node modules (dependencies) prior to building."
 	npm clean-install --ignore-scripts
 	-@echo "Generate endpoint prefix."
