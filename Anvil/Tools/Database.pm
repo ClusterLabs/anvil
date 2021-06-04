@@ -1104,6 +1104,10 @@ If set, the connection will be made only to the database server matching the UUI
 
 If set to C<< 1 >>, no attempt to ping a target before connection will happen, even if C<< database::<uuid>::ping = 1 >> is set.
 
+=head3 sensitive (optional, default '0')
+
+If set to C<< 1 >>, the caller is considered time sensitive and most checks are skipped. This is used when a call must respond as quickly as possible.
+
 =head3 source (optional)
 
 The C<< source >> parameter is used to check the special C<< updated >> table on all connected databases to see when that source (program name, usually) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
@@ -1162,6 +1166,7 @@ sub connect
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
 	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
 	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
+	my $sensitive           = defined $parameter->{sensitive}           ? $parameter->{sensitive}           : 0;
 	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
 	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
@@ -1171,6 +1176,7 @@ sub connect
 		db_uuid             => $db_uuid,
 		no_ping             => $no_ping,
 		check_for_resync    => $check_for_resync, 
+		sensitive           => $sensitive, 
 		source              => $source, 
 		sql_file            => $sql_file, 
 		tables              => $tables, 
@@ -1214,6 +1220,12 @@ sub connect
 	if (exists $anvil->data->{sys}{database}{identifier})
 	{
 		delete $anvil->data->{sys}{database}{identifier};
+	}
+	
+	if ($sensitive)
+	{
+		$check_for_resync = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 	}
 	
 	# Now setup or however-many connections
@@ -1720,7 +1732,16 @@ sub connect
 # 		}
 	}
 	
-	# Make sure my host UUID is valud
+	if ($sensitive)
+	{
+		# Return here.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::database::connections" => $anvil->data->{sys}{database}{connections}, 
+		}});
+		return($anvil->data->{sys}{database}{connections});
+	}
+	
+	# Make sure my host UUID is valod
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	if ($anvil->data->{sys}{host_uuid} !~ /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/)
 	{
@@ -13174,6 +13195,12 @@ sub insert_or_update_variables
 		return("!!error!!");
 	}
 	
+	if ($variable_source_uuid eq "")
+	{
+		$variable_source_uuid = "NULL";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_source_uuid => $variable_source_uuid }});
+	}
+	
 	# If we have a variable UUID but not a name, read the variable name. If we don't have a UUID, see if
 	# we can find one for the given variable name.
 	if (($anvil->Validate->uuid({uuid => $variable_uuid})) && (not $variable_name))
@@ -13599,9 +13626,13 @@ sub locking
 		if ($lock_value)
 		{
 			my $variable_uuid = $anvil->Database->insert_or_update_variables({
-				variable_name     => $variable_name,
-				variable_value    => "",
-				update_value_only => 1,
+				variable_name         => $variable_name,
+				variable_value        => "",
+				variable_default      => "", 
+				variable_description  => "striker_0289", 
+				variable_section      => "database", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
 			});
 			$anvil->data->{sys}{database}{local_lock_active} = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -13622,9 +13653,13 @@ sub locking
 	{
 		# Yup, do it.
 		my $variable_uuid = $anvil->Database->insert_or_update_variables({
-			variable_name     => $variable_name,
-			variable_value    => $variable_value,
-			update_value_only => 1,
+			variable_name         => $variable_name,
+			variable_value        => $variable_value,
+			variable_default      => "", 
+			variable_description  => "striker_0289", 
+			variable_section      => "database", 
+			variable_source_uuid  => "NULL", 
+			variable_source_table => "", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 		
@@ -13684,9 +13719,13 @@ sub locking
 			{
 				# The lock is stale.
 				my $variable_uuid = $anvil->Database->insert_or_update_variables({
-					variable_name     => $variable_name,
-					variable_value    => "",
-					update_value_only => 1,
+					variable_name         => $variable_name,
+					variable_value        => "",
+					variable_default      => "", 
+					variable_description  => "striker_0289", 
+					variable_section      => "database", 
+					variable_source_uuid  => "", 
+					variable_source_table => "", 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 			}
@@ -13712,9 +13751,13 @@ sub locking
 	{
 		# Yup, do it.
 		my $variable_uuid = $anvil->Database->insert_or_update_variables({
-			variable_name     => $variable_name,
-			variable_value    => $variable_value,
-			update_value_only => 1,
+			variable_name         => $variable_name,
+			variable_value        => $variable_value,
+			variable_default      => "", 
+			variable_description  => "striker_0289", 
+			variable_section      => "database", 
+			variable_source_uuid  => "NULL", 
+			variable_source_table => "", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 		
@@ -14655,7 +14698,12 @@ sub read_variable
 		variable_source_table => $variable_source_table, 
 	}});
 	
-	# Do we have either the 
+	if (not $variable_source_uuid)
+	{
+		$variable_source_uuid = "NULL";
+	}
+	
+	# Do we have either the variable name or UUID?
 	if ((not $variable_name) && (not $variable_uuid))
 	{
 		# Throw an error and exit.
@@ -14693,6 +14741,7 @@ AND
 		}
 	}
 	$query .= ";";
+	$query =~ s/'NULL'/NULL/g;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	
 	my $variable_value = "";
@@ -16466,28 +16515,28 @@ ORDER BY
 				"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 			}});
-			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
-			{
-				# Resync needed.
-				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
-					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
-					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
-				}});
-
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
-					seconds => $difference, 
-					table   => $table, 
-					uuid    => $uuid,
-					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
-				}});
-				
-				# Mark it as behind.
-				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
-				last;
-			}
-			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
+# 			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
+# 			{
+# 				# Resync needed.
+# 				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
+# 					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
+# 					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+# 				}});
+# 
+# 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
+# 					seconds => $difference, 
+# 					table   => $table, 
+# 					uuid    => $uuid,
+# 					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+# 				}});
+# 				
+# 				# Mark it as behind.
+# 				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+# 				last;
+# 			}
+			if ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
 				# Resync needed.
 				my $difference = ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count});

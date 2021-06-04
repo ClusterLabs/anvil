@@ -943,11 +943,22 @@ AND
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 	}
 	
+	# Make sure /etc/hosts is updated.
+	$anvil->System->update_hosts();
+	
 	# Now look for jobs that have a job status of 'scancore_startup'
 	run_jobs($anvil, 1);
 	
 	# Check the firewall needs to be updated.
 	check_firewall($anvil);
+	
+	# If we're a striker, check apache
+	my $host_type = $anvil->Get->host_type;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type eq "striker")
+	{
+		$anvil->Striker->check_httpd_conf({debug => 2});
+	}
 	
 	return(0);
 }

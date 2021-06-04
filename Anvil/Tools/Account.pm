@@ -355,7 +355,7 @@ AND
 	}
 	else
 	{
-		# User DID NOT passed a valid username/password.
+		# User DID NOT pass a valid username/password.
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0027"}) }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0184", variables => { 
 			user_agent => $ENV{HTTP_USER_AGENT} ? $ENV{HTTP_USER_AGENT} : "#!string!log_0185!#", 

@@ -1801,6 +1801,11 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0622">Aging out one or more records that are more than: [#!variable!age!#] hours old from the table: [#!variable!table!#] on the database host: [#!variable!database!#].</key>
 		<key name="log_0623">Starting the process of aging out old data. This can take about a minute, please be patient.</key>
 		<key name="log_0624">Aging out old data completed after: [#!variable!runtime!#] seconds.</key>
+		<key name="log_0625">Updating the apache configuration file: [#!variable!file!#]. The changes are:
+====
+#!variable!difference!#
+====
+</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2470,6 +2475,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0285">Close</key>
 		<key name="striker_0286">This controls if 'anvil-safe-start' is enabled on a node.</key>
 		<key name="striker_0287">The virtio NAT bridge: [#!variable!bridge!#] exists. Removing it...</key>
+		<key name="striker_0288">Manage existing Anvil! systems.</key>
+		<key name="striker_0289">Control when the database is locked for use by any system except the lock holder.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

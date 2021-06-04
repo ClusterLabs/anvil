@@ -6,13 +6,15 @@ package Anvil::Tools::Striker;
 use strict;
 use warnings;
 use Data::Dumper;
-use Scalar::Util qw(weaken isweak);
 use JSON;
+use Scalar::Util qw(weaken isweak);
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Striker.pm";
 
 ### Methods;
+# check_httpd_conf
 # generate_manifest
 # get_fence_data
 # get_local_repo
@@ -80,6 +82,93 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 check_httpd_conf
+
+This checks the apache configuration file to ensure it's setup for the Striker dashboard and RPM repository. This method does nothing if called on non-striker dashboard. 
+
+This method takes no parameters. 
+
+=cut
+sub check_httpd_conf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->check_httpd_conf()" }});
+	
+	my $update_file    = 0;
+	my $in_dir_module  = 0;
+	my $old_httpd_conf = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{httpd_conf}});
+	my $new_httpd_conf = "";
+	foreach my $line (split/\n/, $old_httpd_conf)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^<IfModule dir_module>/)
+		{
+			$in_dir_module = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_dir_module => $in_dir_module }});
+		}
+		if ($in_dir_module)
+		{
+			if ($line =~ /^<\/IfModule>/)
+			{
+				$in_dir_module = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_dir_module => $in_dir_module }});
+			}
+			elsif ($line =~ /^\s+DirectoryIndex (.*)/)
+			{
+				my $directory_index = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory_index => $directory_index }});
+				if ($directory_index ne "cgi-bin/striker")
+				{
+					$line        =~ s/$directory_index/cgi-bin\/striker/;
+					$update_file =  1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						line        => $line,
+						update_file => $update_file, 
+					}});
+				}
+			}
+		}
+		$new_httpd_conf .= $line."\n";
+	}
+	
+	if ($update_file)
+	{
+		# Write the new file out.
+		my $db_difference = diff \$old_httpd_conf, \$new_httpd_conf, { STYLE => 'Unified' };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0625", variables => { 
+			file       => $anvil->data->{path}{data}{httpd_conf},
+			difference => $db_difference,
+		}});
+		
+		my $error = $anvil->Storage->write_file({
+			debug     => $debug,
+			body      => $new_httpd_conf,
+			file      => $anvil->data->{path}{data}{httpd_conf},
+			group     => "root", 
+			user      => "root",
+			mode      => "0644",
+			overwrite => 1,
+			backup    => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
+		
+		if (not $error)
+		{
+			# Restart apache.
+			$anvil->System->restart_daemon({
+				debug  => $debug, 
+				daemon => "httpd.service",
+			});
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 generate_manifest
 
