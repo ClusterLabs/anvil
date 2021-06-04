@@ -40,7 +40,7 @@ $anvil->Database->get_anvils();
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
 my $target     = $anvil->Get->short_host_name();
-my $hash       = {};
+my $hash       = { reserved => 68719476736 };
 my $anvil_uuid = "";
 if ($anvil->data->{cgi}{anvil_uuid}{value})
 {
@@ -70,7 +70,7 @@ else
 	
 	$hash->{total}     = 0;
 	$hash->{allocated} = 0;
-	$hash->{nodes}     = [];
+	$hash->{hosts}     = [];
 	
 	my @hosts = ($node1_uuid, $node2_uuid);
 	if ($dr1_uuid)
@@ -118,24 +118,25 @@ AND
 				scan_hardware_swap_free   => $anvil->Convert->add_commas({number => $scan_hardware_swap_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_hardware_swap_free}).")", 
 			}});
 			
+			# Important: ensure all size values are integers, which will be auto-transformed to JSON number type.
 			
 			if (not $hash->{total})
 			{
-				$hash->{total} = $scan_hardware_ram_total;
+				$hash->{total} = int($scan_hardware_ram_total);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->total' => $hash->{total} }});
 			}
 			elsif ($scan_hardware_ram_total < $hash->{total})
 			{
-				$hash->{total} = $scan_hardware_ram_total;
+				$hash->{total} = int($scan_hardware_ram_total);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'hash->total' => $hash->{total} }});
 			}
 			
-			push @{$hash->{nodes}}, {
+			push @{$hash->{hosts}}, {
 				host_uuid  => $host_uuid, 
-				total      => $scan_hardware_ram_total, 
-				free       => $scan_hardware_memory_free,
-				swap_total => $scan_hardware_swap_total,
-				swap_used  => $scan_hardware_swap_free,
+				total      => int($scan_hardware_ram_total),
+				free       => int($scan_hardware_memory_free),
+				swap_total => int($scan_hardware_swap_total),
+				swap_used  => int($scan_hardware_swap_free),
 			};
 		}
 	}

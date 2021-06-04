@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This prints JSON formated data reporting the status of an Anvil! system and it's member hosts.
+# Accepts a HTTP PUT request to power ON or OFF a specified host.
 # 
 
 use strict;

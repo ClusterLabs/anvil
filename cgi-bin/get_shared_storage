@@ -1,7 +1,7 @@
 #!/usr/bin/perl
-# 
-# This prints JSON formated data reporting the status of an file systems on nodes and DR hosts.
-# 
+#
+# Prints JSON formatted data reporting the status of shared storage (a.k.a. storage groups/shared VGs)
+#
 
 use strict;
 use warnings;
@@ -19,6 +19,88 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
+
+sub handle_invalid_uuid
+{
+	my $parameters = shift;
+	my $name       = $parameters->{name};
+	my $uuid       = $parameters->{uuid};
+
+	$anvil->Log->entry({
+		source    => $THIS_FILE,
+		line      => __LINE__,
+		level     => 0,
+		'print'   => 1,
+		priority  => "err",
+		key       => "error_0160",
+		variables => { name => $name, uuid => $uuid }
+	});
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
+sub get_storage_groups
+{
+	my $parameters = shift;
+	my $anvil_uuid = $parameters->{anvil_uuid};
+
+	my $storage_groups = [];
+
+	# Use DISTINCT ON (...) to limit the occurence of a storage group to 1 and
+	# ORDER BY [free] ASC to only select the storage with lowest free space.
+	my $query = "
+SELECT
+	DISTINCT ON (sgr.storage_group_uuid) storage_group_uuid,
+	sgr.storage_group_name,
+	slv.scan_lvm_vg_size,
+	slv.scan_lvm_vg_free
+FROM
+	anvils anv,
+	storage_groups sgr,
+	storage_group_members sgm,
+	scan_lvm_vgs slv
+WHERE
+	anv.anvil_uuid = sgr.storage_group_anvil_uuid
+	AND
+	sgr.storage_group_uuid = sgm.storage_group_member_storage_group_uuid
+	AND
+	sgm.storage_group_member_vg_uuid = slv.scan_lvm_vg_internal_uuid
+	AND
+	anv.anvil_uuid = ".$anvil->Database->quote($anvil_uuid)."
+ORDER BY
+	sgr.storage_group_uuid ASC,
+	slv.scan_lvm_vg_free ASC
+;";
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		results => $results,
+		count   => $count
+	}});
+	foreach my $row (@{$results})
+	{
+		my $storage_group_uuid = $row->[0];
+		my $storage_group_name = $row->[1];
+		my $scan_lvm_vg_size   = $row->[2];
+		my $scan_lvm_vg_free   = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			storage_group_uuid => $storage_group_uuid,
+			storage_group_name => $storage_group_name,
+			scan_lvm_vg_size   => $scan_lvm_vg_size,
+			scan_lvm_vg_free   => $scan_lvm_vg_free
+		}});
+
+		push(@{$storage_groups}, {
+			storage_group_uuid  => $storage_group_uuid,
+			storage_group_name  => $storage_group_name,
+			storage_group_total => int($scan_lvm_vg_size),
+			storage_group_free  => int($scan_lvm_vg_free)
+		});
+	}
+
+	return $storage_groups;
+}
 
 $anvil->Get->switches;
 
@@ -39,138 +121,35 @@ $anvil->Database->get_anvils();
 
 print $anvil->Template->get({file => "shared.html", name => "json_headers", show_name => 0})."\n";
 
-my $hash       = {};
-my $anvil_uuid = "";
-if ($anvil->data->{cgi}{anvil_uuid}{value})
+my $anvil_uuid               = exists $anvil->data->{cgi}{anvil_uuid}{value} ? $anvil->data->{cgi}{anvil_uuid}{value} : $anvil->data->{switches}{'anvil-uuid'};
+my $anvil_uuid_variable_name = "anvil UUID";
+
+my $response_body = {};
+
+if ($anvil_uuid)
 {
-	$anvil_uuid = $anvil->data->{cgi}{anvil_uuid}{value};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-}
-elsif ($anvil->data->{switches}{'anvil-uuid'})
-{
-	$anvil_uuid = $anvil->data->{switches}{'anvil-uuid'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-}
-if ((not $anvil_uuid) or (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}))
-{
-	$anvil->data->{anvil_status}{anvil_name} = "!!invalid!anvil_uuid!!";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'anvil_status::anvil_name' => $anvil->data->{anvil_status}{anvil_name} }});
+	if (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		$anvil->Log->variables({
+			source => $THIS_FILE,
+			line   => __LINE__,
+			level  => 2,
+			list   => {
+				message    => "Valid ".$anvil_uuid_variable_name." received.",
+				anvil_uuid => $anvil_uuid
+			}
+		});
+
+		$response_body->{storage_groups} = get_storage_groups({ anvil_uuid => $anvil_uuid });
+	}
+	else
+	{
+		handle_invalid_uuid({ name => $anvil_uuid_variable_name, uuid => $anvil_uuid });
+	}
 }
 else
 {
-	my $node1_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	my $node2_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $dr1_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		node1_uuid => $node1_uuid,
-		node2_uuid => $node2_uuid, 
-		dr1_uuid   => $dr1_uuid, 
-	}});
-	
-	my $query = "
-SELECT 
-    a.host_uuid, 
-    a.host_name, 
-    b.scan_filesystem_mount_point, 
-    b.scan_filesystem_size, 
-    b.scan_filesystem_used 
-FROM 
-    hosts a, 
-    scan_filesystems b 
-WHERE 
-    a.host_uuid = b.scan_filesystem_host_uuid 
-AND 
-    (
-        a.host_uuid = ".$anvil->Database->quote($node1_uuid)." 
-    OR 
-        a.host_uuid = ".$anvil->Database->quote($node2_uuid);
-	if ($dr1_uuid)
-	{
-		$query .= "
-    OR 
-        a.host_uuid = ".$anvil->Database->quote($dr1_uuid);
-	}
-	$query .= "
-    ) 
-ORDER BY 
-    a.host_name ASC, 
-    b.scan_filesystem_mount_point DESC
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
-	{
-		my $host_uuid   = $row->[0];
-		my $host_name   = $row->[1];
-		my $mount_point = $row->[2];
-		my $size        = $row->[3]; 
-		my $used        = $row->[4]; 
-		my $free        = $size - $used;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host_uuid   => $host_uuid, 
-			host_name   => $host_name, 
-			mount_point => $mount_point, 
-			size        => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",, 
-			used        => $anvil->Convert->add_commas({number => $used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used}).")",, 
-			free        => $anvil->Convert->add_commas({number => $free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free}).")",, 
-		}});
-		
-		$anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name} = $host_name;
-		$anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}     = $size;
-		$anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free}      = $free;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"raw::file_systems::${mount_point}::nodes::${host_uuid}::host_name" => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name}, 
-			"raw::file_systems::${mount_point}::nodes::${host_uuid}::total"     => $anvil->Convert->add_commas({number => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total}}).")",, 
-			"raw::file_systems::${mount_point}::nodes::${host_uuid}::free"      => $anvil->Convert->add_commas({number => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free}}).")",, 
-		}});
-	}
-	
-	$anvil->data->{file_systems} = [];
-	
-	foreach my $mount_point (sort {$a cmp $b} keys %{$anvil->data->{raw}{file_systems}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mount_point => $mount_point }});
-		   $hash->{mount_point} = $mount_point;
-		   $hash->{nodes}       = [];
-		my $nodes               = [$node1_uuid, $node2_uuid];
-		if ($dr1_uuid)
-		{
-			push @{$nodes}, $dr1_uuid;
-		}
-		foreach my $host_uuid (@{$nodes})
-		{
-			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				host_uuid => $host_uuid,
-				host_name => $host_name, 
-			}});
-			if (exists $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid})
-			{
-				push @{$hash->{nodes}}, {
-					host_uuid  => $host_uuid, 
-					host_name  => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{host_name},
-					is_mounted => 1,
-					total      => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{total},
-					free       => $anvil->data->{raw}{file_systems}{$mount_point}{nodes}{$host_uuid}{free},
-				}
-			}
-			else
-			{
-				push @{$hash->{nodes}}, {
-					host_uuid  => $host_uuid, 
-					host_name  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name},
-					is_mounted => 0,
-					total      => 0,
-					free       => 0,
-				}
-			}
-		}
-	}
+	handle_invalid_uuid({ name => $anvil_uuid_variable_name, uuid => $anvil_uuid });
 }
 
-print JSON->new->utf8->encode($hash)."\n";
+print JSON->new->utf8->encode($response_body)."\n";

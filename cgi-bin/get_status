@@ -82,15 +82,17 @@ else
 	
 	# Array index 0 is node 1, index 1 is node 2.
 	$hash->{anvil_state} = "optimal"; 
-	$hash->{nodes}->[0]  = {
-		host_uuid        =>  $node1_uuid,
+	$hash->{hosts}->[0]  = {
+		host_uuid        => $node1_uuid,
+		host_name        => $node1_host_name,
 		'state'          => "offline",
 		state_percent    => 0,
 		state_message    => "message_0222,!!host_name!".$node1_host_name."!!",
 		maintenance_mode => 'undefined',
 	};
-	$hash->{nodes}->[1]  = {
-		host_uuid        =>  $node2_uuid,
+	$hash->{hosts}->[1]  = {
+		host_uuid        => $node2_uuid,
+		host_name        => $node2_host_name,
 		'state'          => "offline",
 		state_percent    => 0,
 		state_message    => "message_0222,!!host_name!".$node2_host_name."!!",
@@ -99,7 +101,7 @@ else
 	
 	foreach my $i (0..1)
 	{
-		my $host_uuid       = $hash->{nodes}->[$i]->{host_uuid};
+		my $host_uuid       = $hash->{hosts}->[$i]->{host_uuid};
 		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 		my $host_status     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -149,37 +151,38 @@ WHERE
 				scan_cluster_node_maintenance_mode => $scan_cluster_node_maintenance_mode, 
 			}});
 			
-			$hash->{nodes}->[$i]->{maintenance_mode} = $scan_cluster_node_maintenance_mode ? 1 : 0;
+			# Ensure the maintenance_mode is set to a value that can be converted to JSON booleans.
+			$hash->{hosts}->[$i]->{maintenance_mode} = $scan_cluster_node_maintenance_mode ? \1 : \0;
 			if ($scan_cluster_node_cluster_member)
 			{
-				$hash->{nodes}->[$i]->{'state'}       = "online";
-				$hash->{nodes}->[$i]->{state_percent} = 100;
-				$hash->{nodes}->[$i]->{state_message} = "message_0223,!!host_name!".$node2_host_name."!!",
+				$hash->{hosts}->[$i]->{'state'}       = "online";
+				$hash->{hosts}->[$i]->{state_percent} = 100;
+				$hash->{hosts}->[$i]->{state_message} = "message_0223,!!host_name!".$node2_host_name."!!",
 			}
 			elsif ($scan_cluster_node_crmd_member)
 			{
-				$hash->{nodes}->[$i]->{'state'}       = "crmd";
-				$hash->{nodes}->[$i]->{state_percent} = 75;
-				$hash->{nodes}->[$i]->{state_message} = "message_0224,!!host_name!".$node2_host_name."!!",
+				$hash->{hosts}->[$i]->{'state'}       = "crmd";
+				$hash->{hosts}->[$i]->{state_percent} = 75;
+				$hash->{hosts}->[$i]->{state_message} = "message_0224,!!host_name!".$node2_host_name."!!",
 			}
 			elsif ($scan_cluster_node_in_ccm)
 			{
-				$hash->{nodes}->[$i]->{'state'}       = "in_ccm";
-				$hash->{nodes}->[$i]->{state_percent} = 50;
-				$hash->{nodes}->[$i]->{state_message} = "message_0225,!!host_name!".$node2_host_name."!!",
+				$hash->{hosts}->[$i]->{'state'}       = "in_ccm";
+				$hash->{hosts}->[$i]->{state_percent} = 50;
+				$hash->{hosts}->[$i]->{state_message} = "message_0225,!!host_name!".$node2_host_name."!!",
 			}
 			else
 			{
-				$hash->{nodes}->[$i]->{'state'}       = "booted";
-				$hash->{nodes}->[$i]->{state_percent} = 25;
-				$hash->{nodes}->[$i]->{state_message} = "message_0226,!!host_name!".$node2_host_name."!!",
+				$hash->{hosts}->[$i]->{'state'}       = "booted";
+				$hash->{hosts}->[$i]->{state_percent} = 25;
+				$hash->{hosts}->[$i]->{state_message} = "message_0226,!!host_name!".$node2_host_name."!!",
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"hash->{nodes}->[".$i."]->{state}"            => $hash->{nodes}->[$i]->{'state'}, 
-				"hash->{nodes}->[".$i."]->{state_percent}"    => $hash->{nodes}->[$i]->{state_percent}, 
-				"hash->{nodes}->[".$i."]->{state_message}"    => $hash->{nodes}->[$i]->{state_message}, 
-				"hash->{nodes}->[".$i."]->{maintenance_mode}" => $hash->{nodes}->[$i]->{maintenance_mode}, 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				"hash->{nodes}->[".$i."]->{state}"            => $hash->{hosts}->[$i]->{'state'},
+				"hash->{nodes}->[".$i."]->{state_percent}"    => $hash->{hosts}->[$i]->{state_percent},
+				"hash->{nodes}->[".$i."]->{state_message}"    => $hash->{hosts}->[$i]->{state_message},
+				"hash->{nodes}->[".$i."]->{maintenance_mode}" => $hash->{hosts}->[$i]->{maintenance_mode},
 			}});
 		}
 	}

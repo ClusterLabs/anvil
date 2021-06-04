@@ -109,29 +109,11 @@ WHERE
 		# Ignore deleted servers.
 		next if $server_state eq "DELETED";
 		
-		my $server_host_index = undef;
-		if ($server_state ne "shut off")
-		{
-			if ($server_host_uuid eq $node1_uuid)
-			{
-				$server_host_index = 0;
-			}
-			elsif ($server_host_uuid eq $node2_uuid)
-			{
-				$server_host_index = 1;
-			}
-			else
-			{
-				# Is it on DR?
-			}
-		}
-		
 		push @{$hash->{servers}}, {
 			server_uuid       => $server_uuid, 
 			server_name       => $server_name, 
 			server_state      => $server_state, 
-			server_host_uuid  => $server_state eq "shut off" ? undef : $server_host_uuid, 
-			server_host_index => $server_host_index, 
+			server_host_uuid  => $server_state eq "shut off" ? undef : $server_host_uuid
 		};
 	}
 }
