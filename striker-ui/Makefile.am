@@ -109,7 +109,7 @@ all: out
 #
 out:
 	-@echo "Install node modules (dependencies) prior to building."
-	npm clean-install --ignore-scripts
+	npm install --no-package-lock --ignore-scripts
 	-@echo "Generate endpoint prefix."
 	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
