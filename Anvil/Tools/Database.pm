@@ -1732,15 +1732,6 @@ sub connect
 # 		}
 	}
 	
-	if ($sensitive)
-	{
-		# Return here.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sys::database::connections" => $anvil->data->{sys}{database}{connections}, 
-		}});
-		return($anvil->data->{sys}{database}{connections});
-	}
-	
 	# Make sure my host UUID is valod
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	if ($anvil->data->{sys}{host_uuid} !~ /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/)
@@ -1752,23 +1743,33 @@ sub connect
 		$anvil->Database->disconnect({debug => $debug});
 	}
 	
+	# If this is a time sensitive call, end here.
+	if ($sensitive)
+	{
+		# Return here.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::connections" => $anvil->data->{sys}{database}{connections}, 
+		}});
+		return($anvil->data->{sys}{database}{connections});
+	}
+	
 	# If we have a previous count and the new count is higher, resync.
 	if (exists $anvil->data->{sys}{database}{last_db_count})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count},
 			"sys::database::connections"   => $anvil->data->{sys}{database}{connections}, 
 		}});
 		if ($anvil->data->{sys}{database}{connections} > $anvil->data->{sys}{database}{last_db_count})
 		{
 			$check_for_resync = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_for_resync => $check_for_resync }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 		}
 	}
 	
 	# If we have a "last_db_count" and it's the lower than the current number of connections, check for a
 	# resync. 
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
 		check_for_resync             => $check_for_resync, 
 	}});
@@ -1787,11 +1788,11 @@ sub connect
 	# Hold if a lock has been requested.
 	$anvil->Database->locking({debug => $debug});
 	
-	# Mark that we're not active.
+	# Mark that we're now active.
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed},
 		check_for_resync               => $check_for_resync, 
 	}});
@@ -1832,8 +1833,8 @@ sub disconnect
 		# Clear locks and mark that we're done running.
 		if (not $marked_inactive)
 		{
-			$anvil->Database->mark_active({set => 0});
-			$anvil->Database->locking({release => 1});
+			$anvil->Database->mark_active({debug => $debug, set => 0});
+			$anvil->Database->locking({debug => $debug, release => 1});
 			$marked_inactive = 1;
 		}
 		
@@ -1846,7 +1847,7 @@ sub disconnect
 	delete $anvil->data->{sys}{database}{timestamp};
 	delete $anvil->data->{sys}{database}{read_uuid};
 	delete $anvil->data->{sys}{database}{identifier};
-	$anvil->Database->read({set => "delete"});
+	$anvil->Database->read({debug => $debug, set => "delete"});
 	
 	# Delete any database information (reconnects should re-read anvil.conf anyway).
 	delete $anvil->data->{database};
@@ -15161,7 +15162,7 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							### NOTE: After an archive operationg, a record can 
 							###       end up in the public schema while nothing 
@@ -15185,14 +15186,14 @@ sub resync_databases
 									query     => $query, 
 								}});
 								$query =~ s/INSERT INTO public./INSERT INTO history./;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 								
 								push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
 							}
 							else
 							{
 								# No problem, record the query in the array
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 								push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
 							}
 						} # if not exists
@@ -15240,7 +15241,7 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							# Now record the query in the array
 							push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
@@ -16519,7 +16520,7 @@ ORDER BY
 # 			{
 # 				# Resync needed.
 # 				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 # 					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
 # 					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 # 					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
@@ -16540,7 +16541,7 @@ ORDER BY
 			{
 				# Resync needed.
 				my $difference = ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:difference"                                               => $anvil->Convert->add_commas({number => $difference }), 
 					"s2:sys::database::table::${table}::row_count"                => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
 					"s3:sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 

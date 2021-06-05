@@ -3001,10 +3001,11 @@ sub parse_cib
 		}
 		else
 		{
-			# It's our peer.
+			# It's our peer. Note that we only get the peer's host UUID if we have a DB 
+			# connection. This method is called by ocf:alteeve:anvil which skips the DB.
 			$anvil->data->{cib}{parsed}{peer}{ready}     = $ready;
 			$anvil->data->{cib}{parsed}{peer}{name}      = $node_name;
-			$anvil->data->{cib}{parsed}{peer}{host_uuid} = $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $node_name});
+			$anvil->data->{cib}{parsed}{peer}{host_uuid} = $anvil->data->{sys}{database}{connections} ? $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $node_name}) : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::peer::ready"     => $anvil->data->{cib}{parsed}{peer}{ready}, 
 				"cib::parsed::peer::name"      => $anvil->data->{cib}{parsed}{peer}{name}, 
@@ -3183,8 +3184,9 @@ sub parse_cib
 			# Stopping
 			$status = $active ? "running" : "off";
 			
-			# If the role is NOT 'migating', check to see if it's marked as such in the database.
-			if ($role ne "migrating")
+			# If the role is NOT 'migrating', and we have a database connection, check to see if 
+			# it's marked as such in the database.
+			if (($role ne "migrating") && ($anvil->data->{sys}{database}{connections}))
 			{
 				$anvil->Database->get_servers({debug => $debug});
 				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
