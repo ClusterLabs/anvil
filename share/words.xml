@@ -419,6 +419,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0305">Unable to connect to the database, unable to manage a server at this time.</key>
 		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
 		<key name="error_0307">Failed to perform requested task(s) because the requester is not authenticated.</key>
+		<key name="error_0308"><![CDATA[[ Error ] - The Job: [#!variable!job-uuid!#] appears to have passed malformed data. The raw data was: [#!variable!raw!#]. Expected 'as_machine=<host_type>,manifest_uuid=<manifest_uuid>,anvil_uuid=<anvil_uuid>'. Either the parse failed, or the data was somehow invalid.]]></key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -806,7 +807,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0073">This machine will join an #!string!brand_0006!# as a node or DR host. The role and #!string!brand_0006!# will be determined by the associated Install Manifest UUID.</key>
 		<key name="job_0074">'Join #!string!brand_0002!#' job: [#!variable!job-uuid!#] picked up.</key>
 		<key name="job_0075">This will become: [#!variable!machine!#] using data from the install manifest UUID: [#!variable!manifest_uuid!#].</key>
-		<key name="job_0076">[ Error ] - Failed to load and parse the install manifest. Details will be found in the logs.</key>
+		<key name="job_0076">[ Error ] - Failed to load and parse the install manifest. Details will be found in the logs. Exiting, This is a fatal error.</key>
 		<key name="job_0077">The host name is already: [#!variable!host_name!#], no change needed.</key>
 		<key name="job_0078">Updating the network configuration for: [#!variable!interface!#].</key>
 		<key name="job_0079">Disconnected from all database(s). Will reconnect after the network configuration changes have taken effect.</key>
@@ -2677,7 +2678,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0043">[ Warning ] - The install manifest with the UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="warning_0044">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] has already been deleted.</key>
 		<key name="warning_0045">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
-		<key name="warning_0046">[ Warning ] - The Install Manifest with the UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="warning_0046">[ Warning ] - The install manifest with the UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="warning_0047">[ Warning ] - The password to set for this #!string!brand_0006!# was not set.</key>
 		<key name="warning_0048">[ Warning ] - The password verification was not set.</key>
 		<key name="warning_0049">[ Warning ] - The passwords do not match.</key>
@@ -2793,6 +2794,7 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0118">[ Warning ] - The 'admin' group was created as a system group with the group ID: [#!variable!gid!#].</key>
 		<key name="warning_0119">[ Warning ] - The 'admin' user was created with the user ID: [#!variable!uid!#].</key>
 		<key name="warning_0120">[ Warning ] - Timed out waiting for the database: [#!variable!uuid!#] to become available.</key>
+		<key name="warning_0121">[ Warning ] - The Anvil! with the UUID: [#!variable!uuid!#] was not found. Exiting, will re-run the anvil-join-anvil job again in a few moments.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
