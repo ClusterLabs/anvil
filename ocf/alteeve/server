@@ -8,6 +8,10 @@
 # WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
 #          another purpose, let us know and we'll try to help.
+#          
+# NOTE: This method, for the sake of speed and reliability, does not connect to the Anvil! database. If you
+#       do work on this RA, be sure that a check is made for database connections before SQL calls are made
+#       in module methods.
 # 
 # Based on: https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 # 
@@ -143,13 +147,23 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
 # We're used by anvil-boot-server and anvil-stop-server. They don't set environment variables, but instead 
 # use switches. Pick those up, if passed.
 
-$anvil->data->{switches}{migrate_to}   = "";	# Sets 'meta_migrate_target'
-$anvil->data->{switches}{migrate_from} = "";	# Sets 'meta_migrate_source' When set without 'migrate_to', does a status check after migration
-$anvil->data->{switches}{server}       = "";	# Sets 'name'.
-$anvil->data->{switches}{start}        = "";
-$anvil->data->{switches}{stop}         = "";
-$anvil->data->{switches}{monitor}      = "";
+$anvil->data->{switches}{migrate_to}     = "";	# Sets 'meta_migrate_target'
+$anvil->data->{switches}{'migrate-to'}   = "";
+$anvil->data->{switches}{migrate_from}   = "";	# Sets 'meta_migrate_source' When set without 'migrate_to', does a status check after migration
+$anvil->data->{switches}{'migrate-from'} = "";
+$anvil->data->{switches}{server}         = "";	# Sets 'name'.
+$anvil->data->{switches}{start}          = "";
+$anvil->data->{switches}{stop}           = "";
+$anvil->data->{switches}{monitor}        = "";
 $anvil->Get->switches();
+if (($anvil->data->{switches}{'migrate-to'}) && not ($anvil->data->{switches}{migrate_to}))
+{
+	$anvil->data->{switches}{migrate_to} = $anvil->data->{switches}{'migrate-to'};
+}
+if (($anvil->data->{switches}{'migrate-from'}) && not ($anvil->data->{switches}{migrate_from}))
+{
+	$anvil->data->{switches}{migrate_from} = $anvil->data->{switches}{'migrate-from'};
+}
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	"switches::migrate_to"   => $anvil->data->{switches}{migrate_to}, 
 	"switches::migrate_from" => $anvil->data->{switches}{migrate_from}, 
@@ -159,16 +173,6 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	"switches::monitor"      => $anvil->data->{switches}{monitor}, 
 }});
 
-# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing reasons
-# we don't let the RA do resyncs.
-$anvil->Database->connect({sensitive => 1});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-if (not $anvil->data->{sys}{database}{connections})
-{
-	# No databases,
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "warning_0073"});
-}
-
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = 1;
@@ -177,190 +181,43 @@ if ($anvil->data->{switches}{stop_drbd_resources})
 # Something for the logs
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0298"});
 
-=cut
-Start:
+=cut	Manual calls;
 
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [start]
-environment::OCF_RESKEY_CRM_meta_on_fail: [block]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [300000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_ROOT: [/usr/lib/ocf]
+# Start a server;
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --start
 
-Monitor after start:
+# Stop a server
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --stop
 
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_ROOT: [/usr/lib/ocf]
+# Monitor a server
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --monitor
 
-Monitor one minute later:
-
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_ROOT: [/usr/lib/ocf]
-
-Migrate from an-a02n01 to an-a02n02
-
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_ROOT: [/usr/lib/ocf]
-<2 seconds later>
-environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_name: [migrate_to]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: [true]
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_ROOT: [/usr/lib/ocf]
-
-Post migration on an-a02n01
-
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [stop]
-environment::OCF_RESKEY_CRM_meta_on_fail: [block]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::PCMK_debug: [0]
-
-
-Post migration on an-a02n02
-
-environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_name: [migrate_from]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [600000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_PROVIDER: [alteeve]
-environment::OCF_RESOURCE_TYPE: [server]
-environment::OCF_ROOT: [/usr/lib/ocf]
-environment::PCMK_debug: [0]
-
-Checking server state after: [srv02-c8s-fujitsu] was migrated to this host.
-
-environment::OCF_EXIT_REASON_PREFIX: [ocf-exit-reason:]
-environment::OCF_RA_VERSION_MAJOR: [1]
-environment::OCF_RA_VERSION_MINOR: [0]
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_crm_feature_set: [3.7.1]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_PROVIDER: [alteeve]
-environment::OCF_RESOURCE_TYPE: [server]
-environment::OCF_ROOT: [/usr/lib/ocf]
-environment::PCMK_debug: [0]
-
-
-Monitor on an-a02n02 after a minute
-
-environment::OCF_EXIT_REASON_PREFIX: [ocf-exit-reason:]
-environment::OCF_RA_VERSION_MAJOR: [1]
-environment::OCF_RA_VERSION_MINOR: [0]
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_crm_feature_set: [3.7.1]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_PROVIDER: [alteeve]
-environment::OCF_RESOURCE_TYPE: [server]
-environment::OCF_ROOT: [/usr/lib/ocf]
-environment::PCMK_debug: [0]
-
-
-Stop server:
-
-environment::OCF_EXIT_REASON_PREFIX: [ocf-exit-reason:]
-environment::OCF_RA_VERSION_MAJOR: [1]
-environment::OCF_RA_VERSION_MINOR: [0]
-environment::OCF_RESKEY_CRM_meta_migrate_source: []
-environment::OCF_RESKEY_CRM_meta_migrate_target: []
-environment::OCF_RESKEY_CRM_meta_name: [stop]
-environment::OCF_RESKEY_CRM_meta_on_fail: [block]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_record_pending: []
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
-environment::OCF_RESKEY_crm_feature_set: [3.7.1]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_INSTANCE: [srv02-c8s-fujitsu]
-environment::OCF_RESOURCE_PROVIDER: [alteeve]
-environment::OCF_RESOURCE_TYPE: [server]
-environment::OCF_ROOT: [/usr/lib/ocf]
-environment::PCMK_debug: [0]
+# Migrate (run on current host)
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --migrate-to <target_node_name> --migrate-from <current_node_name>
 
 =cut
 
 foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{environment}})
 {
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 		"environment::${key}" => $anvil->data->{environment}{$key}, 
+	}});
+}
+foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{switches}})
+{
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+		"switches::${key}" => $anvil->data->{switches}{$key}, 
 	}});
 }
 
 # Set environment variables from switches, if otherwise not set.
+if (($anvil->data->{switches}{server}) && (not $anvil->data->{environment}{OCF_RESKEY_name}))
+{
+	$anvil->data->{environment}{OCF_RESKEY_name} = $anvil->data->{switches}{server};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"environment::OCF_RESKEY_name" => $anvil->data->{environment}{OCF_RESKEY_name}, 
+	}});
+}
 if (($anvil->data->{switches}{migrate_to}) && (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}))
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = $anvil->data->{switches}{migrate_to};
@@ -374,13 +231,6 @@ if (($anvil->data->{switches}{migrate_from}) && (not $anvil->data->{environment}
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = $anvil->data->{switches}{migrate_from};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"environment::OCF_RESKEY_CRM_meta_migrate_source" => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}, 
-	}});
-}
-if (($anvil->data->{switches}{server}) && (not $anvil->data->{environment}{OCF_RESKEY_name}))
-{
-	$anvil->data->{environment}{OCF_RESKEY_name} = $anvil->data->{switches}{server};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"environment::OCF_RESKEY_name" => $anvil->data->{environment}{OCF_RESKEY_name}, 
 	}});
 }
 
@@ -486,7 +336,8 @@ sub check_daemons
 {
 	my ($anvil, $task) = @_;
 	
-	my $problem = $anvil->Cluster->parse_cib();
+	my $problem = $anvil->Cluster->parse_cib({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
 	if ($problem)
 	{
 		# Pacemaker isn't running, or some other problem. Someone must have called this script 
@@ -498,7 +349,7 @@ sub check_daemons
 	# Is the peer running? We'll use this to know whether to try and start daemons on the peer.
 	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
 	my $peer_ready = $anvil->data->{cib}{parsed}{peer}{ready};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		peer_name  => $peer_name,
 		peer_ready => $peer_ready, 
 	}});
@@ -513,7 +364,7 @@ sub check_daemons
 			my $running_peer  = 0;
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				output      => $output, 
 				return_code => $return_code,
 			}});
@@ -522,7 +373,7 @@ sub check_daemons
 				# It is stopped, start it..
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0482", variables => { daemon => $daemon }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					output      => $output, 
 					return_code => $return_code,
 				}});
@@ -532,7 +383,7 @@ sub check_daemons
 				until ($running)
 				{
 					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						output      => $output, 
 						return_code => $return_code,
 					}});
@@ -588,7 +439,7 @@ sub check_daemons
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						output      => $output, 
 						error       => $error, 
 						return_code => $return_code,
@@ -602,7 +453,7 @@ sub check_daemons
 							target     => $peer_name,
 							shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							output      => $output, 
 							error       => $error, 
 							return_code => $return_code,
@@ -846,6 +697,14 @@ sub start_server
 	# 8. Start the server.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0303", variables => { server => $server }});
+	
+	if ((not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}) && ($anvil->data->{switches}{target}))
+	{
+		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = $anvil->data->{switches}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"environment::OCF_RESKEY_CRM_meta_on_node" => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node},
+		}});
+	}
 	
 	# Make sure things are sane.
 	validate_all($anvil);
@@ -1362,23 +1221,11 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 	$anvil->nice_exit({exit_code => 1});
 }
 
-### TODO: Write the migration duration to /tmp/anvil.migration.<server>.data and have 'anvil-migrate-server' read that in to update the DB.
 # Migrate the server
 sub migrate_server
 {
 	my ($anvil) = @_;
 
-	### This requires a database
-	# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing
-	# reasons we don't let the RA do resyncs.
-# 	$anvil->Database->connect({sensitive => 1});
-# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
-# 	if (not $anvil->data->{sys}{database}{connections})
-# 	{
-# 		# No databases, exit.
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-# 		return(1);
-# 	}
 	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node

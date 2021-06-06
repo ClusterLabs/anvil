@@ -946,6 +946,9 @@ AND
 	# Make sure /etc/hosts is updated.
 	$anvil->System->update_hosts();
 	
+	# This handles weird bits for things like bug work-arounds.
+	handle_special_cases($anvil);
+	
 	# Now look for jobs that have a job status of 'scancore_startup'
 	run_jobs($anvil, 1);
 	
@@ -958,6 +961,37 @@ AND
 	if ($host_type eq "striker")
 	{
 		$anvil->Striker->check_httpd_conf({debug => 2});
+	}
+	
+	return(0);
+}
+
+# This handles weird bits for things like bug work-arounds.
+sub handle_special_cases
+{
+	my ($anvil) = @_;
+	
+	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		# We're a node or DR host. We need to touch this file.
+		my $work_around_file = "/etc/qemu/firmware/50-edk2-ovmf-cc.json";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { work_around_file => $work_around_file }});
+		if (not -e $work_around_file)
+		{
+			$anvil->Storage->write_file({
+				debug     => 2,
+				file      => $work_around_file, 
+				body      => "", 
+				overwrite => 0,
+				backup    => 0,
+				mode      => "0644", 
+				user      => "root", 
+				group     => "root",
+			});
+		}
 	}
 	
 	return(0);
@@ -1274,7 +1308,7 @@ sub run_jobs
 		backup    => 0,
 		mode      => "0644", 
 		user      => "apache", 
-		group     => "apache"
+		group     => "apache",
 	});
 	
 	return(0);

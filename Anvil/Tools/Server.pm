@@ -983,8 +983,8 @@ sub migrate_virsh
 		});
 	}
 	
-	### NOTE: This method is called by ocf:alteeve:server, which is allowed to operate without database 
-	###       access. As such, queries need to be run only if we've got one or more DB connections.
+	### NOTE: This method is called by ocf:alteeve:server, which operates without database access. As 
+	###       such, queries need to be run only if we've got one or more DB connections.
 	# Mark this server as being in a migration state.
 	if ($anvil->data->{sys}{database}{connections})
 	{
@@ -1113,19 +1113,22 @@ WHERE
 		$success = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 		
-		# Revert the server state and update the server host.
-		my $server_host_uuid = $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $target});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_host_uuid => $server_host_uuid }});
-		if (not $server_host_uuid)
+		# Update the server state, if we have a database connection.
+		if ($anvil->data->{sys}{database}{connections})
 		{
-			# We didn't find the target's host_uuid, so use the old one and let scan-server 
-			# handle it.
-			$server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+			# Revert the server state and update the server host.
+			my $server_host_uuid = $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $target});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_host_uuid => $server_host_uuid }});
-		}
-		if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
-		{
-			my $query = "
+			if (not $server_host_uuid)
+			{
+				# We didn't find the target's host_uuid, so use the old one and let scan-server 
+				# handle it.
+				$server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_host_uuid => $server_host_uuid }});
+			}
+			if ($server_uuid)
+			{
+				my $query = "
 UPDATE 
     servers 
 SET 
@@ -1135,41 +1138,54 @@ SET
 WHERE 
     server_uuid      = ".$anvil->Database->quote($server_uuid)."
 ;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-			$anvil->Database->insert_or_update_servers({
-				debug                           => $debug, 
-				server_uuid                     => $server_uuid, 
-				server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
-				server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-				server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
-				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
-				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
-				server_host_uuid                => $server_host_uuid, 
-				server_state                    => $old_server_state, 
-				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
-				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
-				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
-				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
-				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
-				server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
-				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
-				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
-				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->insert_or_update_servers({
+					debug                           => $debug, 
+					server_uuid                     => $server_uuid, 
+					server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+					server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+					server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
+					server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+					server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+					server_host_uuid                => $server_host_uuid, 
+					server_state                    => $old_server_state, 
+					server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+					server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+					server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+					server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+					server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+					server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+					server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+					server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
+					server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+				});
+				
+				# Record the migration time.
+				my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+					file                  => $THIS_FILE, 
+					line                  => __LINE__, 
+					variable_name         => "server::migration_duration", 
+					variable_value        => $migration_took, 
+					variable_default      => "", 
+					variable_description  => "message_0236", 
+					variable_section      => "servers", 
+					variable_source_uuid  => $server_uuid, 
+					variable_source_table => "servers", 
+				});
+			}
+		}
+		else
+		{
+			# There's no database, so write the migration time to a temp file.
+			my $body = "server_name=".$server.",migration_took=".$migration_took."\n";
+			my $file = "/tmp/anvil/migration-duration.".$server.".".time;
+			my ($failed) = $anvil->Storage->write_file({
+				file => $file, 
+				body => $body, 
+				mode => "0666",
 			});
-			
-			# Record the migration time.
-			my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
-				file                  => $THIS_FILE, 
-				line                  => __LINE__, 
-				variable_name         => "server::migration_duration", 
-				variable_value        => $migration_took, 
-				variable_default      => "", 
-				variable_description  => "message_0236", 
-				variable_section      => "servers", 
-				variable_source_uuid  => $server_uuid, 
-				variable_source_table => "servers", 
-			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 		}
 	}
 	

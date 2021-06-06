@@ -1355,7 +1355,9 @@ sub catch_sig
 			$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{terminal}{stty}});
 		}
 	}
-	$anvil->nice_exit({exit_code => 255});
+	
+	# Exit with '0' so shutdowns from systemd doesn't think we failed.
+	$anvil->nice_exit({exit_code => 0});
 }
 
 

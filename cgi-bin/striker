@@ -1282,13 +1282,13 @@ sub process_keys
 {
 	my ($anvil) = @_;
 	
-	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
+	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OS.
 	my $show_list = 1;
 	$anvil->data->{cgi}{'delete'}{value} = "" if not defined $anvil->data->{cgi}{'delete'}{value};
 	if ($anvil->data->{cgi}{'delete'}{value})
 	{
 		# Record the job!
-		my $job_data = "";
+		my $job_data = {};
 		foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{cgi}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { key => $key }});
@@ -1296,34 +1296,63 @@ sub process_keys
 			{
 				my $state_uuid =  $1;
 				   $show_list  =  0;
-				   $job_data   .= $state_uuid.",";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					state_uuid => $state_uuid,
 					show_list  => $show_list, 
-					job_data   => $job_data, 
+				}});
+				
+				my $query = "SELECT state_host_uuid FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $host_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				   $host_uuid = "" if not defined $host_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+				next if not $host_uuid;
+				
+				if (not exists $job_data->{$host_uuid})
+				{
+					$job_data->{$host_uuid} = "";
+				}
+				$job_data->{$host_uuid} .= $state_uuid.",";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"job_data->{$host_uuid}" => $job_data->{$host_uuid}, 
 				}});
 			}
 		}
-		$job_data =~ s/,$//;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_data => $job_data }});
 		
-		if ($job_data)
+		my $show_template = 0;
+		foreach my $host_uuid (keys %{$job_data})
 		{
-			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				file            => $THIS_FILE, 
-				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
-				job_data        => $job_data, 
-				job_name        => "manage::broken_keys", 
-				job_title       => "job_0056", 
-				job_description => "job_0057", 
-				job_progress    => 0,
-				job_host_uuid   => $anvil->data->{sys}{host_uuid},
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			$job_data->{$host_uuid} =~ s/,$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"job_data->{$host_uuid}" => $job_data->{$host_uuid}, 
+			}});
 			
-			# We don't need to store anything as hidden variables, we'll read it back from the database 
-			# later.
+			if ($job_data->{$host_uuid})
+			{
+				   $show_template = 1;
+				my ($job_uuid)    = $anvil->Database->insert_or_update_jobs({
+					file            => $THIS_FILE, 
+					line            => __LINE__, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
+					job_data        => $job_data->{$host_uuid}, 
+					job_name        => "manage::broken_keys", 
+					job_title       => "job_0056", 
+					job_description => "job_0057", 
+					job_progress    => 0,
+					job_host_uuid   => $host_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					show_template => $show_template, 
+					job_uuid      => $job_uuid,
+				}});
+			}
+		}
+		
+		if ($show_template)
+		{
+			# We don't need to store anything as hidden variables, we'll read it back from the 
+			# database later.
 			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 				title_id    => "",
 				message_id  => "",
