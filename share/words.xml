@@ -418,6 +418,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0304">Failed to parse the request body: [#!variable!request_body_string!#]. Reason: [#!variable!json_decode_error!#]</key>
 		<key name="error_0305">Unable to connect to the database, unable to manage a server at this time.</key>
 		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
+		<key name="error_0307">Failed to perform requested task(s) because the requester is not authenticated.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
