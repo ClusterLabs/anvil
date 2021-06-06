@@ -1912,19 +1912,20 @@ sub load_job
 	$machine       = "" if not defined $machine;
 	$manifest_uuid = "" if not defined $manifest_uuid;
 	$anvil_uuid    = "" if not defined $anvil_uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		machine       => $machine,
-		manifest_uuid => $manifest_uuid, 
-		anvil_uuid    => $anvil_uuid, 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+		's1:job_data'      => $anvil->data->{jobs}{job_data},
+		's2:machine'       => $machine,
+		's3:manifest_uuid' => $manifest_uuid, 
+		's4:anvil_uuid'    => $anvil_uuid, 
 	}});
 	
 	if ((not $machine)       or 
 	    (not $manifest_uuid) or 
 	    (not $anvil_uuid))
 	{
-		# Terminate the job entirely, it's likely an unrecoverable problem.
-		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "job_0092", variables => { 
+		# This occassionally is hit, but then works when tried again. 
+		update_progress($anvil, 100, "error_0308,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0308", variables => { 
 			'job-uuid' => $anvil->data->{switches}{'job-uuid'},
 			raw        => $anvil->data->{jobs}{job_data},
 		}});	
@@ -1941,34 +1942,41 @@ sub load_job
 		"sys::anvil_uuid"      => $anvil->data->{sys}{anvil_uuid},
 	}});
 	
-	# Load in the host info and the manifest.
+	# Load in the host, manifest and anvil data.
 	$anvil->Database->get_hosts();
+	$anvil->Database->get_manifests();
+	$anvil->Database->get_anvils();
+	
+	# Parse the manifest
+	if (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "warning_0046", variables => { uuid => $anvil->data->{sys}{manifest_uuid} }});
+		update_progress($anvil, 0, "warning_0046,!!uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
+		sleep 10;
+		$anvil->nice_exit({exit_code => 2});
+	}
+	
+	# Parse the manifest
 	my $problem = $anvil->Striker->load_manifest({manifest_uuid => $anvil->data->{sys}{manifest_uuid}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		manifest_uuid => $anvil->data->{sys}{manifest_uuid},
 		problem       => $problem, 
 	}});
-	
 	if ($problem)
 	{
-		# Something went wrong
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "warning_0046", variables => { uuid => $anvil->data->{sys}{manifest_uuid} }});
-		update_progress($anvil, 0, "job_0076");
-		sleep 2;
+		# Something went wrong, fatally. Abort the job.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "job_0076", variables => { uuid => $anvil->data->{sys}{manifest_uuid} }});
+		update_progress($anvil, 100, "job_0076,!!uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
 		$anvil->nice_exit({exit_code => 2});
 	}
 	
-	# Load the manifest and anvil data.
-	$anvil->Database->get_anvils();
-	if ((not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}) or (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}))
+	# Make sure we have a valid Anvil! 
+	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
 	{
-		# Terminate the job entirely, it's likely an unrecoverable problem.
-		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0092", variables => { 
-			'job-uuid' => $anvil->data->{switches}{'job-uuid'},
-			raw        => $anvil->data->{jobs}{job_data},
-		}});	
-		sleep 2;
+		# Odd. Error out, the Anvil! might not be loaded yet.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "warning_0121", variables => { uuid => $anvil->data->{sys}{anvil_uuid} }});
+		update_progress($anvil, 0, "warning_0121,!!uuid!".$anvil->data->{sys}{anvil_uuid}."!!");
+		sleep 10;
 		$anvil->nice_exit({exit_code => 5});
 	}
 	

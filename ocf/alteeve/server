@@ -199,13 +199,13 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level 
 
 foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{environment}})
 {
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"environment::${key}" => $anvil->data->{environment}{$key}, 
 	}});
 }
 foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{switches}})
 {
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"switches::${key}" => $anvil->data->{switches}{$key}, 
 	}});
 }
