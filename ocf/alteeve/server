@@ -8,6 +8,10 @@
 # WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
 #          another purpose, let us know and we'll try to help.
+#          
+# NOTE: This method, for the sake of speed and reliability, does not connect to the Anvil! database. If you
+#       do work on this RA, be sure that a check is made for database connections before SQL calls are made
+#       in module methods.
 # 
 # Based on: https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 # 
@@ -169,16 +173,6 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	"switches::monitor"      => $anvil->data->{switches}{monitor}, 
 }});
 
-# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing reasons
-# we don't let the RA do resyncs.
-# $anvil->Database->connect({sensitive => 1});
-# $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-# if (not $anvil->data->{sys}{database}{connections})
-# {
-# 	# No databases,
-# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "warning_0073"});
-# }
-
 if ($anvil->data->{switches}{stop_drbd_resources})
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = 1;
@@ -187,65 +181,19 @@ if ($anvil->data->{switches}{stop_drbd_resources})
 # Something for the logs
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0298"});
 
-=cut
-Start:
+=cut	Manual calls;
 
-environment::OCF_RESKEY_CRM_meta_name: [start]
-environment::OCF_RESKEY_CRM_meta_on_fail: [block]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_timeout: [300000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+# Start a server;
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --start
 
-Monitor:
+# Stop a server
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --stop
 
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+# Monitor a server
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --monitor
 
-Migrate from an-a02n01 to an-a02n02
-
-environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_name: [migrate_to]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [1]
-environment::OCF_RESKEY_CRM_meta_record_pending: [true]
-environment::OCF_RESKEY_CRM_meta_stop_drbd_resources: [0]
-environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-# Post migration on an-a02n01; stop is called:
-
-Post migration on an-a02n02:
-
-environment::OCF_RESKEY_CRM_meta_migrate_source: [an-a02n01]
-environment::OCF_RESKEY_CRM_meta_migrate_target: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_name: [migrate_from]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_timeout: [600000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-
-Checking server state after: [srv02-c8s-fujitsu] was migrated to an-a02n02;
-
-environment::OCF_RESKEY_CRM_meta_interval: [60000]
-environment::OCF_RESKEY_CRM_meta_name: [monitor]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_timeout: [20000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
-
-Stop server (on an-a02n02):
-
-environment::OCF_RESKEY_CRM_meta_name: [stop]
-environment::OCF_RESKEY_CRM_meta_on_fail: [block]
-environment::OCF_RESKEY_CRM_meta_on_node: [an-a02n02]
-environment::OCF_RESKEY_CRM_meta_on_node_uuid: [2]
-environment::OCF_RESKEY_CRM_meta_timeout: [86400000]
-environment::OCF_RESKEY_name: [srv02-c8s-fujitsu]
+# Migrate (run on current host)
+/usr/lib/ocf/resource.d/alteeve/server -vv --log-secure --server <server_name> --migrate-to <target_node_name> --migrate-from <current_node_name>
 
 =cut
 
@@ -1273,23 +1221,11 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 	$anvil->nice_exit({exit_code => 1});
 }
 
-### TODO: Write the migration duration to /tmp/anvil.migration.<server>.data and have 'anvil-migrate-server' read that in to update the DB.
 # Migrate the server
 sub migrate_server
 {
 	my ($anvil) = @_;
 
-	### This requires a database
-	# If we can connect to a database, we'll set/clear the 'migrating' flag during migrations. For timing
-	# reasons we don't let the RA do resyncs.
-# 	$anvil->Database->connect({sensitive => 1});
-# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
-# 	if (not $anvil->data->{sys}{database}{connections})
-# 	{
-# 		# No databases, exit.
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-# 		return(1);
-# 	}
 	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node

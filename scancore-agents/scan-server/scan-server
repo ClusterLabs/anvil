@@ -85,6 +85,9 @@ if ($host_type eq "striker")
 # This is more than data collection in most agents, as it actually handles the changes on the fly
 collect_data($anvil);
 
+# Look for migration times written out by ocf:alteeve:server.
+record_migration_times($anvil);
+
 # Mark that we ran.
 $anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
 
@@ -93,6 +96,69 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Look for migration times written out by ocf:alteeve:server.
+sub record_migration_times
+{
+	my ($anvil) = @_;
+	
+	my $directory = "/tmp/anvil";
+	if (-d $directory)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file eq ".";
+			next if $file eq "..";
+			next if $file !~ /^migration-duration\./;
+			my $full_path = $directory."/".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file      => $file,
+				full_path => $full_path,
+			}});
+			
+			my $body =  $anvil->Storage->read_file({file => $full_path});
+			   $body =~ s/\n//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { body => $body }});
+			if ($body =~ /server_name=(.*?),migration_took=(.*?)$/)
+			{
+				my $server_name    = $1;
+				my $migration_took = $2;
+				my $anvil_uuid     = $anvil->Cluster->get_anvil_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					server_name    => $server_name,
+					migration_took => $migration_took, 
+					anvil_uuid     => $anvil_uuid, 
+				}});
+				my $server_uuid = $anvil->Get->server_uuid_from_name({
+					server_name => $server_name,
+					anvil_uuid  => $anvil_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+				if (($server_uuid) && ($migration_took))
+				{
+					my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+						file                  => $THIS_FILE, 
+						line                  => __LINE__, 
+						variable_name         => "server::migration_duration", 
+						variable_value        => $migration_took, 
+						variable_default      => "", 
+						variable_description  => "message_0236", 
+						variable_section      => "servers", 
+						variable_source_uuid  => $server_uuid, 
+						variable_source_table => "servers", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				}
+			}
+			unlink $full_path;
+		}
+	}
+	
+	return(0);
+}
 
 # This reads in all the data we can find about servers running locally. This is more than data collection in
 # most agents, as it actually handles the changes on the fly.
