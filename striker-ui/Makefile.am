@@ -1,6 +1,7 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
 htmldir			= $(localstatedir)/www/html
+nodemodulesdir		= node_modules
 nextoutdir		= $(srcdir)/out
 nextbuilddir		= .next
 
@@ -42,3 +43,7 @@ clean-local:
 	rm -rf $(nextoutdir) $(nextbuilddir)
 
 distclean-local: clean-local
+
+maintainer-clean-local: clean-local
+	-@echo "Clean up node modules."
+	rm -rf $(nodemodulesdir)
