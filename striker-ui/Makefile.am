@@ -16,6 +16,9 @@ outimagesdir		= pngs
 #
 EXTRA_DIST		= $(nextoutdir)
 
+# Blank target; the build output directory should be usable as-is.
+$(nextoutdir): ;
+
 # This target is for maintainers only; do not execute during CI/CD.
 #
 $(nodemodulesdir):
