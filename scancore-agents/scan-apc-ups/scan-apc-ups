@@ -376,7 +376,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_apc_ups_nmc_firmware_version).", 
     ".$anvil->Database->quote($scan_apc_ups_nmc_serial_number).", 
     ".$anvil->Database->quote($scan_apc_ups_nmc_mac_address).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -852,7 +852,7 @@ SET
     scan_apc_ups_nmc_firmware_version  = ".$anvil->Database->quote($scan_apc_ups_nmc_firmware_version).", 
     scan_apc_ups_nmc_serial_number     = ".$anvil->Database->quote($scan_apc_ups_nmc_serial_number).", 
     scan_apc_ups_nmc_mac_address       = ".$anvil->Database->quote($scan_apc_ups_nmc_mac_address).", 
-    modified_date                      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_ups_uuid                  = ".$anvil->Database->quote($scan_apc_ups_uuid)." 
 ;";
@@ -1091,7 +1091,7 @@ SET
     scan_apc_ups_input_voltage                  = ".$anvil->Database->quote($scan_apc_ups_input_voltage).", 
     scan_apc_ups_input_1m_maximum_input_voltage = ".$anvil->Database->quote($scan_apc_ups_input_1m_maximum_input_voltage).", 
     scan_apc_ups_input_1m_minimum_input_voltage = ".$anvil->Database->quote($scan_apc_ups_input_1m_minimum_input_voltage).", 
-    modified_date                               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_ups_input_uuid                     = ".$anvil->Database->quote($scan_apc_ups_input_uuid)."
 ;";
@@ -1328,7 +1328,7 @@ SET
     scan_apc_ups_output_frequency         = ".$anvil->Database->quote($scan_apc_ups_output_frequency).", 
     scan_apc_ups_output_voltage           = ".$anvil->Database->quote($scan_apc_ups_output_voltage).", 
     scan_apc_ups_output_total_output      = ".$anvil->Database->quote($scan_apc_ups_output_total_output).", 
-    modified_date                         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_ups_output_uuid              = ".$anvil->Database->quote($scan_apc_ups_output_uuid)."
 ";
@@ -1779,7 +1779,7 @@ SET
     scan_apc_ups_battery_temperature           = ".$anvil->Database->quote($scan_apc_ups_battery_temperature).",
     scan_apc_ups_battery_alarm_temperature     = ".$anvil->Database->quote($scan_apc_ups_battery_alarm_temperature).",
     scan_apc_ups_battery_voltage               = ".$anvil->Database->quote($scan_apc_ups_battery_voltage).",
-    modified_date                              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_ups_battery_uuid                  = ".$anvil->Database->quote($scan_apc_ups_battery_uuid)."
 ";
@@ -3145,7 +3145,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_apc_ups_battery_temperature).",  
     ".$anvil->Database->quote($scan_apc_ups_battery_alarm_temperature).",  
     ".$anvil->Database->quote($scan_apc_ups_battery_voltage).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -3213,7 +3213,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_apc_ups_input_voltage).",  
     ".$anvil->Database->quote($scan_apc_ups_input_1m_maximum_input_voltage).",  
     ".$anvil->Database->quote($scan_apc_ups_input_1m_minimum_input_voltage).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -3281,7 +3281,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_apc_ups_output_frequency).",  
     ".$anvil->Database->quote($scan_apc_ups_output_voltage).",  
     ".$anvil->Database->quote($scan_apc_ups_output_total_output).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});

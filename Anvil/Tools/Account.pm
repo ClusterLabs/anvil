@@ -437,7 +437,7 @@ UPDATE
     sessions 
 SET 
     session_salt      = '', 
-    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     session_user_uuid = ".$anvil->Database->quote($user_uuid)." ";
 	if ($host_uuid ne "all")

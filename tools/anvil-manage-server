@@ -128,7 +128,7 @@ $anvil->nice_exit({exit_code => 0});
 
 
 
-
+=cut
 # Make sure we're in an Anvil!
 $anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -201,7 +201,7 @@ if ((not $anvil->data->{sys}{server_name}) or (not $anvil->data->{sys}{server_uu
 
 # Show the server's existing stats.
 show_stats($anvil);
-
+=cut
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -223,8 +223,22 @@ sub interactive_question
 {
 	my ($anvil) = @_;
 	
+	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
 	$anvil->Database->get_servers();
+	
+	$anvil->data->{target_server}{server_uuid}           = "" if not defined $anvil->data->{target_server}{server_uuid};
+	$anvil->data->{target_server}{server_name}           = "" if not defined $anvil->data->{target_server}{server_name};
+	$anvil->data->{target_server}{server_state}          = "" if not defined $anvil->data->{target_server}{server_state};
+	$anvil->data->{target_server}{anvil_uuid}            = "" if not defined $anvil->data->{target_server}{anvil_uuid};
+	$anvil->data->{target_server}{anvil_name}            = "" if not defined $anvil->data->{target_server}{anvil_name};
+	$anvil->data->{target_server}{anvil_description}     = "" if not defined $anvil->data->{target_server}{anvil_description};
+	$anvil->data->{target_server}{anvil_node1_host_uuid} = "" if not defined $anvil->data->{target_server}{anvil_node1_host_uuid};
+	$anvil->data->{target_server}{anvil_node1_host_name} = "" if not defined $anvil->data->{target_server}{anvil_node1_host_name};
+	$anvil->data->{target_server}{anvil_node2_host_uuid} = "" if not defined $anvil->data->{target_server}{anvil_node2_host_uuid};
+	$anvil->data->{target_server}{anvil_node2_host_name} = "" if not defined $anvil->data->{target_server}{anvil_node2_host_name};
+	$anvil->data->{target_server}{anvil_dr1_host_uuid}   = "" if not defined $anvil->data->{target_server}{anvil_dr1_host_uuid};
+	$anvil->data->{target_server}{anvil_dr1_host_name}   = "" if not defined $anvil->data->{target_server}{anvil_dr1_host_name};
 	
 	### Server
 	# First, has the user specified a server? If so, and if it's by name, make sure it's unique. If the 
@@ -248,41 +262,140 @@ sub interactive_question
 		}
 	}
 	
-	# Do we know or can we find the Anvil! UUID?
-	$anvil->data->{target_server}{server_uuid} = $anvil->data->{switches}{'server-uuid'} ? $anvil->data->{switches}{'server-uuid'} : "";
-	$anvil->data->{target_server}{server_name} = $anvil->data->{switches}{'server-name'} ? $anvil->data->{switches}{'server-name'} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"target_server::server_uuid" => $anvil->data->{target_server}{server_uuid},
-		"target_server::server_name" => $anvil->data->{target_server}{server_name},
-	}});
-	
 	# If we have a server UUID, make sure it's valid.
-	if $anvil->data->{target_server}{server_uuid})
+	if ($anvil->data->{target_server}{server_uuid})
 	{
 		# Pull up the server data.
 		my $server_uuid = $anvil->data->{target_server}{server_uuid};
 		if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
 		{
 			# We can divine everthing from this.
-			$anvil->data->{target_server}{server_name} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+			my $anvil_uuid       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+			my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+			my $node1_host_uuid  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+			my $node2_host_uuid  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+			my $dr1_host_uuid    = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 			
+			$anvil->data->{target_server}{server_name}           = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+			$anvil->data->{target_server}{server_state}          = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->data->{target_server}{anvil_uuid}            = $anvil_uuid;
+			$anvil->data->{target_server}{anvil_name}            = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+			$anvil->data->{target_server}{anvil_description}     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
+			$anvil->data->{target_server}{anvil_node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+			$anvil->data->{target_server}{anvil_node1_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+			$anvil->data->{target_server}{anvil_node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+			$anvil->data->{target_server}{anvil_node2_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+			$anvil->data->{target_server}{anvil_dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+			$anvil->data->{target_server}{anvil_dr1_host_name}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+			if ($dr1_host_uuid)
+			{
+				$anvil->data->{target_server}{anvil_dr1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+				$anvil->data->{target_server}{anvil_dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};;
+			}
+			
+			### Pull out details pf the server. 
+			# How much RAM are we using and how much is configured?
+			$anvil->data->{target_server}{server_ram_in_use} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+			$anvil->data->{target_server}{server_host_uuid}  = $server_host_uuid;
+			$anvil->data->{target_server}{server_host_name}  = $anvil->data->{hosts}{host_uuid}{$server_host_uuid}{host_name};
+			if ($anvil->data->{target_server}{server_state} eq "shut off")
+			{
+				$anvil->data->{target_server}{server_ram_in_use} = 0;
+				$anvil->data->{target_server}{server_host_uuid}  = "";
+				$anvil->data->{target_server}{server_host_name}  = "";
+			}
+			$anvil->data->{target_server}{server_configured_ram}          = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
+			$anvil->data->{target_server}{server_start_after_server_uuid} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+			$anvil->data->{target_server}{server_start_after_server_name} = "";
+			$anvil->data->{target_server}{server_start_delay}             = 0;
+			if ($anvil->data->{target_server}{server_start_after_server_uuid})
+			{
+				my $server_start_after_server_uuid                               = $anvil->data->{target_server}{server_start_after_server_uuid};
+				   $anvil->data->{target_server}{server_start_after_server_name} = $anvil->data->{servers}{server_uuid}{$server_start_after_server_uuid}{server_name};
+				   $anvil->data->{target_server}{server_start_delay}             = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
+			}
+			
+			# Get a list of files on this Anvil!
+			foreach my $file_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}})
+			{
+				my $file_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name};
+				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
+				my $file_size      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size};
+				my $file_md5sum    = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum};
+				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					file_name      => $file_name, 
+					file_directory => $file_directory, 
+					file_size      => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size})." (".$anvil->Convert->add_commas({number => $file_size}).")", 
+					file_md5sum    => $file_md5sum, 
+					file_type      => $file_type, 
+				}});
+				
+				if ($file_type eq "iso")
+				{
+					# ISO image
+				}
+				else
+				{
+					# (Potential) script
+				}
+			}
+			
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
+# 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}, 
+# 			}});
+# 			
+# 				"servers::server_uuid::${server_uuid}::server_pre_migration_file_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+# 				"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+# 			
+# 			
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"hosts::host_uuid::${host_uuid}::host_name"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+# 				"hosts::host_uuid::${host_uuid}::short_host_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name}, 
+# 				"hosts::host_uuid::${host_uuid}::host_type"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+# 				"hosts::host_uuid::${host_uuid}::host_key"        => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+# 				"hosts::host_uuid::${host_uuid}::host_ipmi"       => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}) : $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+# 				"hosts::host_uuid::${host_uuid}::host_status"     => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+# 				"hosts::host_uuid::${host_uuid}::anvil_name"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
+# 				"hosts::host_uuid::${host_uuid}::anvil_uuid"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
+# 			}});
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_name"            => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_description"     => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_password"        => $anvil->Log->is_secure($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}), 
+# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_node1_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}, 
+# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}, 
+# 			}});
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_user_stop"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
+# 				"servers::server_uuid::${server_uuid}::server_start_after_server_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_start_delay"              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+# 				"servers::server_uuid::${server_uuid}::server_host_uuid"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_state"                    => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state}, 
+# 				"servers::server_uuid::${server_uuid}::server_live_migration"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+# 				"servers::server_uuid::${server_uuid}::server_pre_migration_file_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+# 				"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+# 				"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+# 				"servers::server_uuid::${server_uuid}::server_ram_in_use"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+# 				"servers::server_uuid::${server_uuid}::server_configured_ram"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+# 				"servers::server_uuid::${server_uuid}::server_updated_by_user"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}, 
+# 				"servers::server_uuid::${server_uuid}::server_boot_time"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
+# 			}});
 			
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"target_server::server_name" => $anvil->data->{target_server}{server_name},
 			}});
 		}
-	}
-	
-	if (not $anvil->data->{target_server}{server_name})
-	{
-		$anvil->data->{target_server}{server_name} = $anvil->Cluster->get_server_name({server_uuid => $anvil->data->{target_server}{server_uuid}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "target_server::server_name" => $anvil->data->{target_server}{server_name} }});
-	}
-	elsif (not $anvil->data->{target_server}{server_uuid})
-	{
-		$anvil->data->{target_server}{server_uuid} = $anvil->Cluster->get_server_uuid({server_name => $anvil->data->{target_server}{server_name}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "target_server::server_uuid" => $anvil->data->{target_server}{server_uuid} }});
 	}
 	
 	### Anvil

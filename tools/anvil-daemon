@@ -125,7 +125,7 @@ if (not $anvil->data->{sys}{database}{connections})
 			sleep 10;
 			
 			$anvil->refresh();
-			$anvil->Database->connect({debug => 3, check_if_configured => 1});
+			$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
 			{
@@ -202,7 +202,7 @@ while(1)
 	# If, so some reason, anvil.conf is lost, create it.
 	$anvil->System->_check_anvil_conf();
 	
-	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured});
+	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured, check_for_resync => 1});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 	
 	# Mark that we don't want to check the database now.
@@ -915,7 +915,7 @@ AND
 	else
 	{
 		# Update our status 
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0572"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0572"});
 		
 		$anvil->Database->get_hosts({debug => 2});
 		my $host_uuid = $anvil->Get->host_uuid({debug => 2});
@@ -1322,7 +1322,11 @@ sub update_state_file
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0480"});
 	
-	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__});
+	#my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'}.$anvil->Log->switches;
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		states_output => $states_output,
 		return_code   => $return_code, 

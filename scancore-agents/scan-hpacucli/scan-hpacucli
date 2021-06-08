@@ -249,7 +249,7 @@ UPDATE
     scan_hpacucli_controllers
 SET 
     scan_hpacucli_controller_last_diagnostics = ".time.", 
-    modified_date                             = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                             = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_controller_host_uuid        = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
@@ -691,7 +691,7 @@ SET
     scan_hpacucli_array_type            = ".$anvil->Database->quote($new_scan_hpacucli_array_type).", 
     scan_hpacucli_array_status          = ".$anvil->Database->quote($new_scan_hpacucli_array_status).", 
     scan_hpacucli_array_error_message   = ".$anvil->Database->quote($new_scan_hpacucli_array_error_message).", 
-    modified_date                       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                       = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_array_uuid            = ".$anvil->Database->quote($scan_hpacucli_array_uuid)." 
 ;";
@@ -762,7 +762,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_hpacucli_array_type).", 
     ".$anvil->Database->quote($new_scan_hpacucli_array_status).", 
     ".$anvil->Database->quote($new_scan_hpacucli_array_error_message).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				# Now record the query in the array
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1063,7 +1063,7 @@ SET
     scan_hpacucli_logical_drive_strip_size     = $quoted_scan_hpacucli_logical_drive_strip_size, 
     scan_hpacucli_logical_drive_stripe_size    = $quoted_scan_hpacucli_logical_drive_stripe_size, 
     scan_hpacucli_logical_drive_status         = ".$anvil->Database->quote($new_scan_hpacucli_logical_drive_status).", 
-    modified_date                              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_logical_drive_uuid           = ".$anvil->Database->quote($scan_hpacucli_logical_drive_uuid)." 
 ;";
@@ -1158,7 +1158,7 @@ INSERT INTO
     $quoted_scan_hpacucli_logical_drive_strip_size, 
     $quoted_scan_hpacucli_logical_drive_stripe_size, 
     ".$anvil->Database->quote($new_scan_hpacucli_logical_drive_status).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1221,7 +1221,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($scan_hpacucli_variable_uuid)."
 ;";
@@ -1269,7 +1269,7 @@ INSERT INTO
     FALSE, 
     ".$anvil->Database->quote($scan_hpacucli_variable_name).", 
     ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						# Now record the query in the array
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1330,7 +1330,7 @@ UPDATE
     scan_hpacucli_arrays
 SET
     scan_hpacucli_array_status = 'VANISHED', 
-    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_array_uuid   = ".$anvil->Database->quote($scan_hpacucli_array_uuid)." 
 ;";
@@ -1375,7 +1375,7 @@ UPDATE
     scan_hpacucli_logical_drives
 SET
     scan_hpacucli_logical_drive_status = 'VANISHED', 
-    modified_date                      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_logical_drive_uuid   = ".$anvil->Database->quote($scan_hpacucli_logical_drive_uuid)." 
 ;";
@@ -2015,7 +2015,7 @@ SET
     scan_hpacucli_physical_drive_port                = ".$anvil->Database->quote($port).", 
     scan_hpacucli_physical_drive_box                 = ".$anvil->Database->quote($box).", 
     scan_hpacucli_physical_drive_bay                 = ".$anvil->Database->quote($bay).", 
-    modified_date                                    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                                    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_physical_drive_uuid                = ".$anvil->Database->quote($scan_hpacucli_physical_drive_uuid)." 
 ;";
@@ -2320,7 +2320,7 @@ INSERT INTO
     ".$anvil->Database->quote($port).", 
     ".$anvil->Database->quote($box).", 
     ".$anvil->Database->quote($bay).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		# Now record the query in the array
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2379,7 +2379,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($scan_hpacucli_variable_uuid)."
 ;";
@@ -2431,7 +2431,7 @@ INSERT INTO
     FALSE, 
     ".$anvil->Database->quote($scan_hpacucli_variable_name).", 
     ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2477,7 +2477,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = 'VANISHED', 
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($old_scan_hpacucli_variable_uuid)."
 ;";
@@ -2549,7 +2549,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($scan_hpacucli_variable_uuid)."
 ;";
@@ -2601,7 +2601,7 @@ INSERT INTO
     FALSE, 
     ".$anvil->Database->quote($scan_hpacucli_variable_name).", 
     ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2649,7 +2649,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = 'VANISHED', 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($old_scan_hpacucli_variable_uuid)."
 ;";
@@ -2881,7 +2881,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_hpacucli_controller_drive_write_cache).", 
     ".$anvil->Database->quote($new_scan_hpacucli_controller_firmware_version).", 
     ".$anvil->Database->quote($new_scan_hpacucli_controller_unsafe_writeback_cache).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2983,7 +2983,7 @@ SET
     scan_hpacucli_controller_drive_write_cache      = ".$anvil->Database->quote($new_scan_hpacucli_controller_drive_write_cache).", 
     scan_hpacucli_controller_firmware_version       = ".$anvil->Database->quote($new_scan_hpacucli_controller_firmware_version).", 
     scan_hpacucli_controller_unsafe_writeback_cache = ".$anvil->Database->quote($new_scan_hpacucli_controller_unsafe_writeback_cache).", 
-    modified_date                                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                                   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_controller_uuid                   = ".$anvil->Database->quote($scan_hpacucli_controller_uuid)." 
 ;";
@@ -3084,7 +3084,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_hpacucli_cache_module_status).", 
     ".$anvil->Database->quote($new_scan_hpacucli_cache_module_type).", 
     ".$anvil->Database->quote($new_scan_hpacucli_cache_module_size).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				# Now record the query in the array
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -3188,7 +3188,7 @@ SET
     scan_hpacucli_cache_module_status          = ".$anvil->Database->quote($new_scan_hpacucli_cache_module_status).", 
     scan_hpacucli_cache_module_type            = ".$anvil->Database->quote($new_scan_hpacucli_cache_module_type).", 
     scan_hpacucli_cache_module_size            = ".$anvil->Database->quote($new_scan_hpacucli_cache_module_size).", 
-    modified_date                              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_cache_module_uuid            = ".$anvil->Database->quote($scan_hpacucli_cache_module_uuid)." 
 ;";
@@ -3561,7 +3561,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -3795,7 +3795,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_scan_hpacucli_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -3849,7 +3849,7 @@ UPDATE
     scan_hpacucli_controllers 
 SET 
     scan_hpacucli_controller_status = 'VANISHED', 
-    modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_controller_uuid   = ".$anvil->Database->quote($scan_hpacucli_controller_uuid)." 
 ;";
@@ -3899,7 +3899,7 @@ UPDATE
     scan_hpacucli_cache_modules 
 SET 
     scan_hpacucli_cache_module_status = 'VANISHED', 
-    modified_date                     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_cache_module_uuid   = ".$anvil->Database->quote($scan_hpacucli_cache_module_uuid)." 
 ;";
@@ -3959,7 +3959,7 @@ UPDATE
     scan_hpacucli_variables 
 SET 
     scan_hpacucli_variable_value = 'VANISHED', 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hpacucli_variable_uuid  = ".$anvil->Database->quote($old_scan_hpacucli_variable_uuid)."
 ;";

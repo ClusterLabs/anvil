@@ -32,10 +32,6 @@ if (not $anvil->data->{sys}{database}{connections})
 	# No database, but we need to keep going. If the user unplugged the only cable connecting us to the
 	# network, we'll lose all DBs, but we still need to record the order the NICs went up and down.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "warning_0016"});
-	
-	# Generate our own time stamp
-	$anvil->data->{sys}{database}{timestamp} =  $anvil->Get->date_and_time({use_utc => 1});
-	$anvil->data->{sys}{database}{timestamp} =~ s/\//-/g;
 }
 
 process_interface_cache($anvil);
@@ -467,7 +463,7 @@ sub update_network
 			# If this is a link and there's no database connections, cache the data.
 			if (($type eq "interface") && (not $anvil->data->{sys}{database}{connections}))
 			{
-				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->data->{sys}{database}{timestamp}.",".$mac_address.",".$speed.",".$link_state.",".$operational."\n";
+				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});

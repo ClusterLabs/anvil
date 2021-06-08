@@ -475,7 +475,7 @@ UPDATE
     scan_ipmitool_values 
 SET
     scan_ipmitool_value_sensor_value       = ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).", 
-    modified_date                          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                          = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_ipmitool_value_scan_ipmitool_uuid = ".$anvil->Database->quote($scan_ipmitool_uuid)."
 ;
@@ -594,7 +594,7 @@ SET
     scan_ipmitool_sensor_high_warning  = ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_warning).", 
     scan_ipmitool_sensor_low_critical  = ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_critical).", 
     scan_ipmitool_sensor_low_warning   = ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_warning).", 
-    modified_date                      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_ipmitool_sensor_host          = ".$anvil->Database->quote($host_name)."
 AND 
@@ -713,7 +713,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_warning).",  
     ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_critical).",  
     ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_warning).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -735,7 +735,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->Get->host_uuid).", 
     ".$anvil->Database->quote($scan_ipmitool_uuid).", 
     ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -858,7 +858,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_ipmitool_sensor_high_warning).",  
     ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_critical).",  
     ".$anvil->Database->quote($new_scan_ipmitool_sensor_low_warning).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -880,7 +880,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->Get->host_uuid).",
     ".$anvil->Database->quote($scan_ipmitool_uuid).",
     ".$anvil->Database->quote($new_scan_ipmitool_value_sensor_value).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
