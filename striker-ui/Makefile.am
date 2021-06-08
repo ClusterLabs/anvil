@@ -20,8 +20,6 @@ EXTRA_DIST		= $(nextoutdir)
 out:
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
-	-@echo "Generate endpoint prefix."
-	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
 	npm run build
 	-@echo "Stage only the build output directory."
