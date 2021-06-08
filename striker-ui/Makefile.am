@@ -21,7 +21,7 @@ EXTRA_DIST		= $(nextoutdir)
 out:
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
-	-@echo "Build front-end project."
+	-@echo "Build web UI."
 	npm run build
 	-@echo "Stage only the build output directory."
 	git reset && git add $(nextoutdir)
