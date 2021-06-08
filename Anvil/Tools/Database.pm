@@ -1651,7 +1651,7 @@ sub connect
 # 			set_by         => $THIS_FILE,
 # 			record_locator => $uuid,
 # 			name           => "connect_to_db",
-# 			modified_date  => $anvil->data->{sys}{database}{timestamp},
+# 			modified_date  => $anvil->Database->refresh_timestamp,
 # 		});
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 # 		
@@ -1712,7 +1712,7 @@ sub connect
 # 				set_by         => $THIS_FILE,
 # 				record_locator => $uuid,
 # 				name           => "connect_to_db",
-# 				modified_date  => $anvil->data->{sys}{database}{timestamp},
+# 				modified_date  => $anvil->Database->refresh_timestamp,
 # 			});
 # 			if ($cleared)
 # 			{
@@ -2157,6 +2157,10 @@ sub get_anvils
 		delete $anvil->data->{anvils};
 	}
 	
+	# Get the list of files so we can track what's on each Anvil!.
+	$anvil->Database->get_files({debug => $debug});
+	$anvil->Database->get_file_locations({debug => $debug});
+	
 	my $query = "
 SELECT 
     anvil_uuid, 
@@ -2275,6 +2279,35 @@ WHERE
 				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name}, 
 				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid}, 
 				"anvils::host_uuid::${anvil_dr1_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{role}, 
+			}});
+		}
+		
+		# Track the files on this Anvil!
+		foreach my $file_location_uuid (keys %{$anvil->data->{file_locations}{file_location_uuid}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"file_locations::file_location_uuid::${file_location_uuid}::file_location_anvil_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid}, 
+				"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"     => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
+			}});
+			next if $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} ne $anvil_uuid;
+			next if not $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+			
+			my $file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
+			
+			# If the file was deleted, this won't exist
+			next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory} = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}, 
+				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory}, 
+				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
+				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}, 
+				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}, 
 			}});
 		}
 	}
@@ -5278,7 +5311,7 @@ UPDATE
     anvils 
 SET 
     anvil_description = 'DELETED', 
-    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     anvil_uuid        = ".$anvil->Database->quote($anvil_uuid)."
 ;";
@@ -5329,7 +5362,7 @@ INSERT INTO
     ".$say_anvil_node1_host_uuid.", 
     ".$say_anvil_node2_host_uuid.", 
     ".$say_anvil_dr1_host_uuid.", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { query => $query }});
@@ -5401,7 +5434,7 @@ SET
     anvil_node1_host_uuid = ".$say_anvil_node1_host_uuid.", 
     anvil_node2_host_uuid = ".$say_anvil_node2_host_uuid.", 
     anvil_dr1_host_uuid   = ".$say_anvil_dr1_host_uuid.", 
-    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     anvil_uuid            = ".$anvil->Database->quote($anvil_uuid)." 
 ";
@@ -5576,7 +5609,7 @@ UPDATE
     bridges 
 SET 
     bridge_id      = 'DELETED', 
-    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     bridge_uuid    = ".$anvil->Database->quote($bridge_uuid)."
 ;";
@@ -5642,7 +5675,7 @@ INSERT INTO
     ".$anvil->Database->quote($bridge_mac_address).", 
     ".$anvil->Database->quote($bridge_mtu).", 
     ".$anvil->Database->quote($bridge_stp_enabled).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -5714,7 +5747,7 @@ SET
     bridge_mac_address = ".$anvil->Database->quote($bridge_mac_address).", 
     bridge_mtu         = ".$anvil->Database->quote($bridge_mtu).", 
     bridge_stp_enabled = ".$anvil->Database->quote($bridge_stp_enabled).", 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     bridge_uuid        = ".$anvil->Database->quote($bridge_uuid)." 
 ";
@@ -5942,7 +5975,7 @@ UPDATE
     bonds 
 SET 
     bond_operational = 'DELETED', 
-    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     bond_uuid = ".$anvil->Database->quote($bond_uuid)."
 ;";
@@ -6022,7 +6055,7 @@ INSERT INTO
     ".$anvil->Database->quote($bond_mac_address).", 
     ".$anvil->Database->quote($bond_operational).", 
     ".$anvil->Database->quote($bond_bridge_uuid).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -6130,7 +6163,7 @@ SET
     bond_mac_address          = ".$anvil->Database->quote($bond_mac_address).", 
     bond_operational          = ".$anvil->Database->quote($bond_operational).", 
     bond_bridge_uuid          = ".$anvil->Database->quote($bond_bridge_uuid).", 
-    modified_date             = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date             = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     bond_uuid                 = ".$anvil->Database->quote($bond_uuid)." 
 ";
@@ -6302,7 +6335,7 @@ SET
     fence_name      = ".$anvil->Database->quote($fence_name).", 
     fence_arguments = ".$anvil->Database->quote($fence_arguments).", 
     fence_agent     = ".$anvil->Database->quote($fence_agent).", 
-    modified_date   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     fence_uuid      = ".$anvil->Database->quote($fence_uuid)."
 ;";
@@ -6329,7 +6362,7 @@ INSERT INTO
     ".$anvil->Database->quote($fence_name).",
     ".$anvil->Database->quote($fence_arguments).",
     ".$anvil->Database->quote($fence_agent).",
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
@@ -6463,7 +6496,7 @@ INSERT INTO
     ".$anvil->Database->quote($file_location_file_uuid).", 
     ".$anvil->Database->quote($file_location_anvil_uuid).", 
     ".$anvil->Database->quote($file_location_active).", 
-   ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+   ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -6520,7 +6553,7 @@ SET
     file_location_file_uuid  = ".$anvil->Database->quote($file_location_file_uuid).", 
     file_location_anvil_uuid = ".$anvil->Database->quote($file_location_anvil_uuid).", 
     file_location_active     = ".$anvil->Database->quote($file_location_active).", 
-    modified_date            = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date            = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     file_location_uuid       = ".$anvil->Database->quote($file_location_uuid)." 
 ";
@@ -6699,7 +6732,7 @@ INSERT INTO
     ".$anvil->Database->quote($file_md5sum).", 
     ".$anvil->Database->quote($file_type).", 
     ".$anvil->Database->quote($file_mtime).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -6771,7 +6804,7 @@ SET
     file_md5sum    = ".$anvil->Database->quote($file_md5sum).", 
     file_type      = ".$anvil->Database->quote($file_type).", 
     file_mtime     = ".$anvil->Database->quote($file_mtime).", 
-    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     file_uuid      = ".$anvil->Database->quote($file_uuid)." 
 ";
@@ -6911,7 +6944,7 @@ UPDATE
     health 
 SET 
     health_source_name = 'DELETED', 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     health_uuid        = ".$anvil->Database->quote($health_uuid)."
 ;";
@@ -7026,7 +7059,7 @@ SET
     health_agent_name    = ".$anvil->Database->quote($health_agent_name).",
     health_source_name   = ".$anvil->Database->quote($health_source_name).", 
     health_source_weight = ".$anvil->Database->quote($health_source_weight).",
-    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date        = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     health_uuid          = ".$anvil->Database->quote($health_uuid)."
 ;";
@@ -7061,7 +7094,7 @@ INSERT INTO
     ".$anvil->Database->quote($health_agent_name).",
     ".$anvil->Database->quote($health_source_name).",
     ".$anvil->Database->quote($health_source_weight).",
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -7269,7 +7302,7 @@ INSERT INTO
     ".$anvil->Database->quote($host_key).",
     ".$anvil->Database->quote($host_ipmi).",
     ".$anvil->Database->quote($say_host_status).",
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
@@ -7290,7 +7323,7 @@ SET
     host_key      = ".$anvil->Database->quote($host_key).", 
     host_ipmi     = ".$anvil->Database->quote($host_ipmi).", 
     host_status   = ".$anvil->Database->quote($host_status).", 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."
 ;";
@@ -7333,7 +7366,7 @@ UPDATE
     hosts 
 SET 
     host_key      = 'DELETED', 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     host_uuid     = ".$anvil->Database->quote($other_host_uuid)."
 ;";
@@ -7567,7 +7600,7 @@ UPDATE
     ip_addresses 
 SET 
     ip_address_note = 'DELETED',
-    modified_date   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid)."
 ;";
@@ -7639,7 +7672,7 @@ INSERT INTO
     ".$anvil->Database->quote($ip_address_default_gateway).", 
     ".$anvil->Database->quote($ip_address_dns).", 
     ".$anvil->Database->quote($ip_address_note).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -7726,7 +7759,7 @@ SET
     ip_address_default_gateway = ".$anvil->Database->quote($ip_address_default_gateway).", 
     ip_address_dns             = ".$anvil->Database->quote($ip_address_dns).", 
     ip_address_note            = ".$anvil->Database->quote($ip_address_note).", 
-    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     ip_address_uuid            = ".$anvil->Database->quote($ip_address_uuid)." 
 ";
@@ -8439,7 +8472,7 @@ UPDATE
     mail_servers 
 SET 
     mail_server_helo_domain = 'DELETED',
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     mail_server_uuid        = ".$anvil->Database->quote($mail_server_uuid)."
 ;";
@@ -8504,7 +8537,7 @@ INSERT INTO
     ".$anvil->Database->quote($mail_server_port).", 
     ".$anvil->Database->quote($mail_server_security).", 
     ".$anvil->Database->quote($mail_server_username).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { query => $query }});
@@ -8581,7 +8614,7 @@ SET
     mail_server_port           = ".$anvil->Database->quote($mail_server_port).", 
     mail_server_security       = ".$anvil->Database->quote($mail_server_security).", 
     mail_server_username       = ".$anvil->Database->quote($mail_server_username).", 
-    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     mail_server_uuid           = ".$anvil->Database->quote($mail_server_uuid)." 
 ";
@@ -8757,7 +8790,7 @@ UPDATE
     manifests 
 SET 
     manifest_note = 'DELETED', 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     manifest_uuid = ".$anvil->Database->quote($manifest_uuid)."
 ;";
@@ -8838,7 +8871,7 @@ SET
     manifest_last_ran = ".$anvil->Database->quote($manifest_last_ran).", 
     manifest_xml      = ".$anvil->Database->quote($manifest_xml).", 
     manifest_note     = ".$anvil->Database->quote($manifest_note).", 
-    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE
     manifest_uuid     = ".$anvil->Database->quote($manifest_uuid)."
 ;";
@@ -8869,7 +8902,7 @@ INSERT INTO
     ".$anvil->Database->quote($manifest_last_ran).", 
     ".$anvil->Database->quote($manifest_xml).", 
     ".$anvil->Database->quote($manifest_note).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -8959,10 +8992,6 @@ This is the current speed of the network interface in Mbps (megabits per second)
 
 This is the UUID of an existing record to be updated. If this is not passed, the UUID will be searched using the interface's MAC address. If no match is found, the record will be INSERTed and a new random UUID generated.
 
-=head3 timestamp (optional, default 'sys::database::timestamp')
-
-When C<< link_only >> is used, this can be set to use a different time stamp (used when writing cached records from disk).
-
 =cut
 sub insert_or_update_network_interfaces
 {
@@ -8989,7 +9018,6 @@ sub insert_or_update_network_interfaces
 	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "";
 	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : 0;
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
-	my $timestamp                     = defined $parameter->{timestamp}                     ? $parameter->{timestamp}                     : $anvil->data->{sys}{database}{timestamp};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		'delete'                      => $delete, 
 		uuid                          => $uuid, 
@@ -9116,7 +9144,7 @@ UPDATE
     network_interfaces 
 SET 
     network_interface_operational = 'DELETED', 
-    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
 ;";
@@ -9215,7 +9243,7 @@ SET
     network_interface_operational = ".$anvil->Database->quote($network_interface_operational).", 
     network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address).", 
     network_interface_speed       = ".$anvil->Database->quote($network_interface_speed).", 
-    modified_date                 = ".$anvil->Database->quote($timestamp)." 
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE
     network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
 ;";
@@ -9256,7 +9284,7 @@ SET
     network_interface_medium      = ".$anvil->Database->quote($network_interface_medium).", 
     network_interface_mtu         = ".$anvil->Database->quote($network_interface_mtu).", 
     network_interface_speed       = ".$anvil->Database->quote($network_interface_speed).", 
-    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE
     network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
 ;";
@@ -9302,7 +9330,7 @@ INSERT INTO
     ".$anvil->Database->quote($network_interface_medium).", 
     ".$anvil->Database->quote($network_interface_mtu).", 
     ".$anvil->Database->quote($network_interface_speed).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -9472,7 +9500,7 @@ UPDATE
     notifications 
 SET 
     notification_alert_level = ".$anvil->Database->quote($notification_alert_level).", 
-    modified_date            = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date            = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     notification_uuid        = ".$anvil->Database->quote($notification_uuid)." 
 ";
@@ -9500,7 +9528,7 @@ INSERT INTO
     ".$anvil->Database->quote($notification_recipient_uuid).",  
     ".$anvil->Database->quote($notification_host_uuid).",  
     ".$anvil->Database->quote($notification_alert_level).",  
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -9687,7 +9715,7 @@ SET
     mac_to_ip_note        = ".$anvil->Database->quote($mac_to_ip_note).", ";
 			}
 			$query .= "
-    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     mac_to_ip_uuid        = ".$anvil->Database->quote($mac_to_ip_uuid)." 
 ";
@@ -9716,7 +9744,7 @@ INSERT INTO
     ".$anvil->Database->quote($mac_to_ip_mac_address).", 
     ".$anvil->Database->quote($mac_to_ip_ip_address).", 
     ".$anvil->Database->quote($mac_to_ip_note).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -9878,7 +9906,7 @@ SET
     oui_mac_prefix      = ".$anvil->Database->quote($oui_mac_prefix).", 
     oui_company_address = ".$anvil->Database->quote($oui_company_address).", 
     oui_company_name    = ".$anvil->Database->quote($oui_company_name).", 
-    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date       = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     oui_uuid            = ".$anvil->Database->quote($oui_uuid)." 
 ";
@@ -9907,7 +9935,7 @@ INSERT INTO
     ".$anvil->Database->quote($oui_mac_prefix).", 
     ".$anvil->Database->quote($oui_company_address).", 
     ".$anvil->Database->quote($oui_company_name).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -10080,7 +10108,7 @@ SET
     power_on_battery        = ".$anvil->Database->quote($power_on_battery).",
     power_seconds_left      = ".$anvil->Database->quote($power_seconds_left).",
     power_charge_percentage = ".$anvil->Database->quote($power_charge_percentage).",
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     power_uuid              = ".$anvil->Database->quote($power_uuid)."
 ;";
@@ -10108,7 +10136,7 @@ INSERT INTO
     ".$anvil->Database->quote($power_on_battery).",
     ".$anvil->Database->quote($power_seconds_left).",
     ".$anvil->Database->quote($power_charge_percentage).",
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -10284,7 +10312,7 @@ UPDATE
     recipients 
 SET 
     recipient_name = 'DELETED', 
-    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     recipient_uuid = ".$anvil->Database->quote($recipient_uuid)."
 ;";
@@ -10331,7 +10359,7 @@ INSERT INTO
     ".$anvil->Database->quote($recipient_language).", 
     ".$anvil->Database->quote($recipient_name).", 
     ".$anvil->Database->quote($recipient_level).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -10393,7 +10421,7 @@ SET
     recipient_language = ".$anvil->Database->quote($recipient_language).", 
     recipient_name     = ".$anvil->Database->quote($recipient_name).", 
     recipient_level    = ".$anvil->Database->quote($recipient_level).", 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     recipient_uuid     = ".$anvil->Database->quote($recipient_uuid)." 
 ";
@@ -10642,7 +10670,7 @@ UPDATE
     servers 
 SET 
     server_state  = 'DELETED', 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     server_uuid   = ".$anvil->Database->quote($server_uuid)."
 ;";
@@ -10696,7 +10724,7 @@ INSERT INTO
     ".$anvil->Database->quote($server_configured_ram).", 
     ".$anvil->Database->quote($server_updated_by_user).", 
     ".$anvil->Database->quote($server_boot_time).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -10819,7 +10847,7 @@ SET
     server_configured_ram           = ".$anvil->Database->quote($server_configured_ram).", 
     server_updated_by_user          = ".$anvil->Database->quote($server_updated_by_user).", 
     server_boot_time                = ".$anvil->Database->quote($server_boot_time).", 
-    modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid                     = ".$anvil->Database->quote($server_uuid)." 
 ";
@@ -11005,7 +11033,7 @@ UPDATE
 SET 
     server_definition_xml         = ".$anvil->Database->quote($server_definition_xml).", 
     server_definition_server_uuid = ".$anvil->Database->quote($server_definition_server_uuid).", 
-    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     server_definition_uuid        = ".$anvil->Database->quote($server_definition_uuid)."
 ;";
@@ -11029,7 +11057,7 @@ INSERT INTO
     ".$anvil->Database->quote($server_definition_uuid).", 
     ".$anvil->Database->quote($server_definition_server_uuid).",
     ".$anvil->Database->quote($server_definition_xml).",
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
@@ -11189,7 +11217,7 @@ SET
     session_user_uuid  = ".$anvil->Database->quote($session_user_uuid).", 
     session_salt       = ".$anvil->Database->quote($session_salt).", 
     session_user_agent = ".$anvil->Database->quote($session_user_agent).", 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     session_uuid       = ".$anvil->Database->quote($session_uuid)." 
 ";
@@ -11220,7 +11248,7 @@ INSERT INTO
     ".$anvil->Database->quote($session_user_uuid).", 
     ".$anvil->Database->quote($session_salt).", 
     ".$anvil->Database->quote($session_user_agent).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -11357,7 +11385,7 @@ INSERT INTO
     ".$anvil->Database->quote($ssh_key_host_uuid).", 
     ".$anvil->Database->quote($ssh_key_public_key).", 
     ".$anvil->Database->quote($ssh_key_user_name).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -11414,7 +11442,7 @@ SET
     ssh_key_host_uuid  = ".$anvil->Database->quote($ssh_key_host_uuid).",  
     ssh_key_public_key = ".$anvil->Database->quote($ssh_key_public_key).", 
     ssh_key_user_name  = ".$anvil->Database->quote($ssh_key_user_name).", 
-    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date       = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     ssh_key_uuid       = ".$anvil->Database->quote($ssh_key_uuid)." 
 ";
@@ -11585,7 +11613,7 @@ INSERT INTO
     ".$anvil->Database->quote($state_name).", 
     ".$anvil->Database->quote($state_host_uuid).", 
     ".$anvil->Database->quote($state_note).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -11643,7 +11671,7 @@ SET
     state_name       = ".$anvil->Database->quote($state_name).", 
     state_host_uuid  = ".$anvil->Database->quote($state_host_uuid).",  
     state_note       = ".$anvil->Database->quote($state_note).", 
-    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     state_uuid       = ".$anvil->Database->quote($state_uuid)." 
 ";
@@ -11822,7 +11850,7 @@ INSERT INTO
     ".$anvil->Database->quote($storage_group_uuid).", 
     ".$anvil->Database->quote($storage_group_anvil_uuid).", 
     ".$anvil->Database->quote($storage_group_name).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -11861,7 +11889,7 @@ UPDATE
     storage_groups 
 SET 
     storage_group_name = ".$anvil->Database->quote($storage_group_name).", 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE  
     storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)."
 ;";
@@ -11947,7 +11975,7 @@ UPDATE
     storage_group_members 
 SET 
     storage_group_member_vg_uuid = 'DELETED', 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE  
     storage_group_member_uuid    = ".$anvil->Database->quote($storage_group_member_uuid)."
 ;";
@@ -12025,7 +12053,7 @@ INSERT INTO
     ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
     ".$anvil->Database->quote($storage_group_member_host_uuid).", 
     ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -12070,7 +12098,7 @@ SET
     storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
     storage_group_member_host_uuid          = ".$anvil->Database->quote($storage_group_member_host_uuid).", 
     storage_group_member_vg_uuid            = ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
-    modified_date                           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE
     storage_group_member_uuid               = ".$anvil->Database->quote($storage_group_member_uuid)."
 ;";
@@ -12285,7 +12313,7 @@ UPDATE
     temperature 
 SET 
     temperature_state  = 'DELETED', 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     temperature_uuid   = ".$anvil->Database->quote($temperature_uuid).";
 ";
@@ -12390,7 +12418,7 @@ SET
     temperature_state       = ".$anvil->Database->quote($temperature_state).",
     temperature_is          = ".$anvil->Database->quote($temperature_is).",
     temperature_weight      = ".$anvil->Database->quote($temperature_weight).",
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     temperature_uuid        = ".$anvil->Database->quote($temperature_uuid)."
 ;";
@@ -12433,7 +12461,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature_state).", 
     ".$anvil->Database->quote($temperature_is).", 
     ".$anvil->Database->quote($temperature_weight).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -12525,7 +12553,7 @@ UPDATE
 SET 
     updated_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).", 
     updated_by        = ".$anvil->Database->quote($updated_by).", 
-    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     updated_uuid      = ".$anvil->Database->quote($updated_uuid)."
 ;";
@@ -12548,7 +12576,7 @@ INSERT INTO
     ".$anvil->Database->quote($updated_uuid).", 
     ".$anvil->Database->quote($anvil->Get->host_uuid).", 
     ".$anvil->Database->quote($updated_by).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
@@ -12722,7 +12750,7 @@ SET
     ups_name       = ".$anvil->Database->quote($ups_name).", 
     ups_ip_address = ".$anvil->Database->quote($ups_ip_address).", 
     ups_agent      = ".$anvil->Database->quote($ups_agent).", 
-    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     ups_uuid       = ".$anvil->Database->quote($ups_uuid)."
 ;";
@@ -12749,7 +12777,7 @@ INSERT INTO
     ".$anvil->Database->quote($ups_name).",
     ".$anvil->Database->quote($ups_ip_address).",
     ".$anvil->Database->quote($ups_agent).",
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
@@ -12989,7 +13017,7 @@ INSERT INTO
     ".$anvil->Database->quote($user_is_admin).", 
     ".$anvil->Database->quote($user_is_experienced).", 
     ".$anvil->Database->quote($user_is_trusted).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -13077,7 +13105,7 @@ SET
     user_is_admin       = ".$anvil->Database->quote($user_is_admin).", 
     user_is_experienced = ".$anvil->Database->quote($user_is_experienced).", 
     user_is_trusted     = ".$anvil->Database->quote($user_is_trusted).", 
-    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date       = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     user_uuid           = ".$anvil->Database->quote($user_uuid)." 
 ";
@@ -13306,7 +13334,7 @@ INSERT INTO
     ".$anvil->Database->quote($variable_section).", 
     ".$anvil->Database->quote($variable_source_uuid).", 
     ".$anvil->Database->quote($variable_source_table).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -13369,7 +13397,7 @@ UPDATE
     variables 
 SET 
     variable_value = ".$anvil->Database->quote($variable_value).", 
-    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     variable_uuid  = ".$anvil->Database->quote($variable_uuid);
 					if (($variable_source_uuid ne "NULL") && ($variable_source_table ne ""))
@@ -13461,7 +13489,7 @@ SET
     variable_section      = ".$anvil->Database->quote($variable_section).", 
     variable_source_table = ".$anvil->Database->quote($variable_source_table).", 
     variable_source_uuid  = ".$anvil->Database->quote($variable_source_uuid).", 
-    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     variable_uuid         = ".$anvil->Database->quote($variable_uuid)." 
 ";
@@ -14790,14 +14818,9 @@ sub refresh_timestamp
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->refresh_timestamp()" }});
 	
-	my $query = "SELECT cast(now() AS timestamp with time zone);";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	
-	$anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp} }});
+	my $query                                   = "SELECT cast(now() AS timestamp with time zone);";
+	   $anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	
 	return($anvil->data->{sys}{database}{timestamp});
 }
@@ -15590,9 +15613,6 @@ sub write
 		# Free up some memory.
 		undef $query_set;
 	}
-	
-	# Refresh the timestamp.
-	$anvil->Database->refresh_timestamp({debug => $debug});
 	
 	return(0);
 }

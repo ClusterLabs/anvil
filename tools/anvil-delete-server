@@ -187,7 +187,7 @@ UPDATE
     servers 
 SET 
     server_state  = 'DELETED', 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid   = ".$anvil->Database->quote($server_uuid)."
 ;";

@@ -852,7 +852,7 @@ SET
     scan_apc_pdu_link_speed       = ".$anvil->Database->quote($new_scan_apc_pdu_link_speed).", 
     scan_apc_pdu_phase_count      = ".$anvil->Database->quote($new_scan_apc_pdu_phase_count).", 
     scan_apc_pdu_outlet_count     = ".$anvil->Database->quote($new_scan_apc_pdu_outlet_count).", 
-    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_uuid             = ".$anvil->Database->quote($scan_apc_pdu_uuid)." 
 ;";
@@ -1128,7 +1128,7 @@ SET
     scan_apc_pdu_phase_number            = ".$anvil->Database->quote($scan_apc_pdu_phase_number).", 
     scan_apc_pdu_phase_current_amperage  = ".$anvil->Database->quote($new_scan_apc_pdu_phase_current_amperage).", 
     scan_apc_pdu_phase_max_amperage      = ".$anvil->Database->quote($new_scan_apc_pdu_phase_max_amperage).", 
-    modified_date                        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                        = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_phase_uuid              = ".$anvil->Database->quote($scan_apc_pdu_phase_uuid)." 
 ;";
@@ -1158,7 +1158,7 @@ UPDATE
     scan_apc_pdu_phases 
 SET 
     scan_apc_pdu_phase_deleted = 'DELETED', 
-    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_phase_uuid    = ".$anvil->Database->quote($scan_apc_pdu_phase_uuid)." 
 ;";
@@ -1305,7 +1305,7 @@ SET
     scan_apc_pdu_outlet_name              = ".$anvil->Database->quote($new_scan_apc_pdu_outlet_name).", 
     scan_apc_pdu_outlet_on_phase          = ".$anvil->Database->quote($new_scan_apc_pdu_outlet_on_phase).", 
     scan_apc_pdu_outlet_state             = ".$anvil->Database->quote($new_scan_apc_pdu_outlet_state).", 
-    modified_date                         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_outlet_uuid              = ".$anvil->Database->quote($scan_apc_pdu_outlet_uuid)." 
 ;";
@@ -1369,7 +1369,7 @@ UPDATE
     scan_apc_pdu_outlets 
 SET 
     scan_apc_pdu_outlet_name = 'DELETED', 
-    modified_date            = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date            = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_outlet_uuid = ".$anvil->Database->quote($scan_apc_pdu_outlet_uuid)." 
 ;";
@@ -1432,7 +1432,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_apc_pdu_link_speed).", 
     ".$anvil->Database->quote($new_scan_apc_pdu_phase_count).", 
     ".$anvil->Database->quote($new_scan_apc_pdu_outlet_count).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			push @{$anvil->data->{sys}{queries}}, $query;
@@ -1526,7 +1526,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_apc_pdu_phase_number).", 
     ".$anvil->Database->quote($new_scan_apc_pdu_phase_current_amperage).", 
     ".$anvil->Database->quote($new_scan_apc_pdu_phase_max_amperage).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				push @{$anvil->data->{sys}{queries}}, $query;
@@ -1614,7 +1614,7 @@ UPDATE
     scan_apc_pdus 
 SET 
     scan_apc_pdu_model_number = 'DELETED', 
-    modified_date             = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date             = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_uuid         = ".$anvil->Database->quote($scan_apc_pdu_uuid)." 
 ;";
@@ -1795,7 +1795,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_apc_pdu_outlet_name).", 
     ".$anvil->Database->quote($scan_apc_pdu_outlet_on_phase).", 
     ".$anvil->Database->quote($scan_apc_pdu_outlet_state).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	push @{$anvil->data->{sys}{queries}}, $query;
@@ -1814,7 +1814,7 @@ UPDATE
 SET
     scan_apc_pdu_variable_name  = ".$anvil->Database->quote($variable).", 
     scan_apc_pdu_variable_value = ".$anvil->Database->quote($value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_apc_pdu_variable_uuid  = ".$anvil->Database->quote($scan_apc_pdu_variable_uuid)." 
 ;";
@@ -1846,7 +1846,7 @@ INSERT INTO
     FALSE, 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	push @{$anvil->data->{sys}{queries}}, $query;

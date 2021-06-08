@@ -212,7 +212,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->Get->host_uuid).", 
     ".$anvil->Database->quote($set_by).", 
     ".$anvil->Database->quote($record_locator).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -594,7 +594,7 @@ INSERT INTO
     ".$anvil->Database->quote($message).", 
     ".$anvil->Database->quote($sort_position).", 
     ".$anvil->Database->quote($show_header).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});

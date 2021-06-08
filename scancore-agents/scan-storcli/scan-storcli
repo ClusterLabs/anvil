@@ -988,7 +988,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_drive_group_read_cache).", 
     ".$anvil->Database->quote($new_drive_group_scheduled_cc).", 
     ".$anvil->Database->quote($new_drive_group_write_cache).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1044,7 +1044,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1186,7 +1186,7 @@ SET
     scan_storcli_drive_group_read_cache         = ".$anvil->Database->quote($new_drive_group_read_cache).", 
     scan_storcli_drive_group_scheduled_cc       = ".$anvil->Database->quote($new_drive_group_scheduled_cc).", 
     scan_storcli_drive_group_write_cache        = ".$anvil->Database->quote($new_drive_group_write_cache).", 
-    modified_date                          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                          = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_drive_group_uuid               = ".$anvil->Database->quote($scan_storcli_drive_group_uuid)." 
 ;";
@@ -1259,7 +1259,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = ".$anvil->Database->quote($new_variable_value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -1308,7 +1308,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						# Now record the query in the array
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1362,7 +1362,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = 'VANISHED', 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -1687,7 +1687,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_drives_per_span).", 
     ".$anvil->Database->quote($new_span_depth).", 
     ".$anvil->Database->quote($new_scsi_naa_id).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1743,7 +1743,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1887,7 +1887,7 @@ SET
     scan_storcli_virtual_drive_drives_per_span   = ".$anvil->Database->quote($new_drives_per_span).", 
     scan_storcli_virtual_drive_span_depth        = ".$anvil->Database->quote($new_span_depth).", 
     scan_storcli_virtual_drive_scsi_naa_id       = ".$anvil->Database->quote($new_scsi_naa_id).", 
-    modified_date                                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_virtual_drive_uuid              = ".$anvil->Database->quote($scan_storcli_virtual_drive_uuid)." 
 ;";
@@ -1994,7 +1994,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = ".$anvil->Database->quote($new_variable_value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -2044,7 +2044,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						# Now record the query in the array
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2099,7 +2099,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = 'VANISHED', 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -2170,7 +2170,7 @@ UPDATE
     scan_storcli_virtual_drives
 SET 
     scan_storcli_virtual_drive_creation_date = 'VANISHED', 
-    modified_date                            = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                            = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_virtual_drive_uuid          = ".$anvil->Database->quote($scan_storcli_virtual_drive_uuid)." 
 ;";
@@ -2260,7 +2260,7 @@ UPDATE
     scan_storcli_drive_groups
 SET 
     scan_storcli_drive_group_access = 'VANISHED', 
-    modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_drive_group_uuid   = ".$anvil->Database->quote($scan_storcli_drive_group_uuid)." 
 ;";
@@ -2353,7 +2353,7 @@ UPDATE
     scan_storcli_physical_drives
 SET 
     scan_storcli_physical_drive_model = 'VANISHED', 
-    modified_date                     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_physical_drive_uuid  = ".$anvil->Database->quote($scan_storcli_physical_drive_uuid)." 
 ;";
@@ -2591,7 +2591,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_vendor).", 
     ".$anvil->Database->quote($new_model).", 
     ".$anvil->Database->quote($new_self_encrypting_drive).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		# Now record the query in the array
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2754,7 +2754,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				# Now record the query in the array
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -2883,7 +2883,7 @@ SET
     scan_storcli_physical_drive_vendor                = ".$anvil->Database->quote($new_vendor).", 
     scan_storcli_physical_drive_model                 = ".$anvil->Database->quote($new_model).", 
     scan_storcli_physical_drive_self_encrypting_drive = ".$anvil->Database->quote($new_self_encrypting_drive).", 
-    modified_date                                     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                                     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_physical_drive_uuid                  = ".$anvil->Database->quote($scan_storcli_physical_drive_uuid)." 
 ;";
@@ -3298,7 +3298,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = ".$anvil->Database->quote($new_variable_value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -3347,7 +3347,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -3402,7 +3402,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = 'VANISHED', 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -3621,7 +3621,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_design_capacity).", 
     ".$anvil->Database->quote($new_manufacture_date).", 
     ".$anvil->Database->quote($new_replacement_needed).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -3786,7 +3786,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -3905,7 +3905,7 @@ SET
     scan_storcli_cachevault_manufacture_date   = ".$anvil->Database->quote($new_manufacture_date).", 
     scan_storcli_cachevault_design_capacity    = ".$anvil->Database->quote($new_design_capacity).", 
     scan_storcli_cachevault_replacement_needed = ".$anvil->Database->quote($new_replacement_needed).", 
-    modified_date                              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_cachevault_uuid               = ".$anvil->Database->quote($cachevault_uuid)." 
 ;";
@@ -4318,7 +4318,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = ".$anvil->Database->quote($new_variable_value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -4367,7 +4367,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						# Now record the query in the array
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -4422,7 +4422,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = 'VANISHED', 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -4485,7 +4485,7 @@ UPDATE
     scan_storcli_cachevaults
 SET 
     scan_storcli_cachevault_state = 'VANISHED', 
-    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_cachevault_uuid  = ".$anvil->Database->quote($cachevault_uuid)." 
 ;";
@@ -4727,7 +4727,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_design_capacity).", 
     ".$anvil->Database->quote($new_manufacture_date).", 
     ".$anvil->Database->quote($new_replacement_needed).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -4890,7 +4890,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -5008,7 +5008,7 @@ SET
     scan_storcli_bbu_manufacture_date   = ".$anvil->Database->quote($new_manufacture_date).", 
     scan_storcli_bbu_design_capacity    = ".$anvil->Database->quote($new_design_capacity).", 
     scan_storcli_bbu_replacement_needed = ".$anvil->Database->quote($new_replacement_needed).", 
-    modified_date                       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                       = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_bbu_uuid               = ".$anvil->Database->quote($bbu_uuid)." 
 ;";
@@ -5446,7 +5446,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = ".$anvil->Database->quote($new_variable_value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -5496,7 +5496,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						# Now record the query in the array
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -5551,7 +5551,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = 'VANISHED', 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -5613,7 +5613,7 @@ UPDATE
     scan_storcli_bbus
 SET 
     scan_storcli_bbu_state = 'VANISHED', 
-    modified_date          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date          = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_bbu_uuid  = ".$anvil->Database->quote($bbu_uuid)." 
 ;";
@@ -5790,7 +5790,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_model).", 
     ".$anvil->Database->quote($new_alarm_state).", 
     ".$anvil->Database->quote($new_cache_size).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -5946,7 +5946,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 					# Now record the query in the array
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -6024,7 +6024,7 @@ SET
     scan_storcli_controller_model         = ".$anvil->Database->quote($new_model).", 
     scan_storcli_controller_alarm_state   = ".$anvil->Database->quote($new_alarm_state).", 
     scan_storcli_controller_cache_size    = ".$anvil->Database->quote($new_cache_size).", 
-    modified_date                         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_controller_host_uuid     = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 AND 
@@ -6480,7 +6480,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = ".$anvil->Database->quote($new_variable_value).", 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -6530,7 +6530,7 @@ INSERT INTO
     ".$anvil->Database->quote($temperature).", 
     ".$anvil->Database->quote($variable).", 
     ".$anvil->Database->quote($new_variable_value).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						# Now record the query in the array
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -6585,7 +6585,7 @@ UPDATE
     scan_storcli_variables 
 SET 
     scan_storcli_variable_value = 'VANISHED', 
-    modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date               = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_variable_uuid  = ".$anvil->Database->quote($variable_uuid)."
 ;";
@@ -6647,7 +6647,7 @@ UPDATE
     scan_storcli_controllers
 SET 
     scan_storcli_controller_alarm_state = 'VANISHED', 
-    modified_date                       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                       = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_storcli_controller_host_uuid   = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 AND 

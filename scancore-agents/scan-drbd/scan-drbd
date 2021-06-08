@@ -246,7 +246,7 @@ SET
     scan_drbd_flush_md         = ".$anvil->Database->quote($new_scan_drbd_flush_md).", 
     scan_drbd_timeout          = ".$anvil->Database->quote($new_scan_drbd_timeout).", 
     scan_drbd_total_sync_speed = ".$anvil->Database->quote($new_scan_drbd_total_sync_speed).", 
-    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_drbd_uuid             = ".$anvil->Database->quote($scan_drbd_uuid)."
 ;
@@ -306,7 +306,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_drbd_flush_md).", 
     ".$anvil->Database->quote($new_scan_drbd_timeout).", 
     ".$anvil->Database->quote($new_scan_drbd_total_sync_speed).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		# Now record the query in the array
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -404,7 +404,7 @@ SET
     scan_drbd_resource_name = ".$anvil->Database->quote($scan_drbd_resource_name).", 
     scan_drbd_resource_up   = ".$anvil->Database->quote($new_scan_drbd_resource_up).", 
     scan_drbd_resource_xml  = ".$anvil->Database->quote($new_scan_drbd_resource_xml).", 
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_drbd_resource_uuid = ".$anvil->Database->quote($scan_drbd_resource_uuid)."
 ;";
@@ -453,7 +453,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_drbd_resource_name).", 
     ".$anvil->Database->quote($new_scan_drbd_resource_up).", 
     ".$anvil->Database->quote($new_scan_drbd_resource_xml).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		# Now record the query in the array
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -726,7 +726,7 @@ SET
     scan_drbd_peer_tcp_port               = ".$anvil->Database->quote($new_scan_drbd_peer_tcp_port).", 
     scan_drbd_peer_protocol               = ".$anvil->Database->quote($new_scan_drbd_peer_protocol).", 
     scan_drbd_peer_fencing                = ".$anvil->Database->quote($new_scan_drbd_peer_fencing).", 
-    modified_date                         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     scan_drbd_peer_uuid                   = ".$anvil->Database->quote($scan_drbd_peer_uuid)." 
 ;";
@@ -809,7 +809,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_drbd_peer_tcp_port).", 
     ".$anvil->Database->quote($new_scan_drbd_peer_protocol).", 
     ".$anvil->Database->quote($new_scan_drbd_peer_fencing).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 				# Now record the query immediately
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -916,7 +916,7 @@ SET
     scan_drbd_volume_device_path  = ".$anvil->Database->quote($new_scan_drbd_volume_device_path).", 
     scan_drbd_volume_device_minor = ".$anvil->Database->quote($new_scan_drbd_volume_device_minor).", 
     scan_drbd_volume_size         = ".$anvil->Database->quote($new_scan_drbd_volume_size).", 
-    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_drbd_volume_uuid         = ".$anvil->Database->quote($scan_drbd_volume_uuid)."
 ;";
@@ -963,7 +963,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_drbd_volume_device_path).", 
     ".$anvil->Database->quote($new_scan_drbd_volume_device_minor).", 
     ".$anvil->Database->quote($new_scan_drbd_volume_size).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1029,7 +1029,7 @@ UPDATE
     scan_drbd_resources
 SET 
     scan_drbd_resource_xml  = 'DELETED', 
-    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_drbd_resource_uuid = ".$anvil->Database->quote($scan_drbd_resource_uuid)."
 ;
@@ -1065,7 +1065,7 @@ UPDATE
     scan_drbd_volumes
 SET 
     scan_drbd_volume_device_path = 'DELETED', 
-    modified_date                = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_drbd_volume_uuid        = ".$anvil->Database->quote($scan_drbd_volume_uuid)."
 ;";
@@ -1103,7 +1103,7 @@ UPDATE
     scan_drbd_peers
 SET 
     scan_drbd_peer_connection_state = 'DELETED', 
-    modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date                   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     scan_drbd_peer_uuid             = ".$anvil->Database->quote($scan_drbd_peer_uuid)."
 ;";

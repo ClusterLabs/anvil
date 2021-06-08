@@ -272,7 +272,7 @@ UPDATE
     anvils 
 SET 
     ".$host_key." = NULL, 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     anvil_uuid    = ".$anvil->Database->quote($anvil_uuid)."
 ;";

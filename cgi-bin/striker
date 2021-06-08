@@ -1498,7 +1498,7 @@ UPDATE
     files 
 SET 
     file_type     = 'DELETED', 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     file_uuid     = ".$anvil->Database->quote($file_uuid)."
 ;";
@@ -1542,7 +1542,7 @@ UPDATE
     files 
 SET 
     file_name     = ".$anvil->Database->quote($new_file_name).", 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     file_uuid     = ".$anvil->Database->quote($file_uuid)."
 ;";
@@ -1579,7 +1579,7 @@ UPDATE
     files 
 SET 
     file_type     = ".$anvil->Database->quote($anvil->data->{cgi}{new_file_type}{value}).", 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     file_uuid     = ".$anvil->Database->quote($file_uuid)."
 ;";
@@ -1660,7 +1660,7 @@ UPDATE
     file_locations 
 SET 
     file_location_active = ".$anvil->Database->quote($new_active).", 
-    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date        = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     file_location_uuid   = ".$anvil->Database->quote($file_location_uuid)."
 ;";

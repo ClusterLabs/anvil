@@ -1011,7 +1011,7 @@ SET
     scan_hardware_led_id       = ".$anvil->Database->quote($new_scan_hardware_led_id).", 
     scan_hardware_led_css      = ".$anvil->Database->quote($new_scan_hardware_led_css).", 
     scan_hardware_led_error    = ".$anvil->Database->quote($new_scan_hardware_led_error).", 
-    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hardware_uuid         = ".$anvil->Database->quote($scan_hardware_uuid)."
 ;";
@@ -1077,7 +1077,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_hardware_led_id).", 
     ".$anvil->Database->quote($new_scan_hardware_led_css).", 
     ".$anvil->Database->quote($new_scan_hardware_led_css).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		# Now record the query in the array
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1172,7 +1172,7 @@ SET
     scan_hardware_ram_module_manufacturer  = ".$anvil->Database->quote($new_scan_hardware_ram_module_manufacturer).", 
     scan_hardware_ram_module_model         = ".$anvil->Database->quote($new_scan_hardware_ram_module_model).", 
     scan_hardware_ram_module_serial_number = ".$anvil->Database->quote($new_scan_hardware_ram_module_serial_number).", 
-    modified_date                          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                          = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hardware_ram_module_uuid          = ".$anvil->Database->quote($scan_hardware_ram_module_uuid)." 
 ;";
@@ -1216,7 +1216,7 @@ INSERT INTO
     ".$anvil->Database->quote($new_scan_hardware_ram_module_manufacturer).", 
     ".$anvil->Database->quote($new_scan_hardware_ram_module_model).", 
     ".$anvil->Database->quote($new_scan_hardware_ram_module_serial_number).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1264,7 +1264,7 @@ UPDATE
     scan_hardware_ram_modules 
 SET
     scan_hardware_ram_module_manufacturer  = 'VANISHED', 
-    modified_date                     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date                     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     scan_hardware_ram_module_uuid          = ".$anvil->Database->quote($scan_hardware_ram_module_uuid)." 
 ;";

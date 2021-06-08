@@ -239,7 +239,7 @@ SET
     server_boot_time = ".$anvil->Database->quote($boot_time).",  ";
 							}
 							$query .= "
-    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid      = ".$anvil->Database->quote($server_uuid)."
 ;";
@@ -1011,7 +1011,7 @@ UPDATE
     servers 
 SET 
     server_state  = 'migrating',
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid   = ".$anvil->Database->quote($server_uuid)."
 ;";
@@ -1070,7 +1070,6 @@ WHERE
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		$anvil->Database->get_servers({debug => 2});
-		$anvil->Database->refresh_timestamp({debug => $debug});
 	}
 	if ($return_code)
 	{
@@ -1090,7 +1089,7 @@ UPDATE
     servers 
 SET 
     server_state  = ".$anvil->Database->quote($old_server_state).", 
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid   = ".$anvil->Database->quote($server_uuid)."
 ;";
@@ -1134,7 +1133,7 @@ UPDATE
 SET 
     server_state     = ".$anvil->Database->quote($old_server_state).", 
     server_host_uuid = ".$anvil->Database->quote($server_host_uuid).", 
-    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid      = ".$anvil->Database->quote($server_uuid)."
 ;";
@@ -1950,7 +1949,7 @@ UPDATE
     servers 
 SET 
     server_state  = 'in shutdown',
-    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid   = ".$anvil->Database->quote($server_uuid)."
 ;";
@@ -2022,7 +2021,6 @@ WHERE
 					if ($old_state ne "shut off")
 					{
 						# Update it.
-						$anvil->Database->refresh_timestamp({debug => $debug});
 						my $query = "
 UPDATE 
     servers 
@@ -2030,7 +2028,7 @@ SET
     server_state     = 'shut off', 
     server_boot_time = 0, 
     server_host_uuid = NULL, 
-    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     server_uuid      = ".$anvil->Database->quote($server_uuid)."
 ;";
