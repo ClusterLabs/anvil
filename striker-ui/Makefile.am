@@ -1,43 +1,46 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
+htmldir			= $(localstatedir)/www/html
+nextoutdir		= $(srcdir)/out
+nextbuilddir		= .next
+
+# List of paths relative to the build output directory.
+#
+outindexfile		= index.html
+outjsmodulesdir		= _next
+outimagesdir		= pngs
+
 # The build output directory listed under EXTRA_DIST contains the files to be
 # installed; there is no build process required.
 #
-EXTRA_DIST		= out
+EXTRA_DIST		= $(nextoutdir)
 
-htmldir			= $(localstatedir)/www/html
-outdir			= out
-
-# Trigger build target on make call without parameters.
-all: out
-
-# Note: the input file to the generate endpoint prefix step must exist in
-#       EXTRA_DIST.
+# This target is for maintainers only; do not execute during CI/CD.
 #
 out:
-	-@echo "Copying required build files to build (current) directory."
-	rsync -av --exclude "[Mm]ake*" $(srcdir)/ ./
-	-@echo "Allow tools to write to files in the build directory."
-	chmod -R +w .
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
 	-@echo "Generate endpoint prefix."
 	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
 	-@echo "Build front-end project."
 	npm run build
+	-@echo "Stage only the build output directory."
+	git reset && git add $(nextoutdir)
+	-@echo "Commit the build output."
+	git commit -m "chore: rebuild web UI"
 
 install-data-hook:
 	-@echo "Place build output files."
-	cp -r $(outdir)/index.html $(outdir)/_next $(DESTDIR)/$(htmldir)/
+	cp -r $(nextoutdir)/$(outindexfile) $(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
-	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images pngs)
+	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images $(outimagesdir))
 
 uninstall-hook:
 	-@echo "Remove all installed files of the current module."
-	(cd $(DESTDIR)/$(htmldir); rm -rf index.html _next pngs)
+	(cd $(DESTDIR)/$(htmldir); rm -rf $(outindexfile) $(outjsmodulesdir) $(outimagesdir))
 
 clean-local:
 	-@echo "Clean up build output files."
-	test $(srcdir) == . && rm -rf $(outdir) .next || find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+	rm -rf $(nextoutdir) $(nextbuilddir)
 
 distclean-local: clean-local
