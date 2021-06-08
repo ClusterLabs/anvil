@@ -48,7 +48,7 @@ clean:
 
 install-data-hook:
 	-@echo "Place build output files."
-	cp -r $(nextoutdir)/$(outindexfile) $(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
+	cp -r --no-preserve=mode $(nextoutdir)/$(outindexfile) $(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
 	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images $(outimagesdir))
 
