@@ -94,8 +94,8 @@ $anvil->System->maintenance_mode({set => 1});
 run_os_update($anvil);
 
 # We're done updating
-my $reboot_needed = $anvil->System->reboot_needed();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
+my $reboot_needed = $anvil->System->reboot_needed({debug => 2});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 if ($reboot_needed)
 {
 	update_progress($anvil, 100, "message_0039");

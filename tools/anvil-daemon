@@ -857,10 +857,10 @@ AND
 AND 
     variable_name         = 'reboot::needed'
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -869,7 +869,7 @@ AND
 		$reboot_needed       =  $results->[0]->[0];
 		$changed_seconds_ago =  $results->[0]->[1];
 		$changed_seconds_ago =~ s/^(\d+)\..*$/$1/;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			reboot_needed       => $reboot_needed,
 			changed_seconds_ago => $changed_seconds_ago, 
 		}});
@@ -879,7 +879,7 @@ AND
 	# set. If the uptime is less, then the system rebooted since it was requested so clear it. h/t to
 	# Lisa Seelye (@thedoh) for this idea!
 	my $difference = ($changed_seconds_ago - $uptime);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"s1:reboot_needed"       => $reboot_needed,
 		"s2:changed_seconds_ago" => $changed_seconds_ago, 
 		"s3:uptime"              => $uptime,
@@ -890,18 +890,18 @@ AND
 		if ($uptime < $changed_seconds_ago)
 		{
 			# Clear the reboot request.
-			$reboot_needed = $anvil->System->reboot_needed({set => 0});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
+			$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 0});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 			
 			# Check to see if there was a reboot job in progress. If so, finish it off.
-			my $job_uuid = $anvil->Job->get_job_uuid({program => "anvil-manage-power"});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+			my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => "anvil-manage-power"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 			
 			if ($job_uuid)
 			{
 				# Update the percentage to '100' and then clear the old PID.
 				my $date_time = $anvil->Get->date_and_time();
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { date_time => $date_time }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { date_time => $date_time }});
 				
 				$anvil->Job->update_progress({
 					progress     => 100, 

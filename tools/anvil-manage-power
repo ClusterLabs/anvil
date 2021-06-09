@@ -245,10 +245,11 @@ sub do_poweroff
 	# Make sure the 'reboot needed' flag is set. When 'anvil-daemon' starts, it will use this to confirm
 	# that it is starting post-reboot and clear it.
 	$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 	
 	# Mark our power state.
 	$anvil->Database->update_host_status({
-		debug       => $debug,
+		debug       => 2,
 		host_uuid   => $anvil->Get->host_uuid,
 		host_status => $task eq "poweroff" ? "rebooting" : "stopping";,
 	});
