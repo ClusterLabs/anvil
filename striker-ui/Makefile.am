@@ -32,7 +32,7 @@ $(nodemodulesdir):
 # call.
 #
 .PHONY: build
-build: clean $(nodemodulesdir)
+build: clean-build $(nodemodulesdir)
 	-@echo "Build web UI."
 	npm run build
 	-@echo "Stage only the build output directory."
@@ -44,8 +44,8 @@ build: clean $(nodemodulesdir)
 #
 # Note: this target is strictly used in case of rebuilding; use
 # maintainer-clean instead to restore the repo to a clean state.
-.PHONY: clean
-clean:
+.PHONY: clean-build
+clean-build:
 	-@echo "Clean up build output files to prepare for rebuild."
 	rm -rf $(nextoutdir) $(nextbuilddir)
 
@@ -59,7 +59,7 @@ uninstall-hook:
 	-@echo "Remove all installed files of the current module."
 	(cd $(DESTDIR)/$(htmldir); rm -rf $(outindexfile) $(outjsmodulesdir) $(outimagesdir))
 
-maintainer-clean-local: clean
+maintainer-clean-local: clean-build
 	-@echo "Clean up node modules."
 	rm -rf $(nodemodulesdir)
 	-@echo "Since the build output directory is removed, restore it to keep local repo clean."
