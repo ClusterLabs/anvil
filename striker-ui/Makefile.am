@@ -25,29 +25,23 @@ $(nodemodulesdir):
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
 
-# This target is for maintainers only; do not execute during CI/CD.
+# This target is for maintainers only; do not execute during CI/CD. In
+# addition, this target can only be used if the local git repository exists.
 #
 # Note: this target must **not** be renamed to the same name as the build
 # output directory because it will trigger a build during the `make` implicit
 # call.
 #
 .PHONY: build
-build: clean-build $(nodemodulesdir)
+build: $(nodemodulesdir)
+	-@echo "Remove build output files to prepare for rebuild."
+	rm -rf $(nextoutdir) $(nextbuilddir)
 	-@echo "Build web UI."
 	npm run build
-	-@echo "Stage only the build output directory."
-	git reset && git add $(nextoutdir)
-	-@echo "Commit the build output."
-	git commit -m "chore: rebuild web UI"
-
-# This target is for maintainers only; do not execute during CI/CD.
-#
-# Note: this target is strictly used in case of rebuilding; use
-# maintainer-clean instead to restore the repo to a clean state.
-.PHONY: clean-build
-clean-build:
-	-@echo "Clean up build output files to prepare for rebuild."
-	rm -rf $(nextoutdir) $(nextbuilddir)
+	-@echo "Stage only the build output directory and commit the build output."
+	git reset \
+		&& git add $(nextoutdir) \
+		&& git commit -m "chore: rebuild web UI"
 
 install-data-hook:
 	-@echo "Place build output files."
@@ -59,8 +53,10 @@ uninstall-hook:
 	-@echo "Remove all installed files of the current module."
 	(cd $(DESTDIR)/$(htmldir); rm -rf $(outindexfile) $(outjsmodulesdir) $(outimagesdir))
 
-maintainer-clean-local: clean-build
+clean-local:
 	-@echo "Clean up node modules."
 	rm -rf $(nodemodulesdir)
-	-@echo "Since the build output directory is removed, restore it to keep local repo clean."
-	git restore $(nextoutdir)
+
+distclean-local: clean-local
+
+maintainer-clean-local: clean-local
