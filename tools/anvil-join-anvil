@@ -230,12 +230,13 @@ sub configure_pacemaker
 			file   => $anvil->data->{path}{configs}{'corosync.conf'},
 			target => $peer_host_name,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { corosync_conf => $corosync_conf }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { corosync_conf => $corosync_conf }});
 		if ($corosync_conf ne "!!error!!")
 		{
 			# Write the file out.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0100"});
 			$anvil->Storage->write_file({
+				debug => 2,
 				body  => $corosync_conf,
 				file  => $anvil->data->{path}{configs}{'corosync.conf'}, 
 				user  => "root",
@@ -336,7 +337,7 @@ sub configure_pacemaker
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { auth_shell_call => $auth_shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
@@ -348,7 +349,7 @@ sub configure_pacemaker
 					# Update the job
 					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0097");
 					$warning_printed = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { warning_printed => $warning_printed }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { warning_printed => $warning_printed }});
 				}
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0097"});
 				sleep 5;
@@ -359,7 +360,7 @@ sub configure_pacemaker
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0098");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0098"});
 				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { waiting => $waiting }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 			}
 		}
 		
@@ -372,10 +373,10 @@ sub configure_pacemaker
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0099", variables => { anvil_name => $anvil_name }});
 			
 			my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster setup ".$anvil_name." ".$node1_host_name." ".$node2_host_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
@@ -383,14 +384,14 @@ sub configure_pacemaker
 			{
 				# Something went wrong
 				update_progress($anvil, 100, "job_0101,!!error!".$output."!!");
-				sleep 2;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0101", variables => { error => $output }});
 				$anvil->nice_exit({exit_code => 5});
 			}
 		}
 		
 		# If we can parse the CIB, then pcsd is running. 
 		my $problem = $anvil->Cluster->parse_cib({debug => 3});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($problem)
 		{
 			# Start the cluster.
@@ -398,7 +399,7 @@ sub configure_pacemaker
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0102"});
 			
 			my $cluster_started = $anvil->Cluster->start_cluster({debug => 3, all => 1});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cluster_started => $cluster_started }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
 		}
 		
 		# Now wait for both nodes to come online.
@@ -409,20 +410,20 @@ sub configure_pacemaker
 		{
 			### TODO: If we're waiting more that five minutes, call 'pcs cluster start --all' again.
 			my $problem = $anvil->Cluster->parse_cib({debug => 3});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 			if (not $problem)
 			{
 				# See if both nodes are online.
 				my $node1_ready = $anvil->Cluster->check_node_status({node_name => $node1_host_name});
 				my $node2_ready = $anvil->Cluster->check_node_status({node_name => $node2_host_name});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					node1_ready => $node1_ready,
 					node2_ready => $node2_ready, 
 				}});
 				if (($node1_ready) && ($node2_ready))
 				{
 					$both_online = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { both_online => $both_online }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
 					
 					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0104"});
@@ -479,7 +480,7 @@ sub configure_pacemaker
 			my $host_uuid         = $node eq "node1" ? $node1_host_uuid : $node2_host_uuid;
 			my $host_ipmi         = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi};
 			my $ipmi_stonith_name = "ipmilan_".$node; 
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				node_name         => $node_name, 
 				host_uuid         => $host_uuid, 
 				host_ipmi         => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
