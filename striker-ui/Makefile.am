@@ -2,7 +2,7 @@ MAINTAINERCLEANFILES	= Makefile.in
 
 htmldir			= $(localstatedir)/www/html
 nodemodulesdir		= node_modules
-nextoutdir		= $(srcdir)/out
+nextoutdir		= out
 nextbuilddir		= .next
 
 # List of paths relative to the build output directory.
@@ -51,7 +51,7 @@ clean:
 
 install-data-hook:
 	-@echo "Place build output files."
-	cp -r --no-preserve=mode $(nextoutdir)/$(outindexfile) $(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
+	cp -r --no-preserve=mode $(srcdir)/$(nextoutdir)/$(outindexfile) $(srcdir)/$(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
 	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images $(outimagesdir))
 
