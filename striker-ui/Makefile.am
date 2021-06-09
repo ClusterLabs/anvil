@@ -99,7 +99,3 @@ uninstall-hook:
 clean-local:
 	-@echo "Clean up node modules."
 	rm -rf $(nodemodulesdir)
-
-distclean-local: clean-local
-
-maintainer-clean-local: clean-local
