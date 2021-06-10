@@ -25,7 +25,7 @@
   "devDependencies": {
     "@commitlint/cli": "^12.1.4",
     "@commitlint/config-conventional": "^11.0.0",
-    "@types/node": "^14.14.26",
+    "@types/node": "^15.12.2",
     "@types/react": "^17.0.11",
     "@types/styled-components": "^5.1.10",
     "@typescript-eslint/eslint-plugin": "^4.26.1",
