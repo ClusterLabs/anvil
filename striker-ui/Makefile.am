@@ -1,136 +1,101 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
-# The files listed under EXTRA_DIST is only used for building, they should not
-# be included in the installation process.
+htmldir			= $(localstatedir)/www/html
+nodemodulesdir		= node_modules
+nextoutdir		= out
+nextbuilddir		= .next
+
+# List of paths relative to the build output directory.
+#
+outindexfile		= index.html
+outjsmodulesdir		= _next
+outimagesdir		= pngs
+
+# The build output directory listed under EXTRA_DIST contains the files to
+# include in the release/source tarball.
 #
 # It is recommended to use the following command to regenerate the file list
 # as files get added/removed:
 #
 # find . \
-#	-not \( -name node_modules -prune \) \	# Ignore ./node_modules directory
-#	-not \( -name *git* -prune \) \		# Ignore git related files
-#	-not \( -name *husky* -prune \) \	# Ignore husky related files
-#	-not \( -name public -prune \) \	# Ignore ./public directory
-#	-not \( -name *[Mm]ake* -prune \) \	# Ignore make related files
-#	-not \( -name *.md -prune \) \		# Ignore all markdown files
-#	-type f \				# Only print file paths
-#	| sed -E 's@^./(.+)$@\1 \\@'		# Remove leading "./" and append "\"
+#      -mindepth 1 -maxdepth 1 \
+#      -not \( -name node_modules -prune \) \
+#      -not \( -name *git* -prune \) \
+#      -not \( -name *husky* -prune \) \
+#      -not \( -name public -prune \) \
+#      -not \( -name *[Mm]ake* -prune \) \
+#      | sed -E 's@^./(.+)$@\1 \\@'
+#
+# The find command:
+# * ignores ./node_modules directory,
+# * ignores git related files,
+# * ignores husky related files
+# * ignores ./public directory
+# * ignores make related files, and
+# * removes leading "./" and append "\"
+#
+# Note: This only works when we want to include all files within the listed
+# subdirectories. It is recommended to run a similar find command on a
+# subdirectory to skip undesired files in the subdirectory.
 #
 EXTRA_DIST		= \
+			$(nextoutdir) \
 			next.config.js \
 			next-env.d.ts \
 			tsconfig.json \
-			theme/index.ts \
-			styles/globals.css \
+			theme \
+			styles \
 			.lintstagedrc.json \
-			env.development \
+			README.md \
 			package.json \
-			lib/extended_date/ExtendedDate.ts \
-			lib/fetchers/putJSON.ts \
-			lib/fetchers/fetchJSON.ts \
-			lib/fetchers/periodicFetch.ts \
-			lib/sanitizers/hostsSanitizer.ts \
-			lib/consts/ICONS.ts \
-			lib/consts/DEFAULT_THEME.ts \
-			lib/consts/SERVERS.ts \
-			lib/consts/ANVILS.ts \
-			lib/consts/API_BASE_URL.ts \
-			lib/consts/IS_DEV_ENV.ts \
-			lib/consts/NODES.ts \
+			lib \
 			.prettierrc.json \
-			types/AnvilServers.d.ts \
-			types/GetAllAnvilResponse.d.ts \
-			types/AnvilMemory.d.ts \
-			types/FetchResponse.d.ts \
-			types/AnvilSharedStorage.d.ts \
-			types/AnvilNetwork.d.ts \
-			types/AnvilTypes.d.ts \
-			types/GetResponse.d.ts \
-			types/AnvilNodeStatus.d.ts \
-			types/AnvilList.d.ts \
-			types/AnvilCPU.d.ts \
-			types/GetOneAnvilResponse.d.ts \
-			types/AnvilSet.d.ts \
-			types/AnvilStatus.d.ts \
-			types/AnvilReplicatedStorage.d.ts \
-			types/AnvilFileSystems.d.ts \
-			types/NodeSet.d.ts \
-			components/Memory.tsx \
-			components/Decorator.tsx \
-			components/Hosts/index.tsx \
-			components/Hosts/AnvilHost.tsx \
-			components/Spinner.tsx \
-			components/AnvilDrawer.tsx \
-			components/Text/HeaderText.tsx \
-			components/Text/index.tsx \
-			components/Text/BodyText.tsx \
-			components/FileSystem/index.tsx \
-			components/FileSystem/FileSystemsHost.tsx \
-			components/FileSystem/FileSystems.tsx \
-			components/Anvils/index.tsx \
-			components/Anvils/sortAnvils.ts \
-			components/Anvils/Anvil.tsx \
-			components/Anvils/AnvilList.tsx \
-			components/Anvils/SelectedAnvil.tsx \
-			components/Panels/index.tsx \
-			components/Panels/InnerPanel.tsx \
-			components/Panels/PanelHeader.tsx \
-			components/Panels/Panel.tsx \
-			components/Servers.tsx \
-			components/Storage.tsx \
-			components/AnvilContext.tsx \
-			components/SharedStorage/SharedStorage.tsx \
-			components/SharedStorage/index.tsx \
-			components/SharedStorage/SharedStorageHost.tsx \
-			components/Header.tsx \
-			components/Network/index.tsx \
-			components/Network/Network.tsx \
-			components/Network/processNetwork.ts \
-			components/CPU.tsx \
-			components/Bars/index.tsx \
-			components/Bars/ProgressBar.tsx \
-			components/Bars/AllocationBar.tsx \
-			pages/index.tsx \
-			pages/_app.tsx \
-			pages/_document.tsx \
+			types \
+			components \
+			pages \
 			.eslintrc.json \
 			commitlint.config.js \
 			.eslintignore \
+			.env \
 			package-lock.json
 
-htmldir			= $(localstatedir)/www/html
-outdir			= out
+# Blank target; the build output directory should be usable as-is.
+$(nextoutdir): ;
 
-# Trigger build target on make call without parameters.
-all: out
-
-# Note: the input file to the generate endpoint prefix step must exist in
-#       EXTRA_DIST.
+# This target is for maintainers only; do not execute during CI/CD.
 #
-out:
-	-@echo "Copying required build files to build (current) directory."
-	rsync -av --exclude "[Mm]ake*" $(srcdir)/ ./
-	-@echo "Allow tools to write to files in the build directory."
-	chmod -R +w .
+$(nodemodulesdir):
 	-@echo "Install node modules (dependencies) prior to building."
 	npm install --no-package-lock --ignore-scripts
-	-@echo "Generate endpoint prefix."
-	sed 's@=.*@=/cgi-bin@' <env.development >.env.local
-	-@echo "Build front-end project."
+
+# This target is for maintainers only; do not execute during CI/CD. In
+# addition, this target can only be used if the local git repository exists.
+#
+# Note: this target must **not** be renamed to the same name as the build
+# output directory because it will trigger a build during the `make` implicit
+# call.
+#
+.PHONY: build
+build: $(nodemodulesdir)
+	-@echo "Remove build output files to prepare for rebuild."
+	rm -rf $(nextoutdir) $(nextbuilddir)
+	-@echo "Build web UI."
 	npm run build
+	-@echo "Stage only the build output directory and commit the build output."
+	git reset \
+		&& git add $(nextoutdir) \
+		&& git commit -m "chore: rebuild web UI"
 
 install-data-hook:
 	-@echo "Place build output files."
-	cp -r $(outdir)/index.html $(outdir)/_next $(DESTDIR)/$(htmldir)/
+	cp -r --no-preserve=mode $(srcdir)/$(nextoutdir)/$(outindexfile) $(srcdir)/$(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
-	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images pngs)
+	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images $(outimagesdir))
 
 uninstall-hook:
 	-@echo "Remove all installed files of the current module."
-	(cd $(DESTDIR)/$(htmldir); rm -rf index.html _next pngs)
+	(cd $(DESTDIR)/$(htmldir); rm -rf $(outindexfile) $(outjsmodulesdir) $(outimagesdir))
 
 clean-local:
-	-@echo "Clean up build output files."
-	test $(srcdir) == . && rm -rf $(outdir) .next || find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-
-distclean-local: clean-local
+	-@echo "Clean up node modules."
+	rm -rf $(nodemodulesdir)
