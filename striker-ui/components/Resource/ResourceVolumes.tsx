@@ -79,7 +79,7 @@ const ResourceVolumes = ({
                 </Box>
               </PanelHeader>
               {volume.connections.map(
-                (connection): JSX.Element => {
+                (connection, index): JSX.Element => {
                   return (
                     <>
                       <Box
@@ -114,7 +114,9 @@ const ResourceVolumes = ({
                           </Box>
                         </Box>
                       </Box>
-                      <Divider className={classes.divider} />
+                      {volume.connections.length - 1 !== index ? (
+                        <Divider className={classes.divider} />
+                      ) : null}
                     </>
                   );
                 },
