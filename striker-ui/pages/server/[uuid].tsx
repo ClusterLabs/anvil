@@ -48,7 +48,7 @@ const Server = (): JSX.Element => {
   const { uuid } = router.query;
 
   const { data } = PeriodicFetch<AnvilReplicatedStorage>(
-    `${process.env.NEXT_PUBLIC_API_URL}/anvils/get_replicated_storage?server_uuid=${uuid}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/get_replicated_storage?server_uuid=${uuid}`,
   );
 
   return (
