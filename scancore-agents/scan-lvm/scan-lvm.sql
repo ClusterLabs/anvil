@@ -11,6 +11,7 @@ CREATE TABLE scan_lvm_pvs (
     scan_lvm_pv_attributes       text                        not null,       -- This is the short 3-character attribute of the PV
     scan_lvm_pv_size             numeric                     not null,       -- The size of the PV in bytes
     scan_lvm_pv_free             numeric                     not null,       -- The free space, in bytes.
+    scan_lvm_pv_sector_size      numeric                     not null,       -- This is the size of the sectors on this disk. Genreally it is 512 or 4096. This is important for calculating how much space to add to LVs built on this PV.
     modified_date                timestamp with time zone    not null,
     
     FOREIGN KEY(scan_lvm_pv_host_uuid) REFERENCES hosts(host_uuid)
@@ -27,6 +28,7 @@ CREATE TABLE history.scan_lvm_pvs (
     scan_lvm_pv_attributes       text,
     scan_lvm_pv_size             numeric,
     scan_lvm_pv_free             numeric,
+    scan_lvm_pv_sector_size      numeric,
     modified_date                timestamp with time zone    not null
 );
 ALTER TABLE history.scan_lvm_pvs OWNER TO admin;
@@ -46,6 +48,7 @@ BEGIN
          scan_lvm_pv_attributes, 
          scan_lvm_pv_size, 
          scan_lvm_pv_free, 
+         scan_lvm_pv_sector_size, 
          modified_date)
     VALUES
         (history_scan_lvm_pvs.scan_lvm_pv_uuid,
@@ -56,6 +59,7 @@ BEGIN
          history_scan_lvm_pvs.scan_lvm_pv_attributes, 
          history_scan_lvm_pvs.scan_lvm_pv_size, 
 	 history_scan_lvm_pvs.scan_lvm_pv_free, 
+	 history_scan_lvm_pvs.scan_lvm_pv_sector_size, 
          history_scan_lvm_pvs.modified_date);
     RETURN NULL;
 END;

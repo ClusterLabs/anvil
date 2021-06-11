@@ -1816,6 +1816,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 #!variable!difference!#
 ====
 </key>
+		<key name="log_0626">This system will reboot in: [#!variable!seconds!#] seconds...</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
