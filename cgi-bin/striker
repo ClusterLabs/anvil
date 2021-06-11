@@ -6662,7 +6662,7 @@ sub process_sync_page
 		}});
 	}
 	
-	# This needs to be loaded into a hash by target, the sorted. We'll build the table on sort.
+	# This needs to be loaded into a hash by target, then sorted. We'll build the table on sort.
 	my $peer_table = "";
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{

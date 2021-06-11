@@ -15995,7 +15995,7 @@ sub _archive_table
 	}});
 	
 	# Loop through each database so that we archive from everywhere before resync'ing.
-	foreach my $uuid (keys %{$anvil->data->{database}})
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
 		# First, if this table doesn't have a history schema, exit.
 		my $vacuum = 0;
@@ -16351,7 +16351,7 @@ sub _find_behind_databases
 	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
 	my $source_updated_time = 0;
-	foreach my $uuid (keys %{$anvil->data->{database}})
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
 		my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "#!string!log_0185!#";
 		my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "#!string!log_0185!#";
@@ -16498,7 +16498,7 @@ ORDER BY
 	}
 	
 	# Are being asked to trigger a resync?
-	foreach my $uuid (keys %{$anvil->data->{database}})
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"switches::resync-db" => $anvil->data->{switches}{'resync-db'},

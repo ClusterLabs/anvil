@@ -1680,16 +1680,77 @@ sub get_ips
 		{
 			my $mac_address                                                      = $1;
 			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $mac_address;
-			   
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${in_iface}::mtu" => $anvil->data->{network}{$host}{interface}{$in_iface}{mtu},
+				"network::${host}::interface::${in_iface}::mac_address" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address},
 			}});
 			
-			# Make it easy to look up an interface name based on a given MAC address.
-			$anvil->data->{network}{$host}{mac_address}{$mac_address}{interface} = $in_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::mac_address::${mac_address}::interface" => $anvil->data->{network}{$host}{mac_address}{$mac_address}{interface},
-			}});
+			# If this is a bond or bridge, don't record the MAC address. It confuses things as 
+			# they show the MAC of the active interface. If this is an interface, see if the file
+			# '/sys/class/net/<nic>/bonding_slave/perm_hwaddr' exists and, if so, read the MAC 
+			# address from there. If not, read the MAC address from
+			# '/sys/class/net/<nic>/address'. 
+			my $shell_call = 'IFACE='.$in_iface.'
+if [ -e "$IFACE" ];  
+then 
+    echo bridge;
+elif [ -e "/proc/net/bonding/$IFACE" ];
+then 
+    echo bond; 
+elif [ -e "/sys/class/net/${IFACE}/bonding_slave/perm_hwaddr" ];
+then 
+    echo -n mac:
+    cat /sys/class/net/${IFACE}/bonding_slave/perm_hwaddr;
+else 
+    echo -n mac:
+    cat /sys/class/net/${IFACE}/address; 
+fi';
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			if ($is_local)
+			{
+				# Local call.
+				($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:output'      => $output,
+					's2:return_code' => $return_code, 
+				}});
+			}
+			else
+			{
+				# Remote call
+				($output, my $error, my $return_code) = $anvil->Remote->call({
+					debug       => $debug, 
+					shell_call  => $shell_call,
+					target      => $target,
+					user        => $remote_user, 
+					password    => $password,
+					remote_user => $remote_user, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:output'      => $output,
+					's2:error'       => $error,
+					's3:return_code' => $return_code, 
+				}});
+			}
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				if ($line =~ /^mac:(.*)$/)
+				{
+					my $real_mac                                                         = $1;
+					   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $real_mac;
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"network::${host}::interface::${in_iface}::mac_address" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address},
+					}});
+					
+					# Make it easy to look up an interface name based on a given MAC 
+					# address.
+					$anvil->data->{network}{$host}{mac_address}{$real_mac}{interface} = $in_iface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"network::${host}::mac_address::${real_mac}::interface" => $anvil->data->{network}{$host}{mac_address}{$real_mac}{interface},
+					}});
+				}
+			}
 		}
 		if ($line =~ /mtu (\d+) /i)
 		{

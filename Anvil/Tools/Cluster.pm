@@ -206,7 +206,7 @@ sub add_server
 	###       an OS update in 24 hours, there's probably deeper issues.
 	### TODO: If the target_role is 'started' because the server was running, we may need to later do an 
 	###       update to set it to 'stopped' after we've verified it's in the cluster below.
-	my $resource_command = $anvil->data->{path}{exe}{pcs}." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"300\" on-fail=\"block\" stop timeout=\"86400\" on-fail=\"block\" migrate_to timeout=\"86400\"";
+	my $resource_command = $anvil->data->{path}{exe}{pcs}." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
 
 	my ($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
