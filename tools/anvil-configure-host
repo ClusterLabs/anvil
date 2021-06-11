@@ -355,11 +355,11 @@ sub reconfigure_network
 			my $ip_key          =         $this_network."_ip";
 			my $bridge_key      =         $this_network."_create_bridge";
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
-			my $is_gateway      =         $this_network eq $gateway_interface                                  ? 1                                                                    : 0;
-			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}     ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}     : "";
+			my $is_gateway      =         $this_network eq $gateway_interface                                      ? 1                                                                    : 0;
+			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}         ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}     : "";
 			my $old_link1_iface =         $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ? $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} : "";
 			my $old_link2_iface = defined $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} ? $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} : "";
-			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}    ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}    : 0;
+			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}        ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}    : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 
