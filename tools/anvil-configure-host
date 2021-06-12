@@ -1224,9 +1224,10 @@ AND
 	# If we're in a cluster, abort.
 	if (-e $anvil->data->{path}{exe}{pcs})
 	{
-		my ($problem) = $anvil->Cluster->parse_cib();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		if ((not $problem) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
+		my ($out_of_cluster) = $anvil->Cluster->parse_cib();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_of_cluster => $out_of_cluster }});
+		if ((not $out_of_cluster) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
 		{
 			# We're in a cluster, abort.
 			$anvil->Job->update_progress({
