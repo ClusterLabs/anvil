@@ -1690,10 +1690,10 @@ sub get_ips
 			# address from there. If not, read the MAC address from
 			# '/sys/class/net/<nic>/address'. 
 			my $shell_call = 'IFACE='.$in_iface.'
-if [ -e "$IFACE" ];  
+if [ -e "/sys/class/net/${IFACE}/bridge" ];  
 then 
     echo bridge;
-elif [ -e "/proc/net/bonding/$IFACE" ];
+elif [ -e "/proc/net/bonding/${IFACE}" ];
 then 
     echo bond; 
 elif [ -e "/sys/class/net/${IFACE}/bonding_slave/perm_hwaddr" ];

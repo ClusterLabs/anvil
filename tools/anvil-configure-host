@@ -91,7 +91,16 @@ $anvil->Job->update_progress({
 $anvil->System->maintenance_mode({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0467"});
 
-### TODO: As of now, the network doesn't come up reliably, so reboot.
+### TODO: As of now, the network doesn't come up reliably, so reboot. We add a 60 second delay to make it 
+###       easier to log in and disable anvil-daemon in case of reboot loops caused by this program thinking
+###       it needs to reconfigure the system every run.
+my $time_left = 60;
+while ($time_left)
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0626", variables => { seconds => $time_left }});
+	sleep 10;
+	$time_left -= 10;
+}
 my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
@@ -1215,9 +1224,10 @@ AND
 	# If we're in a cluster, abort.
 	if (-e $anvil->data->{path}{exe}{pcs})
 	{
-		my ($problem) = $anvil->Cluster->parse_cib();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		if ((not $problem) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
+		my ($out_of_cluster) = $anvil->Cluster->parse_cib();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_of_cluster => $out_of_cluster }});
+		if ((not $out_of_cluster) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
 		{
 			# We're in a cluster, abort.
 			$anvil->Job->update_progress({

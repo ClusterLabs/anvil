@@ -639,36 +639,40 @@ sub find_changes_in_pvs
 	
 	foreach my $scan_lvm_pv_internal_uuid (keys %{$anvil->data->{lvm}{scan_lvm_pv_internal_uuid}})
 	{
-		my $scan_lvm_pv_name       = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{name};
-		my $scan_lvm_pv_used_by_vg = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{used_by_vg};
-		my $scan_lvm_pv_attributes = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{attributes};
-		my $scan_lvm_pv_size       = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{size};
-		my $scan_lvm_pv_free       = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{free_space};
+		my $scan_lvm_pv_name        = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{name};
+		my $scan_lvm_pv_used_by_vg  = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{used_by_vg};
+		my $scan_lvm_pv_attributes  = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{attributes};
+		my $scan_lvm_pv_size        = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{size};
+		my $scan_lvm_pv_free        = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{free_space};
+		my $scan_lvm_pv_sector_size = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{sector_size};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			scan_lvm_pv_internal_uuid       => $scan_lvm_pv_internal_uuid, 
-			scan_lvm_pv_name       => $scan_lvm_pv_name,
-			scan_lvm_pv_used_by_vg => $scan_lvm_pv_used_by_vg,
-			scan_lvm_pv_attributes => $scan_lvm_pv_attributes,
-			scan_lvm_pv_size       => $anvil->Convert->add_commas({number => $scan_lvm_pv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
-			scan_lvm_pv_free       => $anvil->Convert->add_commas({number => $scan_lvm_pv_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
+			scan_lvm_pv_name        => $scan_lvm_pv_name,
+			scan_lvm_pv_used_by_vg  => $scan_lvm_pv_used_by_vg,
+			scan_lvm_pv_attributes  => $scan_lvm_pv_attributes,
+			scan_lvm_pv_size        => $anvil->Convert->add_commas({number => $scan_lvm_pv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
+			scan_lvm_pv_free        => $anvil->Convert->add_commas({number => $scan_lvm_pv_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
+			scan_lvm_pv_sector_size => $anvil->Convert->add_commas({number => $scan_lvm_pv_sector_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_sector_size}),
 		}});
 		
 		# Have we seen this before?
 		if (exists $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid})
 		{
 			# Yup, anything changed?
-			my $scan_lvm_pv_uuid           = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid};
-			my $old_scan_lvm_pv_name       = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name};
-			my $old_scan_lvm_pv_used_by_vg = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg};
-			my $old_scan_lvm_pv_attributes = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes};
-			my $old_scan_lvm_pv_size       = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size};
-			my $old_scan_lvm_pv_free       = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free};
+			my $scan_lvm_pv_uuid            = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid};
+			my $old_scan_lvm_pv_name        = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name};
+			my $old_scan_lvm_pv_used_by_vg  = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg};
+			my $old_scan_lvm_pv_attributes  = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes};
+			my $old_scan_lvm_pv_size        = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size};
+			my $old_scan_lvm_pv_free        = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free};
+			my $old_scan_lvm_pv_sector_size = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_sector_size};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				old_scan_lvm_pv_name       => $old_scan_lvm_pv_name,
-				old_scan_lvm_pv_used_by_vg => $old_scan_lvm_pv_used_by_vg,
-				old_scan_lvm_pv_attributes => $old_scan_lvm_pv_attributes,
-				old_scan_lvm_pv_size       => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_size}),
-				old_scan_lvm_pv_free       => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_free}),
+				old_scan_lvm_pv_name        => $old_scan_lvm_pv_name,
+				old_scan_lvm_pv_used_by_vg  => $old_scan_lvm_pv_used_by_vg,
+				old_scan_lvm_pv_attributes  => $old_scan_lvm_pv_attributes,
+				old_scan_lvm_pv_size        => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_size}),
+				old_scan_lvm_pv_free        => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_free}),
+				old_scan_lvm_pv_sector_size => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_sector_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_sector_size}),
 			}});
 			
 			my $update = 0;
@@ -793,6 +797,22 @@ sub find_changes_in_pvs
 					$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0010", variables => $variables, set_by => $THIS_FILE});
 				}
 			}
+			if ($scan_lvm_pv_sector_size ne $old_scan_lvm_pv_sector_size)
+			{
+				# This is always a warning as the sector size should never change.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					pv_uuid                  => $scan_lvm_pv_internal_uuid, 
+					pv_name                  => $scan_lvm_pv_name,
+					new_pv_sector_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_sector_size}),
+					new_pv_sector_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_sector_size}),
+					old_pv_sector_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_sector_size}),
+					old_pv_sector_size_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_sector_size}),
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0032", variables => $variables});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_lvm_alert_0032", variables => $variables, set_by => $THIS_FILE});
+			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
 			if ($update)
@@ -801,14 +821,15 @@ sub find_changes_in_pvs
 UPDATE 
     scan_lvm_pvs 
 SET 
-    scan_lvm_pv_name       = ".$anvil->Database->quote($scan_lvm_pv_name).", 
-    scan_lvm_pv_used_by_vg = ".$anvil->Database->quote($scan_lvm_pv_used_by_vg).", 
-    scan_lvm_pv_attributes = ".$anvil->Database->quote($scan_lvm_pv_attributes).", 
-    scan_lvm_pv_size       = ".$anvil->Database->quote($scan_lvm_pv_size).", 
-    scan_lvm_pv_free       = ".$anvil->Database->quote($scan_lvm_pv_free).", 
-    modified_date          = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+    scan_lvm_pv_name        = ".$anvil->Database->quote($scan_lvm_pv_name).", 
+    scan_lvm_pv_used_by_vg  = ".$anvil->Database->quote($scan_lvm_pv_used_by_vg).", 
+    scan_lvm_pv_attributes  = ".$anvil->Database->quote($scan_lvm_pv_attributes).", 
+    scan_lvm_pv_size        = ".$anvil->Database->quote($scan_lvm_pv_size).", 
+    scan_lvm_pv_free        = ".$anvil->Database->quote($scan_lvm_pv_free).", 
+    scan_lvm_pv_sector_size = ".$anvil->Database->quote($scan_lvm_pv_sector_size).", 
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
-    scan_lvm_pv_uuid       = ".$anvil->Database->quote($scan_lvm_pv_uuid)." 
+    scan_lvm_pv_uuid        = ".$anvil->Database->quote($scan_lvm_pv_uuid)." 
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -821,14 +842,16 @@ WHERE
 		{
 			# New PV
 			my $variables = {
-				pv_uuid       => $scan_lvm_pv_internal_uuid, 
-				pv_name       => $scan_lvm_pv_name,
-				vg_name       => $scan_lvm_pv_used_by_vg ? $scan_lvm_pv_used_by_vg : "--",
-				attributes    => $scan_lvm_pv_attributes,
-				pv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
-				pv_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_size}),
-				pv_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
-				pv_free_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_free}),
+				pv_uuid              => $scan_lvm_pv_internal_uuid, 
+				pv_name              => $scan_lvm_pv_name,
+				vg_name              => $scan_lvm_pv_used_by_vg ? $scan_lvm_pv_used_by_vg : "--",
+				attributes           => $scan_lvm_pv_attributes,
+				pv_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
+				pv_size_bytes        => $anvil->Convert->add_commas({number => $scan_lvm_pv_size}),
+				pv_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
+				pv_free_bytes        => $anvil->Convert->add_commas({number => $scan_lvm_pv_free}),
+				pv_sector_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_sector_size}),
+				pv_sector_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_sector_size}),
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0019", variables => $variables});
 			$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0019", variables => $variables, set_by => $THIS_FILE});
@@ -846,6 +869,7 @@ INSERT INTO
     scan_lvm_pv_attributes, 
     scan_lvm_pv_size, 
     scan_lvm_pv_free, 
+    scan_lvm_pv_sector_size, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($scan_lvm_pv_uuid).", 
@@ -856,6 +880,7 @@ INSERT INTO
     ".$anvil->Database->quote($scan_lvm_pv_attributes).", 
     ".$anvil->Database->quote($scan_lvm_pv_size).", 
     ".$anvil->Database->quote($scan_lvm_pv_free).", 
+    ".$anvil->Database->quote($scan_lvm_pv_sector_size).", 
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -915,7 +940,8 @@ SELECT
     scan_lvm_pv_used_by_vg, 
     scan_lvm_pv_attributes, 
     scan_lvm_pv_size, 
-    scan_lvm_pv_free 
+    scan_lvm_pv_free, 
+    scan_lvm_pv_sector_size  
 FROM 
     scan_lvm_pvs 
 WHERE 
@@ -933,21 +959,23 @@ WHERE
 	{
 		# We've got an entry in the 'scan_lvm_pv' table, so now we'll look for data in the node and 
 		# services tables.
-		my $scan_lvm_pv_internal_uuid                                                                                       = $row->[1]; 
-		my $scan_lvm_pv_name                                                                                                = $row->[2];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid}       = $row->[0];; 
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name}       = $scan_lvm_pv_name; 
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg} = $row->[3]; 
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes} = $row->[4];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}       = $row->[5];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}       = $row->[6];
+		my $scan_lvm_pv_internal_uuid                                                                                        = $row->[1]; 
+		my $scan_lvm_pv_name                                                                                                 = $row->[2];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid}        = $row->[0];; 
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name}        = $scan_lvm_pv_name; 
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg}  = $row->[3]; 
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes}  = $row->[4];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}        = $row->[5];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}        = $row->[6];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_sector_size} = $row->[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_uuid"       => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid},
-			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_name"       => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name},
-			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_used_by_vg" => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg},
-			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_attributes" => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes},
-			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_size"       => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}}),
-			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_free"       => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}}),
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_uuid"        => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid},
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_name"        => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name},
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_used_by_vg"  => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg},
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_attributes"  => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes},
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_size"        => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}}),
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_free"        => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}}),
+			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_sector_size" => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_sector_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_sector_size}}),
 		}});
 	}
 	undef $count;
@@ -1077,7 +1105,7 @@ sub collect_pvs_data
 	my $pvs_data = $json->decode($output);
 	foreach my $hash_ref (@{$pvs_data->{report}->[0]->{pv}})
 	{
-		my $scan_lvm_pv_internal_uuid                                                    = $hash_ref->{pv_uuid};
+		my $scan_lvm_pv_internal_uuid                                                             = $hash_ref->{pv_uuid};
 		   $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{name}       = $hash_ref->{pv_name};
 		   $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{used_by_vg} = $hash_ref->{vg_name};
 		   $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{attributes} = $hash_ref->{pv_attr};	# TODO: Parse this out
@@ -1089,6 +1117,52 @@ sub collect_pvs_data
 			"lvm::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::attributes" => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{attributes},
 			"lvm::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{size}}).")",
 			"lvm::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{free_space}}).")",
+		}});
+		
+		# We need to find the sector size of this PV.
+		my $partition =  $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{name};
+		   $partition =~ s/^.*\///;
+		my $directory =  "/sys/class/block/".$partition."/subsystem";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			partition => $partition, 
+			directory => $directory,
+		}});
+		
+		# Look for the parent device. For partitions like 'sda1', this is 'sda'. For 'nvmen0p1', this is 'nvmen0', etc.
+		my $sector_size = 0;
+		until ($sector_size)
+		{
+			chop $partition;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { partition => $partition }});
+			
+			if (not $partition)
+			{
+				# Weird... Default to 512.
+				$sector_size = 512;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size => $sector_size }});
+				die;
+			}
+			
+			my $sector_size_file = $directory."/".$partition."/queue/hw_sector_size";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size_file => $sector_size_file }});
+			if (-e $sector_size_file)
+			{
+				$sector_size = $anvil->Storage->read_file({file => $sector_size_file });
+				chomp $sector_size;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size => $sector_size }});
+				
+				if ((not $sector_size) or ($sector_size =~ /\D/))
+				{
+					# Something went wrong, default to 512.
+					$sector_size = 512;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size => $sector_size }});
+					die;
+				}
+			}
+		}
+		$anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{sector_size} = $sector_size;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"lvm::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::sector_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{sector_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{sector_size}}).")",
 		}});
 	}
 	
