@@ -513,13 +513,13 @@ sub check_bonds
 					# Link shown, try to start the interface.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0629", variables => { 
 						bond      => $bond,
-						interface => $interface,
+						interface => $interface." (".$anvil->data->{bond_health}{$bond}{interface}{$interface}{name}.")",
 					}});
 					
 					my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{interface}{$interface}{name};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 					
-					my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+					my ($output, $return_code) = $anvil->System->call({debug => 1, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						'output'      => $output,
 						'return_code' => $return_code, 
