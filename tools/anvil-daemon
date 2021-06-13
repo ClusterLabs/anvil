@@ -125,6 +125,7 @@ if (not $anvil->data->{sys}{database}{connections})
 			sleep 10;
 			
 			$anvil->refresh();
+			$anvil->Network->check_bonds({heal => "all"});
 			$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
