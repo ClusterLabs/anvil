@@ -449,6 +449,9 @@ sub handle_periodic_tasks
 			}
 		}
 		
+		# Check that bonds are up. Degraded bonds will be left alone.
+		$anvil->Network->check_bonds({heal => "down_only"});
+		
 		# Check mail server config.
 		my $problem = $anvil->Email->check_config({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
@@ -587,6 +590,9 @@ sub run_once
 	
 	# Check that the daemons we need are running.
 	check_daemons($anvil);
+	
+	# In some cases, bonds don't come up with their links. This checks/heals that.
+	$anvil->Network->check_bonds({heal => "all"});
 	
 	# Check the ssh stuff. 
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
