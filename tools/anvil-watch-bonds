@@ -58,6 +58,7 @@ $anvil->data->{colours} = {
 		{
 			is_primary	=>	"bold green", 
 			is_other	=>	"yellow",
+			none		=>	"bold red", 
 		},
 		bond_name	=>	"bold cyan",
 		duplex		=>	{
@@ -171,6 +172,7 @@ $anvil->data->{colours} = {
 # 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
 # 	$anvil->nice_exit({exit_code => 1});
 # }
+$anvil->data->{switches}{'run-once'} = "";
 $anvil->Get->switches();
 
 while(1)
@@ -227,6 +229,9 @@ while(1)
 			"bond::${bond_name}::mac_address"        => $anvil->data->{bond}{$bond_name}{mac_address},
 			"bond::${bond_name}::mac_address_colour" => $anvil->data->{bond}{$bond_name}{mac_address_colour}, 
 		}});
+		
+		# Set some defaults that may not be found.
+		$anvil->data->{bond}{$bond_name}{primary_slave} = "None";
 		
 		my $bond_body = $anvil->Storage->read_file({file => $full_path});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -612,7 +617,14 @@ while(1)
 		my $active_slave_colour = $anvil->data->{colours}{bond}{active_iface}{is_primary};
 		if ($primary_slave ne $active_slave)
 		{
-			$active_slave_colour = $anvil->data->{colours}{bond}{active_iface}{is_other};
+			if ($active_slave eq "None")
+			{
+				$active_slave_colour = $anvil->data->{colours}{bond}{active_iface}{none};
+			}
+			else
+			{
+				$active_slave_colour = $anvil->data->{colours}{bond}{active_iface}{is_other};
+			}
 		}
 		
 		my $centered_bond_name    = $anvil->Words->center_text({string => $bond_name,    width => $name_length});
@@ -665,6 +677,11 @@ while(1)
 		}
 	}
 	print $divider_line."\n";
+	
+	if ($anvil->data->{switches}{'run-once'})
+	{
+		$anvil->nice_exit({exit_code => 0});
+	}
 	print $anvil->Words->string({key => "header_0061"})."\n";
 	sleep 2;
 }

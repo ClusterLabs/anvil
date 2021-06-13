@@ -215,6 +215,336 @@ sub bridge_info
 	return(0);
 }
 
+
+=head2 check_bonds
+
+This method checks to see if the links in a bond are up. It can simply report the bonds and their link states, and it can try to bring up links that are down.
+
+Data is stored in the hash;
+
+* bond_health::<bond_name>::up                                   = [0,1]
+* bond_health::<bond_name>::active_links                         = <number of interfaces active in the bond, but not necessarily up>
+* bond_health::<bond_name>::up_links                             = <number of links that are 'up' or 'going back'>
+* bond_health::<bond_name>::configured_links                     = <the number of interfaces configured to be members of this bond>
+* bond_health::<bond_name>::interface::<interface_name>::in_bond = [0,1] <set to '1' if the interface is active in the bond>
+* bond_health::<bond_name>::interface::<interface_name>::up      = [0,1] <set to '1' if 'up' or 'going back'>
+* bond_health::<bond_name>::interface::<interface_name>::carrier = [0,1] <set to '1' if carrier detected>
+* bond_health::<bond_name>::interface::<interface_name>::name    = <This is the NetworkManager name of the interface>
+
+Parameters;
+
+=head3 heal (optional, default 'down_only')
+
+When set to C<< down_only >>, a bond where both links are down will attempt to up the links. However, bonds with at least one link up will be left alone. This is the default behaviour as it's not uncommon for admins to remotely down a single interface that is failing to stop alerts until a physical repair can be made.
+
+When set to C<< all >>, any interfaces that are found to be down will attempt to brought up. 
+
+Wen set to C<< none >>, no attempts will be made to bring up any interfaces. The states will simply be recorded.
+
+B<< Note >>: Interfaces that show no carrier will not be started in any case.
+
+=cut
+sub check_bonds
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_internet()" }});
+	
+	my $heal = defined $parameter->{heal} ? $parameter->{heal} : "down_only";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		heal => $heal, 
+	}});
+	
+	# Read in the network configuration files to track which interfaces are bound to which bonds.
+	my $interface = "";
+	my $directory = $anvil->data->{path}{directories}{ifcfg};
+	local(*DIRECTORY);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		if ($file =~ /^ifcfg-(.*)$/)
+		{
+			$interface = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
+			
+			# We'll check these, so this just makes sure we don't get an undefined variable error.
+			$anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE}   = "";
+			$anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE} = "";
+			$anvil->data->{raw_network}{interface}{$interface}{variable}{MASTER} = "";
+		}
+		else
+		{
+			next;
+		}
+		my $full_path = $directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		
+		my $device  = "";
+		my $is_link = "";
+		my $in_bond = "";
+		my $is_bond = "";
+		
+		# Read in the file. 
+		my $file_body = $anvil->Storage->read_file({debug => ($debug+1), file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+		
+		foreach my $line (split/\n/, $file_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			$line =~ s/#.*$//;
+			if ($line =~ /^(.*?)=(.*)$/)
+			{
+				my $variable =  $1;
+				my $value    =  $2;
+				   $value    =~ s/^"(.*)"$/$1/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable => $variable,
+					value    => $value,
+				}});
+				
+				$anvil->data->{raw_network}{interface}{$interface}{variable}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"raw_network::interface::${interface}::variable::${variable}" => $anvil->data->{raw_network}{interface}{$interface}{variable}{$variable},
+				}});
+			}
+		}
+		$interface = "";
+	}
+	closedir(DIRECTORY);
+	
+	# Process
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
+	{
+		# Is this a bond?
+		my $type   = $anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE};
+		my $device = $anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			interface => $interface,
+			type      => $type,
+			device    => $device,
+		}});
+		if (lc($type) eq "bond")
+		{
+			# Yes! 
+			$anvil->data->{bond_health}{$device}{configured_links} = 0;
+			$anvil->data->{bond_health}{$device}{active_links}     = 0;
+			$anvil->data->{bond_health}{$device}{up_links}         = 0;
+			$anvil->data->{bond_health}{$device}{name}             = $interface;
+			
+			# Find the links configured to be under this bond.
+			foreach my $this_interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
+			{
+				# Is this a bond?
+				my $this_type   = $anvil->data->{raw_network}{interface}{$this_interface}{variable}{TYPE};
+				my $this_device = $anvil->data->{raw_network}{interface}{$this_interface}{variable}{DEVICE};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					this_interface => $this_interface,
+					this_type      => $this_type,
+					this_device    => $this_device,
+				}});
+				next if lc($this_type) ne "ethernet";
+				
+				my $master = $anvil->data->{raw_network}{interface}{$this_interface}{variable}{MASTER};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { master => $master }});
+				if (($master) && ($master eq $device))
+				{
+					# This interface belongs to this bond.
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{in_bond} = 0;
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{up}      = "unknown";
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{carrier} = "unknown";
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{name}    = $this_interface;
+					$anvil->data->{bond_health}{$device}{configured_links}++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"bond_health::${device}::interface::${this_device}::name" => $anvil->data->{bond_health}{$device}{interface}{$this_device}{name},
+						"bond_health::${device}::configured_links"                => $anvil->data->{bond_health}{$device}{configured_links},
+					}});
+					
+					# Read the interface's carrier
+					my $carrier_file = "/sys/class/net/".$this_device."/carrier";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { carrier_file => $carrier_file }});
+					
+					if (-e $carrier_file)
+					{
+						my $carrier = $anvil->Storage->read_file({debug => ($debug+1), file => $carrier_file});
+						chomp $carrier;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { carrier => $carrier }});
+						
+						$anvil->data->{bond_health}{$device}{interface}{$this_device}{carrier} = $carrier;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"bond_health::${device}::interface::${this_device}::carrier" => $anvil->data->{bond_health}{$device}{interface}{$this_device}{carrier},
+						}});
+					}
+					
+					my $operstate_file = "/sys/class/net/".$this_device."/operstate";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { operstate_file => $operstate_file }});
+					
+					if (-e $operstate_file)
+					{
+						my $operstate = $anvil->Storage->read_file({debug => ($debug+1), file => $operstate_file});
+						chomp $operstate;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { operstate => $operstate }});
+						
+						$anvil->data->{bond_health}{$device}{interface}{$this_device}{up} = $operstate eq "up" ? 1 : 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"bond_health::${device}::interface::${this_device}::operstate" => $anvil->data->{bond_health}{$device}{interface}{$this_device}{operstate},
+						}});
+					}
+				}
+			}
+			
+			# Read in the /proc file.
+			my $proc_file = "/proc/net/bonding/".$device;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
+			
+			my $in_link   = "";
+			my $file_body = $anvil->Storage->read_file({debug => $debug, file => $proc_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+			foreach my $line (split/\n/, $file_body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				if ($line =~ /Slave Interface: (.*)$/)
+				{
+					$in_link                                                           = $1;
+					$anvil->data->{bond_health}{$device}{active_links}++;
+					$anvil->data->{bond_health}{$device}{interface}{$in_link}{in_bond} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"bond_health::${device}::active_links"                   => $anvil->data->{bond_health}{$device}{active_links},
+						"bond_health::${device}::interface::${in_link}::in_bond" => $anvil->data->{bond_health}{$device}{interface}{$in_link}{in_bond},
+					}});
+					next;
+				}
+				if (not $line)
+				{
+					$in_link = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_link => $in_link }});
+					next;
+				}
+				if ($in_link)
+				{
+					if ($line =~ /MII Status: (.*)$/)
+					{
+						my $status = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
+						if ($status eq "up")
+						{
+							$anvil->data->{bond_health}{$device}{up_links}++;
+							$anvil->data->{bond_health}{$device}{interface}{$in_link}{up} = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"bond_health::${device}::up_links"                  => $anvil->data->{bond_health}{$device}{up_links},
+								"bond_health::${device}::interface::${in_link}::up" => $anvil->data->{bond_health}{$device}{interface}{$in_link}{up},
+							}});
+						}
+						else
+						{
+							$anvil->data->{bond_health}{$device}{interface}{$in_link}{up} = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"bond_health::${device}::interface::${in_link}::up" => $anvil->data->{bond_health}{$device}{interface}{$in_link}{up},
+							}});
+						}
+						next;
+					}
+				}
+				else
+				{
+					if ($line =~ /MII Status: (.*)$/)
+					{
+						my $status                                  = $1;
+						   $anvil->data->{bond_health}{$device}{up} = $status eq "up" ? 1 : 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							status                       => $status, 
+							"bond_health::${device}::up" => $anvil->data->{bond_health}{$device}{up},
+						}});
+						next;
+					}
+				}
+			}
+		}
+	}
+	
+	foreach my $bond (sort {$a cmp $b} keys %{$anvil->data->{bond_health}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:bond_health::${bond}::name"             => $anvil->data->{bond_health}{$bond}{name},
+			"s2:bond_health::${bond}::up"               => $anvil->data->{bond_health}{$bond}{up},
+			"s3:bond_health::${bond}::configured_links" => $anvil->data->{bond_health}{$bond}{configured_links},
+			"s4:bond_health::${bond}::active_links"     => $anvil->data->{bond_health}{$bond}{active_links},
+			"s5:bond_health::${bond}::up_links"         => $anvil->data->{bond_health}{$bond}{up_links},
+		}});
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:bond_health::${bond}::interface::${interface}::name"    => $anvil->data->{bond_health}{$bond}{interface}{$interface}{name},
+				"s2:bond_health::${bond}::interface::${interface}::in_bond" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond},
+				"s3:bond_health::${bond}::interface::${interface}::up"      => $anvil->data->{bond_health}{$bond}{interface}{$interface}{up},
+				"s4:bond_health::${bond}::interface::${interface}::carrier" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{carrier},
+			}});
+		}
+		
+		if ($anvil->data->{bond_health}{$bond}{configured_links} != $anvil->data->{bond_health}{$bond}{up_links})
+		{
+			next if $heal eq "none";
+			next if (($anvil->data->{bond_health}{$bond}{up}) && ($heal eq "down_only"));
+			
+			# Log that we're going to try to heal this bond.
+			if ($heal eq "down_only")
+			{
+				# Log that we're healing fully down bonds.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0627", variables => { bond => $bond }});
+			}
+			else
+			{
+				# Log that we're healing all bond links
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0628", variables => { bond => $bond }});
+			}
+			
+			# If we're here, try to bring up down'ed interfaces.
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s2:bond_health::${bond}::interface::${interface}::in_bond" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond},
+					"s4:bond_health::${bond}::interface::${interface}::carrier" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{carrier},
+				}});
+				if ((not $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond}) && ($anvil->data->{bond_health}{$bond}{interface}{$interface}{carrier}))
+				{
+					# Link shown, try to start the interface.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0629", variables => { 
+						bond      => $bond,
+						interface => $interface,
+					}});
+					
+					my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{interface}{$interface}{name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						'output'      => $output,
+						'return_code' => $return_code, 
+					}});
+				}
+			}
+			
+			# For good measure, try to up the bond as well.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0630", variables => { bond => $bond }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				'output'      => $output,
+				'return_code' => $return_code, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 check_internet
 
 This method tries to connect to the internet. If successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
