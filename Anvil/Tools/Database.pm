@@ -15651,7 +15651,7 @@ sub _age_out_data
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0623"});
 	
 	# Get the timestamp to delete jobs and processed alert records older than 2h
-	my $query         = "SELECT now() - '2h'::interval";
+	my $query         = "SELECT now() - '24h'::interval";
 	my $old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		query         => $query, 
@@ -15663,7 +15663,7 @@ sub _age_out_data
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 		my $queries = [];
-		my $query   = "SELECT job_uuid FROM jobs WHERE modified_date <= '".$old_timestamp."';";
+		my $query   = "SELECT job_uuid FROM jobs WHERE modified_date <= '".$old_timestamp."' AND job_progress = 100;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});

@@ -1341,7 +1341,7 @@ sub catch_sig
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self;
+	my $anvil     = $self;
 	my $signal    = $parameter->{signal} ? $parameter->{signal} : "";
 	
 	if ($signal)

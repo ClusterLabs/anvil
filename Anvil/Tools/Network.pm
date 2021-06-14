@@ -220,6 +220,8 @@ sub bridge_info
 
 This method checks to see if the links in a bond are up. It can simply report the bonds and their link states, and it can try to bring up links that are down.
 
+This method returns C<< 0 >> if nothing was done. It returns C<< 1 >> if any repairs were done.
+
 Data is stored in the hash;
 
 * bond_health::<bond_name>::up                                   = [0,1]
@@ -258,6 +260,7 @@ sub check_bonds
 	}});
 	
 	# Read in the network configuration files to track which interfaces are bound to which bonds.
+	my $repaired  = 0;
 	my $interface = "";
 	my $directory = $anvil->data->{path}{directories}{ifcfg};
 	local(*DIRECTORY);
@@ -467,7 +470,7 @@ sub check_bonds
 	
 	foreach my $bond (sort {$a cmp $b} keys %{$anvil->data->{bond_health}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:bond_health::${bond}::name"             => $anvil->data->{bond_health}{$bond}{name},
 			"s2:bond_health::${bond}::up"               => $anvil->data->{bond_health}{$bond}{up},
 			"s3:bond_health::${bond}::configured_links" => $anvil->data->{bond_health}{$bond}{configured_links},
@@ -476,7 +479,7 @@ sub check_bonds
 		}});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"s1:bond_health::${bond}::interface::${interface}::name"    => $anvil->data->{bond_health}{$bond}{interface}{$interface}{name},
 				"s2:bond_health::${bond}::interface::${interface}::in_bond" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond},
 				"s3:bond_health::${bond}::interface::${interface}::up"      => $anvil->data->{bond_health}{$bond}{interface}{$interface}{up},
@@ -493,11 +496,13 @@ sub check_bonds
 			if ($heal eq "down_only")
 			{
 				# Log that we're healing fully down bonds.
+				$repaired = 1;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0627", variables => { bond => $bond }});
 			}
 			else
 			{
 				# Log that we're healing all bond links
+				$repaired = 1;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0628", variables => { bond => $bond }});
 			}
 			
@@ -527,21 +532,21 @@ sub check_bonds
 				}
 			}
 			
-			# For good measure, try to up the bond as well.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0630", variables => { bond => $bond }});
-			
-			my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				'output'      => $output,
-				'return_code' => $return_code, 
-			}});
+# 			# For good measure, try to up the bond as well.
+# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0630", variables => { bond => $bond }});
+# 			
+# 			my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{name};
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+# 			
+# 			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				'output'      => $output,
+# 				'return_code' => $return_code, 
+# 			}});
 		}
 	}
 	
-	return(0);
+	return($repaired);
 }
 
 
@@ -2919,7 +2924,7 @@ sub read_nmcli
 			# Make it easy to look up a device's UUID by device or name.
 			$anvil->data->{nmcli}{$host}{name_to_uuid}{$name}     = $uuid;
 			$anvil->data->{nmcli}{$host}{device_to_uuid}{$device} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"nmcli::${host}::name_to_uuid::${name}"     => $anvil->data->{nmcli}{$host}{name_to_uuid}{$name},
 				"nmcli::${host}::device_to_uuid::${device}" => $anvil->data->{nmcli}{$host}{device_to_uuid}{$device}, 
 			}});
@@ -2949,7 +2954,7 @@ sub read_nmcli
 			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{active_path}          = $active_path;
 			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{slave}                = $slave;
 			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}             = $filename;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"nmcli::${host}::uuid::${uuid}::name"                 => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{name},
 				"nmcli::${host}::uuid::${uuid}::type"                 => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}, 
 				"nmcli::${host}::uuid::${uuid}::timestamp_unix"       => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp_unix}, 

@@ -164,7 +164,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
 		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
 		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
-		<key name="error_0107">Failed to reconnect after reconfiguring the network, exiting.</key>
+		<key name="error_0107">Failed to reconnect after reconfiguring the network. Will reboot in hopes of coming up cleanly.</key>
 		<key name="error_0108">The 'recipient_level': [#!variable!recipient_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
 		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
 		<key name="error_0110">The 'notification_uuid': [#!variable!notification_uuid!#] was not found in the database.</key>

@@ -19,8 +19,9 @@
 
 use strict;
 use warnings;
-use Data::Dumper;
 use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -53,7 +54,7 @@ if (($< != 0) && ($> != 0))
 # Connect
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "message_0031"});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -89,30 +90,42 @@ $anvil->Job->update_progress({
 
 # Clear maintenance mode.
 $anvil->System->maintenance_mode({set => 0});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0467"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0467"});
 
 ### TODO: As of now, the network doesn't come up reliably, so reboot. We add a 60 second delay to make it 
 ###       easier to log in and disable anvil-daemon in case of reboot loops caused by this program thinking
 ###       it needs to reconfigure the system every run.
-my $time_left = 60;
-while ($time_left)
+if ($anvil->data->{sys}{reboot})
 {
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0626", variables => { seconds => $time_left }});
-	sleep 10;
-	$time_left -= 10;
+	do_reboot($anvil);
 }
-my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 
-# Unlikely we're still alive, but 'poweroff' and 'reboot' do return once enqueued, so...
 $anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This does a reboot.
+sub do_reboot
+{
+	my ($anvil) = @_;
+	
+	my $time_left = 60;
+	while ($time_left)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0626", variables => { seconds => $time_left }});
+		sleep 10;
+		$time_left -= 10;
+	}
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	
+	return(0);
+}
 
 # This updates the passwords on the root user, admin user, database and apache user.
 sub update_passwords
@@ -149,10 +162,10 @@ sub update_passwords
 		else
 		{
 			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches });
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output, return_code => $return_code }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 			foreach my $line (split/\n/, $output)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			}
 			
 			# Unlink the temp file.
@@ -190,7 +203,7 @@ sub reconfigure_network
 	my $ifn_count        = exists $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    : 1;
 	my $new_host_name    = exists $anvil->data->{variables}{form}{config_step2}{host_name}{value}    ? $anvil->data->{variables}{form}{config_step2}{host_name}{value}    : "";
 	my $type             = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		prefix        => $prefix, 
 		sequence      => $sequence,
 		domain        => $domain, 
@@ -206,7 +219,7 @@ sub reconfigure_network
 	if (($type eq "striker") && (not $new_host_name))
 	{
 		$new_host_name = $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { new_host_name => $new_host_name }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_host_name => $new_host_name }});
 	}
 	
 	if ($new_host_name)
@@ -215,23 +228,23 @@ sub reconfigure_network
 		if ($type eq "striker")
 		{
 			$type_name = $anvil->Words->string({key => "brand_0003"});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type_name => $type_name }});
 		}
 		elsif ($type eq "node")
 		{
 			$type_name = $anvil->Words->string({key => "brand_0007"});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type_name => $type_name }});
 		}
 		elsif ($type eq "dr")
 		{
 			$type_name = $anvil->Words->string({key => "brand_0008"});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type_name => $type_name }});
 		}
 		my $pretty_host_name = $new_host_name;
 		if (($organization) && ($sequence))
 		{
 			$pretty_host_name = $organization." - ".$type_name." ".sprintf("%02d", $sequence);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { pretty_host_name => $pretty_host_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pretty_host_name => $pretty_host_name }});
 		}
 		
 		# Set the host_name
@@ -324,7 +337,7 @@ sub reconfigure_network
 	}
 	
 	# Disconnect from the database, as we're about to tear down our connection.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0466"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0466"});
 	$anvil->Database->disconnect();
 	
 	# Close all open SSH connections
@@ -343,32 +356,41 @@ sub reconfigure_network
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	}
 	
+	# We'll set this to '1' if we reconfigure the network
+	$anvil->data->{sys}{reboot} = 0;
+	
+	# This will be set to '1' if we make a change.
+	my $changes        = 0;
 	my $new_interfaces = [];
 	foreach my $network_type ("bcn", "sn", "ifn")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_type => $network_type }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 		
 		my $count = 0;
 		if    ($network_type eq "bcn") { $count = $bcn_count; }
 		elsif ($network_type eq "sn")  { $count = $sn_count;  }
 		elsif ($network_type eq "ifn") { $count = $ifn_count; }
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 		
 		next if not $count;
 		foreach my $network_count (1..$count)
 		{
+			# If the user had the option to create a network but didn't, there will be no link1 
+			# mac to set.
 			my $this_network    =         $network_type.$network_count;
 			my $link1_key       =         $this_network."_link1_mac_to_set";
+			next if not exists $anvil->data->{variables}{form}{config_step2}{$link1_key};
+			next if not $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
 			my $link2_key       =         $this_network."_link2_mac_to_set";
 			my $subnet_mask_key =         $this_network."_subnet_mask";
 			my $ip_key          =         $this_network."_ip";
 			my $bridge_key      =         $this_network."_create_bridge";
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
-			my $is_gateway      =         $this_network eq $gateway_interface                                      ? 1                                                                    : 0;
-			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}         ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}     : "";
+			my $is_gateway      =         $this_network eq $gateway_interface                                      ? 1                                                                        : 0;
+			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}         ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}         : "";
 			my $old_link1_iface =         $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ? $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} : "";
 			my $old_link2_iface = defined $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} ? $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} : "";
-			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}        ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}    : 0;
+			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}        ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}        : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 
@@ -385,12 +407,17 @@ sub reconfigure_network
 			}});
 			
 			# Dig out the name that network manager knows the old interface(s) as. The 
-			# 'old_link1_iface' is the name reported by 'ip', the 'DEVICE=xxx' value in the ifcfg-xxx file.
+			# 'old_link1_iface' is the name reported by 'ip', the 'DEVICE=xxx' value in the 
+			# ifcfg-xxx file.
 			my $old_link1_nm_name = $old_link1_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_nm_name => $old_link1_nm_name }});
-			if ((exists $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface}) && ($anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface}))
+			my $link1_nm_uuid     = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_link1_nm_name => $old_link1_nm_name,
+				link1_nm_uuid     => $link1_nm_uuid, 
+			}});
+			if ((exists $anvil->data->{nmcli}{$local_host}{uuid}{$link1_nm_uuid}) && ($anvil->data->{nmcli}{$local_host}{uuid}{$link1_nm_uuid}{name}))
 			{
-				$old_link1_nm_name = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface};
+				$old_link1_nm_name = $anvil->data->{nmcli}{$local_host}{uuid}{$link1_nm_uuid}{name};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_nm_name => $old_link1_nm_name }});
 			}
 			
@@ -398,11 +425,15 @@ sub reconfigure_network
 			my $old_link2_nm_name = "";
 			if ($old_link2_iface)
 			{
-				$old_link2_nm_name = $old_link2_iface;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_nm_name => $old_link2_nm_name }});
-				if ((exists $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_iface}) && ($anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_iface}))
+				   $old_link2_nm_name = $old_link2_iface;
+				my $link2_nm_uuid     = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_nm_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					old_link2_nm_name => $old_link2_nm_name,
+					link2_nm_uuid     => $link2_nm_uuid, 
+				}});
+				if ((exists $anvil->data->{nmcli}{$local_host}{uuid}{$link2_nm_uuid}) && ($anvil->data->{nmcli}{$local_host}{uuid}{$link2_nm_uuid}{name}))
 				{
-					$old_link2_nm_name = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_iface};
+					$old_link2_nm_name = $anvil->data->{nmcli}{$local_host}{uuid}{$link2_nm_uuid}{name};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_nm_name => $old_link2_nm_name }});
 				}
 			}
@@ -481,11 +512,35 @@ sub reconfigure_network
 				my $link2_uuid       = get_uuid_from_interface_file($anvil, $old_link2_file);
 				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}))
 				{
+					# This is the device name (ie: bcn1_link1, ens0, etc). If it doesn't 
+					# exist, see if the new name exists already.
 					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_file => $old_link1_file }});
+					if (not -f $old_link1_file)
+					{
+						# Does the new file already exist?
+						if (-f $new_link1_file)
+						{
+							# Set the old file to the new one.
+							$old_link1_file = $new_link1_file;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_file => $old_link1_file }});
+						}
+					}
 				}
 				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}))
 				{
 					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_file => $old_link2_file }});
+					if (not -f $old_link2_file)
+					{
+						# Does the new file already exist?
+						if (-f $new_link2_file)
+						{
+							# Set the old file to the new one.
+							$old_link2_file = $new_link2_file;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_file => $old_link2_file }});
+						}
+					}
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					bond_file        => $bond_file, 
@@ -649,29 +704,219 @@ sub reconfigure_network
 				}});
 				
 				# Make backups of existing files
-				if (-e $bridge_file)
-				{
-					$anvil->Storage->backup({debug => 2, file => $bridge_file});
-				}
-				if (-e $bond_file)
-				{
-					$anvil->Storage->backup({debug => 2, file => $bond_file});
-				}
-				if (-e $old_link1_file)
-				{
-					$anvil->Storage->backup({debug => 2, file => $old_link1_file});
-				}
-				if (-e $old_link2_file)
-				{
-					$anvil->Storage->backup({debug => 2, file => $old_link2_file});
-				}
 				if (($old_link1_file ne $new_link1_file) && (-e $new_link1_file))
 				{
 					$anvil->Storage->backup({debug => 2, file => $new_link1_file});
+					
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
 				}
 				if (($old_link2_file ne $new_link2_file) && (-e $new_link2_file))
 				{
 					$anvil->Storage->backup({debug => 2, file => $new_link2_file});
+					
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
+				}
+				
+				### Write out the new configs, if needed
+				# Are we writing a bridge config?
+				if ($bridge)
+				{
+					# If the file already exists, see if it changed.
+					my $update = 1;
+					if (-e $bridge_file)
+					{
+						# Read it in to see if there is a difference.
+						my $old_body = $anvil->Storage->read_file({file => $bridge_file});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+						
+						my $difference = diff \$old_body, \$bridge_config, { STYLE => 'Unified' };
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+						if ($difference)
+						{
+							# Backup the old file.
+							$anvil->Storage->backup({debug => 2, file => $bridge_file});
+							$changes = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						}
+						else
+						{
+							# No need to update
+							$update = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+						}
+					}
+					
+					if ($update)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+							bridge_file   => $bridge_file,
+							bridge_config => $bridge_config, 
+						}});
+						$anvil->Storage->write_file({
+							file      => $bridge_file, 
+							body      => $bridge_config, 
+							user      => "root", 
+							group     => "root", 
+							mode      => "0644", 
+							overwrite => 1
+						});
+					}
+				}
+				
+				# Bond, Link 1 and Link 2
+				my $update_bond = 1;
+				if (-f $bond_file)
+				{
+					# Read it in to see if there is a difference.
+					my $old_body = $anvil->Storage->read_file({file => $bond_file});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+					
+					my $difference = diff \$old_body, \$bond_config, { STYLE => 'Unified' };
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+					if ($difference)
+					{
+						# Backup the old file.
+						$anvil->Storage->backup({debug => 2, file => $bond_file});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
+					else
+					{
+						# No need to update
+						$update_bond = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_bond => $update_bond }});
+					}
+				}
+				if ($update_bond)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						bond_file   => $bond_file,
+						bond_config => $bond_config, 
+					}});
+					$anvil->Storage->write_file({
+						file      => $bond_file, 
+						body      => $bond_config, 
+						user      => "root", 
+						group     => "root", 
+						mode      => "0644", 
+						overwrite => 1
+					});
+				}
+				
+				# Link 1
+				my $update_link1 = 1;
+				if (-f $new_link1_file)
+				{
+					# Read it in to see if there is a difference.
+					my $old_body = $anvil->Storage->read_file({file => $new_link1_file});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+					
+					my $difference = diff \$old_body, \$link1_config, { STYLE => 'Unified' };
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+					if ($difference)
+					{
+						# Backup the old file.
+						$anvil->Storage->backup({debug => 2, file => $new_link1_file});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
+					else
+					{
+						# No need to update
+						$update_link1 = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_link1 => $update_link1 }});
+					}
+				}
+				if ($update_link1)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						link1_file   => $new_link1_file,
+						link1_config => $link1_config, 
+					}});
+					$anvil->Storage->write_file({
+						file      => $new_link1_file, 
+						body      => $link1_config, 
+						user      => "root", 
+						group     => "root", 
+						mode      => "0644", 
+						overwrite => 1
+					});
+				}
+				
+				# Link 2
+				my $update_link2 = 1;
+				if (-f $new_link2_file)
+				{
+					# Read it in to see if there is a difference.
+					my $old_body = $anvil->Storage->read_file({file => $new_link2_file});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+					
+					my $difference = diff \$old_body, \$link2_config, { STYLE => 'Unified' };
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+					if ($difference)
+					{
+						# Backup the old file.
+						$anvil->Storage->backup({debug => 2, file => $new_link2_file});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
+					else
+					{
+						# No need to update
+						$update_link2 = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_link2 => $update_link2 }});
+					}
+				}
+				if ($update_link2)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						link2_file   => $new_link2_file,
+						link2_config => $link2_config, 
+					}});
+					$anvil->Storage->write_file({
+						file      => $new_link2_file, 
+						body      => $link2_config, 
+						user      => "root", 
+						group     => "root", 
+						mode      => "0644", 
+						overwrite => 1
+					});
+				}
+				
+				# If the NICs names have changed, rename them now.
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface})        && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ne $new_link1_iface))
+				{
+					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
+				}
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}) && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface})        && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} ne $new_link2_iface))
+				{
+					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}, $new_link2_iface);
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
 				}
 				
 				# Remove the old link if it was different, of down and up it if the same.
@@ -680,7 +925,7 @@ sub reconfigure_network
 					# Delete the old interface
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0461", variables => { interface => $old_link1_nm_name }});
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link1_nm_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -690,16 +935,26 @@ sub reconfigure_network
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0589", variables => { file => $old_link1_file }});
 						unlink $old_link1_file;
 					}
+					
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
 				}
-				else
+				elsif ($update_link1)
 				{
 					# Down the interface
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $old_link1_nm_name }});
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$old_link1_nm_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				}
 				
 				# Shut down (and rename) Link 2
@@ -708,7 +963,7 @@ sub reconfigure_network
 					# Delete the old interface
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0461", variables => { interface => $old_link2_nm_name }});
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link2_nm_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -719,90 +974,26 @@ sub reconfigure_network
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0589", variables => { file => $old_link2_file }});
 						unlink $old_link2_file;
 					}
+					
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
 				}
-				else
+				elsif ($update_link1)
 				{
 					# Down the interface
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $old_link2_nm_name }});
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$old_link2_nm_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
-				}
-
-				### Write out the new configs
-				# Are we writing a bridge config?
-				if ($bridge)
-				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
-						output      => $bridge_file,
-						return_code => $bridge_config, 
-					}});
-					$anvil->Storage->write_file({
-						debug     => 3,
-						file      => $bridge_file, 
-						body      => $bridge_config, 
-						user      => "root", 
-						group     => "root", 
-						mode      => "0644", 
-						overwrite => 1
-					});
-				}
-				
-				# Bond, Link 1 and Link 2
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
-					output      => $bond_file,
-					return_code => $bond_config, 
-				}});
-				$anvil->Storage->write_file({
-					debug     => 3,
-					file      => $bond_file,
-					body      => $bond_config,   
-					user      => "root", 
-					group     => "root", 
-					mode      => "0644", 
-					overwrite => 1,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
-					output      => $new_link1_file,
-					return_code => $link1_config, 
-				}});
-				$anvil->Storage->write_file({
-					debug     => 3,
-					file      => $new_link1_file, 
-					body      => $link1_config, 
-					user      => "root", 
-					group     => "root", 
-					mode      => "0644", 
-					overwrite => 1,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
-					output      => $new_link2_file,
-					return_code => $link2_config, 
-				}});
-				$anvil->Storage->write_file({
-					debug     => 3,
-					file      => $new_link2_file,
-					body      => $link2_config, 
-					user      => "root", 
-					group     => "root", 
-					mode      => "0644", 
-					overwrite => 1,
-				});
-				
-				# If the NICs names have changed, rename them now.
-				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && 
-				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface})        && 
-				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ne $new_link1_iface))
-				{
-					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
-				}
-				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}) && 
-				    ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface})        && 
-				    ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} ne $new_link2_iface))
-				{
-					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}, $new_link2_iface);
+					
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				}
 			}
 			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
@@ -843,6 +1034,16 @@ sub reconfigure_network
 				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}))
 				{
 					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface};
+					if (not -f $old_link1_file)
+					{
+						# Does the new file already exist?
+						if (-f $new_link1_file)
+						{
+							# Set the old file to the new one.
+							$old_link1_file = $new_link1_file;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_file => $old_link1_file }});
+						}
+					}
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					cidr            => $cidr, 
@@ -884,27 +1085,52 @@ sub reconfigure_network
 				$link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
 				$link1_config .= "NM_CONTROLLED=\"yes\"\n";
 				$link1_config .= "ZONE=\"".uc($say_interface)."\"";
-				   
-				# Backup the existing link1 file, if it exists.
-				if (-e $old_link1_file)
+				
+				# Backup the existing link1 file, if it exists and is different.
+				if (($new_link1_file ne $old_link1_file) && (-f $old_link1_file))
 				{
 					$anvil->Storage->backup({debug => 2, file => $old_link1_file});
 				}
 				
-				# Write out the link1 config file.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
-					output      => $new_link1_file,
-					return_code => $link1_config, 
-				}});
-				$anvil->Storage->write_file({
-					debug     => 3, 
-					file      => $new_link1_file, 
-					body      => $link1_config, 
-					user      => "root", 
-					group     => "root", 
-					mode      => "0644", 
-					overwrite => 1,
-				});
+				# Link 1
+				my $update_link1 = 1;
+				if (-f $new_link1_file)
+				{
+					# Read it in to see if there is a difference.
+					my $old_body = $anvil->Storage->read_file({file => $new_link1_file});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+					
+					my $difference = diff \$old_body, \$link1_config, { STYLE => 'Unified' };
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+					if ($difference)
+					{
+						# Backup the old file.
+						$anvil->Storage->backup({debug => 2, file => $new_link1_file});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
+					else
+					{
+						# No need to update
+						$update_link1 = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_link1 => $update_link1 }});
+					}
+				}
+				if ($update_link1)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						link1_file   => $new_link1_file,
+						link1_config => $link1_config, 
+					}});
+					$anvil->Storage->write_file({
+						file      => $new_link1_file, 
+						body      => $link1_config, 
+						user      => "root", 
+						group     => "root", 
+						mode      => "0644", 
+						overwrite => 1
+					});
+				}
 				
 				# If the name differs from old, delete the old interface.
 				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && 
@@ -916,12 +1142,22 @@ sub reconfigure_network
 					$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link1_nm_name});
 					
 					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
+					
+					$changes                    = 1;
+					$anvil->data->{sys}{reboot} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						changes       => $changes,
+						"sys::reboot" => $anvil->data->{sys}{reboot}, 
+					}});
 				}
-				else
+				elsif ($update_link1)
 				{
 					# Down the interface
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $old_link1_nm_name }});
 					$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$old_link1_nm_name});
+					
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				}
 			}
 			else
@@ -933,33 +1169,48 @@ sub reconfigure_network
 		}
 	}
 	
-	# Re-read the config
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
-	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
+	if ($changes)
+	{
+		# Re-read the config
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		# Give a couple seconds for the reload
+		sleep 2;
+		
+		# Now check the bonds
+		my $repaired = $anvil->Network->check_bonds({heal => "all"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { repaired => $repaired }});
+		if ($repaired)
+		{
+			# It can take a bit for the bonds to allow traffic, so sleep for a bit.
+			sleep 30;
+		}
+	}
 	
 	# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
 	my $wait_until = time + 130;
 	until ($anvil->data->{sys}{database}{connections})
 	{
 		$anvil->refresh();
-		$anvil->Network->check_bonds({heal => "all"});
 		$anvil->Database->connect();
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0132"});
 		if (not $anvil->data->{sys}{database}{connections})
 		{
 			if (time > $wait_until)
 			{
-				# Failed to reconnect, exit. 
+				# Failed to reconnect, reboot. Hopefully the network comes up cleanly
+				# next time.. 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0107"});
-				$anvil->nice_exit({exit_code => 2});
+				do_reboot($anvil);
 			}
 			
 			# No databases, sleep and then try again.
-			sleep 2;
+			sleep 10;
 		}
 	}
 	
@@ -971,7 +1222,7 @@ sub reconfigure_network
 	
 	# If any virtio bridges exist, remove it/them.
 	my $start                   = 0;
-	(my $bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
+	my ($bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges, return_code => $return_code }});
 	if ($return_code)
 	{
@@ -1067,21 +1318,21 @@ sub rename_interface
 	
 	# Take the old name down.
 	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link_name." down"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
 	
 	# Rename
 	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link_name." name ".$new_link_name});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
 	
 	# Bring up the new interface
 	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$new_link_name." up"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
@@ -1187,7 +1438,7 @@ AND
 AND 
     variable_source_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
