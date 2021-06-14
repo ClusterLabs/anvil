@@ -148,30 +148,35 @@ sub update_network
 			output      => $output,
 			return_code => $return_code, 
 		}});
-		foreach my $line (split/\n/, $output)
+		if (not $return_code)
 		{
-			$line =~ s/^\s+//;
-			$line =~ s/\s+$//;
-			next if not $line;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "striker_0287", variables => { bridge => $line }});
-			
-			my $shell_call = $anvil->data->{path}{exe}{virsh}." net-destroy ".$line;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output,
-				return_code => $return_code, 
-			}});
-			
-			$shell_call = $anvil->data->{path}{exe}{virsh}." net-undefine ".$line;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output,
-				return_code => $return_code, 
-			}});
+			# Virsh is up.
+			foreach my $line (split/\n/, $output)
+			{
+				$line =~ s/^\s+//;
+				$line =~ s/\s+$//;
+				next if not $line;
+				next if $line =~ /^error/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "striker_0287", variables => { bridge => $line }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{virsh}." net-destroy ".$line;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				
+				$shell_call = $anvil->data->{path}{exe}{virsh}." net-undefine ".$line;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
 		}
 	}
 	
