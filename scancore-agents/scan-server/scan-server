@@ -12,7 +12,9 @@
 # 2 = libvirtd is not running.
 # 
 # TODO: 
-# - 
+# - Move location constraints to the host node if the server is not on the preferred host (this happens after
+#   recovering from a node loss).
+# - Update the fence delay to favour the active host
 # 
 
 use strict;
