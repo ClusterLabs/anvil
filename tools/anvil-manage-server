@@ -449,7 +449,7 @@ sub interactive_question
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "target_server::anvil_name" => $anvil->data->{target_server}{anvil_name} }});
 	}
 	
-	# If this is a node, load the anvil_uuid automatically.
+	# If we don't have an Anvil! UUID, and if this is a node, load the anvil_uuid automatically.
 	
 	my $termios = new POSIX::Termios;
 	$termios->getattr;

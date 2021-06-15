@@ -1192,8 +1192,9 @@ sub reconfigure_network
 		}
 	}
 	
-	# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
-	my $wait_until = time + 130;
+	# Wait for a DB connection. We'll wait up to 5 minutes, as sometimes it takes a while for the network
+	# to start routing traffic.
+	my $wait_until = time + 300;
 	until ($anvil->data->{sys}{database}{connections})
 	{
 		$anvil->refresh();

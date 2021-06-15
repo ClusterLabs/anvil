@@ -124,8 +124,8 @@ if (not $anvil->data->{sys}{database}{connections})
 		{
 			sleep 10;
 			
+			check_network($anvil);
 			$anvil->refresh();
-			$anvil->Network->check_bonds({heal => "all"});
 			$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
@@ -152,6 +152,9 @@ if ($anvil->data->{switches}{'refresh-json'})
 	$anvil->data->{switches}{'main-loop-only'} = 1;
 	$anvil->data->{switches}{'no-start'}       = 1;
 }
+
+# This is used to track initial checkes / repairs of network issues.
+$anvil->data->{sys}{network}{initial_checks} = 0;
 
 # There are some things we only want to run on (re)start and don't need to always run.
 run_once($anvil) if not $anvil->data->{switches}{'main-loop-only'};
@@ -362,6 +365,49 @@ sub set_delay
 	return($delay);
 }
 
+# This checks to see if it's time to see if the network is ok and, if the system has been up long enough, 
+# checks and tries to repair network issues.
+sub check_network
+{
+	my ($anvil) = @_;
+	
+	# The network sometimes doesn't come up, but we don't want to try recovering it too soon. As such, 
+	# we'll start watching the network after the uptime is 2 minutes.
+	my $uptime = $anvil->Get->uptime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+	if ($uptime > 120)
+	{
+		# Check that bonds are up. Degraded bonds will be left alone.
+		if (not $anvil->data->{sys}{network}{initial_checks})
+		{
+			my $running = $anvil->System->check_daemon({daemon => "NetworkManager"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+			
+			if (not $running)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0250", variables => { daemon => "NetworkManager" }});
+				my $return_code = $anvil->System->start_daemon({daemon => "NetworkManager"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+			}
+			
+			$anvil->Network->check_bonds({heal => "all"});
+			
+			$anvil->data->{sys}{network}{initial_checks} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::network::initial_checks" => $anvil->data->{sys}{network}{initial_checks},
+			}});
+		}
+		else
+		{
+			$anvil->Network->check_bonds({heal => "down_only"});
+		}
+		
+		check_firewall($anvil);
+	}
+	
+	return(0);
+}
+
 # This handles running tasks that only run on some loops.
 sub handle_periodic_tasks
 {
@@ -380,7 +426,7 @@ sub handle_periodic_tasks
 	if ($now_time >= $anvil->data->{timing}{next_minute_check})
 	{
 		# Check the firewall needs to be updated.
-		check_firewall($anvil);
+		check_network($anvil);
 		
 		# Check to see if the PXE environment needs to be updated.
 		check_install_target($anvil);
@@ -449,9 +495,6 @@ sub handle_periodic_tasks
 				}
 			}
 		}
-		
-		# Check that bonds are up. Degraded bonds will be left alone.
-		$anvil->Network->check_bonds({heal => "down_only"});
 		
 		# Check mail server config.
 		my $problem = $anvil->Email->check_config({debug => 3});
@@ -589,12 +632,6 @@ sub run_once
 	# Check to see if we need to do boot-time tasks. We only run these if we've just booted
 	boot_time_tasks($anvil);
 	
-	# Check that the daemons we need are running.
-	check_daemons($anvil);
-	
-	# In some cases, bonds don't come up with their links. This checks/heals that.
-	$anvil->Network->check_bonds({heal => "all"});
-	
 	# Check the ssh stuff. 
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
 	$anvil->System->check_ssh_keys();
@@ -608,28 +645,6 @@ sub run_once
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
-	}
-	
-	return(0);
-}
-
-sub check_daemons
-{
-	my ($anvil) = @_;
-	
-	foreach my $daemon ("NetworkManager")
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0249", variables => { daemon => $daemon }});
-		
-		my $running = $anvil->System->check_daemon({daemon => $daemon});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
-		
-		if (not $running)
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0250", variables => { daemon => $daemon }});
-			my $return_code = $anvil->System->start_daemon({daemon => $daemon});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-		}
 	}
 	
 	return(0);
