@@ -7,6 +7,7 @@ import {
   DISABLED,
   BORDER_RADIUS,
 } from '../lib/consts/DEFAULT_THEME';
+import 'typeface-roboto-condensed';
 
 const theme: Theme = createMuiTheme({
   palette: {
