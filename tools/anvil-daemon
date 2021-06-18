@@ -390,7 +390,7 @@ sub check_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 			}
 			
-			$anvil->Network->check_bonds({heal => "all"});
+			$anvil->Network->check_network({heal => "all"});
 			
 			$anvil->data->{sys}{network}{initial_checks} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -399,7 +399,7 @@ sub check_network
 		}
 		else
 		{
-			$anvil->Network->check_bonds({heal => "down_only"});
+			$anvil->Network->check_network({heal => "down_only"});
 		}
 		
 		check_firewall($anvil);

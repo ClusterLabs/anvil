@@ -15,6 +15,7 @@ my $THIS_FILE = "Network.pm";
 ### Methods;
 # bridge_info
 # check_internet
+# check_network
 # download
 # find_matches
 # find_target_ip
@@ -216,14 +217,15 @@ sub bridge_info
 }
 
 
-=head2 check_bonds
+=head2 check_network
 
-This method checks to see if the links in a bond are up. It can simply report the bonds and their link states, and it can try to bring up links that are down.
+This method checks to see if bridges and the links in bonds are up. It can simply report the bridge, bond and link states, or it can try to bring up interfaces that are down.
 
 This method returns C<< 0 >> if nothing was done. It returns C<< 1 >> if any repairs were done.
 
 Data is stored in the hash;
 
+* bridge_health::<bridge_name>::up                               = [0,1]
 * bond_health::<bond_name>::up                                   = [0,1]
 * bond_health::<bond_name>::active_links                         = <number of interfaces active in the bond, but not necessarily up>
 * bond_health::<bond_name>::up_links                             = <number of links that are 'up' or 'going back'>
@@ -246,7 +248,7 @@ Wen set to C<< none >>, no attempts will be made to bring up any interfaces. The
 B<< Note >>: Interfaces that show no carrier will not be started in any case.
 
 =cut
-sub check_bonds
+sub check_network
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -321,7 +323,6 @@ sub check_bonds
 	# Process
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
 	{
-		# Is this a bond?
 		my $type   = $anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE};
 		my $device = $anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -329,6 +330,15 @@ sub check_bonds
 			type      => $type,
 			device    => $device,
 		}});
+		
+		# Is this a bridge?
+		if (lc($type) eq "bond")
+		{
+			# Yup!
+			$anvil->data->{bridge_health}{$device}{up} = 0;
+		}
+		
+		# Is this a bond?
 		if (lc($type) eq "bond")
 		{
 			# Yes! 
@@ -465,6 +475,23 @@ sub check_bonds
 					}
 				}
 			}
+		}
+	}
+	
+	# Before we check the bonds, check the bridges. Bonds won't come up if they're in a bridge that is 
+	# down.
+	my $bridge_count = keys %{$anvil->data->{bridge_health}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_count => $bridge_count }});
+	if ($bridge_count)
+	{
+		foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{bridge_health}})
+		{
+			my $up = $anvil->data->{bridge_health}{$bridge}{up};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bridge => $bridge,
+				up     => $up,
+			}});
+			
 		}
 	}
 	
@@ -2855,7 +2882,7 @@ sub read_nmcli
 	}
 	
 	# Reading locally or remote?
-	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --colors no --fields all --terse connection show";
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --colors no --terse --fields name,device,state,type,uuid,filename connection show";
 	my $output     = "";
 	my $is_local   = $anvil->Network->is_local({host => $target});
 	if ($is_local)
@@ -2891,34 +2918,47 @@ sub read_nmcli
 		$line =~ s/\\:/!col!/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'line <<' => $line }});
 		
-		# NAME  UUID                                  TYPE      TIMESTAMP   TIMESTAMP-REAL                   AUTOCONNECT  AUTOCONNECT-PRIORITY  READONLY  DBUS-PATH                                   ACTIVE  DEVICE  STATE      ACTIVE-PATH                                         SLAVE  FILENAME                                  
-		my ($name, $uuid, $type, $timestamp_unix, $timestamp, $autoconnect, $autoconnect_priority, $read_only, $dbus_path, $active, $device, $state, $active_path, $slave, $filename) = (split/:/, $line);
-		$timestamp =~ s/!col!/:/g;
+		my ($name, $device, $state, $type, $uuid, $filename) = (split/:/, $line);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:name'                 => $name,
-			's2:uuid'                 => $uuid,
-			's3:type'                 => $type, 
-			's4:timestamp_unix'       => $timestamp_unix, 
-			's5:timestamp'            => $timestamp, 
-			's6:autoconnect'          => $autoconnect, 
-			's7:autoconnect_priority' => $autoconnect_priority, 
-			's8:read_only'            => $read_only,
-			's9:dbus_path'            => $dbus_path, 
-			's10:active'              => $active, 
-			's11:device'              => $device, 
-			's12:state'               => $state, 
-			's13:active_path'         => $active_path, 
-			's14:slave'               => $slave, 
-			's15:filename'            => $filename, 
+			's1:name'     => $name,
+			's2:device'   => $device, 
+			's3:state'    => $state,
+			's4:type'     => $type, 
+			's5:uuid'     => $uuid,
+			's6:filename' => $filename, 
 		}});
 		if ($uuid)
 		{
 			# Inactive interfaces have a name but not a device;
 			if (not $device)
 			{
-				$device =  $name;
-				$device =~ s/ /_/g;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+				# Read the file, see if we can find it there.
+				if (-e $filename)
+				{
+					my $file_body = $anvil->Storage->read_file({debug => ($debug+1), file => $filename});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+					
+					foreach my $line (split/\n/, $file_body)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+						$line =~ s/#.*$//;
+						if ($line =~ /DEVICE=(.*)$/)
+						{
+							$device =  $1;
+							$device =~ s/^\s+//;
+							$device =~ s/\s+$//;
+							$device =~ s/"(.*)"$/$1/;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+						}
+					}
+				}
+				
+				if (not $device)
+				{
+					# Odd. Well, pull the device off the file name.
+					$device = ($filename =~ /\/ifcfg-(.*)$/)[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+				}
 			}
 			
 			# Make it easy to look up a device's UUID by device or name.
@@ -2930,45 +2970,21 @@ sub read_nmcli
 			}});
 			
 			# Translate some values;
-			my $say_state     = not $state         ? 0 : 1;
-			my $say_active    = $active    eq "no" ? 0 : 1;
-			my $say_read_only = $read_only eq "no" ? 0 : 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				say_state     => $say_state,
-				say_active    => $say_active, 
-				say_read_only => $say_read_only, 
-			}});
+			my $say_state = not $state ? 0 : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_state => $say_state }});
 			
 			# Now store the data
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{name}                 = $name;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}                 = $type;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp_unix}       = $timestamp_unix;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp}            = $timestamp;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect}          = $autoconnect;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect_priority} = $autoconnect_priority;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{read_only}            = $say_read_only;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{dbus_path}            = $dbus_path;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{active}               = $say_active;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{device}               = $device;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'}              = $say_state;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{active_path}          = $active_path;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{slave}                = $slave;
-			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}             = $filename;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{name}     = $name;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{device}   = $device;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'}  = $state;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}     = $type;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename} = $filename;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::${host}::uuid::${uuid}::name"                 => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{name},
-				"nmcli::${host}::uuid::${uuid}::type"                 => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}, 
-				"nmcli::${host}::uuid::${uuid}::timestamp_unix"       => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp_unix}, 
-				"nmcli::${host}::uuid::${uuid}::timestamp"            => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp}, 
-				"nmcli::${host}::uuid::${uuid}::autoconnect"          => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect}, 
-				"nmcli::${host}::uuid::${uuid}::autoconnect_priority" => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect_priority}, 
-				"nmcli::${host}::uuid::${uuid}::read_only"            => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{read_only},
-				"nmcli::${host}::uuid::${uuid}::dbus_path"            => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{dbus_path}, 
-				"nmcli::${host}::uuid::${uuid}::active"               => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{active}, 
-				"nmcli::${host}::uuid::${uuid}::device"               => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{device}, 
-				"nmcli::${host}::uuid::${uuid}::state"                => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'}, 
-				"nmcli::${host}::uuid::${uuid}::active_path"          => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{active_path}, 
-				"nmcli::${host}::uuid::${uuid}::slave"                => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{slave}, 
-				"nmcli::${host}::uuid::${uuid}::filename"             => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}, 
+				"nmcli::${host}::uuid::${uuid}::name"     => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{name},
+				"nmcli::${host}::uuid::${uuid}::device"   => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{device},
+				"nmcli::${host}::uuid::${uuid}::state"    => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'},
+				"nmcli::${host}::uuid::${uuid}::type"     => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{type},
+				"nmcli::${host}::uuid::${uuid}::filename" => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}, 
 			}});
 		}
 	}
