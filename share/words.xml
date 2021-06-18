@@ -1821,6 +1821,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0628">The bond: [#!variable!bond!#] is up, but at least one interface is down. Will try to recover now.</key>
 		<key name="log_0629">The bond: [#!variable!bond!#]'s interface: [#!variable!interface!#] is not in this bond. Trying to bring it up now...</key>
 		<key name="log_0630">The bond: [#!variable!bond!#] will now be brought up (even if it already is up).</key>
+		<key name="log_0631">Network device names have changed, rebooting to ensure they take effect. The job will restart once the network comes back up.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

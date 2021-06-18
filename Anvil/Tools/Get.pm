@@ -747,7 +747,15 @@ ORDER BY
 
 =head2 bridges
 
-This finds a list of bridges on the host. Bridges that are found are stored is '
+This finds a list of bridges on the host. Bridges that are found are stored in;
+
+* <host>::network::bridges::bridge::<bridge_name>::found                            = 1
+* <host>::network::bridges::bridge::<bridge_name>::flags                            = [array of flags]
+* <host>::network::bridges::bridge::<bridge_name>::connected_interface::<interface> = 1
+* <host>::network::bridges::bridge::<bridge_name>::<variable>                       = [array reference or string variable]
+* <host>::network::bridges::interface::<interface_name>::<variable>                 = [array reference or string variable]
+
+Where 'host' is C<< Get->short_host_name() >>. 
 
 This method takes no parameters.
 

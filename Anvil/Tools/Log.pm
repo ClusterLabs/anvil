@@ -859,6 +859,7 @@ sub variables
 	my $list      = defined $parameter->{list}      ? $parameter->{list}      : {};
 	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $anvil->data->{defaults}{'log'}{facility};
 	my $prefix    = defined $parameter->{prefix}    ? $parameter->{prefix}    : "";
+	my $print     = defined $parameter->{'print'}   ? $parameter->{'print'}   : "";
 	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
 	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $anvil->data->{defaults}{'log'}{server};
@@ -991,6 +992,7 @@ sub variables
 			level    => $level,
 			line     => $line,
 			facility => $facility,
+			'print'  => $print, 
 			priority => $priority,
 			raw      => $raw,
 			secure   => $secure,
