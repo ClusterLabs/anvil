@@ -166,20 +166,23 @@ if (not $is_decode_json_success)
 	});
 }
 
-my $anvil_uuid               = exists $request_body->{anvil_uuid} ? $request_body->{anvil_uuid} : $anvil->data->{switches}{'anvil-uuid'};
-my $host_uuid                = exists $request_body->{host_uuid}  ? $request_body->{host_uuid}  : $anvil->data->{switches}{'host-uuid'};
-my $is_on                    = exists $request_body->{is_on}      ? $request_body->{is_on}      : $anvil->data->{switches}{'is-on'};
-my $anvil_uuid_variable_name = "anvil UUID";
-my $host_uuid_variable_name  = "host UUID";
+my $anvil_uuid                     = exists $request_body->{anvil_uuid}       ? $request_body->{anvil_uuid}       : $anvil->data->{switches}{'anvil-uuid'};
+my $host_uuid                      = exists $request_body->{host_uuid}        ? $request_body->{host_uuid}        : $anvil->data->{switches}{'host-uuid'};
+my $server_uuid_list               = exists $request_body->{server_uuid_list} ? $request_body->{server_uuid_list} : [ $anvil->data->{switches}{'server-uuid'} ];
+my $is_on                          = exists $request_body->{is_on}            ? $request_body->{is_on}            : $anvil->data->{switches}{'is-on'};
+my $anvil_uuid_variable_name       = "anvil UUID";
+my $host_uuid_variable_name        = "host UUID";
+my $server_uuid_list_variable_name = "server UUID list";
 
 $anvil->Log->variables({
 	source => $THIS_FILE,
 	line   => __LINE__,
 	level  => 2,
 	list   => {
-		anvil_uuid => $anvil_uuid,
-		host_uuid  => $host_uuid,
-		is_on      => $is_on
+		anvil_uuid       => $anvil_uuid,
+		host_uuid        => $host_uuid,
+		server_uuid_list => $server_uuid_list,
+		is_on            => $is_on
 	}
 });
 
@@ -203,6 +206,15 @@ elsif ($host_uuid)
 	else
 	{
 		handle_invalid_uuid({ name => $host_uuid_variable_name, uuid => $host_uuid });
+	}
+}
+elsif ($server_uuid_list)
+{
+	foreach (@{$server_uuid_list})
+	{
+		my $server_uuid = $_;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid } });
 	}
 }
 
