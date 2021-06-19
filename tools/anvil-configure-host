@@ -1196,6 +1196,13 @@ sub reconfigure_network
 		}
 	}
 	
+	# If we should reset, do so now.
+	if ($anvil->data->{sys}{reboot})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0631"});
+		do_reboot($anvil);
+	}
+	
 	if ($changes)
 	{
 		# Re-read the config
@@ -1220,13 +1227,6 @@ sub reconfigure_network
 			# It can take a bit for the bonds to allow traffic, so sleep for a bit.
 			sleep 30;
 		}
-	}
-	
-	# If we should reset, do so now.
-	if ($anvil->data->{sys}{reboot})
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0631"});
-		do_reboot($anvil);
 	}
 	
 	# Wait for a DB connection. We'll wait up to 130 seconds, as sometimes it takes a while for the network
