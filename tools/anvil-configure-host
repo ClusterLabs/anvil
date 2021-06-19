@@ -97,7 +97,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' 
 ###       it needs to reconfigure the system every run.
 if ($anvil->data->{sys}{reboot})
 {
-	#do_reboot($anvil);
+	do_reboot($anvil);
 }
 
 $anvil->nice_exit({exit_code => 0});
@@ -1223,11 +1223,11 @@ sub reconfigure_network
 	}
 	
 	# If we should reset, do so now.
-# 	if ($anvil->data->{sys}{reboot})
-# 	{
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0631"});
-# 		do_reboot($anvil);
-# 	}
+	if ($anvil->data->{sys}{reboot})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0631"});
+		do_reboot($anvil);
+	}
 	
 	# Wait for a DB connection. We'll wait up to 130 seconds, as sometimes it takes a while for the network
 	# to start routing traffic.
