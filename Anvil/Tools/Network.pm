@@ -198,6 +198,11 @@ sub bridge_info
 		if ((not exists $anvil->data->{bridge}{$host}{$bridge}) or (ref($anvil->data->{bridge}{$host}{$bridge}{interfaces}) ne "ARRAY"))
 		{
 			$anvil->data->{bridge}{$host}{$bridge}{interfaces} = [];
+			$anvil->data->{bridge}{$host}{$bridge}{found}      = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge::${host}::${bridge}::interfaces" => $anvil->data->{bridge}{$host}{$bridge}{interfaces}, 
+				"bridge::${host}::${bridge}::found"      => $anvil->data->{bridge}{$host}{$bridge}{found}, 
+			}});
 		}
 		push @{$anvil->data->{bridge}{$host}{$bridge}{interfaces}}, $interface;
 		
@@ -261,6 +266,10 @@ sub check_network
 		heal => $heal, 
 	}});
 	
+	# Find out the bonds that are up.
+	my $host = $anvil->Get->short_host_name();
+	$anvil->Network->bridge_info({debug => $debug});
+	
 	# Read in the network configuration files to track which interfaces are bound to which bonds.
 	my $repaired  = 0;
 	my $interface = "";
@@ -323,19 +332,31 @@ sub check_network
 	# Process
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
 	{
-		my $type   = $anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE};
-		my $device = $anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE};
+		my $type   =  $anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE};
+		my $device =  $anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE};
+		my $name   =  defined $anvil->data->{raw_network}{interface}{$interface}{variable}{NAME} ? $anvil->data->{raw_network}{interface}{$interface}{variable}{NAME} : $device;
+		   $name   =~ s/ /_/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			interface => $interface,
 			type      => $type,
 			device    => $device,
+			name      => $name,
 		}});
 		
 		# Is this a bridge?
-		if (lc($type) eq "bond")
+		if (lc($type) eq "bridge")
 		{
 			# Yup!
-			$anvil->data->{bridge_health}{$device}{up} = 0;
+			$anvil->data->{bridge_health}{$device}{up}   = 0;
+			$anvil->data->{bridge_health}{$device}{name} = $name;
+			if ((exists $anvil->data->{bridge}{$host}{$device}) && ($anvil->data->{bridge}{$host}{$device}{found}))
+			{
+				$anvil->data->{bridge_health}{$device}{up} = 1;
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge_health::${device}::up"   => $anvil->data->{bridge_health}{$device}{up},
+				"bridge_health::${device}::name" => $anvil->data->{bridge_health}{$device}{name},
+			}});
 		}
 		
 		# Is this a bond?
@@ -345,7 +366,7 @@ sub check_network
 			$anvil->data->{bond_health}{$device}{configured_links} = 0;
 			$anvil->data->{bond_health}{$device}{active_links}     = 0;
 			$anvil->data->{bond_health}{$device}{up_links}         = 0;
-			$anvil->data->{bond_health}{$device}{name}             = $interface;
+			$anvil->data->{bond_health}{$device}{name}             = $name;
 			
 			# Find the links configured to be under this bond.
 			foreach my $this_interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
@@ -482,16 +503,32 @@ sub check_network
 	# down.
 	my $bridge_count = keys %{$anvil->data->{bridge_health}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_count => $bridge_count }});
-	if ($bridge_count)
+	if (($bridge_count) && (not $heal eq "none"))
 	{
 		foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{bridge_health}})
 		{
-			my $up = $anvil->data->{bridge_health}{$bridge}{up};
+			my $up   = $anvil->data->{bridge_health}{$bridge}{up};
+			my $name = $anvil->data->{bridge_health}{$bridge}{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				bridge => $bridge,
+				name   => $name,
 				up     => $up,
 			}});
 			
+			if (not $up)
+			{
+				# Try to recover the interface
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0632", variables => { bridge => $bridge }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					'output'      => $output,
+					'return_code' => $return_code, 
+				}});
+			}
 		}
 	}
 	
@@ -533,6 +570,18 @@ sub check_network
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0628", variables => { bond => $bond }});
 			}
 			
+			# For good measure, try to up the bond as well.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0630", variables => { bond => $bond }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				'output'      => $output,
+				'return_code' => $return_code, 
+			}});
+			
 			# If we're here, try to bring up down'ed interfaces.
 			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
 			{
@@ -558,18 +607,6 @@ sub check_network
 					}});
 				}
 			}
-			
-# 			# For good measure, try to up the bond as well.
-# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0630", variables => { bond => $bond }});
-# 			
-# 			my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{name};
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-# 			
-# 			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 				'output'      => $output,
-# 				'return_code' => $return_code, 
-# 			}});
 		}
 	}
 	
