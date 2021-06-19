@@ -533,7 +533,7 @@ sub reconfigure_network
 				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}))
 				{
 					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_file => $old_link2_file }});
+ 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_file => $old_link2_file }});
 					if (not -f $old_link2_file)
 					{
 						# Does the new file already exist?
@@ -1223,11 +1223,11 @@ sub reconfigure_network
 	}
 	
 	# If we should reset, do so now.
-# 	if ($anvil->data->{sys}{reboot})
-# 	{
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0631"});
-# 		do_reboot($anvil);
-# 	}
+	if ($anvil->data->{sys}{reboot})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0631"});
+		do_reboot($anvil);
+	}
 	
 	# Wait for a DB connection. We'll wait up to 130 seconds, as sometimes it takes a while for the network
 	# to start routing traffic.
