@@ -1459,7 +1459,7 @@ sub pickup_job_details
 		check    => 1, 
 		job_uuid => $anvil->data->{switches}{'job-uuid'},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
 	if ($return == 1)
 	{
 		# It's not a valid UUID.
@@ -1474,7 +1474,7 @@ sub pickup_job_details
 	# Still alive? Good.
 	my $job_picked_up_by = $anvil->data->{jobs}{job_picked_up_by};
 	my $job_progress     = $anvil->data->{jobs}{job_progress};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		job_picked_up_by => $job_picked_up_by,
 		job_progress     => $job_progress,
 	}});
@@ -1483,7 +1483,7 @@ sub pickup_job_details
 	if ($job_picked_up_by)
 	{
 		# The previous job is gone if we're still alive, we'll take this over.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, 'print' => 1, key => "log_0147", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0147", variables => { 
 			pid     => $job_picked_up_by,
 			percent => $job_progress, 
 		}});
@@ -1512,7 +1512,7 @@ AND
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count,
 	}});

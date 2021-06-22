@@ -1831,6 +1831,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0636">No servers are running on either node. Skipping fence delay preference checks for now.</key>
 		<key name="log_0637">We've got: [#!variable!local_server_count!#] servers, and the peer has: [#!variable!peer_server_count!#] servers. Skipping fence delay preference checks for now.</key>
 		<key name="log_0638">We're hosting servers, and our peer is not. Making the fence delay favours this node.</key>
+		<key name="log_0639">The Anvil! daemon is in startup mode, and the job: [#!variable!job_uuid!#], command: [#!variable!job_command!#] is not a startup job, ignoring it for now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

@@ -1685,7 +1685,7 @@ sub striker_stage1
 			job_name        => "configure::auto_initialize", 
 			job_title       => "job_0225", 
 			job_description => "job_0226", 
-			job_status      => "scancore_startup",
+			job_status      => "anvil_startup",
 			job_progress    => 0,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
