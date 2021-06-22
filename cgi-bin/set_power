@@ -116,6 +116,56 @@ sub set_host_power
 	}
 }
 
+sub set_server_power
+{
+	my $parameters  = shift;
+	my $server_uuid = $parameters->{server_uuid};
+	my $on          = $parameters->{on};
+
+	my $query = "
+SELECT
+	server_anvil_uuid
+FROM
+	servers
+WHERE
+	server_uuid = ".$anvil->Database->quote($server_uuid)."
+;";
+	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
+	my $count   = @{$results};
+
+	if ($count == 1)
+	{
+		my $row        = $results->[0];
+		my $anvil_uuid = $row->[0];
+		my $host_uuid  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid, host_uuid => $host_uuid, server_uuid => $server_uuid } });
+
+		# if ($on)
+		# {
+		# 	$anvil->Database->insert_or_update_jobs({
+		# 		job_command     => $anvil->data->{path}{exe}{'anvil-boot-server'}." --server-uuid ".$server_uuid,
+		# 		job_host_uuid   => $host_uuid,
+		# 		job_description => "",
+		# 		job_name        => "cgi-bin::set_power::server::on",
+		# 		job_progress    => 0,
+		# 		job_title       => ""
+		# 	});
+		# }
+		# else
+		# {
+		# 	$anvil->Database->insert_or_update_jobs({
+		# 		job_command     => $anvil->data->{path}{exe}{'anvil-shutdown-server'}." --server-uuid ".$server_uuid,
+		# 		job_host_uuid   => $host_uuid,
+		# 		job_description => "",
+		# 		job_name        => "cgi-bin::set_power::server::off",
+		# 		job_progress    => 0,
+		# 		job_title       => ""
+		# 	});
+		# }
+	}
+}
+
 $anvil->Get->switches;
 
 $anvil->Database->connect;
@@ -217,6 +267,8 @@ elsif ($server_uuid_list)
 		my $server_uuid = $_;
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid } });
+
+		set_server_power({ server_uuid => $server_uuid, on => $is_on });
 	}
 }
 
