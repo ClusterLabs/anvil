@@ -420,6 +420,8 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
 		<key name="error_0307">Failed to perform requested task(s) because the requester is not authenticated.</key>
 		<key name="error_0308"><![CDATA[[ Error ] - The Job: [#!variable!job-uuid!#] appears to have passed malformed data. The raw data was: [#!variable!raw!#]. Expected 'as_machine=<host_type>,manifest_uuid=<manifest_uuid>,anvil_uuid=<anvil_uuid>'. Either the parse failed, or the data was somehow invalid.]]></key>
+		<key name="error_0309">I tried to change the fencing preferred node to: [#!variable!prefer!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
+		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1823,6 +1825,12 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0630">The bond: [#!variable!bond!#] will now be brought up (even if it already is up).</key>
 		<key name="log_0631">Network device names have changed, rebooting to ensure they take effect. The job will restart once the network comes back up.</key>
 		<key name="log_0632">The bridge: [#!variable!bridge!#] is down, tryin to bring it up now.</key>
+		<key name="log_0633">Our peer is offline and we're already the preferred fence node. Nothing to do.</key>
+		<key name="log_0634">Our peer is offline and we're not the preferred fence node. Updating the fence config to prefer this node.</key>
+		<key name="log_0635">The server: [#!variable!server_name!#] is migrating. Skipping fence delay preference checks for now.</key>
+		<key name="log_0636">No servers are running on either node. Skipping fence delay preference checks for now.</key>
+		<key name="log_0637">We've got: [#!variable!local_server_count!#] servers, and the peer has: [#!variable!peer_server_count!#] servers. Skipping fence delay preference checks for now.</key>
+		<key name="log_0638">We're hosting servers, and our peer is not. Making the fence delay favours this node.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2171,6 +2179,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0250">The daemon: [#!variable!daemon!#] was not running, starting it now.</key>
 		<key name="message_0251">Preparing to manage a server.</key>
 		<key name="message_0252">Found the server: [#!variable!server_name!#] in the database, loading details now.</key>
+		<key name="message_0253">The fence delay to prefer the node: [#!variable!node!#] has been removed.</key>
+		<key name="message_0254">The fence delay now prefers the node: [#!variable!node!#].</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2802,6 +2812,9 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0119">[ Warning ] - The 'admin' user was created with the user ID: [#!variable!uid!#].</key>
 		<key name="warning_0120">[ Warning ] - Timed out waiting for the database: [#!variable!uuid!#] to become available.</key>
 		<key name="warning_0121">[ Warning ] - The Anvil! with the UUID: [#!variable!uuid!#] was not found. Exiting, will re-run the anvil-join-anvil job again in a few moments.</key>
+		<key name="warning_0122">[ Warning ] - Asked to find or set the fence delay, but this is not a node.</key>
+		<key name="warning_0123">[ Warning ] - Asked to find or set the fence delay, but node is not in a cluster.</key>
+		<key name="warning_0124">[ Warning ] - Asked to find or set the fence delay, but node is not fully in the cluster yet.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

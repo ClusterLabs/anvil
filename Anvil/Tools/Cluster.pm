@@ -27,6 +27,7 @@ my $THIS_FILE = "Cluster.pm";
 # get_peers
 # get_primary_host_uuid
 # is_primary
+# manage_fence_delay
 # migrate_server
 # parse_cib
 # parse_crm_mon
@@ -555,7 +556,7 @@ This is the name of the server to boot.
 
 If set, a resource constraint is placed so that the server prefers one node over the other before it boots.
 
-B<< Note >>; The method relies on pacemaker to boot the node. As such, if for some reason it decides the server can not be booted on the prefered node, it may boot on the other node. As such, this parameter does not guarantee that the server will be booted on the target node!
+B<< Note >>; The method relies on pacemaker to boot the node. As such, if for some reason it decides the server can not be booted on the preferred node, it may boot on the other node. As such, this parameter does not guarantee that the server will be booted on the target node!
 
 =head3 wait (optional, default '1')
 
@@ -2326,6 +2327,206 @@ sub is_primary
 	
 	# Any other condition, and we're not primary.
 	return(0);
+}
+
+
+=head2 manage_fence_delay
+
+This method checks or sets the fence delay that controls which node survives in a network split. Generally, this is the node hosting servers, as ScanCore's C<< scan-cluster >> should set this based on where the servers are runn.
+
+If C<< set >> is given an invalid host name, or if this is called on a node that is not a cluster member, C<< !!error!! >> is returned. Otherwise, the node with the delay favouring it is returned. If, somehow, neither node has a delay, then an empty string is returned.
+
+B<< Note >>: This must run on a node in a cluster.
+
+Parameters;
+
+=head3 prefer (optional)
+
+If this is set to a node name, that node will have the fence delay set to favour it. Specifically, the first fence method on this node has the C<< delay="15" >> argument added to it. If a delay is found on any other method, it is removed.
+
+=cut
+sub manage_fence_delay
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->manage_fence_delay()" }});
+	
+	my $prefer = defined $parameter->{prefer} ? $parameter->{prefer} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		prefer => $prefer,
+	}});
+	
+	# Are we a node?
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0123"});
+		return("!!error!!");
+	}
+	
+	# Are we in the cluster?
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0124"});
+		return('!!error!!');
+	}
+	
+	# Are we a full member?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0125"});
+		return('!!error!!');
+	}
+	
+	# Now look for stonith info.
+	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_name => $node_name }});
+		foreach my $order (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}})
+		{
+			my $method = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$order}{devices};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:order'  => $order,
+				's2:method' => $method, 
+			}});
+			
+			foreach my $this_method (split/,/, $method)
+			{
+				my $agent = $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$this_method}{agent};
+				
+				# We ignore the fake, delay method 
+				next if $agent eq "fence_delay";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:this_method' => $this_method,
+					's2:agent'       => $agent,
+				}});
+				
+				my $config_line = $agent." ";
+				foreach my $stdin_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$this_method}{argument}})
+				{
+					next if $stdin_name =~ /pcmk_o\w+_action/;
+					my $value        = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$this_method}{argument}{$stdin_name}{value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:stdin_name' => $stdin_name,
+						's2:value'      => $value, 
+					}});
+					
+					$config_line .= $stdin_name."=\"".$value."\" ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { config_line => $config_line }});
+				}
+				$anvil->data->{fence_method}{$node_name}{order}{$order}{method}{$this_method}{command} = $config_line;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fence_method::${node_name}::order::${order}::method::${this_method}::command" => $anvil->data->{fence_method}{$node_name}{order}{$order}{method}{$this_method}{command},
+				}});
+			}
+		}
+	}
+	
+	my $preferred_node = "";
+	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{fence_method}})
+	{
+		# There's only one, no reason to sort
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_name => $node_name }});
+		foreach my $method (keys %{$anvil->data->{fence_method}{$node_name}{order}{1}{method}})
+		{
+			my $config_line = $anvil->data->{fence_method}{$node_name}{order}{1}{method}{$method}{command};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:method'      => $method,
+				's2:config_line' => $config_line, 
+			}});
+			if ($config_line =~ / delay="(\d+)"/)
+			{
+				# If we're being asked to set a preferred node, and this isn't it, remove it.
+				if (($prefer) && ($prefer ne $node_name))
+				{
+					# Remove it.
+					   $config_line =~ s/ delay=".*?"//;
+					my $shell_call  =  $anvil->data->{path}{exe}{pcs}." stonith update ".$method." ".$config_line;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					my ($output, $return_code) = $anvil->System->call({debug => ($debug + 1), shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
+					
+					# Make sure we're not the preferred host anymore.
+					$preferred_node = $anvil->Cluster->manage_fence_delay({debug => $debug});;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { preferred_node => $preferred_node }});
+					
+					if (($preferred_node ne "!!error!!") && ($preferred_node ne $node_name))
+					{
+						# Success! Register an alert.
+						my $variables = {
+							node => $node_name, 
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0253", variables => $variables});
+						$anvil->Alert->register({alert_level => "notice", message => "message_0253", variables => $variables, set_by => $THIS_FILE});
+					}
+					else
+					{
+						# What?!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0310", variables => { 
+							node    => $node_name,
+							current => $preferred_node, 
+						}});
+						return("!!error!!")
+					}
+				}
+				else
+				{
+					$preferred_node = $node_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { preferred_node => $preferred_node }});
+				}
+			}
+			else
+			{
+				# If 'prefer' is set, and this is the node, add it.
+				if (($prefer) && ($prefer eq $node_name))
+				{
+					   $config_line .= " delay=\"15\"";
+					my $shell_call  =  $anvil->data->{path}{exe}{pcs}." stonith update ".$method." ".$config_line;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					my ($output, $return_code) = $anvil->System->call({debug => ($debug + 1), shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
+					
+					# Verify that this is now the prferred host.
+					$preferred_node = $anvil->Cluster->manage_fence_delay({debug => $debug});;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { preferred_node => $preferred_node }});
+					
+					if ($prefer eq $preferred_node)
+					{
+						# Success! Register an alert.
+						my $variables = {
+							node => $node_name, 
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0254", variables => $variables});
+						$anvil->Alert->register({alert_level => "notice", message => "message_0254", variables => $variables, set_by => $THIS_FILE});
+						
+						return($prefer);
+					}
+					else
+					{
+						# What?!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0309", variables => { 
+							prefer  => $prefer,
+							current => $preferred_node, 
+						}});
+						return("!!error!!")
+					}
+				}
+			}
+		}
+	}
+	
+	return($preferred_node);
 }
 
 
