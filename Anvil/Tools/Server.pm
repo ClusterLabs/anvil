@@ -1986,7 +1986,8 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_waiting => $stop_waiting }});
 	};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_time => $wait_time }});
-	until($success)
+	my $waiting = 1;
+	while ($waiting)
 	{
 		# Update
 		$anvil->Server->find({debug => $debug});
@@ -2007,7 +2008,11 @@ WHERE
 		{
 			# Success!
 			$success = 1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { server => $server }});
+			$waiting = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { 
+				server  => $server,
+				waiting => $waiting, 
+			}});
 			
 			# Mark it as stopped now. (if we have a server_uuid, we have a database connection)
 			if ($server_uuid)
@@ -2042,9 +2047,12 @@ WHERE
 		if (($stop_waiting) && (time > $stop_waiting))
 		{
 			# Give up waiting.
+			$waiting = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { waiting => $waiting }});
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0427", variables => { 
-				server    => $server,
-				wait_time => $wait_time,
+				server => $server,
+				'wait' => $wait_time,
 			}});
 		}
 		else

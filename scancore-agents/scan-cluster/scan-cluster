@@ -15,7 +15,6 @@
 # TODO: 
 # - When a node is lost, update the location constraints to keep the servers on the surviving node when the
 #   peer returns.
-# - Test that the fence delay favours the host that has all the servers.
 # 
 
 use strict;
@@ -104,11 +103,144 @@ find_changes($anvil);
 # Check the cluster config.
 check_config($anvil);
 
+# Check the fence delay
+check_fence_delay($anvil);
+
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Check to see if we need to move the fence delay.
+sub check_fence_delay
+{
+	my ($anvil) = @_;
+	
+	my $preferred_node = $anvil->Cluster->manage_fence_delay();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_node => $preferred_node }});
+	if ($preferred_node ne "!!error!!")
+	{
+		### NOTE: We don't make the peer be the preferred node, a node can only make itself the preferred 
+		###       node.
+		# How many servers are running on each node.
+		$anvil->Database->get_anvils();
+		$anvil->Database->get_servers();
+		$anvil->Cluster->get_peers();
+		my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid();
+		my $local_node_is   = $anvil->data->{sys}{anvil}{i_am};
+		my $local_node_name = $anvil->data->{cib}{parsed}{'local'}{name};
+		my $local_host_name = $anvil->data->{sys}{anvil}{$local_node_is}{host_name};
+		my $local_host_uuid = $anvil->data->{sys}{anvil}{$local_node_is}{host_uuid};
+		my $peer_node_is    = $anvil->data->{sys}{anvil}{peer_is};
+		my $peer_node_name  = $anvil->data->{cib}{parsed}{peer}{name};;
+		my $peer_host_name  = $anvil->data->{sys}{anvil}{$peer_node_is}{host_name};
+		my $peer_host_uuid  = $anvil->data->{sys}{anvil}{$peer_node_is}{host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_uuid      => $anvil_uuid,
+			local_node_is   => $local_node_is, 
+			local_node_name => $local_node_name, 
+			local_host_name => $local_host_name, 
+			local_host_uuid => $local_host_uuid, 
+			peer_node_is    => $peer_node_is, 
+			peer_node_name  => $peer_node_name, 
+			peer_host_name  => $peer_host_name, 
+			peer_host_uuid  => $peer_host_uuid, 
+		}});
+		
+		# Get the short host names, as that's usually what the node name is.
+		my $local_short_host_name =  $local_host_name;
+		$local_short_host_name =~ s/\..$//;
+		my $peer_short_host_name  =  $peer_host_name;
+		$peer_short_host_name  =~ s/\..$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			local_short_host_name => $local_short_host_name, 
+			peer_short_host_name  => $peer_short_host_name, 
+		}});
+		
+		# If my peer isn't in the cluster, make sure I am the fence delay host.
+		if (not $anvil->data->{cib}{parsed}{peer}{ready})
+		{
+			# My peer is not ready, make sure I'm the preferred host.
+			if (($preferred_node eq $local_node_name) or ($preferred_node eq $local_host_name) && ($preferred_node eq $local_short_host_name))
+			{
+				# We're good.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0633"});
+			}
+			else
+			{
+				# We're not, set the delay to us.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0634"});
+				my $preferred_node = $anvil->Cluster->manage_fence_delay({prefer => $local_node_name});
+				return(0);
+			}
+		}
+		
+		# How many servers are on each node?
+		my $local_server_count = 0;
+		my $peer_server_count  = 0;
+		foreach my $server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
+		{
+			next if $anvil_uuid ne $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+			
+			my $server_name      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+			my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid      => $server_uuid, 
+				server_name      => $server_name, 
+				server_state     => $server_state, 
+				server_host_uuid => $server_host_uuid, 
+			}});
+			next if $server_state eq "shut off";
+			if ($server_state eq "migrating")
+			{
+				# Don't do anything.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0635", variables => { server_name => $server_name }});
+				return(0);
+			}
+			if ($server_host_uuid eq $local_host_uuid)
+			{
+				$local_server_count++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_server_count => $local_server_count }});
+			}
+			elsif ($server_host_uuid eq $peer_host_uuid)
+			{
+				$peer_server_count++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_server_count => $peer_server_count }});
+			}
+		}
+		
+		# Don't do anything if there are no servers running anywhere, or if both servers have at least one 
+		# server.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			local_server_count => $local_server_count, 
+			peer_server_count  => $peer_server_count, 
+		}});
+		if ((not $local_server_count) && (not $peer_server_count))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0636"});
+			return(0);
+		}
+		elsif (($local_server_count) && ($peer_server_count))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0637", variables => {
+				local_server_count => $local_server_count,
+				peer_server_count  => $peer_server_count,
+			}});
+			return(0);
+		}
+		elsif (($local_server_count) && ($preferred_node ne $local_node_name))
+		{
+			# Make us the preferred host.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0638"});
+			my $preferred_node = $anvil->Cluster->manage_fence_delay({prefer => $local_node_name});
+			return(0);
+		}
+	}
+	
+	return(0);
+}
 
 sub check_config
 {
