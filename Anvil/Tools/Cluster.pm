@@ -19,6 +19,7 @@ my $THIS_FILE = "Cluster.pm";
 # assemble_storage_groups
 # boot_server
 # check_node_status
+# check_server_constraints
 # check_stonith_config
 # delete_server
 # get_fence_methods
@@ -747,6 +748,29 @@ sub check_node_status
 		"cib::parsed::data::node::${node_name}::node_state::ready"  => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready},
 	}});
 	return($anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready});
+}
+
+
+=head2 check_server_constraints
+
+This method checks to see if the peer node is offline, and the local node is only. If this is the case, the location constraints for servers are checked to ensure that they favour the current host. If not, the location constraint is updated.
+
+This is meant to be used to prevent servers from automatically migrating back to a node after it was fenced.
+
+This method takes no parameters.
+
+=cut
+sub check_server_constraints
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->check_server_constraints()" }});
+	
+	
+	
+	return(0);
 }
 
 

@@ -678,7 +678,7 @@ sub reconfigure_network
 				   $link1_config .= "IPV6INIT=\"no\"\n";
 				   $link1_config .= "ONBOOT=\"yes\"\n";
 				   $link1_config .= "USERCTL=\"no\"\n";
-				   $link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
+#				   $link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
 				   $link1_config .= "NM_CONTROLLED=\"yes\"\n";
 				   $link1_config .= "SLAVE=\"yes\"\n";
 				   $link1_config .= "MASTER=\"".$say_interface."_bond1\"\n";
@@ -694,7 +694,7 @@ sub reconfigure_network
 				   $link2_config .= "IPV6INIT=\"no\"\n";
 				   $link2_config .= "ONBOOT=\"yes\"\n";
 				   $link2_config .= "USERCTL=\"no\"\n";
-				   $link2_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
+#				   $link2_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
 				   $link2_config .= "NM_CONTROLLED=\"yes\"\n";
 				   $link2_config .= "SLAVE=\"yes\"\n";
 				   $link2_config .= "MASTER=\"".$say_interface."_bond1\"\n";
@@ -1117,7 +1117,7 @@ sub reconfigure_network
 				}
 				$link1_config .= "DEFROUTE=\"".$say_defroute."\"\n";
 				$link1_config .= "USERCTL=\"no\"\n";
-				$link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
+#				$link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
 				$link1_config .= "NM_CONTROLLED=\"yes\"\n";
 				$link1_config .= "ZONE=\"".uc($say_interface)."\"";
 				
