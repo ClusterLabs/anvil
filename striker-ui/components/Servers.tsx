@@ -1,5 +1,16 @@
-import { useContext } from 'react';
-import { List, ListItem, Divider, Box } from '@material-ui/core';
+import { useState, useContext } from 'react';
+import {
+  List,
+  ListItem,
+  Divider,
+  Box,
+  Button,
+  Checkbox,
+  Menu,
+  MenuItem,
+} from '@material-ui/core';
+import EditIcon from '@material-ui/icons/Edit';
+import MoreVertIcon from '@material-ui/icons/MoreVert';
 import { makeStyles } from '@material-ui/core/styles';
 import { Panel } from './Panels';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
@@ -43,6 +54,16 @@ const useStyles = makeStyles((theme) => ({
   hostBox: {
     paddingTop: 0,
   },
+  checkbox: {
+    paddingTop: '.8em',
+  },
+  editButtonBox: {
+    paddingTop: '.3em',
+  },
+  dropdown: {
+    paddingTop: '.8em',
+    paddingBottom: '.8em',
+  },
 }));
 
 const selectDecorator = (state: string): Colours => {
@@ -59,6 +80,9 @@ const selectDecorator = (state: string): Colours => {
 };
 
 const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
+  const [selected, setSelected] = useState<string[]>([]);
   const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
 
@@ -66,15 +90,74 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
   );
 
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleChange = (server_uuid: string): void => {
+    const index = selected.indexOf(server_uuid);
+    if (index === -1) {
+      selected.push(server_uuid);
+      setSelected([...selected]);
+    } else selected.splice(index, 1);
+  };
+
+  const isSelected = (server: string): boolean => {
+    const thing = selected.find((s) => s === server);
+    return thing !== 'undefined';
+  };
+
   const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);
 
   const filteredHosts = hostsSanitizer(anvil[anvilIndex]?.hosts);
 
   return (
     <Panel>
-      <div className={classes.headerPadding}>
-        <HeaderText text="Servers" />
-      </div>
+      <Box className={classes.headerPadding} display="flex">
+        <Box flexGrow={1}>
+          <HeaderText text="Servers" />
+        </Box>
+        <Box className={classes.editButtonBox}>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<EditIcon />}
+            onClick={() => setShowCheckbox(!showCheckbox)}
+          />
+        </Box>
+      </Box>
+      {showCheckbox && (
+        <Box className={classes.headerPadding} display="flex">
+          <Box flexGrow={1} className={classes.dropdown}>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<MoreVertIcon />}
+              onClick={handleClick}
+            >
+              <BodyText text="Power" />
+            </Button>
+            <Menu
+              id="simple-menu"
+              anchorEl={anchorEl}
+              keepMounted
+              open={Boolean(anchorEl)}
+              onClose={handleClose}
+            >
+              <MenuItem onClick={handleClose}>
+                <BodyText text="On" />
+              </MenuItem>
+              <MenuItem onClick={handleClose}>
+                <BodyText text="Off" />
+              </MenuItem>
+            </Menu>
+          </Box>
+        </Box>
+      )}
       {!isLoading ? (
         <Box className={classes.root}>
           <List component="nav">
@@ -88,6 +171,16 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                       key={server.server_uuid}
                     >
                       <Box display="flex" flexDirection="row" width="100%">
+                        {showCheckbox && (
+                          <Box className={classes.checkbox}>
+                            <Checkbox
+                              key={server.server_uuid}
+                              checked={isSelected(server.server_uuid)}
+                              onChange={() => handleChange(server.server_uuid)}
+                              inputProps={{ 'aria-label': 'primary checkbox' }}
+                            />
+                          </Box>
+                        )}
                         <Box p={1}>
                           <Decorator
                             colour={selectDecorator(server.server_state)}
