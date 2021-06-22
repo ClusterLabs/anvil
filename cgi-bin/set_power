@@ -141,28 +141,28 @@ WHERE
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid, host_uuid => $host_uuid, server_uuid => $server_uuid } });
 
-		# if ($on)
-		# {
-		# 	$anvil->Database->insert_or_update_jobs({
-		# 		job_command     => $anvil->data->{path}{exe}{'anvil-boot-server'}." --server-uuid ".$server_uuid,
-		# 		job_host_uuid   => $host_uuid,
-		# 		job_description => "",
-		# 		job_name        => "cgi-bin::set_power::server::on",
-		# 		job_progress    => 0,
-		# 		job_title       => ""
-		# 	});
-		# }
-		# else
-		# {
-		# 	$anvil->Database->insert_or_update_jobs({
-		# 		job_command     => $anvil->data->{path}{exe}{'anvil-shutdown-server'}." --server-uuid ".$server_uuid,
-		# 		job_host_uuid   => $host_uuid,
-		# 		job_description => "",
-		# 		job_name        => "cgi-bin::set_power::server::off",
-		# 		job_progress    => 0,
-		# 		job_title       => ""
-		# 	});
-		# }
+		if ($on)
+		{
+			$anvil->Database->insert_or_update_jobs({
+				job_command     => $anvil->data->{path}{exe}{'anvil-boot-server'}." --server-uuid ".$server_uuid,
+				job_host_uuid   => $host_uuid,
+				job_description => "job_0341",
+				job_name        => "cgi-bin::set_power::server::on",
+				job_progress    => 0,
+				job_title       => "job_0340"
+			});
+		}
+		else
+		{
+			$anvil->Database->insert_or_update_jobs({
+				job_command     => $anvil->data->{path}{exe}{'anvil-shutdown-server'}." --server-uuid ".$server_uuid,
+				job_host_uuid   => $host_uuid,
+				job_description => "job_0343",
+				job_name        => "cgi-bin::set_power::server::off",
+				job_progress    => 0,
+				job_title       => "job_0342"
+			});
+		}
 	}
 }
 
