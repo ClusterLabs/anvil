@@ -971,7 +971,7 @@ AND
 	# This handles weird bits for things like bug work-arounds.
 	handle_special_cases($anvil);
 	
-	# Now look for jobs that have a job status of 'scancore_startup'
+	# Now look for jobs that have a job status of 'anvil_startup'
 	run_jobs($anvil, 1);
 	
 	# Check the firewall needs to be updated.
@@ -1150,6 +1150,16 @@ sub run_jobs
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
 		
+		# If this is a start-up call, only start jobs whose status is 'anvil_startup'.
+		if (($startup) && ($say_status ne "anvil_startup"))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0639", variables => { 
+				job_uuid    => $job_uuid,
+				job_command => $job_command, 
+			}});
+			next;
+		}
+		
 		if ($job_progress ne "100")
 		{
 			$anvil->data->{sys}{jobs_running} = 1;
@@ -1175,7 +1185,7 @@ sub run_jobs
 					if ((not exists $anvil->data->{lost_job_count}{$job_uuid}) or (not defined $anvil->data->{lost_job_count}{$job_uuid}))
 					{
 						$anvil->data->{lost_job_count}{$job_uuid} = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "lost_job_count::${job_uuid}" => $anvil->data->{lost_job_count}{$job_uuid} }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "lost_job_count::${job_uuid}" => $anvil->data->{lost_job_count}{$job_uuid} }});
 					}
 					if ($anvil->data->{lost_job_count}{$job_uuid} > 5)
 					{
@@ -1189,26 +1199,26 @@ sub run_jobs
 						# Clear some variables.
 						$job_progress = 0;
 						$job_status   = "message_0056";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							job_progress => $job_progress,
 							job_status   => $job_status,
 						}});
 						
 						# Clear the job.
-						$anvil->Job->clear({debug => 3, job_uuid => $job_uuid});
+						$anvil->Job->clear({debug => 2, job_uuid => $job_uuid});
 						$anvil->data->{lost_job_count}{$job_uuid} = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "lost_job_count::${job_uuid}" => $anvil->data->{lost_job_count}{$job_uuid} }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "lost_job_count::${job_uuid}" => $anvil->data->{lost_job_count}{$job_uuid} }});
 					}
 					else
 					{
 						$anvil->data->{lost_job_count}{$job_uuid}++;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "lost_job_count::${job_uuid}" => $anvil->data->{lost_job_count}{$job_uuid} }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "lost_job_count::${job_uuid}" => $anvil->data->{lost_job_count}{$job_uuid} }});
 					}
 				}
 				
 				# Clear the PID 
 				$job_picked_up_by = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_picked_up_by => $job_picked_up_by }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_picked_up_by => $job_picked_up_by }});
 			}
 		}
 		
@@ -1259,9 +1269,10 @@ sub run_jobs
 		
 		# If the job is done, move on.
 		next if $job_progress eq "100";
+		next if $anvil->data->{switches}{'no-start'};
 		
-		# If 'startup' is set, we only care if 'job_status' is 'scancore_startup'
-		if ((not $startup) && ($say_status eq "scancore_startup"))
+		# If 'startup' is set, we only care if 'job_status' is 'anvil_startup'
+		if ((not $startup) && ($say_status eq "anvil_startup"))
 		{
 			# Skip this, it will run next time anvil-daemon restarts.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0593", variables => { 
@@ -1272,7 +1283,7 @@ sub run_jobs
 		}
 		
 		# If the job is not running, start it.
-		if ((not $job_picked_up_by) && ($job_progress ne "100") && (not $anvil->data->{switches}{'no-start'}))
+		if (not $job_picked_up_by)
 		{
 			my $command = $job_command." --job-uuid ".$job_uuid;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0210", variables => { command => $command }});
@@ -1303,15 +1314,18 @@ sub run_jobs
 				source      => $THIS_FILE, 
 				line        => __LINE__,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, return_code => $return_code }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, 
+				return_code                  => $return_code,
+			}});
 			
 			# Log the PID (the job should update the database).
 			my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pid => $pid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
 			
 			# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
 			$anvil->data->{jobs}{$job_uuid}{started} = time;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'jobs::$job_uuid::started' => $anvil->data->{jobs}{$job_uuid}{started} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'jobs::$job_uuid::started' => $anvil->data->{jobs}{$job_uuid}{started} }});
 		}
 	}
 	

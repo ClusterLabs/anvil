@@ -7849,7 +7849,7 @@ Variables can not be passed to this title key.
 
 * This is not required when C<< update_progress_only >> is set
 
-B<< Note >>: This can be set to the special C<< scancore_startup >>. When the job status is set to this value, the job will only run when ScanCore next starts up (generally after a reboot). 
+B<< Note >>: This can be set to the special C<< anvil_startup >>. When the job status is set to this value, the job will only run when ScanCore next starts up (generally after a reboot). 
 
 =head3 job_uuid (optional)
 
