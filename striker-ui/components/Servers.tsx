@@ -103,12 +103,10 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     if (index === -1) {
       selected.push(server_uuid);
       setSelected([...selected]);
-    } else selected.splice(index, 1);
-  };
-
-  const isSelected = (server: string): boolean => {
-    const thing = selected.find((s) => s === server);
-    return thing !== 'undefined';
+    } else {
+      selected.splice(index, 1);
+      setSelected([...selected]);
+    }
   };
 
   const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);
@@ -175,7 +173,11 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                           <Box className={classes.checkbox}>
                             <Checkbox
                               key={server.server_uuid}
-                              checked={isSelected(server.server_uuid)}
+                              checked={
+                                selected.find(
+                                  (s) => s === server.server_uuid,
+                                ) !== undefined
+                              }
                               onChange={() => handleChange(server.server_uuid)}
                               inputProps={{ 'aria-label': 'primary checkbox' }}
                             />
