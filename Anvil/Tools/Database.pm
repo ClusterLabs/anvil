@@ -14922,8 +14922,8 @@ sub resync_databases
 		if (not $uuid_column)
 		{
 			# This is a problem
-			print "Did not find the UUID column for the table: [".$table."]\n";
-			die;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0311", variables => { table => $table }});
+			next;
 		}
 		
 		# Get all the columns in this table.
