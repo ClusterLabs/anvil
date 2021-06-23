@@ -402,7 +402,9 @@ sub check_network
 		}
 		else
 		{
-			$anvil->Network->check_network({heal => "down_only"});
+			### NOTE: This is constantly trying to "fix" healthy bonds, without a know way to
+			###       trigger to debug. As such, disabling for now.
+			#$anvil->Network->check_network({heal => "down_only"});
 		}
 		
 		check_firewall($anvil);
@@ -1104,7 +1106,7 @@ sub keep_running
 sub run_jobs
 {
 	my ($anvil, $startup) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup => $startup }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { startup => $startup }});
 	
 	# This will be set to 1 if any jobs are not complete, preventing a restart of the daemon if it's 
 	# changed on disk.
@@ -1117,7 +1119,7 @@ sub run_jobs
 	my $ended_within = $startup ? 1 : 300;
 	my $return       = $anvil->Database->get_jobs({ended_within => $ended_within});
 	my $count        = @{$return};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		ended_within => $ended_within, 
 		'return'     => $return, 
 		count        => $count,
