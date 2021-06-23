@@ -2517,7 +2517,7 @@ sub is_local
 		}
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 		{
-			#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{$local_host}{interface}{$interface}{ip} }});
+			next if not defined $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
 			if ($host eq $anvil->data->{network}{$local_host}{interface}{$interface}{ip})
 			{
 				$anvil->data->{cache}{is_local}{$host} = 1;

@@ -422,6 +422,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0308"><![CDATA[[ Error ] - The Job: [#!variable!job-uuid!#] appears to have passed malformed data. The raw data was: [#!variable!raw!#]. Expected 'as_machine=<host_type>,manifest_uuid=<manifest_uuid>,anvil_uuid=<anvil_uuid>'. Either the parse failed, or the data was somehow invalid.]]></key>
 		<key name="error_0309">I tried to change the fencing preferred node to: [#!variable!prefer!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
+		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
