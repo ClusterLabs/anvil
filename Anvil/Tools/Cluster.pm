@@ -768,7 +768,108 @@ sub check_server_constraints
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->check_server_constraints()" }});
 	
+	# Are we a node?
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0125"});
+		return("!!error!!");
+	}
 	
+	# Are we in the cluster?
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0126"});
+		return('!!error!!');
+	}
+	
+	# Are we a full member?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0127"});
+		return('!!error!!');
+	}
+	
+	# Is our peer offline? If it's online, do nothing
+	if ($anvil->data->{cib}{parsed}{peer}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0640"});
+		return(0);
+	}
+	
+	# Get the list of fence methods for my peer and I and make sure their configs are valid.
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+	my $anvil_name      = $anvil->Get->anvil_name_from_uuid({debug => $debug, anvil_uuid => $anvil_uuid });
+	my $local_node_name = $anvil->data->{cib}{parsed}{'local'}{name};
+	my $local_host_uuid = $anvil->Get->host_uuid();
+	my $peer_node_name  = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_host_uuid  = $anvil->data->{cib}{parsed}{peer}{host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid      => $anvil_uuid, 
+		anvil_name      => $anvil_name, 
+		local_node_name => $local_node_name,
+		local_host_uuid => $local_host_uuid, 
+		peer_node_name  => $peer_node_name, 
+		peer_host_uuid  => $peer_host_uuid, 
+	}});
+	
+	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{constraints}{location}})
+	{
+		my $node_name = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node};
+		my $resource  = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource};
+		my $score     = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			id        => $id, 
+			node_name => $node_name,
+			resource  => $resource, 
+			score     => $score, 
+		}});
+		
+		$anvil->data->{location_constraint}{resource}{$resource}{node}{$node_name}{score} = $score;
+		$anvil->data->{location_constraint}{resource}{$resource}{node}{$node_name}{id}    = $id;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"location_constraint::resource::${resource}::node::${node_name}::score" => $anvil->data->{location_constraint}{resource}{$resource}{node}{$node_name}{score}, 
+			"location_constraint::resource::${resource}::node::${node_name}::id"    => $anvil->data->{location_constraint}{resource}{$resource}{node}{$node_name}{id}, 
+		}});
+	}
+	
+	# Higher score == preferred
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{location_constraint}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+		my $high_score     = 0;
+		my $preferred_node = "";
+		foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{location_constraint}{resource}{$resource}{node}})
+		{
+			my $score = $anvil->data->{location_constraint}{resource}{$resource}{node}{$node_name}{score};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				node_name => $node_name,
+				score     => $score, 
+			}});
+			if ($score > $high_score)
+			{
+				$high_score     = $score;
+				$preferred_node = $node_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					high_score     => $high_score,
+					preferred_node => $preferred_node, 
+				}});
+			}
+			
+			if ($local_node_name ne $preferred_node)
+			{
+				# Make us the preferred node.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0641", variables => { server => $resource }});
+				$anvil->Cluster->_set_server_constraint({
+					server         => $resource,
+					preferred_node => $local_node_name,
+				});
+			}
+ 		}
+	}
 	
 	return(0);
 }

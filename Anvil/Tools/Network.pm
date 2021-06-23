@@ -261,6 +261,9 @@ sub check_network
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_internet()" }});
 	
+	# This is causing more problems than it solves. Disabled for the time being.
+	return(0);
+	
 	my $heal = defined $parameter->{heal} ? $parameter->{heal} : "down_only";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		heal => $heal, 

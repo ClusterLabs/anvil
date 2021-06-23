@@ -1833,6 +1833,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0637">We've got: [#!variable!local_server_count!#] servers, and the peer has: [#!variable!peer_server_count!#] servers. Skipping fence delay preference checks for now.</key>
 		<key name="log_0638">We're hosting servers, and our peer is not. Making the fence delay favours this node.</key>
 		<key name="log_0639">The Anvil! daemon is in startup mode, and the job: [#!variable!job_uuid!#], command: [#!variable!job_command!#] is not a startup job, ignoring it for now.</key>
+		<key name="log_0640">Out peer is online, no need to check server location constraints.</key>
+		<key name="log_0641">The server: [#!variable!server!#] has a location constraint that preferres our peer, but our peer is offline. Updating the location constraint to prefer this node.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2817,6 +2819,9 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0122">[ Warning ] - Asked to find or set the fence delay, but this is not a node.</key>
 		<key name="warning_0123">[ Warning ] - Asked to find or set the fence delay, but node is not in a cluster.</key>
 		<key name="warning_0124">[ Warning ] - Asked to find or set the fence delay, but node is not fully in the cluster yet.</key>
+		<key name="warning_0125">[ Warning ] - Asked to check server location constraints, but this is not a node.</key>
+		<key name="warning_0126">[ Warning ] - Asked to check server location constraints, but this node is not in a cluster.</key>
+		<key name="warning_0127">[ Warning ] - Asked to check server location constraints, but this node is not fully in the cluster yet.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
