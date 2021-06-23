@@ -4,10 +4,12 @@ import {
   ListItem,
   Divider,
   Box,
+  IconButton,
   Button,
   Checkbox,
   Menu,
   MenuItem,
+  Typography,
 } from '@material-ui/core';
 import EditIcon from '@material-ui/icons/Edit';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
@@ -15,7 +17,14 @@ import { makeStyles } from '@material-ui/core/styles';
 import { Panel } from './Panels';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
-import { HOVER, DIVIDER } from '../lib/consts/DEFAULT_THEME';
+import {
+  HOVER,
+  DIVIDER,
+  TEXT,
+  BLUE,
+  RED,
+  GREY,
+} from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
 import Decorator, { Colours } from './Decorator';
@@ -57,12 +66,28 @@ const useStyles = makeStyles((theme) => ({
   checkbox: {
     paddingTop: '.8em',
   },
+  editButton: {
+    borderRadius: 8,
+    backgroundColor: GREY,
+    '&:hover': {
+      backgroundColor: TEXT,
+    },
+  },
   editButtonBox: {
     paddingTop: '.3em',
   },
   dropdown: {
     paddingTop: '.8em',
     paddingBottom: '.8em',
+  },
+  power: {
+    color: 'black',
+  },
+  on: {
+    color: BLUE,
+  },
+  off: {
+    color: RED,
   },
 }));
 
@@ -100,13 +125,11 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const handleChange = (server_uuid: string): void => {
     const index = selected.indexOf(server_uuid);
-    if (index === -1) {
-      selected.push(server_uuid);
-      setSelected([...selected]);
-    } else {
-      selected.splice(index, 1);
-      setSelected([...selected]);
-    }
+
+    if (index === -1) selected.push(server_uuid);
+    else selected.splice(index, 1);
+
+    setSelected([...selected]);
   };
 
   const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);
@@ -120,12 +143,13 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
           <HeaderText text="Servers" />
         </Box>
         <Box className={classes.editButtonBox}>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<EditIcon />}
+          <IconButton
+            className={classes.editButton}
+            style={{ color: showCheckbox ? RED : 'black' }}
             onClick={() => setShowCheckbox(!showCheckbox)}
-          />
+          >
+            <EditIcon />
+          </IconButton>
         </Box>
       </Box>
       {showCheckbox && (
@@ -133,11 +157,13 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
           <Box flexGrow={1} className={classes.dropdown}>
             <Button
               variant="contained"
-              color="secondary"
+              style={{ backgroundColor: GREY }}
               startIcon={<MoreVertIcon />}
               onClick={handleClick}
             >
-              <BodyText text="Power" />
+              <Typography className={classes.power} variant="subtitle1">
+                Power
+              </Typography>
             </Button>
             <Menu
               id="simple-menu"
@@ -146,11 +172,18 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
               open={Boolean(anchorEl)}
               onClose={handleClose}
             >
-              <MenuItem onClick={handleClose}>
-                <BodyText text="On" />
+              <MenuItem
+                onClick={handleClose}
+                style={{ backgroundColor: TEXT, paddingRight: '3em' }}
+              >
+                <Typography className={classes.on} variant="subtitle1">
+                  On
+                </Typography>
               </MenuItem>
-              <MenuItem onClick={handleClose}>
-                <BodyText text="Off" />
+              <MenuItem onClick={handleClose} style={{ backgroundColor: TEXT }}>
+                <Typography className={classes.off} variant="subtitle1">
+                  Off
+                </Typography>
               </MenuItem>
             </Menu>
           </Box>
@@ -172,14 +205,14 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                         {showCheckbox && (
                           <Box className={classes.checkbox}>
                             <Checkbox
-                              key={server.server_uuid}
+                              style={{ color: TEXT }}
+                              color="secondary"
                               checked={
                                 selected.find(
                                   (s) => s === server.server_uuid,
                                 ) !== undefined
                               }
                               onChange={() => handleChange(server.server_uuid)}
-                              inputProps={{ 'aria-label': 'primary checkbox' }}
                             />
                           </Box>
                         )}
