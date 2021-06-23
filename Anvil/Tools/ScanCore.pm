@@ -1804,8 +1804,8 @@ sub post_scan_analysis_node
 						if ($age > 120)
 						{
 							# Time to migrate,.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "warning_0084", variables => $variables});
-							$anvil->Alert->register({alert_level => "warning", message => "warning_0084", set_by => "ScanCore", variables => $variables});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "warning_0085", variables => $variables});
+							$anvil->Alert->register({alert_level => "warning", message => "warning_0085", set_by => "ScanCore", variables => $variables});
 							$anvil->Email->send_alerts();
 							
 							my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;

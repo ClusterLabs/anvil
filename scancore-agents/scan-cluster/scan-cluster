@@ -290,8 +290,11 @@ sub find_changes
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready} }});
 	if ($anvil->data->{cib}{parsed}{'local'}{ready})
 	{
-		$cluster_cib = $anvil->Storage->read_file({cache => 0, force_read => 1, debug => 2, file => $anvil->data->{path}{configs}{'cib.xml'}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_cib => $cluster_cib }});
+		($cluster_cib, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{pcs}." cluster cib", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			cluster_cib => $cluster_cib, 
+			return_code => $return_code,
+		}});
 	}
 	
 	if (exists $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid})

@@ -69,7 +69,7 @@ if ($local_uuid)
 		else
 		{
 			# Initialize.
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." --initdb --unit postgresql", source => $THIS_FILE, line => __LINE__});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
 				return_code => $return_code,
