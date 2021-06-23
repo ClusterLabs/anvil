@@ -106,6 +106,10 @@ check_config($anvil);
 # Check the fence delay
 check_fence_delay($anvil);
 
+# Check that the location constraint is sensible.
+$anvil->Cluster->check_server_constraints();
+
+
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################

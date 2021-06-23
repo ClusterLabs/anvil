@@ -393,7 +393,7 @@ sub check_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 			}
 			
-			$anvil->Network->check_network({heal => "all"});
+			#$anvil->Network->check_network({heal => "all"});
 			
 			$anvil->data->{sys}{network}{initial_checks} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
