@@ -270,6 +270,11 @@ sub check_network
 	my $host = $anvil->Get->short_host_name();
 	$anvil->Network->bridge_info({debug => $debug});
 	
+	if (exists $anvil->data->{bond_health})
+	{
+		delete $anvil->data->{bond_health};
+	}
+	
 	# Read in the network configuration files to track which interfaces are bound to which bonds.
 	my $repaired  = 0;
 	my $interface = "";
