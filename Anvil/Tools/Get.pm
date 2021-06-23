@@ -1752,7 +1752,7 @@ sub host_uuid
 					mode      => "0666",
 					overwrite => 0,
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0011", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0011", variables => { file => $anvil->data->{path}{data}{host_uuid} }});
 			}
 		}
 		else
