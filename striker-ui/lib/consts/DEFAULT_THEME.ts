@@ -12,5 +12,6 @@ export const UNSELECTED = '#666';
 export const DIVIDER = '#888';
 export const SELECTED_ANVIL = '#00ff00';
 export const DISABLED = '#AAA';
+export const BLACK = '#343434';
 
 export const BORDER_RADIUS = '3px';

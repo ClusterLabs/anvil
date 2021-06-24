@@ -24,6 +24,8 @@ import {
   BLUE,
   RED,
   GREY,
+  BLACK,
+  PURPLE,
 } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
@@ -66,6 +68,13 @@ const useStyles = makeStyles((theme) => ({
   checkbox: {
     paddingTop: '.8em',
   },
+  menuItem: {
+    backgroundColor: TEXT,
+    paddingRight: '3em',
+    '&:hover': {
+      backgroundColor: TEXT,
+    },
+  },
   editButton: {
     borderRadius: 8,
     backgroundColor: GREY,
@@ -81,13 +90,17 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: '.8em',
   },
   power: {
-    color: 'black',
+    color: BLACK,
   },
   on: {
     color: BLUE,
   },
   off: {
     color: RED,
+  },
+  all: {
+    paddingTop: '.5em',
+    paddingLeft: '.3em',
   },
 }));
 
@@ -107,6 +120,7 @@ const selectDecorator = (state: string): Colours => {
 const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
+  const [allSelected, setAllSelected] = useState<boolean>(false);
   const [selected, setSelected] = useState<string[]>([]);
   const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
@@ -145,7 +159,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         <Box className={classes.editButtonBox}>
           <IconButton
             className={classes.editButton}
-            style={{ color: showCheckbox ? RED : 'black' }}
+            style={{ color: showCheckbox ? PURPLE : BLACK }}
             onClick={() => setShowCheckbox(!showCheckbox)}
           >
             <EditIcon />
@@ -153,41 +167,62 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         </Box>
       </Box>
       {showCheckbox && (
-        <Box className={classes.headerPadding} display="flex">
-          <Box flexGrow={1} className={classes.dropdown}>
-            <Button
-              variant="contained"
-              style={{ backgroundColor: GREY }}
-              startIcon={<MoreVertIcon />}
-              onClick={handleClick}
-            >
-              <Typography className={classes.power} variant="subtitle1">
-                Power
-              </Typography>
-            </Button>
-            <Menu
-              id="simple-menu"
-              anchorEl={anchorEl}
-              keepMounted
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItem
-                onClick={handleClose}
-                style={{ backgroundColor: TEXT, paddingRight: '3em' }}
+        <>
+          <Box className={classes.headerPadding} display="flex">
+            <Box flexGrow={1} className={classes.dropdown}>
+              <Button
+                variant="contained"
+                startIcon={<MoreVertIcon />}
+                onClick={handleClick}
               >
-                <Typography className={classes.on} variant="subtitle1">
-                  On
+                <Typography className={classes.power} variant="subtitle1">
+                  Power
                 </Typography>
-              </MenuItem>
-              <MenuItem onClick={handleClose} style={{ backgroundColor: TEXT }}>
-                <Typography className={classes.off} variant="subtitle1">
-                  Off
-                </Typography>
-              </MenuItem>
-            </Menu>
+              </Button>
+              <Menu
+                id="simple-menu"
+                anchorEl={anchorEl}
+                keepMounted
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+              >
+                <MenuItem onClick={handleClose} className={classes.menuItem}>
+                  <Typography className={classes.on} variant="subtitle1">
+                    On
+                  </Typography>
+                </MenuItem>
+                <MenuItem onClick={handleClose} className={classes.menuItem}>
+                  <Typography className={classes.off} variant="subtitle1">
+                    Off
+                  </Typography>
+                </MenuItem>
+              </Menu>
+            </Box>
           </Box>
-        </Box>
+          <Box className={classes.headerPadding} display="flex">
+            <Box>
+              <Checkbox
+                style={{ color: TEXT }}
+                color="secondary"
+                checked={allSelected}
+                onChange={() => {
+                  if (!allSelected)
+                    setSelected(
+                      data.servers.map(
+                        (server: AnvilServer) => server.server_uuid,
+                      ),
+                    );
+                  else setSelected([]);
+
+                  setAllSelected(!allSelected);
+                }}
+              />
+            </Box>
+            <Box className={classes.all}>
+              <BodyText text="All" />
+            </Box>
+          </Box>
+        </>
       )}
       {!isLoading ? (
         <Box className={classes.root}>
