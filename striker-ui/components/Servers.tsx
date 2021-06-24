@@ -33,6 +33,8 @@ import Decorator, { Colours } from './Decorator';
 import Spinner from './Spinner';
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 
+import putJSON from '../lib/fetchers/putJSON';
+
 const useStyles = makeStyles((theme) => ({
   root: {
     width: '100%',
@@ -117,6 +119,10 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
+type ButtonLabels = 'on' | 'off';
+
+const buttonLabels: ButtonLabels[] = ['on', 'off'];
+
 const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
@@ -133,8 +139,14 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = () => {
+  const handlePower = (label: ButtonLabels) => {
     setAnchorEl(null);
+    if (!selected.length) {
+      putJSON('/set_power', {
+        server_uuid: selected,
+        is_on: label === 'on',
+      });
+    }
   };
 
   const handleChange = (server_uuid: string): void => {
@@ -184,22 +196,28 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                 anchorEl={anchorEl}
                 keepMounted
                 open={Boolean(anchorEl)}
-                onClose={handleClose}
+                onClose={handlePower}
               >
-                <MenuItem onClick={handleClose} className={classes.menuItem}>
-                  <Typography className={classes.on} variant="subtitle1">
-                    On
-                  </Typography>
-                </MenuItem>
-                <MenuItem onClick={handleClose} className={classes.menuItem}>
-                  <Typography className={classes.off} variant="subtitle1">
-                    Off
-                  </Typography>
-                </MenuItem>
+                {buttonLabels.map((label: ButtonLabels) => {
+                  return (
+                    <MenuItem
+                      onClick={() => handlePower(label)}
+                      className={classes.menuItem}
+                      key={label}
+                    >
+                      <Typography
+                        className={classes[label]}
+                        variant="subtitle1"
+                      >
+                        {label.replace(/^[a-z]/, (c) => c.toUpperCase())}
+                      </Typography>
+                    </MenuItem>
+                  );
+                })}
               </Menu>
             </Box>
           </Box>
-          <Box className={classes.headerPadding} display="flex">
+          <Box display="flex">
             <Box>
               <Checkbox
                 style={{ color: TEXT }}
