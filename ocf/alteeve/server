@@ -135,7 +135,7 @@ foreach my $key (sort {$a cmp $b} keys %ENV)
 # If pacemaker is in debug, so are we,
 if ($anvil->data->{environment}{PCMK_debug})
 {
-	$anvil->Log->level({set => 3});
+	$anvil->Log->level({set => 2});
 }
 
 # Originally, this was designed to start and stop a server's DRBD resources on demand. Early testing appears
@@ -1225,7 +1225,6 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 sub migrate_server
 {
 	my ($anvil) = @_;
-
 	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
@@ -1723,7 +1722,6 @@ sub validate_storage_drbd
 			drbd_device => $drbd_device,
 			lv_path     => $on_lv, 
 		}});
-		
 	}
 	
 	### NOTE: Checking/Managing firewall ports is expensive option, so DRBD ports are permanently opened 

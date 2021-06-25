@@ -108,6 +108,10 @@ If C<< target >> is set, this will be the user we connect to the remote machine 
 
 This is the name of the resource to enable two primaries on.
 
+=head3 set_to (optional, default 'yes')
+
+This can be set to C<< yes >> to allow two-primary, or C<< no >> to disable it. 
+
 =head3 target (optional)
 
 This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
@@ -129,12 +133,14 @@ sub allow_two_primaries
 	my $port           = defined $parameter->{port}           ? $parameter->{port}           : "";
 	my $remote_user    = defined $parameter->{remote_user}    ? $parameter->{remote_user}    : "root";
 	my $resource       = defined $parameter->{resource}       ? $parameter->{resource}       : "";
+	my $set_to         = defined $parameter->{set_to}         ? $parameter->{set_to}         : "yes";
 	my $target         = defined $parameter->{target}         ? $parameter->{target}         : "";
 	my $target_node_id = defined $parameter->{target_node_id} ? $parameter->{target_node_id} : "";
 	my $return_code    = 255; 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password       => $anvil->Log->is_secure($password),
 		port           => $port, 
+		set_to         => $set_to, 
 		remote_user    => $remote_user,
 		resource       => $resource, 
 		target         => $target, 
@@ -144,6 +150,12 @@ sub allow_two_primaries
 	if (not $resource)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->allow_two_primaries()", parameter => "resource" }});
+		return($return_code);
+	}
+	
+	if (($set_to ne "yes") && ($set_to ne "no"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0312", variables => { set_to => $set_to }});
 		return($return_code);
 	}
 	
@@ -188,13 +200,14 @@ sub allow_two_primaries
 		}
 	}
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0350", variables => { 
+	my $key = $set_to eq "yes" ? "log_0350" : "log_0642";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "", variables => { 
 		resource       => $resource,
 		target_name    => $peer_name, 
 		target_node_id => $target_node_id, 
 	}});
 	
-	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$resource." ".$target_node_id." --allow-two-primaries=yes";
+	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$resource." ".$target_node_id." --allow-two-primaries=".$set_to;
 	my $output     = "";
 	if ($anvil->Network->is_local({host => $target}))
 	{
@@ -1876,7 +1889,7 @@ sub reload_defaults
 	
 	if (not $resource)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->allow_two_primaries()", parameter => "resource" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->reload_defaults()", parameter => "resource" }});
 		return($return_code);
 	}
 	

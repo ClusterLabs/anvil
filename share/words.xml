@@ -423,6 +423,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0309">I tried to change the fencing preferred node to: [#!variable!prefer!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
+		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1835,6 +1836,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0639">The Anvil! daemon is in startup mode, and the job: [#!variable!job_uuid!#], command: [#!variable!job_command!#] is not a startup job, ignoring it for now.</key>
 		<key name="log_0640">Out peer is online, no need to check server location constraints.</key>
 		<key name="log_0641">The server: [#!variable!server!#] has a location constraint that preferres our peer, but our peer is offline. Updating the location constraint to prefer this node.</key>
+		<key name="log_0642">Disabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
