@@ -1096,6 +1096,14 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0338">Host Leave Cluster</key>
 		<!-- cgi-bin/set_membership,leave,job_description -->
 		<key name="job_0339">Make target host leave its anvil cluster.</key>
+		<!-- cgi-bin/set_power,server,on,job_title -->
+		<key name="job_0340">Power On Server VM</key>
+		<!-- cgi-bin/set_power,server,on,job_description -->
+		<key name="job_0341">Power on the target server VM by executing a start script on the first host within the cluster.</key>
+		<!-- cgi-bin/set_power,server,off,job_title -->
+		<key name="job_0342">Power Off Server VM</key>
+		<!-- cgi-bin/set_power,server,off,job_description -->
+		<key name="job_0343">Power off the target server VM by executing a stop script on the first a host within the cluster.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
