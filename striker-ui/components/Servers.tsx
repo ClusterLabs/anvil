@@ -196,7 +196,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                 anchorEl={anchorEl}
                 keepMounted
                 open={Boolean(anchorEl)}
-                onClose={handlePower}
+                onClose={() => setAnchorEl(null)}
               >
                 {buttonLabels.map((label: ButtonLabels) => {
                   return (
