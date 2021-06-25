@@ -13,6 +13,7 @@ import {
 } from '@material-ui/core';
 import EditIcon from '@material-ui/icons/Edit';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
+import CheckIcon from '@material-ui/icons/Check';
 import { makeStyles } from '@material-ui/core/styles';
 import { Panel } from './Panels';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
@@ -25,7 +26,6 @@ import {
   RED,
   GREY,
   BLACK,
-  PURPLE,
 } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
@@ -171,10 +171,10 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         <Box className={classes.editButtonBox}>
           <IconButton
             className={classes.editButton}
-            style={{ color: showCheckbox ? PURPLE : BLACK }}
+            style={{ color: BLACK }}
             onClick={() => setShowCheckbox(!showCheckbox)}
           >
-            <EditIcon />
+            {showCheckbox ? <CheckIcon /> : <EditIcon />}
           </IconButton>
         </Box>
       </Box>
@@ -186,13 +186,13 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                 variant="contained"
                 startIcon={<MoreVertIcon />}
                 onClick={handleClick}
+                style={{ textTransform: 'none' }}
               >
                 <Typography className={classes.power} variant="subtitle1">
                   Power
                 </Typography>
               </Button>
               <Menu
-                id="simple-menu"
                 anchorEl={anchorEl}
                 keepMounted
                 open={Boolean(anchorEl)}
