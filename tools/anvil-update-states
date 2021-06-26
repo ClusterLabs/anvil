@@ -2,6 +2,9 @@
 # 
 # This updates things like the current network configuration, shared file data and writes it out to a json file.
 # 
+# TODO:
+# - Retire this once scan-network is finished. 
+# 
 use strict;
 use warnings;
 use Anvil::Tools;
@@ -25,7 +28,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 # If there's no DB (or cached data isn't recorded to the database yet), this will store those records.
 $anvil->data->{cache}{new_file} = "# interface,timestamp,mac_address,speed,link_state,operational\n";
 
-$anvil->Database->connect({debug => 3});
+$anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {

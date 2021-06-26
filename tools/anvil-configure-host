@@ -112,6 +112,19 @@ sub do_reboot
 {
 	my ($anvil) = @_;
 	
+	# Mark that a reboot is needed, in case something kills us before we actually reboot.
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		file            => $THIS_FILE, 
+		line            => __LINE__, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches, 
+		job_data        => "", 
+		job_name        => "reboot::system", 
+		job_title       => "job_0009", 
+		job_description => "job_0006", 
+		job_progress    => 0,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
 	my $time_left = 60;
 	while ($time_left)
 	{

@@ -251,7 +251,7 @@ sub do_poweroff
 	$anvil->Database->update_host_status({
 		debug       => 2,
 		host_uuid   => $anvil->Get->host_uuid,
-		host_status => $task eq "poweroff" ? "rebooting" : "stopping";,
+		host_status => $task eq "poweroff" ? "rebooting" : "stopping",
 	});
 	
 	# Now do the deed.
