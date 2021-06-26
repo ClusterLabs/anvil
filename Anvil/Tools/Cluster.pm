@@ -2799,6 +2799,7 @@ sub migrate_server
 	if ($node)
 	{
 		$anvil->Cluster->_set_server_constraint({
+			debug          => 2,
 			server         => $server,
 			preferred_node => $node,
 		});

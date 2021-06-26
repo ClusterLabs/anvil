@@ -371,7 +371,7 @@ WHERE
 		my $health_agent_name    = $row->[0];
 		my $health_source_name   = $row->[1];
 		my $health_source_weight = $row->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:health_agent_name'    => $health_agent_name, 
 			's2:health_source_name'   => $health_source_name, 
 			's3:health_source_weight' => $health_source_weight, 
@@ -380,7 +380,7 @@ WHERE
 		if ($health_source_weight)
 		{
 			$health_score += $health_source_weight;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { health_score => $health_score }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_score => $health_score }});
 		}
 	}
 	
@@ -1294,7 +1294,7 @@ sub post_scan_analysis_node
 		debug     => $debug, 
 		host_uuid => $anvil->data->{cib}{parsed}{peer}{host_uuid},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		local_health => $local_health,
 		peer_health  => $peer_health, 
 	}});

@@ -974,13 +974,18 @@ sub migrate_virsh
 	}
 	
 	# Enable dual-primary for any resources we know about for this server.
+	my $resources_to_disable_dual_primary = [];
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$source}{$server}{resource}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
 		my ($return_code) = $anvil->DRBD->allow_two_primaries({
-			debug    => $debug, 
+			debug    => 2, 
 			resource => $resource, 
+			set_to   => "yes",
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+		
+		push @{$resources_to_disable_dual_primary}, $resource;
 	}
 	
 	### NOTE: This method is called by ocf:alteeve:server, which operates without database access. As 
@@ -1189,13 +1194,20 @@ WHERE
 	}
 	
 	# Switch off dual-primary.
-	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server}{resource}})
+	foreach my $resource (sort {$a cmp $b} @{$resources_to_disable_dual_primary})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
-		$anvil->DRBD->reload_defaults({
-			debug    => $debug, 
+		my ($return_code) = $anvil->DRBD->allow_two_primaries({
+			debug    => 2, 
 			resource => $resource, 
+			set_to   => "no", 
 		});
+		
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+# 		$anvil->DRBD->reload_defaults({
+# 			debug    => 2, 
+# 			resource => $resource, 
+# 		});
 	}
 	
 	return($success);
