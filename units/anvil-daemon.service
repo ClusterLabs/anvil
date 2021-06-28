@@ -4,6 +4,7 @@ Wants=network.target
 
 [Service]
 Type=simple
+ExecStartPre=-/bin/sh -c "if [ -f /usr/sbin/akmods ]; then /usr/sbin/modprobe drbd || /usr/sbin/akmods --force; fi"
 ExecStart=/usr/sbin/anvil-daemon
 ExecStop=/bin/kill -WINCH ${MAINPID}
 Restart=always
