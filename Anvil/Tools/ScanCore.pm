@@ -100,6 +100,10 @@ Parameters;
 
 This is the name of the scan agent. Usually this can be set as C<< $THIS_FILE >>.
 
+=head3 no_db_ok (optional, default 0)
+
+If set to C<< 1 >>, if no database connections are available but otherwise the startup is OK, C<< 0 >> (no problem) is returned.
+
 =head3 tables (required)
 
 This is an array reference of database tables to check when resync'ing. It is important that the tables are sorted in the order they need to be resync'ed in. (tables with primary keys before their foreign key tables).
@@ -113,11 +117,13 @@ sub agent_startup
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->agent_startup()" }});
 	
-	my $agent  = defined $parameter->{agent}  ? $parameter->{agent}  : "";
-	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
+	my $agent    = defined $parameter->{agent}    ? $parameter->{agent}    : "";
+	my $no_db_ok = defined $parameter->{no_db_ok} ? $parameter->{no_db_ok} : "";
+	my $tables   = defined $parameter->{tables}   ? $parameter->{tables}   : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		agent  => $agent, 
-		tables => $tables, 
+		agent    => $agent, 
+		no_db_ok => $no_db_ok, 
+		tables   => $tables, 
 	}});
 	
 	# Setting this will prepend messages coming grom the agent with the agent's name
@@ -160,7 +166,14 @@ sub agent_startup
 	{
 		# No databases, exit.
 		$anvil->Log->entry({source => $agent, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-		return(1);
+		if ($no_db_ok)
+		{
+			return(0);
+		}
+		else
+		{
+			return(1);
+		}
 	}
 	
 	my $table_count = @{$tables};
