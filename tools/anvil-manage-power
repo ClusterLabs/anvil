@@ -215,7 +215,9 @@ sub do_poweroff
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => $say_task});
 		
 		sleep $difference;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0227", variables => { task => $task eq "poweroff" ? "#!string!log_0225!#" : "#!string!log_0226!#" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0227", variables => { 
+			task => $task eq "poweroff" ? "#!string!log_0225!#" : "#!string!log_0226!#",
+		}});
 	}
 	
 	# If I don't have a job_uuid, try to find one.

@@ -2045,6 +2045,8 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${in_iface}::ip"              => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}, 
 				"network::${host}::interface::${in_iface}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}, 
@@ -2054,6 +2056,70 @@ sub get_ips
 				"network::${host}::interface::${in_iface}::gateway"         => $anvil->data->{network}{$host}{interface}{$in_iface}{gateway}, 
 				"network::${host}::interface::${in_iface}::dns"             => $anvil->data->{network}{$host}{interface}{$in_iface}{dns}, 
 			}});
+			
+			if ($in_iface ne "lo")
+			{
+				# Read the read and write bytes.
+				my $read_bytes  = 0;
+				my $write_bytes = 0;
+				my $shell_call  = "
+if [ -e '/sys/class/net/".$in_iface."/statistics/rx_bytes' ]; 
+then 
+    echo -n 'rx:'; 
+    cat /sys/class/net/".$in_iface."/statistics/rx_bytes; 
+    echo -n 'tx:'; 
+    cat /sys/class/net/".$in_iface."/statistics/tx_bytes; 
+else 
+    echo 'rx:0'; 
+    echo 'tx:0';
+fi";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				my $transmit_sizes = "";
+				if ($is_local)
+				{
+					# Local call.
+					($transmit_sizes, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:transmit_sizes' => $transmit_sizes,
+						's2:return_code'    => $return_code, 
+					}});
+				}
+				else
+				{
+					# Remote call
+					($transmit_sizes, my $error, my $return_code) = $anvil->Remote->call({
+						debug       => $debug, 
+						shell_call  => $shell_call,
+						target      => $target,
+						user        => $remote_user, 
+						password    => $password,
+						remote_user => $remote_user, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:transmit_sizes' => $transmit_sizes,
+						's2:error'          => $error,
+						's3:return_code'    => $return_code, 
+					}});
+				}
+				foreach my $line (split/\n/, $transmit_sizes)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					if ($line =~ /rx:(\d+)/)
+					{
+						$anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes} = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"network::${host}::interface::${in_iface}::rx_bytes" => $anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes}}).")", 
+						}});
+					}
+					if ($line =~ /tx:(\d+)/)
+					{
+						$anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes} = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"network::${host}::interface::${in_iface}::tx_bytes" => $anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes}}).")", 
+						}});
+					}
+				}
+			}
 		}
 		next if not $in_iface;
 		if ($in_iface eq "lo")

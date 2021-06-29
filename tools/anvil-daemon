@@ -144,7 +144,7 @@ $anvil->data->{switches}{'no-start'}       = 0;
 $anvil->data->{switches}{'startup-only'}   = 0;
 $anvil->Get->switches;
 
-$anvil->Log->level({set => 1});
+$anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -866,7 +866,7 @@ sub boot_time_tasks
 	
 	# If the uptime is less than ten minutes, clear the reboot flag.
 	my $uptime = $anvil->Get->uptime;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
 	
 	# Now find out if a reboot is listed as needed and when it was last changed.
 	my $reboot_needed       = 0;
@@ -921,7 +921,11 @@ AND
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 			
 			# Check to see if there was a reboot job in progress. If so, finish it off.
-			my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => "anvil-manage-power"});
+			my $job_uuid = $anvil->Job->get_job_uuid({
+				debug      => 2, 
+				program    => "anvil-manage-power",
+				incomplete => 1,
+			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 			
 			if ($job_uuid)

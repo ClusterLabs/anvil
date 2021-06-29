@@ -320,6 +320,10 @@ Parameters;
 
 If set, this will search for the job on a specific host.
 
+=head3 incomplete (optional, default '0')
+
+If set to C<< 1 >>, any job that is incomplete (C<< job_progress < 100 >>) is searched. If set to C<< 0 >>, only job that have not started (C<< job_progress = 0 >>) are searched.
+
 =head3 program (required)
 
 This is the program name to look for. Specifically, this string is used to search C<< job_command >> (anchored to the start of the column and a wild-card end, ie: C<< program => foo >> would find C<< foobar >> or C<< foo --bar >>). Be as specific as possible. If two or more results are found, no C<< job_uuid >> will be returned. There must be only one match for this method to work properly.
@@ -333,12 +337,14 @@ sub get_job_uuid
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->get_job_uuid()" }});
 	
-	my $job_uuid  = "";
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
-	my $program   = defined $parameter->{program}   ? $parameter->{program}   : "";
+	my $job_uuid   = "";
+	my $host_uuid  = defined $parameter->{host_uuid}  ? $parameter->{host_uuid}  : $anvil->Get->host_uuid;
+	my $incomplete = defined $parameter->{incomplete} ? $parameter->{incomplete} : 0;
+	my $program    = defined $parameter->{program}    ? $parameter->{program}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		host_uuid => $host_uuid, 
-		program   => $program,
+		host_uuid  => $host_uuid, 
+		incomplete => $incomplete, 
+		program    => $program,
 	}});
 	
 	# Return if we don't have a program name.
@@ -348,6 +354,9 @@ sub get_job_uuid
 		return(1);
 	}
 	
+	my $say_progress = $incomplete ? "< 100" : "= 0";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_progress => $say_progress }});
+	
 	my $query = "
 SELECT 
     job_uuid 
@@ -356,7 +365,7 @@ FROM
 WHERE 
     job_command LIKE ".$anvil->Database->quote("%".$program."%")." 
 AND 
-    job_progress  = 0
+    job_progress  ".$say_progress."
 AND 
     job_host_uuid = ".$anvil->Database->quote($host_uuid)." 
 LIMIT 1

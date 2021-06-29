@@ -216,11 +216,14 @@ sub configure_pacemaker
 	($return_code) = $anvil->System->disable_daemon({daemon => "ksm.service"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "ksm.service" }});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!ksm.service!!");
+	
 	($return_code) = $anvil->System->stop_daemon({daemon => "ksmtuned.service"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
-	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!ksm.service!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "drbd.service" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "ksmtuned.service" }});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!ksmtuned.service!!");
 	
 	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the
 	# cluster shortly.
