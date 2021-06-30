@@ -481,8 +481,7 @@ sub delete_resource
 	# Now wipefs and lvremove each backing device
 	foreach my $backing_disk (sort {$a cmp $b} keys %{$anvil->data->{drbd}{resource}{$resource}{backing_disk}})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0591", variables => { backing_disk => $backing_disk }});
-		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0591", variables => { device_path => $backing_disk }});
 		my $shell_call = $anvil->data->{path}{exe}{wipefs}." --all ".$backing_disk;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -691,7 +690,7 @@ sub gather_data
 						}});
 						
 						# Record the local data only.
-						if (($this_host_name ne $anvil->Get->host_name) && ($this_host_name ne $anvil->Get->short_host_name))
+						if (($this_host_name eq $anvil->Get->host_name) or ($this_host_name eq $anvil->Get->short_host_name))
 						{
 							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
 							$anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');

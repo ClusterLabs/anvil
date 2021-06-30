@@ -1085,6 +1085,67 @@ sub find_changes
 	return(0);
 }
 
+# Look for changes in the bonds.
+sub bridge_name
+{
+	my ($anvil) = @_;
+	
+	foreach my $bond_name (sort {$a cmp $b} keys %{$anvil->data->{new}{bond}})
+	{
+		# Store the bond
+		my $new_mode                 = $anvil->data->{new}{bond}{$bond_name}{mode};
+		my $new_mtu                  = $anvil->data->{new}{bond}{$bond_name}{mtu};
+		my $new_master               = $anvil->data->{new}{bond}{$bond_name}{master};
+		my $new_link_state           = $anvil->data->{new}{bond}{$bond_name}{link_state};
+		my $new_operational          = $anvil->data->{new}{bond}{$bond_name}{operational};
+		my $new_mac_address          = $anvil->data->{new}{bond}{$bond_name}{mac_address};
+		my $new_primary_interface    = $anvil->data->{new}{bond}{$bond_name}{primary_interface};
+		my $new_primary_reselect     = $anvil->data->{new}{bond}{$bond_name}{primary_reselect};
+		my $new_active_interface     = $anvil->data->{new}{bond}{$bond_name}{active_interface};
+		my $new_mii_polling_interval = $anvil->data->{new}{bond}{$bond_name}{mii_polling_interval};
+		my $new_up_delay             = $anvil->data->{new}{bond}{$bond_name}{up_delay};
+		my $new_down_delay           = $anvil->data->{new}{bond}{$bond_name}{down_delay};
+		my $new_tx_bytes             = $anvil->data->{new}{bond}{$bond_name}{tx_bytes};
+		my $new_rx_bytes             = $anvil->data->{new}{bond}{$bond_name}{rx_bytes};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bond_name                => $bond_name, 
+			new_mode                 => $new_mode, 
+			new_mtu                  => $new_mtu, 
+			new_master               => $new_master, 
+			new_link_state           => $new_link_state, 
+			new_operational          => $new_operational, 
+			new_mac_address          => $new_mac_address, 
+			new_primary_interface    => $new_primary_interface, 
+			new_primary_reselect     => $new_primary_reselect, 
+			new_active_interface     => $new_active_interface, 
+			new_mii_polling_interval => $new_mii_polling_interval, 
+			new_up_delay             => $new_up_delay, 
+			new_down_delay           => $new_down_delay, 
+			new_bridge_uuid          => $new_bridge_uuid, 
+			new_tx_bytes             => $new_tx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_tx_bytes}).")", 
+			new_rx_bytes             => $new_rx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_rx_bytes}).")", 
+		}});
+		
+		# If we don't have a bridge_uuid, find it by the name.
+		my $new_bridge_uuid = "";
+		my $new_bridge_name = "";
+		if (exists $anvil->data->{interface_to_bridge}{$bond_name})
+		{
+			# This bond is on a bridge
+			$new_bridge_name = $anvil->data->{interface_to_bridge}{$bond_name};
+			$new_bridge_uuid = $anvil->data->{old}{bridges}{name_to_uuid}{$new_bridge_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				new_bridge_uuid => $new_bridge_uuid, 
+				new_bridge_uuid => $new_bridge_uuid, 
+			}});
+		}
+		
+	}
+	
+	
+	return(0);
+}
+
 # Look for changes in the bridges.
 sub check_bridges
 {
@@ -1101,6 +1162,7 @@ sub check_bridges
 		my $new_tx_bytes    = $anvil->data->{new}{bridge}{$bridge_name}{tx_bytes};
 		my $new_rx_bytes    = $anvil->data->{new}{bridge}{$bridge_name}{rx_bytes};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bridge_name     => $bridge_name, 
 			new_bridge_id   => $new_bridge_id, 
 			new_mac_address => $new_mac_address, 
 			new_mtu         => $new_mtu, 
