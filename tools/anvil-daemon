@@ -144,9 +144,6 @@ $anvil->data->{switches}{'no-start'}       = 0;
 $anvil->data->{switches}{'startup-only'}   = 0;
 $anvil->Get->switches;
 
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 if ($anvil->data->{switches}{'refresh-json'})

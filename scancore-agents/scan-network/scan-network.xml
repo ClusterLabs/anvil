@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_log_0001'.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
+		
+		<!-- Alert entries -->
+		<key name="scan_network_alert_0001">The bridge: [#!variable!bridge!#] was a libvirtd NAT'ed bridge and has been removed.</key>
+		<key name="scan_network_alert_0002">A new bridge: [#!variable!bridge_name!#] has been found;
+- Bridge ID: . [#!variable!bridge_id!#]
+- MAC Address: [#!variable!mac_address!#]
+- MTU (bytes): [#!variable!mtu!#]
+- STP Enabled: [#!variable!stp_enabled!#]
+		</key>
+		<key name="scan_network_alert_0003">The bridge: [#!variable!name!#] bridge ID has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0004">The bridge: [#!variable!name!#] MAC address has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0005">The bridge: [#!variable!name!#] MTU bytes size has changed from: [#!variable!old!#] to: [#!variable!new!#]. The MTU is set by the _lowest_ MTU device connected to a bridge.</key>
+		<key name="scan_network_alert_0006">The bridge: [#!variable!name!#] STP enabled value has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0007">The bridge: [#!variable!name!#] transmitted (tx) size has grown from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0008">The bridge: [#!variable!name!#] transmitted (tx) size has dropped from: [#!variable!old!#] to: [#!variable!new!#]. This is expected after a network interface is restart.</key>
+		<key name="scan_network_alert_0009">The bridge: [#!variable!name!#] received (rx) size has grown from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0010">The bridge: [#!variable!name!#] received (rx) size has dropped from: [#!variable!old!#] to: [#!variable!new!#]. This is expected after a network interface is restart.</key>
+		
+		<!-- Error entries -->
+		<key name="scan_network_error_0001">Failed to read the network interface speed from the file: [#!variable!file!#]. Ignoring interface.</key>
+		<key name="scan_network_error_0002">The network interface Speed: [#!variable!speed!#] as read from: [#!variable!file!#] isn't numeric. Ignoring interface.</key>
+		
+	</language>
+</words>
