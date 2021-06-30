@@ -7,13 +7,15 @@ import Decorator, { Colours } from '../Decorator';
 import HOST_STATUS from '../../lib/consts/NODES';
 
 import putJSON from '../../lib/fetchers/putJSON';
+import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     overflow: 'auto',
     height: '28vh',
     paddingLeft: '.3em',
-    [theme.breakpoints.down('md')]: {
+    paddingRight: '.3em',
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
       overflow: 'hidden',
     },

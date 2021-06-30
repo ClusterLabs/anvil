@@ -26,6 +26,7 @@ import {
   RED,
   GREY,
   BLACK,
+  LARGE_MOBILE_BREAKPOINT,
 } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
@@ -40,8 +41,10 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     overflow: 'auto',
     height: '78vh',
-    [theme.breakpoints.down('md')]: {
+    paddingRight: '.3em',
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
+      overflow: 'hidden',
     },
   },
   divider: {
