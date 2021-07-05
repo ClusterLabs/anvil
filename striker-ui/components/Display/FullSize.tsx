@@ -1,6 +1,6 @@
 import VncDisplay from 'react-vnc-display';
-import { Panel } from './Panels';
-import { HeaderText } from './Text';
+import { Panel } from '../Panels';
+import { HeaderText } from '../Text';
 
 const Display = (): JSX.Element => {
   return (
