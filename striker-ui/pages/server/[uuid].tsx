@@ -43,7 +43,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const Server = (): JSX.Element => {
-  const [previewMode] = useState<boolean>(true);
+  const [previewMode, setPreviewMode] = useState<boolean>(true);
   const classes = useStyles();
 
   const router = useRouter();
@@ -61,7 +61,7 @@ const Server = (): JSX.Element => {
         (previewMode ? (
           <Box className={classes.container}>
             <Box className={classes.child}>
-              <Preview />
+              <Preview setMode={setPreviewMode} />
               <CPU />
               <Memory />
             </Box>
@@ -74,7 +74,7 @@ const Server = (): JSX.Element => {
           </Box>
         ) : (
           <Box className={classes.container}>
-            <FullSize />
+            <FullSize setMode={setPreviewMode} />
           </Box>
         ))}
     </>
