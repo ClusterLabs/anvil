@@ -1,20 +1,63 @@
+import { Dispatch, SetStateAction } from 'react';
+import { Box } from '@material-ui/core';
+import { makeStyles } from '@material-ui/core/styles';
+import CloseIcon from '@material-ui/icons/Close';
+import IconButton from '@material-ui/core/IconButton';
 import VncDisplay from 'react-vnc-display';
 import { Panel } from '../Panels';
-import { HeaderText } from '../Text';
+import { RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
-const Display = (): JSX.Element => {
+const useStyles = makeStyles(() => ({
+  displayBox: {
+    paddingTop: '1em',
+    paddingBottom: 0,
+  },
+  closeButton: {
+    borderRadius: 8,
+    backgroundColor: RED,
+    '&:hover': {
+      backgroundColor: RED,
+    },
+  },
+  closeBox: {
+    paddingLeft: '.7em',
+    paddingRight: 0,
+  },
+}));
+
+interface PreviewProps {
+  setMode: Dispatch<SetStateAction<boolean>>;
+}
+
+const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
+  const classes = useStyles();
+
   return (
     <Panel>
-      <HeaderText text="Display" />
-      <VncDisplay
-        url="wss://spain.cdot.systems:5000/"
-        style={{
-          width: '50vw',
-          height: '70vh',
-        }}
-      />
+      <Box display="flex" className={classes.displayBox}>
+        <Box>
+          <VncDisplay
+            url="wss://spain.cdot.systems:5000/"
+            style={{
+              width: '75vw',
+              height: '80vh',
+            }}
+          />
+        </Box>
+        <Box className={classes.closeBox}>
+          <IconButton
+            className={classes.closeButton}
+            style={{ color: TEXT }}
+            aria-label="upload picture"
+            component="span"
+            onClick={() => setMode(true)}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </Box>
     </Panel>
   );
 };
 
-export default Display;
+export default FullSize;
