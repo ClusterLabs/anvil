@@ -2578,6 +2578,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="suffix_0054">Ebps</key>		<!-- Short suffix for 'exabits per second' (1,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0055">Zbps</key>		<!-- Short suffix for 'zettabits per second' (1,000,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0056">Ybps</key>		<!-- Short suffix for 'yotabits per second' (1,000,000,000,000,000,000,000,000 bits per second). -->
+		<key name="suffix_0057">Bytes</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

@@ -16,10 +16,12 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_l
 		<!-- Alert entries -->
 		<key name="scan_network_alert_0001">The bridge: [#!variable!bridge!#] was a libvirtd NAT'ed bridge and has been removed.</key>
 		<key name="scan_network_alert_0002">A new bridge: [#!variable!bridge_name!#] has been found;
-- Bridge ID: . [#!variable!bridge_id!#]
-- MAC Address: [#!variable!mac_address!#]
-- MTU (bytes): [#!variable!mtu!#]
-- STP Enabled: [#!variable!stp_enabled!#]
+- Bridge ID: ... [#!variable!bridge_id!#]
+- MAC Address: . [#!variable!mac_address!#]
+- MTU (bytes): . [#!variable!mtu!#]
+- STP Enabled: . [#!variable!stp_enabled!#]
+- Data Sent: ... [#!variable!say_tx!#]
+- Data Received: [#!variable!say_rx!#]
 		</key>
 		<key name="scan_network_alert_0003">The bridge: [#!variable!name!#] bridge ID has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
 		<key name="scan_network_alert_0004">The bridge: [#!variable!name!#] MAC address has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
@@ -29,10 +31,191 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_l
 		<key name="scan_network_alert_0008">The bridge: [#!variable!name!#] transmitted (tx) size has dropped from: [#!variable!old!#] to: [#!variable!new!#]. This is expected after a network interface is restart.</key>
 		<key name="scan_network_alert_0009">The bridge: [#!variable!name!#] received (rx) size has grown from: [#!variable!old!#] to: [#!variable!new!#].</key>
 		<key name="scan_network_alert_0010">The bridge: [#!variable!name!#] received (rx) size has dropped from: [#!variable!old!#] to: [#!variable!new!#]. This is expected after a network interface is restart.</key>
+		<key name="scan_network_alert_0011">A new bond: [#!variable!bond_name!#] has been found;
+- Bond mode (see below): . [#!variable!mode!#]
+- MTU (bytes): ........... [#!variable!mtu!#]
+- Connected to Bridge: ... [#!variable!bridge!#]
+- Operation: ............. [#!variable!operational!#]
+- MAC Address: ........... [#!variable!mac_address!#]
+- Primary Interface: ..... [#!variable!primary_interface!#]
+- Primary Reselect Policy: [#!variable!primary_reselect!#]
+- Active Interface: ...... [#!variable!active_interface!#]
+- Link Check Interval: ... [#!variable!mii_polling_interval!#] ms
+- Link Up Delay: ......... [#!variable!up_delay!#] ms
+- Link Down Delay: ....... [#!variable!down_delay!#] ms
+- Data Sent: ............. [#!variable!say_tx!#]
+- Data Received: ......... [#!variable!say_rx!#]
+
+Bond Mode Description (Mode number: [#!variable!number!#]):
+========
+#!variable!description!#
+========
+		</key>
+		<key name="scan_network_alert_0012">The bond: [#!variable!name!#] mode has changed from: [#!variable!old!#] to: [#!variable!new!#]. This should not normally change!
+Descriptions;
+
+* New (Mode number: [#!variable!new_number!#]):
+========
+#!variable!new_description!#
+========
+
+* Old (Mode number: [#!variable!old_number!#]):
+========
+#!variable!old_description!#
+========
+</key>
+		<key name="scan_network_alert_0013">The bond: [#!variable!name!#] MTU byte size has increased from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0014">The bond: [#!variable!name!#] MTU byte size has dropped from: [#!variable!old!#] to: [#!variable!new!#]. Note that any device with a higher MTU may fail to transmit packages larger than the new byte size!</key>
+		<key name="scan_network_alert_0015">The bridge that the bond: [#!variable!name!#] connects to has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0016">The bond: [#!variable!name!#] has gone down! There are no operational links available. The operational status has changed from: [#!variable!old!#] to: [#!variable!new!#].
+Note: If this is a Storage Network directly connected to the peer, and the peer is down, then this is expected. Otherwise, this is likely a serious problem.
+		</key>
+		<key name="scan_network_alert_0017">The bond: [#!variable!name!#] is back up! The operational status has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0018">The bond: [#!variable!name!#] MAC address has changed from: [#!variable!old!#] to: [#!variable!new!#]. This can happen if the active interface has changed.</key>
+		<key name="scan_network_alert_0019">The bond: [#!variable!name!#]'s primary interface has changed from: [#!variable!old!#] to: [#!variable!new!#]. Did an admin change this?</key>
+		<key name="scan_network_alert_0020">The bond: [#!variable!name!#]'s primary reselect policy has changed from: [#!variable!old!#] to: [#!variable!new!#]. Did an admin change this?</key>
+		<key name="scan_network_alert_0021">The bond: [#!variable!name!#]'s active interface is no longer the primary interface. The active interface changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0022">The bond: [#!variable!name!#]'s active interface is back to being the primary interface. The active interface changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0023">The bond: [#!variable!name!#]'s MII polling interval, that is how often it checks for a link in case the interface's driver fails to tell us a link state has changed, has changed from: [#!variable!old!#] ms to: [#!variable!new!#] ms. Did an admin change this?</key>
+		<key name="scan_network_alert_0024">The bond: [#!variable!name!#]'s up delay, that is how long it waits between the link coming up and when the linux is "ready to use", has changed from: [#!variable!old!#] ms to: [#!variable!new!#] ms. Did an admin change this?</key>
+		<key name="scan_network_alert_0025">The bond: [#!variable!name!#]'s down delay, that is how long after the link drops that the link is considered "down", has changed from: [#!variable!old!#] ms to: [#!variable!new!#] ms. Did an admin change this? This should always be '0'.</key>
+		<key name="scan_network_alert_0026">The bridge: [#!variable!name!#] woth bridge ID: [#!variable!new!#] has returned!</key>
+		<key name="scan_network_alert_0027">The bond: [#!variable!name!#] is back and it is up!</key>
+		<key name="scan_network_alert_0028">The bond: [#!variable!name!#] is back, but it's operational status is still down. It should come up once at least one interface cmes up.</key>
+		<key name="scan_network_alert_0029">A new network interface: [#!variable!interface_name!#] has been found;
+- Member of bond: .. [#!variable!bond_name!#]
+- Connect to bridge: [#!variable!bridge_name!#]
+- Duplex mode: ..... [#!variable!duplex!#]
+- Link state: ...... [#!variable!link_state!#]
+- Operational State: [#!variable!operational!#]
+- MAC address: ..... [#!variable!mac_address!#]
+- Medium: .......... [#!variable!medium!#] (unknown usually means virtual)
+- MTU (bytes): ..... [#!variable!mtu!#]
+- Link speed (Mbps): [#!variable!speed!#]
+- Data Sent: ....... [#!variable!say_tx!#]
+- Data Received: ... [#!variable!say_rx!#]
+</key>
+		<key name="scan_network_alert_0030">The network interface: [#!variable!name!#] is now a member of the bond: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0031">The network interface: [#!variable!name!#] is no longer a member of the bond: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0032">The network interface: [#!variable!name!#] is has moved from the bond: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0033">The network interface: [#!variable!name!#] is now connected to the bridge: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0034">The network interface: [#!variable!name!#] is no longer connected to the bridge: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0035">The network interface: [#!variable!name!#] is has moved from the bridge: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0036">The network interface: [#!variable!name!#] duplex has changed from: [#!variable!old!#] to: [#!variable!new!#]. When 'half' duplex, the cable is likely bad and data can only be transmitted or received, not both at the same time.</key>
+		<key name="scan_network_alert_0037">The network interface: [#!variable!name!#] duplex is back to being "full" (transmit and receive can happen at the same time).</key>
+		<key name="scan_network_alert_0038">The network interface: [#!variable!name!#] is down!</key>
+		<key name="scan_network_alert_0039">The network interface: [#!variable!name!#] is back up!</key>
+		<key name="scan_network_alert_0040">The network interface: [#!variable!name!#] is no longer operational!</key>
+		<key name="scan_network_alert_0041">The network interface: [#!variable!name!#] is operational again!</key>
+		<key name="scan_network_alert_0042">The network interface: [#!variable!name!#] is back, and it is operational!</key>
+		<key name="scan_network_alert_0043">The network interface: [#!variable!name!#] is back, but it is not operational yet.</key>
+		<key name="scan_network_alert_0044">The network interface: [#!variable!name!#] MAC address has changed from: [#!variable!old!#] to: [#!variable!new!#]. This is normal and expected when a network interface (or the mainboard it's on) is changed.</key>
+		<key name="scan_network_alert_0045">The network interface: [#!variable!name!#] medium has changed from: [#!variable!old!#] to: [#!variable!new!#]. This is normal and expected when a network interface (or the mainboard it's on) is changed to a different medium (like twisted-pair to fiber optics).</key>
+		<key name="scan_network_alert_0046">The network interface: [#!variable!name!#] MTU byte size has increased from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0047">The network interface: [#!variable!name!#] MTU byte size has dropped from: [#!variable!old!#] to: [#!variable!new!#]. Note that any device with a higher MTU may fail to transmit packages larger than the new byte size!</key>
+		<key name="scan_network_alert_0048">The network interface: [#!variable!name!#] speed (in Mbps) has dropped from: [#!variable!old!#] to: [#!variable!new!#]! Is the network cable failing?</key>
+		<key name="scan_network_alert_0049">The network interface: [#!variable!name!#] speed (in Mbps) has increaed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0050">The IP address: [#!variable!ip_address!#] has moved from the interface: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0051">The subnet mask on the interface: [#!variable!interface!#] has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0052">The gateway on the interface: [#!variable!interface!#] associated with the IP address: [#!variable!ip_address!#] has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0053">The default gateway status on the interface: [#!variable!interface!#] associated with the IP address: [#!variable!ip_address!#] has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0054">The DNS servers on the interface: [#!variable!interface!#] associated with the IP address: [#!variable!ip_address!#] has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0055">The IP address: [#!variable!ip_address!#] is being used again. It has been assigned to the interface: [#!variable!interface!#].</key>
+		<key name="scan_network_alert_0056">The new IP address: [#!variable!ip_address!#] has been found.
+- On interface: .. [#!variable!interface!#]
+- Subnet Mask: ... [#!variable!subnet_mask!#]
+- Gateway: ....... [#!variable!gateway!#]
+- Default Gateway? [#!variable!default_gateway!#]
+- DNS: ........... [#!variable!dns!#]
+</key>
+		<key name="scan_network_alert_0057">The bridge: [#!variable!name!#] appears to have been stopped or deleted. The last time we saw it, it had transmitted: [#!variable!tx!#] and received: [#!variable!rx!#].</key>
+		<key name="scan_network_alert_0058">The bond: [#!variable!name!#] appears to have been stopped or deleted. The last time we saw it, it had transmitted: [#!variable!tx!#] and received: [#!variable!rx!#].</key>
+		<key name="scan_network_alert_0059">The network interface: [#!variable!name!#] appears to have been removed. The last time we saw it, it had transmitted: [#!variable!tx!#] and received: [#!variable!rx!#].</key>
+		<key name="scan_network_alert_0060">The IP address: [#!variable!ip!#] appears to no longer be used on this machine.</key>
 		
 		<!-- Error entries -->
 		<key name="scan_network_error_0001">Failed to read the network interface speed from the file: [#!variable!file!#]. Ignoring interface.</key>
 		<key name="scan_network_error_0002">The network interface Speed: [#!variable!speed!#] as read from: [#!variable!file!#] isn't numeric. Ignoring interface.</key>
+		
+		<!-- Bonding modes - Data from: /usr/share/doc/iputils/README.bonding -->
+		<key name="scan_network_bond_balance-rr_name">Balance Round-Robin</key>
+		<key name="scan_network_bond_balance-rr_number">0</key>
+		<key name="scan_network_bond_balance-rr_description">Round-robin policy: Transmit packets in sequential order from the first available slave through the last. 
+
+This mode provides load balancing and fault tolerance.
+
+This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
+		</key>
+		<key name="scan_network_bond_active-backup_name">Active-Backup</key>
+		<key name="scan_network_bond_active-backup_number">1</key>
+		<key name="scan_network_bond_active-backup_description">Active-backup policy: Only one slave in the bond is active. A different slave becomes active if, and only if, the active slave fails. The bond's MAC address is externally visible on only one port (network adapter) to avoid confusing the switch.
+When a failover occurs in active-backup mode, bonding will issue one or more gratuitous ARPs on the newly active slave. One gratuitous ARP is issued for the bonding master interface and each VLAN interfaces configured above it, provided that the interface has at least one IP address configured. Gratuitous ARPs issued for VLAN interfaces are tagged with the appropriate VLAN id.
+
+This mode provides fault tolerance.
+
+This is the *only* mode supported by the Anvil! Intelligent Availability™ platform.
+		</key>
+		<key name="scan_network_bond_balance-xor_name">Balance XOR (exclusive-or)</key>
+		<key name="scan_network_bond_balance-xor_number">2</key>
+		<key name="scan_network_bond_balance-xor_description">XOR policy: Transmit based on the selected transmit hash policy. The default policy is a simple [(sourceMAC address XOR'd with destination MAC address) modulo slave count]. Alternate transmit policies may be selected via the xmit_hash_policy option, described below.
+
+This mode provides load balancing and fault tolerance.
+
+This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
+		</key>
+		<key name="scan_network_bond_broadcast_name">Broadcast</key>
+		<key name="scan_network_bond_broadcast_number">3</key>
+		<key name="scan_network_bond_broadcast_description">Broadcast policy: transmits everything on all slave interfaces.
+This mode provides fault tolerance.
+
+This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
+		</key>
+		<key name="scan_network_bond_802.3ad_name">Link Aggregation (802.3ad)</key>
+		<key name="scan_network_bond_802.3ad_number">4</key>
+		<key name="scan_network_bond_802.3ad_description">IEEE 802.3ad Dynamic link aggregation. Creates aggregation groups that share the same speed and duplex settings. Utilizes all slaves in the active aggregator according to the 802.3ad specification.
+
+Slave selection for outgoing traffic is done according to the transmit hash policy, which may be changed from the default simple XOR policy via the xmit_hash_policy option, documented below. Note that not all transmit policies may be 802.3ad compliant, particularly in regards to the packet mis-ordering requirements of section 43.2.4 of the 802.3ad standard. Differing peer implementations will have varying tolerances for noncompliance.
+
+Prerequisites:
+
+1. Ethtool support in the base drivers for retrieving the speed and duplex of each slave.
+
+2. A switch that supports IEEE 802.3ad Dynamic link aggregation.
+
+Most switches will require some type of configuration to enable 802.3ad mode.
+
+This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
+		</key>
+		<key name="scan_network_bond_balance-tlb_name">Adaptive Transmit Load Balancing</key>
+		<key name="scan_network_bond_balance-tlb_number">5</key>
+		<key name="scan_network_bond_balance-tlb_description">Adaptive transmit load balancing: channel bonding that does not require any special switch support. The outgoing traffic is distributed according to the current load (computed relative to the speed) on each slave. Incoming traffic is received by the current slave. If the receiving slave fails, another slave takes over the MAC address of the failed receiving slave.
+
+Prerequisite:
+
+Ethtool support in the base drivers for retrieving the speed of each slave.
+
+This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
+		</key>
+		<key name="scan_network_bond_balance-alb_name">Active Load Balancing</key>
+		<key name="scan_network_bond_balance-alb_number">6</key>
+		<key name="scan_network_bond_balance-alb_description">Adaptive load balancing: includes balance-tlb plus receive load balancing (rlb) for IPV4 traffic, and does not require any special switch support. The receive load balancing is achieved by ARP negotiation. The bonding driver intercepts the ARP Replies sent by the local system on their way out and overwrites the source hardware address with the unique hardware address of one of the slaves in the bond such that different peers use different hardware addresses for the server.
+
+Receive traffic from connections created by the server is also balanced. When the local system sends an ARP Request the bonding driver copies and saves the peer's IP information from the ARP packet. When the ARP Reply arrives from the peer, its hardware address is retrieved and the bonding driver initiates an ARP reply to this peer assigning it to one of the slaves in the bond. A problematic outcome of using ARP negotiation for balancing is that each time that an ARP request is broadcast it uses the hardware address of the bond. Hence, peers learn the hardware address of the bond and the balancing of receive traffic collapses to the current slave. This is handled by sending updates (ARP Replies) to all the peers with their individually assigned hardware address such that the traffic is redistributed. Receive traffic is also redistributed when a new slave is added to the bond and when an inactive slave is re-activated. The receive load is distributed sequentially (round robin) among the group of highest speed slaves in the bond.
+
+When a link is reconnected or a new slave joins the bond the receive traffic is redistributed among all active slaves in the bond by initiating ARP Replies with the selected MAC address to each of the clients. The updelay parameter (detailed below) must be set to a value equal or greater than the switch's forwarding delay so that the ARP Replies sent to the peers will not be blocked by the switch.
+
+Prerequisites:
+
+1. Ethtool support in the base drivers for retrieving the speed of each slave.
+
+2. Base driver support for setting the hardware address of a device while it is open. This is required so that there will always be one slave in the team using the bond hardware address (the curr_active_slave) while having a unique hardware address for each slave in the bond. If the curr_active_slave fails its hardware address is swapped with the new curr_active_slave that was chosen.
+
+This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
+		</key>
+
+
+		
+		
 		
 	</language>
 </words>

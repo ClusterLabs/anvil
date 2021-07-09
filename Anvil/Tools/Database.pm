@@ -6955,7 +6955,7 @@ WHERE
 DELETE FROM 
     health 
 WHERE 
-    health_uuid        = ".$anvil->Database->quote($health_uuid)."
+    health_uuid = ".$anvil->Database->quote($health_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
