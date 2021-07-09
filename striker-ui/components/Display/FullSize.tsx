@@ -3,7 +3,7 @@ import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
 import IconButton from '@material-ui/core/IconButton';
-import VncDisplay from 'react-vnc-display';
+import VncDisplay from './VncDisplay';
 import { Panel } from '../Panels';
 import { RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
