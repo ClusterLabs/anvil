@@ -2518,6 +2518,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0287">The virtio NAT bridge: [#!variable!bridge!#] exists. Removing it...</key>
 		<key name="striker_0288">Manage existing Anvil! systems.</key>
 		<key name="striker_0289">Control when the database is locked for use by any system except the lock holder.</key>
+		<key name="striker_0290">This is the number of bytes received (rx) by a network interface since it was last started.</key>
+		<key name="striker_0291">This is the number of bytes transmitted (tx) by a network interface since it was last started.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -2576,6 +2578,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="suffix_0054">Ebps</key>		<!-- Short suffix for 'exabits per second' (1,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0055">Zbps</key>		<!-- Short suffix for 'zettabits per second' (1,000,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0056">Ybps</key>		<!-- Short suffix for 'yotabits per second' (1,000,000,000,000,000,000,000,000 bits per second). -->
+		<key name="suffix_0057">Bytes</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

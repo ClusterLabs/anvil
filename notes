@@ -1345,6 +1345,56 @@ May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is prev
                                                                   # ausearch -c 'virsh' --raw | audit2allow -M my-virsh
                                                                   # semodule -X 300 -i my-virsh.pp
 
-                                                                  
-                                                                  
-                                                                  
+====================================
+
+### Edit corosync.conf to add 'token' and the node names on one node
+# diff -u /root/corosync.conf /etc/corosync/corosync.conf 
+--- /root/corosync.conf	2021-07-06 15:01:18.956703529 -0400
++++ /etc/corosync/corosync.conf	2021-07-06 15:15:23.438494607 -0400
+@@ -4,17 +4,20 @@
+     transport: knet
+     crypto_cipher: aes256
+     crypto_hash: sha256
++    token: 10000
+ }
+ 
+ nodelist {
+     node {
+-        ring0_addr: an-a02n01
++        ring0_addr: an-a02n01.bcn1
++        ring1_addr: an-a02n01.sn1
+         name: an-a02n01
+         nodeid: 1
+     }
+ 
+     node {
+-        ring0_addr: an-a02n02
++        ring0_addr: an-a02n02.bcn1
++        ring1_addr: an-a02n02.sn1
+         name: an-a02n02
+         nodeid: 2
+     }
+
+### Update the peer with the new corosync.conf and then tell pacemaker to reload
+pcs cluster sync
+pcs cluster reload corosync
+
+### Verify;
+corosync-cmapctl | grep -e totem.token -e knet
+runtime.config.totem.interface.0.knet_ping_interval (u32) = 2500
+runtime.config.totem.interface.0.knet_ping_timeout (u32) = 5000
+runtime.config.totem.interface.1.knet_ping_interval (u32) = 2500
+runtime.config.totem.interface.1.knet_ping_timeout (u32) = 5000
+runtime.config.totem.knet_compression_level (i32) = 0
+runtime.config.totem.knet_compression_model (str) = none
+runtime.config.totem.knet_compression_threshold (u32) = 0
+runtime.config.totem.knet_pmtud_interval (u32) = 30
+runtime.config.totem.token (u32) = 10000
+runtime.config.totem.token_retransmit (u32) = 2380
+runtime.config.totem.token_retransmits_before_loss_const (u32) = 4
+runtime.config.totem.token_warning (u32) = 75
+totem.token (u32) = 10000
+totem.transport (str) = knet
+
+
+====================================

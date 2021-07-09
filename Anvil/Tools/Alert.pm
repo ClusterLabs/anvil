@@ -496,6 +496,51 @@ sub register
 		}
 	}
 	
+	# Sort the alerts as they come in, if the sort_position was not set.
+	if ($sort_position == 9999)
+	{
+		if (not defined $anvil->data->{sys}{sort_position}{$alert_level})
+		{
+			if (($alert_level eq "critical") or ($alert_level eq "1"))
+			{
+				$anvil->data->{sys}{sort_position}{$alert_level} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::sort_position::${alert_level}" => $anvil->data->{sys}{sort_position}{$alert_level},
+				}});
+			}
+			elsif (($alert_level eq "warning") or ($alert_level eq "2"))
+			{
+				$anvil->data->{sys}{sort_position}{$alert_level} = 20;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::sort_position::${alert_level}" => $anvil->data->{sys}{sort_position}{$alert_level},
+				}});
+			}
+			elsif (($alert_level eq "notice") or ($alert_level eq "3"))
+			{
+				$anvil->data->{sys}{sort_position}{$alert_level} = 100;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::sort_position::${alert_level}" => $anvil->data->{sys}{sort_position}{$alert_level},
+				}});
+			}
+			else
+			{
+				$anvil->data->{sys}{sort_position}{$alert_level} = 1000;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::sort_position::${alert_level}" => $anvil->data->{sys}{sort_position}{$alert_level},
+				}});
+			}
+		}
+		else
+		{
+			$anvil->data->{sys}{sort_position}{$alert_level}++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::sort_position::${alert_level}" => $anvil->data->{sys}{sort_position}{$alert_level},
+			}});
+		}
+		$sort_position = $anvil->data->{sys}{sort_position}{$alert_level};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sort_position => $sort_position }});
+	}
+	
 	# If the alert level was a string, convert it to the numerical version. Also check that we've got a 
 	# sane alert level at all.
 	if (lc($alert_level) eq "critical")

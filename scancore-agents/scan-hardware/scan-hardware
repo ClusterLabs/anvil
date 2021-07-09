@@ -1263,10 +1263,10 @@ INSERT INTO
 UPDATE 
     scan_hardware_ram_modules 
 SET
-    scan_hardware_ram_module_manufacturer  = 'VANISHED', 
-    modified_date                     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+    scan_hardware_ram_module_manufacturer = 'VANISHED', 
+    modified_date                         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
-    scan_hardware_ram_module_uuid          = ".$anvil->Database->quote($scan_hardware_ram_module_uuid)." 
+    scan_hardware_ram_module_uuid         = ".$anvil->Database->quote($scan_hardware_ram_module_uuid)." 
 ;";
 		# Now record the query in the array
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});

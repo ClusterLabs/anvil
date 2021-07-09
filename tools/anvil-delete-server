@@ -276,61 +276,64 @@ sub remove_from_pacemaker
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
-	elsif ($anvil->data->{cib}{parsed}{data}{server}{$server_name}{status} ne "off")
+	else
 	{
 		# As we're going to delete the server, we won't wait. We'll come back here and destroy the 
 		# server if it's still running.
-		my $problem = $anvil->Cluster->shutdown_server({
-			debug  => 2, 
-			server => $server_name, 
-			'wait' => 0, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		if ($problem)
+		if ($anvil->data->{cib}{parsed}{data}{server}{$server_name}{status} ne "off")
 		{
-			# Failed to stop.
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0223,!!server_name!".$server_name."!!", 
-				job_status => "failed", 
+			my $problem = $anvil->Cluster->shutdown_server({
+				debug  => 2, 
+				server => $server_name, 
+				'wait' => 0, 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0223", variables => { server_name => $server_name }});
-			$anvil->nice_exit({exit_code => 1});
-		}
-		
-		# Force the server off now.
-		$anvil->Job->update_progress({
-			progress => 20,
-			message  => "job_0223,!!server_name!".$server_name."!!", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0223", variables => { server_name => $server_name }});
-		my $success = $anvil->Server->shutdown_virsh({
-			debug  => 2, 
-			force  => 1,
-			server => $server_name,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
-		if (not $success)
-		{
-			# Failed to stop
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if ($problem)
+			{
+				# Failed to stop.
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0223,!!server_name!".$server_name."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0223", variables => { server_name => $server_name }});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			# Force the server off now.
 			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0223,!!server_name!".$server_name."!!", 
-				job_status => "failed", 
+				progress => 20,
+				message  => "job_0223,!!server_name!".$server_name."!!", 
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0223", variables => { server_name => $server_name }});
-			$anvil->nice_exit({exit_code => 1});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0223", variables => { server_name => $server_name }});
+			my $success = $anvil->Server->shutdown_virsh({
+				debug  => 2, 
+				force  => 1,
+				server => $server_name,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+			if (not $success)
+			{
+				# Failed to stop
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0223,!!server_name!".$server_name."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0223", variables => { server_name => $server_name }});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			# Server is off now.
+			$anvil->Job->update_progress({
+				progress => 25,
+				message  => "job_0211,!!server_name!".$server_name."!!", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0211", variables => { server_name => $server_name }});
 		}
-		
-		# Server is off now.
-		$anvil->Job->update_progress({
-			progress => 25,
-			message  => "job_0211,!!server_name!".$server_name."!!", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0211", variables => { server_name => $server_name }});
 		
 		# Delete the resource.
-		$problem = $anvil->Cluster->delete_server({debug => 2, server_name => $server_name});
+		my $problem = $anvil->Cluster->delete_server({debug => 2, server_name => $server_name});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($problem)
 		{
