@@ -57,12 +57,18 @@ const VncDisplay = (props: VncProps): JSX.Element => {
 
     if (!canvasRef.current) {
       /* eslint-disable consistent-return */
-      return (): void => rfb.disconnect();
+      return (): void => {
+        rfb.disconnect();
+        setRfb(undefined);
+      };
     }
 
     rfb.connect(url);
 
-    return (): void => rfb.disconnect();
+    return (): void => {
+      rfb.disconnect();
+      setRfb(undefined);
+    };
   }, [rfb, encrypt, opts, url]);
 
   const handleMouseEnter = () => {
