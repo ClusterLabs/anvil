@@ -1,11 +1,13 @@
-import { Dispatch, SetStateAction } from 'react';
-import { Box } from '@material-ui/core';
+import { useState, Dispatch, SetStateAction } from 'react';
+import { Box, Menu, MenuItem, Typography } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
+import KeyboardIcon from '@material-ui/icons/Keyboard';
 import IconButton from '@material-ui/core/IconButton';
 import VncDisplay from './VncDisplay';
 import { Panel } from '../Panels';
-import { RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import keyCombinations from './keyCombinations';
 
 const useStyles = makeStyles(() => ({
   displayBox: {
@@ -19,9 +21,27 @@ const useStyles = makeStyles(() => ({
       backgroundColor: RED,
     },
   },
+  keyboardButton: {
+    borderRadius: 8,
+    backgroundColor: TEXT,
+    '&:hover': {
+      backgroundColor: TEXT,
+    },
+  },
   closeBox: {
+    paddingBottom: '1em',
     paddingLeft: '.7em',
     paddingRight: 0,
+  },
+  buttonsBox: {
+    paddingTop: 0,
+  },
+  keysItem: {
+    backgroundColor: TEXT,
+    paddingRight: '3em',
+    '&:hover': {
+      backgroundColor: TEXT,
+    },
   },
 }));
 
@@ -30,7 +50,12 @@ interface PreviewProps {
 }
 
 const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const classes = useStyles();
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    setAnchorEl(event.currentTarget);
+  };
 
   return (
     <Panel>
@@ -44,16 +69,47 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
             }}
           />
         </Box>
-        <Box className={classes.closeBox}>
-          <IconButton
-            className={classes.closeButton}
-            style={{ color: TEXT }}
-            aria-label="upload picture"
-            component="span"
-            onClick={() => setMode(true)}
-          >
-            <CloseIcon />
-          </IconButton>
+        <Box>
+          <Box className={classes.closeBox}>
+            <IconButton
+              className={classes.closeButton}
+              style={{ color: TEXT }}
+              aria-label="upload picture"
+              component="span"
+              onClick={() => setMode(true)}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Box className={classes.closeBox}>
+            <IconButton
+              className={classes.keyboardButton}
+              style={{ color: BLACK }}
+              aria-label="upload picture"
+              component="span"
+              onClick={handleClick}
+            >
+              <KeyboardIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              keepMounted
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+            >
+              {keyCombinations.map(({ keys }) => {
+                return (
+                  <MenuItem
+                    // onClick={() => handlePower(label)}
+                    className={classes.keysItem}
+                    key={keys}
+                  >
+                    <Typography variant="subtitle1">{keys}</Typography>
+                  </MenuItem>
+                );
+              })}
+            </Menu>
+          </Box>
         </Box>
       </Box>
     </Panel>
