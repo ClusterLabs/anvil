@@ -1,4 +1,5 @@
-import { useState, Dispatch, SetStateAction } from 'react';
+import { useState, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import { RFB } from 'novnc-node';
 import { Box, Menu, MenuItem, Typography } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
@@ -51,10 +52,32 @@ interface PreviewProps {
 
 const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const rfb = useRef<typeof RFB>(undefined);
+  const [displaySize, setDisplaySize] = useState<
+    | {
+        width: string | number;
+        height: string | number;
+      }
+    | undefined
+  >(undefined);
   const classes = useStyles();
+
+  useEffect(() => {
+    setDisplaySize({
+      width: '75vw',
+      height: '80vh',
+    });
+  }, []);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
+  };
+
+  const handleSendKeys = () => {
+    if (rfb.current) {
+      rfb.current.sendCtrlAltDel();
+      setAnchorEl(null);
+    }
   };
 
   return (
@@ -62,11 +85,9 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
       <Box display="flex" className={classes.displayBox}>
         <Box>
           <VncDisplay
+            rfb={rfb}
             url="wss://spain.cdot.systems:5000/"
-            style={{
-              width: '75vw',
-              height: '80vh',
-            }}
+            style={displaySize}
           />
         </Box>
         <Box>
@@ -100,7 +121,7 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
               {keyCombinations.map(({ keys }) => {
                 return (
                   <MenuItem
-                    // onClick={() => handlePower(label)}
+                    onClick={handleSendKeys}
                     className={classes.keysItem}
                     key={keys}
                   >
