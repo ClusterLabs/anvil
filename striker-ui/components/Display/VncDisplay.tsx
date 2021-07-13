@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { RFB } from 'novnc-node';
 
 type VncProps = {
+  rfb: typeof RFB;
   // The URL for the VNC connection: protocol, host, port, and path.
   url: string;
 
@@ -38,51 +39,55 @@ type VncProps = {
   localCursor?: boolean;
 };
 
-const VncDisplay = (props: VncProps): JSX.Element => {
+const VncDisplay = ({
+  rfb,
+  style,
+  url,
+  encrypt,
+  ...opts
+}: VncProps): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [rfb, setRfb] = useState<typeof RFB>(undefined);
-  const { style, url, encrypt, ...opts } = props;
 
+  /* eslint-disable no-param-reassign */
   useEffect(() => {
-    if (!rfb)
-      setRfb(
-        new RFB({
-          ...opts,
-          encrypt: encrypt !== null ? encrypt : url.startsWith('wss:'),
-          target: canvasRef.current,
-        }),
-      );
+    if (!rfb.current)
+      rfb.current = new RFB({
+        ...opts,
+        style,
+        encrypt: encrypt !== null ? encrypt : url.startsWith('wss:'),
+        target: canvasRef.current,
+      });
 
-    if (!rfb) return;
+    if (!rfb.current) return;
 
     if (!canvasRef.current) {
       /* eslint-disable consistent-return */
       return (): void => {
-        rfb.disconnect();
-        setRfb(undefined);
+        rfb.current.disconnect();
+        rfb.current = undefined;
       };
     }
 
-    rfb.connect(url);
+    rfb.current.connect(url);
 
     return (): void => {
-      rfb.disconnect();
-      setRfb(undefined);
+      rfb.current.disconnect();
+      rfb.current = undefined;
     };
-  }, [rfb, encrypt, opts, url]);
+  }, [rfb, encrypt, opts, url, style]);
 
   const handleMouseEnter = () => {
-    if (!rfb) return;
-    // document.activeElement && document.activeElement.blur();
-    rfb.get_keyboard().grab();
-    rfb.get_mouse().grab();
+    if (!rfb.current) return;
+    if (document.activeElement) (document.activeElement as HTMLElement).blur();
+    rfb.current.get_keyboard().grab();
+    rfb.current.get_mouse().grab();
   };
 
   const handleMouseLeave = () => {
-    if (!rfb) return;
+    if (!rfb.current) return;
 
-    rfb.get_keyboard().ungrab();
-    rfb.get_mouse().ungrab();
+    rfb.current.get_keyboard().ungrab();
+    rfb.current.get_mouse().ungrab();
   };
 
   return (
@@ -112,4 +117,6 @@ VncDisplay.defaultProps = {
   shared: false,
 };
 
-export default VncDisplay;
+const MemoVncDisplay = memo(VncDisplay);
+
+export default MemoVncDisplay;
