@@ -9,6 +9,7 @@ import VncDisplay from './VncDisplay';
 import { Panel } from '../Panels';
 import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import keyCombinations from './keyCombinations';
+import putJSON from '../../lib/fetchers/putJSON';
 
 const useStyles = makeStyles(() => ({
   displayBox: {
@@ -48,11 +49,21 @@ const useStyles = makeStyles(() => ({
 
 interface PreviewProps {
   setMode: Dispatch<SetStateAction<boolean>>;
+  uuid: string;
 }
 
-const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
+interface VncConnectionProps {
+  protocol: string;
+  forward_port: number;
+}
+
+const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>(undefined);
+  const vncConnection = useRef<VncConnectionProps>({
+    protocol: '',
+    forward_port: 0,
+  });
   const [displaySize, setDisplaySize] = useState<
     | {
         width: string | number;
@@ -67,7 +78,19 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
       width: '75vw',
       height: '80vh',
     });
-  }, []);
+
+    (async () => {
+      const res = await putJSON(
+        'http://108.168.17.168/cgi-bin/manage_vnc_pipes',
+        {
+          server_uuid: uuid,
+          is_open: true,
+        },
+      );
+      // console.log(res);
+      vncConnection.current = res.json();
+    })();
+  }, [uuid]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
@@ -97,7 +120,7 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
         <Box>
           <VncDisplay
             rfb={rfb}
-            url="wss://spain.cdot.systems:5000/"
+            url={`ws://108.168.17.168:${vncConnection.current.forward_port}`}
             style={displaySize}
           />
         </Box>

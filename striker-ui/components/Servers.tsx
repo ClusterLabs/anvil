@@ -145,7 +145,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const handlePower = (label: ButtonLabels) => {
     setAnchorEl(null);
     if (selected.length) {
-      putJSON('/set_power', {
+      putJSON(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
         server_uuid_list: selected,
         is_on: label === 'on',
       });

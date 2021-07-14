@@ -1,5 +1,6 @@
-const putJSON = <T>(uri: string, data: T): void => {
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}${uri}`, {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const putJSON = <T>(uri: string, data: T): Promise<any> => {
+  return fetch(uri, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

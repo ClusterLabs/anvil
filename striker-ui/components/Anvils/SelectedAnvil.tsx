@@ -67,7 +67,7 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
             <Switch
               checked={isAnvilOn(list[index])}
               onChange={() =>
-                putJSON('/set_power', {
+                putJSON(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
                   anvil_uuid: list[index].anvil_uuid,
                   is_on: !isAnvilOn(list[index]),
                 })

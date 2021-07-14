@@ -74,7 +74,7 @@ const Server = (): JSX.Element => {
           </Box>
         ) : (
           <Box className={classes.container}>
-            <FullSize setMode={setPreviewMode} />
+            <FullSize setMode={setPreviewMode} uuid={uuid} />
           </Box>
         ))}
     </>
