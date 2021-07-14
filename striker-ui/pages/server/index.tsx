@@ -4,12 +4,8 @@ import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
-import CPU from '../../components/CPU';
-import Memory from '../../components/Memory';
-import Resource from '../../components/Resource';
 import { FullSize, Preview } from '../../components/Display';
 import Header from '../../components/Header';
-import Domain from '../../components/Domain';
 
 const useStyles = makeStyles((theme) => ({
   child: {
@@ -62,14 +58,6 @@ const Server = (): JSX.Element => {
           <Box className={classes.container}>
             <Box className={classes.child}>
               <Preview setMode={setPreviewMode} />
-              <CPU />
-              <Memory />
-            </Box>
-            <Box flexGrow={1} className={classes.server}>
-              <Domain />
-            </Box>
-            <Box className={classes.child}>
-              <Resource resource={data} />
             </Box>
           </Box>
         ) : (
