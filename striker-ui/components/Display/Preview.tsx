@@ -1,5 +1,4 @@
 import { Dispatch, SetStateAction } from 'react';
-import Image from 'next/image';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import IconButton from '@material-ui/core/IconButton';
@@ -35,9 +34,6 @@ const Preview = ({ setMode }: PreviewProps): JSX.Element => {
   return (
     <Panel>
       <Box display="flex" className={classes.displayBox}>
-        <Box flexGrow={1}>
-          <Image src="/pngs/preview.png" width={300} height={200} />
-        </Box>
         <Box className={classes.fullScreenBox}>
           <IconButton
             className={classes.fullScreenButton}
