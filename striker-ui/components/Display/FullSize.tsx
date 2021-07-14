@@ -73,9 +73,20 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleSendKeys = () => {
+  const handleSendKeys = (scans: string[]) => {
     if (rfb.current) {
-      rfb.current.sendCtrlAltDel();
+      if (!scans.length) rfb.current.sendCtrlAltDel();
+      else {
+        // Send pressing keys
+        scans.forEach((scan) => {
+          rfb.current.sendKey(scan, 1);
+        });
+
+        // Send releasing keys in reverse order
+        for (let i = scans.length - 1; i >= 0; i -= 1) {
+          rfb.current.sendKey(scans[i], 0);
+        }
+      }
       setAnchorEl(null);
     }
   };
@@ -118,10 +129,10 @@ const FullSize = ({ setMode }: PreviewProps): JSX.Element => {
               open={Boolean(anchorEl)}
               onClose={() => setAnchorEl(null)}
             >
-              {keyCombinations.map(({ keys }) => {
+              {keyCombinations.map(({ keys, scans }) => {
                 return (
                   <MenuItem
-                    onClick={handleSendKeys}
+                    onClick={() => handleSendKeys(scans)}
                     className={classes.keysItem}
                     key={keys}
                   >
