@@ -1105,6 +1105,12 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0342">Power Off Server VM</key>
 		<!-- cgi-bin/set_power,server,off,job_description -->
 		<key name="job_0343">Power off the target server VM by executing a stop script on the first a host within the cluster.</key>
+		<key name="job_0344">Verifying that corosync is configured to use the SN1 as a fall-back communication channel.</key>
+		<key name="job_0345">Verifying (and waiting if needed) for the cluster to be be up and both BCN1 and SN1 connections to be active.</key>
+		<key name="job_0346">The cluster is up.</key>
+		<key name="job_0347">Both the BCN1 and SN1 links are working between the nodes. Checking corosync now...</key>
+		<key name="job_0348">Synchronizing the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
+		<key name="job_0349">Loading the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1827,7 +1833,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 ====
 #!variable!difference!#
 ====
-</key>
+		</key>
 		<key name="log_0626">This system will reboot in: [#!variable!seconds!#] seconds...</key>
 		<key name="log_0627">The bond: [#!variable!bond!#] is completely down, trying to recover member interfaces.</key>
 		<key name="log_0628">The bond: [#!variable!bond!#] is up, but at least one interface is down. Will try to recover now.</key>
@@ -1845,6 +1851,14 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0640">Out peer is online, no need to check server location constraints.</key>
 		<key name="log_0641">The server: [#!variable!server!#] has a location constraint that preferres our peer, but our peer is offline. Updating the location constraint to prefer this node.</key>
 		<key name="log_0642">Disabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
+		<key name="log_0643">The corosync config file is being updated with these differences;
+====
+#!variable!difference!#
+====
+		</key>
+		<key name="log_0644">Synchronizing corosync config.</key>
+		<key name="log_0645">Reloading corosync config.</key>
+		<key name="log_0646">#!variable!program!# is disabled in anvil.conf. and '--force' was not used. Exiting.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

@@ -21,6 +21,7 @@ use warnings;
 use Anvil::Tools;
 use Data::Dumper;
 use String::ShellQuote;
+use Text::Diff;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -135,7 +136,8 @@ sub update_passwords
 	return(0);
 }
 
-# (wait for out peer and) Configure pacemaker. If this is a DR host, this is skipped.
+
+# (wait for our peer and) Configure pacemaker. If this is a DR host, this is skipped.
 sub configure_pacemaker
 {
 	my ($anvil) = @_;
@@ -1103,6 +1105,319 @@ sub configure_pacemaker
 			update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
 			sleep 2;
 			$anvil->nice_exit({exit_code => 6});
+		}
+	}
+	
+	# Update (if needed) corosync.conf to use the BCN1 and SN1 as knet networks.
+	if ($machine eq "node1")
+	{
+		update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0344");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0344"});
+		
+		check_corosync($anvil);
+	}
+	
+	return(0);
+}
+	
+sub check_corosync
+{
+	my ($anvil) = @_;
+	
+	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0345");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0345"});
+	my $waiting      = 1;
+	my $anvil_uuid   =  $anvil->data->{sys}{anvil_uuid};
+	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	while ($waiting)
+	{
+		my $problem          =  $anvil->Cluster->parse_cib({debug => 3});
+		my $peer_ready       =  $anvil->data->{cib}{parsed}{peer}{ready};
+		my $peer_name        =  $anvil->data->{cib}{parsed}{peer}{name};
+		my $peer_short_name  =  $peer_name;
+		   $peer_short_name  =~ s/\..*$//;
+		my $peer_bcn_name    =  $peer_short_name.".bcn1";
+		my $peer_sn_name     =  $peer_short_name.".sn1";
+		my $local_ready      =  $anvil->data->{cib}{parsed}{'local'}{ready};
+		my $local_name       =  $anvil->data->{cib}{parsed}{'local'}{name};
+		my $local_short_name =  $peer_name;
+		   $local_short_name =~ s/\..*$//;
+		my $local_bcn_name   =  $local_short_name.".bcn1";
+		my $local_sn_name    =  $local_short_name.".sn1";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			problem          => $problem, 
+			peer_ready       => $peer_ready,
+			peer_name        => $peer_name, 
+			peer_short_name  => $peer_short_name, 
+			peer_bcn_name    => $peer_bcn_name, 
+			peer_sn_name     => $peer_sn_name, 
+			local_ready      => $local_ready,
+			local_name       => $local_name, 
+			local_short_name => $local_short_name, 
+			local_bcn_name   => $local_bcn_name, 
+			local_sn_name    => $local_sn_name, 
+		}});
+		if ((not $problem) && ($peer_ready) && ($local_ready))
+		{
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0346");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0346"});
+			
+			# Verify we can ping the peer on the BCN and SN.
+			my $bcn_access = $anvil->Remote->test_access({
+				target   => $peer_bcn_name,
+				password => $new_password,
+			});
+			my $sn_access = $anvil->Remote->test_access({
+				target   => $peer_sn_name,
+				password => $new_password,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				bcn_access => $bcn_access, 
+				sn_access  => $sn_access, 
+			}});
+			if (($bcn_access) && ($sn_access))
+			{
+				# We're ready!
+				update_progress($anvil, ($anvil->data->{job}{progress}+1), "job_0347");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0347"});
+				
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				
+				my $in_totem          = 0;
+				my $token_seen        = 0;
+				my $in_nodelist       = 0;
+				my $in_node           = 0;
+				my $ring0_addr        = "";
+				my $ring1_addr        = "";
+				my $in_node_name      = "";
+				my $nodelist_body     = "";
+				my $old_corosync_conf = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'corosync.conf'}});
+				my $new_corosync_conf = "";
+				foreach my $line (split/\n/, $old_corosync_conf)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					if ($line =~ /totem \{/)
+					{
+						$in_totem = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_totem => $in_totem }});
+						
+						$new_corosync_conf .= $line."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+						next;
+					}
+					if ($line =~ /nodelist \{/)
+					{
+						$in_nodelist = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						
+						$new_corosync_conf .= $line."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+						next;
+					}
+					
+					if ($in_nodelist)
+					{
+						if ($line =~ /node \{/)
+						{
+							$in_node = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_node => $in_node }});
+							
+							$new_corosync_conf .= $line."\n";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							next;
+						}
+						if ($in_node)
+						{
+							if ($line =~ /name:(.*)$/)
+							{
+								$in_node_name = $anvil->Words->clean_spaces({string => $1});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_node_name => $in_node_name }});
+								
+								$nodelist_body .= $line."\n"; 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_body => $nodelist_body }});
+								next;
+							}
+							elsif ($line =~ /ring0_addr:(.*)$/)
+							{
+								$ring0_addr = $anvil->Words->clean_spaces({string => $1});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ring0_addr => $ring0_addr }});
+								
+								$nodelist_body .= $line."\n"; 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_body => $nodelist_body }});
+								next;
+							}
+							elsif ($line =~ /ring1_addr:(.*)$/)
+							{
+								$ring1_addr = $anvil->Words->clean_spaces({string => $1});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ring1_addr => $ring1_addr }});
+								
+								$nodelist_body .= $line."\n"; 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_body => $nodelist_body }});
+								next;
+							}
+							elsif ($line =~ /}/)
+							{
+								$in_node = 0;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_node => $in_node }});
+								
+								# Is this the local or peer node?
+								my $test_ring0_addr = $peer_bcn_name;
+								my $test_ring1_addr = $peer_sn_name;
+								if (($in_node_name eq $anvil->Get->host_name) or ($in_node_name eq $anvil->Get->short_host_name))
+								{
+									# It's us
+									$test_ring0_addr = $local_bcn_name;
+									$test_ring1_addr = $local_sn_name;
+								}
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									's1:ring0_addr'      => $ring0_addr, 
+									's2:test_ring0_addr' => $test_ring0_addr,
+									's3:ring1_addr'      => $ring1_addr, 
+									's4:test_ring1_addr' => $test_ring1_addr, 
+								}});
+								
+								if ((not $ring1_addr) or ($ring0_addr ne $test_ring0_addr) or ($ring1_addr ne $test_ring1_addr))
+								{
+									# Rewrite the nodelist body.
+									my $new_nodelist_body  = "        ring0_addr: ".$test_ring0_addr."\n";
+									$new_nodelist_body .= "        ring1_addr: ".$test_ring1_addr."\n";
+									foreach my $nodelist_line (split/\n/, $nodelist_body)
+									{
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_line => $nodelist_line }});
+										next if $nodelist_line =~ /ring\d_addr/;
+										
+										$new_nodelist_body .= $nodelist_line."\n";
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_nodelist_body => $new_nodelist_body }});
+									}
+									
+									$nodelist_body = $new_nodelist_body;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_nodelist_body => $new_nodelist_body }});
+								}
+								
+								$new_corosync_conf .= $nodelist_body;
+								$new_corosync_conf .= $line."\n";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
+								
+								$ring0_addr         = "";
+								$ring1_addr         = "";
+								$in_node_name       = "";
+								$nodelist_body      = "";
+								next;
+							}
+							else
+							{
+								# Normal line, stash it.
+								$nodelist_body .= $line."\n"; 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_body => $nodelist_body }});
+								next;
+							}
+						}
+						elsif ($line =~ /}/)
+						{
+							$in_nodelist = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_nodelist => $in_nodelist }});
+							
+							$new_corosync_conf .= $line."\n";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							next;
+						}
+					}
+					if ($in_totem)
+					{
+						if ($line =~ /}/)
+						{
+							if (not $token_seen)
+							{
+								$new_corosync_conf .= "    token: 10000\n";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							}
+							$new_corosync_conf .= $line."\n";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							
+							$in_totem   = 0;
+							$token_seen = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								in_totem   => $in_totem,
+								token_seen => $token_seen,
+							}});
+							next;
+						}
+						if ($line =~ /token:/)
+						{
+							$token_seen = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						}
+						$new_corosync_conf .= $line."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+					}
+					else
+					{
+						# Normal line 
+						$new_corosync_conf .= $line."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
+					}
+				}
+				
+				# Take the last new lines of the file bodies.
+				$old_corosync_conf =~ s/\n$//g;
+				$new_corosync_conf =~ s/\n$//g;
+				
+				my $difference = diff \$old_corosync_conf, \$new_corosync_conf, { STYLE => 'Unified' };
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+				
+				if ($difference)
+				{
+					# Update the corosync.conf, sync it and reload corosync.
+					update_progress($anvil, ($anvil->data->{job}{progress}+1), "log_0643,!!difference!".$difference."!!");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0643", variables => { difference => $difference }});
+					$anvil->Storage->write_file({
+						file      => $anvil->data->{path}{configs}{'corosync.conf'}, 
+						body      => $new_corosync_conf,
+						overwrite => 1,
+						backup    => 1,
+					});
+					
+					# Sync
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0644"});
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster sync";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					# RC 0 is OK
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					update_progress($anvil, ($anvil->data->{job}{progress}+1), "job_0348,!!return_code!".$return_code."!!,!!output!".$output."!!");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0348", variables => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					# Reload
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0645"});
+					$shell_call = $anvil->data->{path}{exe}{pcs}." cluster reload corosync";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					# RC 0 is OK
+					($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					update_progress($anvil, ($anvil->data->{job}{progress}+1), "job_0349,!!return_code!".$return_code."!!,!!output!".$output."!!");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0349", variables => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+			}
+		}
+		
+		if ($waiting)
+		{
+			sleep 5;
 		}
 	}
 	
