@@ -120,7 +120,7 @@ const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
           <Box>
             <VncDisplay
               rfb={rfb}
-              url={`wss://spain.cdot.systems:${vncConnection.forward_port}`}
+              url={`${vncConnection}://108.168.17.168:${vncConnection.forward_port}`}
               style={displaySize}
             />
           </Box>
