@@ -60,10 +60,9 @@ interface VncConnectionProps {
 const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>(undefined);
-  const vncConnection = useRef<VncConnectionProps>({
-    protocol: '',
-    forward_port: 0,
-  });
+  const [vncConnection, setVncConnection] = useState<
+    VncConnectionProps | undefined
+  >(undefined);
   const [displaySize, setDisplaySize] = useState<
     | {
         width: string | number;
@@ -79,18 +78,18 @@ const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
       height: '80vh',
     });
 
-    (async () => {
-      const res = await putJSON(
-        'http://108.168.17.168/cgi-bin/manage_vnc_pipes',
-        {
-          server_uuid: uuid,
-          is_open: true,
-        },
-      );
-      // console.log(res);
-      vncConnection.current = res.json();
-    })();
-  }, [uuid]);
+    if (!vncConnection)
+      (async () => {
+        const res = await putJSON(
+          `${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`,
+          {
+            server_uuid: uuid,
+            is_open: true,
+          },
+        );
+        setVncConnection(await res.json());
+      })();
+  }, [uuid, vncConnection]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
@@ -117,13 +116,15 @@ const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
   return (
     <Panel>
       <Box display="flex" className={classes.displayBox}>
-        <Box>
-          <VncDisplay
-            rfb={rfb}
-            url={`ws://108.168.17.168:${vncConnection.current.forward_port}`}
-            style={displaySize}
-          />
-        </Box>
+        {vncConnection && (
+          <Box>
+            <VncDisplay
+              rfb={rfb}
+              url={`wss://spain.cdot.systems:${vncConnection.forward_port}`}
+              style={displaySize}
+            />
+          </Box>
+        )}
         <Box>
           <Box className={classes.closeBox}>
             <IconButton
