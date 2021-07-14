@@ -3319,7 +3319,7 @@ sub parse_cib
 		    (($target_short_host_name) && ($node_name =~ /^$target_short_host_name/)))
 		{
 			# Me (or the node the CIB was read from).
-			$anvil->data->{cib}{parsed}{'local'}{ready} = $node_name;
+			$anvil->data->{cib}{parsed}{'local'}{ready} = $ready;
 			$anvil->data->{cib}{parsed}{'local'}{name}  = $node_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready}, 

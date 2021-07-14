@@ -132,6 +132,7 @@ Note: If this is a Storage Network directly connected to the peer, and the peer 
 		<key name="scan_network_alert_0058">The bond: [#!variable!name!#] appears to have been stopped or deleted. The last time we saw it, it had transmitted: [#!variable!tx!#] and received: [#!variable!rx!#].</key>
 		<key name="scan_network_alert_0059">The network interface: [#!variable!name!#] appears to have been removed. The last time we saw it, it had transmitted: [#!variable!tx!#] and received: [#!variable!rx!#].</key>
 		<key name="scan_network_alert_0060">The IP address: [#!variable!ip!#] appears to no longer be used on this machine.</key>
+		<key name="scan_network_alert_0061">The network interface: [#!variable!name!#] MAC address has changed from: [#!variable!old!#] to: [#!variable!new!#]. This is normal when a server boots or migrates.</key>
 		
 		<!-- Error entries -->
 		<key name="scan_network_error_0001">Failed to read the network interface speed from the file: [#!variable!file!#]. Ignoring interface.</key>

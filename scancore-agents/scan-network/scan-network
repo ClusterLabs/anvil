@@ -55,6 +55,7 @@ $anvil->Get->switches;
 if (($anvil->data->{scancore}{'scan-hardware'}{disable}) && (not $anvil->data->{switches}{force}))
 {
 	# Exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $THIS_FILE }});
 	$anvil->nice_exit({exit_code => 0});
 }
 
@@ -1594,10 +1595,17 @@ sub check_interfaces
 					new  => $new_mac_address, 
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0044", variables => $variables});
+				my $key = "scan_network_alert_0044";
+				if ($network_interface_name =~ /^vnet/)
+				{
+					# This is a server booting or migrating
+					$key = "scan_network_alert_0061";
+				}
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "notice", 
-					message     => "scan_network_alert_0044", 
+					message     => $key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
