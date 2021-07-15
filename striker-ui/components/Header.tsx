@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   barElement: {
     padding: 0,
   },
-  icons: {
+  iconBox: {
     [theme.breakpoints.down('sm')]: {
       display: 'none',
     },
@@ -34,6 +34,10 @@ const useStyles = makeStyles((theme) => ({
       flexGrow: 1,
       paddingLeft: '15vw',
     },
+  },
+  icons: {
+    paddingLeft: '.1em',
+    paddingRight: '.1em',
   },
 }));
 
@@ -52,7 +56,7 @@ const Header = (): JSX.Element => {
               <img alt="" src="/pngs/logo.png" width="160" height="40" />
             </Button>
           </Box>
-          <Box className={`${classes.barElement} ${classes.icons}`}>
+          <Box className={`${classes.barElement} ${classes.iconBox}`}>
             {ICONS.map(
               (icon): JSX.Element => (
                 <a
@@ -69,6 +73,7 @@ const Header = (): JSX.Element => {
                     src={icon.image}
                     // eslint-disable-next-line react/jsx-props-no-spreading
                     {...ICON_SIZE}
+                    className={classes.icons}
                   />
                 </a>
               ),

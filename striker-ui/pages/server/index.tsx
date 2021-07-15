@@ -8,7 +8,7 @@ import Header from '../../components/Header';
 
 const useStyles = makeStyles((theme) => ({
   child: {
-    width: '22%',
+    width: '18%',
     height: '100%',
     [theme.breakpoints.down('lg')]: {
       width: '25%',
