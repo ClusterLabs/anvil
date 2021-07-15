@@ -48,41 +48,39 @@ const Header = (): JSX.Element => {
   const toggleDrawer = (): void => setOpen(!open);
 
   return (
-    <>
-      <AppBar position="static" className={classes.appBar}>
-        <Box display="flex" justifyContent="space-between" flexDirection="row">
-          <Box className={classes.barElement}>
-            <Button onClick={toggleDrawer}>
-              <img alt="" src="/pngs/logo.png" width="160" height="40" />
-            </Button>
-          </Box>
-          <Box className={`${classes.barElement} ${classes.iconBox}`}>
-            {ICONS.map(
-              (icon): JSX.Element => (
-                <a
-                  key={icon.uri}
-                  href={
-                    icon.uri.search(/^https?:/) !== -1
-                      ? icon.uri
-                      : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
-                  }
-                >
-                  <img
-                    alt=""
-                    key="icon"
-                    src={icon.image}
-                    // eslint-disable-next-line react/jsx-props-no-spreading
-                    {...ICON_SIZE}
-                    className={classes.icons}
-                  />
-                </a>
-              ),
-            )}
-          </Box>
+    <AppBar position="static" className={classes.appBar}>
+      <Box display="flex" justifyContent="space-between" flexDirection="row">
+        <Box className={classes.barElement}>
+          <Button onClick={toggleDrawer}>
+            <img alt="" src="/pngs/logo.png" width="160" height="40" />
+          </Button>
         </Box>
-      </AppBar>
+        <Box className={`${classes.barElement} ${classes.iconBox}`}>
+          {ICONS.map(
+            (icon): JSX.Element => (
+              <a
+                key={icon.uri}
+                href={
+                  icon.uri.search(/^https?:/) !== -1
+                    ? icon.uri
+                    : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
+                }
+              >
+                <img
+                  alt=""
+                  key="icon"
+                  src={icon.image}
+                  // eslint-disable-next-line react/jsx-props-no-spreading
+                  {...ICON_SIZE}
+                  className={classes.icons}
+                />
+              </a>
+            ),
+          )}
+        </Box>
+      </Box>
       <AnvilDrawer open={open} setOpen={setOpen} />
-    </>
+    </AppBar>
   );
 };
 
