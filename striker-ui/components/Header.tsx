@@ -1,43 +1,41 @@
 import { useState } from 'react';
 import AppBar from '@material-ui/core/AppBar';
-import { makeStyles, createStyles } from '@material-ui/core/styles';
+import { makeStyles } from '@material-ui/core/styles';
 import { Box, Button } from '@material-ui/core';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 import { BORDER_RADIUS, RED } from '../lib/consts/DEFAULT_THEME';
 import AnvilDrawer from './AnvilDrawer';
 
-const useStyles = makeStyles((theme) =>
-  createStyles({
-    appBar: {
-      paddingTop: theme.spacing(0.5),
-      paddingBottom: theme.spacing(0.5),
-      paddingLeft: theme.spacing(3),
-      paddingRight: theme.spacing(3),
-      borderBottom: 'solid 1px',
-      borderBottomColor: RED,
+const useStyles = makeStyles((theme) => ({
+  appBar: {
+    paddingTop: theme.spacing(0.5),
+    paddingBottom: theme.spacing(0.5),
+    paddingLeft: theme.spacing(3),
+    paddingRight: theme.spacing(3),
+    borderBottom: 'solid 1px',
+    borderBottomColor: RED,
+  },
+  input: {
+    height: '2.8em',
+    width: '30vw',
+    backgroundColor: theme.palette.secondary.main,
+    borderRadius: BORDER_RADIUS,
+  },
+  barElement: {
+    padding: 0,
+  },
+  icons: {
+    [theme.breakpoints.down('sm')]: {
+      display: 'none',
     },
-    input: {
-      height: '2.8em',
-      width: '30vw',
-      backgroundColor: theme.palette.secondary.main,
-      borderRadius: BORDER_RADIUS,
+  },
+  searchBar: {
+    [theme.breakpoints.down('sm')]: {
+      flexGrow: 1,
+      paddingLeft: '15vw',
     },
-    barElement: {
-      padding: 0,
-    },
-    icons: {
-      [theme.breakpoints.down('sm')]: {
-        display: 'none',
-      },
-    },
-    searchBar: {
-      [theme.breakpoints.down('sm')]: {
-        flexGrow: 1,
-        paddingLeft: '15vw',
-      },
-    },
-  }),
-);
+  },
+}));
 
 const Header = (): JSX.Element => {
   const classes = useStyles();
