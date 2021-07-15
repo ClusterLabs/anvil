@@ -1,9 +1,10 @@
 import { Divider, Drawer, List, ListItem, Box } from '@material-ui/core';
 import { makeStyles, createStyles } from '@material-ui/core/styles';
+import DashboardIcon from '@material-ui/icons/Dashboard';
 import { Dispatch, SetStateAction } from 'react';
 import { BodyText, HeaderText } from './Text';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
-import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
+import { DIVIDER, GREY } from '../lib/consts/DEFAULT_THEME';
 
 interface DrawerProps {
   open: boolean;
@@ -21,6 +22,13 @@ const useStyles = makeStyles(() =>
     text: {
       paddingTop: '.5em',
       paddingLeft: '1.5em',
+    },
+    dashboardButton: {
+      paddingLeft: '.1em',
+    },
+    dashboardIcon: {
+      fontSize: '2.3em',
+      color: GREY,
     },
   }),
 );
@@ -41,6 +49,16 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
             <HeaderText text="Admin" />
           </ListItem>
           <Divider className={classes.divider} />
+          <ListItem button component="a" href="/">
+            <Box display="flex" flexDirection="row" width="100%">
+              <Box className={classes.dashboardButton}>
+                <DashboardIcon className={classes.dashboardIcon} />
+              </Box>
+              <Box flexGrow={1} className={classes.text}>
+                <BodyText text="Dashboard" />
+              </Box>
+            </Box>
+          </ListItem>
           {ICONS.map(
             (icon): JSX.Element => (
               <ListItem
