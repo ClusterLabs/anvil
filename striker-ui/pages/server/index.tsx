@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
-import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { FullSize, Preview } from '../../components/Display';
 import Header from '../../components/Header';
 
@@ -45,15 +44,10 @@ const Server = (): JSX.Element => {
   const router = useRouter();
   const { uuid } = router.query;
 
-  const { data } = PeriodicFetch<AnvilReplicatedStorage>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_replicated_storage?server_uuid=${uuid}`,
-  );
-
   return (
     <>
       <Header />
       {typeof uuid === 'string' &&
-        data &&
         (previewMode ? (
           <Box className={classes.container}>
             <Box className={classes.child}>
