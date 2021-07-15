@@ -6,14 +6,17 @@ import DesktopWindowsIcon from '@material-ui/icons/DesktopWindows';
 import CropOriginal from '@material-ui/icons/Image';
 import { Panel } from '../Panels';
 import { BLACK, GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { HeaderText } from '../Text';
 
 interface PreviewProps {
   setMode: Dispatch<SetStateAction<boolean>>;
+  serverName: string | string[] | undefined;
 }
 
 const useStyles = makeStyles(() => ({
   displayBox: {
     padding: 0,
+    paddingTop: '.7em',
     width: '100%',
   },
   fullScreenButton: {
@@ -39,11 +42,14 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const Preview = ({ setMode }: PreviewProps): JSX.Element => {
+const Preview = ({ setMode, serverName }: PreviewProps): JSX.Element => {
   const classes = useStyles();
 
   return (
     <Panel>
+      <Box flexGrow={1}>
+        <HeaderText text={`Server: ${serverName}`} />
+      </Box>
       <Box display="flex" className={classes.displayBox}>
         <Box>
           <IconButton

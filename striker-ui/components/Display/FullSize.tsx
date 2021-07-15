@@ -10,6 +10,7 @@ import { Panel } from '../Panels';
 import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import keyCombinations from './keyCombinations';
 import putJSON from '../../lib/fetchers/putJSON';
+import { HeaderText } from '../Text';
 
 const useStyles = makeStyles(() => ({
   displayBox: {
@@ -50,6 +51,7 @@ const useStyles = makeStyles(() => ({
 interface PreviewProps {
   setMode: Dispatch<SetStateAction<boolean>>;
   uuid: string;
+  serverName: string | string[] | undefined;
 }
 
 interface VncConnectionProps {
@@ -69,7 +71,7 @@ const extractDomain = (url: string | undefined): string | undefined => {
   return domain;
 };
 
-const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
+const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>(undefined);
   const [vncConnection, setVncConnection] = useState<
@@ -128,6 +130,10 @@ const FullSize = ({ setMode, uuid }: PreviewProps): JSX.Element => {
 
   return (
     <Panel>
+      <Box flexGrow={1}>
+        <HeaderText text={`Server: ${serverName}`} />
+      </Box>
+
       <Box display="flex" className={classes.displayBox}>
         {vncConnection && extractedDomain && (
           <Box>

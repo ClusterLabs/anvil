@@ -257,7 +257,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                       className={classes.button}
                       key={server.server_uuid}
                       component="a"
-                      href={`/server?uuid=${server.server_uuid}`}
+                      href={`/server?uuid=${server.server_uuid}&server_name=${server.server_name}`}
                     >
                       <Box display="flex" flexDirection="row" width="100%">
                         {showCheckbox && (

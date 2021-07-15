@@ -7,18 +7,9 @@ import { FullSize, Preview } from '../../components/Display';
 import Header from '../../components/Header';
 
 const useStyles = makeStyles((theme) => ({
-  child: {
-    width: '18%',
+  preview: {
+    width: '20%',
     height: '100%',
-    [theme.breakpoints.down('lg')]: {
-      width: '25%',
-    },
-    [theme.breakpoints.down('md')]: {
-      width: '100%',
-    },
-  },
-  server: {
-    width: '35%',
     [theme.breakpoints.down('lg')]: {
       width: '25%',
     },
@@ -42,7 +33,7 @@ const Server = (): JSX.Element => {
   const classes = useStyles();
 
   const router = useRouter();
-  const { uuid } = router.query;
+  const { uuid, server_name } = router.query;
 
   return (
     <>
@@ -50,13 +41,17 @@ const Server = (): JSX.Element => {
       {typeof uuid === 'string' &&
         (previewMode ? (
           <Box className={classes.container}>
-            <Box className={classes.child}>
-              <Preview setMode={setPreviewMode} />
+            <Box className={classes.preview}>
+              <Preview setMode={setPreviewMode} serverName={server_name} />
             </Box>
           </Box>
         ) : (
           <Box className={classes.container}>
-            <FullSize setMode={setPreviewMode} uuid={uuid} />
+            <FullSize
+              setMode={setPreviewMode}
+              uuid={uuid}
+              serverName={server_name}
+            />
           </Box>
         ))}
     </>
