@@ -1127,7 +1127,7 @@ sub check_corosync
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0345");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0345"});
 	my $waiting      = 1;
-	my $anvil_uuid   =  $anvil->data->{sys}{anvil_uuid};
+	my $anvil_uuid   = $anvil->data->{sys}{anvil_uuid};
 	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	while ($waiting)
 	{

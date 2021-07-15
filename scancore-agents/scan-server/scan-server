@@ -15,6 +15,7 @@
 # - Move location constraints to the host node if the server is not on the preferred host (this happens after
 #   recovering from a node loss).
 # - Update the fence delay to favour the active host
+# - If a server isn't running, and the database definition has been updated, it isn't updated on disk.
 # 
 
 use strict;
@@ -90,6 +91,9 @@ collect_data($anvil);
 # Look for migration times written out by ocf:alteeve:server.
 record_migration_times($anvil);
 
+# Check if we need to update the websocket stuff.
+check_vnc($anvil);
+
 # Mark that we ran.
 $anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
 
@@ -98,6 +102,70 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# 
+sub check_vnc
+{
+	my ($anvil) = @_;
+	
+	### NOTE: In the interest of time, this table is not yet in the core schema. Later, when it is, this
+	###       check can be removed.
+	# See if the 'vnc_pipes' table exists.
+	my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'vnc_pipes' AND table_schema = 'public';";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+
+	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+	
+	if ($count)
+	{
+		# For each server running here, get the VNC port and record it.
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{'scan-server'}{server_name}})
+		{
+			my $server_uuid  = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_name  => $server_name,
+				server_uuid  => $server_uuid, 
+				server_state => $server_state, 
+			}});
+			
+			next if $server_state eq "paused";
+			next if $server_state eq "shut off";
+			next if $server_state eq "crashed";
+			
+			# Get the VNC port. Ignore the IP and the port number is +5900. 
+			my $shell_call = $anvil->data->{path}{exe}{virsh}." vncdisplay --domain ".$server_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+			foreach my $line (split/\n/, $output)
+			{
+				if ($line =~ /\d.*?:(\d+)$/)
+				{
+					my $port = 5900 + $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+					
+					my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+						file                  => $THIS_FILE, 
+						line                  => __LINE__, 
+						variable_name         => "server::vnc_port", 
+						variable_value        => $port, 
+						variable_default      => "", 
+						variable_description  => "message_0255", 
+						variable_section      => "servers", 
+						variable_source_uuid  => $server_uuid, 
+						variable_source_table => "servers", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # Look for migration times written out by ocf:alteeve:server.
 sub record_migration_times

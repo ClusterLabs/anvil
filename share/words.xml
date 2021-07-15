@@ -1848,7 +1848,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0637">We've got: [#!variable!local_server_count!#] servers, and the peer has: [#!variable!peer_server_count!#] servers. Skipping fence delay preference checks for now.</key>
 		<key name="log_0638">We're hosting servers, and our peer is not. Making the fence delay favours this node.</key>
 		<key name="log_0639">The Anvil! daemon is in startup mode, and the job: [#!variable!job_uuid!#], command: [#!variable!job_command!#] is not a startup job, ignoring it for now.</key>
-		<key name="log_0640">Out peer is online, no need to check server location constraints.</key>
+		<key name="log_0640">Our peer is online, no need to check server location constraints.</key>
 		<key name="log_0641">The server: [#!variable!server!#] has a location constraint that preferres our peer, but our peer is offline. Updating the location constraint to prefer this node.</key>
 		<key name="log_0642">Disabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0643">The corosync config file is being updated with these differences;
@@ -2209,6 +2209,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0252">Found the server: [#!variable!server_name!#] in the database, loading details now.</key>
 		<key name="message_0253">The fence delay to prefer the node: [#!variable!node!#] has been removed.</key>
 		<key name="message_0254">The fence delay now prefers the node: [#!variable!node!#].</key>
+		<key name="message_0255">This is the TCP port that the VNC server is listening on to provide graphical access to the associated server.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

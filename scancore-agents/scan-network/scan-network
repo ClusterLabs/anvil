@@ -313,14 +313,14 @@ sub collect_data
 					type                 => $type,
 				}});
 			}
-			elsif (-e $full_path."/master")
+			elsif ((-e $full_path."/master") && ($interface !~ /^vnet/))
 			{
-				# No, but it's slaved to one.
+				# We're in a bond.
 				my $target      = readlink($full_path."/master");
-				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
+				my $bond_master = ($target =~ /^.*\/(.*)$/)[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					target      => $target,
-					bond_master => $bond_master, 
+					bond_master => $bond_master
 				}});
 			}
 			elsif (-d $full_path."/bridge")
@@ -350,6 +350,17 @@ sub collect_data
 					$bridge_stp_enabled = "enabled_userland";
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_stp_enabled => $bridge_stp_enabled }});
+			}
+			
+			# If this is a 'vnet' device, set 'operational' to up
+			if ($interface =~ /^vnet/)
+			{
+				$operational = "up";
+				$media       = "virtual";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					operational => $operational,
+					media       => $media, 
+				}});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -469,7 +480,7 @@ sub collect_data
 	closedir(DIRECTORY);
 	
 	# Find what interfaces are connected to which bridges
-	$anvil->Network->bridge_info({debug => 2});
+	$anvil->Network->bridge_info({debug => 3});
 	delete $anvil->data->{interface_to_bridge} if exists $anvil->data->{interface_to_bridge};
 	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{$local_host}})
 	{
