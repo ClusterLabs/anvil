@@ -1348,11 +1348,11 @@ sub check_interfaces
 			$new_bond_uuid = $anvil->data->{bonds}{name_to_uuid}{$new_bond_name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_bond_uuid => $new_bond_uuid }});
 		}
-		if (($new_bridge_name) && (exists $anvil->data->{interface_to_bridge}{$new_bridge_name}))
+		if (exists $anvil->data->{interface_to_bridge}{$network_interface_name})
 		{
-			# This bond is on a bridge
+			# This interface is on a bridge
 			$new_bridge_name = $anvil->data->{interface_to_bridge}{$network_interface_name};
-			$new_bridge_uuid = $anvil->data->{bridges}{name_to_uuid}{$network_interface_name};
+			$new_bridge_uuid = $anvil->data->{bridges}{name_to_uuid}{$new_bridge_name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				new_bridge_name => $new_bridge_name, 
 				new_bridge_uuid => $new_bridge_uuid, 
