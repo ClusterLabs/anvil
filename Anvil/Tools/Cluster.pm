@@ -2483,6 +2483,10 @@ sub manage_fence_delay
 		prefer => $prefer, 
 	}});
 	
+	### NOTE: We don't really need this anymore, though there is one reason we might (to be decided later);
+	###       See: https://clusterlabs.org/pacemaker/doc/2.1/Pacemaker_Explained/singlehtml/index.html#cluster-options
+	###       - priority-fencing-delay
+	
 	# Are we a node?
 	my $host_type = $anvil->Get->host_type({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
@@ -2552,6 +2556,8 @@ sub manage_fence_delay
 		}
 	}
 	
+	### TODO: We don't need to specify the full argument list, we only need to set 'delay=""' to delete 
+	###       the delay, and 'delay="15"' to add it.
 	my $preferred_node = "";
 	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{fence_method}})
 	{
