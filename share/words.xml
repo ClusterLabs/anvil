@@ -424,6 +424,11 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
+		<key name="error_0313">While opening VNC pipe, failed to get server VM information with [#!variable!server_uuid!#] and [#!variable!host_uuid!#].</key>
+		<key name="error_0314">While opening VNC pipe, failed to get server VM VNC information with [#!variable!server_uuid!#] and [#!variable!host_uuid!#].</key>
+		<key name="error_0315">While opening VNC pipe, failed to get websockify instance information with [#!variable!server_uuid!#] and [#!variable!host_uuid!#].</key>
+		<key name="error_0316">While opening VNC pipe, failed to get SSH tunnel instance information with [#!variable!server_uuid!#] and [#!variable!host_uuid!#].</key>
+		<key name="error_0317">While closing VNC pipe, failed to get VNC pipe information with [#!variable!server_uuid!#] and [#!variable!host_uuid!#].</key>
 		<key name="error_0318">The server UUID: [#!variable!server_uuid!#] is not valid or was not found in the database.</key>
 		<key name="error_0319">The Anvil! name: [#!variable!anvil_name!#] was not found in the database.</key>
 		<key name="error_0320">The Anvil! UUID: [#!variable!anvil_uuid!#] is not valid or was not found in the database.</key>
@@ -2223,6 +2228,9 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0256">[ #!variable!number!# ]- #!variable!server_name!# - (Current state: [#!variable!server_state!#])</key>
 		<key name="message_0257">-=] Please select the Anvil! hosting the server you want to manage [=-</key>
 		<key name="message_0258">[ #!variable!number!# ]- #!variable!anvil_name!# - #!variable!anvil_description!#</key>
+		<key name="message_0259">Preparing to manage VNC pipes.</key>
+		<key name="message_0260">Finished [#!variable!operation!#] VNC pipe for server UUID [#!variable!server_uuid!#] from host UUID [#!variable!host_uuid!#].</key>
+		<key name="message_0261">Finished dropping VNC pipes table.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
