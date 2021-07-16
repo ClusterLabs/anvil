@@ -9017,7 +9017,7 @@ sub insert_or_update_network_interfaces
 	my $network_interface_mtu         = defined $parameter->{network_interface_mtu}         ? $parameter->{network_interface_mtu}         : 0;
 	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "";
 	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : 0;
-	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
+	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{network_interface_uuid}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		'delete'                      => $delete, 
 		uuid                          => $uuid, 

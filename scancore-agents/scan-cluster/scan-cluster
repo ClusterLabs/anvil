@@ -238,7 +238,10 @@ sub check_fence_delay
 		{
 			# Make us the preferred host.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0638"});
-			my $preferred_node = $anvil->Cluster->manage_fence_delay({prefer => $local_node_name});
+			my $preferred_node = $anvil->Cluster->manage_fence_delay({
+				debug  => 2,
+				prefer => $local_node_name,
+			});
 			return(0);
 		}
 	}
