@@ -293,7 +293,7 @@ sub interactive_question
 				$anvil->data->{target_server}{anvil_dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};;
 			}
 			
-			### Pull out details pf the server. 
+			### Pull out details of the server. 
 			# How much RAM are we using and how much is configured?
 			$anvil->data->{target_server}{server_ram_in_use} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
 			$anvil->data->{target_server}{server_host_uuid}  = $server_host_uuid;
@@ -421,7 +421,6 @@ sub interactive_question
 	# Do we know or can we find the Anvil! UUID?
 	$anvil->data->{target_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";
 	$anvil->data->{target_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'} ? $anvil->data->{switches}{'anvil-name'} : "";
-	
 	if ((not $anvil->data->{target_server}{anvil_uuid}) && (not $anvil->data->{target_server}{anvil_name}))
 	{
 		# Nothing given. Is this host a node, perhaps?
@@ -440,8 +439,15 @@ sub interactive_question
 	}
 	elsif (not $anvil->data->{target_server}{anvil_uuid})
 	{
+		# We have a name, get the UUID.
 		$anvil->data->{target_server}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({anvil_name => $anvil->data->{target_server}{anvil_name}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid} }});
+		
+		# If the name is bad, error out.
+		if (not $anvil->data->{target_server}{anvil_uuid})
+		{
+			
+		}
 	}
 	elsif (not $anvil->data->{target_server}{anvil_name})
 	{
