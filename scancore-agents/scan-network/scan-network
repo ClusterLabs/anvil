@@ -1437,10 +1437,10 @@ sub check_interfaces
 					new  => $new_bond_name." (".$new_bond_uuid.")",
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0012", variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "warning", 
-					message     => "scan_network_alert_0012", 
+					message     => $key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -1935,6 +1935,10 @@ sub check_interfaces
 			tx   => $anvil->Convert->add_commas({number => $tx_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $tx_bytes}).")", 
 			rx   => $anvil->Convert->add_commas({number => $rx_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $rx_bytes}).")", 
 		};
+		
+		# If this a vnet device, it's only a notice message as this is expected when a VM migrates or
+		# shuts down.
+		my $alert_level = $network_interface_name =~ /^vnet/ ? "notice" : "warning";
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0059", variables => $variables});
 		$anvil->Alert->register({
