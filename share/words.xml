@@ -424,6 +424,11 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
+		<key name="error_0318">The server UUID: [#!variable!server_uuid!#] is not valid or was not found in the database.</key>
+		<key name="error_0319">The Anvil! name: [#!variable!anvil_name!#] was not found in the database.</key>
+		<key name="error_0320">The Anvil! UUID: [#!variable!anvil_uuid!#] is not valid or was not found in the database.</key>
+		<key name="error_0321">There are no Anvil! systems yet in the database, nothing to do.</key>
+		<key name="error_0322">There are no servers yet in the database, nothing to do.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1111,6 +1116,8 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0347">Both the BCN1 and SN1 links are working between the nodes. Checking corosync now...</key>
 		<key name="job_0348">Synchronizing the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
 		<key name="job_0349">Loading the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
+		
+		<key name="job_0352">Manage a server menu:</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
