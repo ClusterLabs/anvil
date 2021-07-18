@@ -317,7 +317,7 @@ sub collect_data
 			{
 				# We're in a bond.
 				my $target      = readlink($full_path."/master");
-				my $bond_master = ($target =~ /^.*\/(.*)$/)[0];
+				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					target      => $target,
 					bond_master => $bond_master
