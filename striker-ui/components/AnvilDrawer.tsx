@@ -49,7 +49,7 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
             <HeaderText text="Admin" />
           </ListItem>
           <Divider className={classes.divider} />
-          <ListItem button component="a" href="/">
+          <ListItem button component="a" href="/index.html">
             <Box display="flex" flexDirection="row" width="100%">
               <Box className={classes.dashboardButton}>
                 <DashboardIcon className={classes.dashboardIcon} />
