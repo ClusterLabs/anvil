@@ -11,11 +11,18 @@ import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import keyCombinations from './keyCombinations';
 import putJSON from '../../lib/fetchers/putJSON';
 import { HeaderText } from '../Text';
+import Spinner from '../Spinner';
 
 const useStyles = makeStyles(() => ({
   displayBox: {
     paddingTop: '1em',
     paddingBottom: 0,
+    width: '75%',
+    height: '80%',
+  },
+  vncBox: {
+    width: '75%',
+    height: '80%',
   },
   closeButton: {
     borderRadius: 8,
@@ -74,23 +81,20 @@ const extractDomain = (url: string | undefined): string | undefined => {
 const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>(undefined);
+  const hostname = useRef<string | undefined>(undefined);
   const [vncConnection, setVncConnection] = useState<
     VncConnectionProps | undefined
   >(undefined);
-  const [displaySize, setDisplaySize] = useState<
-    | {
-        width: string | number;
-        height: string | number;
-      }
-    | undefined
-  >(undefined);
+  const [displaySize] = useState<{
+    width: string;
+    height: string;
+  }>({ width: '75%', height: '80%' });
   const classes = useStyles();
 
   useEffect(() => {
-    setDisplaySize({
-      width: '75vw',
-      height: '80vh',
-    });
+    if (typeof window !== 'undefined') {
+      hostname.current = window.location.hostname;
+    }
 
     if (!vncConnection)
       (async () => {
@@ -107,6 +111,13 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
+  };
+
+  const handleClickClose = async () => {
+    await putJSON(`${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`, {
+      server_uuid: uuid,
+      is_open: false,
+    });
   };
 
   const handleSendKeys = (scans: string[]) => {
@@ -135,23 +146,27 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
       </Box>
 
       <Box display="flex" className={classes.displayBox}>
-        {vncConnection && extractedDomain && (
-          <Box>
+        {vncConnection && extractedDomain ? (
+          <Box className={classes.vncBox}>
             <VncDisplay
               rfb={rfb}
-              url={`${vncConnection.protocol}://${extractedDomain}:${vncConnection.forward_port}`}
+              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
               style={displaySize}
             />
           </Box>
+        ) : (
+          <Spinner />
         )}
         <Box>
           <Box className={classes.closeBox}>
             <IconButton
               className={classes.closeButton}
               style={{ color: TEXT }}
-              aria-label="upload picture"
               component="span"
-              onClick={() => setMode(true)}
+              onClick={() => {
+                handleClickClose();
+                setMode(true);
+              }}
             >
               <CloseIcon />
             </IconButton>
