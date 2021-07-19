@@ -107,7 +107,7 @@ sub get_host_networks
 				{
 					$_->{link_state} = &$degrade_link_state($_->{link_state});
 				}
-				elsif ($_->{link_state} > $link_speed)
+				elsif ($_->{link_speed} > $link_speed)
 				{
 					$link_state = &$degrade_link_state($link_state);
 				}
