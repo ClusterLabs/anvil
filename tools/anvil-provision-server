@@ -428,8 +428,10 @@ sub provision_server
 		say_memory   => $say_memory,
 	}});
 	
-	### TODO: Support user-selected IFN. For now, we hard-code it to 'ifn_bridge1'
-	###       Support disk images (ie: sysprep) via '--import'. The device used for booting is the first device specified via "--disk"
+	### TODO: Support user-selected IFN. For now, we hard-code it to 'ifn_bridge1' Also allow a MAC to be
+	###       set with '--network ifn1_bridge1[:mac],ifn2_bridge1[:mac]...'.
+	###       Support disk images (ie: sysprep) via '--import'. The device used for booting is the first 
+	###       device specified via "--disk"
 	###       Consider support for TPM, RNG and watchdog devices
 	my $shell_call =  $anvil->data->{path}{exe}{'virt-install'}." --connect qemu:///system \\\n";
 	   $shell_call .= "--name ".$server." \\\n";

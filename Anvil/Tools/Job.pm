@@ -541,6 +541,10 @@ Parameters;
 
 This is the UUID of the job to update. If it isn't set, but C<< jobs::job_uuid >> is set, it will be used. If that is also not set, 
 
+=head3 log_level (optional)
+
+If set to a numeric level, the job's message will also be logged. This is designed to simplify code as most job progress messages will also want to be logged.
+
 =head3 message (optional)
 
 If set, this message will be appended to C<< job_status >>. If set to 'C<< clear >>', previous records will be removed.
@@ -551,9 +555,25 @@ NOTE: This is in the format C<< <key>[,!!<variable_name1>!<variable_value1>[,...
 
 If set, this is used for the C<< job_picked_up_by >> column. If it isn't set, the process ID of the caller is used.
 
+=head3 print (optional, default '1')
+
+If C<< log_level >> is set, this can be set to C<< 1 >> to print the log entry to STDOUT, or C<< 0 >> to not.
+
+=head3 priority (optional)
+
+If C<< log_level >> is set, this can be set to the priority to use when logging (see C<< Alert->entry >>).
+
 =head3 progress (required)
 
 This is a number to set the current progress to. 
+
+=head3 secure (optional, default '0')
+
+If C<< log_level >> is set, this can be set to C<< 1 >> to indicate that it contains sensitive data, like a password.
+
+=head3 variables (optional)
+
+This can be set as a hash reference containing key / variable pairs to inject into the message key. the C<< variable => value >> pairs will be appended to the C<< message >> key automatically. This is meant to simplify when an alert is also being longed, or when a large number of variables are being injected into the string.
 
 =cut
 sub update_progress
@@ -565,15 +585,31 @@ sub update_progress
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->update_progress()" }});
 
 	my $job_uuid     = defined $parameter->{job_uuid}     ? $parameter->{job_uuid}     : "";
+	my $log_level    = defined $parameter->{log_level}    ? $parameter->{log_level}    : "";
 	my $message      = defined $parameter->{message}      ? $parameter->{message}      : "";
 	my $picked_up_by = defined $parameter->{picked_up_by} ? $parameter->{picked_up_by} : "";
+	my $print        = defined $parameter->{'print'}      ? $parameter->{'print'}      : 1;
+	my $priority     = defined $parameter->{priority}     ? $parameter->{priority}     : "";
 	my $progress     = defined $parameter->{progress}     ? $parameter->{progress}     : "";
+	my $secure       = defined $parameter->{secure}       ? $parameter->{secure}       : "";
+	my $variables    = defined $parameter->{variables}    ? $parameter->{variables}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		picked_up_by => $picked_up_by, 
-		progress     => $progress,
-		message      => $message, 
 		job_uuid     => $job_uuid, 
+		picked_up_by => $picked_up_by, 
+		'print'      => $print, 
+		progress     => $progress,
+		log_level    => $log_level, 
+		message      => $message, 
+		variables    => $variables, 
+		secure       => $secure, 
 	}});
+	
+	# Log before anything else, in case we abort the job update.
+	if (($message ne "clear") && ($log_level =~ /^\d+$/))
+	{
+		# Log this message.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, 'print' => $print, secure => $secure, priority => $priority, key => $message, variables => $variables});
+	}
 	
 	if ($picked_up_by eq "")
 	{
@@ -616,6 +652,16 @@ sub update_progress
 	{
 		$anvil->data->{sys}{last_update} = time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::last_update" => $anvil->data->{sys}{last_update} }});
+	}
+	
+	# Add variables to the message, if required
+	if (ref($variables) eq "HASH")
+	{
+		foreach my $variable (sort {$a cmp $b} keys %{$variables})
+		{
+			my $value   =  defined $variables->{$variable} ? $variables->{$variable} : "undefined:".$variable;
+			   $message .= ",!!".$variable."!".$value."!!";
+		}
 	}
 	
 	# Get the current job_status and append this new one.

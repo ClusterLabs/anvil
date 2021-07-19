@@ -293,7 +293,7 @@ sub interactive_question
 				$anvil->data->{target_server}{anvil_dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};;
 			}
 			
-			### Pull out details pf the server. 
+			### Pull out details of the server. 
 			# How much RAM are we using and how much is configured?
 			$anvil->data->{target_server}{server_ram_in_use} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
 			$anvil->data->{target_server}{server_host_uuid}  = $server_host_uuid;
@@ -391,10 +391,27 @@ sub interactive_question
 # 				"servers::server_uuid::${server_uuid}::server_boot_time"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
 # 			}});
 			
-			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"target_server::server_name" => $anvil->data->{target_server}{server_name},
 			}});
+		}
+		else
+		{
+			# Bad server UUID. If it's a job, abort. Otherwise, clear and go back to 
+			my $variables = { server_uuid => $anvil->data->{target_server}{server_uuid} };
+			$anvil->Jobs->update_progress({
+				progress   => 100,
+				message    => "error_0318", 
+				variables  => $variables,
+				job_status => "failed", 
+				log_level  => 1,
+				priority   => "err",
+			});
+			if ($anvil->data->{switches}{'job-uuid'})
+			{
+				$anvil->nice_exit({exit_code => 1});
+			}
+			$anvil->data->{target_server}{server_uuid} = "";
 		}
 	}
 	
@@ -421,7 +438,6 @@ sub interactive_question
 	# Do we know or can we find the Anvil! UUID?
 	$anvil->data->{target_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";
 	$anvil->data->{target_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'} ? $anvil->data->{switches}{'anvil-name'} : "";
-	
 	if ((not $anvil->data->{target_server}{anvil_uuid}) && (not $anvil->data->{target_server}{anvil_name}))
 	{
 		# Nothing given. Is this host a node, perhaps?
@@ -437,20 +453,89 @@ sub interactive_question
 				"target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid},
 			}});
 		}
+		else
+		{
+			# If there is only one Anvil!, choose it
+			my $known_anvils = keys %{$anvil->data->{anvils}{anvil_name}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { known_anvils => $known_anvils }});
+			if (not $known_anvils)
+				my $variables = { server_uuid => $anvil->data->{target_server}{server_uuid} };
+				$anvil->Jobs->update_progress({
+					progress   => 100,
+					message    => "error_0321", 
+					job_status => "failed", 
+					log_level  => 1,
+					priority   => "err",
+				});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			elsif ($known_anvils == 1)
+			{
+				foreach my $anvil_name (keys %{$anvil->data->{anvils}{anvil_name}})
+				{
+					$anvil->data->{target_server}{anvil_name} = $anvil_name;
+					$anvil->data->{target_server}{anvil_uuid} = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"target_server::anvil_name" => $anvil->data->{target_server}{anvil_name},
+						"target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid},
+					}});
+				}
+			}
+		}
 	}
 	elsif (not $anvil->data->{target_server}{anvil_uuid})
 	{
+		# We have a name, get the UUID.
 		$anvil->data->{target_server}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({anvil_name => $anvil->data->{target_server}{anvil_name}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid} }});
+		
+		# If the name is bad, error out if not interactive
+		if (not $anvil->data->{target_server}{anvil_uuid})
+		{
+			# Bad server UUID. If it's a job, abort. Otherwise, clear and go back to 
+			my $variables = { anvil_name => $anvil->data->{target_server}{anvil_name} };
+			$anvil->Jobs->update_progress({
+				progress   => 100,
+				message    => "error_0319", 
+				variables  => $variables,
+				job_status => "failed", 
+				log_level  => 1,
+				priority   => "err",
+			});
+			if ($anvil->data->{switches}{'job-uuid'})
+			{
+				$anvil->nice_exit({exit_code => 1});
+			}
+			$anvil->data->{target_server}{anvil_name} = "";
+		}
 	}
 	elsif (not $anvil->data->{target_server}{anvil_name})
 	{
 		$anvil->data->{target_server}{anvil_name} = $anvil->Cluster->get_anvil_name({anvil_uuid => $anvil->data->{target_server}{anvil_uuid}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "target_server::anvil_name" => $anvil->data->{target_server}{anvil_name} }});
+		
+		# If the name is bad, error out if not interactive
+		if (not $anvil->data->{target_server}{anvil_name})
+		{
+			# Bad server UUID. If it's a job, abort. Otherwise, clear and go back to 
+			my $variables = { anvil_uuid => $anvil->data->{target_server}{anvil_uuid} };
+			$anvil->Jobs->update_progress({
+				progress   => 100,
+				message    => "error_0320", 
+				variables  => $variables,
+				job_status => "failed", 
+				log_level  => 1,
+				priority   => "err",
+			});
+			if ($anvil->data->{switches}{'job-uuid'})
+			{
+				$anvil->nice_exit({exit_code => 1});
+			}
+			$anvil->data->{target_server}{anvil_uuid} = "";
+		}
 	}
 	
-	# If we don't have an Anvil! UUID, and if this is a node, load the anvil_uuid automatically.
-	
+	# If we don't have an Anvil! UUID at this point, we need to ask the user.
 	my $termios = new POSIX::Termios;
 	$termios->getattr;
 	my $ospeed = $termios->getospeed;
@@ -458,7 +543,187 @@ sub interactive_question
 	my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
 	$terminal->Trequire(qw/ce ku kd/);
 	
+	if (not $anvil->data->{target_server}{anvil_uuid})
+	{
+		interactive_ask_anvil_name($anvil, $terminal);
+	}
 	
+	return(0);
+}
+
+sub interactive_ask_anvil_name
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0352"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n\n\n";
+		
+		# Show all the current server names.
+		if ($retry)
+		{
+			print $anvil->Words->string({key => "job_0152"})."\n\n";
+		}
+		print $anvil->Words->string({key => "job_0153"})."\n";
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			print "- ".$anvil_name.": - ".$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}."\n";
+		}
+		
+		print $terminal->Tgoto('cm', 0, 2)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ((not $answer) && ($default_anvil))
+		{
+			$answer = $default_anvil;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		}
+		
+		# Reload in case a new anvil! was saved while we waited.
+		$anvil->Database->get_anvils();
+		if (exists $anvil->data->{anvils}{anvil_name}{$answer})
+		{
+			# Valid.
+			$anvil->data->{target_server}{anvil_name} = $answer;
+			$anvil->data->{target_server}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({anvil_name => $answer});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"target_server::anvil_name" => $anvil->data->{target_server}{anvil_name},
+				"target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid},
+			}});
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
+	interactive_question($anvil);
+	
+	return(0);
+}
+
+sub interactive_ask_server_name
+{
+	my ($anvil, $terminal) = @_;
+	
+	$anvil->Database->get_servers({debug => 2});
+	
+	### TODO: Figure out how many rows we have and break the server list into columns if too long.
+	my $retry     = 0;
+	my $duplicate = "";
+	while(1)
+	{
+		my $default = "";
+		if ($anvil->data->{switches}{name})
+		{
+			$default = $anvil->data->{switches}{name};
+		}
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0150"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{target_server}{name} }})."\n\n\n";
+		
+		# Show all the current server names.
+		if ($retry)
+		{
+			if ($duplicate)
+			{
+				print $anvil->Words->string({key => "job_0219", variables => { server_name => $duplicate }})."\n\n";
+				$duplicate = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplicate => $duplicate }});
+			}
+			else
+			{
+				print $anvil->Words->string({key => "job_0159"})."\n\n";
+			}
+		}
+		my $anvil_uuid = $anvil->data->{target_server}{anvil_uuid};
+		print $anvil->Words->string({key => "job_0160", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n";
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+		{
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid  => $server_uuid,
+				server_state => $server_state, 
+			}});
+			if ($server_state eq "DELETED")
+			{
+				### NOTE: This could get cluttered, so for now we'll not show them.
+				#print $anvil->Words->string({key => "message_0220", variables => { server_name => $server_name }})."\n";
+			}
+			else
+			{
+				print $anvil->Words->string({key => "message_0219", variables => { 
+					server_name  => $server_name,
+					server_state => $server_state, 
+				}})."\n";
+			}
+		}
+		
+		print $terminal->Tgoto('cm', 0, 3)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ((not $answer) && ($default))
+		{
+			$answer = $default;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		}
+		
+		# Reload in case a new anvil! was saved while we waited.
+		$anvil->Database->get_servers();
+		if ($answer)
+		{
+			# Duplicate?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer})
+			{
+				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					server_uuid  => $server_uuid,
+					server_state => $server_state, 
+				}});
+				if ($server_state eq "DELETED")
+				{
+					# Valid, we can re-use deleted server names. We'll also re-use the 
+					# UUID, if the user didn't specifically specify a UUID.
+					$anvil->data->{target_server}{name} = $answer;
+					$anvil->data->{target_server}{uuid} = $server_uuid if not $anvil->data->{target_server}{uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"target_server::name" => $anvil->data->{target_server}{name},
+						"target_server::uuid" => $anvil->data->{target_server}{uuid},
+					}});
+				}
+				else
+				{
+					# Invalid, duplicate.
+					$duplicate = $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { duplicate => $duplicate }});
+				}
+			}
+			else
+			{
+				# Valid.
+				$anvil->data->{target_server}{name} = $answer;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"target_server::name" => $anvil->data->{target_server}{name},
+				}});
+			}
+			last;
+		}
+		else
+		{
+			$retry = 1;
+		}
+	}
 	
 	return(0);
 }
