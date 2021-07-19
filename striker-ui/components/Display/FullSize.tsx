@@ -66,18 +66,6 @@ interface VncConnectionProps {
   forward_port: number;
 }
 
-const extractDomain = (url: string | undefined): string | undefined => {
-  const regEx = /[:]\/\/([^/]+)\//;
-  let domain;
-  let results;
-
-  if (url) {
-    results = regEx.exec(url);
-    if (results) [, domain] = results;
-  }
-  return domain;
-};
-
 const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>(undefined);
@@ -137,7 +125,6 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
       setAnchorEl(null);
     }
   };
-  const extractedDomain = extractDomain(process.env.NEXT_PUBLIC_API_URL);
 
   return (
     <Panel>
@@ -146,7 +133,7 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
       </Box>
 
       <Box display="flex" className={classes.displayBox}>
-        {vncConnection && extractedDomain ? (
+        {vncConnection ? (
           <Box className={classes.vncBox}>
             <VncDisplay
               rfb={rfb}
