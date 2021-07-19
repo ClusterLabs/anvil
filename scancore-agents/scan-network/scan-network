@@ -3060,7 +3060,7 @@ AND
 					my ($health_uuid) = $anvil->Database->insert_or_update_health({
 						debug                => 2,
 						health_agent_name    => $THIS_FILE,
-						source_name          => $source_name,
+						health_source_name   => $source_name,
 						health_source_weight => 1,
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_uuid => $health_uuid }});
