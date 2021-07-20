@@ -17,12 +17,13 @@ const useStyles = makeStyles(() => ({
   displayBox: {
     paddingTop: '1em',
     paddingBottom: 0,
-    width: '75%',
-    height: '80%',
   },
-  vncBox: {
-    width: '75%',
-    height: '80%',
+  spinnerBox: {
+    flexDirection: 'column',
+    width: '75vw',
+    height: '75vh',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   closeButton: {
     borderRadius: 8,
@@ -134,7 +135,7 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
 
       <Box display="flex" className={classes.displayBox}>
         {vncConnection ? (
-          <Box className={classes.vncBox}>
+          <Box>
             <VncDisplay
               rfb={rfb}
               url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
@@ -142,7 +143,10 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
             />
           </Box>
         ) : (
-          <Spinner />
+          <Box display="flex" className={classes.spinnerBox}>
+            <HeaderText text={`Establishing connection with ${serverName}`} />
+            <Spinner />
+          </Box>
         )}
         <Box>
           <Box className={classes.closeBox}>
