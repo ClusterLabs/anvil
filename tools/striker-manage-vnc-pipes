@@ -648,52 +648,6 @@ sub stop_ssh_tunnel
 	}
 }
 
-sub stop_related
-{
-	my $parameters     = shift;
-	my $ws_pid         = $parameters->{ws_pid};
-	my $ssh_tunnel_pid = $parameters->{ssh_tunnel_pid};
-	my $select_pid_field;
-	my $condition_pid_field;
-	my $condition_pid_value;
-	my $stop_function;
-
-	if (defined $ws_pid)
-	{
-		$select_pid_field    = "ssh_tunnel_pid";
-		$condition_pid_field = "ws_pid";
-		$condition_pid_value = $ws_pid;
-		$stop_function       = \&stop_ssh_tunnel
-	}
-	elsif (defined $ssh_tunnel_pid)
-	{
-		$select_pid_field    = "ws_pid";
-		$condition_pid_field = "ssh_tunnel_pid";
-		$condition_pid_value = $ssh_tunnel_pid;
-		$stop_function       = \&stop_websockify
-	}
-
-	my $query = "
-SELECT
-	hos.host_name, vnc.".$select_pid_field."
-FROM
-	public.vnc_pipes AS vnc
-JOIN
-	public.hosts AS hos
-ON
-	vnc.ssh_tunnel_host_uuid = hos.host_uuid
-WHERE
-	vnc.".$condition_pid_field." = ".$anvil->Database->quote($condition_pid_value)."
-;";
-
-	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
-
-	foreach my $row (@{$results})
-	{
-		$stop_function->({ host_name => $row->[0], ws_pid => $row->[1], ssh_tunnel_pid => $row->[1] });
-	}
-}
-
 sub create_vnc_pipes_table
 {
 	my $query = "
