@@ -228,7 +228,7 @@ sub check_fence_delay
 		}
 		elsif (($local_server_count) && ($peer_server_count))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0637", variables => {
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0637", variables => {
 				local_server_count => $local_server_count,
 				peer_server_count  => $peer_server_count,
 			}});
