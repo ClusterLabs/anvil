@@ -4,6 +4,7 @@ const putJSON = <T>(uri: string, data: T): Promise<any> => {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      'Keep-Alive': 'timeout=60',
     },
     body: JSON.stringify(data),
   });
