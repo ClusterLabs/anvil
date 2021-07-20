@@ -355,10 +355,16 @@ sub check_health
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->check_health()" }});
 	
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_uuid  => $host_uuid,
 	}});
+	
+	if (not $host_uuid)
+	{
+		$host_uuid = $anvil->Get->host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid  => $host_uuid }});
+	}
 	
 	my $health_score = 0;
 	my $query        = "
@@ -1305,7 +1311,7 @@ sub post_scan_analysis_node
 	my $local_health = $anvil->ScanCore->check_health({debug => $debug});
 	my $peer_health  = $anvil->ScanCore->check_health({
 		debug     => $debug, 
-		host_uuid => $anvil->data->{cib}{parsed}{peer}{host_uuid},
+		host_uuid => $peer_host_uuid, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		local_health => $local_health,
@@ -1821,7 +1827,7 @@ sub post_scan_analysis_node
 							$anvil->Alert->register({alert_level => "warning", message => "warning_0085", set_by => "ScanCore", variables => $variables});
 							$anvil->Email->send_alerts();
 							
-							my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+							my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 							$anvil->System->call({shell_call => $shell_call});
 							
