@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
@@ -37,6 +38,9 @@ const Server = (): JSX.Element => {
 
   return (
     <>
+      <Head>
+        <title>{server_name}</title>
+      </Head>
       <Header />
       {typeof uuid === 'string' &&
         (previewMode ? (

@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 
@@ -53,6 +54,9 @@ const Home = (): JSX.Element => {
 
   return (
     <>
+      <Head>
+        <title>Dashboard</title>
+      </Head>
       <AnvilProvider>
         <Header />
         {data?.anvils &&
