@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from 'react';
 import { RFB } from 'novnc-node';
-import { Box, Menu, MenuItem, Typography } from '@material-ui/core';
+import { Box, Menu, MenuItem, Typography, Button } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
 import KeyboardIcon from '@material-ui/icons/Keyboard';
@@ -9,7 +9,8 @@ import VncDisplay from './VncDisplay';
 import { Panel } from '../Panels';
 import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import keyCombinations from './keyCombinations';
-import putJSON from '../../lib/fetchers/putJSON';
+import putFetch from '../../lib/fetchers/putFetch';
+import putFetchWithTimeout from '../../lib/fetchers/putFetchWithTimeout';
 import { HeaderText } from '../Text';
 import Spinner from '../Spinner';
 
@@ -54,6 +55,9 @@ const useStyles = makeStyles(() => ({
       backgroundColor: TEXT,
     },
   },
+  buttonText: {
+    color: BLACK,
+  },
 }));
 
 interface PreviewProps {
@@ -74,6 +78,7 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [vncConnection, setVncConnection] = useState<
     VncConnectionProps | undefined
   >(undefined);
+  const [isError, setIsError] = useState<boolean>(false);
   const [displaySize] = useState<{
     width: string;
     height: string;
@@ -87,23 +92,28 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
 
     if (!vncConnection)
       (async () => {
-        const res = await putJSON(
-          `${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`,
-          {
-            server_uuid: uuid,
-            is_open: true,
-          },
-        );
-        setVncConnection(await res.json());
+        try {
+          const res = await putFetchWithTimeout(
+            `${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`,
+            {
+              server_uuid: uuid,
+              is_open: true,
+            },
+            120000,
+          );
+          setVncConnection(await res.json());
+        } catch {
+          setIsError(true);
+        }
       })();
-  }, [uuid, vncConnection]);
+  }, [uuid, vncConnection, isError]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
   };
 
   const handleClickClose = async () => {
-    await putJSON(`${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`, {
+    await putFetch(`${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`, {
       server_uuid: uuid,
       is_open: false,
     });
@@ -135,63 +145,91 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
 
       <Box display="flex" className={classes.displayBox}>
         {vncConnection ? (
-          <Box>
-            <VncDisplay
-              rfb={rfb}
-              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
-              style={displaySize}
-            />
-          </Box>
+          <>
+            <Box>
+              <VncDisplay
+                rfb={rfb}
+                url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
+                style={displaySize}
+              />
+            </Box>
+            <Box>
+              <Box className={classes.closeBox}>
+                <IconButton
+                  className={classes.closeButton}
+                  style={{ color: TEXT }}
+                  component="span"
+                  onClick={() => {
+                    handleClickClose();
+                    setMode(true);
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+              <Box className={classes.closeBox}>
+                <IconButton
+                  className={classes.keyboardButton}
+                  style={{ color: BLACK }}
+                  component="span"
+                  onClick={handleClick}
+                >
+                  <KeyboardIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  keepMounted
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                >
+                  {keyCombinations.map(({ keys, scans }) => {
+                    return (
+                      <MenuItem
+                        onClick={() => handleSendKeys(scans)}
+                        className={classes.keysItem}
+                        key={keys}
+                      >
+                        <Typography variant="subtitle1">{keys}</Typography>
+                      </MenuItem>
+                    );
+                  })}
+                </Menu>
+              </Box>
+            </Box>
+          </>
         ) : (
           <Box display="flex" className={classes.spinnerBox}>
-            <HeaderText text={`Establishing connection with ${serverName}`} />
-            <Spinner />
+            {!isError ? (
+              <>
+                <HeaderText
+                  text={`Establishing connection with ${serverName}`}
+                />
+                <HeaderText text="This may take a few minutes" />
+                <Spinner />
+              </>
+            ) : (
+              <>
+                <Box style={{ paddingBottom: '2em' }}>
+                  <HeaderText text="There was a problem connecting to the server, please try again" />
+                </Box>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    setIsError(false);
+                  }}
+                  style={{ textTransform: 'none' }}
+                >
+                  <Typography
+                    className={classes.buttonText}
+                    variant="subtitle1"
+                  >
+                    Reconnect
+                  </Typography>
+                </Button>
+              </>
+            )}
           </Box>
         )}
-        <Box>
-          <Box className={classes.closeBox}>
-            <IconButton
-              className={classes.closeButton}
-              style={{ color: TEXT }}
-              component="span"
-              onClick={() => {
-                handleClickClose();
-                setMode(true);
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-          <Box className={classes.closeBox}>
-            <IconButton
-              className={classes.keyboardButton}
-              style={{ color: BLACK }}
-              aria-label="upload picture"
-              component="span"
-              onClick={handleClick}
-            >
-              <KeyboardIcon />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              keepMounted
-              open={Boolean(anchorEl)}
-              onClose={() => setAnchorEl(null)}
-            >
-              {keyCombinations.map(({ keys, scans }) => {
-                return (
-                  <MenuItem
-                    onClick={() => handleSendKeys(scans)}
-                    className={classes.keysItem}
-                    key={keys}
-                  >
-                    <Typography variant="subtitle1">{keys}</Typography>
-                  </MenuItem>
-                );
-              })}
-            </Menu>
-          </Box>
-        </Box>
       </Box>
     </Panel>
   );
