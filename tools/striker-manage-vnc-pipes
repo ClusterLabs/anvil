@@ -207,11 +207,12 @@ sub is_websockify_exists
 	my $parameters      = shift;
 	my $server_uuid     = $parameters->{server_uuid};
 	my $host_uuid       = $parameters->{host_uuid};
+	my $ws_host_uuid    = $parameters->{ws_host_uuid};
 	my $server_vnc_port = $parameters->{server_vnc_port};
 
 	my $query = "
 SELECT
-	vnc.server_vnc_port, hos.host_name, hos.host_uuid, vnc.ws_pid, vnc.ws_source_port
+	vnc.server_vnc_port, hos.host_name, vnc.ws_host_uuid, vnc.ws_pid, vnc.ws_source_port, vnc.ssh_tunnel_host_uuid
 FROM
 	public.vnc_pipes AS vnc
 JOIN
@@ -223,24 +224,19 @@ WHERE
 ;";
 
 	my $results        = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
-	my $count          = @{$results};
 	my $ws_exists_info = { exists_code => 0 };
 
-	if ($count > 0)
+	foreach my $row (@{$results})
 	{
-		my $row                       = $results->[0];
 		my $server_vnc_port_in_record = $row->[0];
-		my $host_name                 = $row->[1];
-		my $host_uuid_in_record       = $row->[2];
+		my $ws_host_name              = $row->[1];
+		my $ws_host_uuid_in_record    = $row->[2];
 		my $ws_pid                    = $row->[3];
 		my $ws_source_port            = $row->[4];
-		my $clean_up_parameters       = { host_name => $host_name, ws_pid => $ws_pid };
+		my $ssh_tunnel_host_uuid      = $row->[5];
+		my $clean_up_parameters       = { host_name => $ws_host_name, ws_pid => $ws_pid };
 
-		$ws_exists_info->{ws_pid}         = $ws_pid;
-		$ws_exists_info->{ws_source_port} = $ws_source_port;
-		$ws_exists_info->{exists_code}    = 1;
-
-		if ($host_uuid ne $host_uuid_in_record)
+		if ($ws_host_uuid ne $ws_host_uuid_in_record)
 		{
 			# VNC server host mismatch; try to stop the recorded instance.
 			# Likely happens after a server migration.
@@ -249,28 +245,49 @@ WHERE
 			# No need to preserve the websockify source port in
 			# this case because the tunnel will need to be replaced
 			# as well.
-			delete $ws_exists_info->{ws_source_port};
-
-			return $ws_exists_info;
+			$ws_exists_info->{ws_source_port} = undef();
+			$ws_exists_info->{exists_code}    = 1;
 		}
-
-		if ($server_vnc_port != $server_vnc_port_in_record)
+		elsif ($server_vnc_port != $server_vnc_port_in_record)
 		{
 			# VNC server port mismatch; try to stop the recorded instance.
 			stop_websockify($clean_up_parameters);
 
-			return $ws_exists_info;
-		}
+			if (not exists $ws_exists_info->{ws_source_port})
+			{
+				$ws_exists_info->{ws_source_port} = $ws_source_port;
+			}
 
-		if (not is_websockify_process($clean_up_parameters))
+			$ws_exists_info->{exists_code} = 1;
+		}
+		elsif (not is_websockify_process($clean_up_parameters))
 		{
-			# The recorded instance died.
-			return $ws_exists_info;
-		}
+			if (not exists $ws_exists_info->{ws_source_port})
+			{
+				$ws_exists_info->{ws_source_port} = $ws_source_port;
+			}
 
-		# Passed all tests; process considered exists.
-		$ws_exists_info->{exists_code} = 2;
+			# The recorded instance died.
+			$ws_exists_info->{exists_code} = 1;
+		}
+		else
+		{
+			# Found one websockify instance that passed all tests.
+			$ws_exists_info->{ws_pid}         = $ws_pid;
+			$ws_exists_info->{ws_source_port} = $ws_source_port;
+			# Code 2: the websockify instance is not recorded for the pipe made from the current host, do update only.
+			# Code 3: the websockify instance is recorded for the pipe made from the current host, do nothing.
+			$ws_exists_info->{exists_code}    = $host_uuid eq $ssh_tunnel_host_uuid ? 3 : 2;
+			# Don't continue the loop because all pipes should align to this verified instance.
+			last;
+		}
 	}
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		'ws_exists_info::ws_pid'         => $ws_exists_info->{ws_pid},
+		'ws_exists_info::ws_source_port' => $ws_exists_info->{ws_source_port},
+		'ws_exists_info::exists_code'    => $ws_exists_info->{exists_code}
+	} });
 
 	return $ws_exists_info;
 }
@@ -367,25 +384,32 @@ sub is_remote_host_name
 
 sub start_websockify
 {
-	my $parameters  = shift;
-	my $server_uuid = $parameters->{server_uuid};
-	my $host_name   = $parameters->{host_name};
-	my $host_uuid   = $parameters->{host_uuid};
-	my $target_port = $parameters->{target_port};
-	my $source_port = $parameters->{source_port};
+	my $parameters   = shift;
+	my $server_uuid  = $parameters->{server_uuid};
+	my $host_uuid    = $parameters->{host_uuid};
+	my $ws_host_name = $parameters->{ws_host_name};
+	my $ws_host_uuid = $parameters->{ws_host_uuid};
+	my $target_port  = $parameters->{target_port};
+	my $source_port  = $parameters->{source_port};
 	my $ws_info;
 
 	my $ws_exists_info = is_websockify_exists({
 		server_uuid     => $server_uuid,
 		host_uuid       => $host_uuid,
+		ws_host_uuid    => $ws_host_uuid,
 		server_vnc_port => $target_port
 	});
 
-	if ($ws_exists_info->{exists_code} == 2)
+	if ($ws_exists_info->{exists_code} =~ /^[23]$/)
 	{
 		$ws_info                = {};
 		$ws_info->{pid}         = $ws_exists_info->{ws_pid};
 		$ws_info->{source_port} = $ws_exists_info->{ws_source_port};
+
+		if ($ws_exists_info->{exists_code} == 2)
+		{
+			$ws_info->{is_update} = 1;
+		}
 	}
 	else
 	{
@@ -403,7 +427,7 @@ sub start_websockify
 			}
 		}
 
-		$source_port = get_available_port({ start_port => $source_port, host_name => $host_name });
+		$source_port = get_available_port({ start_port => $source_port, host_name => $ws_host_name });
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			source_port => $source_port
 		} });
@@ -416,7 +440,7 @@ sub start_websockify
 		my $shell_call = "websockify ".$source_port." :".$target_port." &>/dev/null & echo pid:\$!";
 
 		my ($shell_output, $shell_error, $shell_return_code) = $anvil->Remote->call({
-			target      => $host_name,
+			target      => $ws_host_name,
 			remote_user => "admin",
 			shell_call  => $shell_call
 		});
@@ -729,9 +753,14 @@ sub update_vnc_pipe
 	my $ssh_tunnel_pid          = $parameters->{ssh_tunnel_pid};
 	my $ssh_tunnel_forward_port = $parameters->{ssh_tunnel_forward_port};
 	my $set_string;
-	my $condition_string        = "server_uuid = ".$anvil->Database->quote($server_uuid);
 
-	if ((defined $ws_host_uuid) and (defined $ws_pid) and (defined $ws_source_port))
+	if ((not defined $server_uuid) or (not defined $ssh_tunnel_host_uuid))
+	{
+		# Failed to build query condition; don't continue.
+		return;
+	}
+
+	if ((defined $server_vnc_port) and (defined $ws_host_uuid) and (defined $ws_pid) and (defined $ws_source_port))
 	{
 		$set_string = "
 server_vnc_port = ".$anvil->Database->quote($server_vnc_port).",
@@ -740,20 +769,27 @@ ws_pid          = ".$anvil->Database->quote($ws_pid).",
 ws_source_port  = ".$anvil->Database->quote($ws_source_port)."
 ";
 	}
-	elsif ((defined $ssh_tunnel_host_uuid) and (defined $ssh_tunnel_pid) and (defined $ssh_tunnel_forward_port))
+	elsif ((defined $ssh_tunnel_pid) and (defined $ssh_tunnel_forward_port))
 	{
 		$set_string = "
 ssh_tunnel_host_uuid = ".$anvil->Database->quote($ssh_tunnel_host_uuid).",
 ssh_tunnel_pid = ".$anvil->Database->quote($ssh_tunnel_pid).",
 ssh_tunnel_forward_port = ".$anvil->Database->quote($ssh_tunnel_forward_port)."
 ";
-		$condition_string = $condition_string." AND ssh_tunnel_host_uuid = ".$anvil->Database->quote($ssh_tunnel_host_uuid);
+	}
+	else
+	{
+		# Failed to build query set key-value pairs; don't continue.
+		return;
 	}
 
 	my $query = "
 UPDATE public.vnc_pipes
 SET ".$set_string."
-WHERE ".$condition_string."
+WHERE
+	server_uuid = ".$anvil->Database->quote($server_uuid)."
+AND
+	ssh_tunnel_host_uuid = ".$anvil->Database->quote($ssh_tunnel_host_uuid)."
 ;";
 
 	$anvil->Database->write({ query => $query, source => $THIS_FILE, line => __LINE__ });
@@ -880,10 +916,11 @@ sub open_vnc_pipe
 	}
 
 	my $ws_info = start_websockify({
-		server_uuid => $server_uuid,
-		host_name   => $server_info->{host_name},
-		host_uuid   => $server_info->{host_uuid},
-		target_port => $vnc_info->{port}
+		server_uuid  => $server_uuid,
+		host_uuid    => $host_uuid,
+		ws_host_name => $server_info->{host_name},
+		ws_host_uuid => $server_info->{host_uuid},
+		target_port  => $vnc_info->{port}
 	});
 
 	if (not defined $ws_info)
@@ -942,11 +979,12 @@ sub open_vnc_pipe
 		if ($ws_info->{is_update})
 		{
 			update_vnc_pipe({
-				server_uuid     => $server_uuid,
-				server_vnc_port => $vnc_info->{port},
-				ws_host_uuid    => $server_info->{host_uuid},
-				ws_pid          => $ws_info->{pid},
-				ws_source_port  => $ws_info->{source_port}
+				server_uuid          => $server_uuid,
+				ssh_tunnel_host_uuid => $host_uuid,
+				server_vnc_port      => $vnc_info->{port},
+				ws_host_uuid         => $server_info->{host_uuid},
+				ws_pid               => $ws_info->{pid},
+				ws_source_port       => $ws_info->{source_port}
 			});
 		}
 
