@@ -1307,6 +1307,9 @@ sub parse_definition
 	#print Dumper $server_xml;
 	#die;
 	
+	# Get the DRBD data that this server will almost certainly be using.
+	$anvil->DRBD->get_devices({debug => $debug});
+	
 	# Pull out some basic server info.
 	$anvil->data->{server}{$target}{$server}{$source}{info}{uuid}         = $server_xml->{uuid}->[0];
 	$anvil->data->{server}{$target}{$server}{$source}{info}{name}         = $server_xml->{name}->[0];

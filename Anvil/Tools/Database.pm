@@ -4344,7 +4344,11 @@ And;
  server_definitions::server_definition_server_uuid::<server_definition_server_uuid>::server_definition_xml
  server_definitions::server_definition_server_uuid::<server_definition_server_uuid>::unix_modified_time
 
-This method takes no parameters.
+Parameters;
+
+=head3 server_uuid (optional)
+
+If passed, the definition for the specific server is loaded. Without this, all are loaded.
 
 =cut
 sub get_server_definitions
@@ -4355,11 +4359,14 @@ sub get_server_definitions
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_server_definitions()" }});
 	
-	# We're going to include the alert levels for this host based on overrides that might exist in the 
-	# 'notifications' table. If the data hasn't already been loaded, we'll load it now.
-	if (not $anvil->data->{notifications}{notification_uuid})
+	my $server_uuid = defined $parameter->{server_uuid} ? $parameter->{server_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server_uuid => $server_uuid, 
+	}});
+	
+	if (exists $anvil->data->{server_definitions})
 	{
-		$anvil->Database->get_notifications({debug => $debug});
+		delete $anvil->data->{server_definitions};
 	}
 	
 	my $host_uuid = $anvil->Get->host_uuid();
@@ -4371,6 +4378,13 @@ SELECT
     round(extract(epoch from modified_date)) AS mtime 
 FROM 
     server_definitions
+";
+	if ($server_uuid)
+	{
+		$query .= "WHERE 
+    server_definition_server_uuid = ".$anvil->Database->quote($server_uuid)." ";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
