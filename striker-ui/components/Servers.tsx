@@ -34,7 +34,7 @@ import Decorator, { Colours } from './Decorator';
 import Spinner from './Spinner';
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 
-import putJSON from '../lib/fetchers/putJSON';
+import putFetch from '../lib/fetchers/putFetch';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -145,7 +145,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const handlePower = (label: ButtonLabels) => {
     setAnchorEl(null);
     if (selected.length) {
-      putJSON(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
+      putFetch(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
         server_uuid_list: selected,
         is_on: label === 'on',
       });

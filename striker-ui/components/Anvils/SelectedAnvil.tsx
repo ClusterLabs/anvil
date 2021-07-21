@@ -6,7 +6,7 @@ import { SELECTED_ANVIL } from '../../lib/consts/DEFAULT_THEME';
 import anvilState from '../../lib/consts/ANVILS';
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
-import putJSON from '../../lib/fetchers/putJSON';
+import putFetch from '../../lib/fetchers/putFetch';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -67,7 +67,7 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
             <Switch
               checked={isAnvilOn(list[index])}
               onChange={() =>
-                putJSON(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
+                putFetch(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
                   anvil_uuid: list[index].anvil_uuid,
                   is_on: !isAnvilOn(list[index]),
                 })

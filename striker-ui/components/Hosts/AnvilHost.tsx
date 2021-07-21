@@ -6,7 +6,7 @@ import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
 import HOST_STATUS from '../../lib/consts/NODES';
 
-import putJSON from '../../lib/fetchers/putJSON';
+import putFetch from '../../lib/fetchers/putFetch';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles((theme) => ({
@@ -104,7 +104,7 @@ const AnvilHost = ({
                     <Switch
                       checked={host.state === 'online'}
                       onChange={() =>
-                        putJSON(
+                        putFetch(
                           `${process.env.NEXT_PUBLIC_API_URL}/set_power`,
                           {
                             host_uuid: host.host_uuid,
@@ -122,7 +122,7 @@ const AnvilHost = ({
                       checked={host.state === 'online'}
                       disabled={!(host.state === 'online')}
                       onChange={() =>
-                        putJSON(
+                        putFetch(
                           `${process.env.NEXT_PUBLIC_API_URL}/set_membership`,
                           {
                             host_uuid: host.host_uuid,
