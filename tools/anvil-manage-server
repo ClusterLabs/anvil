@@ -100,112 +100,6 @@ else
 $anvil->nice_exit({exit_code => 0});
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-=cut
-# Make sure we're in an Anvil!
-$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid}, 
-}});
-if (not $anvil->data->{sys}{anvil_uuid})
-{
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
-	$anvil->Job->update_progress({progress => 100, message => "error_0260"});
-	$anvil->nice_exit({exit_code => 1});
-}
-
-# Load servers and resources.
-$anvil->Database->get_servers();
-$anvil->DRBD->gather_data({debug => 2});
-$anvil->Get->available_resources({
-	debug      => 2,
-	anvil_uuid => $anvil->data->{sys}{anvil_uuid}, 
-});
-
-# Do we have a server (name or UUID)?
-if ($anvil->Validate->uuid({uuid => $anvil->data->{switches}{server}}))
-{
-	$anvil->data->{sys}{server_uuid} = $anvil->data->{switches}{server};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"sys::server_uuid" => $anvil->data->{sys}{server_uuid},
-	}});
-	
-	# Find the server name
-	my $server_uuid = $anvil->data->{sys}{server_uuid};
-	if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
-	{
-		$anvil->data->{sys}{server_name} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sys::server_name" => $anvil->data->{sys}{server_name},
-		}});
-	}
-}
-elsif ($anvil->data->{switches}{server})
-{
-	$anvil->data->{sys}{server_name} = $anvil->data->{switches}{server};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"sys::server_name" => $anvil->data->{sys}{server_name},
-	}});
-	
-	# Get the server UUID.
-	my $anvil_uuid  = $anvil->data->{sys}{anvil_uuid}; 
-	my $server_name = $anvil->data->{sys}{server_name}; 
-	if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name})
-	{
-		$anvil->data->{sys}{server_uuid} = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid}; 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sys::server_uuid" => $anvil->data->{sys}{server_uuid},
-		}});
-	}
-}
-
-# Do we have a valid server?
-if ((not $anvil->data->{sys}{server_name}) or (not $anvil->data->{sys}{server_uuid}))
-{
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0247"});
-	
-	my $anvil_uuid = $anvil->data->{sys}{anvil_uuid};
-	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
-	{
-		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
-		print "- ".$server_name." (".$server_uuid.")\n";
-	}
-}
-
-# Show the server's existing stats.
-show_stats($anvil);
-=cut
-
-$anvil->nice_exit({exit_code => 0});
-
-
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
@@ -261,12 +155,21 @@ sub interactive_question
 	}
 	
 	# Do we know or can we find the Anvil! UUID?
-	$anvil->data->{target_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";
-	$anvil->data->{target_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'} ? $anvil->data->{switches}{'anvil-name'} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"target_server::anvil_name" => $anvil->data->{target_server}{anvil_name},
-		"target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid},
-	}});
+	if ((not $anvil->data->{target_server}{anvil_name}) && ($anvil->data->{switches}{'anvil-name'}))
+	{
+		$anvil->data->{target_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"target_server::anvil_name" => $anvil->data->{target_server}{anvil_name},
+		}});
+	}
+	if ((not $anvil->data->{target_server}{anvil_uuid}) && ($anvil->data->{switches}{'anvil-uuid'}))
+	{
+		$anvil->data->{target_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid},
+		}});
+	}
+	
 	if ((not $anvil->data->{target_server}{anvil_uuid}) && (not $anvil->data->{target_server}{anvil_name}))
 	{
 		# Nothing given. Is this host a node, perhaps?
@@ -462,41 +365,61 @@ sub interactive_question
 			
 			### Pull out details of the server. 
 			# How much RAM are we using and how much is configured?
-			$anvil->data->{target_server}{server_ram_in_use} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
-			$anvil->data->{target_server}{server_host_uuid}  = $server_host_uuid;
-			$anvil->data->{target_server}{server_host_name}  = $anvil->data->{hosts}{host_uuid}{$server_host_uuid}{host_name};
+			$anvil->data->{target_server}{ram_in_use}       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+			$anvil->data->{target_server}{configured_ram}   = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
+			$anvil->data->{target_server}{server_host_uuid} = $server_host_uuid;
+			$anvil->data->{target_server}{server_host_name} = $anvil->data->{hosts}{host_uuid}{$server_host_uuid}{host_name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"target_server::server_ram_in_use" => $anvil->Convert->add_commas({number => $anvil->data->{target_server}{server_ram_in_use}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{server_ram_in_use}}).")",
+				"target_server::ram_in_use"        => $anvil->Convert->add_commas({number => $anvil->data->{target_server}{ram_in_use}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{ram_in_use}}).")",
+				"target_server::configured_ram"    => $anvil->Convert->add_commas({number => $anvil->data->{target_server}{configured_ram}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{configured_ram}}).")",
 				"target_server::server_host_uuid"  => $anvil->data->{target_server}{server_host_uuid},
 				"target_server::server_host_name"  => $anvil->data->{target_server}{server_host_name},
 			}});
 			if ($anvil->data->{target_server}{server_state} eq "shut off")
 			{
-				$anvil->data->{target_server}{server_ram_in_use} = 0;
-				$anvil->data->{target_server}{server_host_uuid}  = "";
-				$anvil->data->{target_server}{server_host_name}  = "";
+				$anvil->data->{target_server}{ram_in_use}       = 0;
+				$anvil->data->{target_server}{server_host_uuid} = "";
+				$anvil->data->{target_server}{server_host_name} = "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"target_server::server_ram_in_use" => $anvil->Convert->add_commas({number => $anvil->data->{target_server}{server_ram_in_use}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{server_ram_in_use}}).")",
-					"target_server::server_host_uuid"  => $anvil->data->{target_server}{server_host_uuid},
-					"target_server::server_host_name"  => $anvil->data->{target_server}{server_host_name},
+					"target_server::ram_in_use"       => $anvil->Convert->add_commas({number => $anvil->data->{target_server}{ram_in_use}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{ram_in_use}}).")",
+					"target_server::server_host_uuid" => $anvil->data->{target_server}{server_host_uuid},
+					"target_server::server_host_name" => $anvil->data->{target_server}{server_host_name},
 				}});
 			}
-			$anvil->data->{target_server}{server_configured_ram}          = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
-			$anvil->data->{target_server}{server_start_after_server_uuid} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
-			$anvil->data->{target_server}{server_start_after_server_name} = "";
-			$anvil->data->{target_server}{server_start_delay}             = 0;
+			
+			# Does this server boot after others, or stay off?
+			$anvil->data->{target_server}{boot}{after_server_name} = "";
+			$anvil->data->{target_server}{boot}{after_server_uuid} = "";
+			$anvil->data->{target_server}{boot}{start_delay}       = "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"target_server::server_configured_ram"          => $anvil->Convert->add_commas({number => $anvil->data->{target_server}{server_configured_ram}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{server_configured_ram}}).")",
-				"target_server::server_start_after_server_uuid" => $anvil->data->{target_server}{server_start_after_server_uuid},
+				"servers::server_uuid::${server_uuid}::server_start_after_server_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid},
 			}});
-			if ($anvil->data->{target_server}{server_start_after_server_uuid})
+			if (($anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid} ne "NULL"))
 			{
-				my $server_start_after_server_uuid                               = $anvil->data->{target_server}{server_start_after_server_uuid};
-				   $anvil->data->{target_server}{server_start_after_server_name} = $anvil->data->{servers}{server_uuid}{$server_start_after_server_uuid}{server_name};
-				   $anvil->data->{target_server}{server_start_delay}             = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
+				my $start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_after_server_uuid => $start_after_server_uuid }});
+				
+				if ($start_after_server_uuid eq "00000000-0000-0000-0000-000000000000")
+				{
+					# Stay off
+					$anvil->data->{target_server}{boot}{after_server_name} = $anvil->Words->string({key => "striker_0292"});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"target_server::boot::after_server_name" => $anvil->data->{target_server}{boot}{after_server_name},
+					}});
+				}
+				else
+				{
+					# Server proper
+					$anvil->data->{target_server}{boot}{after_server_name} = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$start_after_server_uuid}{server_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"target_server::boot::after_server_name" => $anvil->data->{target_server}{boot}{after_server_name},
+					}});
+				}
+				$anvil->data->{target_server}{boot}{after_server_uuid} = "00000000-0000-0000-0000-000000000000";
+				$anvil->data->{target_server}{boot}{start_delay}       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"target_server::server_start_after_server_name" => $anvil->data->{target_server}{server_start_after_server_name},
-					"target_server::server_start_delay"             => $anvil->data->{target_server}{server_start_delay},
+					"target_server::boot::after_server_uuid" => $anvil->data->{target_server}{boot}{after_server_uuid},
+					"target_server::boot::start_delay"       => $anvil->data->{target_server}{boot}{start_delay},
 				}});
 			}
 			
@@ -546,24 +469,11 @@ sub interactive_question
 				host       => $short_host_name, 
 			});
 			
-			my $cpu_sockets = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{sockets};
-			my $cpu_threads = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{threads};
-			my $ram_bytes   = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{memory};
-			my $say_ram     = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_bytes});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:cpu_sockets' => $cpu_sockets, 
-				's2:cpu_threads' => $cpu_threads, 
-				's3:ram_bytes'   => $ram_bytes, 
-				's4:say_ram'     => $say_ram, 
-			}});
-			
-			$anvil->data->{target_server}{server_cpu_sockets} = $cpu_sockets if not defined $anvil->data->{target_server}{server_cpu_sockets};
-			$anvil->data->{target_server}{server_cpu_cores}   = $cpu_threads if not defined $anvil->data->{target_server}{server_cpu_cores};
-			$anvil->data->{target_server}{server_ram}         = $say_ram     if not defined $anvil->data->{target_server}{server_ram};
+			$anvil->data->{target_server}{server_cpu_sockets} = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{sockets} if not defined $anvil->data->{target_server}{server_cpu_sockets};
+			$anvil->data->{target_server}{server_cpu_cores}   = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{threads} if not defined $anvil->data->{target_server}{server_cpu_cores};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:target_server::server_cpu_sockets' => $anvil->data->{target_server}{server_cpu_sockets}, 
 				's2:target_server::server_cpu_cores'   => $anvil->data->{target_server}{server_cpu_cores}, 
-				's3:target_server::server_ram'         => $anvil->data->{target_server}{server_ram}, 
 			}});
 			
 			#                                                          server::an-a02n01::srv02-c8s-fujitsu::  from_db::device::disk::target::vda
@@ -616,68 +526,58 @@ sub interactive_question
 					}});
 				}
 			}
-=cut
-2021/07/20 22:08:12:Server.pm:1664; Variables:
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::address::bus:  [0]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::address::type: [drive]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::alias: ....... [sata0-0-0]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::boot_order: .. [2]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::device_bus: .. [sata]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::driver::name:  [qemu]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::driver::type:  [raw]
-\- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::type: ........ [file]
-2021/07/20 22:08:12:Server.pm:1751; Variables:
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::address::controller: [0]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::address::target: ... [0]
-|- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::address::unit: ..... [0]
-\- server::an-a02n01::srv02-c8s-fujitsu::from_db::device::cdrom::target::sda::path: .............. [/mnt/shared/files/CentOS-Stream-8-x86_64-20201211-dvd1.iso]
-=cut
-
-# 				"servers::server_uuid::${server_uuid}::server_pre_migration_file_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
-# 				"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
-# 			
-# 			
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 				"hosts::host_uuid::${host_uuid}::host_name"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
-# 				"hosts::host_uuid::${host_uuid}::short_host_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name}, 
-# 				"hosts::host_uuid::${host_uuid}::host_type"       => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
-# 				"hosts::host_uuid::${host_uuid}::host_key"        => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
-# 				"hosts::host_uuid::${host_uuid}::host_ipmi"       => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}) : $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
-# 				"hosts::host_uuid::${host_uuid}::host_status"     => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
-# 				"hosts::host_uuid::${host_uuid}::anvil_name"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
-# 				"hosts::host_uuid::${host_uuid}::anvil_uuid"      => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
-# 			}});
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_name"            => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}, 
-# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_description"     => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description}, 
-# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_password"        => $anvil->Log->is_secure($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}), 
-# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_node1_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}, 
-# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}, 
-# 				"anvils::anvil_uuid::${anvil_uuid}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}, 
-# 			}});
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 				"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_user_stop"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
-# 				"servers::server_uuid::${server_uuid}::server_start_after_server_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_start_delay"              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
-# 				"servers::server_uuid::${server_uuid}::server_host_uuid"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_state"                    => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state}, 
-# 				"servers::server_uuid::${server_uuid}::server_live_migration"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
-# 				"servers::server_uuid::${server_uuid}::server_pre_migration_file_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
-# 				"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
-# 				"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
-# 				"servers::server_uuid::${server_uuid}::server_ram_in_use"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
-# 				"servers::server_uuid::${server_uuid}::server_configured_ram"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
-# 				"servers::server_uuid::${server_uuid}::server_updated_by_user"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}, 
-# 				"servers::server_uuid::${server_uuid}::server_boot_time"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
-# 			}});
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"target_server::server_name" => $anvil->data->{target_server}{server_name},
-			}});
+			foreach my $script ("pre_migration", "post_migration")
+			{
+				my $file_uuid_key = "server_".$script."_file_uuid";
+				my $argument_key  = "server_".$script."_arguments";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					script        => $script, 
+					file_uuid_key => $file_uuid_key, 
+				}});
+				
+				$anvil->data->{target_server}{scripts}{$script}{file_uuid} = "";
+				$anvil->data->{target_server}{scripts}{$script}{file_name} = "";
+				$anvil->data->{target_server}{scripts}{$script}{arguments} = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"servers::server_uuid::${server_uuid}::${file_uuid_key}" => $anvil->data->{servers}{server_uuid}{$server_uuid}{$file_uuid_key}, 
+				}});
+				if (($anvil->data->{servers}{server_uuid}{$server_uuid}{$file_uuid_key}) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{$file_uuid_key} ne "NULL"))
+				{
+					my $file_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{$file_uuid_key};
+					my $file_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						file_uuid => $file_uuid, 
+						file_name => $file_name, 
+					}});
+					
+					$anvil->data->{target_server}{scripts}{$script}{file_uuid} = $file_uuid;
+					$anvil->data->{target_server}{scripts}{$script}{file_name} = $file_name;
+					$anvil->data->{target_server}{scripts}{$script}{arguments} = $anvil->data->{servers}{server_uuid}{$server_uuid}{$argument_key};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"target_server::scripts::${script}::file_uuid" => $anvil->data->{target_server}{scripts}{$script}{file_uuid}, 
+						"target_server::scripts::${script}::file_name" => $anvil->data->{target_server}{scripts}{$script}{file_name}, 
+						"target_server::scripts::${script}::arguments" => $anvil->data->{target_server}{scripts}{$script}{arguments}, 
+					}});
+				}
+			}
+			
+			# Get the available resources.
+			$anvil->Get->available_resources();
+=cut
+ anvil_resources::<anvil_uuid>::cpu::cores
+ anvil_resources::<anvil_uuid>::cpu::threads
+ anvil_resources::<anvil_uuid>::ram::available
+ anvil_resources::<anvil_uuid>::ram::allocated
+ anvil_resources::<anvil_uuid>::ram::hardware
+ anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_nodes
+ anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_dr
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::group_name
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::free_size
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size_on_dr
+ anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::available_on_dr
+=cut			
 		}
 		else
 		{
@@ -716,6 +616,121 @@ sub interactive_question
 		interactive_ask_server_name($anvil, $terminal);
 	}
 	
+	# Made it here? Show the menu.
+	interactive_configure_main($anvil, $terminal);
+	
+	return(0);
+}
+
+sub interactive_configure_main
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $selection = 0;
+	my $retry     = 0;
+	while(1)
+	{
+		my $default = "";
+		
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0352"})."\n";
+		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n";
+		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{target_server}{server_name} }})."\n";
+		print "\n";
+		print "[ 1 ] - CPU\n";
+		print "[ 2 ] - RAM\n";
+		print "[ 3 ] - Storage\n";
+		print "[ 4 ] - Network\n";
+		print "[ 5 ] - Boot Order\n";
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		print "\n";
+		print $terminal->Tgoto('cm', 0, 13)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ($answer eq "1")
+		{
+			print "Going to CPU menu\n";
+			sleep 1;
+		}
+		elsif ($answer eq "2")
+		{
+			print "Going to RAM menu\n";
+			sleep 1;
+		}
+		elsif ($answer eq "3")
+		{
+			print "Going to Storage menu\n";
+			sleep 1;
+		}
+		elsif ($answer eq "4")
+		{
+			print "Going to Network menu\n";
+			sleep 1;
+		}
+		elsif ($answer eq "5")
+		{
+			print "Going to Boot order menu\n";
+			sleep 1;
+		}
+		elsif (lc($answer) eq "b")
+		{
+			$anvil->data->{target_server}{server_name} = "";
+			$anvil->data->{target_server}{server_uuid} = "";
+			$anvil->data->{switches}{server}           = "";
+			print "Going back\n";
+			interactive_ask_server_name($anvil, $terminal);
+		}
+		elsif (lc($answer) eq "q")
+		{
+			print "Good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			print "Invalid selection, please enter the digit for the menu you want.\n";
+			sleep 1;
+		}
+=cut
+1. CPU
+	* Max (sockets * cores): X
+	1. Sockets: 
+	2. Cores:   
+2. RAM
+	* Available:  X
+	* In use:     y
+	* Configured: z
+	1. Size:  
+3. Storage
+	1. Optical media
+		<list drives>
+			1. Insert / change
+				<file list>
+			2. Eject
+	2. Disks
+		1. New
+			<storage groups (size available)>
+		<list drives>
+			1. Grow
+			2. Delete
+			3. Move <when 2+ storage groups>
+	3. Boot order
+		<list disks, 0 == don't boot>
+4. Network
+	<interface list>
+		1. MAC Address
+		2. emulation type
+		3. <toggle> Plug in / Unplug
+		4. Bridge
+		5. Delete
+	1. Add
+5. Boot Order
+=cut
+	}
+	
 	return(0);
 }
 
@@ -732,21 +747,62 @@ sub interactive_ask_anvil_name
 			$default = $anvil->data->{target_server}{anvil_name};
 		}
 		print $terminal->Tputs('cl');
-		print $anvil->Words->string({key => "job_0352"})."\n";
-		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n\n\n";
+		print $anvil->Words->string({key => "message_0257"})."\n";
 		
-		# Show all the current server names.
-		if ($retry)
-		{
-			print $anvil->Words->string({key => "job_0152"})."\n\n";
-		}
-		print $anvil->Words->string({key => "job_0153"})."\n";
+		my $anvil_selection = [];
+		push @{$anvil_selection}, "NULL";
+		
+		my $anvil_count        = 0;
+		my $longest_anvil_name = 0;
 		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
 		{
-			print "- ".$anvil_name.": - ".$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}."\n";
+			my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				anvil_name        => $anvil_name, 
+				anvil_uuid        => $anvil_uuid,
+				anvil_description => $anvil_description, 
+			}});
+			next if $anvil_description eq "DELETED";
+			
+			$anvil_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_count => $anvil_count }});
+			push @{$anvil_selection}, $anvil_name;
+			
+			if (length($anvil_name) > $longest_anvil_name)
+			{
+				$longest_anvil_name = length($anvil_name);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_anvil_name => $longest_anvil_name }});
+			}
 		}
 		
-		print $terminal->Tgoto('cm', 0, 2)."? ";
+		my $number_length = length($anvil_count + 1);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number_length => $number_length }});
+		for (my $i = 1; $i < @{$anvil_selection}; $i++)
+		{
+			my $anvil_name = $anvil_selection->[$i];
+			next if $anvil_name eq "NULL";
+			my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				i                 => $i,
+				anvil_name        => $anvil_name, 
+				anvil_uuid        => $anvil_uuid,
+				anvil_description => $anvil_description, 
+			}});
+			
+			print $anvil->Words->string({key => "message_0258", variables => { 
+				number            => sprintf("%-${number_length}s", $i),
+				anvil_name        => sprintf("%-${longest_anvil_name}s", $anvil_name),
+				anvil_description => $anvil_description, 
+			}})."\n";
+		}
+		print "\n";
+		print "[ Q ] - Quit\n";
+		print "\n";
+		
+		my $column = 3 + $anvil_count;
+		print $terminal->Tgoto('cm', 0, $column)."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -759,7 +815,20 @@ sub interactive_ask_anvil_name
 		
 		# Reload in case a new anvil! was saved while we waited.
 		$anvil->Database->get_anvils();
-		if (exists $anvil->data->{anvils}{anvil_name}{$answer})
+		if (($answer =~ /^\d+$/) && (exists $anvil_selection->[$answer]) && (not exists $anvil->data->{anvils}{anvil_name}{$answer}))
+		{
+			$answer = $anvil_selection->[$answer];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			
+			$anvil->data->{target_server}{anvil_name} = $answer;
+			$anvil->data->{target_server}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid({anvil_name => $answer});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"target_server::anvil_name" => $anvil->data->{target_server}{anvil_name},
+				"target_server::anvil_uuid" => $anvil->data->{target_server}{anvil_uuid},
+			}});
+			last;
+		}
+		elsif ((exists $anvil->data->{anvils}{anvil_name}{$answer}) && (ref($anvil->data->{anvils}{anvil_name}{$answer}) eq "HASH"))
 		{
 			# Valid.
 			$anvil->data->{target_server}{anvil_name} = $answer;
@@ -770,11 +839,17 @@ sub interactive_ask_anvil_name
 			}});
 			last;
 		}
+		elsif (lc($answer) eq "q")
+		{
+			print "Good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
 		else
 		{
 			$retry = 1;
 		}
 	}
+
 	interactive_question($anvil);
 	
 	return(0);
@@ -787,6 +862,8 @@ sub interactive_ask_server_name
 	$anvil->Database->get_servers({debug => 2});
 	
 	### TODO: Figure out how many rows we have and break the server list into columns if too long.
+	###       tput cols
+	###       tput rows
 	my $retry     = 0;
 	my $not_found = "";
 	while(1)
@@ -797,9 +874,6 @@ sub interactive_ask_server_name
 			$default = $anvil->data->{target_server}{server_name};
 		}
 		print $terminal->Tputs('cl');
-		print $anvil->Words->string({key => "job_0352"})."\n";
-		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n";
-		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{target_server}{server_name} }})."\n\n\n";
 		
 		# Show all the current server names.
 		if ($retry)
@@ -808,23 +882,63 @@ sub interactive_ask_server_name
 		}
 		my $anvil_uuid = $anvil->data->{target_server}{anvil_uuid};
 		print $anvil->Words->string({key => "job_0354", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n";
+		
+		# Push the server names into an array, with '0' being null so the list we show the user 
+		# starts at '1'.
+		my $server_selection = [];
+		push @{$server_selection}, "NULL";
+		
+		my $server_count        = 0;
+		my $longest_server_name = 0;
 		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 		{
 			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
 			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_name  => $server_name, 
 				server_uuid  => $server_uuid,
 				server_state => $server_state, 
 			}});
 			next if $server_state eq "DELETED";
 			
-			print $anvil->Words->string({key => "message_0219", variables => { 
-				server_name  => $server_name,
+			$server_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
+			push @{$server_selection}, $server_name;
+			
+			if (length($server_name) > $longest_server_name)
+			{
+				$longest_server_name = length($server_name);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_server_name => $longest_server_name }});
+			}
+		}
+		
+		my $number_length = length($server_count + 1);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number_length => $number_length }});
+		for (my $i = 1; $i < @{$server_selection}; $i++)
+		{
+			my $server_name = $server_selection->[$i];
+			next if $server_name eq "NULL";
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_name  => $server_name, 
+				server_uuid  => $server_uuid,
+				server_state => $server_state, 
+			}});
+			
+			print $anvil->Words->string({key => "message_0256", variables => { 
+				number       => sprintf("%-${number_length}s", $i),
+				server_name  => sprintf("%-${longest_server_name}s", $server_name),
 				server_state => $server_state, 
 			}})."\n";
 		}
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		print "\n";
 		
-		print $terminal->Tgoto('cm', 0, 3)."? ";
+		my $column = 4 + $server_count;
+		print $terminal->Tgoto('cm', 0, $column)."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -840,8 +954,12 @@ sub interactive_ask_server_name
 		if ($answer)
 		{
 			# Found?
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
-			if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer})
+			if (($answer =~ /^\d+$/) && (exists $server_selection->[$answer]) && (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}))
+			{
+				$answer = $server_selection->[$answer];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			}
+			if ((exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}) && (ref($anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$answer}) eq "HASH"))
 			{
 				# Valid
 				$anvil->data->{target_server}{server_name} = $answer;
@@ -851,6 +969,21 @@ sub interactive_ask_server_name
 					"target_server::server_uuid" => $anvil->data->{target_server}{server_uuid},
 				}});
 				last;
+			}
+			elsif (lc($answer) eq "b")
+			{
+				$anvil->data->{target_server}{anvil_name} = "";
+				$anvil->data->{target_server}{anvil_uuid} = "";
+				$anvil->data->{switches}{anvil}           = "";
+				$anvil->data->{switches}{'anvil-name'}    = "";
+				$anvil->data->{switches}{'anvil-uuid'}    = "";
+				print "Going back\n";
+				interactive_ask_anvil_name($anvil, $terminal);
+			}
+			elsif (lc($answer) eq "q")
+			{
+				print "Good bye.\n";
+				$anvil->nice_exit({exit_code => 0});
 			}
 			else
 			{

@@ -2219,6 +2219,9 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0253">The fence delay to prefer the node: [#!variable!node!#] has been removed.</key>
 		<key name="message_0254">The fence delay now prefers the node: [#!variable!node!#].</key>
 		<key name="message_0255">This is the TCP port that the VNC server is listening on to provide graphical access to the associated server.</key>
+		<key name="message_0256">[ #!variable!number!# ]- #!variable!server_name!# - (Current state: [#!variable!server_state!#])</key>
+		<key name="message_0257">-=] Please select the Anvil! hosting the server you want to manage [=-</key>
+		<key name="message_0258">[ #!variable!number!# ]- #!variable!anvil_name!# - #!variable!anvil_description!#</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2544,6 +2547,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0289">Control when the database is locked for use by any system except the lock holder.</key>
 		<key name="striker_0290">This is the number of bytes received (rx) by a network interface since it was last started.</key>
 		<key name="striker_0291">This is the number of bytes transmitted (tx) by a network interface since it was last started.</key>
+		<key name="striker_0292">Stay Off</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
