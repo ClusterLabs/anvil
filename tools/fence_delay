@@ -62,7 +62,7 @@ if (not -e $conf->{'system'}{'log'})
 }
 
 my $log = IO::Handle->new();
-open ($log, ">>".$conf->{'system'}{'log'}) || die "Failed to open: [".$conf->{'system'}{'log'}."] for writing; Error: $!\n";
+open ($log, ">>".$conf->{'system'}{'log'}) or warn "Failed to open: [".$conf->{'system'}{'log'}."] for writing; Error: $!\n";
 # Set $log and STDOUT to hot (unbuffered) output.
 if (1)
 {
@@ -81,7 +81,7 @@ read_cla($conf, $log);
 read_stdin($conf, $log);
 
 # If I've been asked to show the metadata XML, do so and then exit.
-if ($conf->{'system'}{action} eq "metadata")
+if (($conf->{'system'}{action} eq "metadata") or ($conf->{'system'}{action} eq "meta-data"))
 {
 	metadata($conf, $log);
 	do_exit($conf, $log, 0);
@@ -389,7 +389,7 @@ sub read_stdin
 		elsif ($name eq "wait")
 		{
 			$conf->{'system'}{wait} = $value;
-			record($conf, $log, "[ Debug ] - 'system::wait': [".$conf->{'system'}{wait}."]\n", 2);
+			record($conf, $log, "[ Debug ] - 'system::wait': [".$conf->{'system'}{'wait'}."]\n", 2);
 		}
 		else
 		{
@@ -409,7 +409,7 @@ sub record
 	return if $level > $conf->{'system'}{log_level};
 	
 	# Print to the log
-	print $log $msg;
+	print $log get_date_time($conf)." - ".$msg;
 	
 	# Print to the screen if we're not 'quiet'.
 	print $msg if not $conf->{'system'}{quiet};
