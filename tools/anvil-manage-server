@@ -469,14 +469,26 @@ sub interactive_question
 				host       => $short_host_name, 
 			});
 			
-			$anvil->data->{target_server}{server_cpu_sockets} = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{sockets} if not defined $anvil->data->{target_server}{server_cpu_sockets};
-			$anvil->data->{target_server}{server_cpu_cores}   = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{threads} if not defined $anvil->data->{target_server}{server_cpu_cores};
+			# If only VCPU is set, cores and threads will both be '1' but 'total' will be higher.
+			#  Windows (and others?) interprets this as X number of single core sockets.
+			$anvil->data->{target_server}{server_cpu_total}   = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{total_cores} if not defined $anvil->data->{target_server}{server_cpu_total};
+			$anvil->data->{target_server}{server_cpu_sockets} = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{sockets}     if not defined $anvil->data->{target_server}{server_cpu_sockets};
+			$anvil->data->{target_server}{server_cpu_cores}   = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{threads}     if not defined $anvil->data->{target_server}{server_cpu_cores};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:target_server::server_cpu_sockets' => $anvil->data->{target_server}{server_cpu_sockets}, 
 				's2:target_server::server_cpu_cores'   => $anvil->data->{target_server}{server_cpu_cores}, 
+				's3:target_server::server_cpu_total'   => $anvil->data->{target_server}{server_cpu_total}, 
 			}});
 			
-			#                                                          server::an-a02n01::srv02-c8s-fujitsu::  from_db::device::disk::target::vda
+			if (($anvil->data->{target_server}{server_cpu_sockets} == 1) && ($anvil->data->{target_server}{server_cpu_cores} == 1) && ($anvil->data->{target_server}{server_cpu_total} > 1))
+			{
+				$anvil->data->{target_server}{server_cpu_sockets} = $anvil->data->{target_server}{server_cpu_total};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:target_server::server_cpu_sockets' => $anvil->data->{target_server}{server_cpu_sockets}, 
+				}});
+			}
+			
+			# Pull out the existing disks.
 			foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{from_db}{device}{disk}{target}})
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
@@ -626,17 +638,13 @@ sub interactive_configure_main
 {
 	my ($anvil, $terminal) = @_;
 	
-	my $selection = 0;
-	my $retry     = 0;
 	while(1)
 	{
-		my $default = "";
-		
 		print $terminal->Tputs('cl');
-		print $anvil->Words->string({key => "job_0352"})."\n";
-		print $anvil->Words->string({key => "job_0151", variables => { anvil_name => $anvil->data->{target_server}{anvil_name} }})."\n";
-		print $anvil->Words->string({key => "job_0157", variables => { server_name => $anvil->data->{target_server}{server_name} }})."\n";
-		print "\n";
+		print $anvil->Words->string({key => "job_0355", variables => { 
+			anvil_name  => $anvil->data->{target_server}{anvil_name},
+			server_name => $anvil->data->{target_server}{server_name}, 
+		}})."\n";
 		print "[ 1 ] - CPU\n";
 		print "[ 2 ] - RAM\n";
 		print "[ 3 ] - Storage\n";
@@ -646,15 +654,14 @@ sub interactive_configure_main
 		print "[ B ] - Back\n";
 		print "[ Q ] - Quit\n";
 		print "\n";
-		print $terminal->Tgoto('cm', 0, 13)."? ";
+		print $terminal->Tgoto('cm', 0, 9)."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
 		
 		if ($answer eq "1")
 		{
-			print "Going to CPU menu\n";
-			sleep 1;
+			interactive_configure_cpu($anvil, $terminal)
 		}
 		elsif ($answer eq "2")
 		{
@@ -681,12 +688,11 @@ sub interactive_configure_main
 			$anvil->data->{target_server}{server_name} = "";
 			$anvil->data->{target_server}{server_uuid} = "";
 			$anvil->data->{switches}{server}           = "";
-			print "Going back\n";
 			interactive_ask_server_name($anvil, $terminal);
 		}
 		elsif (lc($answer) eq "q")
 		{
-			print "Good bye.\n";
+			print "NO CARRIER, good bye.\n";
 			$anvil->nice_exit({exit_code => 0});
 		}
 		else
@@ -729,6 +735,75 @@ sub interactive_configure_main
 	1. Add
 5. Boot Order
 =cut
+	}
+	
+	return(0);
+}
+
+sub interactive_configure_cpu
+{
+	my ($anvil, $terminal) = @_;
+	
+	while(1)
+	{
+		my $anvil_uuid = $anvil->data->{target_server}{anvil_uuid};
+		my $maximum    = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores} * $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
+		my $current_cores   = $anvil->data->{target_server}{server_cpu_cores};
+		
+		if (not exists $anvil->data->{new_config}{cpu}{sockets})
+		{
+			$anvil->data->{new_config}{cpu}{sockets} = "";
+		}
+		if (not exists $anvil->data->{new_config}{cpu}{cores})
+		{
+			$anvil->data->{new_config}{cpu}{cores} = "";
+		}
+		
+		my $star_cores = " ";
+		if (($anvil->data->{new_config}{cpu}{cores}) && ($anvil->data->{new_config}{cpu}{cores} ne $anvil->data->{target_server}{server_cpu_cores}))
+		{
+			$star_cores = "*";
+		}
+		my $star_sockets = " ";
+		if (($anvil->data->{new_config}{cpu}{sockets}) && ($anvil->data->{new_config}{cpu}{sockets} ne $anvil->data->{target_server}{server_cpu_sockets}))
+		{
+			$star_sockets = "*";
+		}
+		
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0355", variables => { 
+			anvil_name  => $anvil->data->{target_server}{anvil_name},
+			server_name => $anvil->data->{target_server}{server_name}, 
+		}})."\n";
+		print "* CPU configuration. Maximum cores X sockets is: [".$maximum."]\n";
+		print "[ 1 ] - Cores per socket".$star_cores." (currently: [".$anvil->data->{target_server}{server_cpu_cores}."], new: [".$anvil->data->{new_config}{cpu}{cores}."])\n";
+		print "[ 2 ] - Sockets".$star_sockets."      (currently: [".$anvil->data->{target_server}{server_cpu_sockets}."], new: [".$anvil->data->{new_config}{cpu}{sockets}."])\n";
+		
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		print $terminal->Tgoto('cm', 0, 7)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ($answer eq "1")
+		{
+			print "How many cores per socket would you like? ";
+		}
+		elsif ($answer eq "2")
+		{
+		}
+		elsif (lc($answer) eq "b")
+		{
+		}
+		elsif (lc($answer) eq "q")
+		{
+		}
+		else
+		{
+			
+		}
 	}
 	
 	return(0);
@@ -841,7 +916,7 @@ sub interactive_ask_anvil_name
 		}
 		elsif (lc($answer) eq "q")
 		{
-			print "Good bye.\n";
+			print "NO CARRIER, good bye.\n";
 			$anvil->nice_exit({exit_code => 0});
 		}
 		else
@@ -982,7 +1057,7 @@ sub interactive_ask_server_name
 			}
 			elsif (lc($answer) eq "q")
 			{
-				print "Good bye.\n";
+				print "NO CARRIER, good bye.\n";
 				$anvil->nice_exit({exit_code => 0});
 			}
 			else
