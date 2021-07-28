@@ -100,7 +100,7 @@ sub check_httpd_conf
 
 	if (not -s $anvil->data->{path}{data}{httpd_conf})
 	{
-		# The apache config file doesn't exist or is empty.
+		# The apache config file doesn't exist or is empty; abort.
 		return(0);
 	}
 
@@ -213,6 +213,13 @@ sub check_httpd_conf
 		} });
 
 		my $new_httpd_conf = $anvil->data->{path}{data}{httpd_conf}.".augnew";
+
+		if (not -s $new_httpd_conf)
+		{
+			# No new conf file created; abort.
+			return(0);
+		}
+
 		my $diff_output    = diff $anvil->data->{path}{data}{httpd_conf}, $new_httpd_conf, { STYLE => 'Unified' };
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { diff_output => $diff_output } });
 
