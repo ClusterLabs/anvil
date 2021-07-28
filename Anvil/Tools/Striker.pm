@@ -97,75 +97,158 @@ sub check_httpd_conf
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->check_httpd_conf()" }});
-	
-	my $update_file    = 0;
-	my $in_dir_module  = 0;
-	my $old_httpd_conf = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{httpd_conf}});
-	my $new_httpd_conf = "";
-	foreach my $line (split/\n/, $old_httpd_conf)
+
+	if (not -s $anvil->data->{path}{data}{httpd_conf})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^<IfModule dir_module>/)
-		{
-			$in_dir_module = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_dir_module => $in_dir_module }});
-		}
-		if ($in_dir_module)
-		{
-			if ($line =~ /^<\/IfModule>/)
-			{
-				$in_dir_module = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_dir_module => $in_dir_module }});
-			}
-			elsif ($line =~ /^\s+DirectoryIndex (.*)/)
-			{
-				my $directory_index = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory_index => $directory_index }});
-				if ($directory_index ne "cgi-bin/striker")
-				{
-					$line        =~ s/$directory_index/cgi-bin\/striker/;
-					$update_file =  1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						line        => $line,
-						update_file => $update_file, 
-					}});
-				}
-			}
-		}
-		$new_httpd_conf .= $line."\n";
+		# The apache config file doesn't exist or is empty.
+		return(0);
 	}
-	
-	if ($update_file)
+
+	my $is_write         = 0;
+	my $write_shell_call = $anvil->data->{path}{exe}{augtool}." --new <<EOF\n";
+	my $read_shell_call;
+	my $shell_output;
+	my $shell_return_code;
+	my $augtool_path;
+
+	$augtool_path    = "/files".$anvil->data->{path}{data}{httpd_conf}."/IfModule[arg='dir_module']/directive[.='DirectoryIndex']/arg[1]";
+	$read_shell_call = $anvil->data->{path}{exe}{augtool}." <<EOF\nmatch ".$augtool_path."\nquit\nEOF\n";
+
+	($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $read_shell_call });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		shell_call        => $read_shell_call,
+		shell_output      => $shell_output,
+		shell_return_code => $shell_return_code
+	} });
+
+	if (($shell_return_code == 0) and ($shell_output =~ /^\//))
 	{
-		# Write the new file out.
-		my $db_difference = diff \$old_httpd_conf, \$new_httpd_conf, { STYLE => 'Unified' };
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0625", variables => { 
-			file       => $anvil->data->{path}{data}{httpd_conf},
-			difference => $db_difference,
-		}});
-		
-		my $error = $anvil->Storage->write_file({
-			debug     => $debug,
-			body      => $new_httpd_conf,
-			file      => $anvil->data->{path}{data}{httpd_conf},
-			group     => "root", 
-			user      => "root",
-			mode      => "0644",
-			overwrite => 1,
-			backup    => 1,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
-		
-		if (not $error)
+		$is_write = 1;
+
+		# Set DirectoryIndex to cgi-bin/striker.
+		$write_shell_call .= "set ".$augtool_path." cgi-bin/striker\n";
+	}
+
+	my $header_name = "Access-Control-Allow-Origin";
+
+	$augtool_path    = "/files".$anvil->data->{path}{data}{httpd_conf}."/Directory[arg='\"/var/www/cgi-bin\"']/directive[.='Header']";
+	$read_shell_call = $anvil->data->{path}{exe}{augtool}." <<EOF\nmatch ".$augtool_path."/arg[2][.='".$header_name."']\nquit\nEOF\n";
+
+	($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $read_shell_call });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		shell_call        => $read_shell_call,
+		shell_output      => $shell_output,
+		shell_return_code => $shell_return_code
+	} });
+
+	if (($shell_return_code == 0) and (not $shell_output =~ /^\//))
+	{
+		$is_write = 1;
+
+		my $last_header_arg = $augtool_path."[last()]/arg";
+
+		# Add header Access-Control-Allow-Origin "all" to cgi-bin scripts.
+		$write_shell_call .= "set ".$augtool_path."[last()+1] Header\n";
+		$write_shell_call .= "set ".$last_header_arg."[1] set\n";
+		$write_shell_call .= "set ".$last_header_arg."[2] ".$header_name."\n";
+		$write_shell_call .= "set ".$last_header_arg."[3] \\\"*\\\"\n";
+	}
+
+	$augtool_path    = "/files".$anvil->data->{path}{data}{httpd_conf}."/Directory[arg='\"/var/www/html\"']/IfModule";
+	$read_shell_call = $anvil->data->{path}{exe}{augtool}." <<EOF\nmatch ".$augtool_path."[arg='rewrite_module']\nquit\nEOF\n";
+
+	($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $read_shell_call });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		shell_call        => $read_shell_call,
+		shell_output      => $shell_output,
+		shell_return_code => $shell_return_code
+	} });
+
+	if (($shell_return_code == 0) and (not $shell_output =~ /^\//))
+	{
+		$is_write = 1;
+
+		my $last_ifmodule_directive = $augtool_path."[last()]/directive";
+		my $new_directive           = $last_ifmodule_directive."[last()+1]";
+		my $rewriteengine_directive = "RewriteEngine";
+		my $rewritecond_directive   = "RewriteCond";
+		my $rewriterule_directive   = "RewriteRule";
+
+		# Insert rewrite rules to redirect /page to /page.html.
+		# Create IfModule block to avoid setting the rewrite rules when the rewrite module isn't available.
+		$write_shell_call .= "set ".$augtool_path."[last()+1]/arg[1] rewrite_module\n";
+
+		# Turn on the rewrite engine to enable rewriting.
+		$write_shell_call .= "set ".$new_directive." ".$rewriteengine_directive."\n";
+		$write_shell_call .= "set ".$last_ifmodule_directive."[.='".$rewriteengine_directive."']/arg[1] on\n";
+
+		my $last_rewriterule_arg = $last_ifmodule_directive."[.='".$rewriterule_directive."'][last()]/arg";
+
+		# Set rule #1: remove all trailing slashes from the URI.
+		$write_shell_call .= "set ".$new_directive." ".$rewriterule_directive."\n";
+		$write_shell_call .= "set ".$last_rewriterule_arg."[1] ^(.*)/+\$\n";
+		$write_shell_call .= "set ".$last_rewriterule_arg."[2] \\\$1\n";
+
+		my $last_rewritecond_arg = $last_ifmodule_directive."[.='".$rewritecond_directive."'][last()]/arg";
+
+		# Set rule #2: redirect to [basename].html if it exists.
+		$write_shell_call .= "set ".$new_directive." ".$rewritecond_directive."\n";
+		$write_shell_call .= "set ".$last_rewritecond_arg."[1] %{REQUEST_FILENAME}.html\n";
+		$write_shell_call .= "set ".$last_rewritecond_arg."[2] -f\n";
+		$write_shell_call .= "set ".$new_directive." ".$rewriterule_directive."\n";
+		$write_shell_call .= "set ".$last_rewriterule_arg."[1] ![^/]+[.]html\$\n";
+		$write_shell_call .= "set ".$last_rewriterule_arg."[2] %{REQUEST_FILENAME}.html\n";
+		$write_shell_call .= "set ".$last_rewriterule_arg."[3] [L]\n";
+	}
+
+	if ($is_write)
+	{
+		$write_shell_call .= "save\nquit\nEOF\n";
+
+		($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $write_shell_call });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			shell_call        => $write_shell_call,
+			shell_output      => $shell_output,
+			shell_return_code => $shell_return_code
+		} });
+
+		my $new_httpd_conf = $anvil->data->{path}{data}{httpd_conf}.".augnew";
+		my $diff_output    = diff $anvil->data->{path}{data}{httpd_conf}, $new_httpd_conf, { STYLE => 'Unified' };
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { diff_output => $diff_output } });
+
+		# Test the new config file before overwriting.
+		$read_shell_call = $anvil->data->{path}{exe}{httpd}." -t -f ".$new_httpd_conf;
+
+		($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $read_shell_call });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			shell_call        => $read_shell_call,
+			shell_output      => $shell_output,
+			shell_return_code => $shell_return_code
+		} });
+
+		if ($shell_return_code == 0)
 		{
-			# Restart apache.
-			$anvil->System->restart_daemon({
-				debug  => $debug, 
-				daemon => "httpd.service",
-			});
+			# No issues found during the test; proceed to overwriting.
+
+			$anvil->Storage->backup({ debug => $debug, file => $anvil->data->{path}{data}{httpd_conf} });
+
+			$write_shell_call = $anvil->data->{path}{exe}{mv}." -f ".$new_httpd_conf." ".$anvil->data->{path}{data}{httpd_conf};
+
+			($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $write_shell_call });
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				shell_call        => $write_shell_call,
+				shell_output      => $shell_output,
+				shell_return_code => $shell_return_code
+			} });
+
+			$anvil->Storage->change_mode({ debug => $debug, path => $anvil->data->{path}{data}{httpd_conf}, mode => "0644" });
+
+			$anvil->Storage->change_owner({ debug => $debug, path => $anvil->data->{path}{data}{httpd_conf}, user => "root", group => "root" });
+
+			$anvil->System->restart_daemon({ debug  => $debug, daemon => $anvil->data->{sys}{daemon}{httpd} });
 		}
 	}
-	
+
 	return(0);
 }
 
