@@ -132,7 +132,7 @@ sub check_httpd_conf
 	my $header_name = "Access-Control-Allow-Origin";
 
 	$augtool_path    = "/files".$anvil->data->{path}{data}{httpd_conf}."/Directory[arg='\"/var/www/cgi-bin\"']/directive[.='Header']";
-	$read_shell_call = $anvil->data->{path}{exe}{augtool}." <<EOF\nmatch ".$augtool_path."/arg[2][.='".$header_name."']\nquit\nEOF\n";
+	$read_shell_call = $anvil->data->{path}{exe}{augtool}." <<EOF\nmatch ".$augtool_path."/arg[.='".$header_name."']\nquit\nEOF\n";
 
 	($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $read_shell_call });
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
