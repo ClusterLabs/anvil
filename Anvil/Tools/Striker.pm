@@ -220,7 +220,7 @@ sub check_httpd_conf
 			return(0);
 		}
 
-		my $diff_output    = diff $anvil->data->{path}{data}{httpd_conf}, $new_httpd_conf, { STYLE => 'Unified' };
+		my $diff_output = diff $anvil->data->{path}{data}{httpd_conf}, $new_httpd_conf, { STYLE => 'Unified' };
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { diff_output => $diff_output } });
 
 		# Test the new config file before overwriting.
@@ -253,6 +253,19 @@ sub check_httpd_conf
 			$anvil->Storage->change_owner({ debug => $debug, path => $anvil->data->{path}{data}{httpd_conf}, user => "root", group => "root" });
 
 			$anvil->System->restart_daemon({ debug  => $debug, daemon => $anvil->data->{sys}{daemon}{httpd} });
+		}
+		else
+		{
+			# Found issues during the test; clean up.
+
+			$write_shell_call = $anvil->data->{path}{exe}{rm}." -f ".$new_httpd_conf;
+
+			($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $write_shell_call });
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				shell_call        => $write_shell_call,
+				shell_output      => $shell_output,
+				shell_return_code => $shell_return_code
+			} });
 		}
 	}
 
