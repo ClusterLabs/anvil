@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from 'react';
-import { RFB } from 'novnc-node';
+import dynamic from 'next/dynamic';
 import { Box, Menu, MenuItem, Typography, Button } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
 import KeyboardIcon from '@material-ui/icons/Keyboard';
 import IconButton from '@material-ui/core/IconButton';
-import VncDisplay from './VncDisplay';
+import RFB from './noVNC/core/rfb';
 import { Panel } from '../Panels';
 import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import keyCombinations from './keyCombinations';
@@ -14,10 +14,14 @@ import putFetchWithTimeout from '../../lib/fetchers/putFetchWithTimeout';
 import { HeaderText } from '../Text';
 import Spinner from '../Spinner';
 
+const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
+
 const useStyles = makeStyles(() => ({
   displayBox: {
     paddingTop: '1em',
     paddingBottom: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
   },
   spinnerBox: {
     flexDirection: 'column',
@@ -73,7 +77,7 @@ interface VncConnectionProps {
 
 const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const rfb = useRef<typeof RFB>(undefined);
+  const rfb = useRef<RFB>();
   const hostname = useRef<string | undefined>(undefined);
   const [vncConnection, setVncConnection] = useState<
     VncConnectionProps | undefined
@@ -82,7 +86,7 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [displaySize] = useState<{
     width: string;
     height: string;
-  }>({ width: '75%', height: '80%' });
+  }>({ width: '75vw', height: '75vh' });
   const classes = useStyles();
 
   useEffect(() => {
@@ -124,9 +128,9 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
       if (!scans.length) rfb.current.sendCtrlAltDel();
       else {
         // Send pressing keys
-        scans.forEach((scan) => {
-          rfb.current.sendKey(scan, 1);
-        });
+        for (let i = 0; i <= scans.length - 1; i += 1) {
+          rfb.current.sendKey(scans[i], 1);
+        }
 
         // Send releasing keys in reverse order
         for (let i = scans.length - 1; i >= 0; i -= 1) {
@@ -146,13 +150,21 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
       <Box display="flex" className={classes.displayBox}>
         {vncConnection ? (
           <>
-            <Box>
-              <VncDisplay
-                rfb={rfb}
-                url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
-                style={displaySize}
-              />
-            </Box>
+            <VncDisplay
+              rfb={rfb}
+              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
+              style={displaySize}
+              viewOnly={false}
+              focusOnClick={false}
+              clipViewport={false}
+              dragViewport={false}
+              scaleViewport
+              resizeSession
+              showDotCursor={false}
+              background=""
+              qualityLevel={6}
+              compressionLevel={2}
+            />
             <Box>
               <Box className={classes.closeBox}>
                 <IconButton
