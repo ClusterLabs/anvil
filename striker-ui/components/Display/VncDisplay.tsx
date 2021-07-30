@@ -83,25 +83,10 @@ const VncDisplay = (props: Props): JSX.Element => {
       document.activeElement.blur();
     }
 
-    if (rfb?.current) {
-      rfb.current.focus();
-    }
+    if (rfb?.current) rfb.current.focus();
   };
 
-  const handleMouseLeave = () => {
-    if (rfb?.current) {
-      rfb.current.blur();
-    }
-  };
-
-  return (
-    <div
-      style={style}
-      ref={screen}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    />
-  );
+  return <div style={style} ref={screen} onMouseEnter={handleMouseEnter} />;
 };
 
 export default memo(VncDisplay);
