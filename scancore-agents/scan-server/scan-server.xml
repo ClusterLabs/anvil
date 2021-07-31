@@ -86,6 +86,30 @@ The amount of RAM configured for the server: [#!variable!server!#] has changed f
 		<key name="scan_server_alert_0016">
 A server named: [#!variable!server!#] was found in the database, but there was no definition file on disk. Saving the definition file now.
 		</key>
+		<key name="scan_server_alert_0017">
+The on-disk definition for the server: [#!variable!server!#] was directly edited.
+- Pushing the new version to the database definition.
+
+- Note: You may need to reboot or power cycle for the changes to take effect.
+
+- The changes are:
+==[ Database ]========
+#!variable!db_difference!#
+==[ New Definition ]==
+#!variable!new_difference!#
+======================
+		</key>
+		<key name="scan_server_alert_0018">
+The definition for the server: [#!variable!server!#] was changed in the database. 
+- Pushing the new version to the on-disk definition file [#!variable!definition_file!#]
+
+- The changes are:
+==[ Disk ]============
+#!variable!disk_difference!#
+==[ New Definition ]==
+#!variable!new_difference!#
+======================
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>

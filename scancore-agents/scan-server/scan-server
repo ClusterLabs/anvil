@@ -494,6 +494,13 @@ DELETED   - Marks a server as no longer existing
 			xml_file    => $xml_file,
 		}});
 		
+		# Record that we've already checked this definition file so we don't waste time doing it 
+		# again below.
+		$anvil->data->{checked_definition_files}{$xml_file} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"checked_definition_files::${xml_file}" => $anvil->data->{checked_definition_files}{$xml_file},
+		}});
+		
 		# Get the definitions
 		my $virsh_definition    = get_and_parse_virsh_definition($anvil, $server_name);
 		my $database_definition = get_and_parse_database_definition($anvil, $server_name, $server_uuid);
@@ -522,6 +529,8 @@ DELETED   - Marks a server as no longer existing
 			's7:file_age'               => $file_age, 
 		}});
 		
+		### NOTE: A simplified version of this is below when checking files on disk for servers that 
+		###       aren't running. If working on this section, check below as well.
 		# If the user edited the server via Striker or directly via the on-disk definition, update 
 		# the other and then load the changes into virsh.
 		if ($database_definition ne $on_disk_definition)
@@ -796,6 +805,99 @@ DELETED   - Marks a server as no longer existing
 		
 		# Delete the database record so we know this one has been dealt with.
 		delete $anvil->data->{servers}{server_uuid}{$server_uuid};
+	}
+	
+	# If servers are off, and the definition file is edited, we need to be able to pick that up and 
+	# propogate it out.
+	my $directory = $anvil->data->{path}{directories}{shared}{definitions};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $xml_file = $directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file     => $file,
+			xml_file => $xml_file,
+		}});
+		my $server_name = ($file =~ /^(.*)\.xml$/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+		next if not $server_name; 
+		
+		my $server_uuid = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+		next if not $server_uuid;
+		
+		# If the server is running, we would have processed it above.
+		if (exists $anvil->data->{checked_definition_files}{$xml_file})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"checked_definition_files::${xml_file}" => $anvil->data->{checked_definition_files}{$xml_file},
+			}});
+			next if $anvil->data->{checked_definition_files}{$xml_file};
+		}
+		
+		# Still here? check the age of the file on disk and the age of the database entry.
+		my $database_definition = get_and_parse_database_definition($anvil, $server_name, $server_uuid);
+		my $on_disk_definition  = get_and_parse_disk_definition($anvil, $server_name);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			database_definition => $database_definition, 
+			on_disk_definition  => $on_disk_definition,
+		}});
+
+		# If the 'server_updated_by_user' value is newer than the file age, and there is a difference in the definition, update the file.
+		my $current_time           = time;
+		my $database_modified_time = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{unix_modified_time};
+		my $database_age           = $current_time - $database_modified_time;
+		my $file_modified_time     = $anvil->data->{file_stat}{$xml_file}{modified_time};
+		my $file_age               = $current_time - $file_modified_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:current_time'           => $current_time,
+			's2:database_modified_time' => $database_modified_time, 
+			's3:database_age'           => $database_age, 
+			's4:file_modified_time'     => $file_modified_time, 
+			's5:file_age'               => $file_age, 
+		}});
+		if ($database_definition ne $on_disk_definition)
+		{
+			# Is the database version or on-file newer?
+			if ($file_modified_time > $database_modified_time)
+			{
+				# File is newer, Get the diffs before we update
+				my $db_difference    = diff \$on_disk_definition, \$database_definition, { STYLE => 'Unified' };
+				
+				# The disk was updated, so push the change into the database and into virsh.
+				   $database_definition = update_database_definition($anvil, $server_name, $server_uuid, $on_disk_definition);
+				my $variables           = {
+					server         => $server_name,
+					db_difference  => $db_difference,
+					new_definition => $on_disk_definition,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0017", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0017", variables => $variables, set_by => $THIS_FILE});
+			}
+			else
+			{
+				# DB is newer
+				my $disk_difference  = diff \$database_definition, \$on_disk_definition, { STYLE => 'Unified' };
+				
+				# The user updated the definition from Striker, so update the file and then push the new file into virsh.
+				   $on_disk_definition = update_on_disk_definition($anvil, $server_name, $database_definition);
+				   $file_modified_time = $anvil->data->{file_stat}{$xml_file}{modified_time};
+				   $file_age           = $current_time - $file_modified_time;
+				my $variables          = {
+					server           => $server_name,
+					definition_file  => $xml_file,
+					disk_difference  => $disk_difference,
+					new_definition   => $database_definition,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0018", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0018", variables => $variables, set_by => $THIS_FILE});
+			}
+		}
 	}
 	
 	# Lastly, if we can access our peer, see what servers are running there. This will let us know if a 

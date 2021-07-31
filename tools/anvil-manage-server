@@ -575,21 +575,7 @@ sub interactive_question
 			}
 			
 			# Get the available resources.
-			$anvil->Get->available_resources();
-=cut
- anvil_resources::<anvil_uuid>::cpu::cores
- anvil_resources::<anvil_uuid>::cpu::threads
- anvil_resources::<anvil_uuid>::ram::available
- anvil_resources::<anvil_uuid>::ram::allocated
- anvil_resources::<anvil_uuid>::ram::hardware
- anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_nodes
- anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_dr
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::group_name
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::free_size
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size_on_dr
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::available_on_dr
-=cut			
+			$anvil->Get->available_resources({debug => 2});
 		}
 		else
 		{
@@ -645,7 +631,19 @@ sub interactive_configure_main
 			anvil_name  => $anvil->data->{target_server}{anvil_name},
 			server_name => $anvil->data->{target_server}{server_name}, 
 		}})."\n";
-		print "[ 1 ] - CPU\n";
+		my $changes  = 0;
+		my $cpu_star = "";
+		if (($anvil->data->{new_config}{cpu}{sockets}) or ($anvil->data->{new_config}{cpu}{cores}))
+		{
+			$cpu_star = "*";
+			$changes  = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				cpu_star => $cpu_star,
+				changes  => $changes,
+			}});
+		}
+
+		print "[ 1 ] - CPU".$cpu_star."\n";
 		print "[ 2 ] - RAM\n";
 		print "[ 3 ] - Storage\n";
 		print "[ 4 ] - Network\n";
@@ -653,8 +651,12 @@ sub interactive_configure_main
 		print "\n";
 		print "[ B ] - Back\n";
 		print "[ Q ] - Quit\n";
+		if ($changes)
+		{
+			print "[ S ] - Save and commit the changes.\n";
+		}
 		print "\n";
-		print $terminal->Tgoto('cm', 0, 9)."? ";
+		print $terminal->Tgoto('cm', 0, (9+$changes))."? ";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -665,8 +667,7 @@ sub interactive_configure_main
 		}
 		elsif ($answer eq "2")
 		{
-			print "Going to RAM menu\n";
-			sleep 1;
+			interactive_configure_ram($anvil, $terminal)
 		}
 		elsif ($answer eq "3")
 		{
@@ -695,6 +696,12 @@ sub interactive_configure_main
 			print "NO CARRIER, good bye.\n";
 			$anvil->nice_exit({exit_code => 0});
 		}
+		elsif (lc($answer) eq "s")
+		{
+			# Confirm changes
+			print "Confirm chagnes menu\n";
+			sleep 1;
+		}
 		else
 		{
 			print "Invalid selection, please enter the digit for the menu you want.\n";
@@ -702,7 +709,7 @@ sub interactive_configure_main
 		}
 =cut
 1. CPU
-	* Max (sockets * cores): X
+	* Max (threads): X
 	1. Sockets: 
 	2. Cores:   
 2. RAM
@@ -740,16 +747,159 @@ sub interactive_configure_main
 	return(0);
 }
 
+sub interactive_configure_ram
+{
+	my ($anvil, $terminal) = @_;
+	
+	while(1)
+	{
+		# Threads will be the maximum, even without hyperthreading being available.
+		my $anvil_uuid        = $anvil->data->{target_server}{anvil_uuid};
+		my $say_current_ram   = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{configured_ram}});
+		my $say_total_ram     = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}});
+		my $say_available_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}});
+		my $max_assigned      = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} - $anvil->data->{target_server}{configured_ram};
+		my $say_max_assigned  = $anvil->Convert->bytes_to_human_readable({'bytes' => $max_assigned});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_uuid        => $anvil_uuid,
+			say_current_ram   => $say_current_ram, 
+			say_total_ram     => $say_total_ram,
+			say_available_ram => $say_available_ram, 
+			max_assigned      => $say_max_assigned,
+		}});
+		
+		my $changes     = 0;
+		my $say_new_ram = 0;
+		if (not exists $anvil->data->{new_config}{ram}{'bytes'})
+		{
+			$anvil->data->{new_config}{ram}{'bytes'} = 0;
+		}
+		elsif ($anvil->data->{new_config}{ram}{'bytes'})
+		{
+			$say_new_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new_config}{ram}{'bytes'}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_new_ram => $say_new_ram }});
+		}
+		
+		my $star_ram = " ";
+		if (($anvil->data->{new_config}{ram}{'bytes'}) && ($anvil->data->{new_config}{ram}{'bytes'} ne $anvil->data->{target_server}{server_ram_bytes}))
+		{
+			$star_ram = "*";
+			$changes  = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				star_ram => $star_ram,
+				changes  => $changes, 
+			}});
+		}
+		
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0355", variables => { 
+			anvil_name  => $anvil->data->{target_server}{anvil_name},
+			server_name => $anvil->data->{target_server}{server_name}, 
+		}})."\n";
+		print "* RAM configuration. Currently allocated: [".$say_current_ram."], Maximum RAM: [".$say_max_assigned."] (current + free).\n";
+		print "[ 1 ] - RAM".$star_ram." (currently: [".$say_current_ram."], new: [".$say_new_ram."])\n";
+		
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		if ($changes)
+		{
+			print "- Changes can be committed on the main page.\n";
+			print $terminal->Tgoto('cm', 0, 7)."? ";
+		}
+		else
+		{
+			print $terminal->Tgoto('cm', 0, 6)."? ";
+		}
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ($answer eq "1")
+		{
+			print "- Can specify in bytes or base2 human readible (ie: '4 GiB', '4G', etc)\n"; 
+			print "How much RAM would you like? ";
+			my $answer = <STDIN>;
+			chomp $answer;
+			$answer =~ s/^\s+//;
+			$answer =~ s/\s+$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if (not $answer)
+			{
+				# Go back
+				interactive_configure_ram($anvil, $terminal);
+			}
+			else
+			{
+				# Convert to bytes
+				my $requested_bytes = $answer;
+				if ($answer =~ /\D/)
+				{
+					$requested_bytes = $anvil->Convert->human_readable_to_bytes({
+						base2 => 1,
+						size  => $answer,
+					});
+					if ($requested_bytes eq "!!error!!")
+					{
+						# Problem.
+						print "[ Error ] - The answer: [".$answer."] could not be interpretted.\n";
+						my $answer = <STDIN>;
+						chomp $answer;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+						interactive_configure_ram($anvil, $terminal);
+					}
+					else
+					{
+						$anvil->data->{new_config}{ram}{'bytes'} = $requested_bytes;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"new_config::ram::bytes" => $anvil->data->{new_config}{ram}{'bytes'},
+						}});
+					}
+				}
+				else
+				{
+					$anvil->data->{new_config}{ram}{'bytes'} = $requested_bytes;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_config::ram::bytes" => $anvil->data->{new_config}{ram}{'bytes'},
+					}});
+				}
+			}
+		}
+		elsif (lc($answer) eq "b")
+		{
+			interactive_configure_main($anvil, $terminal);
+		}
+		elsif (lc($answer) eq "q")
+		{
+			print "NO CARRIER, good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			interactive_configure_ram($anvil, $terminal);
+		}
+	}
+	
+	return(0);
+}
+
 sub interactive_configure_cpu
 {
 	my ($anvil, $terminal) = @_;
 	
 	while(1)
 	{
-		my $anvil_uuid = $anvil->data->{target_server}{anvil_uuid};
-		my $maximum    = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores} * $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
-		my $current_cores   = $anvil->data->{target_server}{server_cpu_cores};
+		# Threads will be the maximum, even without hyperthreading being available.
+		my $anvil_uuid    = $anvil->data->{target_server}{anvil_uuid};
+		my $maximum_cores = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
+		my $current_cores = $anvil->data->{target_server}{server_cpu_cores};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_uuid    => $anvil_uuid,
+			maximum_cores => $maximum_cores, 
+			current_cores => $current_cores, 
+		}});
 		
+		my $changes = 0;
 		if (not exists $anvil->data->{new_config}{cpu}{sockets})
 		{
 			$anvil->data->{new_config}{cpu}{sockets} = "";
@@ -763,11 +913,21 @@ sub interactive_configure_cpu
 		if (($anvil->data->{new_config}{cpu}{cores}) && ($anvil->data->{new_config}{cpu}{cores} ne $anvil->data->{target_server}{server_cpu_cores}))
 		{
 			$star_cores = "*";
+			$changes    = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				star_cores => $star_cores,
+				changes    => $changes, 
+			}});
 		}
 		my $star_sockets = " ";
 		if (($anvil->data->{new_config}{cpu}{sockets}) && ($anvil->data->{new_config}{cpu}{sockets} ne $anvil->data->{target_server}{server_cpu_sockets}))
 		{
 			$star_sockets = "*";
+			$changes    = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				star_sockets => $star_sockets,
+				changes      => $changes, 
+			}});
 		}
 		
 		print $terminal->Tputs('cl');
@@ -775,14 +935,22 @@ sub interactive_configure_cpu
 			anvil_name  => $anvil->data->{target_server}{anvil_name},
 			server_name => $anvil->data->{target_server}{server_name}, 
 		}})."\n";
-		print "* CPU configuration. Maximum cores X sockets is: [".$maximum."]\n";
+		print "* CPU configuration. Maximum cores X sockets is: [".$maximum_cores."]\n";
 		print "[ 1 ] - Cores per socket".$star_cores." (currently: [".$anvil->data->{target_server}{server_cpu_cores}."], new: [".$anvil->data->{new_config}{cpu}{cores}."])\n";
-		print "[ 2 ] - Sockets".$star_sockets."      (currently: [".$anvil->data->{target_server}{server_cpu_sockets}."], new: [".$anvil->data->{new_config}{cpu}{sockets}."])\n";
+		print "[ 2 ] - Sockets".$star_sockets."          (currently: [".$anvil->data->{target_server}{server_cpu_sockets}."], new: [".$anvil->data->{new_config}{cpu}{sockets}."])\n";
 		
 		print "\n";
 		print "[ B ] - Back\n";
 		print "[ Q ] - Quit\n";
-		print $terminal->Tgoto('cm', 0, 7)."? ";
+		if ($changes)
+		{
+			print "- Changes can be committed on the main page.\n";
+			print $terminal->Tgoto('cm', 0, 8)."? ";
+		}
+		else
+		{
+			print $terminal->Tgoto('cm', 0, 7)."? ";
+		}
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -790,19 +958,133 @@ sub interactive_configure_cpu
 		if ($answer eq "1")
 		{
 			print "How many cores per socket would you like? ";
+			my $answer = <STDIN>;
+			chomp $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if (not $answer)
+			{
+				# Go back
+				interactive_configure_cpu($anvil, $terminal);
+			}
+			elsif ($answer =~ /\D/)
+			{
+				print "[ Error ] - The answer: [".$answer."] is not valid. You need to specify a digit.\n";
+				print "Press any key to continue.\n";
+				my $answer = <STDIN>;
+				interactive_configure_cpu($anvil, $terminal);
+			}
+			else
+			{
+				# Did they ask for too many?
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_config::cpu::sockets"          => $anvil->data->{new_config}{cpu}{sockets},
+					"target_server::server_cpu_sockets" => $anvil->data->{target_server}{server_cpu_sockets}, 
+					maximum_cores                       => $maximum_cores,
+				}});
+				if (($anvil->data->{new_config}{cpu}{sockets}) && (($answer * $anvil->data->{new_config}{cpu}{sockets}) > $maximum_cores))
+				{
+					print "[ Error ] - With the current socket count of: [".$anvil->data->{new_config}{cpu}{sockets}."], the requested number of cores: [".$answer."] would result in: [".($answer * $anvil->data->{new_config}{cpu}{sockets})."] total cores.\n";
+					print "            The maximum available on this Anvil! is: [".$maximum_cores."].\n";
+					if ($anvil->data->{new_config}{cpu}{sockets} > 1)
+					{
+						print "            You may wish to reduce the socket count first.\n";
+					}
+					print __LINE__."; Press any key to continue.\n";
+					my $answer = <STDIN>;
+					interactive_configure_cpu($anvil, $terminal);
+				}
+				elsif ((not $anvil->data->{new_config}{cpu}{sockets}) && (($answer * $anvil->data->{target_server}{server_cpu_sockets}) > $maximum_cores))
+				{
+					print "[ Error ] - With the current socket count of: [".$anvil->data->{target_server}{server_cpu_sockets}."], the requested number of cores: [".$answer."] would result in: [".($answer * $anvil->data->{target_server}{server_cpu_sockets})."] total cores.\n";
+					print "            The maximum available on this Anvil! is: [".$maximum_cores."].\n";
+					if ($anvil->data->{target_server}{server_cpu_sockets} > 1)
+					{
+						print "            You may wish to reduce the socket count first.\n";
+					}
+					print __LINE__."; Press any key to continue.\n";
+					my $answer = <STDIN>;
+					interactive_configure_cpu($anvil, $terminal);
+				}
+				else
+				{
+					$anvil->data->{new_config}{cpu}{cores} = $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_config::cpu::cores" => $anvil->data->{new_config}{cpu}{cores},
+					}});
+				}
+			}
 		}
 		elsif ($answer eq "2")
 		{
+			print "How many sockets would you like? ";
+			my $answer = <STDIN>;
+			chomp $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if (not $answer)
+			{
+				# Go back
+				interactive_configure_cpu($anvil, $terminal);
+			}
+			elsif ($answer =~ /\D/)
+			{
+				print "[ Error ] - The answer: [".$answer."] is not valid. You need to specify a digit.\n";
+				print "Press any key to continue.\n";
+				my $answer = <STDIN>;
+				interactive_configure_cpu($anvil, $terminal);
+			}
+			else
+			{
+				# Did they ask for too many?
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_config::cpu::cores"          => $anvil->data->{new_config}{cpu}{cores},
+					"target_server::server_cpu_cores" => $anvil->data->{target_server}{server_cpu_cores}, 
+					maximum_cores                     => $maximum_cores,
+				}});
+				if (($anvil->data->{new_config}{cpu}{cores}) && (($answer * $anvil->data->{new_config}{cpu}{cores}) > $maximum_cores))
+				{
+					print "[ Error ] - With the current core count of: [".$anvil->data->{new_config}{cpu}{cores}."], the requested number of sockets: [".$answer."] would result in: [".($answer * $anvil->data->{new_config}{cpu}{cores})."] total cores.\n";
+					print "            The maximum available on this Anvil! is: [".$maximum_cores."].\n";
+					if ($anvil->data->{new_config}{cpu}{cores} > 1)
+					{
+						print "            You may wish to reduce the core count first.\n";
+					}
+					print __LINE__."; Press any key to continue.\n";
+					my $answer = <STDIN>;
+					interactive_configure_cpu($anvil, $terminal);
+				}
+				elsif ((not $anvil->data->{new_config}{cpu}{cores}) && (($answer * $anvil->data->{target_server}{server_cpu_cores}) > $maximum_cores))
+				{
+					print "[ Error ] - With the current core count of: [".$anvil->data->{target_server}{server_cpu_cores}."], the requested number of sockets: [".$answer."] would result in: [".($answer * $anvil->data->{target_server}{server_cpu_cores})."] total cores.\n";
+					print "            The maximum available on this Anvil! is: [".$maximum_cores."].\n";
+					if ($anvil->data->{target_server}{server_cpu_sockets} > 1)
+					{
+						print "            You may wish to reduce the core count first.\n";
+					}
+					print __LINE__."; Press any key to continue.\n";
+					my $answer = <STDIN>;
+					interactive_configure_cpu($anvil, $terminal);
+				}
+				else
+				{
+					$anvil->data->{new_config}{cpu}{sockets} = $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_config::cpu::sockets" => $anvil->data->{new_config}{cpu}{sockets},
+					}});
+				}
+			}
 		}
 		elsif (lc($answer) eq "b")
 		{
+			interactive_configure_main($anvil, $terminal);
 		}
 		elsif (lc($answer) eq "q")
 		{
+			print "NO CARRIER, good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
 		}
 		else
 		{
-			
+			interactive_configure_cpu($anvil, $terminal);
 		}
 	}
 	
