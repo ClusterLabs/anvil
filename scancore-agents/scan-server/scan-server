@@ -120,10 +120,11 @@ sub check_vnc
 	if ($count)
 	{
 		# For each server running here, get the VNC port and record it.
-		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{'scan-server'}{server_name}})
+		my $anvil_uuid = $anvil->Cluster->get_anvil_uuid;
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 		{
-			my $server_uuid  = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_uuid};
-			my $server_state = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state};
+			my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				server_name  => $server_name,
 				server_uuid  => $server_uuid, 
@@ -236,15 +237,7 @@ sub collect_data
 {
 	my ($anvil) = @_;
 	
-	# Is 'libvirtd' running?
-	my $running = $anvil->System->check_daemon({daemon => "libvirtd"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
-	if (not $running)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "scan_server_log_0003"});
-		$anvil->nice_exit({exit_code => 2});
-	}
-	
+	# NOTE: We don't check if libvirtd is running anymore as it auto-starts / stops on EL8+.
 	# Load data we know about
 	$anvil->Database->get_anvils();
 	$anvil->Database->get_servers();
@@ -827,8 +820,8 @@ DELETED   - Marks a server as no longer existing
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
 		next if not $server_name; 
 		
-		my $server_uuid = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
 		next if not $server_uuid;
 		
 		# If the server is running, we would have processed it above.
