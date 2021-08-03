@@ -86,7 +86,7 @@ const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const [displaySize] = useState<{
     width: string;
     height: string;
-  }>({ width: '75vw', height: '75vh' });
+  }>({ width: '100%', height: '75vh' });
   const classes = useStyles();
 
   useEffect(() => {
