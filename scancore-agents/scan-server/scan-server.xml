@@ -114,7 +114,6 @@ The definition for the server: [#!variable!server!#] was changed in the database
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>
 		<key name="scan_server_log_0002">This host is a: [#!variable!host_type!#], this agent is only useful on nodes and DR hosts. Exiting.</key>
-		<key name="scan_server_log_0003">The libvirtd daemon is not running. Exiting.</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->
 		<key name="scan_server_message_0001">The server: [#!variable!server!#] is migrating, skipping scanning it.</key>
