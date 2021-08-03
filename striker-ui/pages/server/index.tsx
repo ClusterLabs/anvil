@@ -9,11 +9,8 @@ import Header from '../../components/Header';
 
 const useStyles = makeStyles((theme) => ({
   preview: {
-    width: '20%',
+    width: '25%',
     height: '100%',
-    [theme.breakpoints.down('lg')]: {
-      width: '25%',
-    },
     [theme.breakpoints.down('md')]: {
       width: '100%',
     },
@@ -22,10 +19,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexDirection: 'row',
     width: '100%',
-    justifyContent: 'space-between',
-    [theme.breakpoints.down('md')]: {
-      display: 'block',
-    },
+    justifyContent: 'center',
   },
 }));
 
@@ -44,10 +38,8 @@ const Server = (): JSX.Element => {
       <Header />
       {typeof uuid === 'string' &&
         (previewMode ? (
-          <Box className={classes.container}>
-            <Box className={classes.preview}>
-              <Preview setMode={setPreviewMode} serverName={server_name} />
-            </Box>
+          <Box className={classes.preview}>
+            <Preview setMode={setPreviewMode} serverName={server_name} />
           </Box>
         ) : (
           <Box className={classes.container}>
