@@ -15,7 +15,7 @@ const useStyles = makeStyles((theme) => ({
       width: '100%',
     },
   },
-  container: {
+  fullView: {
     display: 'flex',
     flexDirection: 'row',
     width: '100%',
@@ -42,7 +42,7 @@ const Server = (): JSX.Element => {
             <Preview setMode={setPreviewMode} serverName={server_name} />
           </Box>
         ) : (
-          <Box className={classes.container}>
+          <Box className={classes.fullView}>
             <FullSize
               setMode={setPreviewMode}
               uuid={uuid}
