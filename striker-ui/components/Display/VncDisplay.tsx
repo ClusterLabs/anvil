@@ -1,10 +1,9 @@
 import { useEffect, useRef, MutableRefObject, memo } from 'react';
-import RFB from './noVNC/core/rfb';
+import RFB from '@novnc/novnc/core/rfb';
 
 type Props = {
-  rfb: MutableRefObject<RFB | undefined>;
+  rfb: MutableRefObject<typeof RFB | undefined>;
   url: string;
-  style: { width: string; height: string };
   viewOnly: boolean;
   focusOnClick: boolean;
   clipViewport: boolean;
@@ -23,7 +22,6 @@ const VncDisplay = (props: Props): JSX.Element => {
   const {
     rfb,
     url,
-    style,
     viewOnly,
     focusOnClick,
     clipViewport,
@@ -86,7 +84,13 @@ const VncDisplay = (props: Props): JSX.Element => {
     if (rfb?.current) rfb.current.focus();
   };
 
-  return <div style={style} ref={screen} onMouseEnter={handleMouseEnter} />;
+  return (
+    <div
+      style={{ width: '100%', height: '75vh' }}
+      ref={screen}
+      onMouseEnter={handleMouseEnter}
+    />
+  );
 };
 
 export default memo(VncDisplay);
