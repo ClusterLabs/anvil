@@ -117,7 +117,7 @@ if ($server_uuid)
 
 	if (defined $encoded_image)
 	{
-		$response_body->{image} = $encoded_image;
+		$response_body->{screenshot} = $encoded_image;
 	}
 }
 
