@@ -33,6 +33,18 @@ sub system_call
 	return ($shell_output, $shell_return_code);
 }
 
+sub is_existing_server_screenshot_outdated
+{
+	my $parameters  = shift;
+	my $server_uuid = $parameters->{server_uuid};
+
+	my ($encoded_image, $variable_uuid, $variable_mtime) = $anvil->Database->read_variable({ variable_name => "server_screenshot::".$server_uuid });
+
+	my $time_difference = time - $variable_mtime;
+
+	return $time_difference > 120 ? 1 : 0;
+}
+
 sub get_server_screenshot
 {
 	my $parameters  = shift;
@@ -120,27 +132,41 @@ $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, lis
 
 if ($server_uuid)
 {
-	my $encoded_image = get_server_screenshot({ server_uuid => $server_uuid });
+	my $encoded_image;
 
-	if (defined $encoded_image)
+	if ($is_stdout)
 	{
-		if ($is_stdout)
+		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid });
+
+		if (defined $encoded_image)
 		{
 			print($encoded_image);
+
+			$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
 		}
 		else
 		{
-			insert_server_screenshot({
-				server_uuid   => $server_uuid,
-				encoded_image => $encoded_image
-			});
+			$anvil->Job->update_progress({ progress => 100, message => "message_0265" });
 		}
+	}
+	elsif (is_existing_server_screenshot_outdated({ server_uuid => $server_uuid }))
+	{
+		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid });
 
-		$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
+		if (defined $encoded_image)
+		{
+			insert_server_screenshot({ server_uuid => $server_uuid, encoded_image => $encoded_image });
+
+			$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
+		}
+		else
+		{
+			$anvil->Job->update_progress({ progress => 100, message => "message_0265" });
+		}
 	}
 	else
 	{
-		$anvil->Job->update_progress({ progress => 100, message => "message_0265" });
+		$anvil->Job->update_progress({ progress => 100, message => "message_0266" });
 	}
 }
 else
