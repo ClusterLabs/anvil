@@ -50,7 +50,7 @@ sub get_server_screenshot
 	my $parameters  = shift;
 	my $server_uuid = $parameters->{server_uuid};
 
-	my $shell_call = "virsh screenshot --domain ".$server_uuid." --file /dev/stdout | sed 's/Screenshot.*//' | base64";
+	my $shell_call = "virsh screenshot --domain ".$server_uuid." --file /dev/stdout | sed 's/Screenshot.*//' | base64 --wrap 0";
 	my ($shell_output, $shell_return_code) = system_call({ shell_call => $shell_call });
 
 	return $shell_return_code == 0 ? $shell_output : undef;
