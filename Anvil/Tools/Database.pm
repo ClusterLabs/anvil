@@ -4534,6 +4534,12 @@ ORDER BY
 			"storage_groups::vg_uuid::${storage_group_member_vg_uuid}::storage_group_uuid" => $anvil->data->{storage_groups}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_uuid},
 		}});
 		
+		# Make it possible to sort the storage groups by name.
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid}" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+		}});
+		
 		# If scan_lvm has been run, read is the free space on the VG
 		if ($scan_lvm_exists)
 		{

@@ -94,6 +94,9 @@ if ($anvil->data->{switches}{'job-uuid'})
 else
 {
 	# Interactive!
+	$anvil->data->{new_config}{cpu}{sockets} = "";
+	$anvil->data->{new_config}{cpu}{cores}   = "";
+	$anvil->data->{new_config}{ram}{'bytes'} = "";
 	interactive_question($anvil);
 }
 
@@ -633,6 +636,7 @@ sub interactive_configure_main
 		}})."\n";
 		my $changes  = 0;
 		my $cpu_star = "";
+		my $ram_star = "";
 		if (($anvil->data->{new_config}{cpu}{sockets}) or ($anvil->data->{new_config}{cpu}{cores}))
 		{
 			$cpu_star = "*";
@@ -642,9 +646,18 @@ sub interactive_configure_main
 				changes  => $changes,
 			}});
 		}
+		if ($anvil->data->{new_config}{ram}{'bytes'})
+		{
+			$ram_star = "*";
+			$changes  = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				ram_star => $ram_star,
+				changes  => $changes,
+			}});
+		}
 
 		print "[ 1 ] - CPU".$cpu_star."\n";
-		print "[ 2 ] - RAM\n";
+		print "[ 2 ] - RAM".$ram_star."\n";
 		print "[ 3 ] - Storage\n";
 		print "[ 4 ] - Network\n";
 		print "[ 5 ] - Boot Order\n";
@@ -663,16 +676,15 @@ sub interactive_configure_main
 		
 		if ($answer eq "1")
 		{
-			interactive_configure_cpu($anvil, $terminal)
+			interactive_configure_cpu($anvil, $terminal);
 		}
 		elsif ($answer eq "2")
 		{
-			interactive_configure_ram($anvil, $terminal)
+			interactive_configure_ram($anvil, $terminal);
 		}
 		elsif ($answer eq "3")
 		{
-			print "Going to Storage menu\n";
-			sleep 1;
+			interactive_configure_storage($anvil, $terminal);
 		}
 		elsif ($answer eq "4")
 		{
@@ -747,6 +759,51 @@ sub interactive_configure_main
 	return(0);
 }
 
+sub interactive_configure_storage
+{
+	my ($anvil, $terminal) = @_;
+	
+	# Get the 
+	$anvil->Database->get_storage_group_data({debug => 2});
+	while(1)
+	{
+		# Here, we'll list each storage pool and for each indicate if it's used and, if so
+		my $anvil_uuid = $anvil->data->{target_server}{anvil_uuid};
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+		{
+			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+			my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+			my $free_size          = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size
+			my $vg_size_on_dr      = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
+			my $available_on_dr    = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:storage_group_name' => $storage_group_name, 
+				's2:storage_group_uuid' => $storage_group_uuid, 
+				's3:vg_size'            => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
+				's4:free_size'          => $free_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size}).")", 
+				's5:vg_size_on_dr'      => $vg_size_on_dr." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size_on_dr}).")", 
+				's6:available_on_dr'    => $free_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_on_dr}).")", 
+			}});
+			
+			foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{target_server}{disk}})
+			{
+				my $device_bus = $anvil->data->{target_server}{disk}{$target}{device_bus}
+				my $cache      = $anvil->data->{target_server}{disk}{$target}{cache};
+				my $io         = $anvil->data->{target_server}{disk}{$target}{io};
+				my $path       = $anvil->data->{target_server}{disk}{$target}{path};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					device_bus => $device_bus, 
+					cache      => $cache, 
+					io         => $io, 
+					path       => $path, 
+				}});
+			}
+		}
+	}
+	
+	return(0);
+}
+
 sub interactive_configure_ram
 {
 	my ($anvil, $terminal) = @_;
@@ -754,39 +811,35 @@ sub interactive_configure_ram
 	while(1)
 	{
 		# Threads will be the maximum, even without hyperthreading being available.
-		my $anvil_uuid        = $anvil->data->{target_server}{anvil_uuid};
-		my $say_current_ram   = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{configured_ram}});
-		my $say_total_ram     = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}});
-		my $say_available_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}});
-		my $max_assigned      = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} - $anvil->data->{target_server}{configured_ram};
-		my $say_max_assigned  = $anvil->Convert->bytes_to_human_readable({'bytes' => $max_assigned});
+		my $anvil_uuid         = $anvil->data->{target_server}{anvil_uuid};
+		my $say_current_ram    = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{target_server}{configured_ram}});
+		my $say_total_ram      = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}});
+		my $say_available_ram  = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}});
+		my $max_assignable     = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} + $anvil->data->{target_server}{configured_ram};
+		my $say_max_assignable = $anvil->Convert->bytes_to_human_readable({'bytes' => $max_assignable});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			anvil_uuid        => $anvil_uuid,
-			say_current_ram   => $say_current_ram, 
-			say_total_ram     => $say_total_ram,
-			say_available_ram => $say_available_ram, 
-			max_assigned      => $say_max_assigned,
+			anvil_uuid         => $anvil_uuid,
+			say_current_ram    => $say_current_ram, 
+			say_total_ram      => $say_total_ram,
+			say_available_ram  => $say_available_ram, 
+			say_max_assignable => $say_max_assignable,
 		}});
 		
 		my $changes     = 0;
 		my $say_new_ram = 0;
-		if (not exists $anvil->data->{new_config}{ram}{'bytes'})
-		{
-			$anvil->data->{new_config}{ram}{'bytes'} = 0;
-		}
-		elsif ($anvil->data->{new_config}{ram}{'bytes'})
+		if ($anvil->data->{new_config}{ram}{'bytes'})
 		{
 			$say_new_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new_config}{ram}{'bytes'}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_new_ram => $say_new_ram }});
 		}
 		
-		my $star_ram = " ";
+		my $ram_star = " ";
 		if (($anvil->data->{new_config}{ram}{'bytes'}) && ($anvil->data->{new_config}{ram}{'bytes'} ne $anvil->data->{target_server}{server_ram_bytes}))
 		{
-			$star_ram = "*";
+			$ram_star = "*";
 			$changes  = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				star_ram => $star_ram,
+				ram_star => $ram_star,
 				changes  => $changes, 
 			}});
 		}
@@ -796,8 +849,8 @@ sub interactive_configure_ram
 			anvil_name  => $anvil->data->{target_server}{anvil_name},
 			server_name => $anvil->data->{target_server}{server_name}, 
 		}})."\n";
-		print "* RAM configuration. Currently allocated: [".$say_current_ram."], Maximum RAM: [".$say_max_assigned."] (current + free).\n";
-		print "[ 1 ] - RAM".$star_ram." (currently: [".$say_current_ram."], new: [".$say_new_ram."])\n";
+		print "* RAM configuration. Currently allocated: [".$say_current_ram."], Maximum RAM: [".$say_max_assignable."] (current + free).\n";
+		print "[ 1 ] - RAM".$ram_star." (currently: [".$say_current_ram."], new: [".$say_new_ram."])\n";
 		
 		print "\n";
 		print "[ B ] - Back\n";
@@ -833,11 +886,11 @@ sub interactive_configure_ram
 			{
 				# Convert to bytes
 				my $requested_bytes = $answer;
-				if ($answer =~ /\D/)
+				if ($requested_bytes =~ /\D/)
 				{
 					$requested_bytes = $anvil->Convert->human_readable_to_bytes({
 						base2 => 1,
-						size  => $answer,
+						size  => $requested_bytes,
 					});
 					if ($requested_bytes eq "!!error!!")
 					{
@@ -848,13 +901,20 @@ sub interactive_configure_ram
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
 						interactive_configure_ram($anvil, $terminal);
 					}
-					else
-					{
-						$anvil->data->{new_config}{ram}{'bytes'} = $requested_bytes;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"new_config::ram::bytes" => $anvil->data->{new_config}{ram}{'bytes'},
-						}});
-					}
+				}
+				elsif (not $requested_bytes)
+				{
+					interactive_configure_ram($anvil, $terminal);
+				}
+				
+				if (($requested_bytes =~ /^\d+$/) && ($requested_bytes > $max_assignable))
+				{
+					$anvil->data->{new_config}{ram}{'bytes'} = 0;
+					print "[ Error ] - You asked for: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $requested_bytes})."] (".$anvil->Convert->add_commas({number => $max_assignable})." bytes) RAM, but the max available is: [".$say_max_assignable."] (".$anvil->Convert->add_commas({number => $max_assignable})." bytes).\n";
+					my $answer = <STDIN>;
+					chomp $answer;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+					interactive_configure_ram($anvil, $terminal);
 				}
 				else
 				{
@@ -899,16 +959,7 @@ sub interactive_configure_cpu
 			current_cores => $current_cores, 
 		}});
 		
-		my $changes = 0;
-		if (not exists $anvil->data->{new_config}{cpu}{sockets})
-		{
-			$anvil->data->{new_config}{cpu}{sockets} = "";
-		}
-		if (not exists $anvil->data->{new_config}{cpu}{cores})
-		{
-			$anvil->data->{new_config}{cpu}{cores} = "";
-		}
-		
+		my $changes    = 0;
 		my $star_cores = " ";
 		if (($anvil->data->{new_config}{cpu}{cores}) && ($anvil->data->{new_config}{cpu}{cores} ne $anvil->data->{target_server}{server_cpu_cores}))
 		{
