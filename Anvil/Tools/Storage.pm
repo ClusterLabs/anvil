@@ -25,6 +25,7 @@ my $THIS_FILE = "Storage.pm";
 # find
 # get_file_stats
 # get_storage_group_details
+# get_storage_group_from_path
 # make_directory
 # manage_lvm_conf
 # move_file
@@ -1736,6 +1737,352 @@ AND
 	}
 	
 	return(0);
+}
+
+
+=head2 get_storage_group_from_path
+
+This method takes a block device path and returns the C<< storage_group_uuid >> is belongs to, if any. On success, C<< storage_group_uuid >> is returned. If the path is not found to exist on any storage group, an empty string is returned. If there is a problem, C<< !!error!! >> is returned.
+
+B<< Note >>: If there are multiple results, the first found will be returned. If the results span multiple Anvil! systems, this could be a problem. If this is a concern, specifify either the C<< host_uuid >> or C<< anvil_uuid >> parameters.
+
+Parameters;
+
+=head3 anvil_uuid (optional)
+
+In the case of an ambiguous path (a path found on multiple Anvil! systems), this can be set to specify which Anvil! we're searching for.
+
+=head3 host_uuid (optional)
+
+In the case of an ambiguous path (a path found on multiple hosts), this can be set to specify which host we're searching for.
+
+=head3 path (required)
+
+This is the full block device path.
+
+=cut
+sub get_storage_group_from_path
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->get_storage_group_from_path()" }});
+	
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	my $host_uuid  = defined $parameter->{host_uuid}  ? $parameter->{host_uuid}  : "";
+	my $path       = defined $parameter->{path}       ? $parameter->{path}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid => $anvil_uuid, 
+		host_uuid  => $host_uuid, 
+		path       => $path,
+	}});
+	
+	if (not $path)
+	{
+		# No source passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->get_storage_group_from_path()", parameter => "path" }});
+		return('!!error!!');
+	}
+	
+	# Is this a DRBD path?
+	my $logical_volume = "";
+	if ($path !~ /drbd/)
+	{
+		$logical_volume = $path;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { logical_volume => $logical_volume }});
+	}
+	else
+	{
+		# Looks like it. If the device path is '/dev/drbd/by-res/...' we'll need to pull out the 
+		# resource name (server name) and volume number as the path only actually exists when DRBD is
+		# up and isn't referenced in the config file.
+		my $resource = "";
+		my $volume   = "";
+		$anvil->DRBD->gather_data({debug => $debug});
+		if ($path =~ /\/dev\/drbd\/by-res\/(.*)\/(\d+)$/)
+		{
+			$resource = $1;
+			$volume   = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				resource => $resource, 
+				volume   => $volume, 
+			}});
+		}
+		elsif ($path =~ /\/dev\/drbd_(.*)_(\d+)$/)
+		{
+			$resource = $1;
+			$volume   = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				resource => $resource, 
+				volume   => $volume, 
+			}});
+		}
+		elsif ($path =~ /\/dev\/drbd(\d+)$/)
+		{
+			# This is a direct path to a minor device, we'll need to find it in the config.
+			my $minor = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { minor => $minor }});
+			
+			$anvil->Database->get_anvils({debug => $debug});
+			my $local_host_uuid  = $anvil->Get->host_uuid({debug => $debug});
+			my $local_anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_anvil_uuid => $local_anvil_uuid }});
+			
+			my $node1_host_uuid = "";
+			my $node2_host_uuid = "";
+			my $dr1_host_uuid   = "";
+			if ($anvil_uuid)
+			{
+				$node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+				$node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+				$dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					node1_host_uuid => $node1_host_uuid,
+					node1_host_uuid => $node2_host_uuid, 
+					dr1_host_uuid   => $dr1_host_uuid, 
+				}});
+			}
+			
+			# If we were passed an anvil_uuid but not a host_uuid, don't use this machine's host UUID
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+			
+			# These will be set if multiple options are found in the database.
+			foreach my $this_resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_resource => $this_resource }});
+				foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$this_resource}{host}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
+					foreach my $this_volume (sort {$a cmp $b} keys %{$$anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}})
+					{
+						my $this_minor = $anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}{$this_volume}{device_minor};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							this_volume => $this_volume,
+							this_minor  => $this_minor, 
+						}});
+						next if $this_minor ne $minor;
+						
+						my $this_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_uuid => $this_host_uuid }});
+						next if not $this_host_uuid;
+						
+						# Sorry, this is a bit of a mess. Logic is; If we're given a 
+						# host_uuid, and it matches, use it. Otherwise, if an 
+						# anvil_uuid is passed, and either node 1 or 2's UUID, or if
+						# there is a DR host, if it's host UUID matches, then we can
+						# use this.
+						if (
+						    (
+						     ($host_uuid) && ($host_uuid eq $this_host_uuid)
+						    ) 
+						    or 
+						    (
+						     ($anvil_uuid) && 
+						     (
+						      ($this_host_uuid eq $node1_host_uuid) or 
+						      ($this_host_uuid eq $node2_host_uuid) or 
+						      (
+						       ($dr1_host_uuid) && 
+						       ($this_host_uuid eq $dr1_host_uuid)
+						      )
+						     )
+						    )
+						   )
+						{
+							# This is a node in the requested cluster.
+							$resource = $this_resource;
+							$volume   = $this_volume;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								resource => $resource, 
+								volume   => $volume, 
+							}});
+							last;
+							
+							if (not $host_uuid)
+							{
+								$host_uuid = $this_host_uuid;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		# Did I find the resource and volume?
+		if ($resource)
+		{
+			my $query = "
+SELECT 
+    scan_drbd_resource_host_uuid, 
+    scan_drbd_resource_xml, 
+    modified_date 
+FROM 
+    scan_drbd_resources 
+WHERE 
+    scan_drbd_resource_name = ".$anvil->Database->quote($resource);
+			if ($host_uuid)
+			{
+				$query .= "
+AND 
+    scan_drbd_resource_host_uuid = ".$anvil->Database->quote($host_uuid);
+			}
+			$query .= "
+ORDER BY 
+    modified_date DESC
+LIMIT 1
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			
+			if (not $count)
+			{
+				# Group not found.
+				return("");
+			}
+			
+			my $scan_drbd_resource_host_uuid = $results->[0]->[0];
+			my $scan_drbd_resource_xml       = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				scan_drbd_resource_host_uuid => $scan_drbd_resource_host_uuid, 
+				scan_drbd_resource_xml       => $scan_drbd_resource_xml, 
+			}});
+			
+			$anvil->DRBD->gather_data({
+				debug => 3,
+				xml   => $scan_drbd_resource_xml,
+			});
+			
+			# Dig out the LV behind the volume.
+			foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}})
+			{
+				my $this_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:this_host_name" => $this_host_name, 
+					"s2:this_host_uuid" => $this_host_uuid, 
+				}});
+				next if (($host_uuid) && ($this_host_uuid ne $host_uuid));
+				my $device_path  = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path};
+				my $backing_disk = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk};
+				my $device_minor = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s3:device_path"    => $device_path,
+					"s4:backing_disk"   => $backing_disk,
+					"s5:device_minor"   => $device_minor,
+				}});
+				
+				if (not $host_uuid)
+				{
+					$host_uuid = $scan_drbd_resource_host_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+				}
+				
+				$logical_volume = $backing_disk;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { logical_volume => $logical_volume }});
+				last;
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { logical_volume => $logical_volume }});
+	if ($logical_volume)
+	{
+		### NOTE: We're pulling more columns than we need to help with logging.
+		# Verify this is an LV and, if so, what VG is it on?
+		my $query = "
+SELECT 
+    a.scan_lvm_lv_name, 
+    a.scan_lvm_lv_on_vg, 
+    b.scan_lvm_vg_internal_uuid 
+FROM 
+    scan_lvm_lvs a, 
+    scan_lvm_vgs b 
+WHERE 
+    a.scan_lvm_lv_host_uuid = b.scan_lvm_vg_host_uuid 
+AND 
+    a.scan_lvm_lv_on_vg = b.scan_lvm_vg_name 
+AND 
+    a.scan_lvm_lv_path = ".$anvil->Database->quote($logical_volume);
+		if ($host_uuid)
+		{
+			$query .= "
+AND 
+    scan_lvm_lv_host_uuid = ".$anvil->Database->quote($host_uuid);
+		}
+		$query .= "
+LIMIT 1
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		
+		if (not $count)
+		{
+			# LV not found.
+			return("");
+		}
+		
+		my $scan_lvm_lv_name          = $results->[0]->[0];
+		my $scan_lvm_lv_on_vg         = $results->[0]->[1];
+		my $scan_lvm_vg_internal_uuid = $results->[0]->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_lvm_lv_name          => $scan_lvm_lv_name, 
+			scan_lvm_lv_on_vg         => $scan_lvm_lv_on_vg, 
+			scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
+		}});
+		
+		$query = "
+SELECT 
+    a.storage_group_uuid, 
+    a.storage_group_name 
+FROM 
+    storage_groups a, 
+    storage_group_members b 
+WHERE 
+    a.storage_group_uuid = b.storage_group_member_storage_group_uuid 
+AND 
+    b.storage_group_member_vg_uuid = ".$anvil->Database->quote($scan_lvm_vg_internal_uuid)."
+LIMIT 1
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		
+		if (not $count)
+		{
+			# Storage group not found.
+			return("");
+		}
+		
+		my $storage_group_uuid = $results->[0]->[0];
+		my $storage_group_name = $results->[0]->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			storage_group_uuid => $storage_group_uuid, 
+			storage_group_name => $storage_group_name, 
+		}});
+		
+		# Done!
+		return($storage_group_uuid);
+	}
+	
+	return("");
 }
 
 
