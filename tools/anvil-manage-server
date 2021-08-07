@@ -819,11 +819,7 @@ sub interactive_configure_storage
 					anvil_uuid => $anvil_uuid,
 					path       => $this_path,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:storage_group_name'      => $storage_group_name, 
-					's2:storage_group_uuid'      => $storage_group_uuid, 
-					's3:this_storage_group_uuid' => $this_storage_group_uuid,
-				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_storage_group_uuid => $this_storage_group_uuid }});
 				
 				if (($this_storage_group_uuid) && ($storage_group_uuid eq $this_storage_group_uuid))
 				{
@@ -837,8 +833,7 @@ sub interactive_configure_storage
 			}
 			
 			$lines += 2;
-			print "[ ".$index." ] - Name: \"".$storage_group_name."\"\n";
-			print "      - Size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size})."], Free: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size})."]\n";
+			print "[ ".$index." ] - Name: \"".$storage_group_name."\" - Size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size})."], Free: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size})."]\n";
 			
 			my $path_count = keys %{$paths};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { path_count => $path_count }});

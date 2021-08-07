@@ -27,16 +27,27 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 $anvil->data->{switches}{'job-uuid'}     = "";
+$anvil->data->{switches}{'poweroff'}     = "";
 $anvil->data->{switches}{'power-off'}    = "";	# By default, the node is withdrawn. With this switch, the node will power off as well.
 $anvil->data->{switches}{'stop-reason'}  = "";	# Optionally used to set 'system::stop_reason' reason for this host. Valid values are 'user', 'power' and 'thermal'.
 $anvil->data->{switches}{'stop-servers'} = "";	# Default behaviour is to migrate servers to the peer, if the peer is up. This overrides that and forces hosted servers to shut down.
 $anvil->Get->switches;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	'switches::job-uuid'     => $anvil->data->{switches}{'job-uuid'},
+	'switches::poweroff'     => $anvil->data->{switches}{'poweroff'},
 	'switches::power-off'    => $anvil->data->{switches}{'power-off'},
 	'switches::stop-reason'  => $anvil->data->{switches}{'stop-reason'},
 	'switches::stop-servers' => $anvil->data->{switches}{'stop-servers'},
 }});
+
+# Let 'poweroff' work as a mis-spell of 'power-off'
+if (($anvil->data->{switches}{'poweroff'}) && (not $anvil->data->{switches}{'power-off'}))
+{
+	$anvil->data->{switches}{'power-off'} = $anvil->data->{switches}{'poweroff'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::power-off' => $anvil->data->{switches}{'power-off'},
+	}});
+}
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -121,6 +132,9 @@ if (not $anvil->data->{sys}{anvil_uuid})
 if (not $anvil->data->{switches}{'stop-reason'})
 {
 	$anvil->data->{switches}{'stop-reason'} = "user";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::stop-reason' => $anvil->data->{switches}{'stop-reason'},
+	}});
 }
 
 # Migrate or stop the servers, if any servers are running here.
@@ -144,6 +158,25 @@ if ($anvil->data->{switches}{'power-off'})
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0325"});
 	$anvil->Job->update_progress({progress => 100, message => "job_0325"});
+	
+	# Set the stop reason.
+	if ($anvil->data->{switches}{'stop-reason'})
+	{
+		if ($anvil->data->{switches}{'stop-reason'} eq "none")
+		{
+			$anvil->data->{switches}{'stop-reason'} = "";
+		}
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			variable_name         => 'system::stop_reason', 
+			variable_value        => $anvil->data->{switches}{'stop-reason'}, 
+			variable_default      => '', 
+			variable_description  => 'striker_0279', 
+			variable_section      => 'system', 
+			variable_source_uuid  => $anvil->Get->host_uuid(), 
+			variable_source_table => 'hosts', 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
+	}
 	
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." poweroff";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});

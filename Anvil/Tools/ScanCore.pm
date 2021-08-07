@@ -2415,7 +2415,7 @@ LIMIT 1;";
 			$stop_reason = "unknown";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_reason => $stop_reason }});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0565", variables => { host_name => $host_name }});
-			next;
+			
 		}
 		
 		if ($stop_reason eq "user")
@@ -2424,7 +2424,7 @@ LIMIT 1;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0566", variables => { host_name => $host_name }});
 			next;
 		}
-		elsif ($stop_reason eq "power")
+		elsif (($stop_reason eq "power") or ($stop_reason eq "unknown"))
 		{
 			# Check now if the power is OK
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0567", variables => { host_name => $host_name }});

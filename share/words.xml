@@ -1786,7 +1786,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0562">The host: [#!variable!host_name!#] is up, no need to check if it needs booting.</key>
 		<key name="log_0563">The host: [#!variable!host_name!#] couldn't be reached directly, but IPMI reports that it is up. Could the IPMI BMC be hung or unplugged?</key>
 		<key name="log_0564">The host: [#!variable!host_name!#] is off. Will check now if it should be booted.</key>
-		<key name="log_0565">The host: [#!variable!host_name!#] has no stop reason, so we'll leave it off.</key>
+		<key name="log_0565">The host: [#!variable!host_name!#] has no stop reason, so we'll boot it up in case it lost power without warning.</key>
 		<key name="log_0566">The host: [#!variable!host_name!#] was stopped by the user, so we'll leave it off.</key>
 		<key name="log_0567">The host: [#!variable!host_name!#] was powered off because of power loss. Checking to see if it is now safe to restart it.</key>
 		<key name="log_0568">The host: [#!variable!host_name!#] was powered off because of thermal issues. Checking to see if it is now safe to restart it.</key>
