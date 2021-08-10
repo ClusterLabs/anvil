@@ -39,7 +39,11 @@ const Server = (): JSX.Element => {
       {typeof uuid === 'string' &&
         (previewMode ? (
           <Box className={classes.preview}>
-            <Preview setMode={setPreviewMode} serverName={server_name} />
+            <Preview
+              setMode={setPreviewMode}
+              uuid={uuid}
+              serverName={server_name}
+            />
           </Box>
         ) : (
           <Box className={classes.fullView}>
