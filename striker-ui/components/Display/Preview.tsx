@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import IconButton from '@material-ui/core/IconButton';
@@ -10,6 +10,7 @@ import { HeaderText } from '../Text';
 
 interface PreviewProps {
   setMode: Dispatch<SetStateAction<boolean>>;
+  uuid: string;
   serverName: string | string[] | undefined;
 }
 
@@ -40,10 +41,35 @@ const useStyles = makeStyles(() => ({
     backgroundColor: GREY,
     fontSize: '8em',
   },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
 }));
 
-const Preview = ({ setMode, serverName }: PreviewProps): JSX.Element => {
+const Preview = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
   const classes = useStyles();
+  const [preview, setPreview] = useState<string>();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/get_server_screenshot?server_uuid=${uuid}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+        const { screenshot } = await res.json();
+        setPreview(screenshot);
+      } catch {
+        setPreview('');
+      }
+    })();
+  }, [uuid]);
 
   return (
     <Panel>
@@ -58,7 +84,16 @@ const Preview = ({ setMode, serverName }: PreviewProps): JSX.Element => {
             component="span"
             onClick={() => setMode(false)}
           >
-            <CropOriginal className={classes.imageIcon} />
+            {!preview ? (
+              <CropOriginal className={classes.imageIcon} />
+            ) : (
+              <img
+                alt=""
+                key="preview"
+                src={`data:image/png;base64,${preview}`}
+                className={classes.previewImage}
+              />
+            )}
           </IconButton>
         </Box>
         <Box className={classes.fullScreenBox}>
