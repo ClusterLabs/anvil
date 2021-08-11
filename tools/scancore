@@ -115,6 +115,7 @@ while(1)
 	
 	# If we're in maintenance mode, do nothing.
 	my $maintenance_mode = $anvil->System->maintenance_mode();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
 	if ($maintenance_mode)
 	{
 		# Sleep and skip.

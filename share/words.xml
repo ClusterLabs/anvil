@@ -1876,6 +1876,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0644">Synchronizing corosync config.</key>
 		<key name="log_0645">Reloading corosync config.</key>
 		<key name="log_0646">#!variable!program!# is disabled in anvil.conf. and '--force' was not used. Exiting.</key>
+		<key name="log_0647">[ Note ] - The network interface: [#!variable!name!#] with 'network_interface_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

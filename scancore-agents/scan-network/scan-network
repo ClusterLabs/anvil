@@ -628,12 +628,133 @@ sub read_last_scan
 {
 	my ($anvil) = @_;
 	
+	### NOTE: There is a bug somewhere where interfaces are periodically being added twice per host. This
+	###       checks for / cleans those up. Remove this when the core issue is resolved.
+	clear_duplicate_nics($anvil);
+	
 	# Read in the old bridge data.
 	load_bridge_data($anvil);
 	load_bond_data($anvil);
 	load_interface_data($anvil);
 	load_ip_address_data($anvil);
 
+	return(0);
+}
+
+# There is a bug somewhere where interfaces are periodically being added twice per host. This checks 
+# for / cleans those up. Remove this when the core issue is resolved.
+sub clear_duplicate_nics
+{
+	my ($anvil) = @_;
+	
+	my $query = "
+SELECT 
+    network_interface_uuid, 
+    network_interface_name, 
+    network_interface_mac_address, 
+    network_interface_operational 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+ORDER BY 
+    network_interface_name ASC;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $network_interface_uuid        = $row->[0];
+		my $network_interface_name        = $row->[1];
+		my $network_interface_mac_address = $row->[2];
+		my $network_interface_operational = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			network_interface_uuid        => $network_interface_uuid, 
+			network_interface_name        => $network_interface_name, 
+			network_interface_mac_address => $network_interface_mac_address, 
+			network_interface_operational => $network_interface_operational, 
+		}});
+		
+		if (not exists $anvil->data->{duplicate_nics}{seen}{$network_interface_name})
+		{
+			$anvil->data->{duplicate_nics}{seen}{$network_interface_name} = [];
+		}
+		push @{$anvil->data->{duplicate_nics}{seen}{$network_interface_name}}, $network_interface_uuid;
+		
+		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_name}        = $network_interface_name;
+		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address} = $network_interface_mac_address;
+		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational} = $network_interface_operational;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_name"        => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_name}, 
+			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_mac_address" => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address}, 
+			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_operational" => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational}, 
+		}});
+	}
+	foreach my $network_interface_name (sort {$a cmp $b} keys %{$anvil->data->{duplicate_nics}{seen}})
+	{
+		my $count = @{$anvil->data->{duplicate_nics}{seen}{$network_interface_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:network_interface_name' => $network_interface_name, 
+			's2:count'                  => $count,
+		}});
+		
+		if ($count > 1)
+		{
+			# Duplicate! Is one of them marked as DELETED?
+			foreach my $network_interface_uuid (@{$anvil->data->{duplicate_nics}{seen}{$network_interface_name}})
+			{
+				# Is this one deleted?
+				my $network_interface_mac_address = $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address};
+				my $network_interface_operational = $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					network_interface_uuid        => $network_interface_uuid, 
+					network_interface_mac_address => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address}, 
+					network_interface_operational => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational}, 
+				}});
+				if ($network_interface_operational eq "DELETED")
+				{
+					# Take this one out.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0647", variables => { 
+						name => $network_interface_name,
+						uuid => $network_interface_uuid,
+					}});
+					
+					my $query = "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				}
+				last if $count == 1;
+			}
+			
+			# If count is still > 1, we need to arbitrarily delete an interface.
+			if ($count > 1)
+			{
+				foreach my $network_interface_uuid (@{$anvil->data->{duplicate_nics}{seen}{$network_interface_name}})
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0647", variables => { 
+						name => $network_interface_name,
+						uuid => $network_interface_uuid,
+					}});
+					
+					my $query = "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				}
+				last if $count == 1;
+			}
+		}
+	}
+	
+	delete $anvil->data->{duplicate_nics};
+	
 	return(0);
 }
 
