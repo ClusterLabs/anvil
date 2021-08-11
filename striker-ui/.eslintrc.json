@@ -36,7 +36,7 @@
     "sourceType": "module"
   },
   "rules": {
-    "complexity": ["error", 5],
+    "complexity": ["error", 6],
     "import/extensions": [
       "error",
       "ignorePackages",
