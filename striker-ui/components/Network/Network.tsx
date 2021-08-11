@@ -4,7 +4,10 @@ import { makeStyles } from '@material-ui/core/styles';
 import { Panel } from '../Panels';
 import { HeaderText, BodyText } from '../Text';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
-import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+import {
+  DIVIDER,
+  LARGE_MOBILE_BREAKPOINT,
+} from '../../lib/consts/DEFAULT_THEME';
 import processNetworkData from './processNetwork';
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
@@ -15,7 +18,8 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     overflow: 'auto',
     height: '32vh',
-    [theme.breakpoints.down('md')]: {
+    paddingRight: '.3em',
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
       overflow: 'hidden',
     },

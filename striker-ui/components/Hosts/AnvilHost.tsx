@@ -6,14 +6,16 @@ import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
 import HOST_STATUS from '../../lib/consts/NODES';
 
-import putJSON from '../../lib/fetchers/putJSON';
+import putFetch from '../../lib/fetchers/putFetch';
+import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     overflow: 'auto',
     height: '28vh',
     paddingLeft: '.3em',
-    [theme.breakpoints.down('md')]: {
+    paddingRight: '.3em',
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
       overflow: 'hidden',
     },
@@ -102,10 +104,13 @@ const AnvilHost = ({
                     <Switch
                       checked={host.state === 'online'}
                       onChange={() =>
-                        putJSON('/set_power', {
-                          host_uuid: host.host_uuid,
-                          is_on: !(host.state === 'online'),
-                        })
+                        putFetch(
+                          `${process.env.NEXT_PUBLIC_API_URL}/set_power`,
+                          {
+                            host_uuid: host.host_uuid,
+                            is_on: !(host.state === 'online'),
+                          },
+                        )
                       }
                     />
                   </Box>
@@ -117,10 +122,13 @@ const AnvilHost = ({
                       checked={host.state === 'online'}
                       disabled={!(host.state === 'online')}
                       onChange={() =>
-                        putJSON('/set_membership', {
-                          host_uuid: host.host_uuid,
-                          is_member: !(host.state === 'online'),
-                        })
+                        putFetch(
+                          `${process.env.NEXT_PUBLIC_API_URL}/set_membership`,
+                          {
+                            host_uuid: host.host_uuid,
+                            is_member: !(host.state === 'online'),
+                          },
+                        )
                       }
                     />
                   </Box>
