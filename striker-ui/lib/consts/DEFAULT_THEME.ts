@@ -15,3 +15,4 @@ export const DISABLED = '#AAA';
 export const BLACK = '#343434';
 
 export const BORDER_RADIUS = '3px';
+export const LARGE_MOBILE_BREAKPOINT = 1800;

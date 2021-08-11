@@ -7,7 +7,8 @@ nextbuilddir		= .next
 
 # List of paths relative to the build output directory.
 #
-outindexfile		= index.html
+outindexpage		= index.html
+outserverpage		= server.html
 outjsmodulesdir		= _next
 outimagesdir		= pngs
 
@@ -88,13 +89,19 @@ build: $(nodemodulesdir)
 
 install-data-hook:
 	-@echo "Place build output files."
-	cp -r --no-preserve=mode $(srcdir)/$(nextoutdir)/$(outindexfile) $(srcdir)/$(nextoutdir)/$(outjsmodulesdir) $(DESTDIR)/$(htmldir)/
+	(cd $(srcdir)/$(nextoutdir); \
+		cp -r --no-preserve=mode \
+			$(outindexpage) $(outserverpage) $(outjsmodulesdir) \
+			$(DESTDIR)/$(htmldir)/ \
+	)
 	-@echo "Create symlink to images to enable borrowing icon etc. without duplicating."
 	(cd $(DESTDIR)/$(htmldir); $(LN_S) skins/alteeve/images $(outimagesdir))
 
 uninstall-hook:
 	-@echo "Remove all installed files of the current module."
-	(cd $(DESTDIR)/$(htmldir); rm -rf $(outindexfile) $(outjsmodulesdir) $(outimagesdir))
+	(cd $(DESTDIR)/$(htmldir); \
+		rm -rf $(outindexpage) $(outserverpage) $(outjsmodulesdir) $(outimagesdir) \
+	)
 
 clean-local:
 	-@echo "Clean up node modules."

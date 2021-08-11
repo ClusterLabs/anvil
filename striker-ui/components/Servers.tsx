@@ -26,6 +26,7 @@ import {
   RED,
   GREY,
   BLACK,
+  LARGE_MOBILE_BREAKPOINT,
 } from '../lib/consts/DEFAULT_THEME';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
@@ -33,15 +34,17 @@ import Decorator, { Colours } from './Decorator';
 import Spinner from './Spinner';
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 
-import putJSON from '../lib/fetchers/putJSON';
+import putFetch from '../lib/fetchers/putFetch';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     width: '100%',
     overflow: 'auto',
     height: '78vh',
-    [theme.breakpoints.down('md')]: {
+    paddingRight: '.3em',
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
+      overflow: 'hidden',
     },
   },
   divider: {
@@ -142,7 +145,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const handlePower = (label: ButtonLabels) => {
     setAnchorEl(null);
     if (selected.length) {
-      putJSON('/set_power', {
+      putFetch(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
         server_uuid_list: selected,
         is_on: label === 'on',
       });
@@ -253,6 +256,8 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                       button
                       className={classes.button}
                       key={server.server_uuid}
+                      component="a"
+                      href={`/server?uuid=${server.server_uuid}&server_name=${server.server_name}`}
                     >
                       <Box display="flex" flexDirection="row" width="100%">
                         {showCheckbox && (

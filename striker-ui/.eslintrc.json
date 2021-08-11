@@ -52,7 +52,7 @@
     "react/prop-types": "off",
     // Importing React is not required in Next.js
     "react/react-in-jsx-scope": "off",
-
+    "react/jsx-curly-newline": "off",
     "camelcase": "off",
     "@typescript-eslint/camelcase": "off"
   },

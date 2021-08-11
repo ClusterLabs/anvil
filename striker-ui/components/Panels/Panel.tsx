@@ -42,6 +42,19 @@ const useStyles = makeStyles(() => ({
     bottom: '-.3em',
     right: '-.3em',
   },
+  '@global': {
+    '*::-webkit-scrollbar': {
+      width: '.6em',
+    },
+    '*::-webkit-scrollbar-track': {
+      backgroundColor: PANEL_BACKGROUND,
+    },
+    '*::-webkit-scrollbar-thumb': {
+      backgroundColor: TEXT,
+      outline: '1px solid transparent',
+      borderRadius: BORDER_RADIUS,
+    },
+  },
 }));
 
 const Panel = ({ children }: Props): JSX.Element => {

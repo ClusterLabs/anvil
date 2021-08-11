@@ -1,7 +1,11 @@
 import { useContext, useEffect } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import { List, Box, Divider, ListItem } from '@material-ui/core';
-import { HOVER, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+import {
+  HOVER,
+  DIVIDER,
+  LARGE_MOBILE_BREAKPOINT,
+} from '../../lib/consts/DEFAULT_THEME';
 import Anvil from './Anvil';
 import { AnvilContext } from '../AnvilContext';
 import sortAnvils from './sortAnvils';
@@ -12,7 +16,8 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     overflow: 'auto',
     height: '30vh',
-    [theme.breakpoints.down('md')]: {
+    paddingRight: '.3em',
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
       overflow: 'hidden',
     },

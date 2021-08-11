@@ -30,6 +30,11 @@ export const ICONS = [
     uri: '/striker?email=true',
   },
   {
+    text: 'Logout',
+    image: '/pngs/users_icon_on.png',
+    uri: '/striker?logout=true',
+  },
+  {
     text: 'Help',
     image: '/pngs/help_icon_on.png',
     uri: 'https://alteeve.com/w/Support',
