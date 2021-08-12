@@ -8,6 +8,7 @@ import SharedStorageHost from './FileSystemsHost';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
 import Spinner from '../Spinner';
+import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 const useStyles = makeStyles((theme) => ({
   header: {
@@ -18,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
     overflow: 'auto',
     height: '78vh',
     paddingLeft: '.3em',
-    [theme.breakpoints.down('md')]: {
+    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
       height: '100%',
     },
   },

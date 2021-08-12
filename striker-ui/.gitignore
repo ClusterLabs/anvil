@@ -15,6 +15,7 @@
 /build
 /out/*
 !/out/index.html
+!/out/server.html
 !/out/_next
 
 # misc

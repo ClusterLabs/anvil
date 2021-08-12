@@ -15,7 +15,7 @@ const useStyles = makeStyles(() => ({
     borderColor: DIVIDER,
     marginTop: '1.4em',
     marginBottom: '1.4em',
-    paddingBottom: '.7em',
+    paddingBottom: 0,
     position: 'relative',
   },
 }));
