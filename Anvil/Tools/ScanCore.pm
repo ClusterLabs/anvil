@@ -319,7 +319,7 @@ sub call_scan_agents
 	$anvil->ScanCore->_scan_directory({directory => $anvil->data->{path}{directories}{scan_agents}});
 	
 	# Now loop through the agents I found and call them.
-	my $timeout = 60;
+	my $timeout = 30;
 	if ((exists $anvil->data->{scancore}{timing}{agent_runtime}) && ($anvil->data->{scancore}{timing}{agent_runtime} =~ /^\d+$/))
 	{
 		$timeout = $anvil->data->{scancore}{timing}{agent_runtime};
