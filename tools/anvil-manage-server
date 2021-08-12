@@ -768,12 +768,24 @@ sub interactive_configure_storage
 	while(1)
 	{
 		# Here, we'll list each storage pool and for each indicate if it's used and, if so
+		my $index                   = 1;
+		my $lines                   = 2;
+		my $changes                 = 0;
+		my $storage_group_selection = [];
+		push @{$storage_group_selection}, "NULL";
+		
+		print $terminal->Tputs('cl');
+		print $anvil->Words->string({key => "job_0355", variables => { 
+			anvil_name  => $anvil->data->{target_server}{anvil_name},
+			server_name => $anvil->data->{target_server}{server_name}, 
+		}})."\n";
+		print "* Storage configuration.\n";
 		my $anvil_uuid = $anvil->data->{target_server}{anvil_uuid};
 		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
 		{
 			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
 			my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
-			my $free_size          = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size
+			my $free_size          = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 			my $vg_size_on_dr      = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
 			my $available_on_dr    = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -785,20 +797,95 @@ sub interactive_configure_storage
 				's6:available_on_dr'    => $free_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_on_dr}).")", 
 			}});
 			
+			my $paths = {};
 			foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{target_server}{disk}})
 			{
-				my $device_bus = $anvil->data->{target_server}{disk}{$target}{device_bus}
+				my $device_bus = $anvil->data->{target_server}{disk}{$target}{device_bus};
 				my $cache      = $anvil->data->{target_server}{disk}{$target}{cache};
 				my $io         = $anvil->data->{target_server}{disk}{$target}{io};
-				my $path       = $anvil->data->{target_server}{disk}{$target}{path};
+				my $this_path  = $anvil->data->{target_server}{disk}{$target}{path};
+				my $boot_order = $anvil->data->{target_server}{disk}{$target}{boot_order} ? $anvil->data->{target_server}{disk}{$target}{boot_order} : "--";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					target     => $target,
 					device_bus => $device_bus, 
 					cache      => $cache, 
 					io         => $io, 
-					path       => $path, 
+					this_path  => $this_path, 
+					boot_order => $boot_order, 
 				}});
+				
+				my $this_storage_group_uuid = $anvil->Storage->get_storage_group_from_path({
+					debug      => 3,
+					anvil_uuid => $anvil_uuid,
+					path       => $this_path,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_storage_group_uuid => $this_storage_group_uuid }});
+				
+				if (($this_storage_group_uuid) && ($storage_group_uuid eq $this_storage_group_uuid))
+				{
+					$paths->{$target}{path}       = $this_path;
+					$paths->{$target}{boot_order} = $boot_order;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"s1:paths->{".$target."}{path}"       => $paths->{$target}{path}, 
+						"s2:paths->{".$target."}{boot_order}" => $paths->{$target}{boot_order}, 
+					}});
+				}
 			}
+			
+			$lines += 2;
+			print "[ ".$index." ] - Name: \"".$storage_group_name."\" - Size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size})."], Free: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size})."]\n";
+			
+			my $path_count = keys %{$paths};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { path_count => $path_count }});
+			if ($path_count)
+			{
+				foreach my $target (sort {$a cmp $b} keys %{$paths})
+				{
+					my $path       = $paths->{$target}{path};
+					my $boot_order = $paths->{$target}{boot_order};
+					my $size       = $anvil->Storage->get_size_of_block_device({
+						debug => 2,
+						path  => $path,
+					});
+					my $say_size = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						size => $size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",
+					}});
+					if ($size !~ /^\d+$/)
+					{
+						$say_size = "<unknwon>";
+					}
+					else
+					{
+						$say_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $size})
+					}
+					print "      - Target: [".$target."], boot order: [".$boot_order."], backed by: [".$path."], Size: [".$say_size."]\n";
+					$lines++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lines => $lines }});
+				}
+			}
+			else
+			{
+				print "      - <Storage group not used by this server>\n";
+			}
+			$index++;
 		}
+		
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		if ($changes)
+		{
+			print "- Changes can be committed on the main page.\n";
+			print $terminal->Tgoto('cm', 0, ($lines+5))."? ";
+		}
+		else
+		{
+			print $terminal->Tgoto('cm', 0, ($lines+4))."? ";
+		}
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
 	}
 	
 	return(0);
