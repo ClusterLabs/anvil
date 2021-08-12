@@ -60,10 +60,11 @@ sub get_screenshot
 	my $parameters       = shift;
 	my $server_uuid      = $parameters->{server_uuid};
 	my $server_host_uuid = $parameters->{server_host_uuid};
+	my $resize_args      = defined $parameters->{resize_args} ? $parameters->{resize_args} : "512x512";
 
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		job_command     => $anvil->data->{path}{exe}{'anvil-get-server-screenshot'},
-		job_data        => "server-uuid=".$server_uuid,
+		job_data        => "server-uuid=".$server_uuid."\nresize=".$resize_args,
 		job_host_uuid   => $server_host_uuid,
 		job_description => "job_0357",
 		job_name        => "cgi-bin::get_server_screenshot::".$server_uuid,
@@ -108,12 +109,17 @@ $anvil->Get->cgi();
 print $anvil->Template->get({ file => "shared.html", name => "json_headers", show_name => 0 })."\n";
 
 my $server_uuid = defined $anvil->data->{cgi}{server_uuid}{value} ? $anvil->data->{cgi}{server_uuid}{value} : $anvil->data->{switches}{'server-uuid'};
+my $resize_args = defined $anvil->data->{cgi}{resize}{value}      ? $anvil->data->{cgi}{resize}{value}      : $anvil->data->{switches}{'resize'};
 
 my $response_body = {};
 
 if ($server_uuid)
 {
-	my $encoded_image = get_screenshot({ server_uuid => $server_uuid, server_host_uuid => get_server_host_uuid({ server_uuid => $server_uuid }) });
+	my $encoded_image = get_screenshot({
+		server_uuid      => $server_uuid,
+		server_host_uuid => get_server_host_uuid({ server_uuid => $server_uuid }),
+		resize_args      => $resize_args
+	});
 
 	if (defined $encoded_image)
 	{

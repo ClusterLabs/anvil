@@ -49,8 +49,17 @@ sub get_server_screenshot
 {
 	my $parameters  = shift;
 	my $server_uuid = $parameters->{server_uuid};
+	my $resize_args = $parameters->{resize_args};
 
-	my $shell_call = "virsh screenshot --domain ".$server_uuid." --file /dev/stdout | sed 's/Screenshot.*//' | base64 --wrap 0";
+	my $shell_call = "virsh screenshot --domain ".$server_uuid." --file /dev/stdout | sed 's/Screenshot.*//'";
+
+	if (defined $resize_args)
+	{
+		$shell_call .= " | convert - -resize ".$resize_args." png:-";
+	}
+
+	$shell_call .= " | base64 --wrap 0";
+
 	my ($shell_output, $shell_return_code) = system_call({ shell_call => $shell_call });
 
 	return $shell_return_code == 0 ? $shell_output : undef;
@@ -105,27 +114,28 @@ if ($anvil->data->{switches}{'job-uuid'})
 		if ($line =~ /server-uuid=(.*?)$/)
 		{
 			$anvil->data->{switches}{'server-uuid'} = $1;
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'}
-			} });
+		}
+
+		if ($line =~ /resize=(.*?)$/)
+		{
+			$anvil->data->{switches}{'resize'} = $1;
 		}
 
 		if ($line =~ /stdout=(.*?)$/)
 		{
 			$anvil->data->{switches}{'stdout'} = $1;
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				'switches::stdout' => $anvil->data->{switches}{'stdout'}
-			} });
 		}
 	}
 }
 
 my $server_uuid = $anvil->data->{switches}{'server-uuid'};
+my $resize_args = $anvil->data->{switches}{'resize'};
 my $is_stdout   = $anvil->data->{switches}{'stdout'};
 my $job_uuid    = $anvil->data->{switches}{'job-uuid'};
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 	server_uuid => $server_uuid,
+	resize_args => $resize_args,
 	is_stdout   => $is_stdout,
 	job_uuid    => $job_uuid
 } });
@@ -136,7 +146,7 @@ if ($server_uuid)
 
 	if ($is_stdout)
 	{
-		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid });
+		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid, resize_args => $resize_args });
 
 		if (defined $encoded_image)
 		{
@@ -151,7 +161,7 @@ if ($server_uuid)
 	}
 	elsif (is_existing_server_screenshot_outdated({ server_uuid => $server_uuid }))
 	{
-		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid });
+		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid, resize_args => $resize_args });
 
 		if (defined $encoded_image)
 		{
