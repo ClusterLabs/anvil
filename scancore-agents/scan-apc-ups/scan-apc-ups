@@ -239,15 +239,8 @@ gather_ups_data($anvil);
 # Look for changes.
 find_changes($anvil);
 
-# Update the database
-my $updated_uuid = $anvil->Database->insert_or_update_updated({
-	debug      => 2, 
-	updated_by => $THIS_FILE,
-});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { updated_uuid => $updated_uuid }});
-
-# Clean up and go away.
-$anvil->nice_exit({exit_code => 0});
+# Shut down.
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
 
 #############################################################################################################

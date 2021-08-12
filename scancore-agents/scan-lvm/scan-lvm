@@ -91,10 +91,9 @@ read_last_scan($anvil);
 # Loog for changes
 find_changes($anvil);
 
-# Mark that we ran.
-$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+# Shut down.
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
-$anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #

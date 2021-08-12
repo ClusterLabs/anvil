@@ -94,10 +94,9 @@ record_migration_times($anvil);
 # Check if we need to update the websocket stuff.
 check_vnc($anvil);
 
-# Mark that we ran.
-$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+# Shut down.
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
-$anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #

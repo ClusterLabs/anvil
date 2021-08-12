@@ -103,11 +103,8 @@ find_changes($anvil);
 
 check_config($anvil);
 
-# Update the database
-$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
-
-# Clean up and go away.
-$anvil->nice_exit({exit_code => 0});
+# Shut down.
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
 
 #############################################################################################################
