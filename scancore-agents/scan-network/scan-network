@@ -60,7 +60,7 @@ if (($anvil->data->{scancore}{'scan-hardware'}{disable}) && (not $anvil->data->{
 }
 
 # Handle start-up tasks
-my $problem = $anvil->ScanCore->agent_startup({debug => 2, agent => $THIS_FILE});
+my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
 {
 	$anvil->nice_exit({exit_code => 1});
@@ -91,7 +91,7 @@ find_changes($anvil);
 process_health($anvil);
 
 # Shut down.
-$anvil->ScanCore->agent_shutdown({debug => 2, agent => $THIS_FILE});
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
 
 #############################################################################################################
