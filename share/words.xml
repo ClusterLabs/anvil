@@ -434,6 +434,19 @@ The attempt to start the servers appears to have failed. The return code '0' was
 		<key name="error_0320">The Anvil! UUID: [#!variable!anvil_uuid!#] is not valid or was not found in the database.</key>
 		<key name="error_0321">There are no Anvil! systems yet in the database, nothing to do.</key>
 		<key name="error_0322">There are no servers yet in the database, nothing to do.</key>
+		<key name="error_0323">You need to specify the updated definition file with '--file /path/to/definition.xml'.</key>
+		<key name="error_0324">You definition file: [#!variable!file!#] doesn't exist or couldn't be read.</key>
+		<key name="error_0325">The server name was not found in the new definition file.</key>
+		<key name="error_0326">The server UUID was not found (or is not valid) in the new definition file.</key>
+		<key name="error_0327">
+Failed to parse the XML in the new definition file. The error was:
+====
+#!variable!error!#
+====
+</key>
+		<key name="error_0328"><![CDATA[Failed to parse the assigned memory from the definition file. Expected the memory defined as '<memory unit='XiB'>Y</memory>'.]]></key>
+		<key name="error_0329">The server UUID: [#!variable!server_uuid!#] in the definition file wasn't found in the database, unable to update.</key>
+		<key name="error_0330">The new definition has changed the server's name from: [#!variable!current_name!#] to: [#!variable!new_name!#]. Changing the server's name must be done with the 'anvil-rename-server' tool.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
