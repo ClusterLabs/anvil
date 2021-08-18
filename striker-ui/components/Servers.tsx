@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef } from 'react';
 import {
   List,
   ListItem,
@@ -74,17 +74,17 @@ const useStyles = makeStyles((theme) => ({
     paddingTop: '.8em',
   },
   menuItem: {
-    backgroundColor: TEXT,
+    backgroundColor: GREY,
     paddingRight: '3em',
     '&:hover': {
-      backgroundColor: TEXT,
+      backgroundColor: GREY,
     },
   },
   editButton: {
     borderRadius: 8,
     backgroundColor: GREY,
     '&:hover': {
-      backgroundColor: TEXT,
+      backgroundColor: GREY,
     },
   },
   editButtonBox: {
@@ -124,19 +124,35 @@ const selectDecorator = (state: string): Colours => {
 
 type ButtonLabels = 'on' | 'off';
 
-const buttonLabels: ButtonLabels[] = ['on', 'off'];
-
 const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
   const [allSelected, setAllSelected] = useState<boolean>(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const buttonLabels = useRef<ButtonLabels[]>([]);
   const { uuid } = useContext(AnvilContext);
   const classes = useStyles();
 
   const { data, isLoading } = PeriodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
   );
+
+  const setButtons = (filtered: AnvilServer[]) => {
+    buttonLabels.current = [];
+    if (
+      filtered.filter((item: AnvilServer) => item.server_state === 'running')
+        .length
+    ) {
+      buttonLabels.current.push('off');
+    }
+
+    if (
+      filtered.filter((item: AnvilServer) => item.server_state === 'shut off')
+        .length
+    ) {
+      buttonLabels.current.push('on');
+    }
+  };
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
@@ -158,6 +174,10 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     if (index === -1) selected.push(server_uuid);
     else selected.splice(index, 1);
 
+    const filtered = data.servers.filter(
+      (server: AnvilServer) => selected.indexOf(server.server_uuid) !== -1,
+    );
+    setButtons(filtered);
     setSelected([...selected]);
   };
 
@@ -201,7 +221,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                 open={Boolean(anchorEl)}
                 onClose={() => setAnchorEl(null)}
               >
-                {buttonLabels.map((label: ButtonLabels) => {
+                {buttonLabels.current.map((label: ButtonLabels) => {
                   return (
                     <MenuItem
                       onClick={() => handlePower(label)}
@@ -227,13 +247,17 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                 color="secondary"
                 checked={allSelected}
                 onChange={() => {
-                  if (!allSelected)
+                  if (!allSelected) {
+                    setButtons(data.servers);
                     setSelected(
                       data.servers.map(
                         (server: AnvilServer) => server.server_uuid,
                       ),
                     );
-                  else setSelected([]);
+                  } else {
+                    setButtons([]);
+                    setSelected([]);
+                  }
 
                   setAllSelected(!allSelected);
                 }}
