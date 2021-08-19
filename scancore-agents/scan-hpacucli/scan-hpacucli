@@ -165,13 +165,6 @@ $anvil->data->{switches}{force} = 0;
 $anvil->data->{switches}{purge} = 0;
 $anvil->Get->switches;
 
-# If we're disabled and '--force' wasn't used, exit.
-if (($anvil->data->{scancore}{'scan-hpacucli'}{disable}) && (not $anvil->data->{switches}{force}))
-{
-	# Exit.
-	$anvil->nice_exit({exit_code => 0});
-}
-
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)

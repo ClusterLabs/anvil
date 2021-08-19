@@ -178,6 +178,30 @@ sub agent_startup
 		tables   => $tables, 
 	}});
 	
+	# Adjust the log level, if required.
+	if ((exists $anvil->data->{scancore}{$agent}{log_level}) && ($anvil->data->{scancore}{$agent}{log_level} =~ /^\d+$/))
+	{
+		$anvil->Log->level({set => $anvil->data->{scancore}{$agent}{log_level}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"scancore::${agent}::log_level" => $anvil->data->{scan_agent}{$agent}{log_level},
+		}});
+	}
+	if ((exists $anvil->data->{scancore}{$agent}{log_secure}) && ($anvil->data->{scancore}{$agent}{log_secure} =~ /^\d+$/))
+	{
+		$anvil->Log->secure({set => $anvil->data->{scancore}{$agent}{log_secure}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"scancore::${agent}::log_level" => $anvil->data->{scan_agent}{$agent}{log_secure},
+		}});
+	}
+	
+	# If we're disabled and '--force' wasn't used, exit.
+	if (($anvil->data->{scancore}{$agent}{disable}) && (not $anvil->data->{switches}{force}))
+	{
+		# Exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $THIS_FILE }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
 	# Setting this will prepend messages coming grom the agent with the agent's name
 	$anvil->data->{'log'}{scan_agent} = $agent;
 	

@@ -197,13 +197,6 @@ if (($host_type ne "striker") && (not $anvil->data->{switches}{force}))
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# If we're disabled and '--force' wasn't used, exit.
-if (($anvil->data->{scancore}{'scan-apc-ups'}{disable}) && (not $anvil->data->{switches}{force}))
-{
-	# Exit.
-	$anvil->nice_exit({exit_code => 0});
-}
-
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)

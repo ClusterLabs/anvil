@@ -128,7 +128,7 @@ while(1)
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
-		$anvil->ScanCore->call_scan_agents({debug => 2});
+		$anvil->ScanCore->call_scan_agents();
 		
 		# Do post-scan analysis.
 		$anvil->ScanCore->post_scan_analysis({debug => 2});
@@ -224,6 +224,7 @@ sub exit_if_sums_changed
 sub prepare_for_run
 {
 	my ($anvil) = @_;
+	
 	# Reload defaults, re-read the config and then connect to the database(s)
 	$anvil->_set_paths();
 	$anvil->_set_defaults();
@@ -332,7 +333,7 @@ sub startup_tasks
 	foreach my $scan_agent (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
 	{
 		my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$scan_agent."/".$scan_agent.".sql";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			scan_agent  => $scan_agent,
 			schema_file => $schema_file, 
 		}});
@@ -342,7 +343,7 @@ sub startup_tasks
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { tables => $tables }});
 			
 			my $table_count = @{$tables};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { table_count => $table_count }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { table_count => $table_count }});
 			
 			# It's possible that some agents don't have a database (or use core database tables only)
 			if (@{$tables} > 0)
@@ -386,7 +387,7 @@ sub startup_tasks
 	if ($host_type eq "node")
 	{
 		my $uptime = $anvil->Get->uptime;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
 		if ($uptime < 600)
 		{
 			# Run it as a background task
