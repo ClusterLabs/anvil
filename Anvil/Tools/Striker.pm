@@ -440,7 +440,10 @@ sub get_fence_data
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_fence_data()" }});
 	
 	my $parsed_xml = "";
-	my $xml_body   = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{fences_unified_metadata}});
+	my $xml_body   = $anvil->Storage->read_file({
+		debug => $debug, 
+		file  => $anvil->data->{path}{data}{fences_unified_metadata},
+	});
 	
 	# Globally replace \fI (opening underline) with '[' and \fP (closing underline) with ']'.
 	$xml_body =~ s/\\fI/[/gs;

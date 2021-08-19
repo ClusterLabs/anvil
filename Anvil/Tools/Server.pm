@@ -1032,7 +1032,7 @@ WHERE
 	{
 		$live_migrate = "--live";
 	}
-	my $target_ip    = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
+	my $target_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target_ip    => $target_ip,
 		live_migrate => $live_migrate,

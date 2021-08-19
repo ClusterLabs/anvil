@@ -51,14 +51,6 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' 
 # Read switches
 $anvil->Get->switches;
 
-# If we're disabled and '--force' wasn't used, exit.
-if (($anvil->data->{scancore}{'scan-hardware'}{disable}) && (not $anvil->data->{switches}{force}))
-{
-	# Exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $THIS_FILE }});
-	$anvil->nice_exit({exit_code => 0});
-}
-
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
@@ -90,10 +82,9 @@ find_changes($anvil);
 # Finally, process health weights.
 process_health($anvil);
 
-# Mark that we ran.
-$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+	# Shut down.
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
-$anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -212,8 +203,12 @@ sub collect_data
 			$speed       =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
-				speed       => $speed, 
 				mac_address => $mac_address,
+				link_state  => $link_state, 
+				mtu         => $mtu,
+				duplex      => $duplex, 
+				operational => $operational,
+				speed       => $speed, 
 			}});
 			
 			# These are variables that will be needed if this is a bond interface.
@@ -474,6 +469,11 @@ sub collect_data
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});
+			}
+			
+			if (($interface =~ /^vnet/) && ($operational ne "up"))
+			{
+				#die;
 			}
 		}
 	}

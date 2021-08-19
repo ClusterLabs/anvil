@@ -1732,7 +1732,7 @@ sub connect
 # 		}
 	}
 	
-	# Make sure my host UUID is valod
+	# Make sure my host UUID is valid
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	if ($anvil->data->{sys}{host_uuid} !~ /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/)
 	{
@@ -1751,6 +1751,19 @@ sub connect
 			"sys::database::connections" => $anvil->data->{sys}{database}{connections}, 
 		}});
 		return($anvil->data->{sys}{database}{connections});
+	}
+	
+	if (exists $anvil->data->{'log'}{scan_agent})
+	{
+		my $agent = $anvil->data->{'log'}{scan_agent};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { agent => $agent }});
+		if (exists $anvil->data->{scan_agent}{$agent}{last_db_count})
+		{
+			$anvil->data->{sys}{database}{last_db_count} = $anvil->data->{scan_agent}{$agent}{last_db_count};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count}, 
+			}});
+		}
 	}
 	
 	# If we have a previous count and the new count is higher, resync.

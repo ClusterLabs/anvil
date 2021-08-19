@@ -1092,6 +1092,7 @@ sub _set_paths
 				status				=>	"/var/www/html/status",
 				syslinux			=>	"/usr/share/syslinux",
 				tftpboot			=>	"/var/lib/tftpboot",
+				temp				=>	"/tmp/anvil",
 				tools				=>	"/usr/sbin",
 				units				=>	"/usr/lib/systemd/system",
 			},

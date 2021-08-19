@@ -15,6 +15,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "ScanCore.pm";
 
 ### Methods;
+# agent_shutdown
 # agent_startup
 # call_scan_agents
 # check_health
@@ -88,6 +89,57 @@ sub parent
 #############################################################################################################
 
 
+=head2 agent_shutdown
+
+This method handles recording run data to the agent's data file.
+
+Parameters;
+
+=head3 agent (required)
+
+This is the name of the scan agent. Usually this can be set as C<< $THIS_FILE >>.
+
+=cut
+sub agent_shutdown
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->agent_shutdown()" }});
+	
+	my $agent = defined $parameter->{agent} ? $parameter->{agent} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		agent => $agent, 
+	}});
+	
+	# Setting this will prepend messages coming grom the agent with the agent's name
+	$anvil->data->{'log'}{scan_agent} = $agent;
+	
+	# If this agent ran before, it should have recorded how many databases it last connected to. Read 
+	# that, if so.
+	my $data_file = $anvil->data->{path}{directories}{temp}."/".$agent.".data";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { data_file => $data_file }});
+	
+	my $file_body  = "last_run:".time."\n";
+	   $file_body .= "last_db_count:".$anvil->data->{sys}{database}{connections}."\n";
+	my $error = $anvil->Storage->write_file({
+		debug     => $debug,
+		file      => $data_file, 
+		body      => $file_body,
+		overwrite => 1, 
+		backup    => 0,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+	
+	# Mark that we ran.
+	$anvil->Database->insert_or_update_updated({updated_by => $agent});
+
+	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
+
 =head2 agent_startup
 
 This method handles connecting to the databases, loading the agent's schema, resync'ing database tables if needed and reading in the words files.
@@ -126,8 +178,67 @@ sub agent_startup
 		tables   => $tables, 
 	}});
 	
+	# Adjust the log level, if required.
+	if ((exists $anvil->data->{scancore}{$agent}{log_level}) && ($anvil->data->{scancore}{$agent}{log_level} =~ /^\d+$/))
+	{
+		$anvil->Log->level({set => $anvil->data->{scancore}{$agent}{log_level}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"scancore::${agent}::log_level" => $anvil->data->{scan_agent}{$agent}{log_level},
+		}});
+	}
+	if ((exists $anvil->data->{scancore}{$agent}{log_secure}) && ($anvil->data->{scancore}{$agent}{log_secure} =~ /^\d+$/))
+	{
+		$anvil->Log->secure({set => $anvil->data->{scancore}{$agent}{log_secure}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"scancore::${agent}::log_level" => $anvil->data->{scan_agent}{$agent}{log_secure},
+		}});
+	}
+	
+	# If we're disabled and '--force' wasn't used, exit.
+	if (($anvil->data->{scancore}{$agent}{disable}) && (not $anvil->data->{switches}{force}))
+	{
+		# Exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $THIS_FILE }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
 	# Setting this will prepend messages coming grom the agent with the agent's name
 	$anvil->data->{'log'}{scan_agent} = $agent;
+	
+	# If this agent ran before, it should have recorded how many databases it last connected to. Read 
+	# that, if so.
+	my $data_file = $anvil->data->{path}{directories}{temp}."/".$agent.".data";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { data_file => $data_file }});
+	
+	$anvil->data->{scan_agent}{$agent}{last_run}      = "";
+	$anvil->data->{scan_agent}{$agent}{last_db_count} = 0;
+	if (-f $data_file)
+	{
+		my $file_body = $anvil->Storage->read_file({
+			debug       => $debug,
+			file        => $data_file, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+		foreach my $line (split/\n/, $file_body)
+		{
+			if ($line =~ /^last_run:(\d+)/)
+			{
+				$anvil->data->{scan_agent}{$agent}{last_run}            = $1;
+				$anvil->data->{scan_agent}{$agent}{time_since_last_run} = time - $anvil->data->{scan_agent}{$agent}{last_run};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"scan_agent::${agent}::last_run"            => $anvil->data->{scan_agent}{$agent}{last_run},
+					"scan_agent::${agent}::time_since_last_run" => $anvil->data->{scan_agent}{$agent}{time_since_last_run},
+				}});
+			}
+			if ($line =~ /^last_db_count:(\d+)/)
+			{
+				$anvil->data->{scan_agent}{$agent}{last_db_count} = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"scan_agent::${agent}::last_db_count" => $anvil->data->{scan_agent}{$agent}{last_db_count},
+				}});
+			}
+		}
+	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 	if ((not $tables) or (ref($tables) ne "ARRAY"))
@@ -160,7 +271,7 @@ sub agent_startup
 	}
 	
 	# Connect to DBs.
-	$anvil->Database->connect({debug => $debug});
+	$anvil->Database->connect({debug => 2});
 	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 	if (not $anvil->data->{sys}{database}{connections})
 	{
@@ -232,7 +343,7 @@ sub call_scan_agents
 	$anvil->ScanCore->_scan_directory({directory => $anvil->data->{path}{directories}{scan_agents}});
 	
 	# Now loop through the agents I found and call them.
-	my $timeout = 60;
+	my $timeout = 30;
 	if ((exists $anvil->data->{scancore}{timing}{agent_runtime}) && ($anvil->data->{scancore}{timing}{agent_runtime} =~ /^\d+$/))
 	{
 		$timeout = $anvil->data->{scancore}{timing}{agent_runtime};

@@ -59,13 +59,6 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' 
 # Read switches
 $anvil->Get->switches;
 
-# If we're disabled and '--force' wasn't used, exit.
-if (($anvil->data->{scancore}{'scan-hardware'}{disable}) && (not $anvil->data->{switches}{force}))
-{
-	# Exit.
-	$anvil->nice_exit({exit_code => 0});
-}
-
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
 if ($problem)
@@ -96,10 +89,9 @@ find_changes($anvil);
 # Finally, process health weights.
 process_health($anvil);
 
-# Mark that we ran.
-$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+# Shut down.
+$anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
-$anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
