@@ -2889,6 +2889,17 @@ Read UUID: .... [#!variable!read_uuid!#]
 		<key name="warning_0125">[ Warning ] - Asked to check server location constraints, but this is not a node.</key>
 		<key name="warning_0126">[ Warning ] - Asked to check server location constraints, but this node is not in a cluster.</key>
 		<key name="warning_0127">[ Warning ] - Asked to check server location constraints, but this node is not fully in the cluster yet.</key>
+		<key name="warning_0128">[ Warning ] - Failed to parse the fence agent: [#!variable!agent!#]'s XML metadata:
+========
+#!variable!metadata!#
+========
+
+The error was:
+
+========
+#!variable!error!#
+========
+		</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

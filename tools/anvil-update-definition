@@ -162,7 +162,6 @@ sub validate_and_update
 	if ($memory != $configured_ram)
 	{
 		# Update the configured RAM value.
-		
 		my $query = "
 UPDATE 
     servers 

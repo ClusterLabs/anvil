@@ -538,7 +538,7 @@ sub configure_pacemaker
 				}});
 				
 				   $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$ipmi_stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ";
-				my $switches = $anvil->System->parse_arguments({arguments => $arguments});
+				my $switches = $anvil->System->parse_arguments({debug => 2, arguments => $arguments});
 				foreach my $switch (sort {$a cmp $b} keys %{$switches})
 				{
 					# Ignore 'delay', we handle that in Cluster->set_delay(); Also, 
@@ -546,7 +546,7 @@ sub configure_pacemaker
 					my $value =  $switches->{$switch};
 					   $value =~ s/"/\\"/g;
 					   $value =~ s/#!SET!#/true/g;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						switch => $switch,
 						value  => $value,
 					}});
@@ -556,7 +556,7 @@ sub configure_pacemaker
 					# Find the argument=value version.
 					my $argument        =  $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
 					   $pcs_add_command .= $argument."=\"".$value."\" ";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						argument        => $argument,
 						value           => $argument        =~ /passw/ ? $anvil->Log->is_secure($value)           : $value,
 						pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,

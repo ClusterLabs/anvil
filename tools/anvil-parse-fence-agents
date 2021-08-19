@@ -147,6 +147,20 @@ sub unify_metadata
 		metadata    => $metadata, 
 		return_code => $return_code,
 	}});
+	
+	# Test that the metadata is valid XML.
+	local $@;
+	my $dom = eval { XML::LibXML->load_xml(string => $metadata); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "warning_0128", variables => { 
+			agent    => $fence_agent_file, 
+			metadata => $metadata,
+			error    => $@,
+		}});
+		return(1);
+	}
+	
 	if ($metadata =~ /<\?xml version="1.0" \?>/gs)
 	{
 		$metadata                           =~ s/<\?xml version="1.0" \?>/<agent name="$fence_agent_file">/gs;
