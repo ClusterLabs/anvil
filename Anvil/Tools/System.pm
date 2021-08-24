@@ -2058,7 +2058,7 @@ LIMIT 1
 			{
 				# Timed out.
 				$done = 1;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0510"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0510", variables => { ip_address => $ipmi_ip_address }});
 			}
 		}
 	}

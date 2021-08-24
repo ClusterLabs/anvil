@@ -1140,8 +1140,7 @@ sub check_corosync
 		my $peer_sn_name     =  $peer_short_name.".sn1";
 		my $local_ready      =  $anvil->data->{cib}{parsed}{'local'}{ready};
 		my $local_name       =  $anvil->data->{cib}{parsed}{'local'}{name};
-		my $local_short_name =  $peer_name;
-		   $local_short_name =~ s/\..*$//;
+		my $local_short_name =  $anvil->Get->short_host_name;
 		my $local_bcn_name   =  $local_short_name.".bcn1";
 		my $local_sn_name    =  $local_short_name.".sn1";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1203,7 +1202,7 @@ sub check_corosync
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_totem => $in_totem }});
 						
 						$new_corosync_conf .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 						next;
 					}
 					if ($line =~ /nodelist \{/)
@@ -1212,7 +1211,7 @@ sub check_corosync
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 						
 						$new_corosync_conf .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 						next;
 					}
 					
@@ -1224,7 +1223,7 @@ sub check_corosync
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_node => $in_node }});
 							
 							$new_corosync_conf .= $line."\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 							next;
 						}
 						if ($in_node)
@@ -1319,7 +1318,7 @@ sub check_corosync
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_nodelist => $in_nodelist }});
 							
 							$new_corosync_conf .= $line."\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 							next;
 						}
 					}
@@ -1330,10 +1329,10 @@ sub check_corosync
 							if (not $token_seen)
 							{
 								$new_corosync_conf .= "    token: 10000\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 							}
 							$new_corosync_conf .= $line."\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 							
 							$in_totem   = 0;
 							$token_seen = 0;
@@ -1349,7 +1348,7 @@ sub check_corosync
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 						}
 						$new_corosync_conf .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_corosync_conf => $new_corosync_conf }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_corosync_conf => $new_corosync_conf }});
 					}
 					else
 					{
