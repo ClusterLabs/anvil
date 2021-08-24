@@ -1238,12 +1238,43 @@ Oob  Type                            Admin
 oob  Out-Of-Band                     Up
 
 # Configure VLANs
-console(config)#vlan 200
-console(config-vlan200)#name SN     
+rs-striker03(config)#vlan 100              
+rs-striker03(config-vlan100)#name BCN1
+rs-striker03(config-vlan100)#interface range gi1/0/1-12,gi2/0/1-12
+rs-striker03(config-if)#switchport access vlan 100
+rs-striker03(config-if)#no shutdown 
+rs-striker03(config-if)#exit
 
+rs-striker03(config)#interface vlan 300
+rs-striker03(config)#name IFN
+rs-striker03(config-if-vlan300)#interface range gigabitethernet1/0/13-24,gigabitethernet2/0/13-24
+rs-striker03(config-if)#switchport access vlan 300
+rs-striker03(config-if)#no shutdown 
+rs-striker03(config-if)#exit
+rs-striker03(config)#exit
 
+rs-striker03#show vlan 
 
-# Form the stack;
+VLAN   Name                             Ports          Type
+-----  ---------------                  -------------  --------------
+1      default                          Po1-128,       Default
+                                        Te1/0/1-4,
+                                        Te2/0/1-4
+100    BCN1                             Gi1/0/1-12,    Static
+                                        Gi2/0/1-12
+300    IFN1                             Gi1/0/13-24,   Static
+                                        Gi2/0/13-24
+
+rs-striker03#copy running-config startup-config 
+
+This operation may take few minutes.
+Management interfaces will not be available during this time.
+
+Are you sure you want to save? (y/n) y
+
+Configuration Saved!
+rs-striker03#
+
 
 
 # Firmware update
