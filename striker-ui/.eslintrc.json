@@ -16,7 +16,8 @@
     "plugin:prettier/recommended",
     "plugin:react/recommended",
     "plugin:react-hooks/recommended",
-    "prettier"
+    "prettier",
+    "next/core-web-vitals"
   ],
   "plugins": [
     "@typescript-eslint",
@@ -54,7 +55,8 @@
     "react/react-in-jsx-scope": "off",
     "react/jsx-curly-newline": "off",
     "camelcase": "off",
-    "@typescript-eslint/camelcase": "off"
+    "@typescript-eslint/camelcase": "off",
+    "@next/next/no-img-element": "off"
   },
   "settings": {
     "react": { "version": "detect" }
