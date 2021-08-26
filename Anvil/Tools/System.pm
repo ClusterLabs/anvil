@@ -2063,60 +2063,80 @@ LIMIT 1
 		}
 	}
 	
+	# This can take a while to come up after cold resetting a BMC. So we'll try for a minute.
 	my $user_name   = "";
 	my $user_number = "";
-	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		output      => $output, 
-		return_code => $return_code,
-	}});
-	foreach my $line (split/\n/, $output)
+	my $waiting     = 1;
+	my $wait_until  = time + 120;
+	while ($waiting)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		
-		next if $line =~ /Empty User/i;
-		next if $line =~ /NO ACCESS/i;
-		next if $line =~ /Unknown/i;
-		if ($line =~ /^(\d+)\s+(.*?)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.*)$/)
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		foreach my $line (split/\n/, $output)
 		{
-			my $this_user_number = $1;
-			my $this_user_name   = $2;
-			my $callin           = $3;
-			my $link_auth        = $4;
-			my $ipmi_message     = $5;
-			my $channel_priv     = lc($6);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_user_number => $this_user_number,
-				this_user_name   => $this_user_name, 
-				callin           => $callin, 
-				link_auth        => $link_auth, 
-				ipmi_message     => $ipmi_message,
-				channel_priv     => $channel_priv, 
-			}});
-			if (($channel_priv eq "oem") or ($channel_priv eq "administrator"))
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			
+			next if $line =~ /Empty User/i;
+			next if $line =~ /NO ACCESS/i;
+			next if $line =~ /Unknown/i;
+			if ($line =~ /^(\d+)\s+(.*?)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.*)$/)
 			{
-				# Found the user.
-				$user_name   = $this_user_name;
-				$user_number = $this_user_number;
+				my $this_user_number = $1;
+				my $this_user_name   = $2;
+				my $callin           = $3;
+				my $link_auth        = $4;
+				my $ipmi_message     = $5;
+				my $channel_priv     = lc($6);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					user_name   => $user_name,
-					user_number => $user_number, 
+					this_user_number => $this_user_number,
+					this_user_name   => $this_user_name, 
+					callin           => $callin, 
+					link_auth        => $link_auth, 
+					ipmi_message     => $ipmi_message,
+					channel_priv     => $channel_priv, 
 				}});
-				last;
+				if (($channel_priv eq "oem") or ($channel_priv eq "administrator"))
+				{
+					# Found the user.
+					$waiting     = 0;
+					$user_name   = $this_user_name;
+					$user_number = $this_user_number;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						waiting     => $waiting, 
+						user_name   => $user_name,
+						user_number => $user_number, 
+					}});
+					last;
+				}
 			}
+		}
+		
+		# Try again later or give up?
+		if (time > $wait_until)
+		{
+			$waiting = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0331", variables => {
+				shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel,
+				output     => $output,
+			}});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0129", variables => {
+				shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel,
+				output     => $output,
+			}});
+			sleep 10;
 		}
 	}
 	if (not $user_name)
 	{
 		# Failed to find a user.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0507", variables => {
-			shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel,
-			output     => $output,
-		}});
 		return(0);
 	}
-	$output      = "";
-	$return_code = "";
 	
 	# Now ask the Striker running the database we're using to try to call the IPMI BMC.
 	my $striker_host_uuid = $anvil->data->{sys}{database}{read_uuid};
@@ -2152,6 +2172,7 @@ LIMIT 1
 		# Update the database, in case needed.
 		my $host_uuid = $anvil->Get->host_uuid();
 		$anvil->Database->insert_or_update_hosts({
+			debug       => $debug, 
 			host_ipmi   => $host_ipmi, 
 			host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 			host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
@@ -2185,6 +2206,7 @@ LIMIT 1
 			# Update the database, in case needed.
 			my $host_uuid = $anvil->Get->host_uuid();
 			$anvil->Database->insert_or_update_hosts({
+				debug       => $debug, 
 				host_ipmi   => $host_ipmi, 
 				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 				host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
@@ -2296,6 +2318,7 @@ LIMIT 1
 			# Update the database, in case needed.
 			my $host_uuid = $anvil->Get->host_uuid();
 			$anvil->Database->insert_or_update_hosts({
+				debug       => $debug, 
 				host_ipmi   => $host_ipmi, 
 				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 				host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
@@ -2326,6 +2349,7 @@ LIMIT 1
 				# Update the database, in case needed.
 				my $host_uuid = $anvil->Get->host_uuid();
 				$anvil->Database->insert_or_update_hosts({
+					debug       => $debug, 
 					host_ipmi   => $host_ipmi, 
 					host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 					host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 

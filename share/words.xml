@@ -447,6 +447,13 @@ Failed to parse the XML in the new definition file. The error was:
 		<key name="error_0328"><![CDATA[Failed to parse the assigned memory from the definition file. Expected the memory defined as '<memory unit='XiB'>Y</memory>'.]]></key>
 		<key name="error_0329">The server UUID: [#!variable!server_uuid!#] in the definition file wasn't found in the database, unable to update.</key>
 		<key name="error_0330">The new definition has changed the server's name from: [#!variable!current_name!#] to: [#!variable!new_name!#]. Changing the server's name must be done with the 'anvil-rename-server' tool.</key>
+		<key name="error_0331">[ Error ] - The IPMI BMC administrator (oem) user was not found. The output (if any) of the call: [#!variable!shell_call!#] was:
+====
+#!variable!output!#
+====
+
+Giving up.
+		</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2899,6 +2906,13 @@ The error was:
 ========
 #!variable!error!#
 ========
+		</key>
+		<key name="warning_0129">[ Warning ] - The IPMI BMC administrator (oem) user was not found. The output (if any) of the call: [#!variable!shell_call!#] was:
+====
+#!variable!output!#
+====
+
+We will sleep a bit and try again.
 		</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
