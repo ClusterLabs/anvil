@@ -7407,7 +7407,7 @@ WHERE
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	return($host_uuid);
 }
 
@@ -15388,6 +15388,7 @@ sub update_host_status
 	# We're only updating the status, so we'll read in the current data to pass back in.
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->insert_or_update_hosts({
+		debug       => $debug, 
 		host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
 		host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 		host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 

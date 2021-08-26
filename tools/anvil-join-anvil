@@ -2195,7 +2195,7 @@ sub check_local_network
 	# Setup IPMI, if needed.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0114"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0114");
-	$anvil->System->configure_ipmi({debug => 3, manifest_uuid => $manifest_uuid});
+	$anvil->System->configure_ipmi({debug => 2, manifest_uuid => $manifest_uuid});
 	
 	return(0);
 }

@@ -360,6 +360,7 @@ sub startup_tasks
 	$anvil->Database->get_hosts({debug => 3});
 	my $host_uuid = $anvil->Get->host_uuid();
 	$anvil->Database->insert_or_update_hosts({
+		debug       => 2,
 		host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
 		host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 		host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
