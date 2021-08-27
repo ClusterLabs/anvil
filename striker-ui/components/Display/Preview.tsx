@@ -3,7 +3,7 @@ import { Box } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import IconButton from '@material-ui/core/IconButton';
 import DesktopWindowsIcon from '@material-ui/icons/DesktopWindows';
-import CropOriginal from '@material-ui/icons/Image';
+import PowerOffOutlinedIcon from '@material-ui/icons/PowerOffOutlined';
 import { Panel } from '../Panels';
 import { BLACK, GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import { HeaderText } from '../Text';
@@ -35,11 +35,12 @@ const useStyles = makeStyles(() => ({
     padding: 0,
     color: TEXT,
   },
-  imageIcon: {
+  powerOffIcon: {
     borderRadius: 8,
     padding: 0,
-    backgroundColor: GREY,
-    fontSize: '8em',
+    color: GREY,
+    width: '100%',
+    height: '100%',
   },
   previewImage: {
     width: '100%',
@@ -85,7 +86,7 @@ const Preview = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
             onClick={() => setMode(false)}
           >
             {!preview ? (
-              <CropOriginal className={classes.imageIcon} />
+              <PowerOffOutlinedIcon className={classes.powerOffIcon} />
             ) : (
               <img
                 alt=""
