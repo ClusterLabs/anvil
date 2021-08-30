@@ -9112,16 +9112,21 @@ sub insert_or_update_network_interfaces
 	# If we don't have a network interface UUID, try to look one up using the MAC address
 	if (not $network_interface_uuid)
 	{
-		# See if I know this NIC by referencing it's MAC and name. The name is needed because virtual
-		# devices can share the MAC with the real interface.
+		# See if I know this NIC by referencing it's MAC (if not a vnet device), host_uuid and name. 
+		# The name is needed because virtual devices can share the MAC with the real interface.
 		my $query = "
 SELECT 
     network_interface_uuid 
 FROM 
     network_interfaces 
-WHERE 
+WHERE ";
+		if ($network_interface_name !~ /^vnet/)
+		{
+			$query .= "
     network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." 
-AND 
+AND ";
+		}
+		$query .= "
     network_interface_name        = ".$anvil->Database->quote($network_interface_name)."
 AND 
     network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid)."
