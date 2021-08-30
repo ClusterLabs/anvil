@@ -65,13 +65,13 @@ sub process_interface_cache
 	# Does the file exist? If so, read it in.
 	if (-e $anvil->data->{path}{data}{network_cache})
 	{
-		my $body = $anvil->Storage->read_file({debug => 3, cache => 0, force_read => 1, file => $anvil->data->{path}{data}{network_cache}});
+		my $body = $anvil->Storage->read_file({debug => 2, cache => 0, force_read => 1, file => $anvil->data->{path}{data}{network_cache}});
 		foreach my $line (split/\n/, $body)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			next if $line =~ /^#/;
 			my ($interface, $timestamp, $mac_address, $speed, $link_state, $operational) = (split/,/, $line);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
 				timestamp   => $timestamp, 
 				speed       => $speed, 
@@ -83,7 +83,7 @@ sub process_interface_cache
 			if ($anvil->data->{sys}{database}{connections})
 			{
 				my ($network_interface_uuid) = $anvil->Database->insert_or_update_network_interfaces({
-					debug                         => 3, 
+					debug                         => 2, 
 					link_only                     => 1,
 					timestamp                     => $timestamp, 
 					network_interface_name        => $interface, 
@@ -222,9 +222,20 @@ sub update_network
 			$speed       =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
-				speed       => $speed, 
 				mac_address => $mac_address,
+				link_state  => $link_state, 
+				mtu         => $mtu, 
+				duplex      => $duplex, 
+				operational => $operational, 
+				speed       => $speed, 
 			}});
+			
+			# If this a vnet device, set 'operational' to 'up'.
+			if (($interface =~ /^vnet/) && ($operational ne "up"))
+			{
+				$operational = "up";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { operational => $operational }});
+			}
 			
 			# These are variables that will be needed if this is a bond interface.
 			my $ip_address           = "";
