@@ -4823,6 +4823,8 @@ sub test_ipmi
 
 This uses the host list from C<< Get->trusted_hosts >>, along with data from C<< ip_addresses >>, to create a list of host name to IP addresses that should be in C<< /etc/hosts >>. Existing hosts where the IP has changed will be updated. Missing entries will be added. All other existing entries are left unchanged.
 
+B<< Note >>: If C<< sys::hosts::manage >> is set to C<< 0 >>, this method will return without doing anything
+
 This method takes no parameters.
 
 =cut
@@ -4833,6 +4835,13 @@ sub update_hosts
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->update_hosts()" }});
+	
+	# Is managing hosts disabled?
+	if ((exists $anvil->data->{sys}{hosts}{manage}) && ($anvil->data->{sys}{hosts}{manage} eq "0"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0648"});
+		return(0);
+	}
 	
 	# Get the list of hosts we trust.
 	my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
