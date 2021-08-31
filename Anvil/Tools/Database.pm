@@ -14723,7 +14723,7 @@ sub read
 
 This reads a variable from the C<< variables >> table. Be sure to only use the reply from here to override what might have been set in a config file. This method always returns the data from the database itself.
 
-The method returns an array reference containing, in order, the variable's value, database UUID and last modified date stamp in unix time (since epoch) and last as a normal time stamp.
+The method returns an array reference containing, in order, the variable's value, variable UUID and last modified date stamp in unix time (since epoch) and last as a normal time stamp.
 
 If anything goes wrong, C<< !!error!! >> is returned. If the variable didn't exist in the database, an empty string will be returned for the UUID, value and modified date.
 

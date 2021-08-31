@@ -1897,6 +1897,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0645">Reloading corosync config.</key>
 		<key name="log_0646">#!variable!program!# is disabled in anvil.conf. and '--force' was not used. Exiting.</key>
 		<key name="log_0647">[ Note ] - The network interface: [#!variable!name!#] with 'network_interface_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
+		<key name="log_0648">[ Note ] - Managing /etc/hosts has been disabled.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2581,6 +2582,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0290">This is the number of bytes received (rx) by a network interface since it was last started.</key>
 		<key name="striker_0291">This is the number of bytes transmitted (tx) by a network interface since it was last started.</key>
 		<key name="striker_0292">Stay Off</key>
+		<key name="striker_0293">This is the command used to provision the referenced server.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -2921,6 +2923,11 @@ We will sleep a bit and try again.
 		<key name="os_list_alpinelinux3.6"><![CDATA[Alpine Linux 3.6]]></key>
 		<key name="os_list_alpinelinux3.7"><![CDATA[Alpine Linux 3.7]]></key>
 		<key name="os_list_alpinelinux3.8"><![CDATA[Alpine Linux 3.8]]></key>
+		<key name="os_list_alpinelinux3.9"><![CDATA[Alpine Linux 3.9]]></key>
+		<key name="os_list_alpinelinux3.10"><![CDATA[Alpine Linux 3.10]]></key>
+		<key name="os_list_alpinelinux3.11"><![CDATA[Alpine Linux 3.11]]></key>
+		<key name="os_list_alpinelinux3.12"><![CDATA[Alpine Linux 3.12]]></key>
+		<key name="os_list_alpinelinux3.13"><![CDATA[Alpine Linux 3.13]]></key>
 		<key name="os_list_alt.p8"><![CDATA[ALT p8 StarterKits]]></key>
 		<key name="os_list_alt.p9"><![CDATA[ALT p9 StarterKits]]></key>
 		<key name="os_list_alt.sisyphus"><![CDATA[ALT regular]]></key>
@@ -3078,6 +3085,8 @@ We will sleep a bit and try again.
 		<key name="os_list_eos3.6"><![CDATA[Endless OS 3.6]]></key>
 		<key name="os_list_eos3.7"><![CDATA[Endless OS 3.7]]></key>
 		<key name="os_list_eos3.8"><![CDATA[Endless OS 3.8]]></key>
+		<key name="os_list_eos3.9"><![CDATA[Endless OS 3.9]]></key>
+		<key name="os_list_eos3.10"><![CDATA[Endless OS 3.10]]></key>
 		<key name="os_list_fedora-rawhide"><![CDATA[Fedora Rawhide]]></key>
 		<key name="os_list_fedora-unknown"><![CDATA[Fedora]]></key>
 		<key name="os_list_fedora1"><![CDATA[Fedora Core 1]]></key>
@@ -3106,12 +3115,16 @@ We will sleep a bit and try again.
 		<key name="os_list_fedora30"><![CDATA[Fedora 30]]></key>
 		<key name="os_list_fedora31"><![CDATA[Fedora 31]]></key>
 		<key name="os_list_fedora32"><![CDATA[Fedora 32]]></key>
+		<key name="os_list_fedora33"><![CDATA[Fedora 33]]></key>
 		<key name="os_list_fedora4"><![CDATA[Fedora Core 4]]></key>
 		<key name="os_list_fedora5"><![CDATA[Fedora Core 5]]></key>
 		<key name="os_list_fedora6"><![CDATA[Fedora Core 6]]></key>
 		<key name="os_list_fedora7"><![CDATA[Fedora 7]]></key>
 		<key name="os_list_fedora8"><![CDATA[Fedora 8]]></key>
 		<key name="os_list_fedora9"><![CDATA[Fedora 9]]></key>
+		<key name="os_list_fedora-coreos-next"><![CDATA[Fedora CoreOS]]></key>
+		<key name="os_list_fedora-coreos-stable"><![CDATA[Fedora CoreOS]]></key>
+		<key name="os_list_fedora-coreos-testing"><![CDATA[Fedora CoreOS]]></key>
 		<key name="os_list_freebsd1.0"><![CDATA[FreeBSD 1.0]]></key>
 		<key name="os_list_freebsd10.0"><![CDATA[FreeBSD 10.0]]></key>
 		<key name="os_list_freebsd10.1"><![CDATA[FreeBSD 10.1]]></key>
@@ -3125,6 +3138,7 @@ We will sleep a bit and try again.
 		<key name="os_list_freebsd11.4"><![CDATA[FreeBSD 11.4]]></key>
 		<key name="os_list_freebsd12.0"><![CDATA[FreeBSD 12.0]]></key>
 		<key name="os_list_freebsd12.1"><![CDATA[FreeBSD 12.1]]></key>
+		<key name="os_list_freebsd12.2"><![CDATA[FreeBSD 12.2]]></key>
 		<key name="os_list_freebsd2.0"><![CDATA[FreeBSD 2.0]]></key>
 		<key name="os_list_freebsd2.0.5"><![CDATA[FreeBSD 2.0.5]]></key>
 		<key name="os_list_freebsd2.2.8"><![CDATA[FreeBSD 2.2.8]]></key>
@@ -3176,12 +3190,16 @@ We will sleep a bit and try again.
 		<key name="os_list_gnome-continuous-3.14"><![CDATA[GNOME 3.14]]></key>
 		<key name="os_list_gnome3.6"><![CDATA[GNOME 3.6]]></key>
 		<key name="os_list_gnome3.8"><![CDATA[GNOME 3.8]]></key>
+		<key name="os_list_guix-1.1"><![CDATA[Guix 1.1]]></key>
 		<key name="os_list_haikunightly"><![CDATA[Haiku Nightly]]></key>
 		<key name="os_list_haikur1alpha1"><![CDATA[Haiku R1/Alpha1]]></key>
 		<key name="os_list_haikur1alpha2"><![CDATA[Haiku R1/Alpha2]]></key>
 		<key name="os_list_haikur1alpha3"><![CDATA[Haiku R1/Alpha3]]></key>
 		<key name="os_list_haikur1alpha4.1"><![CDATA[Haiku R1/Alpha4.1]]></key>
 		<key name="os_list_haikur1beta1"><![CDATA[Haiku R1/Beta1]]></key>
+		<key name="os_list_linux2016"><![CDATA[Generic Linux 2016]]></key>
+		<key name="os_list_linux2018"><![CDATA[Generic Linux 2018]]></key>
+		<key name="os_list_linux2020"><![CDATA[Generic Linux 2020]]></key>
 		<key name="os_list_macosx10.0"><![CDATA[MacOS X Cheetah]]></key>
 		<key name="os_list_macosx10.1"><![CDATA[MacOS X Puma]]></key>
 		<key name="os_list_macosx10.2"><![CDATA[MacOS X Jaguar]]></key>
@@ -3259,6 +3277,7 @@ We will sleep a bit and try again.
 		<key name="os_list_netware5"><![CDATA[Novell Netware 5]]></key>
 		<key name="os_list_netware6"><![CDATA[Novell Netware 6]]></key>
 		<key name="os_list_nixos-20.03"><![CDATA[NixOS 20.03]]></key>
+		<key name="os_list_nixos-20.09"><![CDATA[NixOS 20.09]]></key>
 		<key name="os_list_nixos-unknown"><![CDATA[NixOS]]></key>
 		<key name="os_list_nixos-unstable"><![CDATA[NixOS Unstable]]></key>
 		<key name="os_list_oel4.4"><![CDATA[Oracle Enterprise Linux 4.4]]></key>
@@ -3353,6 +3372,8 @@ We will sleep a bit and try again.
 		<key name="os_list_popos18.10"><![CDATA[Pop!_OS 18.10]]></key>
 		<key name="os_list_popos19.04"><![CDATA[Pop!_OS 19.04]]></key>
 		<key name="os_list_popos19.10"><![CDATA[Pop!_OS 19.10]]></key>
+		<key name="os_list_popos20.04"><![CDATA[Pop!_OS 20.04]]></key>
+		<key name="os_list_popos20.10"><![CDATA[Pop!_OS 20.10]]></key>
 		<key name="os_list_pureos8"><![CDATA[PureOS]]></key>
 		<key name="os_list_rhel-atomic-7.0"><![CDATA[Red Hat Enterprise Linux Atomic Host 7.0]]></key>
 		<key name="os_list_rhel-atomic-7.1"><![CDATA[Red Hat Enterprise Linux Atomic Host 7.1]]></key>
@@ -3428,6 +3449,9 @@ We will sleep a bit and try again.
 		<key name="os_list_rhel8.1"><![CDATA[Red Hat Enterprise Linux 8.1]]></key>
 		<key name="os_list_rhel8.2"><![CDATA[Red Hat Enterprise Linux 8.2]]></key>
 		<key name="os_list_rhel8.3"><![CDATA[Red Hat Enterprise Linux 8.3]]></key>
+		<key name="os_list_rhel8.4"><![CDATA[Red Hat Enterprise Linux 8.4]]></key>
+		<key name="os_list_rhel9-unknown"><![CDATA[Red Hat Enterprise Linux 9 Unknown]]></key>
+		<key name="os_list_rhel9.0"><![CDATA[Red Hat Enterprise Linux 9.0]]></key>
 		<key name="os_list_rhl1.0"><![CDATA[Red Hat Linux 1.0]]></key>
 		<key name="os_list_rhl1.1"><![CDATA[Red Hat Linux 1.1]]></key>
 		<key name="os_list_rhl2.0"><![CDATA[Red Hat Linux 2.0]]></key>
@@ -3484,6 +3508,11 @@ We will sleep a bit and try again.
 		<key name="os_list_silverblue30"><![CDATA[Fedora Silverblue 30]]></key>
 		<key name="os_list_silverblue31"><![CDATA[Fedora Silverblue 31]]></key>
 		<key name="os_list_silverblue32"><![CDATA[Fedora Silverblue 32]]></key>
+		<key name="os_list_silverblue-rawhide"><![CDATA[Fedora Silverblue Rawhide]]></key>
+		<key name="os_list_silverblue-unknown"><![CDATA[Fedora Silverblue]]></key>
+		<key name="os_list_silverblue33"><![CDATA[Fedora Silverblue 33]]></key>
+		<key name="os_list_slackware-current"><![CDATA[Slackware -current]]></key>
+		<key name="os_list_slackware14.2"><![CDATA[Slackware 14.2]]></key>
 		<key name="os_list_sle-unknown"><![CDATA[SUSE Linux Enterprise Unknown]]></key>
 		<key name="os_list_sle15"><![CDATA[SUSE Linux Enterprise 15]]></key>
 		<key name="os_list_sle15-unknown"><![CDATA[SUSE Linux Enterprise 15 Unknown]]></key>
@@ -3549,6 +3578,7 @@ We will sleep a bit and try again.
 		<key name="os_list_ubuntu19.04"><![CDATA[Ubuntu 19.04]]></key>
 		<key name="os_list_ubuntu19.10"><![CDATA[Ubuntu 19.10]]></key>
 		<key name="os_list_ubuntu20.04"><![CDATA[Ubuntu 20.04]]></key>
+		<key name="os_list_ubuntu20.10"><![CDATA[Ubuntu 20.10]]></key>
 		<key name="os_list_ubuntu4.10"><![CDATA[Ubuntu 4.10]]></key>
 		<key name="os_list_ubuntu5.04"><![CDATA[Ubuntu 5.04]]></key>
 		<key name="os_list_ubuntu5.10"><![CDATA[Ubuntu 5.10]]></key>
@@ -3587,6 +3617,7 @@ We will sleep a bit and try again.
 		<key name="os_list_winnt4.0"><![CDATA[Microsoft Windows NT Server 4.0]]></key>
 		<key name="os_list_winvista"><![CDATA[Microsoft Windows Vista]]></key>
 		<key name="os_list_winxp"><![CDATA[Microsoft Windows XP]]></key>
+		<key name="os_list_unknown"><![CDATA[Unknown]]></key>
 		
 	</language>
 	<!-- 日本語 -->
