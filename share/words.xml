@@ -2582,6 +2582,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0290">This is the number of bytes received (rx) by a network interface since it was last started.</key>
 		<key name="striker_0291">This is the number of bytes transmitted (tx) by a network interface since it was last started.</key>
 		<key name="striker_0292">Stay Off</key>
+		<key name="striker_0293">This is the command used to provision the referenced server.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

@@ -404,6 +404,33 @@ sub write_definition
 		}
 	}
 	
+	# Lastly, if there's a variable recording the shell call used to provision this server, write it out.
+	my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+	my ($variable_value, $variable_uuid, $mtime, $modified_date) = $anvil->Database->read_variable({
+		debug                 => 2, 
+		variable_name         => "server::provision_script", 
+		variable_source_uuid  => $server_uuid, 
+		variable_source_table => "servers", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		variable_value => $variable_value,
+		variable_uuid  => $variable_uuid, 
+	}});
+	if (($variable_value) && ($variable_value =~ /virt-install/gs))
+	{
+		my $provision_file = $anvil->data->{path}{directories}{shared}{provision}."/".$server_name.".sh";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { provision_file => $provision_file }});
+		my $problem = $anvil->Storage->write_file({
+			overwrite => 1, 
+			backup    => 1,
+			file      => $provision_file, 
+			body      => $variable_value, 
+			mode      => "0755",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	}
+	
 	# The peer is done, it'll pick up the XML definition when ScanCore runs 
 	$anvil->Job->update_progress({
 		progress => 100,
@@ -433,6 +460,23 @@ sub provision_server
 	###       Support disk images (ie: sysprep) via '--import'. The device used for booting is the first 
 	###       device specified via "--disk"
 	###       Consider support for TPM, RNG and watchdog devices
+	my $server_uuid = $anvil->data->{job}{server_uuid} ? $anvil->data->{job}{server_uuid} : $anvil->Get->uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"job::os"   => $anvil->data->{job}{os}, 
+		server_uuid => $server_uuid, 
+	}});
+	my $disk_bus  = ",target.bus=virtio";
+	my $nic_model = ",model.type=virtio";
+	if ($anvil->data->{job}{os} eq "win7")
+	{
+		$disk_bus  = "";
+		$nic_model = ",model.type=e1000e";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		disk_bus  => $disk_bus,
+		nic_model => $nic_model, 
+	}});
+	
 	my $shell_call =  $anvil->data->{path}{exe}{'virt-install'}." --connect qemu:///system \\\n";
 	   $shell_call .= "--name ".$server." \\\n";
 	   $shell_call .= " --os-variant ".$anvil->data->{job}{os}." \\\n";
@@ -440,17 +484,14 @@ sub provision_server
 	   $shell_call .= " --events on_poweroff=destroy,on_reboot=restart \\\n";
 	   $shell_call .= " --vcpus ".$anvil->data->{job}{cpu_cores}.",sockets=1,cores=".$anvil->data->{job}{cpu_cores}." \\\n";
 	   $shell_call .= " --cpu host \\\n";
-	   $shell_call .= " --network bridge=ifn1_bridge1,model=virtio \\\n";
+	   $shell_call .= " --network bridge=ifn1_bridge1".$nic_model." \\\n";
 	   $shell_call .= " --graphics vnc \\\n";
 	   $shell_call .= " --sound ich9 \\\n";
 	   $shell_call .= " --clock offset=".$clock_offset." \\\n";	# We may want to support ',rtc_tickpolicy=catchup'
 	   $shell_call .= " --boot menu=on \\\n";
-	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0,target.bus=virtio,driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
+	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0".$disk_bus.",driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
 	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
-	if ($anvil->data->{job}{server_uuid})
-	{
-		$shell_call .= " --uuid=".$anvil->data->{job}{server_uuid}." \\\n";
-	}
+	   $shell_call .= " --uuid=".$server_uuid." \\\n";
 	if ($anvil->data->{job}{driver_iso_path})
 	{
 		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
@@ -463,6 +504,30 @@ sub provision_server
 		message  => "job_0199,!!shell_call!".$shell_call."!!", 
 	});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0199", variables => { shell_call => $shell_call }});
+	
+	# Write the command out to /mnt/shared/provision/
+	my $provision_file = $anvil->data->{path}{directories}{shared}{provision}."/".$server.".sh";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my $problem = $anvil->Storage->write_file({
+		overwrite => 1, 
+		backup    => 1,
+		file      => $provision_file, 
+		body      => $shell_call, 
+		mode      => "0755",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
+	# Also, record the provision command 
+	my $variable_uuid = $anvil->Database->insert_or_update_variables({
+		variable_name         => "server::provision_script",
+		variable_value        => $shell_call,
+		variable_default      => "", 
+		variable_description  => "striker_0293", 
+		variable_section      => "servers", 
+		variable_source_uuid  => $server_uuid, 
+		variable_source_table => "servers", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	
 	# Call as a background process.
 	my ($handle, $return_code) = $anvil->System->call({
@@ -546,7 +611,7 @@ sub provision_server
 		return_code           => $return_code,
 	}});
 
-	my $problem = $anvil->Server->parse_definition({
+	$problem = $anvil->Server->parse_definition({
 		server     => $server, 
 		source     => "from_virsh",
 		definition => $server_definition_xml, 
@@ -578,7 +643,6 @@ sub provision_server
 	# Add the server to the 'servers' table
 	my $anvil_uuid      = $anvil->data->{job}{anvil_uuid};
 	my $short_host_name = $anvil->Get->short_host_name;
-	my $server_uuid     = $anvil->data->{server}{$short_host_name}{$server}{"from_virsh"}{info}{uuid};
 	my $got_server_uuid = $anvil->Database->insert_or_update_servers({
 		server_uuid           => $server_uuid, 
 		server_name           => $server, 
@@ -1221,6 +1285,8 @@ sub parse_job_data
 		if ($line =~ /os=(.*)$/)
 		{
 			$anvil->data->{job}{os} = $1;
+			$anvil->data->{job}{os} =~ s/^\s+//;
+			$anvil->data->{job}{os} =~ s/\s+?//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::os' => $anvil->data->{job}{os} }});
 		}
 	}
