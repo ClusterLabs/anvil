@@ -724,6 +724,7 @@ ORDER BY
 					}});
 					
 					my $query = "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;

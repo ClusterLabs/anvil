@@ -271,7 +271,7 @@ sub agent_startup
 	}
 	
 	# Connect to DBs.
-	$anvil->Database->connect({debug => 2});
+	$anvil->Database->connect({debug => $debug});
 	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 	if (not $anvil->data->{sys}{database}{connections})
 	{

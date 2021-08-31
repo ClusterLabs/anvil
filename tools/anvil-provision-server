@@ -1124,7 +1124,7 @@ sub check_drbd_minor_and_port
 			resource_name => $anvil->data->{job}{server_name}, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			'job::drbd_minor' => $anvil->data->{job}{drbd_minor},
+			'job::drbd_minor'    => $anvil->data->{job}{drbd_minor},
 			'job::drbd_tcp_port' => $anvil->data->{job}{drbd_tcp_port}, 
 		}});
 	}

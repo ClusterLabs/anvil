@@ -1347,67 +1347,6 @@ sub connect
 			}
 		}
 		
-		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
-		my $is_local = $anvil->Network->is_local({debug => $debug, host => $host});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
-		if ($is_local)
-		{
-			$anvil->data->{sys}{database}{read_uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
-			
-			# If requested, and if running with root access, set it up (or update it) if needed. 
-			# This method just returns if nothing is needed.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				check_if_configured => $check_if_configured,
-				real_uid            => $<,
-				effective_uid       => $>,
-			}});
-			if (($check_if_configured) && ($< == 0) && ($> == 0))
-			{
-				$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
-			}
-		}
-		elsif (not $anvil->data->{sys}{database}{read_uuid})
-		{
-			$anvil->data->{sys}{database}{read_uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
-		}
-		
-		# If this isn't a local database, read the target's Anvil! version (if available) and make 
-		# sure it matches ours. If it doesn't, skip this database.
-		if (not $is_local)
-		{
-			my ($local_anvil_version, $local_schema_version)   = $anvil->_anvil_version({debug => $debug});
-			my ($remote_anvil_version, $remote_schema_version) = $anvil->Get->anvil_version({
-				debug    => $debug, 
-				target   => $host,
-				password => $password,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				's1:host'                  => $host, 
-				's2:local_anvil_version'   => $local_anvil_version, 
-				's3:remote_anvil_version'  => $remote_anvil_version,
-				's4:local_schema_version'  => $local_schema_version, 
-				's5:remote_schema_version' => $remote_schema_version, 
-			}});
-			# TODO: Periodically, we fail to get the remote version. For now, we proceed if 
-			#       everything else is OK. Might be better to pause a re-try... To be determined.
-			if (($remote_schema_version) && ($remote_schema_version ne $local_schema_version))
-			{
-				# Version doesn't match, 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0145", variables => { 
-					host           => $host,
-					local_version  => $local_schema_version, 
-					target_version => $remote_schema_version,
-				}});
-				
-				# Delete the information about this database. We'll try again on nexy 
-				# ->connect().
-				delete $anvil->data->{database}{$uuid};
-				next;
-			}
-		}
-		
 		# Connect!
 		my $dbh = "";
 		### NOTE: The Database->write() method, when passed an array, will automatically disable 
@@ -1484,11 +1423,12 @@ sub connect
 				};
 			}
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables });
+			
+			next;
 		}
 		elsif ($dbh =~ /^DBI::db=HASH/)
 		{
 			# Woot!
-			
 			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
 			$anvil->data->{cache}{database_handle}{$uuid} = $dbh;
@@ -1606,6 +1546,67 @@ sub connect
 				'anvil->Database->read'    => $anvil->Database->read,
 				"sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp},
 			}});
+		}
+		
+		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
+		my $is_local = $anvil->Network->is_local({debug => $debug, host => $host});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+		if ($is_local)
+		{
+			$anvil->data->{sys}{database}{read_uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+			
+			# If requested, and if running with root access, set it up (or update it) if needed. 
+			# This method just returns if nothing is needed.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				check_if_configured => $check_if_configured,
+				real_uid            => $<,
+				effective_uid       => $>,
+			}});
+			if (($check_if_configured) && ($< == 0) && ($> == 0))
+			{
+				$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
+			}
+		}
+		elsif (not $anvil->data->{sys}{database}{read_uuid})
+		{
+			$anvil->data->{sys}{database}{read_uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+		}
+		
+		# If this isn't a local database, read the target's Anvil! version (if available) and make 
+		# sure it matches ours. If it doesn't, skip this database.
+		if (not $is_local)
+		{
+			my ($local_anvil_version, $local_schema_version)   = $anvil->_anvil_version({debug => $debug});
+			my ($remote_anvil_version, $remote_schema_version) = $anvil->Get->anvil_version({
+				debug    => $debug, 
+				target   => $host,
+				password => $password,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:host'                  => $host, 
+				's2:local_anvil_version'   => $local_anvil_version, 
+				's3:remote_anvil_version'  => $remote_anvil_version,
+				's4:local_schema_version'  => $local_schema_version, 
+				's5:remote_schema_version' => $remote_schema_version, 
+			}});
+			# TODO: Periodically, we fail to get the remote version. For now, we proceed if 
+			#       everything else is OK. Might be better to pause a re-try... To be determined.
+			if (($remote_schema_version) && ($remote_schema_version ne $local_schema_version))
+			{
+				# Version doesn't match, 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0145", variables => { 
+					host           => $host,
+					local_version  => $local_schema_version, 
+					target_version => $remote_schema_version,
+				}});
+				
+				# Delete the information about this database. We'll try again on nexy 
+				# ->connect().
+				delete $anvil->data->{database}{$uuid};
+				next;
+			}
 		}
 	}
 	
@@ -9111,16 +9112,21 @@ sub insert_or_update_network_interfaces
 	# If we don't have a network interface UUID, try to look one up using the MAC address
 	if (not $network_interface_uuid)
 	{
-		# See if I know this NIC by referencing it's MAC and name. The name is needed because virtual
-		# devices can share the MAC with the real interface.
+		# See if I know this NIC by referencing it's MAC (if not a vnet device), host_uuid and name. 
+		# The name is needed because virtual devices can share the MAC with the real interface.
 		my $query = "
 SELECT 
     network_interface_uuid 
 FROM 
     network_interfaces 
-WHERE 
+WHERE ";
+		if ($network_interface_name !~ /^vnet/)
+		{
+			$query .= "
     network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." 
-AND 
+AND ";
+		}
+		$query .= "
     network_interface_name        = ".$anvil->Database->quote($network_interface_name)."
 AND 
     network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid)."
@@ -14991,7 +14997,7 @@ sub resync_databases
 		# Now read in the data from the different databases.
 		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
-			# ...
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 			$anvil->data->{db_resync}{$uuid}{public}{sql}  = [];
 			$anvil->data->{db_resync}{$uuid}{history}{sql} = [];
 			
@@ -15313,6 +15319,7 @@ sub resync_databases
 		# Do the INSERTs now and then release the memory.
 		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 			# Merge the queries for both schemas into one array, with public schema 
 			# queries being first, then delete the arrays holding them to free memory
 			# before we start the resync.
