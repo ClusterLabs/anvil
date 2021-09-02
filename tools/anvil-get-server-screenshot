@@ -72,9 +72,9 @@ sub insert_server_screenshot
 	my $server_uuid   = $parameters->{server_uuid};
 	my $encoded_image = $parameters->{encoded_image};
 
-	$anvil->Database->insert_or_update_variables({
-		variable_name  => "server_screenshot::".$server_uuid,
-		variable_value => $encoded_image
+	$anvil->Database->insert_or_update_states({
+		state_name => "server_screenshot::".$server_uuid,
+		state_note => $encoded_image
 	});
 }
 

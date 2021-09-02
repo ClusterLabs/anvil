@@ -78,7 +78,13 @@ sub get_screenshot
 		sleep(2);
 	}
 
-	my ($encoded_image) = $anvil->Database->read_variable({ variable_name => "server_screenshot::".$server_uuid });
+	my $query = "
+SELECT state_note
+FROM public.states
+WHERE state_name = ".$anvil->Database->quote("server_screenshot::".$server_uuid)."
+;";
+
+	my $encoded_image = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ })->[0]->[0];
 
 	return $encoded_image;
 }
