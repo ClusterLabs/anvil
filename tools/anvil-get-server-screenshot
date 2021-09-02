@@ -49,13 +49,14 @@ sub get_server_screenshot
 {
 	my $parameters  = shift;
 	my $server_uuid = $parameters->{server_uuid};
-	my $resize_args = $parameters->{resize_args};
+	my ($resize_x, $resize_y) = split(/x/ , $parameters->{resize_args});
 
 	my $shell_call = "virsh screenshot --domain ".$server_uuid." --file /dev/stdout | sed 's/Screenshot.*//'";
 
-	if (defined $resize_args)
+	if ($resize_x =~ /^\d+$/ && $resize_y =~ /^\d+$/)
 	{
-		$shell_call .= " | convert - -resize ".$resize_args." png:-";
+		$shell_call .= " | pamscale -quiet -xyfit ".$resize_x." ".$resize_y;
+		$shell_call .= " | pamtopng -quiet";
 	}
 
 	$shell_call .= " | base64 --wrap 0";
