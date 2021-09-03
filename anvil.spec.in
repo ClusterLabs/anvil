@@ -159,11 +159,11 @@ Requires:       libvirt-daemon-kvm
 Requires:       libvirt-docs 
 Requires:       pacemaker 
 Requires:       pcs 
+Requires:       python3-websockify
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-core 
 Requires:       virt-install
 Requires:       virt-top
-Requires:       python3-websockify
 # A node is allowed to host servers and be a live migration target. It is not 
 # allowed to host a database or be a DR host.
 Conflicts:      anvil-striker
@@ -188,11 +188,11 @@ Requires:       libvirt-daemon
 Requires:       libvirt-daemon-driver-qemu 
 Requires:       libvirt-daemon-kvm 
 Requires:       libvirt-docs 
+Requires:       python3-websockify
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-core 
 Requires:       virt-install
 Requires:       virt-top
-Requires:       python3-websockify
 # A DR host is not allowed to be a live-migration target or host a database.
 Conflicts:	anvil-striker
 Conflicts:	anvil-node
