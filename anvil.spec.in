@@ -157,6 +157,7 @@ Requires:       libvirt-daemon
 Requires:       libvirt-daemon-driver-qemu 
 Requires:       libvirt-daemon-kvm 
 Requires:       libvirt-docs 
+Requires:       netpbm-progs
 Requires:       pacemaker 
 Requires:       pcs 
 Requires:       python3-websockify
@@ -188,6 +189,7 @@ Requires:       libvirt-daemon
 Requires:       libvirt-daemon-driver-qemu 
 Requires:       libvirt-daemon-kvm 
 Requires:       libvirt-docs 
+Requires:       netpbm-progs
 Requires:       python3-websockify
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-core 
