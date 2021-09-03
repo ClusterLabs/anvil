@@ -7,6 +7,7 @@ dist_cgibin_SCRIPTS     = \
                           get_memory \
                           get_networks \
                           get_replicated_storage \
+                          get_server_screenshot \
                           get_servers \
                           get_shared_storage \
                           get_status \
