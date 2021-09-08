@@ -1,0 +1,715 @@
+#!/usr/bin/perl
+# 
+# This manages if a server is backed up to a DR host or not. When enabled, it can start or stop replication.
+# 
+# NOTE: Unlike most jobs, this one will directly work on the peer node and the DR host using SSH connections.
+#       This behaviour is likely to change later as it's not ideal.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Any problem that causes an early exit.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+use Term::Cap;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# 
+$anvil->data->{switches}{'connect'}  = "";	# connect an existing DR resource
+$anvil->data->{switches}{disconnect} = "";	# disconnect
+$anvil->data->{switches}{'job-uuid'} = "";	# Used later
+$anvil->data->{switches}{protect}    = "";	# Set
+$anvil->data->{switches}{protocol}   = "";	# "sync", "async" or "long-throw"
+$anvil->data->{switches}{remove}     = "";	# Set
+$anvil->data->{switches}{server}     = "";	# Name or UUID
+$anvil->data->{switches}{update}     = "";	# connects, if needed, and disconnects once UpToDate
+$anvil->data->{switches}{Yes}        = "";	# Set to avoid confirmation, not case sensitive
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::connect'    => $anvil->data->{switches}{'connect'},
+	'switches::disconnect' => $anvil->data->{switches}{disconnect},
+	'switches::job-uuid'   => $anvil->data->{switches}{'job-uuid'},
+	'switches::protect'    => $anvil->data->{switches}{protect},
+	'switches::protocol'   => $anvil->data->{switches}{protocol},
+	'switches::remove'     => $anvil->data->{switches}{remove},
+	'switches::server'     => $anvil->data->{switches}{server},
+	'switches::update'     => $anvil->data->{switches}{update},
+	'switches::Yes'        => $anvil->data->{switches}{Yes},
+}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0306"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# If we've got a job UUID, load the job details.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	load_job($anvil);
+}
+
+sanity_check($anvil);
+
+do_task($anvil);
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub do_task
+{
+	my ($anvil) = @_;
+	
+	# What task am I doing?
+	if ($anvil->data->{switches}{protect})
+	{
+		
+	}
+	
+	return(0);
+}
+
+sub sanity_check
+{
+	my ($anvil) = @_;
+	
+	# Are we a node or DR?
+	my $host_type  = $anvil->Get->host_type();
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_type  => $host_type,
+		anvil_uuid => $anvil_uuid, 
+	}});
+	
+	if (($host_type ne "node") or (not $anvil_uuid))
+	{
+		print "This must be run on a node active in the cluster hosting the server being managed. Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Get the Anvil! details.
+	$anvil->Database->get_hosts();
+	$anvil->Database->get_anvils();
+	$anvil->Database->get_storage_group_data({debug => 2});
+	
+	# Does this Anvil! have a DR node?
+	if (not $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
+	{
+		print "This Anvil! does not seem to have a DR host. Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Can we access DR?
+	my $password     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $dr_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	my $dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+	my $dr_ip        = $anvil->System->find_matching_ip({
+		debug => 2,
+		host  => $dr_host_name,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		password     => $anvil->Log->is_secure($password),
+		dr_host_uuid => $dr_host_uuid,
+		dr_host_name => $dr_host_name, 
+		dr_ip        => $dr_ip, 
+	}});
+	if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
+	{
+		print "Failed to find an IP we can access the DR host: [".$dr_host_name."]. Has it been configured? Is it running? Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Test access.
+	my $access = $anvil->Remote->test_access({
+		target   => $dr_ip,
+		password => $password,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+	if (not $access)
+	{
+		print "Failed to access the DR host: [".$dr_host_name."] using the IP: [".$dr_ip."]. Is it running? Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Can we parse the CIB?
+	my ($problem) = $anvil->Cluster->parse_cib();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		print "Failed to parse the CIB. Is this node in the cluster? Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Both nodes need to be in the cluster, are they?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		print "We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	### TODO: We can queue a job to update the peer later, there's no real need, in the long run, for the
+	###       peer to be online.
+	# If we're protecting or removing a server from DR, the peer needs to be up.
+	if ((($anvil->data->{switches}{protect})   or 
+	     ($anvil->data->{switches}{remove})    or 
+	     ($anvil->data->{switches}{protocol})) && 
+	     (not $anvil->data->{cib}{parsed}{peer}{ready}))
+	{
+		if ($anvil->data->{switches}{protect})
+		{
+			print "We can't setup a server to be protected unless both nodes are up, and the peer isn't at this time. Exiting.\n";
+		}
+		else
+		{
+			print "We can't remove a server from DR unless both nodes are up, and the peer isn't at this time. Exiting.\n";
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Verify we found the server.
+	$anvil->data->{server}{'server-name'} = "";
+	$anvil->data->{server}{'server-uuid'} = "";
+	$anvil->data->{server}{'anvil-uuid'}  = $anvil_uuid;
+	if (not $anvil->data->{switches}{server})
+	{
+		print "Please specify the server to manager using '--server <name or uuid>'. Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	else
+	{
+		my $server = $anvil->data->{switches}{server};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server => $server }});
+		
+		$anvil->Database->get_servers();
+		if (exists $anvil->data->{servers}{server_uuid}{$server})
+		{
+			$anvil->data->{server}{'server-uuid'} = $server;
+			$anvil->data->{server}{'server-name'} = $anvil->data->{servers}{server_uuid}{$server}{server_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'server::server-uuid' => $anvil->data->{server}{'server-uuid'},
+				'server::server-name' => $anvil->data->{server}{'server-name'},
+			}});
+		}
+		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server})
+		{
+			$anvil->data->{server}{'server-name'} = $server;
+			$anvil->data->{server}{'server-uuid'} = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server}{server_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'server::server-uuid' => $anvil->data->{server}{'server-uuid'},
+				'server::server-name' => $anvil->data->{server}{'server-name'},
+			}});
+		}
+	}
+	
+	# Get and parse the server's definition to find the DRBD devices.
+	if ((not $anvil->data->{server}{'server-uuid'}) or (not $anvil->data->{server}{'server-name'}))
+	{
+		print "Failed to find the server: [".$anvil->data->{switches}{server}."] by name or UUID? Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if (not $anvil->data->{switches}{protocol})
+	{
+		$anvil->data->{switches}{protocol} = "async";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'switches::protocol' => $anvil->data->{switches}{protocol},
+		}});
+	}
+	elsif (($anvil->data->{switches}{protocol} ne "sync")  && 
+	       ($anvil->data->{switches}{protocol} ne "async") && 
+	       ($anvil->data->{switches}{protocol} ne "long-throw"))
+	{
+		print "The protocol: [".$anvil->data->{switches}{protocol}."] is invalid. Please use '--help' for more information.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Are we being asked to actuall do something?
+	if (((not $anvil->data->{switches}{'connect'})  && 
+	     (not $anvil->data->{switches}{disconnect}) && 
+	     (not $anvil->data->{switches}{protect})    && 
+	     (not $anvil->data->{switches}{remove})     && 
+	     (not $anvil->data->{switches}{update}))    or 
+	     ($anvil->data->{switches}{help})           or 
+	     ($anvil->data->{switches}{h}))
+	{
+		print "
+What do you want to do?
+
+Options (all require --server <name or UUID>);
+
+  --connect
+	
+	Connect a server already on DR to it's DR copy, update the data there if needed and begin streaming 
+	replication.
+
+  --disconnect
+
+	Disconnect a server from the DR image. This will end streaming replication. 
+	
+  --protect
+
+	The sets up the server to be imaged on DR, if it isn't already protected. 
+	
+	Notes: If the server is not running, the DRBD resource volume(s) will be brought up. Both nodes need
+	       to be online and in the cluster.
+
+  --protocol <sync,async,long-throw>, default 'async'
+
+	This allows the protocol used to replicate data to the DR host to be configured. By default, 'async'
+	is used.
+	
+	Modes:
+	
+	async (default)
+	
+		This tells the storage layer to consider the write to be completed once the data is on the
+		active node's network transmit buffer. In this way, the DR host is allowed to fall behind a
+		small amount, but the active nodes will not slow down because of higher network transit times
+		to the DR location. 
+		
+		NOTE: The transmit (TX) buffer size can be checked / updated with 'ethtool -g <link_device>'.
+		      If the transmit buffer fills, storage will hold until the buffer flushes, causing 
+		      periodic storage IO waits. You can increase the buffer size to a certain degree with
+		      'ethtool -G <link_device> tx <size>' (set on all storage network link devices on both
+		      nodes. For more information, see:
+		      
+		      https://www.linuxjournal.com/content/queueing-linux-network-stack
+		      
+		      or
+		      
+		      https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_and_managing_networking/monitoring-and-tuning-the-rx-ring-buffer_configuring-and-managing-networking
+		      
+		      If you set the maximum transmit buffer size and still run into IO waits, consider
+		      'long-throw'.
+	
+	sync
+	
+		This tells the storage layer to consider the write complete when the data has reached the DR
+		host's storage (when the data is committed to disk on DR). This means that the DR host will
+		never fall behind. However, if the DR's network latency is higher or the bandwidth to the DR
+		is lower than that of the latency/bandwidth between the nodes, then total storage performance
+		will be reduced to DR network speeds while DR is connected. 
+		
+		This should be tested before implemented in production.
+		
+	long-throw
+	
+		This is an option that requires an additional license fee to use.
+		
+		This option (based on LINBIT's DRBD Proxy) and is designed for DR hosts that are connected
+		over a wide-area network (or other cases where the connection to the DR is high-latency, low
+		bandwidth or intermittently interrupted). It uses RAM on the host to act, effectively, as a 
+		very large transmit buffer. This requires allocating host RAM to the task, and so could 
+		reduces the available RAM assignable to assign to servers.
+		
+		In this mode, the DR host is allowed to fall further behind production, but it significantly
+		reduces (hopefully eliminates) how often node replication waits because of a full transmit
+		buffer. 
+		
+		The default size is 16 MiB, with a maximum size of 16 GiB. When the size is set to over 
+		1 GiB, the size allocated to this buffer is accounted for when calculating available RAM that
+		can be assigned to hosted servers.
+
+  --remove
+
+	This removes the DR image from the DR host for the server, freeing up space on DR but removing the 
+	protection afforded by DR.
+
+  --update
+
+	This tells the DR to be connected and sync, Once the volume(s) on DR are 'UpToDate', the connection 
+	is closed. This provides a point in time update of the server's image on DR.
+
+  --Yes
+	
+	Note the capital 'Y'. This can be set to proceed without confirmation. Use carefully with '--protect'
+	and '--remove'! If the '--job-uuid' is set, this is assumed and no prompt will be presented.
+
+Exiting.
+";
+		if (($anvil->data->{switches}{help}) or ($anvil->data->{switches}{h}))
+		{
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# If we're protecting, make sure there's enough space on the DR host.
+	if ($anvil->data->{switches}{protect})
+	{
+		prepare_for_protect($anvil);
+	}
+	
+	return(0);
+}
+
+sub prepare_for_protect
+{
+	my ($anvil) = @_;
+	
+	# Parse out the DRBD resource's backing the server and get their LV sizes. 
+	$anvil->Database->get_server_definitions();
+	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $dr_host_uuid          = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	my $dr_host_name          = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+	my $server_name           = $anvil->data->{server}{'server-name'};
+	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
+	my $short_host_name       = $anvil->Get->short_host_name();
+	my $server_definition_xml = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid            => $anvil_uuid, 
+		dr_host_uuid          => $dr_host_uuid, 
+		dr_host_name          => $dr_host_name, 
+		server_name           => $server_name, 
+		server_uuid           => $server_uuid, 
+		server_definition_xml => $server_definition_xml, 
+		short_host_name       => $short_host_name,
+	}});
+	
+	$anvil->Server->parse_definition({
+		debug      => 2,
+		host       => $short_host_name,
+		server     => $anvil->data->{server}{'server-name'}, 
+		source     => "from_db",
+		definition => $server_definition_xml, 
+	});
+	
+	$anvil->DRBD->gather_data();
+
+	my $server_ram = $anvil->data->{server}{$short_host_name}{$server_name}{'from_db'}{memory};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_ram => $anvil->Convert->add_commas({number => $server_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram}).")",
+	}});
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
+		
+		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}})
+		{
+			my $this_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				this_host_name => $this_host_name,
+				this_host_uuid => $this_host_uuid, 
+			}});
+			
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}})
+			{
+				# Always get the LV sizes, as that factors metadata. DRBD size is 
+				# minus metadata, and 0 when down.
+				my $device_path  = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path};
+				my $backing_disk = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk};
+				my $device_minor = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor};
+				my $tcp_port     = $anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}{tcp_port};
+				my $this_size    = $anvil->Storage->get_size_of_block_device({host_uuid => $this_host_uuid, path => $backing_disk});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:volume"       => $volume, 
+					"s2:device_path"  => $device_path,
+					"s3:backing_disk" => $backing_disk,
+					"s4:device_minor" => $device_minor,
+					"s5:this_size"    => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
+				}});
+				
+				if ((not exists $anvil->data->{server}{drbd}{$resource}{$volume}{size}) or (not $anvil->data->{server}{drbd}{$resource}{$volume}{size}))
+				{
+					$anvil->data->{server}{drbd}{$resource}{$volume}{size} = $this_size;
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::${resource}::${volume}::size" => $anvil->data->{server}{drbd}{$resource}{$volume}{size}, 
+					}});
+				}
+				
+				if (not exists $anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid})
+				{
+					$anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid} = "";
+				}
+				
+				### NOTE: This check make sense only under the assumption that the DRBD minor
+				###       is common across both nodes. This should be the case, but doesn't 
+				###       strictly have to be so.
+				if ((not exists $anvil->data->{server}{drbd}{$resource}{$volume}{minor_number})  or 
+				    (not defined $anvil->data->{server}{drbd}{$resource}{$volume}{minor_number}) or 
+				    ($anvil->data->{server}{drbd}{$resource}{$volume}{minor_number} eq ""))
+				{
+					$anvil->data->{server}{drbd}{$resource}{$volume}{minor_number} = $device_minor;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::${resource}::${volume}::minor_number" => $anvil->data->{server}{drbd}{$resource}{$volume}{minor_number},
+					}});
+				}
+				
+				if ((not exists $anvil->data->{server}{drbd}{$resource}{$volume}{tcp_port})  or 
+				    (not defined $anvil->data->{server}{drbd}{$resource}{$volume}{tcp_port}) or 
+				    ($anvil->data->{server}{drbd}{$resource}{$volume}{tcp_port} eq ""))
+				{
+					$anvil->data->{server}{drbd}{$resource}{$volume}{tcp_port} = $tcp_port;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::${resource}::${volume}::tcp_port" => $anvil->data->{server}{drbd}{$resource}{$volume}{tcp_port},
+					}});
+				}
+				
+				# What storage group does this belong to?
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"server::drbd::${resource}::${volume}::storage_group_uuid" => $anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid}, 
+				}});
+				if (not $anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid})
+				{
+					my $storage_key        = $resource."/".$volume;
+					my $storage_group_uuid = $anvil->Storage->get_storage_group_from_path({
+						debug      => 2,
+						anvil_uuid => $anvil_uuid, 
+						path       => $backing_disk,
+					});
+					my $storage_group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						storage_key        => $storage_key, 
+						storage_group_uuid => $storage_group_uuid, 
+						storage_group_name => $storage_group_name, 
+					}});
+					
+					# We'll need to sum up the volumes on each storage group, as 
+					# it's possible the volumes are on different SGs.
+					$anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid}               = $storage_group_uuid;
+					$anvil->data->{server}{storage_groups}{$storage_group_name}{used_by}{$storage_key} = 1;
+					$anvil->data->{server}{storage_groups}{$storage_group_name}{storage_group_uuid}    = $storage_group_uuid;
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::${resource}::${volume}::storage_group_uuid"               => $anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid}, 
+						"server::storage_groups::${storage_group_name}::used_by::${storage_key}" => $anvil->data->{server}{storage_groups}{$storage_group_name}{used_by}{$storage_key},
+						"server::storage_groups::${storage_group_name}::storage_group_uuid"      => $anvil->data->{server}{storage_groups}{$storage_group_name}{storage_group_uuid}, 
+					}});
+				}
+				
+				if ($this_size > $anvil->data->{server}{drbd}{$resource}{$volume}{size})
+				{
+					$anvil->data->{server}{drbd}{$resource}{$volume}{size} = $this_size;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::${resource}::${volume}::size" => $anvil->Convert->add_commas({number => $anvil->data->{server}{drbd}{$resource}{$volume}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{server}{drbd}{$resource}{$volume}{size}}).")", 
+					}});
+				}
+			}
+		}
+	}
+	
+	# Make sure there is enough space on DR for the volumes under this VM.
+	my $problem = 0;
+	foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{server}{storage_groups}})
+	{
+		my $storage_group_uuid = $anvil->data->{server}{storage_groups}{$storage_group_name}{storage_group_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			storage_group_name => $storage_group_name, 
+			storage_group_uuid => $storage_group_uuid, 
+		}});
+		
+		# First, is this SG on DR?
+		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid})
+		{
+			print "The DR host: [".$dr_host_name."] doesn't appear to be storage group: [".$storage_group_name."]. Unable to proceed.\n";
+			$problem = 1;
+		}
+		
+		my $space_needed = 0;
+		foreach my $resource_key (sort {$a cmp $b} keys %{$anvil->data->{server}{storage_groups}{$storage_group_name}{used_by}})
+		{
+			my ($resource, $volume) = ($resource_key =~ /^(.*)\/(\d+)$/);
+			my $volume_size         =  $anvil->data->{server}{drbd}{$resource}{$volume}{size};
+				$space_needed       += $volume_size, 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				resource_key => $resource_key, 
+				resource     => $resource, 
+				volume       => $volume, 
+				volume_size  => $anvil->Convert->add_commas({number => $volume_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}).")", 
+				space_needed => $anvil->Convert->add_commas({number => $space_needed})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}).")", 
+			}});
+			
+		}
+		
+		# Is there enough space on DR?
+		my $space_on_dr = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_free};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			space_on_dr  => $anvil->Convert->add_commas({number => $space_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}).")", 
+			space_needed => $anvil->Convert->add_commas({number => $space_needed})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}).")", 
+		}});
+		if ($space_needed > $space_on_dr)
+		{
+			print "We need: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed})." (".$anvil->Convert->add_commas({number => $space_needed})." Bytes)] from the storage group: [".$storage_group_name."], but only: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr})." (".$anvil->Convert->add_commas({number => $space_on_dr})." bytes)] is available on DR. Unable to proceed.\n";
+			$problem = 1;
+		}
+	}
+	if ($problem)
+	{
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	print "Verified that there is enough space on DR to proceed!\n";
+	print "The connection protocol will be: [".$anvil->data->{switches}{protocol}."]\n";
+	print "The following LV(s) will be created:\n";
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}})
+	{
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$resource}})
+		{
+			print "- Resource: [".$resource."], Volume: [".$volume."]\n";
+			my $lv_size            = $anvil->data->{server}{drbd}{$resource}{$volume}{size};
+			my $storage_group_uuid = $anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid};
+			my $dr_lv_name         = $resource."_".$volume;
+			my $dr_vg_name         = $anvil->Storage->get_vg_name({
+				debug              => 3, 
+				storage_group_uuid => $storage_group_uuid, 
+				host_uuid          => $dr_host_uuid,
+			});
+			my $dr_lv_path         = "/dev/".$dr_vg_name."/".$dr_lv_name;
+			my $extent_size        = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_extent_size};
+			my $extent_count       = int($lv_size / $extent_size);
+			my $shell_call         = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$dr_lv_name." ".$dr_vg_name." -y";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s01:resource"           => $resource, 
+				"s02:volume"             => $volume, 
+				"s03:lv_size"            => $anvil->Convert->add_commas({number => $lv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}).")", , 
+				"s04:storage_group_uuid" => $storage_group_uuid, 
+				"s05:dr_lv_name"         => $dr_lv_name, 
+				"s06:dr_vg_name"         => $dr_vg_name, 
+				"s07:dr_lv_path"         => $dr_lv_path, 
+				"s08:extent_size"        => $anvil->Convert->add_commas({number => $extent_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $extent_size}).")", 
+				"s09:extent_count"       => $extent_count, 
+				"s10:shell_call"         => $shell_call, 
+			}});
+			
+			$anvil->data->{server}{dr}{volumes}{$resource}{$volume}{lvcreate_call}      = $shell_call;
+			$anvil->data->{server}{dr}{volumes}{$resource}{$volume}{lv_path}            = $dr_lv_path;
+			$anvil->data->{server}{dr}{volumes}{$resource}{$volume}{storage_group_uuid} = $storage_group_uuid;
+			$anvil->data->{server}{dr}{volumes}{$resource}{$volume}{drbd_tcp_port}      = $anvil->data->{server}{drbd}{$resource}{$volume}{tcp_port}; 
+			$anvil->data->{server}{dr}{volumes}{$resource}{$volume}{drbd_minor}         = $anvil->data->{server}{drbd}{$resource}{$volume}{minor_number};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"server::dr::volumes::${resource}::${volume}::lvcreate_call"      => $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{lvcreate_call}, 
+				"server::dr::volumes::${resource}::${volume}::lv_path"            => $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{lv_path}, 
+				"server::dr::volumes::${resource}::${volume}::storage_group_uuid" => $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{storage_group_uuid}, 
+				"server::dr::volumes::${resource}::${volume}::drbd_tcp_port"      => $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{drbd_tcp_port}, 
+				"server::dr::volumes::${resource}::${volume}::drbd_minor"         => $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{drbd_minor}, 
+			}});
+			
+			# Get the VG name that this volume will be created on.
+			print " - The LV: [".$dr_lv_path."] with the size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." (".$anvil->Convert->add_commas({number => $lv_size})." Bytes)] will be created.\n";
+		}
+	}
+	
+	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
+	my $record_job = 0;
+	if (not $anvil->data->{switches}{Yes})
+	{
+		# Ask the user to confirm.
+		print "\n- Proceed? [N/y]: ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ($answer =~ /^y/i)
+		{
+			print "- Thank you, storing job now.\n";
+			$record_job = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { record_job => $record_job }});
+		}
+		else
+		{
+			print "- Aborting.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	elsif (not $anvil->data->{switches}{'job-uuid'})
+	{
+		$record_job = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { record_job => $record_job }});
+	}
+	
+	if ($record_job)
+	{
+		my $job_data =  "server=".$anvil->data->{switches}{server}."\n";
+		   $job_data .= "protect=1\n";
+		   $job_data .= "protocol=".$anvil->data->{switches}{protocol}."\n";
+		
+		# Register the job with this host
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-manage-dr'}.$anvil->Log->switches, 
+			job_data        => $job_data, 
+			job_name        => "server::dr", 
+			job_title       => "job_0356", 
+			job_description => "job_0357", 
+			job_progress    => 0,
+			job_host_uuid   => $anvil->Get->host_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub load_job
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->clear();
+	$anvil->Job->get_job_details();
+	$anvil->Job->update_progress({
+		progress         => 1,
+		job_picked_up_by => $$, 
+		job_picked_up_at => time, 
+		message          => "message_0263", 
+	});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"jobs::job_command"  => $anvil->data->{jobs}{job_command},
+		"jobs::job_data"     => $anvil->data->{jobs}{job_data}, 
+		"jobs::job_progress" => $anvil->data->{jobs}{job_progress}, 
+		"jobs::job_status"   => $anvil->data->{jobs}{job_status}, 
+	}});
+	
+	# Break up the job data into switches.
+	$anvil->data->{switches}{Yes} = 1;
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /(.*?)=(.*)$/)
+		{
+			my $key   = $1;
+			my $value = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				key   => $key,
+				value => $value, 
+			}});
+			
+			$anvil->data->{switches}{$key} = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"switches::${key}" => $anvil->data->{switches}{$key}, 
+			}});
+		}
+	}
+	
+	return(0);
+}

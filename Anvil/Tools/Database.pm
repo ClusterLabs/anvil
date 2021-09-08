@@ -4564,7 +4564,7 @@ SELECT
 FROM 
     scan_lvm_vgs 
 WHERE 
-    scan_lvm_vg_internal_uuid = ".$anvil->Database->quote($storage_group_member_vg_uuid).";
+    scan_lvm_vg_internal_uuid = ".$anvil->Database->quote($storage_group_member_vg_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
@@ -4583,6 +4583,221 @@ WHERE
 					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_size" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}}).")",
 					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_free" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}}).")",
 				}});
+			}
+		}
+		
+		# Also load the Storage group extended data.
+		$anvil->Storage->get_storage_group_details({
+			debug              => $debug, 
+			storage_group_uuid => $storage_group_uuid, 
+		});
+	}
+	
+	# If the Anvil! members have changed, we'll need to update the storage groups. This checks for that.
+	$anvil->Database->get_anvils({debug => $debug});
+	foreach my $anvil_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}})
+	{
+		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}; 
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			anvil_name      => $anvil_name, 
+			node1_host_uuid => $node1_host_uuid, 
+			node2_host_uuid => $node2_host_uuid, 
+			dr1_host_uuid   => $dr1_host_uuid, 
+		}});
+		foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
+		{
+			my $group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				storage_group_uuid => $storage_group_uuid, 
+				group_name         => $group_name, 
+			}});
+			
+			my $size_to_match = 0;
+			my $node1_seen    = 0;
+			my $node2_seen    = 0;
+			my $dr1_seen      = $dr1_host_uuid ? 0 : 1;	# Only set to '0' if DR exists.
+			foreach my $this_host_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}})
+			{
+				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{storage_group_member_uuid};
+				my $internal_vg_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_internal_uuid};
+				my $vg_size                   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_size};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					this_host_uuid            => $this_host_uuid, 
+					storage_group_member_uuid => $storage_group_member_uuid, 
+					internal_vg_uuid          => $internal_vg_uuid, 
+					vg_size                   => $anvil->Convert->add_commas({number => $vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
+				}});
+				
+				if ($vg_size > $size_to_match)
+				{
+					$size_to_match = $vg_size;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						size_to_match => $anvil->Convert->add_commas({number => $size_to_match})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size_to_match}).")", 
+					}});
+				}
+				
+				if ($this_host_uuid eq $node1_host_uuid)
+				{
+					$node1_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node1_seen => $node1_seen }});
+				}
+				elsif ($this_host_uuid eq $node2_host_uuid)
+				{
+					$node2_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_seen => $node2_seen }});
+				}
+				elsif (($dr1_host_uuid) && ($this_host_uuid eq $dr1_host_uuid))
+				{
+					$dr1_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dr1_seen => $dr1_seen }});
+				}
+				else
+				{
+					# This host doesn't belong in this group anymore. Delete it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0130", variables => { 
+						storage_group_name => $group_name,
+						host_name          => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+						anvil_name         => $anvil_name, 
+					}});
+					
+					my $query = "DELETE FROM storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
+			
+			if ((not $node1_seen) or 
+			    (not $node2_seen) or 
+			    (not $dr1_seen))
+			{
+				my $hosts = [$node1_host_uuid, $node2_host_uuid];
+				if ($dr1_host_uuid)
+				{
+					push @{$hosts}, $dr1_host_uuid;
+				}
+				
+				my $reload = 0;
+				foreach my $this_host_uuid (@{$hosts})
+				{
+					# If we didn't see a host, look for a compatible VG to add.
+					my $minimum_size = $size_to_match - (2**30);
+					my $maximum_size = $size_to_match + (2**30);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						minimum_size => $anvil->Convert->add_commas({number => $minimum_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $minimum_size}).")", 
+						maximum_size => $anvil->Convert->add_commas({number => $maximum_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $maximum_size}).")", 
+					}});
+					
+					my $smallest_difference      =  (2**30);
+					my $closest_internal_uuid    =  "";
+					my $closest_scan_lvm_vg_uuid =  "";
+					my $quoted_minimum_size      =  $anvil->Database->quote($minimum_size);
+					   $quoted_minimum_size      =~ s/^'(.*)'$/$1/;
+					my $quoted_maximum_size      =  $anvil->Database->quote($maximum_size);
+					   $quoted_maximum_size      =~ s/^'(.*)'$/$1/;
+					my $query                    =  "
+SELECT 
+    scan_lvm_vg_uuid, 
+    scan_lvm_vg_internal_uuid, 
+    scan_lvm_vg_size 
+FROM 
+    scan_lvm_vgs 
+WHERE 
+    scan_lvm_vg_size      > ".$quoted_minimum_size." 
+AND 
+    scan_lvm_vg_size      < ".$quoted_maximum_size." 
+AND 
+    scan_lvm_vg_host_uuid = ".$anvil->Database->quote($this_host_uuid)."
+ORDER BY 
+    scan_lvm_vg_size ASC
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
+					foreach my $row (@{$results})
+					{
+						my $scan_lvm_vg_uuid          = $row->[0];
+						my $scan_lvm_vg_internal_uuid = $row->[1];
+						my $scan_lvm_vg_size          = $row->[2];
+						my $difference                = abs($scan_lvm_vg_size - $size_to_match);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							scan_lvm_vg_uuid          => $scan_lvm_vg_uuid, 
+							scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
+							scan_lvm_vg_size          => $anvil->Convert->add_commas({number => $scan_lvm_vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+							difference                => $anvil->Convert->add_commas({number => $difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")", 
+						}});
+						
+						# Is this Internal UUID already in a storage group?
+						my $query = "SELECT COUNT(*) FROM storage_group_members WHERE storage_group_member_vg_uuid = ".$anvil->Database->quote($scan_lvm_vg_internal_uuid).";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+						
+						my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+						if (not $count)
+						{
+							# This VG isn't in a storage group. Is this the closest in size yet?
+							if ($difference < $smallest_difference)
+							{
+								# Closest yet!
+								$smallest_difference      = $difference;
+								$closest_internal_uuid    = $scan_lvm_vg_internal_uuid;
+								$closest_scan_lvm_vg_uuid = $scan_lvm_vg_uuid;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									smallest_difference      => $anvil->Convert->add_commas({number => $smallest_difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $smallest_difference}).")", 
+									closest_internal_uuid    => $closest_internal_uuid, 
+									closest_scan_lvm_vg_uuid => $closest_scan_lvm_vg_uuid, 
+								}});
+							}
+						}
+					}
+					
+					# Did we find a matching VG?
+					if ($closest_scan_lvm_vg_uuid)
+					{
+						# Yup, add it!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0649", variables => { 
+							anvil_name       => $anvil_name, 
+							storage_group    => $group_name,
+							host_name        => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+							vg_internal_uuid => $closest_scan_lvm_vg_uuid, 
+						}});
+						
+						my $storage_group_member_uuid = $anvil->Get->uuid();
+						my $query                     = "
+INSERT INTO 
+    storage_group_members 
+(
+    storage_group_member_uuid, 
+    storage_group_member_storage_group_uuid, 
+    storage_group_member_host_uuid, 
+    storage_group_member_vg_uuid, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($storage_group_member_uuid).", 
+    ".$anvil->Database->quote($storage_group_uuid).", 
+    ".$anvil->Database->quote($this_host_uuid).", 
+    ".$anvil->Database->quote($closest_scan_lvm_vg_uuid).", 
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+);";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+						$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+						
+						# Reload 
+						$reload = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+					}
+				}
+				if ($reload)
+				{
+					$anvil->Database->get_storage_group_data({debug => $debug});
+				}
 			}
 		}
 	}
