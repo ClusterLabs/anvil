@@ -4747,8 +4747,8 @@ ORDER BY
 							{
 								# Closest yet!
 								$smallest_difference      = $difference;
-								$closest_internal_uuid    = $scan_lvm_vg_internal_uuid;
-								$closest_scan_lvm_vg_uuid = $scan_lvm_vg_uuid;
+								$closest_scan_lvm_vg_uuid = $scan_lvm_vg_internal_uuid;
+								$closest_internal_uuid    = $scan_lvm_vg_uuid;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									smallest_difference      => $anvil->Convert->add_commas({number => $smallest_difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $smallest_difference}).")", 
 									closest_internal_uuid    => $closest_internal_uuid, 
