@@ -694,6 +694,41 @@ sys::manage::firewall						=	1
 # run '/usr/bin/osinfo-query os' on any machine in the Anvil!. 
 #sys::servers::os_short_list					=	debian10,fedora32,freebsd12.1,gentoo,macosx10.7,msdos6.22,openbsd6.7,opensuse15.2,rhel5.11,rhel6.10,rhel7.9,rhel8.3,sles12sp5,solaris11,ubuntu20.04,win10,win2k16,win2k19
 ]]></key>
+		<key name="file_0003"><![CDATA[
+        on #!variable!short_host_name!# {
+                node-id #!variable!node_id!#;
+		#!variable!volumes!#
+        }
+]]></key>
+		<key name="file_0004"><![CDATA[
+		volume #!variable!volume!# {
+			device    #!variable!drbd_path!# minor #!variable!minor!#;
+			disk      #!variable!lv_path!#;
+			meta-disk internal;
+		}
+]]></key>
+		<key name="file_0005"><![CDATA[
+	connection {
+		host #!variable!host1_short_name!# address #!variable!host1_sn_ip!#:#!variable!tcp_port!#;
+		host #!variable!host2_short_name!# address #!variable!host2_sn_ip!#:#!variable!tcp_port!#;
+		disk {
+			# The variable bit rate caps at 100 MiB/sec, setting this changes the maximum 
+			# variable rate.
+			c-max-rate #!variable!c-rate-maximum!#M;
+		}
+		net {
+			protocol #!variable!protocol!#;
+                	fencing #!variable!fencing!#;
+		}
+	}
+]]></key>
+		<key name="file_0006"><![CDATA[# Resource for #!variable!server!#
+resource #!variable!server!# {
+	#!variable!hosts!#
+	
+	#!variable!connections!#
+}
+]]></key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>

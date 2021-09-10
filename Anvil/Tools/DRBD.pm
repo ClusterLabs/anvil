@@ -20,6 +20,7 @@ my $THIS_FILE = "DRBD.pm";
 # delete_resource
 # gather_data
 # get_devices
+# get_next_resource
 # get_status
 # manage_resource
 # reload_defaults
@@ -1249,6 +1250,10 @@ Parameters;
 
 This is the Anvil! in which we're looking for the next free resources. It's required, but generally it doesn't need to be specified as we can find it via C<< Cluster->get_anvil_uuid() >>.
 
+=head3 dr_tcp_ports (optional, default '0')
+
+If set, the 'free_port' returned will be a comma-separated pair of TCP ports. This is meant to help find two TCP ports needed to connect a resource from both nodes to a DR host.
+
 =head3 resource_name (optional)
 
 If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, empty strings are returned.
@@ -1267,10 +1272,12 @@ sub get_next_resource
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_next_resource()" }});
 	
 	my $anvil_uuid    = defined $parameter->{anvil_uuid}    ? $parameter->{anvil_uuid}    : "";
+	my $dr_tcp_ports  = defined $parameter->{dr_tcp_ports}  ? $parameter->{dr_tcp_ports}  : "";
 	my $resource_name = defined $parameter->{resource_name} ? $parameter->{resource_name} : "";
 	my $force_unique  = defined $parameter->{force_unique}  ? $parameter->{force_unique}  : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid    => $anvil_uuid, 
+		dr_tcp_ports  => $dr_tcp_ports, 
 		resource_name => $resource_name, 
 		force_unique  => $force_unique, 
 	}});
@@ -1434,8 +1441,9 @@ ORDER BY
 		}
 	}
 	
-	$looking   = 1;
-	$free_port = 7788;
+	   $looking   = 1;
+	   $free_port = 7788;
+	my $tcp_pair  = "";
 	while($looking)
 	{
 		if (exists $anvil->data->{drbd}{used_resources}{tcp_port}{$free_port})
@@ -1445,9 +1453,39 @@ ORDER BY
 		}
 		else
 		{
-			$looking = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+			if ($dr_tcp_ports)
+			{
+				if (not $tcp_pair)
+				{
+					$tcp_pair = $free_port;
+					$free_port++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						tcp_pair  => $tcp_pair,
+						free_port => $free_port, 
+					}});
+				}
+				elsif ($tcp_pair !~ /,/)
+				{
+					$tcp_pair .= ",".$free_port;
+					$looking  =  0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						tcp_pair => $tcp_pair,
+						looking  => $looking, 
+					}});
+				}
+			}
+			else
+			{
+				$looking = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+			}
 		}
+	}
+	
+	if ($dr_tcp_ports)
+	{
+		$free_port = $tcp_pair;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

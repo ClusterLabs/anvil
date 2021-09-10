@@ -696,7 +696,6 @@ drbdadm connect <res>
 ==================
 # Server srv01-sql, example showing two disks in one VM.
 resource srv01-sql {
-
         on mk-a02n01 {
                 node-id 0;
                 volume 0 {

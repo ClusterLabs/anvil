@@ -63,15 +63,22 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+my $termios = new POSIX::Termios;
+$termios->getattr;
+my $ospeed   = $termios->getospeed;
+my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+$terminal->Trequire(qw/ce ku kd/);
+print $terminal->Tputs('cl');
+
 # If we've got a job UUID, load the job details.
 if ($anvil->data->{switches}{'job-uuid'})
 {
-	load_job($anvil);
+	load_job($anvil, $terminal);
 }
 
-sanity_check($anvil);
+sanity_check($anvil, $terminal);
 
-do_task($anvil);
+do_task($anvil, $terminal);
 
 
 $anvil->nice_exit({exit_code => 0});
@@ -83,7 +90,7 @@ $anvil->nice_exit({exit_code => 0});
 
 sub do_task
 {
-	my ($anvil) = @_;
+	my ($anvil, $terminal) = @_;
 	
 	# What task am I doing?
 	if ($anvil->data->{switches}{protect})
@@ -96,7 +103,7 @@ sub do_task
 
 sub sanity_check
 {
-	my ($anvil) = @_;
+	my ($anvil, $terminal) = @_;
 	
 	# Are we a node or DR?
 	my $host_type  = $anvil->Get->host_type();
@@ -126,21 +133,21 @@ sub sanity_check
 	
 	# Can we access DR?
 	my $password     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	my $dr_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+	my $dr1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	my $dr1_host_name = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
 	my $dr_ip        = $anvil->System->find_matching_ip({
 		debug => 2,
-		host  => $dr_host_name,
+		host  => $dr1_host_name,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		password     => $anvil->Log->is_secure($password),
-		dr_host_uuid => $dr_host_uuid,
-		dr_host_name => $dr_host_name, 
+		dr1_host_uuid => $dr1_host_uuid,
+		dr1_host_name => $dr1_host_name, 
 		dr_ip        => $dr_ip, 
 	}});
 	if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
 	{
-		print "Failed to find an IP we can access the DR host: [".$dr_host_name."]. Has it been configured? Is it running? Exiting.\n";
+		print "Failed to find an IP we can access the DR host: [".$dr1_host_name."]. Has it been configured? Is it running? Exiting.\n";
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -152,7 +159,7 @@ sub sanity_check
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
 	if (not $access)
 	{
-		print "Failed to access the DR host: [".$dr_host_name."] using the IP: [".$dr_ip."]. Is it running? Exiting.\n";
+		print "Failed to access the DR host: [".$dr1_host_name."] using the IP: [".$dr_ip."]. Is it running? Exiting.\n";
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -365,29 +372,43 @@ Exiting.
 	# If we're protecting, make sure there's enough space on the DR host.
 	if ($anvil->data->{switches}{protect})
 	{
-		prepare_for_protect($anvil);
+		process_protect($anvil, $terminal);
 	}
 	
 	return(0);
 }
 
-sub prepare_for_protect
+sub process_protect
 {
-	my ($anvil) = @_;
+	my ($anvil, $terminal) = @_;
 	
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
 	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
-	my $dr_host_uuid          = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr_host_name          = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+	my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+	my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+	my $dr1_host_uuid         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	my $dr1_host_name         = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
+	my $dr1_short_host_name   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
 	my $server_name           = $anvil->data->{server}{'server-name'};
 	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
 	my $short_host_name       = $anvil->Get->short_host_name();
 	my $server_definition_xml = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid            => $anvil_uuid, 
-		dr_host_uuid          => $dr_host_uuid, 
-		dr_host_name          => $dr_host_name, 
+		node1_host_uuid       => $node1_host_uuid, 
+		node1_host_name       => $node1_host_name, 
+		node1_short_host_name => $node1_short_host_name, 
+		node2_host_uuid       => $node2_host_uuid, 
+		node2_host_name       => $node2_host_name, 
+		node2_short_host_name => $node2_short_host_name, 
+		dr1_host_uuid         => $dr1_host_uuid, 
+		dr1_host_name         => $dr1_host_name, 
+		dr1_short_host_name   => $dr1_short_host_name, 
 		server_name           => $server_name, 
 		server_uuid           => $server_uuid, 
 		server_definition_xml => $server_definition_xml, 
@@ -518,7 +539,8 @@ sub prepare_for_protect
 	}
 	
 	# Make sure there is enough space on DR for the volumes under this VM.
-	my $problem = 0;
+	my $problem     = 0;
+	my $config_file = "";
 	foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{server}{storage_groups}})
 	{
 		my $storage_group_uuid = $anvil->data->{server}{storage_groups}{$storage_group_name}{storage_group_uuid};
@@ -528,19 +550,21 @@ sub prepare_for_protect
 		}});
 		
 		# First, is this SG on DR?
-		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid})
+		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
 		{
-			print "The DR host: [".$dr_host_name."] doesn't appear to be storage group: [".$storage_group_name."]. Unable to proceed.\n";
+			print "The DR host: [".$dr1_host_name."] doesn't appear to be storage group: [".$storage_group_name."]. Unable to proceed.\n";
 			$problem = 1;
 		}
 		
 		my $space_needed = 0;
 		foreach my $resource_key (sort {$a cmp $b} keys %{$anvil->data->{server}{storage_groups}{$storage_group_name}{used_by}})
 		{
-			my ($resource, $volume) = ($resource_key =~ /^(.*)\/(\d+)$/);
+			my ($resource, $volume) =  ($resource_key =~ /^(.*)\/(\d+)$/);
 			my $volume_size         =  $anvil->data->{server}{drbd}{$resource}{$volume}{size};
-				$space_needed       += $volume_size, 
+			   $space_needed        += $volume_size, 
+			   $config_file         =  $anvil->data->{new}{resource}{$resource}{config_file};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				config_file  => $config_file, 
 				resource_key => $resource_key, 
 				resource     => $resource, 
 				volume       => $volume, 
@@ -551,7 +575,7 @@ sub prepare_for_protect
 		}
 		
 		# Is there enough space on DR?
-		my $space_on_dr = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_free};
+		my $space_on_dr = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			space_on_dr  => $anvil->Convert->add_commas({number => $space_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}).")", 
 			space_needed => $anvil->Convert->add_commas({number => $space_needed})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}).")", 
@@ -567,8 +591,18 @@ sub prepare_for_protect
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	print "Verified that there is enough space on DR to proceed!\n";
-	print "The connection protocol will be: [".$anvil->data->{switches}{protocol}."]\n";
+	# Get net next pair of TCP ports.
+	my (undef, $tcp_ports) = $anvil->DRBD->get_next_resource({
+		debug        => 2,
+		dr_tcp_ports => 1, 
+	});
+	my ($node1_to_dr_port, $node2_to_dr_port) = split/,/, $tcp_ports;
+	
+	print "Verified that there is enough space on DR to proceed.\n";
+	print "* The connection protocol will be: ..... [".$anvil->data->{switches}{protocol}."]\n";
+	print "* Node 1 to DR will use TCP port: ...... [".$node1_to_dr_port."]\n";
+	print "* Node 2 to DR will use TCP port: ...... [".$node2_to_dr_port."]\n";
+	print "* We will update the DRBD resource file: [".$config_file."]\n";
 	print "The following LV(s) will be created:\n";
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}})
 	{
@@ -581,10 +615,10 @@ sub prepare_for_protect
 			my $dr_vg_name         = $anvil->Storage->get_vg_name({
 				debug              => 3, 
 				storage_group_uuid => $storage_group_uuid, 
-				host_uuid          => $dr_host_uuid,
+				host_uuid          => $dr1_host_uuid,
 			});
 			my $dr_lv_path         = "/dev/".$dr_vg_name."/".$dr_lv_name;
-			my $extent_size        = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_extent_size};
+			my $extent_size        = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_extent_size};
 			my $extent_count       = int($lv_size / $extent_size);
 			my $shell_call         = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$dr_lv_name." ".$dr_vg_name." -y";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -667,12 +701,304 @@ sub prepare_for_protect
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
+	### If we're still here, time to get started.
+	# Read in the old config and update it.
+	my $old_resource_config = $anvil->Storage->read_file({file => $config_file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_resource_config => $old_resource_config }});
+	
+	# Pull the data out of the old file
+	my $hosts          = "";
+	my $nodes_tcp_port = "";
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
+		my $dr1_seen = 0;
+		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_host_name => $this_host_name }});
+			my $node_id = "";
+			if (($this_host_name eq $node1_short_host_name) or ($this_host_name eq $node1_host_name))
+			{
+				$node_id = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_id => $node_id }});
+				
+				if ((not $nodes_tcp_port) && 
+				    (exists $anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}) && 
+				    ($anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}{tcp_port}))
+				{
+					$nodes_tcp_port = $anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}{tcp_port};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodes_tcp_port => $nodes_tcp_port }});
+				}
+			}
+			elsif (($this_host_name eq $node2_short_host_name) or ($this_host_name eq $node2_host_name))
+			{
+				$node_id = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_id => $node_id }});
+				
+				if ((not $nodes_tcp_port) && 
+				    (exists $anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}) && 
+				    ($anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}{tcp_port}))
+				{
+					$nodes_tcp_port = $anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}{tcp_port};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodes_tcp_port => $nodes_tcp_port }});
+				}
+			}
+			elsif (($this_host_name eq $dr1_short_host_name) or ($this_host_name eq $dr1_host_name))
+			{
+				$node_id  = 2;
+				$dr1_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					node_id  => $node_id,
+					dr1_seen => $dr1_seen, 
+				}});
+			}
+			my $volumes = "";
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$resource}})
+			{
+				my $device_path  = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path};
+				my $backing_disk = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk};
+				my $device_minor = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:device_path"  => $device_path,
+					"s2:backing_disk" => $backing_disk,
+					"s3:device_minor" => $device_minor,
+				}});
+				
+				$volumes .= $anvil->Words->string({key => "file_0004", variables => {
+					volume    => $volume,
+					drbd_path => $device_path, 
+					minor     => $device_minor, 
+					lv_path   => $backing_disk, 
+				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volumes => $volumes }});
+				
+				# Record the DRBD device for adding DR.
+				if (not exists $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{device_path})
+				{
+					$anvil->data->{server}{dr}{volumes}{$resource}{$volume}{device_path} = $device_path;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::dr::volumes::${resource}::${volume}::device_path" => $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{device_path},
+					}});
+				}
+			}
+			$hosts .= $anvil->Words->string({key => "file_0003", variables => {
+				short_host_name => $this_host_name, 
+				node_id         => $node_id, 
+				volumes         => $volumes,
+			}});
+		}
+		if (not $dr1_seen)
+		{
+			# Inject the DR.
+			my $volumes = "";
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{dr}{volumes}{$resource}})
+			{
+				my $device_path  = $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{device_path};
+				my $backing_disk = $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{lv_path};
+				my $device_minor = $anvil->data->{server}{dr}{volumes}{$resource}{$volume}{drbd_minor};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:device_path"  => $device_path,
+					"s2:backing_disk" => $backing_disk,
+					"s3:device_minor" => $device_minor,
+				}});
+				
+				$volumes .= $anvil->Words->string({key => "file_0004", variables => {
+					volume    => $volume,
+					drbd_path => $device_path, 
+					minor     => $device_minor, 
+					lv_path   => $backing_disk, 
+				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volumes => $volumes }});
+			}
+			$hosts .= $anvil->Words->string({key => "file_0003", variables => {
+				short_host_name => $dr1_short_host_name, 
+				node_id         => "2", 
+				volumes         => $volumes,
+			}});
+		}
+	}
+	
+	### The connections.
+	$anvil->Database->get_ip_addresses({debug => 2});
+	my $node1_sn1_ip = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{network}{sn1}{ip_address};
+	my $node2_sn1_ip = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{network}{sn1}{ip_address};
+	my $dr1_sn1_ip   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{network}{sn1}{ip_address};
+	my $dr_protocol  = "A";
+	if ($anvil->data->{switches}{protocol} eq "sync")
+	{
+		$dr_protocol = "C";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		node1_sn1_ip => $node1_sn1_ip,
+		node2_sn1_ip => $node2_sn1_ip, 
+		dr1_sn1_ip   => $dr1_sn1_ip, 
+		dr_protocol  => $dr_protocol,
+	}});
+
+	# Node 1 to Node 2 first, then n
+	my $connections = $anvil->Words->string({key => "file_0005", variables => {
+		host1_short_name => $node1_short_host_name, 
+		host1_sn_ip      => $node1_sn1_ip, 
+		host2_short_name => $node2_short_host_name, 
+		host2_sn_ip      => $node2_sn1_ip, 
+		tcp_port         => $nodes_tcp_port, 
+		'c-rate-maximum' => 500,
+		protocol         => "C",
+                fencing          => "resource-and-stonith"
+	}});
+	
+	# Node 1 to DR
+	$connections .= $anvil->Words->string({key => "file_0005", variables => {
+		host1_short_name => $node1_short_host_name, 
+		host1_sn_ip      => $node1_sn1_ip, 
+		host2_short_name => $dr1_short_host_name, 
+		host2_sn_ip      => $dr1_sn1_ip, 
+		tcp_port         => $node1_to_dr_port, 
+		'c-rate-maximum' => 500,
+		protocol         => $dr_protocol,
+                fencing          => "dont-care"
+	}});
+
+	# Node 2 to DR
+	$connections .= $anvil->Words->string({key => "file_0005", variables => {
+		host1_short_name => $node2_short_host_name, 
+		host1_sn_ip      => $node2_sn1_ip, 
+		host2_short_name => $dr1_short_host_name, 
+		host2_sn_ip      => $dr1_sn1_ip, 
+		tcp_port         => $node2_to_dr_port, 
+		'c-rate-maximum' => 500,
+		protocol         => $dr_protocol,
+                fencing          => "dont-care"
+	}});
+	
+	my $new_resource_config = $anvil->Words->string({key => "file_0006", variables => {
+		server      => $server_name,
+		hosts       => $hosts,
+		connections => $connections,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_resource_config => $new_resource_config }});
+
+=cut
+# Server srv02-c8-b, example showing two disks in one VM.
+resource srv02-c8-b {
+        on an-a01n01 {
+                node-id 0;
+                volume 0 {
+                        device    /dev/drbd_srv02-c8-b_0 minor 0;
+                        disk      /dev/rhel/srv02-c8-b_0;
+                        meta-disk internal;
+                }
+                volume 1 {
+                        device    /dev/drbd_srv02-c8-b_1 minor 1;
+                        disk      /dev/rhel/srv02-c8-b_1;
+                        meta-disk internal;
+                }
+        }
+
+        on an-a01n02 {
+                node-id 1;
+                volume 0 {
+                        device    /dev/drbd_srv02-c8-b_0 minor 0;
+                        disk      /dev/rhel/srv02-c8-b_0;
+                        meta-disk internal;
+                }
+                volume 1 {
+                        device    /dev/drbd_srv02-c8-b_1 minor 1;
+                        disk      /dev/rhel/srv02-c8-b_1;
+                        meta-disk internal;
+                }
+        }
+
+        on an-a01dr01 {
+                node-id 2;
+                volume 0 {
+                        device    /dev/drbd_srv02-c8-b_0 minor 0;
+                        disk      /dev/rhel_new-dr/srv02-c8-b_0;
+                        meta-disk internal;
+                }
+                volume 1 {
+                        device    /dev/drbd_srv02-c8-b_1 minor 1;
+                        disk      /dev/rhel_new-dr/srv02-c8-b_1;
+                        meta-disk internal;
+                }
+        }
+
+        ### NOTE: Remember to open the appropriate firewall port!
+        # firewall-cmd --zone=SN1 --permanent --add-port=7788/tcp --permanent
+        # firewall-cmd --zone=SN1 --permanent --add-port=7788/tcp
+
+        connection {
+                host  an-a01n01  address  10.101.12.1:7788;
+                host  an-a01n02  address  10.101.12.2:7788;
+                net {
+                        protocol  C;
+                        fencing resource-and-stonith;
+                }
+        }
+        connection {
+                host  an-a01n01   address  10.101.12.1:7789;
+                host  an-a01dr01  address  10.101.12.3:7789;
+                net {
+                        protocol  A;
+                        fencing dont-care;
+                }
+        }
+        connection {
+                host  an-a01n02   address  10.101.12.2:7790;
+                host  an-a01dr01  address  10.101.12.3:7790;
+                net {
+                        protocol  A;
+                        fencing dont-care;
+                }
+        }
+}
+====
+# Resource for srv02-c8-b
+resource srv02-c8-b {
+	on an-a01n01 {
+		node-id 0;
+		volume 0 {
+			device    /dev/drbd_srv02-c8-b_0 minor 1;
+			disk      /dev/cs_an-a01n01/srv02-c8-b_0;
+			meta-disk internal;
+		}
+	}
+	
+	on an-a01n02 {
+		node-id 1;
+		volume 0 {
+			device    /dev/drbd_srv02-c8-b_0 minor 1;
+			disk      /dev/cs_an-a01n02/srv02-c8-b_0;
+			meta-disk internal;
+		}
+	}
+	
+	### NOTE: Remember to open the appropriate firewall port!
+	# firewall-cmd --zone=SN1 --permanent --add-port=7789/tcp --permanent
+	# firewall-cmd --zone=SN1 --permanent --add-port=7789/tcp
+
+	connection {
+		host  an-a01n01  address  10.101.10.1:7789;
+		host  an-a01n02  address  10.101.10.2:7789;
+		disk {
+			# Without this, the variable bit rate caps at 100 MiB/sec, and most deployments are
+			# 10 Gbps. So this lets the variable rate climb to 500 MiB/sec
+			c-max-rate 500M;
+		}
+		net {
+			protocol  C;
+                	fencing resource-and-stonith;
+		}
+	}
+}
+=cut
+	
 	return(0);
 }
 
 sub load_job
 {
-	my ($anvil) = @_;
+	my ($anvil, $terminal) = @_;
 	
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
@@ -683,6 +1009,8 @@ sub load_job
 		message          => "message_0263", 
 	});
 	
+	print "Loading the job: [".$anvil->data->{switches}{'job-uuid'}."]...\n";
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"jobs::job_command"  => $anvil->data->{jobs}{job_command},
 		"jobs::job_data"     => $anvil->data->{jobs}{job_data}, 
@@ -692,6 +1020,7 @@ sub load_job
 	
 	# Break up the job data into switches.
 	$anvil->data->{switches}{Yes} = 1;
+	print "- Set the switch: [--Yes] to true.\n";
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
@@ -708,8 +1037,11 @@ sub load_job
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"switches::${key}" => $anvil->data->{switches}{$key}, 
 			}});
+			
+			print "* Set the switch: [--".$key."] to: [".$value."]\n";
 		}
 	}
+	print "Job loaded successfully.\n\n";
 	
 	return(0);
 }
