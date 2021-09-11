@@ -15,6 +15,7 @@ use warnings;
 use Anvil::Tools;
 require POSIX;
 use Term::Cap;
+use Text::Diff;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -122,7 +123,7 @@ sub sanity_check
 	# Get the Anvil! details.
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
-	$anvil->Database->get_storage_group_data({debug => 2});
+	$anvil->Database->get_storage_group_data();
 	
 	# Does this Anvil! have a DR node?
 	if (not $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
@@ -132,10 +133,10 @@ sub sanity_check
 	}
 	
 	# Can we access DR?
-	my $password     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $password      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $dr1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 	my $dr1_host_name = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr_ip        = $anvil->System->find_matching_ip({
+	my $dr_ip         = $anvil->System->find_matching_ip({
 		debug => 2,
 		host  => $dr1_host_name,
 	});
@@ -385,6 +386,7 @@ sub process_protect
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
 	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
 	my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
@@ -400,6 +402,7 @@ sub process_protect
 	my $server_definition_xml = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid            => $anvil_uuid, 
+		anvil_password        => $anvil->Log->is_secure($anvil_password), 
 		node1_host_uuid       => $node1_host_uuid, 
 		node1_host_name       => $node1_host_name, 
 		node1_short_host_name => $node1_short_host_name, 
@@ -423,7 +426,7 @@ sub process_protect
 		definition => $server_definition_xml, 
 	});
 	
-	$anvil->DRBD->gather_data();
+	$anvil->DRBD->gather_data({debug => 2});
 
 	my $server_ram = $anvil->data->{server}{$short_host_name}{$server_name}{'from_db'}{memory};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -449,13 +452,16 @@ sub process_protect
 				my $backing_disk = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk};
 				my $device_minor = $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor};
 				my $tcp_port     = $anvil->data->{new}{resource}{$resource}{peer}{$this_host_name}{tcp_port};
-				my $this_size    = $anvil->Storage->get_size_of_block_device({host_uuid => $this_host_uuid, path => $backing_disk});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"s1:volume"       => $volume, 
 					"s2:device_path"  => $device_path,
 					"s3:backing_disk" => $backing_disk,
 					"s4:device_minor" => $device_minor,
-					"s5:this_size"    => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
+				}});
+				
+				my $this_size = $anvil->Storage->get_size_of_block_device({debug => 2, host_uuid => $this_host_uuid, path => $backing_disk});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					this_size => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
 				}});
 				
 				if ((not exists $anvil->data->{server}{drbd}{$resource}{$volume}{size}) or (not $anvil->data->{server}{drbd}{$resource}{$volume}{size}))
@@ -877,122 +883,330 @@ sub process_protect
 		connections => $connections,
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_resource_config => $new_resource_config }});
-
-=cut
-# Server srv02-c8-b, example showing two disks in one VM.
-resource srv02-c8-b {
-        on an-a01n01 {
-                node-id 0;
-                volume 0 {
-                        device    /dev/drbd_srv02-c8-b_0 minor 0;
-                        disk      /dev/rhel/srv02-c8-b_0;
-                        meta-disk internal;
-                }
-                volume 1 {
-                        device    /dev/drbd_srv02-c8-b_1 minor 1;
-                        disk      /dev/rhel/srv02-c8-b_1;
-                        meta-disk internal;
-                }
-        }
-
-        on an-a01n02 {
-                node-id 1;
-                volume 0 {
-                        device    /dev/drbd_srv02-c8-b_0 minor 0;
-                        disk      /dev/rhel/srv02-c8-b_0;
-                        meta-disk internal;
-                }
-                volume 1 {
-                        device    /dev/drbd_srv02-c8-b_1 minor 1;
-                        disk      /dev/rhel/srv02-c8-b_1;
-                        meta-disk internal;
-                }
-        }
-
-        on an-a01dr01 {
-                node-id 2;
-                volume 0 {
-                        device    /dev/drbd_srv02-c8-b_0 minor 0;
-                        disk      /dev/rhel_new-dr/srv02-c8-b_0;
-                        meta-disk internal;
-                }
-                volume 1 {
-                        device    /dev/drbd_srv02-c8-b_1 minor 1;
-                        disk      /dev/rhel_new-dr/srv02-c8-b_1;
-                        meta-disk internal;
-                }
-        }
-
-        ### NOTE: Remember to open the appropriate firewall port!
-        # firewall-cmd --zone=SN1 --permanent --add-port=7788/tcp --permanent
-        # firewall-cmd --zone=SN1 --permanent --add-port=7788/tcp
-
-        connection {
-                host  an-a01n01  address  10.101.12.1:7788;
-                host  an-a01n02  address  10.101.12.2:7788;
-                net {
-                        protocol  C;
-                        fencing resource-and-stonith;
-                }
-        }
-        connection {
-                host  an-a01n01   address  10.101.12.1:7789;
-                host  an-a01dr01  address  10.101.12.3:7789;
-                net {
-                        protocol  A;
-                        fencing dont-care;
-                }
-        }
-        connection {
-                host  an-a01n02   address  10.101.12.2:7790;
-                host  an-a01dr01  address  10.101.12.3:7790;
-                net {
-                        protocol  A;
-                        fencing dont-care;
-                }
-        }
-}
-====
-# Resource for srv02-c8-b
-resource srv02-c8-b {
-	on an-a01n01 {
-		node-id 0;
-		volume 0 {
-			device    /dev/drbd_srv02-c8-b_0 minor 1;
-			disk      /dev/cs_an-a01n01/srv02-c8-b_0;
-			meta-disk internal;
+	
+	# Is the new res file the same as the old one?
+	my $difference = diff \$old_resource_config, \$new_resource_config, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+	
+	if (not $difference)
+	{
+		print "The resource file: [".$config_file."] doesn't need to be updated.\n";
+	}
+	else
+	{
+		# Write out a test file.
+		my $test_file = $anvil->data->{path}{directories}{temp}."/test-".$server_name.".res";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
+		my ($problem) = $anvil->Storage->write_file({
+			debug     => 2,
+			backup    => 0,
+			overwrite => 1,
+			file      => $test_file, 
+			body      => $new_resource_config,
+			user      => "root", 
+			group     => "root", 
+			mode      => "0644",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+		# Validate.
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --config-to-test ".$test_file." --config-to-exclude ".$config_file." sh-nop";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($return_code)
+		{
+			# Something went wrong.
+			print "[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [".$return_code."]\n";
+			print "The output, if any, was:\n";
+			print "====\n";
+			print $output."\n";
+			print "====\n";
+			$anvil->nice_exit({exit_code => 1});
 		}
+		
+		# Remove the test file.
+		unlink $test_file;
+		
+		# Backup the res file so we can tell the user where the current config was backed up to in 
+		# case they need to restore it.
+		my ($backup_file) = $anvil->Storage->backup({file => $config_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		print "Backed up old config as: [".$backup_file."]. Updating it now.\n";
+		
+		# Write out the new file.
+		($problem) = $anvil->Storage->write_file({
+			debug     => 2,
+			backup    => 0,
+			overwrite => 1,
+			file      => $config_file, 
+			body      => $new_resource_config,
+			user      => "root", 
+			group     => "root", 
+			mode      => "0644",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		print "Updated! Verifying...\n";
+		
+		# Call 'drbdadm dump-xml' to check that it's OK.
+		($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+		if ($return_code)
+		{
+			# Something went wrong.
+			print "[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [".$return_code."]\n";
+			print "The output, if any, was:\n";
+			print "====\n";
+			print $output."\n";
+			print "====\n";
+			print "- Restoring the old config now.\n";
+			
+			my ($backup_file) = $anvil->Storage->backup({file => $config_file});
+			print "- The problematic new config has been saved as: [".$backup_file."]\n";
+			
+			# Write out the new file.
+			my ($problem) = $anvil->Storage->write_file({
+				debug     => 2,
+				backup    => 1,
+				overwrite => 1,
+				file      => $old_resource_config, 
+				body      => $config_file, 
+				user      => "root", 
+				group     => "root", 
+				mode      => "0644",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+			print "- The old config has been restored. Exiting.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# New config is good! Update the file on the peers.
+		print "- The new config looks good!\n";
 	}
 	
-	on an-a01n02 {
-		node-id 1;
-		volume 0 {
-			device    /dev/drbd_srv02-c8-b_0 minor 1;
-			disk      /dev/cs_an-a01n02/srv02-c8-b_0;
-			meta-disk internal;
-		}
+	# New config is good! Update the file on the peers.
+	print "- Updating the peers now...\n";
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	{
+		# "Peer" in this context is either a node or a DR host
+		next if $this_host_uuid eq $anvil->Get->host_uuid();
+		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
+		print "- Updating the resource file: [".$config_file."] on the host: [".$peer_host_name."] via IP: [".$peer_sn_ip."]\n";
+		my ($problem) = $anvil->Storage->write_file({
+			debug     => 2,
+			backup    => 1,
+			overwrite => 1,
+			file      => $new_resource_config, 
+			body      => $config_file, 
+			user      => "root", 
+			group     => "root", 
+			mode      => "0644",
+			target    => $peer_sn_ip, 
+			password  => $anvil_password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	}
 	
-	### NOTE: Remember to open the appropriate firewall port!
-	# firewall-cmd --zone=SN1 --permanent --add-port=7789/tcp --permanent
-	# firewall-cmd --zone=SN1 --permanent --add-port=7789/tcp
-
-	connection {
-		host  an-a01n01  address  10.101.10.1:7789;
-		host  an-a01n02  address  10.101.10.2:7789;
-		disk {
-			# Without this, the variable bit rate caps at 100 MiB/sec, and most deployments are
-			# 10 Gbps. So this lets the variable rate climb to 500 MiB/sec
-			c-max-rate 500M;
+	# Create the LV and MD on DR.
+	print "Creating logical volumes on DR, if needed. New LVs will have metadata created.\n";
+	my $create_md = 0;
+	foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$server_name}})
+	{
+		print "- Volume: [".$volume."]\n";
+		my $dr1_sn1_ip    = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{network}{sn1}{ip_address};
+		my $lv_path       = $anvil->data->{server}{dr}{volumes}{$server_name}{$volume}{lv_path};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			volume     => $volume,
+			dr1_sn1_ip => $dr1_sn1_ip, 
+			lv_path    => $lv_path, 
+		}});
+		
+		my $lv_check_call = "
+if [ -e '".$lv_path."' ]; 
+then 
+    echo exists;
+else 
+    echo create;
+fi";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lv_check_call => $lv_check_call }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $dr1_sn1_ip, 
+			password   => $anvil_password,
+			shell_call => $lv_check_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($output eq "exists")
+		{
+			print "- The logical volume: [".$lv_path."] already exists, skipping it, and NOT create DRBD meta data.\n";
+			next;
 		}
-		net {
-			protocol  C;
-                	fencing resource-and-stonith;
+		
+		# Create the LV.
+		my $lvcreate_call = $anvil->data->{server}{dr}{volumes}{$server_name}{$volume}{lvcreate_call};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lvcreate_call => $lvcreate_call }});
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $dr1_sn1_ip, 
+			password   => $anvil_password,
+			shell_call => $lvcreate_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		print "- LV create call return code: [".$return_code."], output:\n";
+		print "====\n";
+		print $output."\n";
+		print "====\n";
+		
+		sleep 1;
+		# Does it exist now?
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $dr1_sn1_ip, 
+			password   => $anvil_password,
+			shell_call => $lv_check_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($output eq "create")
+		{
+			print "- The logical volume: [".$lv_path."] creation failed. Unable to proceed.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Create the DRBD meta data now.
+		$create_md = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_md => $create_md }});
+	}
+	
+	if ($create_md)
+	{
+		my $dr1_sn1_ip   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{network}{sn1}{ip_address};
+		my $drbd_md_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			dr1_sn1_ip   => $dr1_sn1_ip, 
+			drbd_md_call => $drbd_md_call, 
+		}});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $dr1_sn1_ip, 
+			password   => $anvil_password,
+			shell_call => $drbd_md_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		# Get the VG name that this volume will be created on.
+		print " - The DRBD metadata creation call return code: [".$return_code."], output:\n";
+		print "====\n";
+		print $output."\n";
+		print "====\n";
+	}
+	
+	# Reload the config.
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --adjust ".$server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	{
+		# "Peer" in this context is either a node or a DR host
+		next if $this_host_uuid eq $anvil->Get->host_uuid();
+		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
+		print "- Reloading the resource: [".$server_name."] on the host: [".$peer_host_name."]\n";
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_sn_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	# Log into DR and up the resource.
+	print "- Asking the DR host to bring up the: [".$server_name."] resource now...\n";
+	my $drbd_md_call = $anvil->data->{path}{exe}{drbdadm}." up ".$server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_md_call => $drbd_md_call }});
+	($output, my $error, $return_code) = $anvil->Remote->call({
+		target     => $dr1_sn1_ip, 
+		password   => $anvil_password,
+		shell_call => $drbd_md_call,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		error       => $error,
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Get the VG name that this volume will be created on.
+	print " - The resource up command's return code was: [".$return_code."], output:\n";
+	print "====\n";
+	print $output."\n";
+	print "====\n";
+	
+	# Now watch until the DR host shows up
+	print "Checking to see if the DR host has connected to this resource yet.\n";
+	my $waiting = 1;
+	while($waiting)
+	{
+		sleep 5;
+		$anvil->DRBD->gather_data({debug => 2});
+		
+		my $dr_seen = 1;
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{volume}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volume => $volume }});
+			if (exists $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name})
+			{
+				my $local_role       = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{local_role};
+				my $local_disk_state = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{local_disk_state};
+				my $peer_role        = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{peer_role};
+				my $peer_disk_state  = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{peer_disk_state}; 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					local_role       => $local_role,
+					local_disk_state => $local_disk_state, 
+					peer_role        => $peer_role, 
+					peer_disk_state  => $peer_disk_state, 
+				}});
+			}
+			else
+			{
+				# Not up yet.
+				print "- Not up yet, will check again in five seconds.\n";
+				$dr_seen = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_seen => $dr_seen }});
+			}
+		}
+		
+		if ($dr_seen)
+		{
+			# We're ready.
+			print "- Up!\n";
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 		}
 	}
-}
-=cut
-	
+		
 	return(0);
 }
 

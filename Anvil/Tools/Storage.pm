@@ -4955,9 +4955,9 @@ fi";
 				my $shell_call = "
 if [ -d '".$directory."' ]; 
 then
-    ".$anvil->data->{path}{exe}{echo}." 'exists'; 
+    echo 'exists'; 
 else 
-    ".$anvil->data->{path}{exe}{echo}." 'not found';
+    echo 'not found';
 fi";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 				(my $output, $error, my $return_code) = $anvil->Remote->call({
