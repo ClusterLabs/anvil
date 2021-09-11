@@ -460,6 +460,15 @@ sub process_protect
 				}});
 				
 				my $this_size = $anvil->Storage->get_size_of_block_device({debug => 2, host_uuid => $this_host_uuid, path => $backing_disk});
+				if ($this_size eq "")
+				{
+					# DRBD config file was updated, but LV not created yet.
+					next;
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					this_size => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
+				}});
+				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					this_size => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
 				}});
@@ -935,7 +944,7 @@ sub process_protect
 		# case they need to restore it.
 		my ($backup_file) = $anvil->Storage->backup({file => $config_file});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
-		print "Backed up old config as: [".$backup_file."]. Updating it now.\n";
+		print "- Backed up old config as: [".$backup_file."]. Updating it now.\n";
 		
 		# Write out the new file.
 		($problem) = $anvil->Storage->write_file({
@@ -949,7 +958,7 @@ sub process_protect
 			mode      => "0644",
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
-		print "Updated! Verifying...\n";
+		print "- Updated! Verifying...\n";
 		
 		# Call 'drbdadm dump-xml' to check that it's OK.
 		($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
@@ -971,8 +980,8 @@ sub process_protect
 				debug     => 2,
 				backup    => 1,
 				overwrite => 1,
-				file      => $old_resource_config, 
-				body      => $config_file, 
+				file      => $config_file, 
+				body      => $old_resource_config, 
 				user      => "root", 
 				group     => "root", 
 				mode      => "0644",
@@ -999,8 +1008,8 @@ sub process_protect
 			debug     => 2,
 			backup    => 1,
 			overwrite => 1,
-			file      => $new_resource_config, 
-			body      => $config_file, 
+			file      => $config_file, 
+			body      => $new_resource_config, 
 			user      => "root", 
 			group     => "root", 
 			mode      => "0644",
@@ -1119,7 +1128,7 @@ fi";
 	# Reload the config.
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --adjust ".$server_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code, 
@@ -1143,26 +1152,34 @@ fi";
 		}});
 	}
 	
-	# Log into DR and up the resource.
-	print "- Asking the DR host to bring up the: [".$server_name."] resource now...\n";
-	my $drbd_md_call = $anvil->data->{path}{exe}{drbdadm}." up ".$server_name;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_md_call => $drbd_md_call }});
-	($output, my $error, $return_code) = $anvil->Remote->call({
-		target     => $dr1_sn1_ip, 
-		password   => $anvil_password,
-		shell_call => $drbd_md_call,
-	});
+	# If the resource is down, bring it up.
+	print "- Checking, and starting where needed, the: [".$server_name."] resource locally and on peers.\n";
+	print " - Checking locally.\n";
+	my $drbd_up_call = $anvil->data->{path}{exe}{drbdsetup}." status ".$server_name." || ".$anvil->data->{path}{exe}{drbdadm}." up ".$server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_up_call => $drbd_up_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $drbd_up_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		error       => $error,
-		output      => $output,
+		output      => $output, 
 		return_code => $return_code, 
 	}});
-	
-	# Get the VG name that this volume will be created on.
-	print " - The resource up command's return code was: [".$return_code."], output:\n";
-	print "====\n";
-	print $output."\n";
-	print "====\n";
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	{
+		# "Peer" in this context is either a node or a DR host
+		next if $this_host_uuid eq $anvil->Get->host_uuid();
+		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
+		print " - Checking the host: [".$peer_host_name."]\n";
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_sn_ip, 
+			password   => $anvil_password,
+			shell_call => $drbd_up_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
 	
 	# Now watch until the DR host shows up
 	print "Checking to see if the DR host has connected to this resource yet.\n";
@@ -1206,7 +1223,11 @@ fi";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 		}
 	}
-		
+	
+	# Done!
+	print "Done! The server: [".$server_name."] is no being protected on DR!\n";
+	print "It will take time for it to initialize, please be patient.\n";
+	
 	return(0);
 }
 
