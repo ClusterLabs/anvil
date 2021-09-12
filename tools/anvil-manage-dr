@@ -40,7 +40,7 @@ $anvil->data->{switches}{server}     = "";	# Name or UUID
 $anvil->data->{switches}{update}     = "";	# connects, if needed, and disconnects once UpToDate
 $anvil->data->{switches}{Yes}        = "";	# Set to avoid confirmation, not case sensitive
 $anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	'switches::connect'    => $anvil->data->{switches}{'connect'},
 	'switches::disconnect' => $anvil->data->{switches}{disconnect},
@@ -54,7 +54,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
@@ -106,6 +106,12 @@ sub sanity_check
 {
 	my ($anvil, $terminal) = @_;
 	
+	# Begin sanity checks
+	$anvil->Job->update_progress({
+		progress => 10,
+		message  => "job_0358", 
+	});
+	
 	# Are we a node or DR?
 	my $host_type  = $anvil->Get->host_type();
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
@@ -116,7 +122,13 @@ sub sanity_check
 	
 	if (($host_type ne "node") or (not $anvil_uuid))
 	{
-		print "This must be run on a node active in the cluster hosting the server being managed. Exiting.\n";
+		# This must be run on a node active in the cluster hosting the server being managed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0332"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0332", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -128,7 +140,13 @@ sub sanity_check
 	# Does this Anvil! have a DR node?
 	if (not $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
 	{
-		print "This Anvil! does not seem to have a DR host. Exiting.\n";
+		# This Anvil! does not seem to have a DR host. Exiting.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0333"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0333", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -148,7 +166,13 @@ sub sanity_check
 	}});
 	if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
 	{
-		print "Failed to find an IP we can access the DR host: [".$dr1_host_name."]. Has it been configured? Is it running? Exiting.\n";
+		# Failed to find an IP we can access the DR host. Has it been configured? Is it running? Exiting.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0334", variables => { host_name => $dr1_host_name }});
+		$anvil->Job->update_progress({
+			progress => 0,
+			message  => "error_0334,!!host_name!".$dr1_host_name."!!", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -160,7 +184,16 @@ sub sanity_check
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
 	if (not $access)
 	{
-		print "Failed to access the DR host: [".$dr1_host_name."] using the IP: [".$dr_ip."]. Is it running? Exiting.\n";
+		# Failed to access the DR host. Is it running? Exiting.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0335", variables => { 
+			host_name  => $dr1_host_name,
+			ip_address => $dr_ip, 
+		}});
+		$anvil->Job->update_progress({
+			progress => 0,
+			message  => "error_0335,!!host_name!".$dr1_host_name."!!,!!ip_address!".$dr_ip."!!", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -169,14 +202,26 @@ sub sanity_check
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)
 	{
-		print "Failed to parse the CIB. Is this node in the cluster? Exiting.\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0336"});
+		$anvil->Job->update_progress({
+			progress => 0,
+			message  => "error_0336", 
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	# Both nodes need to be in the cluster, are they?
 	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
 	{
-		print "We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.\n";
+		# We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0337"});
+		$anvil->Job->update_progress({
+			progress => 0,
+			message  => "error_0337", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -190,11 +235,25 @@ sub sanity_check
 	{
 		if ($anvil->data->{switches}{protect})
 		{
-			print "We can't setup a server to be protected unless both nodes are up, and the peer isn't at this time. Exiting.\n";
+			# We can't setup a server to be protected unless both nodes are up, and the peer 
+			# isn't at this time.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0338"});
+			$anvil->Job->update_progress({
+				progress => 0,
+				message  => "error_0338", 
+				job_status => "failed", 
+			});
 		}
 		else
 		{
-			print "We can't remove a server from DR unless both nodes are up, and the peer isn't at this time. Exiting.\n";
+			# We can't remove a server from DR unless both nodes are up, and the peer isn't at 
+			# this time.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0339"});
+			$anvil->Job->update_progress({
+				progress => 0,
+				message  => "error_0339", 
+				job_status => "failed", 
+			});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -205,7 +264,13 @@ sub sanity_check
 	$anvil->data->{server}{'anvil-uuid'}  = $anvil_uuid;
 	if (not $anvil->data->{switches}{server})
 	{
-		print "Please specify the server to manager using '--server <name or uuid>'. Exiting.\n";
+		# Please specify the server to manager using '--server <name or uuid>'.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0340"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0340", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	else
@@ -237,7 +302,13 @@ sub sanity_check
 	# Get and parse the server's definition to find the DRBD devices.
 	if ((not $anvil->data->{server}{'server-uuid'}) or (not $anvil->data->{server}{'server-name'}))
 	{
-		print "Failed to find the server: [".$anvil->data->{switches}{server}."] by name or UUID? Exiting.\n";
+		# Failed to find the server by name or UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0341", variables => { server => $anvil->data->{switches}{server} }});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0341,!!server!".$anvil->data->{switches}{server}."!!", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -252,7 +323,13 @@ sub sanity_check
 	       ($anvil->data->{switches}{protocol} ne "async") && 
 	       ($anvil->data->{switches}{protocol} ne "long-throw"))
 	{
-		print "The protocol: [".$anvil->data->{switches}{protocol}."] is invalid. Please use '--help' for more information.\n";
+		# The protocol is invalid. Please use '--help' for more information.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0342", variables => { protocol => $anvil->data->{switches}{protocol} }});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0341,!!protocol!".$anvil->data->{switches}{protocol}."!!", 
+			job_status => "failed", 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -370,6 +447,13 @@ Exiting.
 		}
 	}
 	
+	# Sanity checks complete!
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0359"});
+	$anvil->Job->update_progress({
+		progress => 20,
+		message  => "job_0359", 
+	});
+	
 	# If we're protecting, make sure there's enough space on the DR host.
 	if ($anvil->data->{switches}{protect})
 	{
@@ -417,6 +501,13 @@ sub process_protect
 		server_definition_xml => $server_definition_xml, 
 		short_host_name       => $short_host_name,
 	}});
+	
+	# Sanity checks complete!
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0360", variables => { server => $anvil->data->{server}{'server-name'} }});
+	$anvil->Job->update_progress({
+		progress => 30,
+		message  => "job_0360,!!server!".$anvil->data->{server}{'server-name'}."!!", 
+	});
 	
 	$anvil->Server->parse_definition({
 		debug      => 2,
@@ -567,7 +658,15 @@ sub process_protect
 		# First, is this SG on DR?
 		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
 		{
-			print "The DR host: [".$dr1_host_name."] doesn't appear to be storage group: [".$storage_group_name."]. Unable to proceed.\n";
+			# The DR host doesn't appear to be storage group.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0343", variables => { 
+				host_name     => $dr1_host_name,
+				storage_group => $$storage_group_name, 
+			}});
+			$anvil->Job->update_progress({
+				progress => 100,
+				message  => "error_0343,!!host_name!".$dr1_host_name."!!,!!storage_group!".$$storage_group_name."!!", 
+			});
 			$problem = 1;
 		}
 		
@@ -597,7 +696,19 @@ sub process_protect
 		}});
 		if ($space_needed > $space_on_dr)
 		{
-			print "We need: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed})." (".$anvil->Convert->add_commas({number => $space_needed})." Bytes)] from the storage group: [".$storage_group_name."], but only: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr})." (".$anvil->Convert->add_commas({number => $space_on_dr})." bytes)] is available on DR. Unable to proceed.\n";
+			my $variables = {
+				space_needed       => $anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}), 
+				space_needed_bytes => $anvil->Convert->add_commas({number => $space_needed}),
+				storage_group      => $storage_group_name, 
+				space_on_dr        => $anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}), 
+				space_on_dr_bytes  => $anvil->Convert->add_commas({number => $space_on_dr}), 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0344", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "error_0344", 
+				variables => $variables
+			});
 			$problem = 1;
 		}
 	}
@@ -613,17 +724,33 @@ sub process_protect
 	});
 	my ($node1_to_dr_port, $node2_to_dr_port) = split/,/, $tcp_ports;
 	
-	print "Verified that there is enough space on DR to proceed.\n";
-	print "* The connection protocol will be: ..... [".$anvil->data->{switches}{protocol}."]\n";
-	print "* Node 1 to DR will use TCP port: ...... [".$node1_to_dr_port."]\n";
-	print "* Node 2 to DR will use TCP port: ...... [".$node2_to_dr_port."]\n";
-	print "* We will update the DRBD resource file: [".$config_file."]\n";
-	print "The following LV(s) will be created:\n";
+	# Show what we're doing
+	my $variables = {
+		protocol         => $anvil->data->{switches}{protocol}, 
+		node1_to_dr_port => $node1_to_dr_port, 
+		node2_to_dr_port => $node2_to_dr_port, 
+		config_file      => $config_file, 
+	};
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0361", variables => $variables});
+	$anvil->Job->update_progress({
+		progress  => 40,
+		message   => "job_0361", 
+		variables => $variables, 
+	});
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}})
 	{
 		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$resource}})
 		{
-			print "- Resource: [".$resource."], Volume: [".$volume."]\n";
+			my $variables = {
+				resource => $resource, 
+				volume   => $volume, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0362", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 43,
+				message   => "job_0362", 
+				variables => $variables, 
+			});
 			my $lv_size            = $anvil->data->{server}{drbd}{$resource}{$volume}{size};
 			my $storage_group_uuid = $anvil->data->{server}{drbd}{$resource}{$volume}{storage_group_uuid};
 			my $dr_lv_name         = $resource."_".$volume;
@@ -663,7 +790,17 @@ sub process_protect
 			}});
 			
 			# Get the VG name that this volume will be created on.
-			print " - The LV: [".$dr_lv_path."] with the size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." (".$anvil->Convert->add_commas({number => $lv_size})." Bytes)] will be created.\n";
+			$variables = {
+				lv_path       => $dr_lv_path, 
+				lv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}), 
+				lv_size_bytes => $anvil->Convert->add_commas({number => $lv_size}), 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0363", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 47,
+				message   => "job_0363", 
+				variables => $variables, 
+			});
 		}
 	}
 	
@@ -672,20 +809,20 @@ sub process_protect
 	if (not $anvil->data->{switches}{Yes})
 	{
 		# Ask the user to confirm.
-		print "\n- Proceed? [N/y]: ";
+		print "\n".$anvil->Words->string({key => "message_0021"})."\n";
 		my $answer = <STDIN>;
 		chomp $answer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
 		
 		if ($answer =~ /^y/i)
 		{
-			print "- Thank you, storing job now.\n";
+			print $anvil->Words->string({key => "message_0175"})."\n";
 			$record_job = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { record_job => $record_job }});
 		}
 		else
 		{
-			print "- Aborting.\n";
+			print $anvil->Words->string({key => "message_0022"})."\n";
 			$anvil->nice_exit({exit_code => 0});
 		}
 	}
@@ -899,7 +1036,16 @@ sub process_protect
 	
 	if (not $difference)
 	{
-		print "The resource file: [".$config_file."] doesn't need to be updated.\n";
+		# The resource file doesn't need to be updated.
+		my $variables = {
+			file => $config_file, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0364", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 50,
+			message   => "job_0364", 
+			variables => $variables, 
+		});
 	}
 	else
 	{
@@ -921,7 +1067,7 @@ sub process_protect
 		# Validate.
 		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --config-to-test ".$test_file." --config-to-exclude ".$config_file." sh-nop";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
@@ -929,11 +1075,16 @@ sub process_protect
 		if ($return_code)
 		{
 			# Something went wrong.
-			print "[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [".$return_code."]\n";
-			print "The output, if any, was:\n";
-			print "====\n";
-			print $output."\n";
-			print "====\n";
+			my $variables = {
+				return_code => $return_code, 
+				output      => $output, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0345", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "error_0345", 
+				variables => $variables, 
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
@@ -944,7 +1095,13 @@ sub process_protect
 		# case they need to restore it.
 		my ($backup_file) = $anvil->Storage->backup({file => $config_file});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
-		print "- Backed up old config as: [".$backup_file."]. Updating it now.\n";
+		my $variables = { backup_file => $backup_file };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0365", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 60,
+			message   => "job_0365", 
+			variables => $variables, 
+		});
 		
 		# Write out the new file.
 		($problem) = $anvil->Storage->write_file({
@@ -958,22 +1115,44 @@ sub process_protect
 			mode      => "0644",
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
-		print "- Updated! Verifying...\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0366"});
+		$anvil->Job->update_progress({
+			progress  => 65,
+			message   => "job_0366", 
+		});
 		
 		# Call 'drbdadm dump-xml' to check that it's OK.
 		($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
 		if ($return_code)
 		{
 			# Something went wrong.
-			print "[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [".$return_code."]\n";
-			print "The output, if any, was:\n";
-			print "====\n";
-			print $output."\n";
-			print "====\n";
-			print "- Restoring the old config now.\n";
+			my $variables = {
+				return_code => $return_code, 
+				output      => $output, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0345", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 70,
+				message   => "error_0345", 
+				variables => $variables, 
+			});
 			
+			# Restoring the old config now.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0346"});
+			$anvil->Job->update_progress({
+				progress => 75,
+				message  => "error_0346", 
+			});
+			
+			# Backup the bad file and worn the user.
 			my ($backup_file) = $anvil->Storage->backup({file => $config_file});
-			print "- The problematic new config has been saved as: [".$backup_file."]\n";
+			$variables = { file => $backup_file };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0347", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 80,
+				message   => "error_0347", 
+				variables => $variables, 
+			});
 			
 			# Write out the new file.
 			my ($problem) = $anvil->Storage->write_file({
@@ -987,23 +1166,47 @@ sub process_protect
 				mode      => "0644",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
-			print "- The old config has been restored. Exiting.\n";
+
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0348"});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "error_0348", 
+				variables => $variables, 
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
 		# New config is good! Update the file on the peers.
-		print "- The new config looks good!\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0367"});
+		$anvil->Job->update_progress({
+			progress => 70,
+			message  => "job_0367", 
+		});
 	}
 	
 	# New config is good! Update the file on the peers.
-	print "- Updating the peers now...\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0368"});
+	$anvil->Job->update_progress({
+		progress => 72,
+		message  => "job_0368", 
+	});
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
 		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
 		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
-		print "- Updating the resource file: [".$config_file."] on the host: [".$peer_host_name."] via IP: [".$peer_sn_ip."]\n";
+		my $variables = {
+			file       => $config_file, 
+			host_name  => $peer_host_name, 
+			ip_address => $peer_sn_ip, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0369", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 75,
+			message   => "job_0369", 
+			variables => $variables, 
+		});
 		my ($problem) = $anvil->Storage->write_file({
 			debug     => 2,
 			backup    => 1,
@@ -1020,11 +1223,21 @@ sub process_protect
 	}
 	
 	# Create the LV and MD on DR.
-	print "Creating logical volumes on DR, if needed. New LVs will have metadata created.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0370"});
+	$anvil->Job->update_progress({
+		progress  => 78,
+		message   => "job_0370", 
+	});
 	my $create_md = 0;
 	foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$server_name}})
 	{
-		print "- Volume: [".$volume."]\n";
+		my $variables = { volume => $volume };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0371", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 80,
+			message   => "job_0371", 
+			variables => $variables, 
+		});
 		my $dr1_sn1_ip    = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{network}{sn1}{ip_address};
 		my $lv_path       = $anvil->data->{server}{dr}{volumes}{$server_name}{$volume}{lv_path};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1053,7 +1266,13 @@ fi";
 		}});
 		if ($output eq "exists")
 		{
-			print "- The logical volume: [".$lv_path."] already exists, skipping it, and NOT create DRBD meta data.\n";
+			my $variables = { lv_path => $lv_path };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0372", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 80,
+				message   => "job_0372", 
+				variables => $variables, 
+			});
 			next;
 		}
 		
@@ -1071,11 +1290,6 @@ fi";
 			return_code => $return_code, 
 		}});
 		
-		print "- LV create call return code: [".$return_code."], output:\n";
-		print "====\n";
-		print $output."\n";
-		print "====\n";
-		
 		sleep 1;
 		# Does it exist now?
 		($output, $error, $return_code) = $anvil->Remote->call({
@@ -1090,7 +1304,13 @@ fi";
 		}});
 		if ($output eq "create")
 		{
-			print "- The logical volume: [".$lv_path."] creation failed. Unable to proceed.\n";
+			my $variables = { lv_path => $lv_path };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0349", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "error_0349", 
+				variables => $variables, 
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
@@ -1117,16 +1337,15 @@ fi";
 			output      => $output,
 			return_code => $return_code, 
 		}});
-		
-		# Get the VG name that this volume will be created on.
-		print " - The DRBD metadata creation call return code: [".$return_code."], output:\n";
-		print "====\n";
-		print $output."\n";
-		print "====\n";
 	}
 	
 	# Reload the config.
-	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --adjust ".$server_name;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0373"});
+	$anvil->Job->update_progress({
+		progress => 85,
+		message  => "job_0373", 
+	});
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1139,7 +1358,16 @@ fi";
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
 		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
 		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
-		print "- Reloading the resource: [".$server_name."] on the host: [".$peer_host_name."]\n";
+		my $variables = { 
+			server    => $server_name,
+			host_name => $peer_host_name, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0374", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 85,
+			message   => "job_0374", 
+			variables => $variables, 
+		});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			target     => $peer_sn_ip, 
 			password   => $anvil_password,
@@ -1153,8 +1381,13 @@ fi";
 	}
 	
 	# If the resource is down, bring it up.
-	print "- Checking, and starting where needed, the: [".$server_name."] resource locally and on peers.\n";
-	print " - Checking locally.\n";
+	$variables = { server => $server_name };
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0375", variables => $variables});
+	$anvil->Job->update_progress({
+		progress  => 88,
+		message   => "job_0375", 
+		variables => $variables, 
+	});
 	my $drbd_up_call = $anvil->data->{path}{exe}{drbdsetup}." status ".$server_name." || ".$anvil->data->{path}{exe}{drbdadm}." up ".$server_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_up_call => $drbd_up_call }});
 	($output, $return_code) = $anvil->System->call({shell_call => $drbd_up_call});
@@ -1168,7 +1401,13 @@ fi";
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
 		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
 		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
-		print " - Checking the host: [".$peer_host_name."]\n";
+		$variables = { host_name => $peer_host_name };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0376", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 90,
+			message   => "job_0376", 
+			variables => $variables, 
+		});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			target     => $peer_sn_ip, 
 			password   => $anvil_password,
@@ -1182,7 +1421,11 @@ fi";
 	}
 	
 	# Now watch until the DR host shows up
-	print "Checking to see if the DR host has connected to this resource yet.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0377"});
+	$anvil->Job->update_progress({
+		progress => 92,
+		message  => "job_0377", 
+	});
 	my $waiting = 1;
 	while($waiting)
 	{
@@ -1209,24 +1452,41 @@ fi";
 			else
 			{
 				# Not up yet.
-				print "- Not up yet, will check again in five seconds.\n";
+				my $next_check = $anvil->Get->date_and_time({offset => 5, time_only => 1});
+				my $variables  = { next_check => $next_check };
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0378", variables => $variables});
+				$anvil->Job->update_progress({
+					progress  => 95,
+					message   => "job_0378", 
+					variables => $variables, 
+				});
 				$dr_seen = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_seen => $dr_seen }});
+				last;
 			}
 		}
 		
 		if ($dr_seen)
 		{
 			# We're ready.
-			print "- Up!\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0379"});
+			$anvil->Job->update_progress({
+				progress => 98,
+				message  => "job_0379", 
+			});
 			$waiting = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 		}
 	}
 	
 	# Done!
-	print "Done! The server: [".$server_name."] is no being protected on DR!\n";
-	print "It will take time for it to initialize, please be patient.\n";
+	$variables = { server => $server_name };
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0380", variables => $variables});
+	$anvil->Job->update_progress({
+		progress  => 100,
+		message   => "job_0380", 
+		variables => $variables, 
+	});
 	
 	return(0);
 }

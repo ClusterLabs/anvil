@@ -454,6 +454,29 @@ Failed to parse the XML in the new definition file. The error was:
 
 Giving up.
 		</key>
+		<key name="error_0332">This must be run on a node active in the cluster hosting the server being managed. Exiting.</key>
+		<key name="error_0333">This Anvil! does not seem to have a DR host. Exiting.</key>
+		<key name="error_0334">Failed to find an IP we can access the DR host: [#!variable!host_name!#]. Has it been configured? Is it running? Exiting.</key>
+		<key name="error_0335">Failed to access the DR host: [#!variable!host_name!#] using the IP: [#!variable!ip_address!#]. Is it running? Exiting.</key>
+		<key name="error_0336">Failed to parse the CIB. Is this node in the cluster? Exiting.</key>
+		<key name="error_0337">We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.</key>
+		<key name="error_0338">We can't setup a server to be protected unless both nodes are up, and the peer isn't at this time. Exiting.</key>
+		<key name="error_0339">We can't remove a server from DR unless both nodes are up, and the peer isn't at this time. Exiting.</key>
+		<key name="error_0340"><![CDATA[Please specify the server to manager using '--server <name or uuid>'. Exiting.]]></key>
+		<key name="error_0341">Failed to find the server: [#!variable!server!#] by name or UUID? Exiting.</key>
+		<key name="error_0342">The protocol: [#!variable!protocol!#] is invalid. Please use '--help' for more information.</key>
+		<key name="error_0343">The DR host: [#!variable!host_name!#] doesn't appear to be storage group: [#!variable!storage_group!#]. Unable to proceed.</key>
+		<key name="error_0344">We need: [#!variable!space_needed!# (#!variables!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but only: [#!variables!space_on_dr!# (#!variable!space_on_dr_bytes!# bytes)] is available on DR. Unable to proceed.</key>
+		<key name="error_0345">[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [#!variable!return_code!#]
+The output, if any, was
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0346">- Restoring the old config now.</key>
+		<key name="error_0347">- The problematic new config has been saved as: [#!variable!file!#].</key>
+		<key name="error_0348">- The old config has been restored. Exiting.</key>
+		<key name="error_0349">- The logical volume: [#!variable!lv_path!#] creation failed. Unable to proceed.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1178,13 +1201,43 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0349">Loading the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
 		<key name="job_0350">Manage VNC Pipes</key>
 		<key name="job_0351">Perform VNC pipe operation [#!variable!operation!#] for server UUID [#!variable!server_uuid!#] from host UUID [#!variable!host_uuid!#].</key>
-		
 		<key name="job_0352">Manage a server menu:</key>
 		<key name="job_0353">* Please enter the name of the server you want to manage</key>
 		<key name="job_0354">-=] Servers available to manage on the Anvil! [#!variable!anvil_name!#] [=-</key>
 		<key name="job_0355">-=] Managing the server: [#!variable!server_name!#] on the Anvil!: [#!variable!anvil_name!#]</key>
 		<key name="job_0356">Manage DR tasks for a given server</key>
 		<key name="job_0357">This job can protect, remove (unprotect), connect, disconnect or update (connect, sync, disconnect) a given server.</key>
+		<key name="job_0358">Running sanity checks.</key>
+		<key name="job_0359">Sanity checks complete!</key>
+		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
+		<key name="job_0361">Verified that there is enough space on DR to proceed.
+* The connection protocol will be: ..... [#!variable!protocol!#]
+* Node 1 to DR will use TCP port: ...... [#!variable!node1_to_dr_port!#]
+* Node 2 to DR will use TCP port: ...... [#!variable!node2_to_dr_port!#]
+* We will update the DRBD resource file: [#!variable!config_file!#]
+The following LV(s) will be created:
+		</key>
+		<key name="job_0362">- Resource: [#!variable!resource!#], Volume: [#!variable!volume!#]</key>
+		<key name="job_0363"> - The LV: [#!variable!lv_path!#] with the size: [#!variable!lv_size!# (#!variable!lv_size_bytes!# Bytes)] will be created.</key>
+		<key name="job_0364">The resource file: [#!variable!file!#] doesn't need to be updated.</key>
+		<key name="job_0365">- Backed up old config as: [#!variable!backup_file!#]. Updating it now.</key>
+		<key name="job_0366">- Updated! Verifying...</key>
+		<key name="job_0367">- The new config looks good!</key>
+		<key name="job_0368">- Updating the peers now...</key>
+		<key name="job_0369">- Updating the resource file: [#!variable!file!#] on the host: [#!variable!host_name!#] via IP: [#!variable!ip_address!#].</key>
+		<key name="job_0370">Creating logical volumes on DR, if needed. New LVs will have metadata created.</key>
+		<key name="job_0371">- Volume: [#!variable!volume!#].</key>
+		<key name="job_0372">- The logical volume: [#!variable!lv_path!#] already exists, skipping it, and NOT create DRBD meta data.</key>
+		<key name="job_0373">- Reloading the local DRBD resource config.</key>
+		<key name="job_0374">- Reloading the resource: [#!variable!server!#] on the host: [#!variable!host_name!#].</key>
+		<key name="job_0375">- Checking, and starting where needed, the: [#!variable!server!#] resource locally and on peers.
+ - Checking locally.</key>
+		<key name="job_0376"> - Checking the host: [#!variable!host_name!#]</key>
+		<key name="job_0377">- Checking to see if the DR host has connected to this resource yet.</key>
+		<key name="job_0378">- Not up yet, will check again at: [#!variable!next_check!#].</key>
+		<key name="job_0379">- Up!</key>
+		<key name="job_0380">Done! The server: [#!variable!server!#] is now being protected on DR!
+It will take time for it to initialize, please be patient.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
