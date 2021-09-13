@@ -54,7 +54,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
@@ -64,17 +64,23 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-my $termios = new POSIX::Termios;
-$termios->getattr;
-my $ospeed   = $termios->getospeed;
-my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
-$terminal->Trequire(qw/ce ku kd/);
-print $terminal->Tputs('cl');
-
 # If we've got a job UUID, load the job details.
 if ($anvil->data->{switches}{'job-uuid'})
 {
-	load_job($anvil, $terminal);
+	load_job($anvil);
+}
+
+my $terminal = "";
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	my $termios = new POSIX::Termios;
+	$termios->getattr;
+	my $ospeed   = $termios->getospeed;
+	$terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { terminal => $terminal }});
+	
+	$terminal->Trequire(qw/ce ku kd/);
+	print $terminal->Tputs('cl');
 }
 
 sanity_check($anvil, $terminal);
@@ -850,6 +856,11 @@ sub process_protect
 			job_host_uuid   => $anvil->Get->host_uuid, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		# Report the job UUID.
+		print $anvil->Words->string({key => "job_0383", variables => { job_uuid => $job_uuid }})."\n";
+		
+		
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -1222,6 +1233,46 @@ sub process_protect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	}
 	
+	# Immediately call scan-drbd on all machines to ensure that if another run is about to happen for a 
+	# different server, it knows the used ports list is updated.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0381"});
+	$anvil->Job->update_progress({
+		progress => 76,
+		message  => "job_0381", 
+	});
+	
+	my $scan_drbd_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd --force ".$anvil->Log->switches();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_call => $scan_drbd_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $scan_drbd_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	{
+		# "Peer" in this context is either a node or a DR host
+		next if $this_host_uuid eq $anvil->Get->host_uuid();
+		my $peer_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+		my $peer_sn_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{sn1}{ip_address};
+		my $variables = { host_name => $peer_host_name };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0382", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 77,
+			message   => "job_0382", 
+			variables => $variables, 
+		});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_sn_ip, 
+			password   => $anvil_password,
+			shell_call => $scan_drbd_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
 	# Create the LV and MD on DR.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0370"});
 	$anvil->Job->update_progress({
@@ -1231,13 +1282,6 @@ sub process_protect
 	my $create_md = 0;
 	foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$server_name}})
 	{
-		my $variables = { volume => $volume };
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0371", variables => $variables});
-		$anvil->Job->update_progress({
-			progress  => 80,
-			message   => "job_0371", 
-			variables => $variables, 
-		});
 		my $dr1_sn1_ip    = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{network}{sn1}{ip_address};
 		my $lv_path       = $anvil->data->{server}{dr}{volumes}{$server_name}{$volume}{lv_path};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1245,6 +1289,17 @@ sub process_protect
 			dr1_sn1_ip => $dr1_sn1_ip, 
 			lv_path    => $lv_path, 
 		}});
+		
+		my $variables = { 
+			volume  => $volume, 
+			lv_path => $lv_path, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0371", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 80,
+			message   => "job_0371", 
+			variables => $variables, 
+		});
 		
 		my $lv_check_call = "
 if [ -e '".$lv_path."' ]; 
@@ -1347,7 +1402,7 @@ fi";
 	});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code, 
@@ -1493,7 +1548,7 @@ fi";
 
 sub load_job
 {
-	my ($anvil, $terminal) = @_;
+	my ($anvil) = @_;
 	
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
