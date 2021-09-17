@@ -17,6 +17,7 @@ my $THIS_FILE = "Database.pm";
 
 ### Methods;
 # archive_database
+# backup_database
 # check_file_locations
 # check_lock_age
 # check_for_schema
@@ -78,6 +79,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_upses
 # insert_or_update_users
 # insert_or_update_variables
+# load_database
 # lock_file
 # locking
 # manage_anvil_conf
@@ -299,6 +301,80 @@ sub archive_database
 	return(0);
 }
 
+
+=head2 backup_database
+
+This backs up the database to the C<< path::directories::pgsql >> directory as the file name C<< anvil_pg_dump.<host_uuid>.out >>.
+
+If the backup is successful, C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned.
+
+B<< Note >>: This method must be called by the root user.
+
+B<< Note >>: If C<< sys::database::name >> has been changed, the dump file name will match. 
+
+This method takes no parameters.
+
+=cut
+sub backup_database
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->backup_database()" }});
+	
+	# Only the root user can do this
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0352"});
+		return('!!error!!');
+	}
+	
+	my $start_time = time;
+	my $dump_file  = $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".out";
+	my $dump_call  = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pg_dump}." ".$anvil->data->{sys}{database}{name}." > ".$dump_file."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		dump_file => $dump_file, 
+		dump_call => $dump_call, 
+	}});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $dump_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	if ($return_code)
+	{
+		# Dump failed. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0351", variables => {
+			shell_call  => $dump_call, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+		
+		# Clear the out file.
+		if (-e $dump_path)
+		{
+			unlink $dump_path;
+		}
+		return('!!error!!');
+	}
+	
+	# Record the stats
+	$anvil->Storage->get_file_stats({debug => $debug, file_path => $dump_file});
+	my $dump_time  = time - $start_time;
+	my $size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$dump_file}{size}}); 
+	my $size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$dump_file}{size}}); 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0654", variables => {
+		file       => $dump_file, 
+		took       => $dump_time, 
+		size       => $size, 
+		size_bytes => $size_bytes, 
+	}});
+	
+	return(0);
+}
 
 =head2 check_file_locations
 
@@ -722,35 +798,34 @@ sub configure_pgsql
 		return(1);
 	}
 	
-	# First, is it running?
-	my $running = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
+	# First, is it running and is it initialized?
+	my $initialized = 0;
+	my $running     = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
-	
-	if (not $running)
+	if ((not $running) && (not -e $anvil->data->{path}{configs}{'pg_hba.conf'}))
 	{
-		# Do we need to initialize the databae?
+		# Initialize. Record that we did so, so that we know to start the daemon.
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		
+		# Did it succeed?
 		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 		{
-			# Initialize.
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+			# Failed... 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+			return("!!error!!");
+		}
+		else
+		{
+			# Initialized!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
 			
-			# Did it succeed?
-			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
-			{
-				# Failed... 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
-				return("!!error!!");
-			}
-			else
-			{
-				# Initialized!
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
-				
-				# Enable it on boot.
-				my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
-			}
+			$initialized = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { initialized => $initialized }});
+			
+			# Enable it on boot. When two or more are available, one will shut down.
+			my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 		}
 	}
 	
@@ -859,19 +934,23 @@ sub configure_pgsql
 	# Start or restart the daemon?
 	if (not $running)
 	{
-		# Start the daemon.
-		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
-		if ($return_code eq "0")
+		# Did we initialize?
+		if ($initialized)
 		{
-			# Started the daemon.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
-		}
-		else
-		{
-			# Failed to start
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
-			return("!!error!!");
+			# Start the daemon.
+			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+			if ($return_code eq "0")
+			{
+				# Started the daemon.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+			}
+			else
+			{
+				# Failed to start
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+				return("!!error!!");
+			}
 		}
 	}
 	elsif (($update_postgresql_file) or ($update_pg_hba_file))
@@ -1082,6 +1161,10 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
+=head3 all (optional, default '0')
+
+If this is set, all available databases will be connected to. This will also allow resync's to run as needed.
+
 =head3 check_for_resync (optional, default 0)
 
 If set to C<< 1 >>, and there are 2 or more databases available, a check will be make to see if the databases need to be resync'ed or not. This is also set if the command line switch C<< --resync-db >> is used.
@@ -1103,6 +1186,10 @@ If set, the connection will be made only to the database server matching the UUI
 =head3 no_ping (optional, default '0')
 
 If set to C<< 1 >>, no attempt to ping a target before connection will happen, even if C<< database::<uuid>::ping = 1 >> is set.
+
+=head3 retry (optional, default '0')
+
+This method will try to recall itself if this is a Striker and it found no available databases, and so became primary. If this is set, it won't try to become primary a second time.
 
 =head3 sensitive (optional, default '0')
 
@@ -1162,20 +1249,24 @@ sub connect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->connect()" }});
 	
+	my $all                 = defined $parameter->{all}                 ? $parameter->{all}                 : 0;
 	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
-	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
 	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
+	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
+	my $retry               = defined $parameter->{retry}               ? $parameter->{retry}               : 0;
 	my $sensitive           = defined $parameter->{sensitive}           ? $parameter->{sensitive}           : 0;
 	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
 	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
 	my $test_table          = defined $parameter->{test_table}          ? $parameter->{test_table}          : $anvil->data->{sys}{database}{test_table};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		all                 => $all, 
 		check_if_configured => $check_if_configured, 
 		db_uuid             => $db_uuid,
-		no_ping             => $no_ping,
 		check_for_resync    => $check_for_resync, 
+		no_ping             => $no_ping,
+		retry               => $retry, 
 		sensitive           => $sensitive, 
 		source              => $source, 
 		sql_file            => $sql_file, 
@@ -1227,6 +1318,14 @@ sub connect
 		$check_for_resync = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 	}
+	
+	### NOTE: Experimental database configuration below
+	# If we're a striker, sort by UUID and the first one (doesn't matter which it actually is) becomes 
+	# "primary". If this is a Striker and we connected to another Striker, shut down our database. Later,
+	# if no connections were found and this is a Striker, we'll start our database up (loading from our
+	# peer's last dump they sent us). If this is a node or DR host, we stop connecting after our first
+	# successful connections.
+	$anvil->data->{cache}{active_db} = "";
 	
 	# Now setup or however-many connections
 	my $seen_connections       = [];
@@ -1369,13 +1468,14 @@ sub connect
 		}});
 		if (not $test)
 		{
-			# Something went wrong...
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0064", variables => { 
+			# Either the Striker hosting this is down, or it's not primary and stopped its 
+			# database.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "log_0064", variables => { 
 				uuid => $uuid,
 				host => $host,
 				name => $name,
 			}});
-
+			
 			push @{$failed_connections}, $uuid;
 			my $message_key = "log_0065";
 			my $variables   = { dbi_error => $DBI::errstr };
@@ -1602,10 +1702,157 @@ sub connect
 					target_version => $remote_schema_version,
 				}});
 				
-				# Delete the information about this database. We'll try again on nexy 
+				# Delete the information about this database. We'll try again on next
 				# ->connect().
 				delete $anvil->data->{database}{$uuid};
+				$anvil->data->{sys}{database}{connections}--;
 				next;
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+		}});
+		if (($anvil->data->{sys}{database}{connections}) && (not $all))
+		{
+			# Stop connecting here.
+			$anvil->data->{cache}{active_db} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"cache::active_db" => $anvil->data->{cache}{active_db},
+			}});
+			last;
+		}
+	}
+	
+	# If we're not connecting to all databases, perform shutdown / backup / daemon management logic.
+	if (not $all)
+	{
+		my $local_host_type = $anvil->Get->host_type();
+		my $local_host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			local_host_type => $local_host_type, 
+			local_host_uuid => $local_host_uuid, 
+		}});
+		
+		# Are we a Striker?
+		if ($local_host_type eq "striker")
+		{
+			# If we didn't connect to any database, it's possible/likely our peer is down and we need to
+			# start our local postgres database server.
+			if ((not $anvil->data->{sys}{database}{connections}) && (not $running))
+			{
+				# Tell the user we're going to try to load and start.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
+				
+				# Look for pgdumps. "Youngest" is the one with the highest mtime.
+				my $use_dump      = "";
+				my $youngest_dump = 0;
+				my $directory     = $anvil->data->{path}{directories}{pgsql};
+				my $db_name       = $anvil->data->{sys}{database}{name};
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+				local(*DIRECTORY);
+				opendir(DIRECTORY, $directory);
+				while(my $file = readdir(DIRECTORY))
+				{
+					next if $file eq ".";
+					next if $file eq "..";
+					my $db_dump_uuid = "";
+					my $full_path    = $directory."/".$file;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						file      => $file,
+						full_path => $full_path,
+					}});
+					if ($file =~ /${db_name}_db_dump\.(.*).sql/)
+					{
+						$db_dump_uuid = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+						
+						# Is this one of our own dumps?
+						if ($db_dump_uuid eq $local_host_uuid)
+						{
+							# Ignore it.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0653", variables => { full_path => $full_path });
+							next;
+						}
+						
+						# Is this a database we're configured to use?
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0651", variables => { full_path => $full_path });
+						if ((not exists $anvil->data->{database}{$db_dump_uuid}) or (not $anvil->data->{database}{$db_dump_uuid}{host}))
+						{
+							# Not a database we're peered with anymore, ignore it.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0652", variables => { 
+								full_path => $full_path,
+								host_uuid => $db_dump_uuid,
+							});
+							next;
+						}
+					}
+					else
+					{
+						next;
+					}
+					
+					# What's the mtime on this file?
+					$anvil->Storage->get_file_stats({debug => $debug, file => $full_path});
+					my $mtime = $anvil->data->{file_stat}{$file_path}{modified_time};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+					
+					if ($mtime > $youngest_dump)
+					{
+						# This is the youngest, so far.
+						$youngest_dump = $mtime;
+						$use_dump      = $full_path;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							youngest_dump => $youngest_dump,
+							full_path     => $full_path, 
+						}});
+					}
+				}
+				
+				# Did I find a dump to load?
+				if ($use_dump)
+				{
+					# Yup! This will start the database, if needed.
+					my $file_size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$file_path}{size}});
+					my $file_size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$file_path}{size}});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0656", variables => {
+						file       => $file_path, 
+						size       => $file_size, 
+						size_bytes => $file_size_bytes, 
+					}});
+					
+					my $problem = $anvil->Database->load_database({
+						debug     => $debug, 
+						backup    => 1,
+						load_file => $full_path,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+					
+					### TODO: Loop through the directory and delete all dumps from other 
+					###       Strikers. This way we won't roll back in time if we restart
+					###       and there's been no new dumps made.
+				}
+				
+				# Check if the dameon is running
+				my $running = $anvil->System->check_daemon({daemon => "NetworkManager"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+				if (not $running)
+				{
+					my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+					if ($return_code eq "0")
+					{
+						# Started the daemon.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+						
+						# Recall this method.
+						if (not $retry)
+						{
+							$anvil->Database->connect({debug => $debug, retry => 1});
+						}
+					}
+				}
 			}
 		}
 	}
@@ -13758,6 +14005,242 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 	return($variable_uuid);
+}
+
+
+=head2 load_database
+
+This takes a path to an uncompressed SQL database dump file, and loads it into the C<< anvil >> database. During the duration of this operation, remote access to the database will be disabled via C<< iptables >> drop on port 5432!
+
+If necessary, the database server will be started. 
+
+If the dump is successfully loaded, C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned.
+
+B<< Note >>: This method must be called by the root user.
+
+B<< Note >>: This always and only works on the local database server's C<< anvil >> database.
+
+Parameters;
+
+=head3 backup (optional, default '1')
+
+This controls whether the data in the existing database is saved to a file prior to the passed-in database file being loaded.
+
+=head3 load_file (required)
+
+This is the full path to the SQL file to load into the database.
+
+=cut
+sub load_database
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->load_database()" }});
+	
+	my $backup    = $parameter->{backup}    ? $parameter->{backup}    : 1;
+	my $load_file = $parameter->{load_file} ? $parameter->{load_file} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		backup    => $backup,
+		load_file => $load_file, 
+	}});
+	
+	# Only the root user can do this
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0350"});
+		return('!!error!!');
+	}
+	
+	# Does the file exist?
+	if (not $load_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->load_database()", parameter => "load_file" }});
+	}
+	elsif (not -e $load_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0103", variables => { file => $load_file }});
+		return('!!error!!');
+	}
+	
+	my $start_time = time;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { start_time => $start_time }});
+	
+	### TODO: Replace this with System->manage_firewall().
+	# Throw up the firewall. Have the open call ready in case we hit an error.
+	my $block_call = $anvil->data->{path}{exe}{iptables}." -I INPUT -p tcp --dport 5432 -j REJECT";
+	my $open_call  = $anvil->data->{path}{exe}{iptables}." -D INPUT -p tcp --dport 5432 -j REJECT";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { block_call => $block_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $block_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Start the database, if needed.
+	my $running = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
+	if (not $running)
+	{
+		# Start it up.
+		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+		if ($return_code eq "0")
+		{
+			# Started the daemon.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+		}
+		else
+		{
+			# Failed to start
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+			
+			# Drop the firewall block
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			return("!!error!!");
+		}
+	}
+	
+	# Backup, if needed.
+	if ($backup)
+	{
+		# Backup the database.
+		my $problem = $anvil->Database->backup_database({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Drop the firewall block
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			return("!!error!!");
+		}
+	}
+	
+	# Drop the existing database.
+	my $drop_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{dropdb}." ".$anvil->data->{sys}{database}{name}."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { drop_call => $drop_call }});
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $drop_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# This is a failure, but it could be that the database simply didn't exist (was already 
+		# dumped). If that's the case, we'll keep going.
+		my $proceed = 0;
+		if ($output =~ /database ".*?" does not exist/gs)
+		{
+			# proceed.
+			$proceed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proceed => $proceed }});
+		}
+		if (not $proceed)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0353", variables => {
+				shell_call  => $drop_call, 
+				return_code => $return_code, 
+				output      => $output, 
+			}});
+			
+			# Drop the firewall block
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			return('!!error!!');
+		}
+	}
+	
+	# Recreate the DB.
+	my $create_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}." --owner ".$anvil->data->{sys}{database}{user}." ".$anvil->data->{sys}{database}{name}."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_call => $create_call }});
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $create_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0354", variables => {
+			shell_call  => $create_call, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+		
+		# Drop the firewall block
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Finally, load the database.
+	my $load_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pgsql}." < ".$load_file."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { load_call => $load_call }});
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $load_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0355", variables => {
+			shell_call  => $load_call, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+		
+		# Drop the firewall block
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Open the firewall back up
+	$output      = "";
+	$return_code = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Done!
+	my $took_time = time - $start_time;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0655", variables => { 
+		file => $load_file,
+		took => $took_time,
+	}});
+	
+	return(0);
 }
 
 

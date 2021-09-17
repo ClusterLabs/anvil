@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+# #!/usr/bin/perl
 # 
 # This is the master daemon that manages all periodically run processes on Striker dashboards, Anvil! cluster
 # nodes and DR hosts.
@@ -171,19 +171,21 @@ my $delay = set_delay($anvil);
 
 # Once a minute, we'll check the md5sums and see if we should restart. 
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
-$anvil->data->{timing}{minute_checks}        = 60;
-$anvil->data->{timing}{daily_checks}         = 86400;
-$anvil->data->{timing}{repo_update_interval} = 86400;
-$anvil->data->{timing}{next_minute_check}    = $now_time - 1;
-$anvil->data->{timing}{next_daily_check}     = ($now_time + $delay) - 1;
+$anvil->data->{timing}{minute_checks}         = 60;
+$anvil->data->{timing}{daily_checks}          = 86400;
+$anvil->data->{timing}{repo_update_interval}  = 86400;
+$anvil->data->{timing}{next_minute_check}     = $now_time - 1;
+$anvil->data->{timing}{next_ten_minute_check} = $now_time - 1;
+$anvil->data->{timing}{next_daily_check}      = ($now_time + $delay) - 1;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"s1:timing::minute_checks"        => $anvil->data->{timing}{minute_checks}, 
-	"s2:timing::daily_checks"         => $anvil->data->{timing}{daily_checks}, 
-	"s3:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval}, 
-	"s4:now_time"                     => $now_time, 
-	"s5:delay"                        => $delay, 
-	"s6:timing::next_minute_check"    => $anvil->data->{timing}{next_minute_check}, 
-	"s7:timing::next_daily_check"     => $anvil->data->{timing}{next_daily_check}, 
+	"s1:timing::minute_checks"         => $anvil->data->{timing}{minute_checks}, 
+	"s2:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
+	"s3:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
+	"s4:now_time"                      => $now_time, 
+	"s5:delay"                         => $delay, 
+	"s6:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
+	"s6:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+	"s7:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
 }});
 
 # Disconnect. We'll reconnect inside the loop
@@ -418,10 +420,11 @@ sub handle_periodic_tasks
 	my $now_time = time;
 	my $type     = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		"s1:now_time"                  => $now_time, 
-		"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
-		"s3:timing::next_daily_check"  => $anvil->data->{timing}{next_daily_check},
-		"s4:type"                      => $type,
+		"s1:now_time"                      => $now_time, 
+		"s2:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
+		"s3:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+		"s4:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check},
+		"s5:type"                          => $type,
 	}});
 	
 	# Time to run once per minute tasks.
@@ -501,6 +504,24 @@ sub handle_periodic_tasks
 		# Check mail server config.
 		my $problem = $anvil->Email->check_config({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+	}
+	
+	# Now check to see if it's time to run less frequent tasks.
+	if ($now_time >= $anvil->data->{timing}{next_ten_minute_check})
+	{
+		if ($type eq "striker")
+		{
+			# If we're the active database, dump out database out and rsync it to our peers.
+			my $peers       = keys $anvil->data->{database};
+			my $host_uuid   = $anvil->Get->host_uuid;
+			my $connections = $anvil->data->{sys}{database}{connections}; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peers       => $peers,
+				host_uuid   => $host_uuid,
+				connections => $connections, 
+			}});
+			if ($anvil->data->{sys}{database}{local_uuid} eq $host_uuid)
+		}
 	}
 	
 	# Now check to see if it's time to run daily tasks.

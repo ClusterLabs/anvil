@@ -20,6 +20,7 @@ my $THIS_FILE = "Storage.pm";
 # change_mode
 # change_owner
 # check_md5sums
+# compress
 # copy_file
 # delete_file
 # find

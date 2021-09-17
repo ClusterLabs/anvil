@@ -8,50 +8,13 @@ TODO:
 ============
 
 # Dump
-su - postgres -c "pg_dump anvil > /tmp/anvil.out" && mv /tmp/anvil.out /root/
-su - postgres -c "pg_dump --schema-only anvil > /tmp/anvil.out" && mv /tmp/anvil.out /root/
+su - postgres -c "pg_dump anvil > /var/lib/pgsql/anvil.out"
+su - postgres -c "pg_dump --schema-only anvil > /var/lib/pgsql/anvil_schema.out"
 
-cp /root/anvil.out /; su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out"
+su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /var/lib/pgsql/anvil.out"
 su postgres -c "psql anvil"
 
 ============
-
-# ScanCore post-scan logic;
-
-Sole node:
-1. Evaluate critical shutdown only, if hosting VMs. 
-2. If not hosting VMs, load-shed if over-heat / power loss for more than 120 seconds
-
-Action options;
-1. Do nothing
-2. Pull servers
-3. Shut down (once servers are gone)
-4. Shut down (gracefully stop servers)
-
-
-* Peer not available
-  - Thermal is critical, gracefully shut down.
-  - Power is strongest UPS below ten minutes and time on batteries is over 2 minutes, graceful shut down
-* Peer available
-  - If one node is healthier than the other;
-    - If we're sicker, do nothing until we have no servers
-    - If we're healthier, after two minutes, pull
-  - If health is equal;
-    - Both nodes have servers;
-      - Decide who can be evacuated fastest, in case load shed needed.
-      - Both nodes on batteries or in warning temp for more than 2 minutes; 
-        - If we're the designated survivor, pull servers.
-        - If we're the sacrifice, wait for the servers to be taken off of us, then shut down.
-    - Peer has servers, we don't
-      - If thermal warning or both/all UPSes on batter for two minutes+, shut down 
-    - We have servers, peer doesn't.
-      - Keep running
-
-
-
-1.1 - Our peer may pull from us.
-2. - Not Hosting Servers
-2.1 - 
 
 
 Jenkins;

@@ -477,6 +477,29 @@ The output, if any, was
 		<key name="error_0347">- The problematic new config has been saved as: [#!variable!file!#].</key>
 		<key name="error_0348">- The old config has been restored. Exiting.</key>
 		<key name="error_0349">- The logical volume: [#!variable!lv_path!#] creation failed. Unable to proceed.</key>
+		<key name="error_0350">Only the root user can load a database file and start the database.</key>
+		<key name="error_0351">[ Error ] - The 'pg_dump' call to backup the database failed. Expected a return code of '0', but got: [#!variable!return_code!#].
+Full command called: [#!variable!shell_call!#]
+The output, if any, was
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0352">Only the root user can backup a database.</key>
+		<key name="error_0353">[ Error ] - The 'dropdb' call to drop the database failed. Expected a return code of '0', but got: [#!variable!return_code!#].
+Full command called: [#!variable!shell_call!#]
+The output, if any, was
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0354">[ Error ] - The 'createdb' call to create the database failed. Expected a return code of '0', but got: [#!variable!return_code!#].
+Full command called: [#!variable!shell_call!#]
+The output, if any, was;
+====
+#!variable!output!#
+====
+		</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1320,7 +1343,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
 		<key name="log_0063"><![CDATA[The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.]]></key>
-		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] can not be used, skipping it.</key>
+		<key name="log_0064">[ Note ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] can not be used, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
 ----------
@@ -1992,6 +2015,13 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0647">[ Note ] - The network interface: [#!variable!name!#] with 'network_interface_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
 		<key name="log_0648">[ Note ] - Managing /etc/hosts has been disabled.</key>
 		<key name="log_0649">[ Note ] - The Anvil!: [#!variable!anvil_name!#]'s storage group: [#!variable!storage_group!#] didn't have an entry for the host: [#!variable!host_name!#]. The volume group: [#!variable!vg_internal_uuid!#] is a close fit and not in another storage group, so adding it to this storage group now.</key>
+		<key name="log_0650">[ Note ] - We're a Striker and we did not connect to a peer's database. Will check now if we can load a recent backup, then start postgres locally (with or without a load).</key>
+		<key name="log_0651">Evaluating the dump file: [#!variable!full_path!#].</key>
+		<key name="log_0652">The database host UUID: [#!variable!host_uuid!#] is not configured here, ignoring: [#!variable!full_path!#].</key>
+		<key name="log_0653">We created the database dump file: [#!variable!full_path!#], ignoring it.</key>
+		<key name="log_0654">The database was dumped to: [#!variable!file!#] in: [#!variable!took!#] second(s). The size of the dump file is: [#!variable!size!#] (#!variable!size_bytes) bytes).</key>
+		<key name="log_0655">The database was loaded successfull from the file: [#!variable!file!#] in: [#!variable!took!#] second(s)!</key>
+		<key name="log_0656">No databases were available, so we will become primary after loading: [#!variable!file!#], which is: [#!variable!size!#] (#!variable!size_bytes!# bytes). Please be patient, this could take a moment.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
