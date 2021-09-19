@@ -4444,7 +4444,7 @@ sub start_daemon
 
 This method stops a daemon. The return code from the stop request will be returned.
 
-If the return code for the stop command wasn't read, C<< !!error!! >> is returned.
+If the return code for the stop command is returned.
 
 Parameters;
 

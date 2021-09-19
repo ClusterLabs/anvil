@@ -500,6 +500,7 @@ The output, if any, was;
 #!variable!output!#
 ====
 		</key>
+		<key name="error_0355">Failed to load the database file: [#!variable!file!#]. Deleting it so it's not considered in the next load attempt.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1343,7 +1344,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
 		<key name="log_0063"><![CDATA[The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.]]></key>
-		<key name="log_0064">[ Note ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] can not be used, skipping it.</key>
+		<key name="log_0064">[ Note ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] is not available, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
 ----------
@@ -2022,6 +2023,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0654">The database was dumped to: [#!variable!file!#] in: [#!variable!took!#] second(s). The size of the dump file is: [#!variable!size!#] (#!variable!size_bytes) bytes).</key>
 		<key name="log_0655">The database was loaded successfull from the file: [#!variable!file!#] in: [#!variable!took!#] second(s)!</key>
 		<key name="log_0656">No databases were available, so we will become primary after loading: [#!variable!file!#], which is: [#!variable!size!#] (#!variable!size_bytes!# bytes). Please be patient, this could take a moment.</key>
+		<key name="log_0657">The database was loaded, clear it and other DB dumps out now so that they don't get reloaded again in the future.</key>
+		<key name="log_0658">Sync'ed the file: [#!variable!file!#] to the peer Striker: [#!variable!host_name!#]. The sync took: [#!variable!took!#] seconds, and the file was: [#!variable!size!#] (#!variable!size_bytes!# bytes).</key>
+		<key name="log_0659">We're going to shut down our database. Creating a backup first.</key>
+		<key name="log_0660">Stopped the postgresql daemon as a peer is currently primary.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

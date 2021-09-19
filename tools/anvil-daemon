@@ -1,4 +1,4 @@
-# #!/usr/bin/perl
+#!/usr/bin/perl
 # 
 # This is the master daemon that manages all periodically run processes on Striker dashboards, Anvil! cluster
 # nodes and DR hosts.
@@ -509,18 +509,112 @@ sub handle_periodic_tasks
 	# Now check to see if it's time to run less frequent tasks.
 	if ($now_time >= $anvil->data->{timing}{next_ten_minute_check})
 	{
-		if ($type eq "striker")
+		my $host_type = $anvil->Get->host_type();
+		my $host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_type => $host_type, 
+			host_uuid => $host_uuid, 
+		}});
+		
+		# Are we a Striker and is there two or more connections? If so, evaluate if we should shut down our 
+		# database.
+		if ($host_type eq "striker")
 		{
+			if ($anvil->data->{sys}{database}{connections} > 1)
+			{
+				# Sort by UUID, skip the first, and see if we're one of the others.
+				my $first_uuid = "";
+				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+					if (not $first_uuid)
+					{
+						$first_uuid = $uuid; 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { first_uuid => $first_uuid }});
+					}
+					elsif ($uuid eq $host_uuid)
+					{
+						# This is us, backup and shut down.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0659"});
+						
+						# Switch the read_uuid and then close 
+						$anvil->data->{sys}{database}{read_uuid} = $first_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+						
+						# Disconnect
+						$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+						delete $anvil->data->{cache}{database_handle}{$uuid};
+						
+						# Create a backup, this is useful also for setting the mtime of the last time
+						# we were up.
+						my $dump_file = $anvil->Database->backup_database({debug => 2});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
+						
+						# Stop the daemon
+						my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+						if ($return_code eq "0")
+						{
+							# Stopped the daemon.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0660"});
+						}
+					}
+				}
+			}
+			
 			# If we're the active database, dump out database out and rsync it to our peers.
-			my $peers       = keys $anvil->data->{database};
-			my $host_uuid   = $anvil->Get->host_uuid;
+			my $peers       = keys %{$anvil->data->{database}};
 			my $connections = $anvil->data->{sys}{database}{connections}; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				peers       => $peers,
-				host_uuid   => $host_uuid,
 				connections => $connections, 
 			}});
-			if ($anvil->data->{sys}{database}{local_uuid} eq $host_uuid)
+			if (exists $anvil->data->{cache}{database_handle}{$host_uuid})
+			{
+				# Verify that the database is up.
+				my $running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+				if ($running)
+				{
+					# Backup our DB.
+					my $dump_file = $anvil->Database->backup_database({debug => 2});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
+					
+					# Now rsync it to our peer(s)
+					foreach my $this_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+					{
+						next if $this_host_uuid eq $host_uuid;
+						
+						my $destination = "root\@".$anvil->data->{database}{$this_host_uuid}{host}.":".$anvil->data->{path}{directories}{pgsql}."/";
+						my $password    = $anvil->data->{database}{$this_host_uuid}{password};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							destination => $destination,
+							password    => $anvil->Log->is_secure($password), 
+						}});
+						
+						my $start_time = time;
+						my $failed = $anvil->Storage->rsync({
+							debug       => 2, 
+							destination => $destination,
+							password    => $password, 
+							source      => $dump_file,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+						
+						my $rsync_time  = time - $start_time;
+						my $size        = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$dump_file}{size}}); 
+						my $size_bytes  = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$dump_file}{size}}); 
+						my $target_name = $anvil->Get->host_name_from_uuid({debug => 2, host_uuid => $this_host_uuid});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0658", variables => { 
+							file       => $dump_file, 
+							host_name  => $target_name, 
+							took       => $rsync_time, 
+							size       => $size,
+							size_bytes => $size_bytes, 
+						}});
+					}
+				}
+			}
 		}
 	}
 	

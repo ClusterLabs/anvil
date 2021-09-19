@@ -306,7 +306,7 @@ sub archive_database
 
 This backs up the database to the C<< path::directories::pgsql >> directory as the file name C<< anvil_pg_dump.<host_uuid>.out >>.
 
-If the backup is successful, C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned.
+If the backup is successful, the full path to the backup file is returned. If there is a problem, C<< !!error!! >> is returned.
 
 B<< Note >>: This method must be called by the root user.
 
@@ -331,9 +331,10 @@ sub backup_database
 		return('!!error!!');
 	}
 	
-	my $start_time = time;
-	my $dump_file  = $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".out";
-	my $dump_call  = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pg_dump}." ".$anvil->data->{sys}{database}{name}." > ".$dump_file."\"";
+	my $start_time =  time;
+	my $dump_file  =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".out";
+	   $dump_file  =~ s/\/\//\//g;
+	my $dump_call  =  $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pg_dump}." ".$anvil->data->{sys}{database}{name}." > ".$dump_file."\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		dump_file => $dump_file, 
 		dump_call => $dump_call, 
@@ -354,9 +355,9 @@ sub backup_database
 		}});
 		
 		# Clear the out file.
-		if (-e $dump_path)
+		if (-e $dump_file)
 		{
-			unlink $dump_path;
+			unlink $dump_file;
 		}
 		return('!!error!!');
 	}
@@ -373,7 +374,7 @@ sub backup_database
 		size_bytes => $size_bytes, 
 	}});
 	
-	return(0);
+	return($dump_file);
 }
 
 =head2 check_file_locations
@@ -823,9 +824,9 @@ sub configure_pgsql
 			$initialized = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { initialized => $initialized }});
 			
-			# Enable it on boot. When two or more are available, one will shut down.
-			my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+			### NOTE: We no longer enable postgres on boot. When the first call is made to 
+			###       Database->connect on a striker, and no databases are available, it will 
+			###       start up the local daemon then.
 		}
 	}
 	
@@ -1161,10 +1162,6 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
-=head3 all (optional, default '0')
-
-If this is set, all available databases will be connected to. This will also allow resync's to run as needed.
-
 =head3 check_for_resync (optional, default 0)
 
 If set to C<< 1 >>, and there are 2 or more databases available, a check will be make to see if the databases need to be resync'ed or not. This is also set if the command line switch C<< --resync-db >> is used.
@@ -1249,7 +1246,6 @@ sub connect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->connect()" }});
 	
-	my $all                 = defined $parameter->{all}                 ? $parameter->{all}                 : 0;
 	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
 	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
@@ -1261,7 +1257,6 @@ sub connect
 	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
 	my $test_table          = defined $parameter->{test_table}          ? $parameter->{test_table}          : $anvil->data->{sys}{database}{test_table};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		all                 => $all, 
 		check_if_configured => $check_if_configured, 
 		db_uuid             => $db_uuid,
 		check_for_resync    => $check_for_resync, 
@@ -1318,14 +1313,6 @@ sub connect
 		$check_for_resync = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 	}
-	
-	### NOTE: Experimental database configuration below
-	# If we're a striker, sort by UUID and the first one (doesn't matter which it actually is) becomes 
-	# "primary". If this is a Striker and we connected to another Striker, shut down our database. Later,
-	# if no connections were found and this is a Striker, we'll start our database up (loading from our
-	# peer's last dump they sent us). If this is a node or DR host, we stop connecting after our first
-	# successful connections.
-	$anvil->data->{cache}{active_db} = "";
 	
 	# Now setup or however-many connections
 	my $seen_connections       = [];
@@ -1709,149 +1696,154 @@ sub connect
 				next;
 			}
 		}
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"sys::database::connections" => $anvil->data->{sys}{database}{connections},
-		}});
-		if (($anvil->data->{sys}{database}{connections}) && (not $all))
-		{
-			# Stop connecting here.
-			$anvil->data->{cache}{active_db} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"cache::active_db" => $anvil->data->{cache}{active_db},
-			}});
-			last;
-		}
 	}
 	
-	# If we're not connecting to all databases, perform shutdown / backup / daemon management logic.
-	if (not $all)
+	# If we're a striker and no connections were found, start our database.
+	my $local_host_type = $anvil->Get->host_type();
+	my $local_host_uuid = $anvil->Get->host_uuid();
+	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
 	{
-		my $local_host_type = $anvil->Get->host_type();
-		my $local_host_uuid = $anvil->Get->host_uuid();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			local_host_type => $local_host_type, 
-			local_host_uuid => $local_host_uuid, 
-		}});
+		# Tell the user we're going to try to load and start.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
 		
-		# Are we a Striker?
-		if ($local_host_type eq "striker")
+		# Look for pgdumps. "Youngest" is the one with the highest mtime.
+		my $use_dump      = "";
+		my $backup_age    = 0;
+		my $youngest_dump = 0;
+		my $directory     = $anvil->data->{path}{directories}{pgsql};
+		my $db_name       = $anvil->data->{sys}{database}{name};
+		my $dump_files    = [];
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
 		{
-			# If we didn't connect to any database, it's possible/likely our peer is down and we need to
-			# start our local postgres database server.
-			if ((not $anvil->data->{sys}{database}{connections}) && (not $running))
+			next if $file eq ".";
+			next if $file eq "..";
+			my $db_dump_uuid = "";
+			my $full_path    = $directory."/".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				file      => $file,
+				full_path => $full_path,
+			}});
+			if ($file =~ /\Q${db_name}_db_dump\.(.*).sql/)
 			{
-				# Tell the user we're going to try to load and start.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
-				
-				# Look for pgdumps. "Youngest" is the one with the highest mtime.
-				my $use_dump      = "";
-				my $youngest_dump = 0;
-				my $directory     = $anvil->data->{path}{directories}{pgsql};
-				my $db_name       = $anvil->data->{sys}{database}{name};
-				
+				$db_dump_uuid = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
-				local(*DIRECTORY);
-				opendir(DIRECTORY, $directory);
-				while(my $file = readdir(DIRECTORY))
+				
+				# Is this one of our own dumps?
+				if ($db_dump_uuid eq $local_host_uuid)
 				{
-					next if $file eq ".";
-					next if $file eq "..";
-					my $db_dump_uuid = "";
-					my $full_path    = $directory."/".$file;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						file      => $file,
-						full_path => $full_path,
-					}});
-					if ($file =~ /${db_name}_db_dump\.(.*).sql/)
-					{
-						$db_dump_uuid = $1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
-						
-						# Is this one of our own dumps?
-						if ($db_dump_uuid eq $local_host_uuid)
-						{
-							# Ignore it.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0653", variables => { full_path => $full_path });
-							next;
-						}
-						
-						# Is this a database we're configured to use?
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0651", variables => { full_path => $full_path });
-						if ((not exists $anvil->data->{database}{$db_dump_uuid}) or (not $anvil->data->{database}{$db_dump_uuid}{host}))
-						{
-							# Not a database we're peered with anymore, ignore it.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0652", variables => { 
-								full_path => $full_path,
-								host_uuid => $db_dump_uuid,
-							});
-							next;
-						}
-					}
-					else
-					{
-						next;
-					}
-					
-					# What's the mtime on this file?
+					# How recent is it? 
 					$anvil->Storage->get_file_stats({debug => $debug, file => $full_path});
-					my $mtime = $anvil->data->{file_stat}{$file_path}{modified_time};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+					my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mtime => $mtime }});
 					
-					if ($mtime > $youngest_dump)
+					if ($mtime > $backup_age)
 					{
-						# This is the youngest, so far.
-						$youngest_dump = $mtime;
-						$use_dump      = $full_path;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							youngest_dump => $youngest_dump,
-							full_path     => $full_path, 
-						}});
+						$backup_age = $mtime;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_age => $backup_age }});
 					}
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0653", variables => { full_path => $full_path }});
+					next;
 				}
 				
-				# Did I find a dump to load?
-				if ($use_dump)
+				push @{$dump_files}, $full_path;
+				
+				# Is this a database we're configured to use?
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0651", variables => { full_path => $full_path }});
+				if ((not exists $anvil->data->{database}{$db_dump_uuid}) or (not $anvil->data->{database}{$db_dump_uuid}{host}))
 				{
-					# Yup! This will start the database, if needed.
-					my $file_size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$file_path}{size}});
-					my $file_size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$file_path}{size}});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0656", variables => {
-						file       => $file_path, 
-						size       => $file_size, 
-						size_bytes => $file_size_bytes, 
+					# Not a database we're peered with anymore, ignore it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0652", variables => { 
+						full_path => $full_path,
+						host_uuid => $db_dump_uuid,
 					}});
-					
-					my $problem = $anvil->Database->load_database({
-						debug     => $debug, 
-						backup    => 1,
-						load_file => $full_path,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
-					
-					### TODO: Loop through the directory and delete all dumps from other 
-					###       Strikers. This way we won't roll back in time if we restart
-					###       and there's been no new dumps made.
+					next;
 				}
-				
-				# Check if the dameon is running
-				my $running = $anvil->System->check_daemon({daemon => "NetworkManager"});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
-				if (not $running)
+			}
+			else
+			{
+				next;
+			}
+			
+			# What's the mtime on this file?
+			$anvil->Storage->get_file_stats({debug => $debug, file => $full_path});
+			my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+			
+			if ($mtime > $youngest_dump)
+			{
+				# This is the youngest, so far.
+				$youngest_dump = $mtime;
+				$use_dump      = $full_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					youngest_dump => $youngest_dump,
+					full_path     => $full_path, 
+				}});
+			}
+		}
+		
+		# Did I find a dump to load that's newer than my most recent backup?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			use_dump      => $use_dump, 
+			youngest_dump => $youngest_dump,
+			backup_age    => $backup_age, 
+		}});
+		if (($use_dump) && ($youngest_dump > $backup_age))
+		{
+			# Yup! This will start the database, if needed.
+			my $file_size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$use_dump}{size}});
+			my $file_size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$use_dump}{size}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0656", variables => {
+				file       => $use_dump, 
+				size       => $file_size, 
+				size_bytes => $file_size_bytes, 
+			}});
+			
+			my $problem = $anvil->Database->load_database({
+				debug     => $debug, 
+				backup    => 1,
+				load_file => $use_dump,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			if ($problem)
+			{
+				# Failed, delete the file we tried to load. 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0355", variables => { file => $use_dump }});
+				unlink $use_dump;
+			}
+			else
+			{
+				# Success! Delete all backups we found so we don't reload 
+				# them in the future.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0657"});
+				foreach my $full_path (@{$dump_files})
 				{
-					my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
-					if ($return_code eq "0")
-					{
-						# Started the daemon.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
-						
-						# Recall this method.
-						if (not $retry)
-						{
-							$anvil->Database->connect({debug => $debug, retry => 1});
-						}
-					}
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0589", variables => { file => $full_path }});
+					unlink $full_path;
+				}
+			}
+		}
+		
+		# Check if the dameon is running
+		my $running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+		if (not $running)
+		{
+			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+			if ($return_code eq "0")
+			{
+				# Started the daemon.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+				
+				# Recall this method.
+				if (not $retry)
+				{
+					$anvil->Database->connect({debug => $debug, retry => 1});
 				}
 			}
 		}
@@ -14112,9 +14104,9 @@ sub load_database
 	if ($backup)
 	{
 		# Backup the database.
-		my $problem = $anvil->Database->backup_database({debug => $debug});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
-		if ($problem)
+		my $dump_file = $anvil->Database->backup_database({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dump_file => $dump_file }});
+		if ($dump_file eq "!!error!!")
 		{
 			# Drop the firewall block
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});

@@ -1176,7 +1176,7 @@ sub _set_paths
 				### NOTE: When System->manage_firewall() is done, search for and replace all
 				###       instances where iptables is called and replace with firewall-cmd
 				###       calls
-				iptables			=>	"/usr/sbin/iptables".
+				iptables			=>	"/usr/sbin/iptables",
 				'iptables-save'			=>	"/usr/sbin/iptables-save",
 				journalctl			=>	"/usr/bin/journalctl",
 				logger				=>	"/usr/bin/logger",
