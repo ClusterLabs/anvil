@@ -1457,7 +1457,7 @@ sub connect
 		{
 			# Either the Striker hosting this is down, or it's not primary and stopped its 
 			# database.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "log_0064", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0064", variables => { 
 				uuid => $uuid,
 				host => $host,
 				name => $name,
@@ -1509,7 +1509,7 @@ sub connect
 					port => $port,
 				};
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables });
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => $message_key, variables => $variables });
 			
 			next;
 		}
@@ -1874,16 +1874,10 @@ sub connect
 			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 		}});
 		
-		# Copy my alert hash before I delete the uuid.
-# 		my $error_array = [];
-		
 		# Delete this DB so that we don't try to use it later. This is a quiet alert because the 
 		# original connection error was likely logged.
 		my $say_server = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0092", variables => { server => $say_server, uuid => $uuid }});
-		
-		# Delete it from the list of known databases for this run.
-		delete $anvil->data->{database}{$uuid};
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 # 		my $set = $anvil->Alert->check_alert_sent({

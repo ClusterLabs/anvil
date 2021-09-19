@@ -172,6 +172,7 @@ my $delay = set_delay($anvil);
 # Once a minute, we'll check the md5sums and see if we should restart. 
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
 $anvil->data->{timing}{minute_checks}         = 60;
+$anvil->data->{timing}{ten_minute_checks}     = 600;
 $anvil->data->{timing}{daily_checks}          = 86400;
 $anvil->data->{timing}{repo_update_interval}  = 86400;
 $anvil->data->{timing}{next_minute_check}     = $now_time - 1;
@@ -179,13 +180,14 @@ $anvil->data->{timing}{next_ten_minute_check} = $now_time - 1;
 $anvil->data->{timing}{next_daily_check}      = ($now_time + $delay) - 1;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	"s1:timing::minute_checks"         => $anvil->data->{timing}{minute_checks}, 
-	"s2:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
-	"s3:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
-	"s4:now_time"                      => $now_time, 
-	"s5:delay"                         => $delay, 
-	"s6:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
-	"s6:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
-	"s7:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
+	"s2:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks}, 
+	"s3:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
+	"s4:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
+	"s5:now_time"                      => $now_time, 
+	"s6:delay"                         => $delay, 
+	"s7:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
+	"s8:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+	"s9:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
 }});
 
 # Disconnect. We'll reconnect inside the loop
@@ -526,11 +528,11 @@ sub handle_periodic_tasks
 				my $first_uuid = "";
 				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
 					if (not $first_uuid)
 					{
 						$first_uuid = $uuid; 
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { first_uuid => $first_uuid }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
 					}
 					elsif ($uuid eq $host_uuid)
 					{
@@ -539,7 +541,7 @@ sub handle_periodic_tasks
 						
 						# Switch the read_uuid and then close 
 						$anvil->data->{sys}{database}{read_uuid} = $first_uuid;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 						
 						# Disconnect
 						$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
@@ -547,12 +549,12 @@ sub handle_periodic_tasks
 						
 						# Create a backup, this is useful also for setting the mtime of the last time
 						# we were up.
-						my $dump_file = $anvil->Database->backup_database({debug => 2});
+						my $dump_file = $anvil->Database->backup_database({debug => 3});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
 						
 						# Stop the daemon
 						my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 						if ($return_code eq "0")
 						{
 							# Stopped the daemon.
@@ -573,7 +575,7 @@ sub handle_periodic_tasks
 			{
 				# Verify that the database is up.
 				my $running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
 				if ($running)
 				{
 					# Backup our DB.
@@ -588,13 +590,14 @@ sub handle_periodic_tasks
 						my $destination = "root\@".$anvil->data->{database}{$this_host_uuid}{host}.":".$anvil->data->{path}{directories}{pgsql}."/";
 						my $password    = $anvil->data->{database}{$this_host_uuid}{password};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							destination => $destination,
-							password    => $anvil->Log->is_secure($password), 
+							this_host_uuid => $this_host_uuid, 
+							destination    => $destination,
+							password       => $anvil->Log->is_secure($password), 
 						}});
 						
 						my $start_time = time;
 						my $failed = $anvil->Storage->rsync({
-							debug       => 2, 
+							debug       => 3, 
 							destination => $destination,
 							password    => $password, 
 							source      => $dump_file,
@@ -604,7 +607,7 @@ sub handle_periodic_tasks
 						my $rsync_time  = time - $start_time;
 						my $size        = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$dump_file}{size}}); 
 						my $size_bytes  = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$dump_file}{size}}); 
-						my $target_name = $anvil->Get->host_name_from_uuid({debug => 2, host_uuid => $this_host_uuid});
+						my $target_name = $anvil->Get->host_name_from_uuid({debug => 3, host_uuid => $this_host_uuid});
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0658", variables => { 
 							file       => $dump_file, 
 							host_name  => $target_name, 
@@ -616,6 +619,13 @@ sub handle_periodic_tasks
 				}
 			}
 		}
+		
+		# Update the next check time.
+		$anvil->data->{timing}{next_ten_minute_check} = $now_time + $anvil->data->{timing}{ten_minute_checks};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks},
+			"s2:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+		}});
 	}
 	
 	# Now check to see if it's time to run daily tasks.
@@ -1144,6 +1154,16 @@ sub handle_special_cases
 sub prep_database
 {
 	my ($anvil) = @_;
+	
+	# If there's a backup file, we're configured and possibly just off. 
+	my $dump_file  =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".out";
+	   $dump_file  =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dump_file => $dump_file }});
+	if (-e $dump_file)
+	{
+		# No need to prepare.
+		return(0);
+	}
 	
 	# Only run this if we're a dashboard.
 	my $host_type = $anvil->Get->host_type();
