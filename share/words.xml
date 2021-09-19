@@ -2019,7 +2019,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0650">[ Note ] - We're a Striker and we did not connect to a peer's database. Will check now if we can load a recent backup, then start postgres locally (with or without a load).</key>
 		<key name="log_0651">Evaluating the dump file: [#!variable!full_path!#].</key>
 		<key name="log_0652">The database host UUID: [#!variable!host_uuid!#] is not configured here, ignoring: [#!variable!full_path!#].</key>
-		<key name="log_0653">We created the database dump file: [#!variable!full_path!#], ignoring it.</key>
+		<key name="log_0653">We created the database dump file: [#!variable!full_path!#], will compare it's modidified time to other dumps we may find.</key>
 		<key name="log_0654">The database was dumped to: [#!variable!file!#] in: [#!variable!took!#] second(s). The size of the dump file is: [#!variable!size!#] (#!variable!size_bytes) bytes).</key>
 		<key name="log_0655">The database was loaded successfull from the file: [#!variable!file!#] in: [#!variable!took!#] second(s)!</key>
 		<key name="log_0656">No databases were available, so we will become primary after loading: [#!variable!file!#], which is: [#!variable!size!#] (#!variable!size_bytes!# bytes). Please be patient, this could take a moment.</key>
@@ -2027,6 +2027,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0658">Sync'ed the file: [#!variable!file!#] to the peer Striker: [#!variable!host_name!#]. The sync took: [#!variable!took!#] seconds, and the file was: [#!variable!size!#] (#!variable!size_bytes!# bytes).</key>
 		<key name="log_0659">We're going to shut down our database. Creating a backup first.</key>
 		<key name="log_0660">Stopped the postgresql daemon as a peer is currently primary.</key>
+		<key name="log_0661">Our most recent database dump is newer than any from our peers. As such, we'll just start the database without a load.</key>
+		<key name="log_0662">Retrying to connect to the database.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

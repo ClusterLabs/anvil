@@ -332,7 +332,7 @@ sub backup_database
 	}
 	
 	my $start_time =  time;
-	my $dump_file  =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".out";
+	my $dump_file  =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".sql";
 	   $dump_file  =~ s/\/\//\//g;
 	my $dump_call  =  $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pg_dump}." ".$anvil->data->{sys}{database}{name}." > ".$dump_file."\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1714,42 +1714,44 @@ sub connect
 		my $db_name       = $anvil->data->{sys}{database}{name};
 		my $dump_files    = [];
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
 		local(*DIRECTORY);
 		opendir(DIRECTORY, $directory);
 		while(my $file = readdir(DIRECTORY))
 		{
 			next if $file eq ".";
 			next if $file eq "..";
-			my $db_dump_uuid = "";
-			my $full_path    = $directory."/".$file;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			my $db_dump_uuid =  "";
+			my $full_path    =  $directory."/".$file;
+			   $full_path    =~ s/\/\//\//g;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file      => $file,
 				full_path => $full_path,
 			}});
-			if ($file =~ /\Q${db_name}_db_dump\.(.*).sql/)
+			if ($file =~ /\Q$db_name\E_db_dump\.(.*).sql/)
 			{
 				$db_dump_uuid = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
 				
 				# Is this one of our own dumps?
 				if ($db_dump_uuid eq $local_host_uuid)
 				{
 					# How recent is it? 
-					$anvil->Storage->get_file_stats({debug => $debug, file => $full_path});
+					$anvil->Storage->get_file_stats({debug => $debug, file_path => $full_path});
 					my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mtime => $mtime }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtime => $mtime }});
 					
 					if ($mtime > $backup_age)
 					{
 						$backup_age = $mtime;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_age => $backup_age }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_age => $backup_age }});
 					}
 					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0653", variables => { full_path => $full_path }});
 					next;
 				}
 				
+				# Record this dump file for later purging.
 				push @{$dump_files}, $full_path;
 				
 				# Is this a database we're configured to use?
@@ -1763,67 +1765,77 @@ sub connect
 					}});
 					next;
 				}
+				
+				# Still here? This is a candidate for loading. What's the mtime on this file?
+				$anvil->Storage->get_file_stats({debug => $debug, file_path => $full_path});
+				my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+				
+				if ($mtime > $youngest_dump)
+				{
+					# This is the youngest, so far.
+					$youngest_dump = $mtime;
+					$use_dump      = $full_path;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						youngest_dump => $youngest_dump,
+						full_path     => $full_path, 
+					}});
+				}
 			}
 			else
 			{
+				# Not a dump file, ignore it.
 				next;
 			}
-			
-			# What's the mtime on this file?
-			$anvil->Storage->get_file_stats({debug => $debug, file => $full_path});
-			my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
-			
-			if ($mtime > $youngest_dump)
-			{
-				# This is the youngest, so far.
-				$youngest_dump = $mtime;
-				$use_dump      = $full_path;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					youngest_dump => $youngest_dump,
-					full_path     => $full_path, 
-				}});
-			}
 		}
+		closedir(DIRECTORY);
 		
 		# Did I find a dump to load that's newer than my most recent backup?
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			use_dump      => $use_dump, 
-			youngest_dump => $youngest_dump,
-			backup_age    => $backup_age, 
-		}});
-		if (($use_dump) && ($youngest_dump > $backup_age))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { use_dump => $use_dump }});
+		if ($use_dump)
 		{
-			# Yup! This will start the database, if needed.
-			my $file_size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$use_dump}{size}});
-			my $file_size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$use_dump}{size}});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0656", variables => {
-				file       => $use_dump, 
-				size       => $file_size, 
-				size_bytes => $file_size_bytes, 
+			# Is one of our dumps newer? If so, don't load.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				youngest_dump => $youngest_dump,
+				backup_age    => $backup_age, 
 			}});
-			
-			my $problem = $anvil->Database->load_database({
-				debug     => $debug, 
-				backup    => 1,
-				load_file => $use_dump,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
-			if ($problem)
+			if ($backup_age > $youngest_dump)
 			{
-				# Failed, delete the file we tried to load. 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0355", variables => { file => $use_dump }});
-				unlink $use_dump;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0661"});
 			}
 			else
 			{
-				# Success! Delete all backups we found so we don't reload 
-				# them in the future.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0657"});
-				foreach my $full_path (@{$dump_files})
+				# Yup! This will start the database, if needed.
+				my $file_size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$use_dump}{size}});
+				my $file_size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$use_dump}{size}});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0656", variables => {
+					file       => $use_dump, 
+					size       => $file_size, 
+					size_bytes => $file_size_bytes, 
+				}});
+				
+				my $problem = $anvil->Database->load_database({
+					debug     => 2, 
+					backup    => 0,
+					load_file => $use_dump,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				if ($problem)
 				{
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0589", variables => { file => $full_path }});
-					unlink $full_path;
+					# Failed, delete the file we tried to load. 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0355", variables => { file => $use_dump }});
+					unlink $use_dump;
+				}
+				else
+				{
+					# Success! Delete all backups we found from other hosts so we don't
+					# reload them in the future.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0657"});
+					foreach my $full_path (@{$dump_files})
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0589", variables => { file => $full_path }});
+						unlink $full_path;
+					}
 				}
 			}
 		}
@@ -1839,13 +1851,14 @@ sub connect
 			{
 				# Started the daemon.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
-				
-				# Recall this method.
-				if (not $retry)
-				{
-					$anvil->Database->connect({debug => $debug, retry => 1});
-				}
 			}
+		}
+		
+		# Reconnect
+		if (not $retry)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0662"});
+			$anvil->Database->connect({debug => $debug, retry => 1});
 		}
 	}
 	
@@ -14025,8 +14038,8 @@ sub load_database
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->load_database()" }});
 	
-	my $backup    = $parameter->{backup}    ? $parameter->{backup}    : 1;
-	my $load_file = $parameter->{load_file} ? $parameter->{load_file} : 0;
+	my $backup    = defined $parameter->{backup}    ? $parameter->{backup}    : 1;
+	my $load_file = defined $parameter->{load_file} ? $parameter->{load_file} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		backup    => $backup,
 		load_file => $load_file, 
@@ -14182,7 +14195,7 @@ sub load_database
 	}
 	
 	# Finally, load the database.
-	my $load_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pgsql}." < ".$load_file."\"";
+	my $load_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." ".$anvil->data->{sys}{database}{name}." < ".$load_file."\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { load_call => $load_call }});
 	$output      = "";
 	$return_code = "";

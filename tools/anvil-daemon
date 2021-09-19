@@ -378,26 +378,26 @@ sub check_network
 	# The network sometimes doesn't come up, but we don't want to try recovering it too soon. As such, 
 	# we'll start watching the network after the uptime is 2 minutes.
 	my $uptime = $anvil->Get->uptime;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
 	if ($uptime > 120)
 	{
 		# Check that bonds are up. Degraded bonds will be left alone.
 		if (not $anvil->data->{sys}{network}{initial_checks})
 		{
 			my $running = $anvil->System->check_daemon({daemon => "NetworkManager"});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
 			
 			if (not $running)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0250", variables => { daemon => "NetworkManager" }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0250", variables => { daemon => "NetworkManager" }});
 				my $return_code = $anvil->System->start_daemon({daemon => "NetworkManager"});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 			}
 			
 			#$anvil->Network->check_network({heal => "all"});
 			
 			$anvil->data->{sys}{network}{initial_checks} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"sys::network::initial_checks" => $anvil->data->{sys}{network}{initial_checks},
 			}});
 		}
@@ -1503,7 +1503,7 @@ sub update_state_file
 	
 	#my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'}.$anvil->Log->switches;
 	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	
 	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 

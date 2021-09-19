@@ -76,7 +76,7 @@ $anvil->data->{switches}{'no-refresh'} = 0;
 $anvil->data->{switches}{refresh}      = 0;
 $anvil->data->{switches}{status}       = "";
 $anvil->Get->switches();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	'switches::check'      => $anvil->data->{switches}{check},
 	'switches::disable'    => $anvil->data->{switches}{disable},
@@ -584,7 +584,7 @@ sub setup_boot_environment
 	}
 	
 	### PXE UEFI 'grub.cfg' file.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "host_os::os_type" => $anvil->data->{host_os}{os_type} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "host_os::os_type" => $anvil->data->{host_os}{os_type} }});
 	my $say_os = "#!string!brand_0010!#";
 	if ($anvil->data->{host_os}{os_type} eq "centos8")
 	{
@@ -594,7 +594,7 @@ sub setup_boot_environment
 	{
 		$say_os = "#!string!brand_0012!#";
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_os => $say_os }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_os => $say_os }});
 	
 	my $uefi_grub_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_grub", variables => { 
 		base_url => $base_url,
@@ -2735,7 +2735,7 @@ sub load_packages
 
 	
 	my ($os_type, $os_arch) = $anvil->Get->os_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		os_type => $os_type,
 		os_arch => $os_arch, 
 	}});
@@ -2772,7 +2772,7 @@ sub load_packages
 	my $rhel8_test_source          = $anvil->data->{path}{directories}{html}."/rhel8";
 	my $centos8_test_source        = $anvil->data->{path}{directories}{html}."/centos8";
 	my $centos_stream8_test_source = $anvil->data->{path}{directories}{html}."/centos-stream8";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		rhel8_test_source          => $rhel8_test_source,
 		centos8_test_source        => $centos8_test_source,
 		centos_stream8_test_source => $centos_stream8_test_source, 
