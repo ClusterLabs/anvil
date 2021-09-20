@@ -1229,6 +1229,8 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0353">* Please enter the name of the server you want to manage</key>
 		<key name="job_0354">-=] Servers available to manage on the Anvil! [#!variable!anvil_name!#] [=-</key>
 		<key name="job_0355">-=] Managing the server: [#!variable!server_name!#] on the Anvil!: [#!variable!anvil_name!#]</key>
+		<key name="job_0356">Get Server VM Screenshot</key>
+		<key name="job_0357">Fetch a screenshot of the specified server VM and represent it as a Base64 string.</key>
 		<key name="job_0358">Running sanity checks.</key>
 		<key name="job_0359">Sanity checks complete!</key>
 		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
@@ -2387,6 +2389,10 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0260">Finished [#!variable!operation!#] VNC pipe for server UUID [#!variable!server_uuid!#] from host UUID [#!variable!host_uuid!#].</key>
 		<key name="message_0261">Finished dropping VNC pipes table.</key>
 		<key name="message_0262">Finished managing VNC pipes; no operations happened because requirements not met.</key>
+		<key name="message_0263">Preparing to get server VM screenshot.</key>
+		<key name="message_0264">Finished getting server VM screenshot.</key>
+		<key name="message_0265">Failed to get server VM screenshot; got non-zero return code.</key>
+		<key name="message_0266">Finished attempting to get server VM screenshot; no operations happened because requirements not met.</key>>>> master
 		<key name="message_0267">Preparing to manage DR for a server.</key>
 		
 		<!-- Success messages shown to the user --> 
