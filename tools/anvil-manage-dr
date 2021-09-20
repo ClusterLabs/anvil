@@ -1556,7 +1556,7 @@ sub load_job
 		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0263", 
+		message          => "message_0267", 
 	});
 	
 	print "Loading the job: [".$anvil->data->{switches}{'job-uuid'}."]...\n";
