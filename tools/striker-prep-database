@@ -199,9 +199,9 @@ if ($local_uuid)
 			# Started the daemon.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
 			
-			# Make sure it is enabled on boot.
-			my $return_code = $anvil->System->enable_daemon({debug => 2, daemon => $anvil->data->{sys}{daemon}{postgresql}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+			### NOTE: We no longer enable postgres on boot. When the first call is made to 
+			###       Database->connect on a striker, and no databases are available, it will 
+			###       start up the local daemon then.
 		}
 		else
 		{

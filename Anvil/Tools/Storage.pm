@@ -20,6 +20,7 @@ my $THIS_FILE = "Storage.pm";
 # change_mode
 # change_owner
 # check_md5sums
+# compress
 # copy_file
 # delete_file
 # find
@@ -27,6 +28,7 @@ my $THIS_FILE = "Storage.pm";
 # get_size_of_block_device
 # get_storage_group_details
 # get_storage_group_from_path
+# get_vg_name
 # make_directory
 # manage_lvm_conf
 # move_file
@@ -1793,7 +1795,7 @@ LIMIT 1
 				foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$this_resource}{host}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
-					foreach my $this_volume (sort {$a cmp $b} keys %{$$anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}})
+					foreach my $this_volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}})
 					{
 						my $this_minor = $anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}{$this_volume}{device_minor};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1937,6 +1939,8 @@ This takes a C<< storage_group_uuid >> and loads information about members into 
  storage_groups::storage_group_uuid::<storage_group_uuid>::host_uuid::<host_uuid>::vg_free
 
 On success, C<< 0 >> is returned. On failure, C<< !!error!! >> is returned.
+
+B<< Note >>: This method is called by C<< Database->get_storage_group_data() >> so generally calling it direcly isn't needed.
 
 Parameters;
 
@@ -2150,7 +2154,7 @@ sub get_storage_group_from_path
 				foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$this_resource}{host}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
-					foreach my $this_volume (sort {$a cmp $b} keys %{$$anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}})
+					foreach my $this_volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}})
 					{
 						my $this_minor = $anvil->data->{new}{resource}{$this_resource}{host}{$this_host_name}{volume}{$this_volume}{device_minor};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2379,6 +2383,86 @@ LIMIT 1
 	}
 	
 	return("");
+}
+
+
+=head2 get_vg_name
+
+This method takes a Storage Group UUID and a host UUID, and returns the volume group name associated with those. If there is a problem, C<< !!error!! >> is returned.
+
+ my $vg_name = $anvil->Storage->get_vg_name({
+ 	host_uuid          => $dr_host_uuid,
+ 	storage_group_uuid => $storage_group_uuid, 
+ });
+
+Parameters;
+
+=head3 host_uuid (optional, default Get->host_uuid)
+
+This is the host's UUID that holds the VG name being searched for.
+
+=head3 storage_group_uuid (required)
+
+This is the Storage Group UUID being searched for.
+
+=cut
+sub get_vg_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->get_vg_name()" }});
+	
+	my $host_uuid          = defined $parameter->{host_uuid}          ? $parameter->{host_uuid}          : "";
+	my $storage_group_uuid = defined $parameter->{storage_group_uuid} ? $parameter->{storage_group_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid          => $host_uuid,
+		storage_group_uuid => $storage_group_uuid,
+	}});
+	
+	if (not $host_uuid)
+	{
+		$host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	}
+	if (not $storage_group_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->get_vg_name()", parameter => "storage_group_uuid" }});
+		return('!!error!!');
+	}
+	
+	my $query = "
+SELECT 
+    b.scan_lvm_vg_name 
+FROM 
+    storage_group_members a, 
+    scan_lvm_vgs b 
+WHERE 
+    a.storage_group_member_vg_uuid = b.scan_lvm_vg_internal_uuid 
+AND 
+    a.storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)." 
+AND 
+    a.storage_group_member_host_uuid          = ".$anvil->Database->quote($host_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if (not $count)
+	{
+		# Not found
+		return("");
+	}
+	
+	my $scan_lvm_vg_name = $results->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan_lvm_vg_name => $scan_lvm_vg_name }});
+	
+	return($scan_lvm_vg_name); 
 }
 
 
@@ -4872,9 +4956,9 @@ fi";
 				my $shell_call = "
 if [ -d '".$directory."' ]; 
 then
-    ".$anvil->data->{path}{exe}{echo}." 'exists'; 
+    echo 'exists'; 
 else 
-    ".$anvil->data->{path}{exe}{echo}." 'not found';
+    echo 'not found';
 fi";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 				(my $output, $error, my $return_code) = $anvil->Remote->call({

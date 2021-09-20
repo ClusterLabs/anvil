@@ -79,7 +79,7 @@ if ($anvil->data->{switches}{purge})
 	$anvil->nice_exit({exit_code => 0});
 }
 
-if ($anvil->DRBD->gather_data())
+if ($anvil->DRBD->gather_data({debug => 2}))
 {
 	# DRBD not found or configured.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "scan_drbd_error_0001"});

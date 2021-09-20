@@ -17,6 +17,7 @@ my $THIS_FILE = "Database.pm";
 
 ### Methods;
 # archive_database
+# backup_database
 # check_file_locations
 # check_lock_age
 # check_for_schema
@@ -78,6 +79,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_upses
 # insert_or_update_users
 # insert_or_update_variables
+# load_database
 # lock_file
 # locking
 # manage_anvil_conf
@@ -299,6 +301,81 @@ sub archive_database
 	return(0);
 }
 
+
+=head2 backup_database
+
+This backs up the database to the C<< path::directories::pgsql >> directory as the file name C<< anvil_pg_dump.<host_uuid>.out >>.
+
+If the backup is successful, the full path to the backup file is returned. If there is a problem, C<< !!error!! >> is returned.
+
+B<< Note >>: This method must be called by the root user.
+
+B<< Note >>: If C<< sys::database::name >> has been changed, the dump file name will match. 
+
+This method takes no parameters.
+
+=cut
+sub backup_database
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->backup_database()" }});
+	
+	# Only the root user can do this
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0352"});
+		return('!!error!!');
+	}
+	
+	my $start_time =  time;
+	my $dump_file  =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".sql";
+	   $dump_file  =~ s/\/\//\//g;
+	my $dump_call  =  $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{pg_dump}." ".$anvil->data->{sys}{database}{name}." > ".$dump_file."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		dump_file => $dump_file, 
+		dump_call => $dump_call, 
+	}});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $dump_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	if ($return_code)
+	{
+		# Dump failed. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0351", variables => {
+			shell_call  => $dump_call, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+		
+		# Clear the out file.
+		if (-e $dump_file)
+		{
+			unlink $dump_file;
+		}
+		return('!!error!!');
+	}
+	
+	# Record the stats
+	$anvil->Storage->get_file_stats({debug => $debug, file_path => $dump_file});
+	my $dump_time  = time - $start_time;
+	my $size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$dump_file}{size}}); 
+	my $size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$dump_file}{size}}); 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0654", variables => {
+		file       => $dump_file, 
+		took       => $dump_time, 
+		size       => $size, 
+		size_bytes => $size_bytes, 
+	}});
+	
+	return($dump_file);
+}
 
 =head2 check_file_locations
 
@@ -722,35 +799,34 @@ sub configure_pgsql
 		return(1);
 	}
 	
-	# First, is it running?
-	my $running = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
+	# First, is it running and is it initialized?
+	my $initialized = 0;
+	my $running     = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
-	
-	if (not $running)
+	if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 	{
-		# Do we need to initialize the databae?
+		# Initialize. Record that we did so, so that we know to start the daemon.
+		my ($output, $return_code) = $anvil->System->call({debug => 1, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { output => $output, return_code => $return_code }});
+		
+		# Did it succeed?
 		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 		{
-			# Initialize.
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+			# Failed... 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+			return("!!error!!");
+		}
+		else
+		{
+			# Initialized!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
 			
-			# Did it succeed?
-			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
-			{
-				# Failed... 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
-				return("!!error!!");
-			}
-			else
-			{
-				# Initialized!
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
-				
-				# Enable it on boot.
-				my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
-			}
+			$initialized = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { initialized => $initialized }});
+			
+			### NOTE: We no longer enable postgres on boot. When the first call is made to 
+			###       Database->connect on a striker, and no databases are available, it will 
+			###       start up the local daemon then.
 		}
 	}
 	
@@ -835,7 +911,7 @@ sub configure_pgsql
 	{
 		# Back up the existing one, if needed.
 		my $pg_hba_backup = $anvil->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pg_hba_backup => $pg_hba_backup }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { pg_hba_backup => $pg_hba_backup }});
 		if (not -e $pg_hba_backup)
 		{
 			$anvil->Storage->copy_file({
@@ -859,26 +935,30 @@ sub configure_pgsql
 	# Start or restart the daemon?
 	if (not $running)
 	{
-		# Start the daemon.
-		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
-		if ($return_code eq "0")
+		# Did we initialize?
+		if ($initialized)
 		{
-			# Started the daemon.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
-		}
-		else
-		{
-			# Failed to start
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
-			return("!!error!!");
+			# Start the daemon.
+			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { return_code => $return_code }});
+			if ($return_code eq "0")
+			{
+				# Started the daemon.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+			}
+			else
+			{
+				# Failed to start
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+				return("!!error!!");
+			}
 		}
 	}
 	elsif (($update_postgresql_file) or ($update_pg_hba_file))
 	{
 		# Reload
 		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { return_code => $return_code }});
 		if ($return_code eq "0")
 		{
 			# Reloaded the daemon.
@@ -891,150 +971,154 @@ sub configure_pgsql
 		}
 	}
 	
-	# Create the .pgpass file, if needed.
-	my $created_pgpass = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
-		'path::secure::postgres_pgpass' => $anvil->data->{path}{secure}{postgres_pgpass},
-		"database::${uuid}::password"   => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
-	}});
-	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$uuid}{password}))
+	# Do user and DB checks only if we're made a change above.
+	if (($initialized) or ($update_postgresql_file) or ($update_pg_hba_file))
 	{
-		my $body = "*:*:*:postgres:".$anvil->data->{database}{$uuid}{password};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { body => $body }});
-		$anvil->Storage->write_file({
-			file      => $anvil->data->{path}{secure}{postgres_pgpass},  
-			body      => $body,
-			user      => "postgres", 
-			group     => "postgres",
-			mode      => "0600",
-			overwrite => 1,
-			secure    => 1,
-		});
-		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
+		# Create the .pgpass file, if needed.
+		my $created_pgpass = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+			'path::secure::postgres_pgpass' => $anvil->data->{path}{secure}{postgres_pgpass},
+			"database::${uuid}::password"   => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
+		}});
+		if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$uuid}{password}))
 		{
-			$created_pgpass = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { created_pgpass => $created_pgpass }});
+			my $body = "*:*:*:postgres:".$anvil->data->{database}{$uuid}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { body => $body }});
+			$anvil->Storage->write_file({
+				file      => $anvil->data->{path}{secure}{postgres_pgpass},  
+				body      => $body,
+				user      => "postgres", 
+				group     => "postgres",
+				mode      => "0600",
+				overwrite => 1,
+				secure    => 1,
+			});
+			if (-e $anvil->data->{path}{secure}{postgres_pgpass})
+			{
+				$created_pgpass = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { created_pgpass => $created_pgpass }});
+			}
 		}
-	}
-	
-	# Does the database user exist?
-	my $create_user   = 1;
-	my $database_user = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_user => $database_user }});
-	if (not $database_user)
-	{
-		# No database user defined
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { uuid => $uuid }});
-		return("!!error!!");
-	}
-	my ($user_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_list => $user_list, return_code => $return_code }});
-	foreach my $line (split/\n/, $user_list)
-	{
-		if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
+		
+		# Does the database user exist?
+		my $create_user   = 1;
+		my $database_user = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_user => $database_user }});
+		if (not $database_user)
 		{
-			# User exists already
-			my $uuid = $1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0060", variables => { user => $database_user, uuid => $uuid }});
-			$create_user = 0;
-			last;
+			# No database user defined
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { uuid => $uuid }});
+			return("!!error!!");
 		}
-	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_user => $create_user }});
-	if ($create_user)
-	{
-		# Create the user
-		my ($create_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $database_user\"", source => $THIS_FILE, line => __LINE__});
-		(my $user_list, $return_code)     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
-		my $user_exists   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output, user_list => $user_list }});
+		my ($user_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_list => $user_list, return_code => $return_code }});
 		foreach my $line (split/\n/, $user_list)
 		{
 			if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
 			{
-				# Success!
+				# User exists already
 				my $uuid = $1;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0095", variables => { user => $database_user, uuid => $uuid }});
-				$user_exists = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0060", variables => { user => $database_user, uuid => $uuid }});
+				$create_user = 0;
 				last;
 			}
 		}
-		if (not $user_exists)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_user => $create_user }});
+		if ($create_user)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $database_user }});
-			return("!!error!!");
-		}
-		
-		# Update/set the passwords.
-		if ($anvil->data->{database}{$uuid}{password})
-		{
-			foreach my $user ("postgres", $database_user)
+			# Create the user
+			my ($create_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $database_user\"", source => $THIS_FILE, line => __LINE__});
+			(my $user_list, $return_code)     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+			my $user_exists   = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output, user_list => $user_list }});
+			foreach my $line (split/\n/, $user_list)
 			{
-				my ($update_output, $return_code) = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$uuid}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { update_output => $update_output, return_code => $return_code }});
-				foreach my $line (split/\n/, $user_list)
+				if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
 				{
-					if ($line =~ /ALTER ROLE/)
+					# Success!
+					my $uuid = $1;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0095", variables => { user => $database_user, uuid => $uuid }});
+					$user_exists = 1;
+					last;
+				}
+			}
+			if (not $user_exists)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $database_user }});
+				return("!!error!!");
+			}
+			
+			# Update/set the passwords.
+			if ($anvil->data->{database}{$uuid}{password})
+			{
+				foreach my $user ("postgres", $database_user)
+				{
+					my ($update_output, $return_code) = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$uuid}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { update_output => $update_output, return_code => $return_code }});
+					foreach my $line (split/\n/, $user_list)
 					{
-						# Password set
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0100", variables => { user => $user }});
+						if ($line =~ /ALTER ROLE/)
+						{
+							# Password set
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0100", variables => { user => $user }});
+						}
 					}
 				}
 			}
 		}
-	}
-	
-	# Create the database, if needed.
-	my $create_database = 1;
-	my $database_name   = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_name => $database_name }});
-	
-	(my $database_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list, return_code => $return_code }});
-	foreach my $line (split/\n/, $database_list)
-	{
-		if ($line =~ /^ $database_name$/)
-		{
-			# Database already exists.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0105", variables => { database => $database_name }});
-			$create_database = 0;
-			last;
-		}
-	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_database => $create_database }});
-	if ($create_database)
-	{
-		my ($create_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}."  --owner $database_user $database_name\"", source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output, return_code => $return_code }});
 		
-		my $database_exists               = 0;
+		# Create the database, if needed.
+		my $create_database = 1;
+		my $database_name   = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_name => $database_name }});
+		
 		(my $database_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list, return_code => $return_code }});
 		foreach my $line (split/\n/, $database_list)
 		{
 			if ($line =~ /^ $database_name$/)
 			{
-				# Database created
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0110", variables => { database => $database_name }});
-				$database_exists = 1;
+				# Database already exists.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0105", variables => { database => $database_name }});
+				$create_database = 0;
 				last;
 			}
 		}
-		if (not $database_exists)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_database => $create_database }});
+		if ($create_database)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $database_name }});
-			return("!!error!!");
+			my ($create_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}."  --owner $database_user $database_name\"", source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output, return_code => $return_code }});
+			
+			my $database_exists               = 0;
+			(my $database_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list, return_code => $return_code }});
+			foreach my $line (split/\n/, $database_list)
+			{
+				if ($line =~ /^ $database_name$/)
+				{
+					# Database created
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0110", variables => { database => $database_name }});
+					$database_exists = 1;
+					last;
+				}
+			}
+			if (not $database_exists)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $database_name }});
+				return("!!error!!");
+			}
 		}
-	}
-	
-	# Remove the temporary password file.
-	if (($created_pgpass) && (-e $anvil->data->{path}{secure}{postgres_pgpass}))
-	{
-		unlink $anvil->data->{path}{secure}{postgres_pgpass};
-		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
+		
+		# Remove the temporary password file.
+		if (($created_pgpass) && (-e $anvil->data->{path}{secure}{postgres_pgpass}))
 		{
-			# Failed to unlink the file.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0107"});
+			unlink $anvil->data->{path}{secure}{postgres_pgpass};
+			if (-e $anvil->data->{path}{secure}{postgres_pgpass})
+			{
+				# Failed to unlink the file.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0107"});
+			}
 		}
 	}
 	
@@ -1104,6 +1188,10 @@ If set, the connection will be made only to the database server matching the UUI
 
 If set to C<< 1 >>, no attempt to ping a target before connection will happen, even if C<< database::<uuid>::ping = 1 >> is set.
 
+=head3 retry (optional, default '0')
+
+This method will try to recall itself if this is a Striker and it found no available databases, and so became primary. If this is set, it won't try to become primary a second time.
+
 =head3 sensitive (optional, default '0')
 
 If set to C<< 1 >>, the caller is considered time sensitive and most checks are skipped. This is used when a call must respond as quickly as possible.
@@ -1164,8 +1252,9 @@ sub connect
 	
 	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
-	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
 	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
+	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
+	my $retry               = defined $parameter->{retry}               ? $parameter->{retry}               : 0;
 	my $sensitive           = defined $parameter->{sensitive}           ? $parameter->{sensitive}           : 0;
 	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
 	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
@@ -1174,8 +1263,9 @@ sub connect
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		check_if_configured => $check_if_configured, 
 		db_uuid             => $db_uuid,
-		no_ping             => $no_ping,
 		check_for_resync    => $check_for_resync, 
+		no_ping             => $no_ping,
+		retry               => $retry, 
 		sensitive           => $sensitive, 
 		source              => $source, 
 		sql_file            => $sql_file, 
@@ -1226,6 +1316,23 @@ sub connect
 	{
 		$check_for_resync = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
+	}
+	
+	# If we're a Striker, see if we're configured.
+	my $local_host_type = $anvil->Get->host_type();
+	my $local_host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		local_host_type     => $local_host_type, 
+		local_host_uuid     => $local_host_uuid, 
+		check_if_configured => $check_if_configured,
+		real_uid            => $<,
+		effective_uid       => $>,
+	}});
+	# If requested, and if running with root access, set it up (or update it) if needed. 
+	# This method just returns if nothing is needed.
+	if (($local_host_type eq "striker") && ($check_if_configured) && ($< == 0) && ($> == 0))
+	{
+		$anvil->Database->configure_pgsql({debug => 2, uuid => $local_host_uuid});
 	}
 	
 	# Now setup or however-many connections
@@ -1369,13 +1476,14 @@ sub connect
 		}});
 		if (not $test)
 		{
-			# Something went wrong...
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0064", variables => { 
+			# Either the Striker hosting this is down, or it's not primary and stopped its 
+			# database.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0064", variables => { 
 				uuid => $uuid,
 				host => $host,
 				name => $name,
 			}});
-
+			
 			push @{$failed_connections}, $uuid;
 			my $message_key = "log_0065";
 			my $variables   = { dbi_error => $DBI::errstr };
@@ -1422,7 +1530,7 @@ sub connect
 					port => $port,
 				};
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables });
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => $message_key, variables => $variables });
 			
 			next;
 		}
@@ -1549,24 +1657,12 @@ sub connect
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
-		my $is_local = $anvil->Network->is_local({debug => $debug, host => $host});
+		my $is_local = $anvil->Network->is_local({debug => 2, host => $host});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 		if ($is_local)
 		{
 			$anvil->data->{sys}{database}{read_uuid} = $uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
-			
-			# If requested, and if running with root access, set it up (or update it) if needed. 
-			# This method just returns if nothing is needed.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				check_if_configured => $check_if_configured,
-				real_uid            => $<,
-				effective_uid       => $>,
-			}});
-			if (($check_if_configured) && ($< == 0) && ($> == 0))
-			{
-				$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
-			}
 		}
 		elsif (not $anvil->data->{sys}{database}{read_uuid})
 		{
@@ -1602,11 +1698,174 @@ sub connect
 					target_version => $remote_schema_version,
 				}});
 				
-				# Delete the information about this database. We'll try again on nexy 
+				# Delete the information about this database. We'll try again on next
 				# ->connect().
 				delete $anvil->data->{database}{$uuid};
+				$anvil->data->{sys}{database}{connections}--;
 				next;
 			}
+		}
+	}
+	
+	# If we're a striker and no connections were found, start our database.
+	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
+	{
+		# Tell the user we're going to try to load and start.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
+		
+		# Look for pgdumps. "Youngest" is the one with the highest mtime.
+		my $use_dump      = "";
+		my $backup_age    = 0;
+		my $youngest_dump = 0;
+		my $directory     = $anvil->data->{path}{directories}{pgsql};
+		my $db_name       = $anvil->data->{sys}{database}{name};
+		my $dump_files    = [];
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file eq ".";
+			next if $file eq "..";
+			my $db_dump_uuid =  "";
+			my $full_path    =  $directory."/".$file;
+			   $full_path    =~ s/\/\//\//g;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file      => $file,
+				full_path => $full_path,
+			}});
+			if ($file =~ /\Q$db_name\E_db_dump\.(.*).sql/)
+			{
+				$db_dump_uuid = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+				
+				# Is this one of our own dumps?
+				if ($db_dump_uuid eq $local_host_uuid)
+				{
+					# How recent is it? 
+					$anvil->Storage->get_file_stats({debug => $debug, file_path => $full_path});
+					my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtime => $mtime }});
+					
+					if ($mtime > $backup_age)
+					{
+						$backup_age = $mtime;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_age => $backup_age }});
+					}
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0653", variables => { full_path => $full_path }});
+					next;
+				}
+				
+				# Record this dump file for later purging.
+				push @{$dump_files}, $full_path;
+				
+				# Is this a database we're configured to use?
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0651", variables => { full_path => $full_path }});
+				if ((not exists $anvil->data->{database}{$db_dump_uuid}) or (not $anvil->data->{database}{$db_dump_uuid}{host}))
+				{
+					# Not a database we're peered with anymore, ignore it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0652", variables => { 
+						full_path => $full_path,
+						host_uuid => $db_dump_uuid,
+					}});
+					next;
+				}
+				
+				# Still here? This is a candidate for loading. What's the mtime on this file?
+				$anvil->Storage->get_file_stats({debug => $debug, file_path => $full_path});
+				my $mtime = $anvil->data->{file_stat}{$full_path}{modified_time};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+				
+				if ($mtime > $youngest_dump)
+				{
+					# This is the youngest, so far.
+					$youngest_dump = $mtime;
+					$use_dump      = $full_path;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						youngest_dump => $youngest_dump,
+						full_path     => $full_path, 
+					}});
+				}
+			}
+			else
+			{
+				# Not a dump file, ignore it.
+				next;
+			}
+		}
+		closedir(DIRECTORY);
+		
+		# Did I find a dump to load that's newer than my most recent backup?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { use_dump => $use_dump }});
+		if ($use_dump)
+		{
+			# Is one of our dumps newer? If so, don't load.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				youngest_dump => $youngest_dump,
+				backup_age    => $backup_age, 
+			}});
+			if ($backup_age > $youngest_dump)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0661"});
+			}
+			else
+			{
+				# Yup! This will start the database, if needed.
+				my $file_size       = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{file_stat}{$use_dump}{size}});
+				my $file_size_bytes = $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$use_dump}{size}});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0656", variables => {
+					file       => $use_dump, 
+					size       => $file_size, 
+					size_bytes => $file_size_bytes, 
+				}});
+				
+				my $problem = $anvil->Database->load_database({
+					debug     => 2, 
+					backup    => 0,
+					load_file => $use_dump,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				if ($problem)
+				{
+					# Failed, delete the file we tried to load. 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0355", variables => { file => $use_dump }});
+					unlink $use_dump;
+				}
+				else
+				{
+					# Success! Delete all backups we found from other hosts so we don't
+					# reload them in the future.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0657"});
+					foreach my $full_path (@{$dump_files})
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0589", variables => { file => $full_path }});
+						unlink $full_path;
+					}
+				}
+			}
+		}
+		
+		# Check if the dameon is running
+		my $running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+		if (not $running)
+		{
+			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+			if ($return_code eq "0")
+			{
+				# Started the daemon.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+			}
+		}
+		
+		# Reconnect
+		if (not $retry)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0662"});
+			$anvil->Database->connect({debug => $debug, retry => 1});
 		}
 	}
 	
@@ -1635,16 +1894,10 @@ sub connect
 			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 		}});
 		
-		# Copy my alert hash before I delete the uuid.
-# 		my $error_array = [];
-		
 		# Delete this DB so that we don't try to use it later. This is a quiet alert because the 
 		# original connection error was likely logged.
 		my $say_server = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0092", variables => { server => $say_server, uuid => $uuid }});
-		
-		# Delete it from the list of known databases for this run.
-		delete $anvil->data->{database}{$uuid};
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 # 		my $set = $anvil->Alert->check_alert_sent({
@@ -4564,7 +4817,7 @@ SELECT
 FROM 
     scan_lvm_vgs 
 WHERE 
-    scan_lvm_vg_internal_uuid = ".$anvil->Database->quote($storage_group_member_vg_uuid).";
+    scan_lvm_vg_internal_uuid = ".$anvil->Database->quote($storage_group_member_vg_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
@@ -4583,6 +4836,221 @@ WHERE
 					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_size" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}}).")",
 					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_free" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}}).")",
 				}});
+			}
+		}
+		
+		# Also load the Storage group extended data.
+		$anvil->Storage->get_storage_group_details({
+			debug              => $debug, 
+			storage_group_uuid => $storage_group_uuid, 
+		});
+	}
+	
+	# If the Anvil! members have changed, we'll need to update the storage groups. This checks for that.
+	$anvil->Database->get_anvils({debug => $debug});
+	foreach my $anvil_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}})
+	{
+		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}; 
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			anvil_name      => $anvil_name, 
+			node1_host_uuid => $node1_host_uuid, 
+			node2_host_uuid => $node2_host_uuid, 
+			dr1_host_uuid   => $dr1_host_uuid, 
+		}});
+		foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
+		{
+			my $group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				storage_group_uuid => $storage_group_uuid, 
+				group_name         => $group_name, 
+			}});
+			
+			my $size_to_match = 0;
+			my $node1_seen    = 0;
+			my $node2_seen    = 0;
+			my $dr1_seen      = $dr1_host_uuid ? 0 : 1;	# Only set to '0' if DR exists.
+			foreach my $this_host_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}})
+			{
+				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{storage_group_member_uuid};
+				my $internal_vg_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_internal_uuid};
+				my $vg_size                   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_size};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					this_host_uuid            => $this_host_uuid, 
+					storage_group_member_uuid => $storage_group_member_uuid, 
+					internal_vg_uuid          => $internal_vg_uuid, 
+					vg_size                   => $anvil->Convert->add_commas({number => $vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
+				}});
+				
+				if ($vg_size > $size_to_match)
+				{
+					$size_to_match = $vg_size;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						size_to_match => $anvil->Convert->add_commas({number => $size_to_match})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size_to_match}).")", 
+					}});
+				}
+				
+				if ($this_host_uuid eq $node1_host_uuid)
+				{
+					$node1_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node1_seen => $node1_seen }});
+				}
+				elsif ($this_host_uuid eq $node2_host_uuid)
+				{
+					$node2_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_seen => $node2_seen }});
+				}
+				elsif (($dr1_host_uuid) && ($this_host_uuid eq $dr1_host_uuid))
+				{
+					$dr1_seen = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dr1_seen => $dr1_seen }});
+				}
+				else
+				{
+					# This host doesn't belong in this group anymore. Delete it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0130", variables => { 
+						storage_group_name => $group_name,
+						host_name          => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+						anvil_name         => $anvil_name, 
+					}});
+					
+					my $query = "DELETE FROM storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
+			
+			if ((not $node1_seen) or 
+			    (not $node2_seen) or 
+			    (not $dr1_seen))
+			{
+				my $hosts = [$node1_host_uuid, $node2_host_uuid];
+				if ($dr1_host_uuid)
+				{
+					push @{$hosts}, $dr1_host_uuid;
+				}
+				
+				my $reload = 0;
+				foreach my $this_host_uuid (@{$hosts})
+				{
+					# If we didn't see a host, look for a compatible VG to add.
+					my $minimum_size = $size_to_match - (2**30);
+					my $maximum_size = $size_to_match + (2**30);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						minimum_size => $anvil->Convert->add_commas({number => $minimum_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $minimum_size}).")", 
+						maximum_size => $anvil->Convert->add_commas({number => $maximum_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $maximum_size}).")", 
+					}});
+					
+					my $smallest_difference      =  (2**30);
+					my $closest_internal_uuid    =  "";
+					my $closest_scan_lvm_vg_uuid =  "";
+					my $quoted_minimum_size      =  $anvil->Database->quote($minimum_size);
+					   $quoted_minimum_size      =~ s/^'(.*)'$/$1/;
+					my $quoted_maximum_size      =  $anvil->Database->quote($maximum_size);
+					   $quoted_maximum_size      =~ s/^'(.*)'$/$1/;
+					my $query                    =  "
+SELECT 
+    scan_lvm_vg_uuid, 
+    scan_lvm_vg_internal_uuid, 
+    scan_lvm_vg_size 
+FROM 
+    scan_lvm_vgs 
+WHERE 
+    scan_lvm_vg_size      > ".$quoted_minimum_size." 
+AND 
+    scan_lvm_vg_size      < ".$quoted_maximum_size." 
+AND 
+    scan_lvm_vg_host_uuid = ".$anvil->Database->quote($this_host_uuid)."
+ORDER BY 
+    scan_lvm_vg_size ASC
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
+					foreach my $row (@{$results})
+					{
+						my $scan_lvm_vg_uuid          = $row->[0];
+						my $scan_lvm_vg_internal_uuid = $row->[1];
+						my $scan_lvm_vg_size          = $row->[2];
+						my $difference                = abs($scan_lvm_vg_size - $size_to_match);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							scan_lvm_vg_uuid          => $scan_lvm_vg_uuid, 
+							scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
+							scan_lvm_vg_size          => $anvil->Convert->add_commas({number => $scan_lvm_vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+							difference                => $anvil->Convert->add_commas({number => $difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")", 
+						}});
+						
+						# Is this Internal UUID already in a storage group?
+						my $query = "SELECT COUNT(*) FROM storage_group_members WHERE storage_group_member_vg_uuid = ".$anvil->Database->quote($scan_lvm_vg_internal_uuid).";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+						
+						my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+						if (not $count)
+						{
+							# This VG isn't in a storage group. Is this the closest in size yet?
+							if ($difference < $smallest_difference)
+							{
+								# Closest yet!
+								$smallest_difference      = $difference;
+								$closest_scan_lvm_vg_uuid = $scan_lvm_vg_internal_uuid;
+								$closest_internal_uuid    = $scan_lvm_vg_uuid;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									smallest_difference      => $anvil->Convert->add_commas({number => $smallest_difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $smallest_difference}).")", 
+									closest_internal_uuid    => $closest_internal_uuid, 
+									closest_scan_lvm_vg_uuid => $closest_scan_lvm_vg_uuid, 
+								}});
+							}
+						}
+					}
+					
+					# Did we find a matching VG?
+					if ($closest_scan_lvm_vg_uuid)
+					{
+						# Yup, add it!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0649", variables => { 
+							anvil_name       => $anvil_name, 
+							storage_group    => $group_name,
+							host_name        => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+							vg_internal_uuid => $closest_scan_lvm_vg_uuid, 
+						}});
+						
+						my $storage_group_member_uuid = $anvil->Get->uuid();
+						my $query                     = "
+INSERT INTO 
+    storage_group_members 
+(
+    storage_group_member_uuid, 
+    storage_group_member_storage_group_uuid, 
+    storage_group_member_host_uuid, 
+    storage_group_member_vg_uuid, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($storage_group_member_uuid).", 
+    ".$anvil->Database->quote($storage_group_uuid).", 
+    ".$anvil->Database->quote($this_host_uuid).", 
+    ".$anvil->Database->quote($closest_scan_lvm_vg_uuid).", 
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+);";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+						$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+						
+						# Reload 
+						$reload = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+					}
+				}
+				if ($reload)
+				{
+					$anvil->Database->get_storage_group_data({debug => $debug});
+				}
 			}
 		}
 	}
@@ -13543,6 +14011,242 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 	return($variable_uuid);
+}
+
+
+=head2 load_database
+
+This takes a path to an uncompressed SQL database dump file, and loads it into the C<< anvil >> database. During the duration of this operation, remote access to the database will be disabled via C<< iptables >> drop on port 5432!
+
+If necessary, the database server will be started. 
+
+If the dump is successfully loaded, C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned.
+
+B<< Note >>: This method must be called by the root user.
+
+B<< Note >>: This always and only works on the local database server's C<< anvil >> database.
+
+Parameters;
+
+=head3 backup (optional, default '1')
+
+This controls whether the data in the existing database is saved to a file prior to the passed-in database file being loaded.
+
+=head3 load_file (required)
+
+This is the full path to the SQL file to load into the database.
+
+=cut
+sub load_database
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->load_database()" }});
+	
+	my $backup    = defined $parameter->{backup}    ? $parameter->{backup}    : 1;
+	my $load_file = defined $parameter->{load_file} ? $parameter->{load_file} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		backup    => $backup,
+		load_file => $load_file, 
+	}});
+	
+	# Only the root user can do this
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0350"});
+		return('!!error!!');
+	}
+	
+	# Does the file exist?
+	if (not $load_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->load_database()", parameter => "load_file" }});
+	}
+	elsif (not -e $load_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0103", variables => { file => $load_file }});
+		return('!!error!!');
+	}
+	
+	my $start_time = time;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { start_time => $start_time }});
+	
+	### TODO: Replace this with System->manage_firewall().
+	# Throw up the firewall. Have the open call ready in case we hit an error.
+	my $block_call = $anvil->data->{path}{exe}{iptables}." -I INPUT -p tcp --dport 5432 -j REJECT";
+	my $open_call  = $anvil->data->{path}{exe}{iptables}." -D INPUT -p tcp --dport 5432 -j REJECT";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { block_call => $block_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $block_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Start the database, if needed.
+	my $running = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
+	if (not $running)
+	{
+		# Start it up.
+		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+		if ($return_code eq "0")
+		{
+			# Started the daemon.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+		}
+		else
+		{
+			# Failed to start
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+			
+			# Drop the firewall block
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			return("!!error!!");
+		}
+	}
+	
+	# Backup, if needed.
+	if ($backup)
+	{
+		# Backup the database.
+		my $dump_file = $anvil->Database->backup_database({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dump_file => $dump_file }});
+		if ($dump_file eq "!!error!!")
+		{
+			# Drop the firewall block
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			return("!!error!!");
+		}
+	}
+	
+	# Drop the existing database.
+	my $drop_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{dropdb}." ".$anvil->data->{sys}{database}{name}."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { drop_call => $drop_call }});
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $drop_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# This is a failure, but it could be that the database simply didn't exist (was already 
+		# dumped). If that's the case, we'll keep going.
+		my $proceed = 0;
+		if ($output =~ /database ".*?" does not exist/gs)
+		{
+			# proceed.
+			$proceed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proceed => $proceed }});
+		}
+		if (not $proceed)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0353", variables => {
+				shell_call  => $drop_call, 
+				return_code => $return_code, 
+				output      => $output, 
+			}});
+			
+			# Drop the firewall block
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			return('!!error!!');
+		}
+	}
+	
+	# Recreate the DB.
+	my $create_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}." --owner ".$anvil->data->{sys}{database}{user}." ".$anvil->data->{sys}{database}{name}."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_call => $create_call }});
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $create_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0354", variables => {
+			shell_call  => $create_call, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+		
+		# Drop the firewall block
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Finally, load the database.
+	my $load_call = $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." ".$anvil->data->{sys}{database}{name}." < ".$load_file."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { load_call => $load_call }});
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $load_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0355", variables => {
+			shell_call  => $load_call, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+		
+		# Drop the firewall block
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Open the firewall back up
+	$output      = "";
+	$return_code = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { open_call => $open_call }});
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $open_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Done!
+	my $took_time = time - $start_time;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0655", variables => { 
+		file => $load_file,
+		took => $took_time,
+	}});
+	
+	return(0);
 }
 
 

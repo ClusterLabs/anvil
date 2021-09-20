@@ -874,10 +874,14 @@ sub _set_defaults
 			locking_reap_age		=>	300,
 			log_transactions		=>	0,
 			maximum_batch_size		=>	25000,
+			# NOTE: Do NOT change this unless you are certain all machines that use this host 
+			#       have been likewise updated!
 			name				=>	"anvil",
 			read_uuid			=>	"",
 			test_table			=>	"hosts",
 			timestamp			=>	"",
+			# NOTE: Do NOT change this unless you are certain all machines that use this host 
+			#       have been likewise updated!
 			user				=>	"admin",
 			use_handle			=>	"",
 		},
@@ -1077,6 +1081,7 @@ sub _set_paths
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				journald			=>	"/var/log/journal", 
+				pgsql				=>	"/var/lib/pgsql/",
 				resource_status			=>	"/sys/kernel/debug/drbd/resources",
 				scan_agents			=>	"/usr/sbin/scancore-agents",
 				shared				=>	{
@@ -1109,6 +1114,7 @@ sub _set_paths
 				'anvil-get-server-screenshot'	=>	"/usr/sbin/anvil-get-server-screenshot",
 				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
+				'anvil-manage-dr'		=>	"/usr/sbin/anvil-manage-dr",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
@@ -1146,6 +1152,7 @@ sub _set_paths
 				dnf				=>	"/usr/bin/dnf",
 				drbdadm				=>	"/usr/sbin/drbdadm",
 				drbdsetup			=>	"/usr/sbin/drbdsetup",
+				dropdb				=>	"/usr/bin/dropdb",
 				echo				=>	"/usr/bin/echo",
 				ethtool				=>	"/usr/sbin/ethtool",
 				expect				=>	"/usr/bin/expect", 
@@ -1167,6 +1174,10 @@ sub _set_paths
 				ip				=>	"/usr/sbin/ip",
 				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",
 				ipmitool			=>	"/usr/bin/ipmitool",
+				### NOTE: When System->manage_firewall() is done, search for and replace all
+				###       instances where iptables is called and replace with firewall-cmd
+				###       calls
+				iptables			=>	"/usr/sbin/iptables",
 				'iptables-save'			=>	"/usr/sbin/iptables-save",
 				journalctl			=>	"/usr/bin/journalctl",
 				logger				=>	"/usr/bin/logger",
@@ -1196,6 +1207,7 @@ sub _set_paths
 				pcs				=>	"/usr/sbin/pcs",
 				perccli64			=>	"/opt/MegaRAID/perccli/perccli64",
 				ping				=>	"/usr/bin/ping",
+				pg_dump				=>	"/usr/bin/pg_dump",
 				pgrep				=>	"/usr/bin/pgrep",
 				ps				=>	"/usr/bin/ps",
 				psql				=>	"/usr/bin/psql",

@@ -161,8 +161,8 @@ sub run_jobs
 	
 	# Sanity checks passed
 	$anvil->Job->update_progress({
-		progress   => 10,
-		message    => "job_0185", 
+		progress => 10,
+		message  => "job_0185", 
 	});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0185"});
 	

@@ -454,6 +454,53 @@ Failed to parse the XML in the new definition file. The error was:
 
 Giving up.
 		</key>
+		<key name="error_0332">This must be run on a node active in the cluster hosting the server being managed. Exiting.</key>
+		<key name="error_0333">This Anvil! does not seem to have a DR host. Exiting.</key>
+		<key name="error_0334">Failed to find an IP we can access the DR host: [#!variable!host_name!#]. Has it been configured? Is it running? Exiting.</key>
+		<key name="error_0335">Failed to access the DR host: [#!variable!host_name!#] using the IP: [#!variable!ip_address!#]. Is it running? Exiting.</key>
+		<key name="error_0336">Failed to parse the CIB. Is this node in the cluster? Exiting.</key>
+		<key name="error_0337">We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.</key>
+		<key name="error_0338">We can't setup a server to be protected unless both nodes are up, and the peer isn't at this time. Exiting.</key>
+		<key name="error_0339">We can't remove a server from DR unless both nodes are up, and the peer isn't at this time. Exiting.</key>
+		<key name="error_0340"><![CDATA[Please specify the server to manager using '--server <name or uuid>'. Exiting.]]></key>
+		<key name="error_0341">Failed to find the server: [#!variable!server!#] by name or UUID? Exiting.</key>
+		<key name="error_0342">The protocol: [#!variable!protocol!#] is invalid. Please use '--help' for more information.</key>
+		<key name="error_0343">The DR host: [#!variable!host_name!#] doesn't appear to be storage group: [#!variable!storage_group!#]. Unable to proceed.</key>
+		<key name="error_0344">We need: [#!variable!space_needed!# (#!variables!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but only: [#!variables!space_on_dr!# (#!variable!space_on_dr_bytes!# bytes)] is available on DR. Unable to proceed.</key>
+		<key name="error_0345">[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [#!variable!return_code!#]
+The output, if any, was
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0346">- Restoring the old config now.</key>
+		<key name="error_0347">- The problematic new config has been saved as: [#!variable!file!#].</key>
+		<key name="error_0348">- The old config has been restored. Exiting.</key>
+		<key name="error_0349">- The logical volume: [#!variable!lv_path!#] creation failed. Unable to proceed.</key>
+		<key name="error_0350">Only the root user can load a database file and start the database.</key>
+		<key name="error_0351">[ Error ] - The 'pg_dump' call to backup the database failed. Expected a return code of '0', but got: [#!variable!return_code!#].
+Full command called: [#!variable!shell_call!#]
+The output, if any, was
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0352">Only the root user can backup a database.</key>
+		<key name="error_0353">[ Error ] - The 'dropdb' call to drop the database failed. Expected a return code of '0', but got: [#!variable!return_code!#].
+Full command called: [#!variable!shell_call!#]
+The output, if any, was
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0354">[ Error ] - The 'createdb' call to create the database failed. Expected a return code of '0', but got: [#!variable!return_code!#].
+Full command called: [#!variable!shell_call!#]
+The output, if any, was;
+====
+#!variable!output!#
+====
+		</key>
+		<key name="error_0355">Failed to load the database file: [#!variable!file!#]. Deleting it so it's not considered in the next load attempt.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -693,6 +740,41 @@ sys::manage::firewall						=	1
 # This is the "short list" of servers shown when provisioning a new server. To see the full list of options,
 # run '/usr/bin/osinfo-query os' on any machine in the Anvil!. 
 #sys::servers::os_short_list					=	debian10,fedora32,freebsd12.1,gentoo,macosx10.7,msdos6.22,openbsd6.7,opensuse15.2,rhel5.11,rhel6.10,rhel7.9,rhel8.3,sles12sp5,solaris11,ubuntu20.04,win10,win2k16,win2k19
+]]></key>
+		<key name="file_0003"><![CDATA[
+        on #!variable!short_host_name!# {
+                node-id #!variable!node_id!#;
+		#!variable!volumes!#
+        }
+]]></key>
+		<key name="file_0004"><![CDATA[
+		volume #!variable!volume!# {
+			device    #!variable!drbd_path!# minor #!variable!minor!#;
+			disk      #!variable!lv_path!#;
+			meta-disk internal;
+		}
+]]></key>
+		<key name="file_0005"><![CDATA[
+	connection {
+		host #!variable!host1_short_name!# address #!variable!host1_sn_ip!#:#!variable!tcp_port!#;
+		host #!variable!host2_short_name!# address #!variable!host2_sn_ip!#:#!variable!tcp_port!#;
+		disk {
+			# The variable bit rate caps at 100 MiB/sec, setting this changes the maximum 
+			# variable rate.
+			c-max-rate #!variable!c-rate-maximum!#M;
+		}
+		net {
+			protocol #!variable!protocol!#;
+                	fencing #!variable!fencing!#;
+		}
+	}
+]]></key>
+		<key name="file_0006"><![CDATA[# Resource for #!variable!server!#
+resource #!variable!server!# {
+	#!variable!hosts!#
+	
+	#!variable!connections!#
+}
 ]]></key>
 		
 		<!-- Table headers -->
@@ -1143,13 +1225,48 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0349">Loading the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
 		<key name="job_0350">Manage VNC Pipes</key>
 		<key name="job_0351">Perform VNC pipe operation [#!variable!operation!#] for server UUID [#!variable!server_uuid!#] from host UUID [#!variable!host_uuid!#].</key>
-		
 		<key name="job_0352">Manage a server menu:</key>
 		<key name="job_0353">* Please enter the name of the server you want to manage</key>
 		<key name="job_0354">-=] Servers available to manage on the Anvil! [#!variable!anvil_name!#] [=-</key>
 		<key name="job_0355">-=] Managing the server: [#!variable!server_name!#] on the Anvil!: [#!variable!anvil_name!#]</key>
 		<key name="job_0356">Get Server VM Screenshot</key>
 		<key name="job_0357">Fetch a screenshot of the specified server VM and represent it as a Base64 string.</key>
+		<key name="job_0358">Running sanity checks.</key>
+		<key name="job_0359">Sanity checks complete!</key>
+		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
+		<key name="job_0361">Verified that there is enough space on DR to proceed.
+* The connection protocol will be: ..... [#!variable!protocol!#]
+* Node 1 to DR will use TCP port: ...... [#!variable!node1_to_dr_port!#]
+* Node 2 to DR will use TCP port: ...... [#!variable!node2_to_dr_port!#]
+* We will update the DRBD resource file: [#!variable!config_file!#]
+The following LV(s) will be created:
+		</key>
+		<key name="job_0362">- Resource: [#!variable!resource!#], Volume: [#!variable!volume!#]</key>
+		<key name="job_0363"> - The LV: [#!variable!lv_path!#] with the size: [#!variable!lv_size!# (#!variable!lv_size_bytes!# Bytes)] will be created.</key>
+		<key name="job_0364">The resource file: [#!variable!file!#] doesn't need to be updated.</key>
+		<key name="job_0365">- Backed up old config as: [#!variable!backup_file!#]. Updating it now.</key>
+		<key name="job_0366">- Updated! Verifying...</key>
+		<key name="job_0367">- The new config looks good!</key>
+		<key name="job_0368">- Updating the peers now...</key>
+		<key name="job_0369">- Updating the resource file: [#!variable!file!#] on the host: [#!variable!host_name!#] via IP: [#!variable!ip_address!#].</key>
+		<key name="job_0370">- Creating logical volumes on DR, if needed. New LVs will have metadata created.</key>
+		<key name="job_0371">- Volume: [#!variable!volume!#], logical volume: [#!variable!lv_path!#].</key>
+		<key name="job_0372">- The logical volume: [#!variable!lv_path!#] already exists, skipping it, and NOT create DRBD meta data.</key>
+		<key name="job_0373">- Reloading the local DRBD resource config.</key>
+		<key name="job_0374">- Reloading the resource: [#!variable!server!#] on the host: [#!variable!host_name!#].</key>
+		<key name="job_0375">- Checking, and starting where needed, the: [#!variable!server!#] resource locally and on peers.
+ - Checking locally.</key>
+		<key name="job_0376"> - Checking the host: [#!variable!host_name!#]</key>
+		<key name="job_0377">- Checking to see if the DR host has connected to this resource yet.</key>
+		<key name="job_0378">- Not up yet, will check again at: [#!variable!next_check!#].</key>
+		<key name="job_0379">- Up!</key>
+		<key name="job_0380">Done! The server: [#!variable!server!#] is now being protected on DR!
+It will take time for it to initialize, please be patient.</key>
+		<key name="job_0381">- Running the scan agent 'scan-drbd' locally to record the newly used TCP ports.</key>
+		<key name="job_0382">- Running the scan agent 'scan-drbd' on: [#!variable!host_name!#] to record the newly used TCP ports.</key>
+		<key name="job_0383">The job has been recorded with the UUID: [#!variable!job_uuid!#], it will start in just a moment if anvil-daemon is running.</key>
+		<key name="job_0384">Manage DR tasks for a given server</key>
+		<key name="job_0385">This job can protect, remove (unprotect), connect, disconnect or update (connect, sync, disconnect) a given server.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1229,7 +1346,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
 		<key name="log_0063"><![CDATA[The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.]]></key>
-		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] can not be used, skipping it.</key>
+		<key name="log_0064">[ Note ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] is not available, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
 ----------
@@ -1900,6 +2017,20 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0646">#!variable!program!# is disabled in anvil.conf. and '--force' was not used. Exiting.</key>
 		<key name="log_0647">[ Note ] - The network interface: [#!variable!name!#] with 'network_interface_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
 		<key name="log_0648">[ Note ] - Managing /etc/hosts has been disabled.</key>
+		<key name="log_0649">[ Note ] - The Anvil!: [#!variable!anvil_name!#]'s storage group: [#!variable!storage_group!#] didn't have an entry for the host: [#!variable!host_name!#]. The volume group: [#!variable!vg_internal_uuid!#] is a close fit and not in another storage group, so adding it to this storage group now.</key>
+		<key name="log_0650">[ Note ] - We're a Striker and we did not connect to a peer's database. Will check now if we can load a recent backup, then start postgres locally (with or without a load).</key>
+		<key name="log_0651">Evaluating the dump file: [#!variable!full_path!#].</key>
+		<key name="log_0652">The database host UUID: [#!variable!host_uuid!#] is not configured here, ignoring: [#!variable!full_path!#].</key>
+		<key name="log_0653">We created the database dump file: [#!variable!full_path!#], will compare it's modidified time to other dumps we may find.</key>
+		<key name="log_0654">The database was dumped to: [#!variable!file!#] in: [#!variable!took!#] second(s). The size of the dump file is: [#!variable!size!#] (#!variable!size_bytes) bytes).</key>
+		<key name="log_0655">The database was loaded successfull from the file: [#!variable!file!#] in: [#!variable!took!#] second(s)!</key>
+		<key name="log_0656">No databases were available, so we will become primary after loading: [#!variable!file!#], which is: [#!variable!size!#] (#!variable!size_bytes!# bytes). Please be patient, this could take a moment.</key>
+		<key name="log_0657">The database was loaded, clear it and other DB dumps out now so that they don't get reloaded again in the future.</key>
+		<key name="log_0658">Sync'ed the file: [#!variable!file!#] to the peer Striker: [#!variable!host_name!#]. The sync took: [#!variable!took!#] seconds, and the file was: [#!variable!size!#] (#!variable!size_bytes!# bytes).</key>
+		<key name="log_0659">We're going to shut down our database. Creating a backup first.</key>
+		<key name="log_0660">Stopped the postgresql daemon as a peer is currently primary.</key>
+		<key name="log_0661">Our most recent database dump is newer than any from our peers. As such, we'll just start the database without a load.</key>
+		<key name="log_0662">Retrying to connect to the database.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2261,7 +2392,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0263">Preparing to get server VM screenshot.</key>
 		<key name="message_0264">Finished getting server VM screenshot.</key>
 		<key name="message_0265">Failed to get server VM screenshot; got non-zero return code.</key>
-		<key name="message_0266">Finished attempting to get server VM screenshot; no operations happened because requirements not met.</key>
+		<key name="message_0266">Finished attempting to get server VM screenshot; no operations happened because requirements not met.</key>>>> master
+		<key name="message_0267">Preparing to manage DR for a server.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -2922,6 +3054,7 @@ The error was:
 
 We will sleep a bit and try again.
 		</key>
+		<key name="warning_0130">[ Warning ] - The storage group: [#!variable!storage_group_name!#] had the host: [#!variable!host_name!#] as a member. This host is not a member (anymore?) of the Anvil!: [#!variable!anvil_name!#]. Removing it from the storage group now.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

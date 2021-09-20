@@ -20,6 +20,7 @@ my $THIS_FILE = "DRBD.pm";
 # delete_resource
 # gather_data
 # get_devices
+# get_next_resource
 # get_status
 # manage_resource
 # reload_defaults
@@ -617,6 +618,12 @@ sub gather_data
 		$anvil->data->{new}{scan_drbd}{scan_drbd_timeout}          = 6;		# Default is '60', 6 seconds
 		$anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed} = 0;
 		
+		my $local_host_name       = $anvil->Get->host_name;
+		my $local_short_host_name = $anvil->Get->short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			local_host_name       => $local_host_name, 
+			local_short_host_name => $local_short_host_name, 
+		}});
 		foreach my $name ($dom->findnodes('/config/common/section'))
 		{
 			my $section = $name->{name};
@@ -705,7 +712,7 @@ sub gather_data
 					}});
 					
 					# Record the local data only.
-					if (($this_host_name eq $anvil->Get->host_name) or ($this_host_name eq $anvil->Get->short_host_name))
+					if (($this_host_name eq $local_host_name) or ($this_host_name eq $local_short_host_name))
 					{
 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
@@ -722,30 +729,133 @@ sub gather_data
 			
 			foreach my $connection ($name->findnodes('./connection'))
 			{
-				my $peer = "";
+				my $host1_name       = "";
+				my $host1_ip_address = "";
+				my $host1_tcp_port   = "";
+				my $host2_name       = "";
+				my $host2_ip_address = "";
+				my $host2_tcp_port   = "";
+				my $peer             = "";
 				foreach my $host ($connection->findnodes('./host'))
 				{
 					my $this_host_name = $host->{name};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
-					
-					next if (($this_host_name eq $anvil->Get->host_name) or ($this_host_name eq $anvil->Get->short_host_name));
-					
-					$peer                                                                  = $this_host_name;
-					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host->findvalue('./address'); 
-					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host->findvalue('./address/@port');; 
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
-						"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
-					}});
-					
-					if (not exists $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol})
+					if (not $host1_name)
 					{
-						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol}        = "unknown";
-						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing}         = "unknown";
+						$host1_name       = $this_host_name;
+						$host1_ip_address = $host->findvalue('./address');
+						$host1_tcp_port   = $host->findvalue('./address/@port');
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"s1:new::resource::${resource}::peer::${peer}::protocol" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
-							"s2:new::resource::${resource}::peer::${peer}::fencing"  => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
+							host1_name       => $host1_name,
+							host1_ip_address => $host1_ip_address, 
+							host1_tcp_port   => $host1_tcp_port, 
 						}});
+					}
+					else
+					{
+						$host2_name = $this_host_name;
+						$host2_ip_address = $host->findvalue('./address');
+						$host2_tcp_port   = $host->findvalue('./address/@port');
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							host2_name       => $host2_name,
+							host2_ip_address => $host2_ip_address, 
+							host2_tcp_port   => $host2_tcp_port, 
+						}});
+					}
+					
+# 					$peer                                                                  = $this_host_name;
+# 					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host->findvalue('./address'); 
+# 					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host->findvalue('./address/@port'); 
+# 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 						"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
+# 						"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}." (".$host->findvalue('./address/@port').")",
+# 					}});
+					
+# 					if (not exists $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol})
+# 					{
+# 						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol}        = "unknown";
+# 						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing}         = "unknown";
+# 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 							"s1:new::resource::${resource}::peer::${peer}::protocol" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
+# 							"s2:new::resource::${resource}::peer::${peer}::fencing"  => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
+# 						}});
+# 					}
+# 					
+# 					foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+# 					{
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state}       = "disconnected";
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state}       = "down"; 
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state}        = "unknown"; 
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role}             = "down"; 
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role}              = "unknown"; 
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}       = -1; 
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed}      = 0;
+# 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync} = 0; 
+# 					}
+				}
+				
+				if (($host1_name eq $local_short_host_name) or 
+				    ($host1_name eq $local_host_name)       or 
+				    ($host2_name eq $local_short_host_name) or 
+				    ($host2_name eq $local_host_name))
+				{
+					# This is one of our connections.
+					my $peer = "";
+					if (($host1_name eq $local_short_host_name) or ($host1_name eq $local_host_name))
+					{
+						# Our peer is host2
+						$peer                                                                  = $host2_name;
+						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host2_ip_address; 
+						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host2_tcp_port; 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
+							"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
+						}});
+					}
+					else
+					{
+						# Our peer is host1
+						$peer                                                                  = $host1_name;
+						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host1_ip_address; 
+						$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host1_tcp_port; 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
+							"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
+						}});
+					}
+					
+					foreach my $name ($connection->findnodes('./section'))
+					{
+						my $section = $name->{name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { section => $section }});
+						
+						foreach my $option_name ($name->findnodes('./option'))
+						{
+							my $variable = $option_name->{name};
+							my $value    = $option_name->{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								's1:variable' => $variable, 
+								's2:value'    => $value,
+							}});
+
+							if ($section eq "net")
+							{
+								if ($variable eq "protocol")
+								{
+									$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol} = $value;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+										"new::resource::${resource}::peer::${peer}::protocol" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
+									}});
+								}
+								if ($variable eq "fencing")
+								{
+									$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing} = $value;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+										"new::resource::${resource}::peer::${peer}::fencing" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
+									}});
+								}
+							}
+						}
 					}
 					
 					foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
@@ -758,40 +868,6 @@ sub gather_data
 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{out_of_sync_size}       = -1; 
 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{replication_speed}      = 0;
 						$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{estimated_time_to_sync} = 0; 
-					}
-				}
-				
-				foreach my $name ($connection->findnodes('./section'))
-				{
-					my $section = $name->{name};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { section => $section }});
-					
-					foreach my $option_name ($name->findnodes('./option'))
-					{
-						my $variable = $option_name->{name};
-						my $value    = $option_name->{value};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							's1:variable' => $variable, 
-							's2:value'    => $value,
-						}});
-
-						if ($section eq "net")
-						{
-							if ($variable eq "protocol")
-							{
-								$anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol} = $value;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-									"new::resource::${resource}::peer::${peer}::protocol" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol},
-								}});
-							}
-							if ($variable eq "fencing")
-							{
-								$anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing} = $value;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-									"new::resource::${resource}::peer::${peer}::fencing" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{fencing},
-								}});
-							}
-						}
 					}
 				}
 			}
@@ -1249,6 +1325,10 @@ Parameters;
 
 This is the Anvil! in which we're looking for the next free resources. It's required, but generally it doesn't need to be specified as we can find it via C<< Cluster->get_anvil_uuid() >>.
 
+=head3 dr_tcp_ports (optional, default '0')
+
+If set, the 'free_port' returned will be a comma-separated pair of TCP ports. This is meant to help find two TCP ports needed to connect a resource from both nodes to a DR host.
+
 =head3 resource_name (optional)
 
 If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, empty strings are returned.
@@ -1267,10 +1347,12 @@ sub get_next_resource
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_next_resource()" }});
 	
 	my $anvil_uuid    = defined $parameter->{anvil_uuid}    ? $parameter->{anvil_uuid}    : "";
+	my $dr_tcp_ports  = defined $parameter->{dr_tcp_ports}  ? $parameter->{dr_tcp_ports}  : "";
 	my $resource_name = defined $parameter->{resource_name} ? $parameter->{resource_name} : "";
 	my $force_unique  = defined $parameter->{force_unique}  ? $parameter->{force_unique}  : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid    => $anvil_uuid, 
+		dr_tcp_ports  => $dr_tcp_ports, 
 		resource_name => $resource_name, 
 		force_unique  => $force_unique, 
 	}});
@@ -1387,7 +1469,7 @@ ORDER BY
 			's6:scan_drbd_volume_device_minor' => $scan_drbd_volume_device_minor, 
 			's7:scan_drbd_peer_host_name'      => $scan_drbd_peer_host_name, 
 			's8:scan_drbd_peer_ip_address'     => $scan_drbd_peer_ip_address, 
-			's9:scan_drbd_peer_protocol'      => $scan_drbd_peer_protocol, 
+			's9:scan_drbd_peer_protocol'       => $scan_drbd_peer_protocol, 
 			's10:scan_drbd_peer_fencing'       => $scan_drbd_peer_fencing, 
 			's11:scan_drbd_peer_tcp_port'      => $scan_drbd_peer_tcp_port, 
 		}});
@@ -1434,20 +1516,53 @@ ORDER BY
 		}
 	}
 	
-	$looking   = 1;
-	$free_port = 7788;
+	   $looking   = 1;
+	   $free_port = 7788;
+	my $tcp_pair  = "";
 	while($looking)
 	{
-		if (exists $anvil->data->{drbd}{used_resources}{tcp_port}{$free_port})
+		if ((exists $anvil->data->{drbd}{used_resources}{tcp_port}{$free_port}) && 
+		    ($anvil->data->{drbd}{used_resources}{tcp_port}{$free_port}{used}))
 		{
 			$free_port++;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
 		}
 		else
 		{
-			$looking = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
+			if ($dr_tcp_ports)
+			{
+				if (not $tcp_pair)
+				{
+					$tcp_pair = $free_port;
+					$free_port++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						tcp_pair  => $tcp_pair,
+						free_port => $free_port, 
+					}});
+				}
+				elsif ($tcp_pair !~ /,/)
+				{
+					$tcp_pair .= ",".$free_port;
+					$looking  =  0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						tcp_pair => $tcp_pair,
+						looking  => $looking, 
+					}});
+				}
+			}
+			else
+			{
+				$looking = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+			}
 		}
+	}
+	
+	if ($dr_tcp_ports)
+	{
+		$free_port = $tcp_pair;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
