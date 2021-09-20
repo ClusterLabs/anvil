@@ -1229,8 +1229,6 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0353">* Please enter the name of the server you want to manage</key>
 		<key name="job_0354">-=] Servers available to manage on the Anvil! [#!variable!anvil_name!#] [=-</key>
 		<key name="job_0355">-=] Managing the server: [#!variable!server_name!#] on the Anvil!: [#!variable!anvil_name!#]</key>
-		<key name="job_0356">Manage DR tasks for a given server</key>
-		<key name="job_0357">This job can protect, remove (unprotect), connect, disconnect or update (connect, sync, disconnect) a given server.</key>
 		<key name="job_0358">Running sanity checks.</key>
 		<key name="job_0359">Sanity checks complete!</key>
 		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
@@ -1265,6 +1263,8 @@ It will take time for it to initialize, please be patient.</key>
 		<key name="job_0381">- Running the scan agent 'scan-drbd' locally to record the newly used TCP ports.</key>
 		<key name="job_0382">- Running the scan agent 'scan-drbd' on: [#!variable!host_name!#] to record the newly used TCP ports.</key>
 		<key name="job_0383">The job has been recorded with the UUID: [#!variable!job_uuid!#], it will start in just a moment if anvil-daemon is running.</key>
+		<key name="job_0384">Manage DR tasks for a given server</key>
+		<key name="job_0385">This job can protect, remove (unprotect), connect, disconnect or update (connect, sync, disconnect) a given server.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

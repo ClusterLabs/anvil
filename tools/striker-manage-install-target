@@ -176,7 +176,7 @@ if ($anvil->data->{switches}{disable})
 
 # Exit if we're not configured yet
 my $configured = $anvil->System->check_if_configured;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 if (not $configured)
 {
 	print $anvil->Words->string({key => "error_0046"})."\n";

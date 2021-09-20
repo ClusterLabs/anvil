@@ -850,8 +850,8 @@ sub process_protect
 			job_command     => $anvil->data->{path}{exe}{'anvil-manage-dr'}.$anvil->Log->switches, 
 			job_data        => $job_data, 
 			job_name        => "server::dr", 
-			job_title       => "job_0356", 
-			job_description => "job_0357", 
+			job_title       => "job_0384", 
+			job_description => "job_0385", 
 			job_progress    => 0,
 			job_host_uuid   => $anvil->Get->host_uuid, 
 		});
