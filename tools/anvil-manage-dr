@@ -723,12 +723,49 @@ sub process_protect
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	# Get net next pair of TCP ports.
+	# Have we already configured the DR? If so, what ports are already allocated.
+	my $node1_to_dr_port = "";
+	my $node2_to_dr_port = "";
+	foreach my $host1_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{host1_to_host2}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host1_name => $host1_name }});
+		foreach my $host2_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host2_name => $host2_name }});
+			next if (($host1_name ne $dr1_short_host_name) && ($host2_name ne $dr1_short_host_name));
+			if (($host1_name eq $node1_short_host_name) or ($host2_name eq $node1_short_host_name))
+			{
+				$node1_to_dr_port = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port => $node1_to_dr_port }});
+			}
+			else
+			{
+				$node2_to_dr_port = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port => $node2_to_dr_port }});
+			}
+		}
+	}
+	
+	# Get net next pair of TCP ports, if needed.
 	my (undef, $tcp_ports) = $anvil->DRBD->get_next_resource({
 		debug        => 2,
 		dr_tcp_ports => 1, 
 	});
-	my ($node1_to_dr_port, $node2_to_dr_port) = split/,/, $tcp_ports;
+	my ($first_port, $second_port) = split/,/, $tcp_ports;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s01:first_port"  => $first_port, 
+		"s02:second_port" => $second_port, 
+	}});
+	if ($node1_to_dr_port eq "")
+	{
+		$node1_to_dr_port = $first_port;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port => $node1_to_dr_port }});
+	}
+	if ($node2_to_dr_port eq "")
+	{
+		$node2_to_dr_port = $second_port;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port => $node2_to_dr_port }});
+	}
 	
 	# Show what we're doing
 	my $variables = {

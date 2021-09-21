@@ -761,6 +761,17 @@ sub gather_data
 							host2_ip_address => $host2_ip_address, 
 							host2_tcp_port   => $host2_tcp_port, 
 						}});
+						
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address} = $host1_ip_address;
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port}   = $host1_tcp_port;
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address} = $host2_ip_address;
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port}   = $host2_tcp_port;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host1_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address},
+							"s2:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host1_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port},
+							"s3:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address},
+							"s4:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port},
+						}});
 					}
 					
 # 					$peer                                                                  = $this_host_name;
