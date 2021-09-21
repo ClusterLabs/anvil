@@ -1267,6 +1267,22 @@ It will take time for it to initialize, please be patient.</key>
 		<key name="job_0383">The job has been recorded with the UUID: [#!variable!job_uuid!#], it will start in just a moment if anvil-daemon is running.</key>
 		<key name="job_0384">Manage DR tasks for a given server</key>
 		<key name="job_0385">This job can protect, remove (unprotect), connect, disconnect or update (connect, sync, disconnect) a given server.</key>
+		<key name="job_0386">
+Do you want to connect the DR host for the server: [#!variable!server!#]? 
+Note: Depending on the disk write load and storage network speed to the DR host, 
+      this could cause reduced disk write performance. 
+		</key>
+		<key name="job_0387">About to connect the DR resource for the server: [#!variable!server!#].</key>
+		<key name="job_0388">Brought up the connection locally. Now checking that the resource is up on the nodes.</key>
+		<key name="job_0389">Making sure the resource is up on: [#!variable!host_name!#].</key>
+		<key name="job_0390">Waiting now for the our resource to connect.</key>
+		<key name="job_0391">Done! The server: [#!variable!server!#] is now connected.</key>
+		<key name="job_0392">
+Do you want to disconnect the DR host for the server: [#!variable!server!#]? 
+Note: Once down, no further changes will be written to the DR host.
+		</key>
+		<key name="job_0393">About to disconnect the DR resource for the server: [#!variable!server!#].</key>
+		<key name="job_0394">Done! The server: [#!variable!server!#] is now disconnected.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
