@@ -1270,8 +1270,7 @@ It will take time for it to initialize, please be patient.</key>
 		<key name="job_0386">
 Do you want to connect the DR host for the server: [#!variable!server!#]? 
 Note: Depending on the disk write load and storage network speed to the DR host, 
-      this could cause reduced disk write performance. 
-		</key>
+      this could cause reduced disk write performance.</key>
 		<key name="job_0387">About to connect the DR resource for the server: [#!variable!server!#].</key>
 		<key name="job_0388">Brought up the connection locally. Now checking that the resource is up on the nodes.</key>
 		<key name="job_0389">Making sure the resource is up on: [#!variable!host_name!#].</key>
@@ -1279,10 +1278,17 @@ Note: Depending on the disk write load and storage network speed to the DR host,
 		<key name="job_0391">Done! The server: [#!variable!server!#] is now connected.</key>
 		<key name="job_0392">
 Do you want to disconnect the DR host for the server: [#!variable!server!#]? 
-Note: Once down, no further changes will be written to the DR host.
-		</key>
+Note: Once down, no further changes will be written to the DR host.</key>
 		<key name="job_0393">About to disconnect the DR resource for the server: [#!variable!server!#].</key>
 		<key name="job_0394">Done! The server: [#!variable!server!#] is now disconnected.</key>
+		<key name="job_0395">
+Do you want to update the DR host for the server: [#!variable!server!#]? 
+Note: This will connect the DR host until the disk(s) on DR are (all) UpToDate.
+      Depending on the disk write load and storage network speed to the DR host,
+      this could cause reduced disk write performance.</key>
+		<key name="job_0396">Still sync'ing from: [#!variable!sync_source!#] at a rate of: [#!variable!sync_speed!#/sec]. Estimated time remaining is: [#!variable!time_to_sync!#].</key>
+		<key name="job_0397">Sync'ed! Bringing the resource back down now.</key>
+		<key name="job_0398">Waiting for the connection to come up...</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
