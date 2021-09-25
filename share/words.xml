@@ -2053,6 +2053,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0660">Stopped the postgresql daemon as a peer is currently primary.</key>
 		<key name="log_0661">Our most recent database dump is newer than any from our peers. As such, we'll just start the database without a load.</key>
 		<key name="log_0662">Retrying to connect to the database.</key>
+		<key name="log_0663">The target can be reached on the dedicated migration network: [#!variable!target!#] via the IP address: [#!variable!ip!#], switching to use that for the RAM copy.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

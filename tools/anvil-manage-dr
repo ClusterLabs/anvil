@@ -5,6 +5,8 @@
 # NOTE: Unlike most jobs, this one will directly work on the peer node and the DR host using SSH connections.
 #       This behaviour is likely to change later as it's not ideal.
 # 
+# TODO: --remove is not yet implemented, this needs to be done. Use anvil-delete-server for methods to delete.
+# 
 # Exit codes;
 # 0 = Normal exit.
 # 1 = Any problem that causes an early exit.
@@ -85,8 +87,6 @@ if (not $anvil->data->{switches}{'job-uuid'})
 
 sanity_check($anvil, $terminal);
 
-do_task($anvil, $terminal);
-
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -94,19 +94,6 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
-
-sub do_task
-{
-	my ($anvil, $terminal) = @_;
-	
-	# What task am I doing?
-	if ($anvil->data->{switches}{protect})
-	{
-		
-	}
-	
-	return(0);
-}
 
 sub sanity_check
 {
