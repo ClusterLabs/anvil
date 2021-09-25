@@ -4902,7 +4902,6 @@ sub update_hosts
 	
 	# Read in the existing hosts file
 	my $add_header    = 1;
-	my $changes       = 0;
 	my $added_lo_ipv4 = 0; 
 	my $added_lo_ipv6 = 0;
 	my $new_body      = "";
@@ -4911,6 +4910,35 @@ sub update_hosts
 		file  => $anvil->data->{path}{configs}{hosts},
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+	
+	# Look for duplicate empty lines and clear them.
+	my $last_line_blank = 0;
+	my $cleaned_body    = "";
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line)
+		{
+			$last_line_blank = 0;
+			$cleaned_body    .= $line."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
+		}
+		elsif (not $last_line_blank)
+		{
+			$last_line_blank = 1;
+			$cleaned_body    .= $line."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
+	
+	my $difference = diff \$old_body, \$cleaned_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	if ($difference)
+	{
+		$old_body = $cleaned_body;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+	}
 	
 	# This will track the IPs we've seen. We'll only write these out once, and skip any futher entries 
 	# that may be found.
@@ -4955,9 +4983,6 @@ sub update_hosts
 		{
 			if ($line ne "127.0.0.1\tlocalhost localhost.localdomain localhost4 localhost4.localdomain4")
 			{
-				$changes = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
-				
 				if (not $added_lo_ipv4)
 				{
 					$new_body      .= "127.0.0.1\tlocalhost localhost.localdomain localhost4 localhost4.localdomain4\n";
@@ -4977,9 +5002,6 @@ sub update_hosts
 		{
 			if ($line ne "::1\t\tlocalhost localhost.localdomain localhost6 localhost6.localdomain6")
 			{
-				$changes = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
-				
 				if (not $added_lo_ipv6)
 				{
 					$new_body      .= "::1\t\tlocalhost localhost.localdomain localhost6 localhost6.localdomain6\n";
@@ -5019,8 +5041,6 @@ sub update_hosts
 		if (exists $written_ips->{$ip_address})
 		{
 			# Skipping at least one line, rewrite the file.
-			$changes = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
 			next;
 		}
 		$written_ips->{$ip_address} = 1;
@@ -5049,8 +5069,6 @@ sub update_hosts
 						new_ip => $ip_address, 
 						host   => $name,
 					}});
-					$changes = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
 					next;
 				}
 			}
@@ -5092,11 +5110,9 @@ sub update_hosts
 		my $header   =  $anvil->Words->string({key => "message_0177"});
 		   $header   =~ s/^\n//;
 		   $new_body =  $header.$new_body;
-		   $changes  =  1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:changes'  => $changes,
-			's2:header'   => $header,
-			's3:new_body' => $new_body,
+			's1:header'   => $header,
+			's2:new_body' => $new_body,
 		}});
 	}
 	
@@ -5132,9 +5148,6 @@ sub update_hosts
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line_count => $new_line_count }});
 	if ($new_line_count)
 	{
-		$changes = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
-		$new_body .= "\n";
 		#$new_body .= "\n# ".$anvil->Words->string({key => "message_0178", variables => { date => $anvil->Get->date_and_time({debug => $debug}) }})."\n";
 		
 		foreach my $ip_address (@{$ip_order})
@@ -5144,11 +5157,10 @@ sub update_hosts
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		's1:changes'  => $changes,
-		's2:new_body' => $new_body,
-	}});
-	if ($changes)
+	$difference = "";
+	$difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	if ($difference)
 	{
 		# Write the new file.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});

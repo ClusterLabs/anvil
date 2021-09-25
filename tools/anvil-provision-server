@@ -44,6 +44,7 @@ $anvil->data->{switches}{uuid}            = "";
 $anvil->data->{switches}{ram}             = "";
 $anvil->data->{switches}{'storage-group'} = "";
 $anvil->data->{switches}{'storage-size'}  = "";
+$anvil->data->{switches}{'use-image'}     = "";
 $anvil->Get->switches;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
