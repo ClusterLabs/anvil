@@ -2151,8 +2151,17 @@ fi";
 		}
 		if ($line =~ /ether (.*?) /i)
 		{
-			my $mac_address                                                      = $1;
-			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $mac_address;
+			my $mac_address = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac_address => $mac_address }});
+			
+			# Wireless interfaces have a 'permaddr' that is stable. The MAC address shown by 'ether' changes constantly, for some odd reason.
+			if ($line =~ /permaddr (.*)$/)
+			{
+				$mac_address = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac_address => $mac_address }});
+			}
+			
+			$anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $mac_address;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${in_iface}::mac_address" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address},
 			}});

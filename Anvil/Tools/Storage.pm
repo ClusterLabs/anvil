@@ -1272,6 +1272,8 @@ B<< Warning >>: This must be used carefully! Calling this backwards could destro
 
 B<< Note >>: The caller is responsible for ensuring the data on the soure will not change during the copy. If the source is a server, make sure it's off. If the source is a file system, make sure it's unmounted.
 
+B<< Note >>: If the C<< source >> or C<< destination >> is a remote host, passwordless SSH must be configured for this to work!
+
 Parameters;
 
 =head3 block_size (optional, default '4M')
@@ -1298,6 +1300,10 @@ This is the full path to the source (copy from) file or device. If the source is
 
 B<< Note >>: Only the source OR the destination can be remote, not both!
 
+=head3 status_file (required)
+
+This is the path to the status file used to record the progress of the copy. This will contain a parsed version of the C<< dd ... --status=progress >> output. When the copy is done, if C<< calculate_sums >> is set, then the C<< source=<sum> >> and C<< destination=<sum> >> will be recorded, marking the completion of the copy. If not set, those same variables will be written without a value, still marking the end of the copy. If there is a problem, the last line of the file be C<< failed=<reason> >>.
+
 =cut
 sub copy_device
 {
@@ -1305,20 +1311,39 @@ sub copy_device
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->delete_file()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->copy_device()" }});
 	
-	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
-	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
-	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $block_size     = defined $parameter->{block_size}     ? $parameter->{block_size}     : "";
+	my $calculate_sums = defined $parameter->{calculate_sums} ? $parameter->{calculate_sums} : "";
+	my $destination    = defined $parameter->{destination}    ? $parameter->{destination}    : "";
+	my $source         = defined $parameter->{source}         ? $parameter->{source}         : "";
+	my $status_file    = defined $parameter->{status_file}    ? $parameter->{status_file}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		file        => $file, 
-		password    => $anvil->Log->is_secure($password), 
-		port        => $port, 
-		remote_user => $remote_user, 
-		target      => $target,
+		block_size     => $block_size, 
+		calculate_sums => $calculate_sums, 
+		destination    => $destination, 
+		source         => $source, 
+		status_file    => $status_file, 
 	}});
+	
+	if (not $source)
+	{
+		# No source passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_device()", parameter => "source" }});
+		return('!!error!!');
+	}
+	if (not $destination)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_device()", parameter => "destination" }});
+		return('!!error!!');
+	}
+	if (not $block_size)
+	{
+		$block_size = "4M";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { block_size => $block_size }});
+	}
+	
+	# Verify that the source exists.
 	
 	
 	return("");

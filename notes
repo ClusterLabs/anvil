@@ -934,7 +934,7 @@ OS10(conf-vlt-1)# discovery-interface ethernet 1/1/25-1/1/26
 # Configure the same MAC address to the VLT on both switches:
 OS10# configure terminal 
 OS10(config)# vlt-domain 1
-OS10(conf-vlt-1)# vlt-mac 00:00:00:00:00:02
+OS10(conf-vlt-1)# vlt-mac 00:00:00:00:00:02		# Set once per VLT domain, not per switch
 
 OS10# show vlt 1 mismatch
 (If no issues, VLT is OK)
@@ -958,7 +958,7 @@ OS10(config)# write memory
 OS10(config)# hostname zo-switch01
 zo-switch01(config)# interface vlan 100
 zo-switch01(conf-if-vl-100)# description BCN1
-zo-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/10
+zo-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/14
 zo-switch01(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
 zo-switch01(conf-range-eth1/1/1-1/1/10)# no shutdown 
 zo-switch01(conf-range-eth1/1/1-1/1/10)# exit

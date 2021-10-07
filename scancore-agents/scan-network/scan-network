@@ -177,7 +177,6 @@ sub collect_data
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
-			my $mac_address = -e $full_path."/address"   ? $anvil->Storage->read_file({file => $full_path."/address"})   : "";
 			my $link_state  = -e $full_path."/carrier"   ? $anvil->Storage->read_file({file => $full_path."/carrier"})   : 0;
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
@@ -188,14 +187,7 @@ sub collect_data
 			my $tx_bytes    = 0;	# How many bytes transmitted
 			my $rx_bytes    = 0;	# How many bytes received
 			
-			# If the NIC is a bond member, the MAC address could be virtual. 
-			if (-e $full_path."/bonding_slave/perm_hwaddr")
-			{
-				$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
-			}
-			
 			# Clean up some newlines.
-			$mac_address =~ s/\n$//;
 			$link_state  =~ s/\n$//;
 			$mtu         =~ s/\n$//;
 			$duplex      =~ s/\n$//;
@@ -203,13 +195,42 @@ sub collect_data
 			$speed       =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
-				mac_address => $mac_address,
 				link_state  => $link_state, 
 				mtu         => $mtu,
 				duplex      => $duplex, 
 				operational => $operational,
 				speed       => $speed, 
 			}});
+			
+			# The MAC address can faked by a number of ways, so we make an explicit call to 'ethtool' to get the permanent mac address.
+			my $mac_address = "";
+			my $shell_call  = $anvil->data->{path}{exe}{ethtool}." -P ".$interface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($output =~ /(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)$/)
+			{
+				$mac_address = lc($1);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+			}
+			else
+			{
+				# Get it by reading the address file.
+				if (-e $full_path."/bonding_slave/perm_hwaddr")
+				{
+					$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				}
+				elsif (-e $full_path."/address")
+				{
+					$mac_address = $anvil->Storage->read_file({file => $full_path."/address"});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				}
+			}
 			
 			# These are variables that will be needed if this is a bond interface.
 			my $ip_address           = "";
@@ -402,7 +423,7 @@ sub collect_data
 			}
 			
 			# Find the media, if possible.
-			my ($ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
+			(my $ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
 			foreach my $line (split/\n/, $ethtool)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});

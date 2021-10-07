@@ -952,7 +952,7 @@ sub find_changes
 						swap_percent => $new_swap_percent_used,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "scan_hardware_alert_0020", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0020", variables => $variables, set_by => $THIS_FILE });
+					$anvil->Alert->register({alert_level => "notice", message => "scan_hardware_alert_0020", variables => $variables, set_by => $THIS_FILE });
 				}
 			}
 			elsif ($new_scan_hardware_swap_free < $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold})
@@ -976,7 +976,7 @@ sub find_changes
 						swap_percent => $new_swap_percent_used,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "scan_hardware_alert_0021", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0021", variables => $variables, set_by => $THIS_FILE });
+					$anvil->Alert->register({alert_level => "notice", message => "scan_hardware_alert_0021", variables => $variables, set_by => $THIS_FILE });
 				}
 			}
 		}

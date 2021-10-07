@@ -486,6 +486,11 @@ INSERT INTO
 			if ($changed)
 			{
 				# First time we've fallen under 5%
+				my $alert_level = "warning";
+				if ($new_mount_point eq "<swap>")
+				{
+					$alert_level = "notice";
+				}
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0002", variables => $variables});
 				$anvil->Alert->register({
 					alert_level   => "warning", 
@@ -537,10 +542,15 @@ INSERT INTO
 			}});
 			if (($very_low_changed) or ($low_changed))
 			{
-				# Clear the alert
+				# Clear the alert. If this is swap, make it a notice level alert.
+				my $alert_level = $very_low_changed ? "warning" : "notice";
+				if ($new_mount_point eq "<swap>")
+				{
+					$alert_level = "notice";
+				}
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0004", variables => $variables});
 				$anvil->Alert->register({
-					alert_level   => $very_low_changed ? "warning" : "notice", 
+					alert_level   => $alert_level, 
 					clear_alert   => 1,
 					message       => "scan_filesystem_alert_0004", 
 					sort_position => 1,

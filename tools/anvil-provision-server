@@ -488,7 +488,7 @@ sub provision_server
 	   $shell_call .= " --network bridge=ifn1_bridge1".$nic_model." \\\n";
 	   $shell_call .= " --graphics vnc \\\n";
 	   $shell_call .= " --sound ich9 \\\n";
-	   $shell_call .= " --clock offset=".$clock_offset." \\\n";	# We may want to support ',rtc_tickpolicy=catchup'
+	   $shell_call .= " --clock offset=".$clock_offset.",rtc_tickpolicy=catchup \\\n";
 	   $shell_call .= " --boot menu=on \\\n";
 	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0".$disk_bus.",driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
 	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
