@@ -214,9 +214,6 @@ Prerequisites:
 This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
 		</key>
 
-
-		
-		
-		
+		<key name="scan_network_log_0001">Aging out RX and TX data under: [#!variable!records!#] interfaces. These have 1 or more historical records older than: [#!variable!age!#] hours old from the database host: [#!variable!host!#].</key>
 	</language>
 </words>
