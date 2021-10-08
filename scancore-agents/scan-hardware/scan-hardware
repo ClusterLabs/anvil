@@ -632,6 +632,11 @@ sub find_changes
 	my $new_scan_hardware_memory_free  = $anvil->data->{summary}{ram}{proc}{memory_free};
 	my $new_scan_hardware_swap_total   = $anvil->data->{summary}{ram}{proc}{swap_total};
 	my $new_scan_hardware_swap_free    = $anvil->data->{summary}{ram}{proc}{swap_free};
+	my $new_scan_hardware_swap_used    = $new_scan_hardware_swap_total - $new_scan_hardware_swap_free;
+	my $new_swap_used_percentage       = $anvil->Convert->round({
+		number => (($new_scan_hardware_swap_used / $new_scan_hardware_swap_total) * 100),
+		places => 0,
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"new_scan_hardware_cpu_model"    => $new_scan_hardware_cpu_model, 
 		"new_scan_hardware_cpu_cores"    => $new_scan_hardware_cpu_cores, 
@@ -646,6 +651,8 @@ sub find_changes
 		"new_scan_hardware_memory_free"  => $anvil->Convert->add_commas({number => $new_scan_hardware_memory_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_free}).")", 
 		"new_scan_hardware_swap_total"   => $anvil->Convert->add_commas({number => $new_scan_hardware_swap_total})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total}).")", 
 		"new_scan_hardware_swap_free"    => $anvil->Convert->add_commas({number => $new_scan_hardware_swap_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_free}).")", 
+		"new_scan_hardware_swap_used"    => $anvil->Convert->add_commas({number => $new_scan_hardware_swap_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_used}).")", 
+		"new_swap_used_percentage"       => $new_swap_used_percentage."%",
 	}});
 	
 	# The LED status needs to be translated.
@@ -901,12 +908,16 @@ sub find_changes
 		if ($new_scan_hardware_memory_free ne $old_scan_hardware_memory_free)
 		{
 			# This always changes, so it's an info-level alert
-			   $update                       = 1;
+			   $update                              = 1;
 			my $say_new_scan_hardware_memory_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)";
 			my $say_old_scan_hardware_memory_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)";
 			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "info", message => "scan_hardware_alert_0018,!!new!".$say_new_scan_hardware_memory_free."!!,!!old!".$say_old_scan_hardware_memory_free."!!"});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_hardware_alert_0018", variables => { new => $say_new_scan_hardware_memory_free, old => $say_old_scan_hardware_memory_free}});
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			new_scan_hardware_swap_free => $new_scan_hardware_swap_free, 
+			old_scan_hardware_swap_free => $old_scan_hardware_swap_free, 
+		}});
 		if ($new_scan_hardware_swap_free ne $old_scan_hardware_swap_free)
 		{
 			   $update                          = 1;
@@ -932,7 +943,11 @@ sub find_changes
 			
 			# Check if swap has gone over the high threshold or dropped below the clear 
 			# threashold.
-			if ($new_scan_hardware_swap_free > $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold})
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				new_scan_hardware_swap_free                     => $new_scan_hardware_swap_free, 
+				"scancore::scan-hardware::swap::high_threshold" => $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}, 
+			}});
+			if ($new_swap_used_percentage > $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold})
 			{
 				# It's high
 				my $changed = $anvil->Alert->check_alert_sent({
@@ -952,10 +967,10 @@ sub find_changes
 						swap_percent => $new_swap_percent_used,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "scan_hardware_alert_0020", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0020", variables => $variables, set_by => $THIS_FILE });
+					$anvil->Alert->register({alert_level => "notice", message => "scan_hardware_alert_0020", variables => $variables, set_by => $THIS_FILE });
 				}
 			}
-			elsif ($new_scan_hardware_swap_free < $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold})
+			elsif ($new_swap_used_percentage < $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold})
 			{
 				# It's low
 				my $changed = $anvil->Alert->check_alert_sent({
@@ -976,7 +991,7 @@ sub find_changes
 						swap_percent => $new_swap_percent_used,
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "scan_hardware_alert_0021", variables => $variables});
-					$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0021", variables => $variables, set_by => $THIS_FILE });
+					$anvil->Alert->register({alert_level => "notice", message => "scan_hardware_alert_0021", variables => $variables, set_by => $THIS_FILE });
 				}
 			}
 		}

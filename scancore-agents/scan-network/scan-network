@@ -82,13 +82,146 @@ find_changes($anvil);
 # Finally, process health weights.
 process_health($anvil);
 
-	# Shut down.
+# This clears the TX and RX variable data for interfaces older than 'scancore::database::age_out'.
+clear_old_variables($anvil);
+
+# Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This clears the TX and RX variable data for interfaces older than 'scancore::database::age_out'.
+sub clear_old_variables
+{
+	my ($anvil) = @_;
+	
+	# Only Strikers run this.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		return(0);
+	}
+	
+	# Read in all interfaces and for each, delete historical records over the age-out time.
+	my $age = $anvil->data->{scancore}{database}{age_out};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
+	
+	if ($age =~ /\D/)
+	{
+		# Age is not valid, set it to defaults.
+		$age = 24;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
+	}
+	
+	# Get the timestamp to delete thermal and power records older than $age hours.
+	my $query         = "SELECT now() - '".$age."h'::interval;";
+	my $old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		query         => $query, 
+		old_timestamp => $old_timestamp, 
+	}});
+	
+	# Read in all interface RX and TX variables.
+	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			uuid    => $uuid, 
+			db_host => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+		}});
+		my $queries = [];
+		   $query   = "
+SELECT 
+    variable_uuid, 
+    variable_name 
+FROM 
+    variables 
+WHERE 
+    variable_name LIKE '%::tx_bytes' 
+OR 
+    variable_name LIKE '%::rx_bytes'
+;";
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $variable_uuid = $row->[0];
+			my $variable_name = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:variable_name' => $variable_name, 
+				's2:variable_uuid' => $variable_uuid,
+			}});
+			
+			# Find out of there are any records to remove at all.
+			my $query = "SELECT history_id FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date <= '".$old_timestamp."';";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			
+			if ($count)
+			{
+				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
+				my $query = "SELECT history_id FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date > '".$old_timestamp."';";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				if ($count)
+				{
+					# At least one record will be left, we can do a simple delete.
+					my $query = "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date <= '".$old_timestamp."';";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					push @{$queries}, $query;
+				}
+				else
+				{
+					# This would delete everything, reserve at least one record.
+					foreach my $row (@{$results})
+					{
+						my $history_id = $row->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { history_id => $history_id }});
+						
+						my $query = "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND history_id = '".$history_id."';";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						push @{$queries}, $query;
+					}
+				}
+			}
+		}
+		
+		my $commits = @{$queries};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { commits => $commits }});
+		if ($commits)
+		{
+			# Commit the DELETEs.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0001", variables => { 
+				age     => $age,
+				records => $commits,
+				host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}), 
+			}});
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+			undef $queries;
+		}
+	}
+	
+	return(0);
+}
 
 # This reads in all of the network data
 sub collect_data
@@ -177,7 +310,6 @@ sub collect_data
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
-			my $mac_address = -e $full_path."/address"   ? $anvil->Storage->read_file({file => $full_path."/address"})   : "";
 			my $link_state  = -e $full_path."/carrier"   ? $anvil->Storage->read_file({file => $full_path."/carrier"})   : 0;
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
@@ -188,14 +320,7 @@ sub collect_data
 			my $tx_bytes    = 0;	# How many bytes transmitted
 			my $rx_bytes    = 0;	# How many bytes received
 			
-			# If the NIC is a bond member, the MAC address could be virtual. 
-			if (-e $full_path."/bonding_slave/perm_hwaddr")
-			{
-				$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
-			}
-			
 			# Clean up some newlines.
-			$mac_address =~ s/\n$//;
 			$link_state  =~ s/\n$//;
 			$mtu         =~ s/\n$//;
 			$duplex      =~ s/\n$//;
@@ -203,13 +328,43 @@ sub collect_data
 			$speed       =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
-				mac_address => $mac_address,
 				link_state  => $link_state, 
 				mtu         => $mtu,
 				duplex      => $duplex, 
 				operational => $operational,
 				speed       => $speed, 
 			}});
+			
+			# The MAC address can faked by a number of ways, so we make an explicit call to 'ethtool' to get the permanent mac address.
+			my $mac_address = "";
+			my $shell_call  = $anvil->data->{path}{exe}{ethtool}." -P ".$interface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($output =~ /(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)$/)
+			{
+				$mac_address = lc($1);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+			}
+			else
+			{
+				# Get it by reading the address file.
+				if (-e $full_path."/bonding_slave/perm_hwaddr")
+				{
+					$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				}
+				elsif (-e $full_path."/address")
+				{
+					$mac_address =  $anvil->Storage->read_file({file => $full_path."/address"});
+					$mac_address =~ s/\n//;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				}
+			}
 			
 			# These are variables that will be needed if this is a bond interface.
 			my $ip_address           = "";
@@ -402,7 +557,7 @@ sub collect_data
 			}
 			
 			# Find the media, if possible.
-			my ($ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
+			(my $ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
 			foreach my $line (split/\n/, $ethtool)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
@@ -3156,6 +3311,7 @@ AND
 			source_name            => $source_name, 
 		}});
 		
+		### TODO: Don't set / clear interfaces that appear down but aren't named ifn/bcn/sn as they're probably unconfigured/unusued interfaces.
 		my $problem = 0;
 		if ((not $new_link_state) or ($new_operational eq "down") or ($new_duplex ne "full"))
 		{

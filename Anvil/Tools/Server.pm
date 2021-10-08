@@ -864,37 +864,6 @@ sub map_network
 	return(0);
 }
 
-=head2 provision
-
-This method creates a new (virtual) server on an Anvil! system.
-
-Parameters;
-
-=cut
-sub provision
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->provision()" }});
-	
-=cut
-Provision order:
-
-1. Create LVs and register the storage. 
-  - NOTE: If the LV is already in the DB (from a past install) and the peer is not available and the local 
-          DRBD resource doesn't show Consistent, abort. If the peer is alive but we can't contact it, it's 
-          possible the peer is UpToDate.
-2. Create the DRBD resource. If "Inconsistent" on both nodes, force up to date
-3. Wait for install media/image to be ready
-4. Provision VM and add to Pacemaker.
-
-=cut
-	
-	
-	return(0);
-}
 
 =head2 migrate_virsh
 
@@ -918,9 +887,9 @@ This is the host name (or IP) of the host that we're pulling the server from.
 
 If set, the server will be pulled.
 
-=head3 target (optional, defaukt is the full local host name)
+=head3 target (optional, default is the full local host name)
 
-This is the host name (or IP) Of the host that the server will be pushed to, if C<< source >> is not set. When this is not passed, the local full host name is used as default.
+This is the host name (or IP) of the host that the server will be pushed to, if C<< source >> is not set. When this is not passed, the local full host name is used as default.
 
 =cut
 sub migrate_virsh

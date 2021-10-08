@@ -22,6 +22,7 @@ my $THIS_FILE = "Storage.pm";
 # check_md5sums
 # compress
 # copy_file
+# copy_device
 # delete_file
 # find
 # get_file_stats
@@ -1260,6 +1261,92 @@ fi";
 	}
 	
 	return(0);
+}
+
+
+=head3 copy_device
+
+This uses the C<< dd >> system call, possibly over ssh, to create a copy of the source on the destination. Being based on C<< dd >>, this works with raw block devices and to or from files.
+
+B<< Warning >>: This must be used carefully! Calling this backwards could destroy data!
+
+B<< Note >>: The caller is responsible for ensuring the data on the soure will not change during the copy. If the source is a server, make sure it's off. If the source is a file system, make sure it's unmounted.
+
+B<< Note >>: If the C<< source >> or C<< destination >> is a remote host, passwordless SSH must be configured for this to work!
+
+Parameters;
+
+=head3 block_size (optional, default '4M')
+
+This is the block size to be used for the copy. Specifically, this transtes into 'read <size> bytes, copy, read <size> bytes, copy'. This should match the size of the logical extents, block size or similar where needed. Most LVM logical extents are 4 MiB, so the default of C<< 4M >> should be fine in most cases. 
+
+B<< Note >>: See C<< man dd >> for valid formatting of this option.
+
+=head3 calculate_sums (Optional, default '0')
+
+If set to C<< 1 >>, the C<< md5sum >> of the source and destination are calculated and returned. If this is not used, the returned sum fields will be an empty string.
+
+B<< Note >>: Calculating sums is highly advised, but can increase the time it takes for the copy to complete!
+
+=head3 destination (required)
+
+This is the full path to the destination (copy to) file or device. If the source is remote, used the format C<< <remote_user>@target:/path/to/file >>.
+
+B<< Note >>: Only the source OR the destination can be remote, not both!
+
+=head3 source (required)
+
+This is the full path to the source (copy from) file or device. If the source is remote, used the format C<< <remote_user>@target:/path/to/file >>.
+
+B<< Note >>: Only the source OR the destination can be remote, not both!
+
+=head3 status_file (required)
+
+This is the path to the status file used to record the progress of the copy. This will contain a parsed version of the C<< dd ... --status=progress >> output. When the copy is done, if C<< calculate_sums >> is set, then the C<< source=<sum> >> and C<< destination=<sum> >> will be recorded, marking the completion of the copy. If not set, those same variables will be written without a value, still marking the end of the copy. If there is a problem, the last line of the file be C<< failed=<reason> >>.
+
+=cut
+sub copy_device
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->copy_device()" }});
+	
+	my $block_size     = defined $parameter->{block_size}     ? $parameter->{block_size}     : "";
+	my $calculate_sums = defined $parameter->{calculate_sums} ? $parameter->{calculate_sums} : "";
+	my $destination    = defined $parameter->{destination}    ? $parameter->{destination}    : "";
+	my $source         = defined $parameter->{source}         ? $parameter->{source}         : "";
+	my $status_file    = defined $parameter->{status_file}    ? $parameter->{status_file}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		block_size     => $block_size, 
+		calculate_sums => $calculate_sums, 
+		destination    => $destination, 
+		source         => $source, 
+		status_file    => $status_file, 
+	}});
+	
+	if (not $source)
+	{
+		# No source passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_device()", parameter => "source" }});
+		return('!!error!!');
+	}
+	if (not $destination)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_device()", parameter => "destination" }});
+		return('!!error!!');
+	}
+	if (not $block_size)
+	{
+		$block_size = "4M";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { block_size => $block_size }});
+	}
+	
+	# Verify that the source exists.
+	
+	
+	return("");
 }
 
 

@@ -1197,6 +1197,9 @@ sub round
 	# Return if the user passed a double-dash.
 	return('--') if $number eq "--";
 	
+	# Take out exponent notation
+	$number =~ s/e-\d+$//;
+	
 	# Make a copy of the passed number that I can manipulate.
 	my $rounded_number = $number;
 	

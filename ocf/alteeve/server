@@ -1260,6 +1260,35 @@ sub migrate_server
 		target_host => $target, 
 	}});
 	
+	# If there is a '<target>.mnX' (migration network X) entry that can be resolved, we'll change the 
+	# target to use that. This is a dedicated, usually back-to-back network used in nodes specifically
+	# for migration.
+	my $test_target =  $target;
+	   $test_target =~ s/\..*$//;
+	   $test_target .= "mn1";	# Might want to make this a loop to support MN2+ later
+	my $test_ip     =  $anvil->Convert->host_name_to_ip({debug => 2, host_name => $test_target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		test_target => $test_target, 
+		test_ip     => $test_ip, 
+	}});
+	if ($test_ip)
+	{
+		# Can we access the peer with this?
+		my ($access) = $anvil->Remote->test_access({debug => 3, target => $test_ip});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+		
+		# Did we get access?
+		if ($access)
+		{
+			# Yup! Switch the target.
+			$target = $test_ip;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0663", variables => { 
+				target => $test_target,
+				ip     => $target,
+			}});
+		}
+	}
+	
 	# Before migrating, make sure the daemons are running on the peer.
 	check_daemons($anvil, "start");
 	
@@ -1422,7 +1451,7 @@ sub migrate_server
 			debug  => 2, 
 			server => $server, 
 			source => $source, 
-			target => $target 
+			target => $target, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { migrated => $migrated }});
 	}

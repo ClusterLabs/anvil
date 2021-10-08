@@ -1657,7 +1657,7 @@ sub connect
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
-		my $is_local = $anvil->Network->is_local({debug => 2, host => $host});
+		my $is_local = $anvil->Network->is_local({debug => $debug, host => $host});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 		if ($is_local)
 		{
