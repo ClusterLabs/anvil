@@ -227,7 +227,8 @@ sub collect_data
 				}
 				elsif (-e $full_path."/address")
 				{
-					$mac_address = $anvil->Storage->read_file({file => $full_path."/address"});
+					$mac_address =  $anvil->Storage->read_file({file => $full_path."/address"});
+					$mac_address =~ s/\n//;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
 				}
 			}
