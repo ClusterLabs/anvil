@@ -1119,7 +1119,21 @@ The stack auto-forms.
 console#configure terminal 
 console(config)#interface out-of-band 
 console(config-if)#ip address 10.201.1.1 255.255.0.0
-console(config-if)#exit     
+console(config-if)#exit    
+
+# Connect the Management interface of the stack ID 1 switch to one of the BCN ports.
+console#ping 10.201.4.1
+ Pinging 10.201.4.1 with 0 bytes of data:
+
+Reply From 10.201.4.1: icmp_seq = 0. time= 640 usec.
+Reply From 10.201.4.1: icmp_seq = 1. time= 558 usec.
+Reply From 10.201.4.1: icmp_seq = 2. time= 224 usec.
+Reply From 10.201.4.1: icmp_seq = 3. time= 192 usec.
+
+----10.201.4.1 PING statistics----
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip (msec) min/avg/max = 0/0/0
+
 
 # Set a web user and password (obviously, use a better password)
 console(config)#no passwords min-length                   
@@ -1202,14 +1216,14 @@ oob  Out-Of-Band                     Up
 # Configure VLANs
 rs-striker03(config)#vlan 100              
 rs-striker03(config-vlan100)#name BCN1
-rs-striker03(config-vlan100)#interface range gi1/0/1-12,gi2/0/1-12
+rs-striker03(config-vlan100)#interface range gi1/0/1-14,gi2/0/1-14
 rs-striker03(config-if)#switchport access vlan 100
 rs-striker03(config-if)#no shutdown 
 rs-striker03(config-if)#exit
 
 rs-striker03(config)#interface vlan 300
 rs-striker03(config)#name IFN
-rs-striker03(config-if-vlan300)#interface range gigabitethernet1/0/13-24,gigabitethernet2/0/13-24
+rs-striker03(config-if-vlan300)#interface range gigabitethernet1/0/15-24,gigabitethernet2/0/15-24
 rs-striker03(config-if)#switchport access vlan 300
 rs-striker03(config-if)#no shutdown 
 rs-striker03(config-if)#exit
@@ -1240,6 +1254,7 @@ rs-striker03#
 
 
 # Firmware update
+# Copy .stk file to striker's /var/lib/tftpboot/ directory
 console#copy tftp://10.201.4.1/N2200v6.6.3.10.stk backup
 ====
 
