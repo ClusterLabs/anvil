@@ -1265,7 +1265,7 @@ sub migrate_server
 	# for migration.
 	my $test_target =  $target;
 	   $test_target =~ s/\..*$//;
-	   $test_target .= "mn1";	# Might want to make this a loop to support MN2+ later
+	   $test_target .= ".mn1";	# Might want to make this a loop to support MN2+ later
 	my $test_ip     =  $anvil->Convert->host_name_to_ip({debug => 2, host_name => $test_target});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		test_target => $test_target, 
