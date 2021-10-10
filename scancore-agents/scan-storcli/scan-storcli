@@ -317,7 +317,7 @@ sub pre_process_health
 			}});
 			
 			my $value = $anvil->data->{controller}{serial_number}{$serial_number}{variable}{$variable};
-			if (($variable eq "alarm_state") && (lc($value) ne "missing") && (lc($value) ne "off"))
+			if (($variable eq "alarm_state") && (lc($value) ne "missing") && (lc($value) ne "off") && (lc($value) ne "absent"))
 			{
 				my $health_source_name                              = "controller:".$variable;
 				   $anvil->data->{health}{new}{$health_source_name} = 1;
