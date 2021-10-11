@@ -2178,13 +2178,8 @@ then
 elif [ -e "/proc/net/bonding/${IFACE}" ];
 then 
     echo bond; 
-elif [ -e "/sys/class/net/${IFACE}/bonding_slave/perm_hwaddr" ];
-then 
-    echo -n mac:
-    cat /sys/class/net/${IFACE}/bonding_slave/perm_hwaddr;
 else 
-    echo -n mac:
-    cat /sys/class/net/${IFACE}/address; 
+    ethtool -P ${IFACE}
 fi';
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			if ($is_local)
@@ -2216,7 +2211,7 @@ fi';
 			foreach my $line (split/\n/, $output)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-				if ($line =~ /^mac:(.*)$/)
+				if ($line =~ /^.*: (\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)$/)
 				{
 					my $real_mac                                                         = $1;
 					   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $real_mac;

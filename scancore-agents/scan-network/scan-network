@@ -108,19 +108,19 @@ sub clear_old_variables
 	
 	# Read in all interfaces and for each, delete historical records over the age-out time.
 	my $age = $anvil->data->{scancore}{database}{age_out};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { age => $age }});
 	
 	if ($age =~ /\D/)
 	{
 		# Age is not valid, set it to defaults.
 		$age = 24;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { age => $age }});
 	}
 	
 	# Get the timestamp to delete thermal and power records older than $age hours.
 	my $query         = "SELECT now() - '".$age."h'::interval;";
 	my $old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		query         => $query, 
 		old_timestamp => $old_timestamp, 
 	}});
@@ -128,7 +128,7 @@ sub clear_old_variables
 	# Read in all interface RX and TX variables.
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			uuid    => $uuid, 
 			db_host => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
 		}});
@@ -146,7 +146,7 @@ OR
 ;";
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			results => $results, 
 			count   => $count,
 		}});
@@ -154,18 +154,18 @@ OR
 		{
 			my $variable_uuid = $row->[0];
 			my $variable_name = $row->[1];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:variable_name' => $variable_name, 
 				's2:variable_uuid' => $variable_uuid,
 			}});
 			
 			# Find out of there are any records to remove at all.
 			my $query = "SELECT history_id FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date <= '".$old_timestamp."';";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				results => $results, 
 				count   => $count, 
 			}});
@@ -174,11 +174,11 @@ OR
 			{
 				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
 				my $query = "SELECT history_id FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date > '".$old_timestamp."';";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				
 				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 				my $count   = @{$results};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					results => $results, 
 					count   => $count, 
 				}});
@@ -186,7 +186,7 @@ OR
 				{
 					# At least one record will be left, we can do a simple delete.
 					my $query = "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date <= '".$old_timestamp."';";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 					push @{$queries}, $query;
 				}
 				else
@@ -195,10 +195,10 @@ OR
 					foreach my $row (@{$results})
 					{
 						my $history_id = $row->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { history_id => $history_id }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { history_id => $history_id }});
 						
 						my $query = "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND history_id = '".$history_id."';";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 						push @{$queries}, $query;
 					}
 				}
@@ -206,7 +206,7 @@ OR
 		}
 		
 		my $commits = @{$queries};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { commits => $commits }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { commits => $commits }});
 		if ($commits)
 		{
 			# Commit the DELETEs.
@@ -215,7 +215,7 @@ OR
 				records => $commits,
 				host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}), 
 			}});
-			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+			$anvil->Database->write({debug => 3, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 			undef $queries;
 		}
 	}
@@ -469,8 +469,8 @@ sub collect_data
 				my $target      = readlink($full_path."/master");
 				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					target      => $target,
-					bond_master => $bond_master
+					target      => $target, 
+					bond_master => $bond_master, 
 				}});
 			}
 			elsif (-d $full_path."/bridge")
@@ -624,11 +624,6 @@ sub collect_data
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});
-			}
-			
-			if (($interface =~ /^vnet/) && ($operational ne "up"))
-			{
-				#die;
 			}
 		}
 	}
@@ -785,7 +780,7 @@ sub read_last_scan
 	
 	### NOTE: There is a bug somewhere where interfaces are periodically being added twice per host. This
 	###       checks for / cleans those up. Remove this when the core issue is resolved.
-	clear_duplicate_nics($anvil);
+	clear_duplicates($anvil);
 	
 	# Read in the old bridge data.
 	load_bridge_data($anvil);
@@ -796,9 +791,9 @@ sub read_last_scan
 	return(0);
 }
 
-# There is a bug somewhere where interfaces are periodically being added twice per host. This checks 
-# for / cleans those up. Remove this when the core issue is resolved.
-sub clear_duplicate_nics
+# There is a bug somewhere where interfaces and ip addresses are periodically being added twice per host. 
+# This checks for / cleans those up. Remove this when the core issue is resolved.
+sub clear_duplicates
 {
 	my ($anvil) = @_;
 	
@@ -910,6 +905,107 @@ ORDER BY
 	}
 	
 	delete $anvil->data->{duplicate_nics};
+	
+	$query = "
+SELECT 
+    ip_address_uuid, 
+    ip_address_address, 
+    ip_address_note 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+ORDER BY 
+    ip_address_address ASC
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $ip_address_uuid    = $row->[0];
+		my $ip_address_address = $row->[1];
+		my $ip_address_note    = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ip_address_uuid    => $ip_address_uuid, 
+			ip_address_address => $ip_address_address, 
+			ip_address_note    => $ip_address_note, 
+		}});
+		
+		if (not exists $anvil->data->{duplicate_ips}{seen}{$ip_address_address})
+		{
+			$anvil->data->{duplicate_ips}{seen}{$ip_address_address} = [];
+		}
+		push @{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}}, $ip_address_uuid;
+		
+		$anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_address} = $ip_address_address;
+		$anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note}    = $ip_address_note;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"duplicate_ips::ip_address_uuid::${ip_address_uuid}::ip_address_address" => $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_address}, 
+			"duplicate_ips::ip_address_uuid::${ip_address_uuid}::ip_address_note"    => $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note}, 
+		}});
+	}
+	foreach my $ip_address_address (sort {$a cmp $b} keys %{$anvil->data->{duplicate_ips}{seen}})
+	{
+		my $count = @{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:ip_address_address' => $ip_address_address, 
+			's2:count'              => $count,
+		}});
+		
+		if ($count > 1)
+		{
+			# Duplicate! Is one of them marked as DELETED?
+			foreach my $ip_address_uuid (@{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}})
+			{
+				# Is this one deleted?
+				my $ip_address_note = $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ip_address_uuid => $ip_address_uuid, 
+					ip_address_note => $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note}, 
+				}});
+				if ($ip_address_note eq "DELETED")
+				{
+					# Take this one out.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0664", variables => { 
+						ip   => $ip_address_address,
+						uuid => $ip_address_uuid,
+					}});
+					
+					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				}
+				last if $count == 1;
+			}
+			
+			# If count is still > 1, we need to arbitrarily delete an interface.
+			if ($count > 1)
+			{
+				foreach my $ip_address_uuid (@{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}})
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0664", variables => { 
+						ip   => $ip_address_address,
+						uuid => $ip_address_uuid,
+					}});
+					
+					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				}
+				last if $count == 1;
+			}
+		}
+	}
 	
 	return(0);
 }
@@ -3313,7 +3409,18 @@ AND
 		
 		### TODO: Don't set / clear interfaces that appear down but aren't named ifn/bcn/sn as they're probably unconfigured/unusued interfaces.
 		my $problem = 0;
-		if ((not $new_link_state) or ($new_operational eq "down") or ($new_duplex ne "full"))
+		my $check   = 0;
+		if (($network_interface_name =~ /ifn/i) or 
+		    ($network_interface_name =~ /sn/i)  or 
+		    ($network_interface_name =~ /bcn/i) or 
+		    ($network_interface_name =~ /mn/i))
+		{
+			# One we monitor
+			$check = 1;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check => $check }});
+		
+		if (($check) && ((not $new_link_state) or ($new_operational eq "down") or ($new_duplex ne "full")))
 		{
 			$problem = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
@@ -3325,14 +3432,14 @@ AND
 			}
 			else
 			{
+				# Has the interface been down for at least a minute?
 				my $age = $anvil->Alert->check_condition_age({
 					debug     => 2,
 					name      => $source_name,
 					host_uuid => $anvil->Get->host_uuid, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
-				
-				if ($age > 300)
+				if ($age > 60)
 				{
 					# New, save.
 					my ($health_uuid) = $anvil->Database->insert_or_update_health({
@@ -3347,7 +3454,7 @@ AND
 		}
 		else
 		{
-			# Clear any old condition.
+			# Clear any old conditions.
 			my $age = $anvil->Alert->check_condition_age({
 				debug     => 2,
 				clear     => 1,

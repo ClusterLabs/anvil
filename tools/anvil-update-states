@@ -198,7 +198,6 @@ sub update_network
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
-			my $mac_address = -e $full_path."/address"   ? $anvil->Storage->read_file({file => $full_path."/address"})   : "";
 			my $link_state  = -e $full_path."/carrier"   ? $anvil->Storage->read_file({file => $full_path."/carrier"})   : 0;
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
@@ -207,14 +206,7 @@ sub update_network
 			my $media       = "unknown";
 			my $type        = "interface";
 			
-			# If the NIC is a bond member, the MAC address could be virtual. 
-			if (-e $full_path."/bonding_slave/perm_hwaddr")
-			{
-				$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
-			}
-			
 			# Clean up some newlines.
-			$mac_address =~ s/\n$//;
 			$link_state  =~ s/\n$//;
 			$mtu         =~ s/\n$//;
 			$duplex      =~ s/\n$//;
@@ -222,7 +214,6 @@ sub update_network
 			$speed       =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
-				mac_address => $mac_address,
 				link_state  => $link_state, 
 				mtu         => $mtu, 
 				duplex      => $duplex, 
@@ -230,11 +221,35 @@ sub update_network
 				speed       => $speed, 
 			}});
 			
-			# If this a vnet device, set 'operational' to 'up'.
-			if (($interface =~ /^vnet/) && ($operational ne "up"))
+			# The MAC address can faked by a number of ways, so we make an explicit call to 'ethtool' to get the permanent mac address.
+			my $mac_address = "";
+			my $shell_call  = $anvil->data->{path}{exe}{ethtool}." -P ".$interface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($output =~ /(\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)$/)
 			{
-				$operational = "up";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { operational => $operational }});
+				$mac_address = lc($1);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+			}
+			else
+			{
+				# Get it by reading the address file.
+				if (-e $full_path."/bonding_slave/perm_hwaddr")
+				{
+					$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				}
+				elsif (-e $full_path."/address")
+				{
+					$mac_address =  $anvil->Storage->read_file({file => $full_path."/address"});
+					$mac_address =~ s/\n//;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				}
 			}
 			
 			# These are variables that will be needed if this is a bond interface.
@@ -369,6 +384,17 @@ sub update_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge_stp_enabled => $bridge_stp_enabled }});
 			}
 			
+			# If this a vnet device, set 'operational' to 'up'.
+			if ($interface =~ /^vnet/)
+			{
+				$operational = "up";
+				$media       = "virtual";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					operational => $operational,
+					media       => $media, 
+				}});
+			}
+			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				active_interface     => $active_interface, 
 				bond_master          => $bond_master, 
@@ -393,11 +419,16 @@ sub update_network
 			# If the MAC address starts with '52:54:00', we've got a virtio NIC.
 			if ((not defined $speed) or ($speed eq ""))
 			{
-				die $THIS_FILE." ".__LINE__."; No speed for: [".$full_path."/speed]\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_error_0001", variables => { file => $full_path."/speed" }});
+				next;
 			}
 			if ($speed =~ /\D/)
 			{
-				die $THIS_FILE." ".__LINE__."; Speed: [$speed] isn't numeric for: [".$full_path."/speed]\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_error_0002", variables => { 
+					file  => $full_path."/speed",
+					speed => $speed,
+				}});
+				next;
 			}
 			if ($speed > 100000)
 			{
@@ -408,7 +439,7 @@ sub update_network
 			}
 			
 			# Find the media, if possible.
-			my ($ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
+			(my $ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
 			foreach my $line (split/\n/, $ethtool)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});

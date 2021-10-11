@@ -1332,7 +1332,7 @@ sub connect
 	# This method just returns if nothing is needed.
 	if (($local_host_type eq "striker") && ($check_if_configured) && ($< == 0) && ($> == 0))
 	{
-		$anvil->Database->configure_pgsql({debug => 2, uuid => $local_host_uuid});
+		$anvil->Database->configure_pgsql({debug => $debug, uuid => $local_host_uuid});
 	}
 	
 	# Now setup or however-many connections
