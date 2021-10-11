@@ -1168,7 +1168,6 @@ sub prep_database
 			return(0);
 		}
 	}
-	die;
 	
 	# Only run this if we're a dashboard.
 	my $host_type = $anvil->Get->host_type();
