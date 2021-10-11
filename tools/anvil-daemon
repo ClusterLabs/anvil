@@ -1156,14 +1156,19 @@ sub prep_database
 	my ($anvil) = @_;
 	
 	# If there's a backup file, we're configured and possibly just off. 
-	my $dump_file  =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$anvil->Get->host_uuid().".out";
-	   $dump_file  =~ s/\/\//\//g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dump_file => $dump_file }});
-	if (-e $dump_file)
+	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
-		# No need to prepare.
-		return(0);
+		my $dump_file =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$uuid.".sql";
+		   $dump_file =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
+		if (-e $dump_file)
+		{
+			# No need to prepare.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0665", variables => { file => $dump_file }});
+			return(0);
+		}
 	}
+	die;
 	
 	# Only run this if we're a dashboard.
 	my $host_type = $anvil->Get->host_type();

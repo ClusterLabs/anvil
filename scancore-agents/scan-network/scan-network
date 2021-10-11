@@ -785,7 +785,7 @@ sub read_last_scan
 	
 	### NOTE: There is a bug somewhere where interfaces are periodically being added twice per host. This
 	###       checks for / cleans those up. Remove this when the core issue is resolved.
-	clear_duplicate_nics($anvil);
+	clear_duplicates($anvil);
 	
 	# Read in the old bridge data.
 	load_bridge_data($anvil);
@@ -796,9 +796,9 @@ sub read_last_scan
 	return(0);
 }
 
-# There is a bug somewhere where interfaces are periodically being added twice per host. This checks 
-# for / cleans those up. Remove this when the core issue is resolved.
-sub clear_duplicate_nics
+# There is a bug somewhere where interfaces and ip addresses are periodically being added twice per host. 
+# This checks for / cleans those up. Remove this when the core issue is resolved.
+sub clear_duplicates
 {
 	my ($anvil) = @_;
 	
@@ -910,6 +910,107 @@ ORDER BY
 	}
 	
 	delete $anvil->data->{duplicate_nics};
+	
+	$query = "
+SELECT 
+    ip_address_uuid, 
+    ip_address_address, 
+    ip_address_note 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+ORDER BY 
+    ip_address_address ASC
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $ip_address_uuid    = $row->[0];
+		my $ip_address_address = $row->[1];
+		my $ip_address_note    = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ip_address_uuid    => $ip_address_uuid, 
+			ip_address_address => $ip_address_address, 
+			ip_address_note    => $ip_address_note, 
+		}});
+		
+		if (not exists $anvil->data->{duplicate_ips}{seen}{$ip_address_address})
+		{
+			$anvil->data->{duplicate_ips}{seen}{$ip_address_address} = [];
+		}
+		push @{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}}, $ip_address_uuid;
+		
+		$anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_address} = $ip_address_address;
+		$anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note}    = $ip_address_note;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"duplicate_ips::ip_address_uuid::${ip_address_uuid}::ip_address_address" => $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_address}, 
+			"duplicate_ips::ip_address_uuid::${ip_address_uuid}::ip_address_note"    => $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note}, 
+		}});
+	}
+	foreach my $ip_address_address (sort {$a cmp $b} keys %{$anvil->data->{duplicate_ips}{seen}})
+	{
+		my $count = @{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:ip_address_address' => $ip_address_address, 
+			's2:count'              => $count,
+		}});
+		
+		if ($count > 1)
+		{
+			# Duplicate! Is one of them marked as DELETED?
+			foreach my $ip_address_uuid (@{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}})
+			{
+				# Is this one deleted?
+				my $ip_address_note = $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ip_address_uuid => $ip_address_uuid, 
+					ip_address_note => $anvil->data->{duplicate_ips}{ip_address_uuid}{$ip_address_uuid}{ip_address_note}, 
+				}});
+				if ($ip_address_note eq "DELETED")
+				{
+					# Take this one out.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0664", variables => { 
+						ip   => $ip_address_address,
+						uuid => $ip_address_uuid,
+					}});
+					
+					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				}
+				last if $count == 1;
+			}
+			
+			# If count is still > 1, we need to arbitrarily delete an interface.
+			if ($count > 1)
+			{
+				foreach my $ip_address_uuid (@{$anvil->data->{duplicate_ips}{seen}{$ip_address_address}})
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0664", variables => { 
+						ip   => $ip_address_address,
+						uuid => $ip_address_uuid,
+					}});
+					
+					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				}
+				last if $count == 1;
+			}
+		}
+	}
 	
 	return(0);
 }
