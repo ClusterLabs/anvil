@@ -215,7 +215,7 @@ OR
 				records => $commits,
 				host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}), 
 			}});
-			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+			$anvil->Database->write({debug => 3, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 			undef $queries;
 		}
 	}
@@ -469,8 +469,8 @@ sub collect_data
 				my $target      = readlink($full_path."/master");
 				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					target      => $target,
-					bond_master => $bond_master
+					target      => $target, 
+					bond_master => $bond_master, 
 				}});
 			}
 			elsif (-d $full_path."/bridge")
@@ -624,11 +624,6 @@ sub collect_data
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});
-			}
-			
-			if (($interface =~ /^vnet/) && ($operational ne "up"))
-			{
-				#die;
 			}
 		}
 	}
