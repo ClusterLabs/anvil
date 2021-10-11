@@ -1218,8 +1218,8 @@ WHERE
 					{
 						# Register an alert.
 						$send_alert = 0;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_ups_warning_0038", variables => $variables});
-						$anvil->Alert->register({alert_level => "warning", message => "scan_apc_ups_warning_0038", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "scan_apc_ups_warning_0038", variables => $variables});
+						$anvil->Alert->register({alert_level => "note", message => "scan_apc_ups_warning_0038", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
 					}
 				}
 				elsif ($scan_apc_ups_output_estimated_runtime > $anvil->data->{'scan-apc-ups'}{low_hold_up_clear_threshold})
@@ -1231,8 +1231,8 @@ WHERE
 					{
 						# Register an alert.
 						$send_alert = 0;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_ups_warning_0039", variables => $variables});
-						$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_ups_warning_0039", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "scan_apc_ups_warning_0039", variables => $variables});
+						$anvil->Alert->register({alert_level => "note", clear_alert => 1, message => "scan_apc_ups_warning_0039", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
 					}
 				}
 				
