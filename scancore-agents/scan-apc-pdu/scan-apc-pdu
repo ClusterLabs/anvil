@@ -237,7 +237,7 @@ SELECT
 FROM 
     scan_apc_pdus 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -325,7 +325,7 @@ SELECT
 FROM 
     scan_apc_pdu_phases 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	# Do the query against the source DB and loop through the results.
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -378,7 +378,7 @@ SELECT
 FROM 
     scan_apc_pdu_outlets 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
@@ -406,7 +406,7 @@ FROM
 		
 		# Which serial number does this phase belong to?
 		my $scan_apc_pdu_serial_number = $anvil->data->{uuid_to_serial}{$scan_apc_pdu_outlet_scan_apc_pdu_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number }});
 		
 		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_outlet_scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_uuid}              = $scan_apc_pdu_outlet_uuid;
 		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_outlet_scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_scan_apc_pdu_uuid} = $scan_apc_pdu_outlet_scan_apc_pdu_uuid;
@@ -434,7 +434,7 @@ SELECT
 FROM 
     scan_apc_pdu_variables 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
@@ -2590,10 +2590,12 @@ FROM
     fences 
 WHERE 
     fence_agent LIKE 'fence_apc_%' 
+AND 
+    fence_arguments != 'DELETED' 
 ORDER BY 
     fence_name ASC
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -2623,10 +2625,109 @@ ORDER BY
 				"fences::fence_uuid::${fence_uuid}::name"       => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{name},
 				"fences::fence_uuid::${fence_uuid}::ip_address" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ip_address},
 			}});
+			
+			# If there are two or more entries in scan_apc_pdu for this fence UUID, remove the extras.
+			my $query = "
+SELECT 
+    scan_apc_pdu_uuid, 
+    scan_apc_pdu_model_number 
+FROM 
+    scan_apc_pdus 
+WHERE 
+    scan_apc_pdu_fence_uuid = ".$anvil->Database->quote($fence_uuid)." 
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count > 1)
+			{
+				# Duplicate! Is one of them marked as DELETED?
+				foreach my $row (@{$results})
+				{
+					# Is this one deleted?
+					my $scan_apc_pdu_uuid         = $row->[0];
+					my $scan_apc_pdu_model_number = $row->[1];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						scan_apc_pdu_uuid         => $scan_apc_pdu_uuid, 
+						scan_apc_pdu_model_number => $scan_apc_pdu_model_number, 
+					}});
+					
+					if ($scan_apc_pdu_model_number eq "DELETED")
+					{
+						# Take this one out.
+						my $variables = {
+							name => $fence_name,
+							uuid => $scan_apc_pdu_uuid,
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_log_0002", variables => $variables});
+						$anvil->Alert->register({
+							alert_level   => "notice", 
+							message       => "scan_apc_pdu_log_0002", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						});
+						
+						delete_pdu($anvil, $scan_apc_pdu_uuid);
+						$count--;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					}
+					last if $count == 1;
+				}
+				
+				# If count is still > 1, we need to arbitrarily delete an interface.
+				if ($count > 1)
+				{
+					foreach my $row (@{$results})
+					{
+						# Is this one deleted?
+						my $scan_apc_pdu_uuid = $row->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_apc_pdu_uuid => $scan_apc_pdu_uuid }});
+						
+						my $variables = {
+							name => $fence_name,
+							uuid => $scan_apc_pdu_uuid,
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_log_0002", variables => $variables});
+						$anvil->Alert->register({
+							alert_level   => "notice", 
+							message       => "scan_apc_pdu_log_0002", 
+							variables     => $variables, 
+							set_by        => $THIS_FILE, 
+							sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+						});
+						delete_pdu($anvil, $scan_apc_pdu_uuid);
+						
+						$count--;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					}
+					last if $count == 1;
+				}
+			}
 		}
 	}
 	
 	my $pdu_count = keys %{$anvil->data->{fences}{fence_uuid}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pdu_count => $pdu_count }});
 	return($pdu_count);
+}
+
+sub delete_pdu
+{
+	my ($anvil, $scan_apc_pdu_uuid) = @_;
+	
+	my $queries = [
+		"DELETE FROM scan_apc_pdu_variables WHERE scan_apc_pdu_variable_scan_apc_pdu_uuid = ".$anvil->Database->quote($scan_apc_pdu_uuid).";", 
+		"DELETE FROM scan_apc_pdu_phases    WHERE scan_apc_pdu_phase_scan_apc_pdu_uuid    = ".$anvil->Database->quote($scan_apc_pdu_uuid).";", 
+		"DELETE FROM scan_apc_pdu_outlets   WHERE scan_apc_pdu_outlet_scan_apc_pdu_uuid   = ".$anvil->Database->quote($scan_apc_pdu_uuid).";", 
+		"DELETE FROM scan_apc_pdus          WHERE scan_apc_pdu_uuid                       = ".$anvil->Database->quote($scan_apc_pdu_uuid).";"
+	];
+	$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
 }

@@ -3437,14 +3437,14 @@ AND
 			}
 			else
 			{
+				# Has the interface been down for at least a minute?
 				my $age = $anvil->Alert->check_condition_age({
 					debug     => 2,
 					name      => $source_name,
 					host_uuid => $anvil->Get->host_uuid, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
-				
-				if ($age > 300)
+				if ($age > 60)
 				{
 					# New, save.
 					my ($health_uuid) = $anvil->Database->insert_or_update_health({
