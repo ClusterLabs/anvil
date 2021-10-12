@@ -413,7 +413,7 @@ sub wait_for_access
 			
 			# Only care about our networks.
 			next if $waiting;
-			if (($interface !~ /^bcn/) && ($interface !~ /^sn/) && ($interface !~ /^ifn/))
+			if (not $anvil->Network->is_our_interface({interface => $interface}))
 			{
 				# Not an interface we care about
 				next;

@@ -23,6 +23,7 @@ my $THIS_FILE = "Network.pm";
 # get_ips
 # get_network
 # is_local
+# is_our_interface
 # load_interfces
 # load_ips
 # is_ip_in_network
@@ -2544,6 +2545,7 @@ sub get_network
 	return($network);
 }
 
+
 =head2 is_local
 
 This method takes a host name or IP address and looks to see if it matches the local system. If it does, it returns C<< 1 >>. Otherwise it returns C<< 0 >>.
@@ -2607,6 +2609,49 @@ sub is_local
 	
 	#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 	return($anvil->data->{cache}{is_local}{$host});
+}
+
+
+=head2 is_our_interface
+
+This method takes an interface name and returns C<< 1 >> if the interface is one of the ones we manage (A C<< BCN >>, C<< IFN >>, C<< SN >> or C<< MN >> interface). If not, C<< 0 >> is returned.
+
+Parameters;
+
+=head3 interface (required)
+
+This is the name of the interface being evaluated.
+
+=cut
+sub is_our_interface
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->is_our_interface()" }});
+	
+	my $interface = $parameter->{interface} ? $parameter->{interface} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		interface => $interface,
+	}});
+	
+	if (not $interface)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->is_our_interface()", parameter => "interface" }});
+		return(0);
+	}
+	
+	my $ours = 0;
+	if (($interface =~ /^bcn/i) or 
+	    ($interface =~ /^sn/i)  or 
+	    ($interface =~ /^ifn/i) or 
+	    ($interface =~ /^mn/i))
+	{
+		$ours = 1;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ours => $ours }});
+	return($ours);
 }
 
 =head2 is_ip_in_network

@@ -2099,7 +2099,7 @@ sub gather_ups_data
 		}
 		
 		# Can I ping it? This returns '1' if it was pingable, '0' if not.
-		my ($pinged, $average_time) = $anvil->Network->ping({ping => $ups_ip});
+		my ($pinged, $average_time) = $anvil->Network->ping({ping => $ups_ip, debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			pinged       => $pinged,
 			average_time => $average_time, 
@@ -3042,7 +3042,7 @@ WHERE
 ORDER BY 
     ups_name ASC
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -3070,7 +3070,7 @@ ORDER BY
 	}
 	
 	my $ups_count = keys %{$anvil->data->{upses}{ups_uuid}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ups_count => $ups_count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_count => $ups_count }});
 	return($ups_count);
 }
 
