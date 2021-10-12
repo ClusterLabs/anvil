@@ -1865,13 +1865,21 @@ sub check_interfaces
 				$changes = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
-				my $clear = 0;
-				my $key   = "scan_network_alert_0036";
+				my $clear       = 0;
+				my $key         = "scan_network_alert_0036";
+				my $alert_level = "notice";
 				if ($new_duplex eq "full")
 				{
 					# Duplex is back to being OK
 					$clear = 1;
 					$key   = "scan_network_alert_0037";
+				}
+				
+				# Is this one of our interface?
+				if (not $anvil->Network->is_our_interface({interface => $network_interface_name}))
+				{
+					# Not an interface we care about.
+					$alert_level = "notice";
 				}
 				
 				my $variables = {
@@ -1882,7 +1890,7 @@ sub check_interfaces
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
 				$anvil->Alert->register({
-					alert_level => "warning", 
+					alert_level => $alert_level, 
 					clear_alert => $clear, 
 					message     => $key, 
 					variables   => $variables,
@@ -1891,17 +1899,25 @@ sub check_interfaces
 			}
 			if ($new_link_state ne $old_link_state)
 			{
-				# This is always a warning
+				# This is always a warning, if it's a NIC we care about.
 				$changes = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
-				my $clear = 0;
-				my $key   = "scan_network_alert_0038";
+				my $clear       = 0;
+				my $key         = "scan_network_alert_0038";
+				my $alert_level = "warning";
 				if ($new_link_state)
 				{
 					# Link is up
 					$clear = 1;
 					$key   = "scan_network_alert_0039";
+				}
+				
+				# Is this one of our interface?
+				if (not $anvil->Network->is_our_interface({interface => $network_interface_name}))
+				{
+					# Not an interface we care about.
+					$alert_level = "notice";
 				}
 				
 				my $variables = {
@@ -1912,7 +1928,7 @@ sub check_interfaces
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
 				$anvil->Alert->register({
-					alert_level => "warning", 
+					alert_level => $alert_level, 
 					clear_alert => $clear, 
 					message     => $key, 
 					variables   => $variables,
@@ -1927,8 +1943,9 @@ sub check_interfaces
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
 				# Is it up or down?
-				my $clear = 0;
-				my $key   = "scan_network_alert_0040";
+				my $clear       = 0;
+				my $key         = "scan_network_alert_0040";
+				my $alert_level = "notice";
 				if ($old_operational eq "DELETED")
 				{
 					# Link is back. Is it up?
@@ -1951,6 +1968,13 @@ sub check_interfaces
 					$key   = "scan_network_alert_0041";
 				}
 				
+				# Is this one of our interface?
+				if (not $anvil->Network->is_our_interface({interface => $network_interface_name}))
+				{
+					# Not an interface we care about.
+					$alert_level = "notice";
+				}
+				
 				my $variables = {
 					name => $network_interface_name,
 					old  => $old_operational, 
@@ -1959,7 +1983,7 @@ sub check_interfaces
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
 				$anvil->Alert->register({
-					alert_level => "warning", 
+					alert_level => $alert_level, 
 					clear_alert => $clear, 
 					message     => $key, 
 					variables   => $variables,
@@ -2038,6 +2062,13 @@ sub check_interfaces
 					$key         = "scan_network_alert_0047";
 				}
 				
+				# Is this one of our interface?
+				if (not $anvil->Network->is_our_interface({interface => $network_interface_name}))
+				{
+					# Not an interface we care about.
+					$alert_level = "notice";
+				}
+				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
@@ -2065,9 +2096,17 @@ sub check_interfaces
 					$key = "scan_network_alert_0049";
 				}
 				
+				# Is this one of our interface?
+				my $alert_level = "notice";
+				if (not $anvil->Network->is_our_interface({interface => $network_interface_name}))
+				{
+					# Not an interface we care about.
+					$alert_level = "notice";
+				}
+				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
 				$anvil->Alert->register({
-					alert_level => "warning", 
+					alert_level => $alert_level, 
 					message     => $key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
@@ -2092,116 +2131,118 @@ sub check_interfaces
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
 			}
 			
-			# Speed changes? Likely.
-			
-			# Rx and Tx almost always change, so they're only info-level alerts.
-			if ($new_tx_bytes ne $old_tx_bytes)
+			# Track usage of interfaces we care about
+			if ($anvil->Network->is_our_interface({interface => $network_interface_name}))
 			{
-				if ($tx_variable_uuid)
+				# Rx and Tx almost always change, so they're only info-level alerts.
+				if ($new_tx_bytes ne $old_tx_bytes)
 				{
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug             => 2,
-						variable_uuid     => $tx_variable_uuid, 
-						update_value_only => 1,
-						variable_value    => $new_tx_bytes,
+					if ($tx_variable_uuid)
+					{
+						my $variable_uuid = $anvil->Database->insert_or_update_variables({
+							debug             => 2,
+							variable_uuid     => $tx_variable_uuid, 
+							update_value_only => 1,
+							variable_value    => $new_tx_bytes,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+					}
+					else
+					{
+						# No value seen before, create
+						my $variable_uuid = $anvil->Database->insert_or_update_variables({
+							debug                 => 2,
+							variable_name         => "network_interface::".$network_interface_name."::tx_bytes",
+							variable_value        => $new_tx_bytes,
+							variable_default      => 0, 
+							variable_description  => "striker_0291", 
+							variable_section      => "stats", 
+							variable_source_uuid  => $network_interface_uuid, 
+							variable_source_table => "network_interfaces", 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+					}
+					
+					my $variables = {
+						name => $network_interface_name,
+						old  => $old_tx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_tx_bytes}).")", 
+						new  => $new_tx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_tx_bytes}).")", 
+					};
+					
+					# Reset or normal increase?
+					my $key         = "scan_network_alert_0007";
+					my $alert_level = "info";
+					my $log_level   = 2;
+					if ($old_tx_bytes > $new_tx_bytes)
+					{
+						# Reset
+						$key         = "scan_network_alert_0008";
+						$alert_level = "notice";
+						$log_level   = 2;
+					}
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+					$anvil->Alert->register({
+						alert_level => $alert_level, 
+						message     => $key, 
+						variables   => $variables,
+						set_by      => $THIS_FILE,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 				}
-				else
+				if ($new_rx_bytes ne $old_rx_bytes)
 				{
-					# No value seen before, create
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug                 => 2,
-						variable_name         => "network_interface::".$network_interface_name."::tx_bytes",
-						variable_value        => $new_tx_bytes,
-						variable_default      => 0, 
-						variable_description  => "striker_0291", 
-						variable_section      => "stats", 
-						variable_source_uuid  => $network_interface_uuid, 
-						variable_source_table => "network_interfaces", 
+					if ($rx_variable_uuid)
+					{
+						my $variable_uuid = $anvil->Database->insert_or_update_variables({
+							debug             => 2,
+							variable_uuid     => $rx_variable_uuid, 
+							update_value_only => 1,
+							variable_value    => $new_rx_bytes,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+					}
+					else
+					{
+						# No value seen before, create
+						my $variable_uuid = $anvil->Database->insert_or_update_variables({
+							debug                 => 2,
+							variable_name         => "network_interface::".$network_interface_name."::rx_bytes",
+							variable_value        => $new_rx_bytes,
+							variable_default      => 0, 
+							variable_description  => "striker_0290", 
+							variable_section      => "stats", 
+							variable_source_uuid  => $network_interface_uuid, 
+							variable_source_table => "network_interfaces", 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+					}
+					
+					my $variables = {
+						name => $network_interface_name,
+						old  => $old_rx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_rx_bytes}).")", 
+						new  => $new_rx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_rx_bytes}).")", 
+					};
+					
+					# Reset or normal increase?
+					my $key         = "scan_network_alert_0009";
+					my $alert_level = "info";
+					my $log_level   = 2;
+					if ($old_rx_bytes > $new_rx_bytes)
+					{
+						# Reset
+						$key         = "scan_network_alert_0010";
+						$alert_level = "notice";
+						$log_level   = 2;
+					}
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+					$anvil->Alert->register({
+						alert_level => $alert_level, 
+						message     => $key, 
+						variables   => $variables,
+						set_by      => $THIS_FILE,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 				}
-				
-				my $variables = {
-					name => $network_interface_name,
-					old  => $old_tx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_tx_bytes}).")", 
-					new  => $new_tx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_tx_bytes}).")", 
-				};
-				
-				# Reset or normal increase?
-				my $key         = "scan_network_alert_0007";
-				my $alert_level = "info";
-				my $log_level   = 2;
-				if ($old_tx_bytes > $new_tx_bytes)
-				{
-					# Reset
-					$key         = "scan_network_alert_0008";
-					$alert_level = "notice";
-					$log_level   = 2;
-				}
-				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
-				$anvil->Alert->register({
-					alert_level => $alert_level, 
-					message     => $key, 
-					variables   => $variables,
-					set_by      => $THIS_FILE,
-				});
-			}
-			if ($new_rx_bytes ne $old_rx_bytes)
-			{
-				if ($rx_variable_uuid)
-				{
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug             => 2,
-						variable_uuid     => $rx_variable_uuid, 
-						update_value_only => 1,
-						variable_value    => $new_rx_bytes,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-				}
-				else
-				{
-					# No value seen before, create
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug                 => 2,
-						variable_name         => "network_interface::".$network_interface_name."::rx_bytes",
-						variable_value        => $new_rx_bytes,
-						variable_default      => 0, 
-						variable_description  => "striker_0290", 
-						variable_section      => "stats", 
-						variable_source_uuid  => $network_interface_uuid, 
-						variable_source_table => "network_interfaces", 
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-				}
-				
-				my $variables = {
-					name => $network_interface_name,
-					old  => $old_rx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_rx_bytes}).")", 
-					new  => $new_rx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_rx_bytes}).")", 
-				};
-				
-				# Reset or normal increase?
-				my $key         = "scan_network_alert_0009";
-				my $alert_level = "info";
-				my $log_level   = 2;
-				if ($old_rx_bytes > $new_rx_bytes)
-				{
-					# Reset
-					$key         = "scan_network_alert_0010";
-					$alert_level = "notice";
-					$log_level   = 2;
-				}
-				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
-				$anvil->Alert->register({
-					alert_level => $alert_level, 
-					message     => $key, 
-					variables   => $variables,
-					set_by      => $THIS_FILE,
-				});
 			}
 		}
 		else
@@ -3407,13 +3448,11 @@ AND
 			source_name            => $source_name, 
 		}});
 		
-		### TODO: Don't set / clear interfaces that appear down but aren't named ifn/bcn/sn as they're probably unconfigured/unusued interfaces.
+		# Don't set / clear interfaces that appear down but aren't named ifn/bcn/sn as they're probably 
+		# unconfigured/unusued interfaces.
 		my $problem = 0;
 		my $check   = 0;
-		if (($network_interface_name =~ /ifn/i) or 
-		    ($network_interface_name =~ /sn/i)  or 
-		    ($network_interface_name =~ /bcn/i) or 
-		    ($network_interface_name =~ /mn/i))
+		if ($anvil->Network->is_our_interface({interface => $network_interface_name}))
 		{
 			# One we monitor
 			$check = 1;

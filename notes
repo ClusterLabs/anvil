@@ -14,6 +14,8 @@ su - postgres -c "pg_dump --schema-only anvil > /var/lib/pgsql/anvil_schema.out"
 su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /var/lib/pgsql/anvil.out"
 su postgres -c "psql anvil"
 
+SELECT a.scan_apc_ups_name AS name, a.scan_apc_ups_serial_number AS sn, a.scan_apc_ups_health AS health, a.scan_apc_ups_nmc_serial_number AS nmc_sn, a.scan_apc_ups_nmc_mac_address AS mac, a.scan_apc_ups_ip AS ip, b._percentage_charge AS charge, d.scan_apc_ups_battery_temperature AS btemp FROM scan_apc_upses a, scan_apc_ups_input b, scan_apc_ups_output c, scan_apc_ups_batteries d WHERE a.scan_apc_ups_uuid = b.scan_apc_ups_input_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = c.scan_apc_ups_output_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = d.scan_apc_ups_battery_scan_apc_ups_uuid ORDER BY name ASC;
+
 ============
 
 

@@ -697,6 +697,12 @@ sub check_power
 					last_updated            => $last_updated." (".$anvil->Convert->time({'time' => $last_updated, long => 1, translate => 1}).")", 
 				}});
 				
+				if ($power_charge_percentage > $highest_charge_percentage)
+				{
+					$highest_charge_percentage = $power_charge_percentage;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { highest_charge_percentage => $highest_charge_percentage }});
+				}
+				
 				if ($power_on_battery)
 				{
 					# We're on battery, so see what the hold up time is.
@@ -726,6 +732,7 @@ ORDER BY
     modified_date DESC 
 LIMIT 1
 ;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 					my $count   = @{$results};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -743,14 +750,16 @@ LIMIT 1
 					}
 					else
 					{
-						my $time_on_batteries = $results->[0]->[0];
+						my $last_on_batteries = $results->[0]->[0];
+						my $time_on_batteries = (time - $last_on_batteries);
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							last_on_batteries => $last_on_batteries." (".$anvil->Get->date_and_time({use_time => $last_on_batteries}).")", 
 							time_on_batteries => $time_on_batteries." (".$anvil->Convert->time({'time' => $time_on_batteries, long => 1, translate => 1}).")",
 						}});
 						
 						if ($time_on_batteries < $shortest_time_on_batteries)
 						{
-							$shortest_time_on_batteries = $shortest_time_on_batteries;
+							$shortest_time_on_batteries = $time_on_batteries;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 								shortest_time_on_batteries => $shortest_time_on_batteries." (".$anvil->Convert->time({'time' => $shortest_time_on_batteries, long => 1, translate => 1}).")",
 							}});
@@ -767,18 +776,12 @@ LIMIT 1
 						ups_with_mains_found       => $ups_with_mains_found,
 						shortest_time_on_batteries => $shortest_time_on_batteries, 
 					}});
-						
-					if ($power_charge_percentage > $highest_charge_percentage)
-					{
-						$highest_charge_percentage = $power_charge_percentage;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { highest_charge_percentage => $highest_charge_percentage }});
-					}
 				}
 			}
 		}
 	}
 	
-	if ($ups_count)
+	if (not $ups_count)
 	{
 		# No UPSes found.
 		$shortest_time_on_batteries = 0;
@@ -824,7 +827,7 @@ sub check_temperature
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->post_scan_analysis_node()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->check_temperature()" }});
 	
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

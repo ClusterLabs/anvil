@@ -1218,8 +1218,8 @@ WHERE
 					{
 						# Register an alert.
 						$send_alert = 0;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_ups_warning_0038", variables => $variables});
-						$anvil->Alert->register({alert_level => "warning", message => "scan_apc_ups_warning_0038", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "scan_apc_ups_warning_0038", variables => $variables});
+						$anvil->Alert->register({alert_level => "note", message => "scan_apc_ups_warning_0038", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
 					}
 				}
 				elsif ($scan_apc_ups_output_estimated_runtime > $anvil->data->{'scan-apc-ups'}{low_hold_up_clear_threshold})
@@ -1231,8 +1231,8 @@ WHERE
 					{
 						# Register an alert.
 						$send_alert = 0;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_ups_warning_0039", variables => $variables});
-						$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_ups_warning_0039", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "scan_apc_ups_warning_0039", variables => $variables});
+						$anvil->Alert->register({alert_level => "note", clear_alert => 1, message => "scan_apc_ups_warning_0039", variables => $variables, sort_position => 1, set_by => $THIS_FILE});
 					}
 				}
 				
@@ -2099,7 +2099,7 @@ sub gather_ups_data
 		}
 		
 		# Can I ping it? This returns '1' if it was pingable, '0' if not.
-		my ($pinged, $average_time) = $anvil->Network->ping({ping => $ups_ip});
+		my ($pinged, $average_time) = $anvil->Network->ping({ping => $ups_ip, debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			pinged       => $pinged,
 			average_time => $average_time, 
@@ -3042,7 +3042,7 @@ WHERE
 ORDER BY 
     ups_name ASC
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -3070,7 +3070,7 @@ ORDER BY
 	}
 	
 	my $ups_count = keys %{$anvil->data->{upses}{ups_uuid}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ups_count => $ups_count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_count => $ups_count }});
 	return($ups_count);
 }
 
