@@ -1480,8 +1480,8 @@ WHERE
 						my $alert_sent     = 0;
 						my $variables      = {
 							ups_name         => $scan_apc_ups_name,
-							new_value        => $scan_apc_ups_battery_model,
-							old_value        => $old_scan_apc_ups_battery_model,
+							new_value        => $scan_apc_ups_battery_percentage_charge,
+							old_value        => $old_scan_apc_ups_battery_percentage_charge,
 							battery_number   => $battery_number,
 							low_charge_clear => $anvil->data->{'scan-apc-ups'}{low_charge_percentage_ok},
 							low_charge_alert => $anvil->data->{'scan-apc-ups'}{low_charge_percentage_warning}, 
