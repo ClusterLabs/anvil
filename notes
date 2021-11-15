@@ -18,6 +18,8 @@ SELECT a.scan_apc_ups_name AS name, a.scan_apc_ups_serial_number AS sn, a.scan_a
 
 ============
 
+dnf -y install augeas
+
 
 Jenkins;
 
@@ -960,19 +962,24 @@ OS10(config)# write memory
 OS10(config)# hostname zo-switch01
 zo-switch01(config)# interface vlan 100
 zo-switch01(conf-if-vl-100)# description BCN1
+zo-switch01(config)# exit
 zo-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/14
 zo-switch01(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
 zo-switch01(conf-range-eth1/1/1-1/1/10)# no shutdown 
 zo-switch01(conf-range-eth1/1/1-1/1/10)# exit
+
 zo-switch01(config)# interface vlan 200
 zo-switch01(conf-if-vl-200)# description SN1
-zo-switch01(conf-if-vl-200)# interface range ethernet 1/1/11-1/1/14
+zo-switch01(conf-if-vl-200)# exit
+zo-switch01(config)# interface range ethernet 1/1/11-1/1/14
 zo-switch01(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
 zo-switch01(conf-range-eth1/1/11-1/1/14)# no shutdown
 zo-switch01(conf-range-eth1/1/11-1/1/14)# exit
+
 zo-switch01(config)# interface vlan 300
 zo-switch01(conf-if-vl-300)# description IFN1
-zo-switch01(conf-if-vl-300)# interface range ethernet 1/1/15-1/1/24
+zo-switch01(conf-if-vl-300)# exit
+zo-switch01(config)# interface range ethernet 1/1/15-1/1/24
 zo-switch01(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
 zo-switch01(conf-range-eth1/1/15-1/1/24)# no shutdown
 zo-switch01(conf-range-eth1/1/15-1/1/24)# exit
@@ -1223,13 +1230,6 @@ rs-striker03(config-if)#switchport access vlan 100
 rs-striker03(config-if)#no shutdown 
 rs-striker03(config-if)#exit
 
-rs-striker03(config)#interface vlan 300
-rs-striker03(config)#name IFN
-rs-striker03(config-if-vlan300)#interface range gigabitethernet1/0/15-24,gigabitethernet2/0/15-24
-rs-striker03(config-if)#switchport access vlan 300
-rs-striker03(config-if)#no shutdown 
-rs-striker03(config-if)#exit
-rs-striker03(config)#exit
 
 rs-striker03#show vlan 
 
@@ -1411,4 +1411,34 @@ totem.transport (str) = knet
 
 
 Gi1/0/24 + Gi2/0/24
+
+Dell LACP Config (OS10 - https://www.dell.com/support/kbdoc/en-us/000102901/dell-emc-networking-os10-how-to-set-up-virtual-link-trunking-vlt)
+
+* On both switches;
+zo-switch02# configure terminal 
+
+* IFN Port channel is 3
+zo-switch02(config)# interface port-channel 3
+zo-switch02(conf-if-po-3)# <165>1 2021-10-19T04:58:56.022086+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_ASTATE_UP: Interface admin state up :port-channel3
+<165>1 2021-10-19T04:58:56.022722+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_DN: Interface operational state is down :port-channel3
+zo-switch02(conf-if-po-3)# lacp fallback enable 
+zo-switch02(conf-if-po-3)# description IFN1
+zo-switch02(conf-if-po-3)# exit
+zo-switch02(config)# exit
+zo-switch02# show port-channel summary 
+  
+Flags:  D - Down    I - member up but inactive    P - member up and active
+        U - Up (port-channel)    F - Fallback Activated
+--------------------------------------------------------------------------------
+Group Port-Channel           Type     Protocol  Member Ports
+--------------------------------------------------------------------------------
+3    port-channel3    (D)     Eth      STATIC    
+1000 port-channel1000 (U)     Eth      STATIC    1/1/25(P) 1/1/26(P) 
+
+zo-switch02# configure terminal 
+zo-switch02(config)# interface ethernet 1/1/24
+zo-switch02(conf-if-eth1/1/24)# channel-group 3
+zo-switch02(conf-if-eth1/1/24)# <165>1 2021-10-19T05:09:41.237808+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :port-channel3
+exit
+exit
 

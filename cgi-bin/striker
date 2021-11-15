@@ -265,7 +265,7 @@ sub process_task
 	$anvil->data->{cgi}{login}{value}  = "" if not defined $anvil->data->{cgi}{login}{value};
 	$anvil->data->{cgi}{logout}{value} = "" if not defined $anvil->data->{cgi}{logout}{value};
 	$anvil->data->{cgi}{save}{value}   = "" if not defined $anvil->data->{cgi}{save}{value};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"cgi::login::value"  => $anvil->data->{cgi}{login}{value},
 		"cgi::logout::value" => $anvil->data->{cgi}{logout}{value},
 		"cgi::save::value"   => $anvil->data->{cgi}{save}{value},
@@ -297,14 +297,14 @@ sub process_task
 		# 1 - No cookie was found or read. The user needs to log in
 		# 2 - There was a problem reading the user's UUID (it wasn't found in the database), so the 
 		#     cookies were deleted (via C<< Account->logout() >>. The user needs to log back in.
-		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
+		# 3 - Their user's hash is invalid, it is probably expired. The user has been logged out and
 		#     needs to log back in.
-		my $cookie_problem = $anvil->Account->read_cookies();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cookie_problem => $cookie_problem }});
+		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cookie_problem => $cookie_problem }});
 		if (not $cookie_problem)
 		{
 			$logged_in = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { logged_in => $logged_in }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
 		}
 	}
 	

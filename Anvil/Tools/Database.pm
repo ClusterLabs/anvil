@@ -806,7 +806,7 @@ sub configure_pgsql
 	if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 	{
 		# Initialize. Record that we did so, so that we know to start the daemon.
-		my ($output, $return_code) = $anvil->System->call({debug => 1, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+		my ($output, $return_code) = $anvil->System->call({debug => 1, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." --initdb --unit postgresql", source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { output => $output, return_code => $return_code }});
 		
 		# Did it succeed?
@@ -1321,12 +1321,14 @@ sub connect
 	# If we're a Striker, see if we're configured.
 	my $local_host_type = $anvil->Get->host_type();
 	my $local_host_uuid = $anvil->Get->host_uuid();
+	my $db_count        = keys %{$anvil->data->{database}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		local_host_type     => $local_host_type, 
 		local_host_uuid     => $local_host_uuid, 
 		check_if_configured => $check_if_configured,
 		real_uid            => $<,
 		effective_uid       => $>,
+		db_count            => $db_count, 
 	}});
 	# If requested, and if running with root access, set it up (or update it) if needed. 
 	# This method just returns if nothing is needed.
@@ -1708,7 +1710,7 @@ sub connect
 	}
 	
 	# If we're a striker and no connections were found, start our database.
-	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
+	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}) && ($db_count > 1))
 	{
 		# Tell the user we're going to try to load and start.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
@@ -12031,7 +12033,20 @@ sub insert_or_update_states
 	# If we were passed a database UUID, check for the open handle.
 	if ($uuid)
 	{
-		$anvil->data->{cache}{database_handle}{$uuid} = "" if not defined $anvil->data->{cache}{database_handle}{$uuid};
+		if ((not defined $anvil->data->{cache}{database_handle}{$uuid}) or (not $anvil->data->{cache}{database_handle}{$uuid}))
+		{
+			# Switch to another UUID
+			foreach my $this_uuid (keys %{$anvil->data->{cache}{database_handle}})
+			{
+				if ($anvil->data->{cache}{database_handle}{$this_uuid})
+				{
+					# Switch to this UUID
+					$uuid = $this_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+				}
+			}
+		}
+		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 		}});
@@ -15300,9 +15315,26 @@ sub query
 	}
 	elsif (not defined $anvil->data->{cache}{database_handle}{$uuid})
 	{
-		# Database handle is gone.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { uuid => $uuid }});
-		return("!!error!!");
+		# Database handle is gone. Switch to the read_uuid
+		my $old_uuid = $uuid;
+		   $uuid     = $anvil->data->{sys}{database}{read_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			old_uuid => $old_uuid, 
+			uuid     => $uuid, 
+		}});
+		if (not defined $anvil->data->{cache}{database_handle}{$uuid})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { uuid => $uuid }});
+			return("!!error!!");
+		}
+		else
+		{
+			# Warn that we switched.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0073", variables => { 
+				old_uuid => $old_uuid, 
+				new_uuid => $uuid,
+			}});
+		}
 	}
 	if (not $query)
 	{
@@ -17391,6 +17423,8 @@ This method takes a database UUID and tests the connection to it using the DBD '
 
 This exists to handle the loss of a database mid-run where a normal query, which isn't wrapped in a query, could hang indefinately.
 
+B<< Note >>: If there is no active handle, this returns 0 immediately.
+
 =cut
 sub _test_access
 {
@@ -17401,7 +17435,16 @@ sub _test_access
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_test_access()" }});
 	
 	my $uuid = $parameter->{uuid} ? $parameter->{uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                              => $uuid,
+		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+	}});
+	
+	# If the handle is down, return 0.
+	if ((not exists $anvil->data->{cache}{database_handle}{$uuid}) or (not $anvil->data->{cache}{database_handle}{$uuid}))
+	{
+		return(0);
+	}
 	
 	# Make logging code a little cleaner
 	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
