@@ -18,6 +18,8 @@ SELECT a.scan_apc_ups_name AS name, a.scan_apc_ups_serial_number AS sn, a.scan_a
 
 ============
 
+dnf -y install augeas
+
 
 Jenkins;
 

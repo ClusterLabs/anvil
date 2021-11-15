@@ -1321,12 +1321,14 @@ sub connect
 	# If we're a Striker, see if we're configured.
 	my $local_host_type = $anvil->Get->host_type();
 	my $local_host_uuid = $anvil->Get->host_uuid();
+	my $db_count        = keys %{$anvil->data->{database}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		local_host_type     => $local_host_type, 
 		local_host_uuid     => $local_host_uuid, 
 		check_if_configured => $check_if_configured,
 		real_uid            => $<,
 		effective_uid       => $>,
+		db_count            => $db_count, 
 	}});
 	# If requested, and if running with root access, set it up (or update it) if needed. 
 	# This method just returns if nothing is needed.
@@ -1708,7 +1710,7 @@ sub connect
 	}
 	
 	# If we're a striker and no connections were found, start our database.
-	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
+	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}) && ($db_count > 1))
 	{
 		# Tell the user we're going to try to load and start.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
