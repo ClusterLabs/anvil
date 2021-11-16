@@ -1364,7 +1364,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0057">Updated: [#!variable!file!#] to require passwords for access.</key>
 		<key name="log_0058"><![CDATA[[ Error ] - The method Remote->call() was called but the port: [#!variable!port!#] is invalid. It must be a digit between '1' and '65535'.]]></key>
 		<key name="log_0059">Started the PostgreSQL database server.</key>
-		<key name="log_0060">Database user: [#!variable!user!#] already exists with UUID: [#!variable!uuid!#].</key>
+		<key name="log_0060">Database user: [#!variable!user!#] already exists with UUID: [#!variable!id!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
 		<key name="log_0063"><![CDATA[The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.]]></key>
@@ -1421,7 +1421,7 @@ The database connection error was:
 - Record Locator: [#!variable!record_locator!#]
 - Timestamp: .... [#!variable!modified_date!#]
 		</key>
-		<key name="log_0099">[ Error ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>
+		<key name="log_0099">[ Warning ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#]. Using 'admin'.</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
 		<key name="log_0101">Failed to connect to: [#!variable!target!#:#!variable!port!#], sleeping for a second and then trying again.</key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
