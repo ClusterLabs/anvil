@@ -15594,9 +15594,10 @@ sub refresh_timestamp
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	
-	my $query                                   = "SELECT cast(now() AS timestamp with time zone);";
-	   $anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	my $query    = "SELECT cast(now() AS timestamp with time zone);";
+	my $new_time = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	
+	$anvil->data->{sys}{database}{timestamp} = $new_time;
 	return($anvil->data->{sys}{database}{timestamp});
 }
 
