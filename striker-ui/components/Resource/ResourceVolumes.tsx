@@ -78,41 +78,49 @@ const ResourceVolumes = ({
                   </Box>
                 </Box>
               </PanelHeader>
-              {volume.connections.map((connection, index): JSX.Element => {
-                return (
-                  <>
-                    <Box
-                      key={connection.fencing}
-                      display="flex"
-                      width="100%"
-                      className={classes.connection}
-                    >
-                      <Box className={classes.decoratorBox}>
-                        <Decorator
-                          colour={selectDecorator(connection.connection_state)}
-                        />
-                      </Box>
-                      <Box>
-                        <Box display="flex" width="100%">
-                          <BodyText text={connection.targets[0].target_name} />
-                          <InsertLinkIcon style={{ color: DIVIDER }} />
-                          <BodyText text={connection.targets[1].target_name} />
+              {volume.connections.map(
+                (connection, index): JSX.Element => {
+                  return (
+                    <>
+                      <Box
+                        key={connection.fencing}
+                        display="flex"
+                        width="100%"
+                        className={classes.connection}
+                      >
+                        <Box className={classes.decoratorBox}>
+                          <Decorator
+                            colour={selectDecorator(
+                              connection.connection_state,
+                            )}
+                          />
                         </Box>
-                        <Box
-                          display="flex"
-                          justifyContent="center"
-                          width="100%"
-                        >
-                          <BodyText text={connection.connection_state} />
+                        <Box>
+                          <Box display="flex" width="100%">
+                            <BodyText
+                              text={connection.targets[0].target_name}
+                            />
+                            <InsertLinkIcon style={{ color: DIVIDER }} />
+                            <BodyText
+                              text={connection.targets[1].target_name}
+                            />
+                          </Box>
+                          <Box
+                            display="flex"
+                            justifyContent="center"
+                            width="100%"
+                          >
+                            <BodyText text={connection.connection_state} />
+                          </Box>
                         </Box>
                       </Box>
-                    </Box>
-                    {volume.connections.length - 1 !== index ? (
-                      <Divider className={classes.divider} />
-                    ) : null}
-                  </>
-                );
-              })}
+                      {volume.connections.length - 1 !== index ? (
+                        <Divider className={classes.divider} />
+                      ) : null}
+                    </>
+                  );
+                },
+              )}
             </InnerPanel>
           );
         })}
