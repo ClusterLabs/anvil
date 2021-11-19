@@ -75,7 +75,9 @@ const AnvilHost = ({
       {hosts &&
         hosts.map(
           (host): JSX.Element => {
-            return (
+            // Temporary fix: avoid crash when encounter undefined host entry by returning a blank element.
+            // TODO: figure out why there are undefined host entries.
+            return host ? (
               <InnerPanel key={host.host_uuid}>
                 <PanelHeader>
                   <Box display="flex" width="100%" className={classes.header}>
@@ -153,6 +155,8 @@ const AnvilHost = ({
                   </>
                 )}
               </InnerPanel>
+            ) : (
+              <></>
             );
           },
         )}
