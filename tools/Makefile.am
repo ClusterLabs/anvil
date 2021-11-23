@@ -16,6 +16,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-file-details \
 			  anvil-get-server-screenshot \
 			  anvil-join-anvil \
+			  anvil-kmods \
 			  anvil-maintenance-mode \
 			  anvil-manage-files \
 			  anvil-manage-firewall \

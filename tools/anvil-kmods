@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+# no akmods means no drbd kernel
+if [ ! -f /usr/sbin/akmods ]; then
+	exit 0
+fi
+
+# try to build first
+if ! modprobe drbd; then
+	akmods --force
+else
+	exit 0
+fi
+
+# try to modprobe again. akmods return 0 also on failure
+if ! modprobe drbd; then
+	yum install -y kmod-drbd-$(uname -r)
+else
+	exit 0
+fi
+
+if ! modprobe drbd; then
+	echo "Unable to build or install drbd kernel modules"
+	exit 1
+fi
+
+exit 0
