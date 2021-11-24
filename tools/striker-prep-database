@@ -29,6 +29,8 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches;
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->System->_check_anvil_conf({debug => 2});
@@ -52,15 +54,36 @@ if ($local_uuid)
 	# Check that the firewall is open.
 	configure_firewall($anvil);
 	
+	# Wait until postgresql is installed, in case we're running during initial dnf install.
+	my $installed = 0;
+	until($installed)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{rpm}." -q postgresql-server";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => 2, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		
+		if ($return_code)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0131"});
+			sleep 5;
+		}
+		else
+		{
+			# Installed.
+			$installed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { installed => $installed }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0670"});
+		}
+	}
+	
 	my $running = $anvil->System->check_daemon({debug => 2, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
-	if ($running eq "2")
-	{
-		# Not installed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0144"});
-		$anvil->nice_exit({exit_code => 5});
-	}
-	elsif (not $running)
+	if (not $running)
 	{
 		# Do we need to initialize the databae?
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::configs::pg_hba.conf" => $anvil->data->{path}{configs}{'pg_hba.conf'} }});
@@ -411,7 +434,7 @@ if ($local_uuid)
 	}
 	
 	# Remove the temporary password file.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 		created_pgpass                  => $created_pgpass,
 		"path::secure::postgres_pgpass" => $anvil->data->{path}{secure}{postgres_pgpass}, 
 	}});
