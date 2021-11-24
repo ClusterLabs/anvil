@@ -29,10 +29,6 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches;
-
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->System->_check_anvil_conf({debug => 2});

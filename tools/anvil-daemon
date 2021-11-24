@@ -1155,6 +1155,7 @@ sub prep_database
 	my ($anvil) = @_;
 	
 	# If there's a backup file, we're configured and possibly just off. 
+	my $prep_database = 1;
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
 		my $dump_file =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$uuid.".sql";
@@ -1164,7 +1165,8 @@ sub prep_database
 		{
 			# No need to prepare.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0665", variables => { file => $dump_file }});
-			return(0);
+			$prep_database = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { prep_database => $prep_database }});
 		}
 	}
 	
@@ -1173,16 +1175,32 @@ sub prep_database
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "striker")
 	{
-		### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-		#my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__ });
-		my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-			database_output => $database_output,
-			return_code     => $return_code, 
-		}});
+		if ($prep_database)
+		{
+			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
+			#my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__ });
+			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure", source => $THIS_FILE, line => __LINE__ });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				database_output => $database_output,
+				return_code     => $return_code, 
+			}});
+		}
+		else
+		{
+			# Start the daemon locally, if needed.
+			my $running = $anvil->System->check_daemon({daemon => "postgresql"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+			if ($running == 2)
+			{
+				# Not installed, nothing to do.
+			}
+			elsif (not $running)
+			{
+				# Start it.
+				my $return_code = $anvil->System->start_daemon({daemon => "postgresql"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+			}
+		}
 	}
 	
 	return(0);
