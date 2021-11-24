@@ -2060,6 +2060,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0667">Opening the firewall zone: [#!variable!zone!#] to allow the service: [#!variable!service!#].</key>
 		<key name="log_0668">No password for the database on the host with UUID: [#!variable!uuid!#], skipping it.</key>
 		<key name="log_0669">The firewalld daemon isn't running, skipping firewall setup.</key>
+		<key name="log_0670">The postgresql server is installed.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3084,6 +3085,7 @@ The error was:
 We will sleep a bit and try again.
 		</key>
 		<key name="warning_0130">[ Warning ] - The storage group: [#!variable!storage_group_name!#] had the host: [#!variable!host_name!#] as a member. This host is not a member (anymore?) of the Anvil!: [#!variable!anvil_name!#]. Removing it from the storage group now.</key>
+		<key name="warning_0131">[ Warning ] - The postgresql server is not installed yet. Sleeping for a bit, then will check again.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
