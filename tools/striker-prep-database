@@ -33,7 +33,7 @@ $anvil->Get->switches;
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->System->_check_anvil_conf({debug => 2});
 
@@ -52,6 +52,9 @@ if ($local_uuid)
 {
 	# Start checks
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::service::postgresql" => $anvil->data->{sys}{daemon}{postgresql} }});
+	
+	# Check that the firewall is open.
+	configure_firewall($anvil);
 	
 	my $running = $anvil->System->check_daemon({debug => 2, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
@@ -495,6 +498,117 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+sub configure_firewall
+{
+	my ($anvil) = @_;
+	
+	# What zones are there?
+	my $in_zone    = "";
+	my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => 2, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		if ($line =~ /^\S/)
+		{
+			$in_zone = $line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_zone => $in_zone }});
+			
+			$anvil->data->{firewall}{zone}{$in_zone}{active} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"firewall::zone::${in_zone}::active" => $anvil->data->{firewall}{zone}{$in_zone}{active},
+			}});
+		}
+		elsif ($line =~ /^\s+interfaces: (.*)$/)
+		{
+			my $interfaces = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interfaces => $interfaces }});
+			
+			$anvil->data->{firewall}{zone}{$in_zone}{interfaces} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"firewall::zone::${in_zone}::interfaces" => $anvil->data->{firewall}{zone}{$in_zone}{interfaces},
+			}});
+		}
+	}
+	
+	my $reload = 0;
+	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
+	{
+		my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --info-zone=".$zone;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => 2, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		foreach my $line (split/\n/, $output)
+		{
+			if ($line =~ /^\s+services: (.*)$/)
+			{
+				my $services = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { services => $services }});
+				
+				foreach my $service (split/ /, $services)
+				{
+					$anvil->data->{firewall}{zone}{$in_zone}{service}{$service} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"firewall::zone::${in_zone}::service::${service}" => $anvil->data->{firewall}{zone}{$in_zone}{service}{$service},
+					}});
+				}
+			}
+		}
+		
+		# Is postgres open?
+		if ((not exists $anvil->data->{firewall}{zone}{$in_zone}{service}{postgresql}) or (not $anvil->data->{firewall}{zone}{$in_zone}{service}{postgresql}))
+		{
+			### TODO: Switch this to System->manage_firewall().
+			# Enable it.
+			my $service = "postgresql";
+			   $reload  = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				service => $service,
+				reload  => $reload, 
+			}});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0667", variables => { 
+				zone    => $zone,
+				service => $service, 
+			}});
+			
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --permanent --add-service=".$service;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => 2, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+	}
+	
+	# Reload the firewall?
+	if ($reload)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0139"});
+		
+		my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --reload";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => 2, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+	}
+	
+	return(0);
+}
+
 # This adds this machine to the local anvil.conf file.
 sub add_to_local_config
 {
@@ -518,7 +632,7 @@ sub add_to_local_config
 		host_uuid  => $host_uuid, 
 		shell_call => $shell_call,
 	}});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => 2, source => $THIS_FILE, line => __LINE__});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -528,12 +642,18 @@ sub add_to_local_config
 	unlink $password_file;
 	
 	# Re-read the config and make sure we have our own entry.
-	$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+	$anvil->refresh();
 	
 	# If we still don't have a local_uuid, something went wrong.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"database::${host_uuid}::host"     => $anvil->data->{database}{$host_uuid}{host}, 
+		"database::${host_uuid}::port"     => $anvil->data->{database}{$host_uuid}{port}, 
+		"database::${host_uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$host_uuid}{password}), 
+		"database::${host_uuid}::ping"     => $anvil->data->{database}{$host_uuid}{ping}, 
+	}});
 	if (not $anvil->data->{database}{$host_uuid}{host})
 	{
-		print $anvil->Words->string({key => "error_0010"})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0010"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
