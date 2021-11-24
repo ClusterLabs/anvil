@@ -237,6 +237,8 @@ systemctl enable chronyd.service
 systemctl start chronyd.service 
 systemctl enable anvil-daemon.service
 systemctl restart anvil-daemon.service
+systemctl enable scancore.service
+systemctl restart scancore.service
 
 
 %post striker
@@ -252,9 +254,10 @@ then
     systemctl enable gdm.service
 fi
 
-echo "Preparing the database"
-striker-prep-database
-anvil-update-states
+### This is handled by anvil-daemon now
+#echo "Preparing the database"
+#striker-prep-database
+#anvil-update-states
 
 # Touch the system type file.
 echo "Touching the system type file"
