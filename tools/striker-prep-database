@@ -507,6 +507,14 @@ sub configure_firewall
 		output      => $output, 
 		return_code => $return_code,
 	}});
+	
+	# If the return code was 252, firewalld isn't running.
+	if ($return_code eq "252")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0669"});
+		return(0);
+	}
+	
 	foreach my $line (split/\n/, $output)
 	{
 		if ($line =~ /^\S/)
