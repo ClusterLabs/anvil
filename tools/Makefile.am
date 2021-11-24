@@ -50,7 +50,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-show-db-counts \
 			  striker-auto-initialize-all
 
-fencedir		= $(FASEXECPREFIX)/sbin
+fencedir		= ${FASEXECPREFIX}/sbin
 
 dist_fence_SCRIPTS	= \
 			  fence_delay \
