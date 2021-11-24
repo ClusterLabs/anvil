@@ -1344,20 +1344,23 @@ sub connect
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		# Periodically, autovivication causes and empty key to appear.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 		next if ((not $uuid) or (not $anvil->Validate->uuid({uuid => $uuid})));
 		
 		if (($db_uuid) && ($db_uuid ne $uuid))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0191", variables => { db_uuid => $db_uuid, uuid => $uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0191", variables => { 
+				db_uuid => $db_uuid, 
+				uuid    => $uuid,
+			}});
 			next;
 		}
 		
 		# Make sure values are set.
-		$anvil->data->{database}{$uuid}{port}     = 5432                                if not         $anvil->data->{database}{$uuid}{port};
-		$anvil->data->{database}{$uuid}{name}     = $anvil->data->{sys}{database}{name} if not         $anvil->data->{database}{$uuid}{name};
-		$anvil->data->{database}{$uuid}{user}     = $anvil->data->{sys}{database}{user} if not         $anvil->data->{database}{$uuid}{user};
-		$anvil->data->{database}{$uuid}{password} = ""                                  if not defined $anvil->data->{database}{$uuid}{password}; 
+		$anvil->data->{database}{$uuid}{port}     = 5432    if not defined $anvil->data->{database}{$uuid}{port};
+		$anvil->data->{database}{$uuid}{name}     = "anvil" if not         $anvil->data->{database}{$uuid}{name};
+		$anvil->data->{database}{$uuid}{user}     = "admin" if not         $anvil->data->{database}{$uuid}{user};
+		$anvil->data->{database}{$uuid}{password} = ""      if not defined $anvil->data->{database}{$uuid}{password}; 
 		
 		my $driver   = "DBI:Pg";
 		my $host     = $anvil->data->{database}{$uuid}{host}; # This should fail if not set
@@ -1365,13 +1368,20 @@ sub connect
 		my $name     = $anvil->data->{database}{$uuid}{name};
 		my $user     = $anvil->data->{database}{$uuid}{user};
 		my $password = $anvil->data->{database}{$uuid}{password};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host     => $host,
 			port     => $port,
 			name     => $name,
 			user     => $user, 
 			password => $anvil->Log->is_secure($password), 
 		}});
+		
+		# If there's no password, skip.
+		if (not $password)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0668", variables => { uuid => $uuid }});
+			next;
+		}
 		
 		# Some places will want to pull up the database user, so in case it isn't set (which is 
 		# usual), set it as if we had read it from the config file using the default.

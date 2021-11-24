@@ -2057,6 +2057,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0664">[ Note ] - The IP address: [#!variable!ip!#] with 'ip_address_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
 		<key name="log_0665">The database dump file: [#!variable!file!#] exists, skipping database setup.</key>
 		<key name="log_0666"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with UUID: [#!variable!old_uuid!#] but there is no file handle open to the database. Switched the read to: [#!variable!new_uuid!#].]]></key>
+		<key name="log_0667">Opening the firewall zone: [#!variable!zone!#] to allow the service: [#!variable!service!#].</key>
+		<key name="log_0668">No password for the database on the host with UUID: [#!variable!uuid!#], skipping it.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
