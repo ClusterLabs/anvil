@@ -93,6 +93,7 @@ my $THIS_FILE = "Database.pm";
 # resync_databases
 # update_host_status
 # write
+# _add_to_local_config
 # _age_out_data
 # _archive_table
 # _find_column
@@ -778,6 +779,7 @@ If the method completes, C<< 0 >> is returned. If this method is called without 
 This method takes no parameters.
 
 =cut
+### TODO: Much of this logic is in striker-prep-database, consolidate!
 sub configure_pgsql
 {
 	my $self      = shift;
@@ -797,6 +799,23 @@ sub configure_pgsql
 		# database(s).
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0113"});
 		return(1);
+	}
+
+	# Make sure we have an entry in our own anvil.conf.
+	my $local_uuid = $anvil->Database->get_local_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+
+	# If we didn't get the $local_uuid, then there is no entry for this system in anvil.conf yet, so we'll add it.
+	if (not $local_uuid)
+	{
+		$local_uuid = $anvil->Database->_add_to_local_config({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+		
+		if ($local_uuid eq "!!error!!")
+		{
+			# Already logged the error, return.
+			return('!!error!!');
+		}
 	}
 	
 	# First, is it running and is it initialized?
@@ -16414,6 +16433,77 @@ sub write
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _add_to_local_config
+
+This adds this machine to the local C<< /etc/anvil/anvil.conf >> file.
+
+If successful, the host's UUID will be returned. If there's a problem, C<< !!error!! >> will be returned.
+
+=cut
+sub _add_to_local_config
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_add_to_local_config()" }});
+	
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	if ((not exists $anvil->data->{database}{$host_uuid}{password}) or (not $anvil->data->{database}{$host_uuid}{password}))
+	{
+		# Use the default password used in kickstart scripts.
+		$anvil->data->{database}{$host_uuid}{password} = $anvil->data->{defaults}{kickstart}{password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { 
+			"database::${host_uuid}::password" => $anvil->data->{database}{$host_uuid}{password},
+		}});
+	}
+	
+	# Write the password to a file.
+	my $password_file = "/tmp/striker-manage-peers.".$anvil->Get->uuid;
+	$anvil->Storage->write_file({
+		debug     => $debug,
+		secure    => 1, 
+		file      => $password_file, 
+		body      => $anvil->data->{database}{$host_uuid}{password}, 
+		mode      => "0600",
+		overwrite => 1,
+	});
+	
+	# Make the shell call, and parse the output looking for our own entry
+	my $shell_call = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$anvil->Get->host_uuid." --host localhost --port 5432 --password-file ".$password_file." --ping 0".$anvil->Log->switches;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid  => $host_uuid, 
+		shell_call => $shell_call,
+	}});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	# Remove the password.
+	unlink $password_file;
+	
+	# Re-read the config and make sure we have our own entry.
+	$anvil->refresh();
+	
+	# If we still don't have a local_uuid, something went wrong.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"database::${host_uuid}::host"     => $anvil->data->{database}{$host_uuid}{host}, 
+		"database::${host_uuid}::port"     => $anvil->data->{database}{$host_uuid}{port}, 
+		"database::${host_uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$host_uuid}{password}), 
+		"database::${host_uuid}::ping"     => $anvil->data->{database}{$host_uuid}{ping}, 
+	}});
+	if (not $anvil->data->{database}{$host_uuid}{host})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0010"});
+		return('!!error!!');
+	}
+	
+	return($host_uuid);
+}
 
 
 =head2 _age_out_data
