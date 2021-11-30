@@ -1363,7 +1363,7 @@ sub connect
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		# Periodically, autovivication causes and empty key to appear.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 		next if ((not $uuid) or (not $anvil->Validate->uuid({uuid => $uuid})));
 		
 		if (($db_uuid) && ($db_uuid ne $uuid))
@@ -1387,7 +1387,7 @@ sub connect
 		my $name     = $anvil->data->{database}{$uuid}{name};
 		my $user     = $anvil->data->{database}{$uuid}{user};
 		my $password = $anvil->data->{database}{$uuid}{password};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host     => $host,
 			port     => $port,
 			name     => $name,
