@@ -2064,6 +2064,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0671">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. Will not boot this host.</key>
 		<key name="log_0672">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. If power and temperature looks good, we'll boot it.</key>
 		<key name="log_0673">The host: [#!variable!host_name!#] has good power and temperature readings. Booting it back up now.</key>
+		<key name="log_0674">The resync has completed in: [#!variable!took!#] second(s).</key>
+		<key name="log_0675"><![CDATA[[ Error ] - There was a database handle error while preparing the database query: [#!variable!query!#] on: [#!variable!server!#]. The eval error was: [#!variable!eval_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set. ]]></key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

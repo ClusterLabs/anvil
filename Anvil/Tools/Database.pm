@@ -803,7 +803,7 @@ sub configure_pgsql
 
 	# Make sure we have an entry in our own anvil.conf.
 	my $local_uuid = $anvil->Database->get_local_uuid();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 
 	# If we didn't get the $local_uuid, then there is no entry for this system in anvil.conf yet, so we'll add it.
 	if (not $local_uuid)
@@ -15393,12 +15393,27 @@ sub query
 	}
 	
 	# Do the query.
-	my $DBreq = $anvil->data->{cache}{database_handle}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
+	local $@;
+	my $DBreq = eval { $anvil->data->{cache}{database_handle}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
 			query    => (not $secure) ? $query : $anvil->Log->is_secure($query), 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
+		}}); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0675", variables => { 
+			query      => (not $secure) ? $query : $anvil->Log->is_secure($query), 
+			server     => $say_server,
+			eval_error => $@, 
 		}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { DBreq => $DBreq }});
+		return("!!error!!");
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid       => $uuid, 
+		query      => (not $secure) ? $query : $anvil->Log->is_secure($query), 
+		say_server => $say_server, 
+		DBreq      => $DBreq,
+	}});
 	
 	# Execute on the query
 	$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
@@ -15667,6 +15682,7 @@ sub resync_databases
 	###       to avoid trouble with primary/foreign keys.
 	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
 	# 'sys::database::check_tables'
+	my $start_time = time;
 	foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
 	{
 		# We don't sync 'states' as it's transient and sometimes per-DB.
@@ -16116,6 +16132,10 @@ sub resync_databases
 	# Clear the variable that indicates we need a resync.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
+	
+	my $time_taken = time - $start_time;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_taken => $time_taken }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0674", variables => { took => $time_taken }});
 	
 	return(0);
 }
