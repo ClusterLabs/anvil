@@ -1,0 +1,318 @@
+#!/usr/bin/perl
+# 
+# This is the command line user interface for managing files on /mnt/shared/files on Strikers and made 
+# available on Anvil! systems.
+#  
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+require POSIX;
+use Term::Cap;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Connect to the database(s).
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+
+
+my $termios = new POSIX::Termios;
+$termios->getattr;
+my $ospeed = $termios->getospeed;
+
+my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+$terminal->Trequire(qw/ce ku kd/);
+
+interactive_menu($anvil, $termios);
+
+$anvil->nice_exit({exit_code => 0});
+
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub interactive_menu
+{
+	my ($anvil, $termios) = @_;
+	
+	# This has to run on a striker, so is this a Striker?
+	my $host_type = $anvil->Get->host_type;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		print "Managing files must be run on a Striker dashboard. Exiting\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->data->{manaing}{file}  = "";
+	$anvil->data->{manaing}{anvil} = "";
+	while(1)
+	{
+		# Get a list of files we already know about. Database->get_anvils() also loads files and 
+		# file_locations data
+		$anvil->Database->get_anvils;
+		my $longest_file_name = 0;
+		
+		print $terminal->Tputs('cl');
+		print "-=] Anvil! File Management\n\n";
+		# Show the main menu.
+		print "[ 1 ] - Add a new file.\n";
+		print "[ 2 ] - Manage an existing file.\n";
+		print "[ 3 ] - Manage files on an Anvil!\n";
+		print "\n";
+		print "[ Q ] - Quit\n";
+		print "\n";
+		print $terminal->Tgoto('cm', 0, 8)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if ($answer eq "1")
+		{
+			interactive_menu_add_file($anvil, $terminal);
+		}
+		elsif ($answer eq "2")
+		{
+			interactive_menu_manage_file($anvil, $terminal);
+		}
+		elsif ($answer eq "2")
+		{
+			interactive_menu_manage_anvil($anvil, $terminal);
+		}
+		elsif (lc($answer) eq "q")
+		{
+			print "NO CARRIER, good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_menu_add_file
+{
+	my ($anvil, $terminal) = @_;
+	
+	print $terminal->Tputs('cl');
+	print "-=] Anvil! File Management - Add a new file\n\n";
+	
+	# Build a list of files in /mnt/shared/incoming/ that are not yet in the database.
+	get_file_list($anvil);
+	
+	# Start the array with an empty entry so that users can answer '1' for the first file.
+	my $files = [""];
+	foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{manage_files}})
+	{
+		if ($anvil->data->{manage_files}{$file_name}{file_new})
+		{
+			push @{$files}, $file_name;
+		}
+	}
+	my $file_count = (@{$files} - 1);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_count => $file_count }});
+	
+	if (not $file_count)
+	{
+		print "<No new files found in: [".$anvil->data->{path}{directories}{shared}{incoming}."]>\n";
+		# Show the main menu.
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		print "\n";
+		print $terminal->Tgoto('cm', 0, 7)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		if (lc($answer) eq "b")
+		{
+			interactive_menu($anvil, $terminal);
+		}
+		elsif (lc($answer) eq "q")
+		{
+			print "NO CARRIER, good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			interactive_menu_add_file($anvil, $terminal);
+		}
+	}
+	else
+	{
+		my $pad = 1;
+		if ($file_count > 9)
+		{
+			$pad = 2;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pad => $pad }});
+		
+		foreach my $i (0..$file_count)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "files->[".$i."]" => $files->[$i] }});
+			next if $files->[$i] eq "";
+			my $file_name = $files->[$i];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_name => $file_name }});
+			print "[ ".sprintf("%${pad}s", $i)." ] - ".$file_name."\n";
+		}
+		print "\n";
+		print "[ B ] - Back\n";
+		print "[ Q ] - Quit\n";
+		print "\n";
+		print $terminal->Tgoto('cm', 0, ($file_count + 6))."Which file would you like to add? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		if (($answer =~ /^\d+$/) && (exists $files->[$answer]) and ($files->[$answer]))
+		{
+			my $file_name = $files->[$answer];
+			print $terminal->Tputs('cl');
+			print "-=] Anvil! File Management - Add a new file\n\n";
+			print "Confirm addition of: [".$file_name."] [y/N] ?\n";
+			my $answer = <STDIN>;
+			chomp $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+			if ($answer =~ /^y/i)
+			{
+				print "Creating a job to add the file. Please be patient, it should be added shortly.\n";
+				my $out_file = $anvil->data->{path}{directories}{shared}{incoming}."/".$file_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_file => $out_file }});
+				
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					file            => $THIS_FILE, 
+					line            => __LINE__, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+					job_data        => "file=".$out_file, 
+					job_name        => "storage::move_incoming", 
+					job_title       => "job_0132", 
+					job_description => "job_0133", 
+					job_progress    => 0,
+					job_host_uuid   => $anvil->data->{sys}{host_uuid},
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+				print "- Job created as: [".$job_uuid."]\n\n";
+				print "Press any key to return to the main menu.\n";
+				my $answer = <STDIN>;
+				chomp $answer;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+				interactive_menu($anvil, $terminal);
+			}
+			else
+			{
+				print "Aborted.\n";
+				sleep 1;
+				interactive_menu_add_file($anvil, $terminal);
+			}
+		}
+		elsif (lc($answer) eq "b")
+		{
+			interactive_menu($anvil, $terminal);
+		}
+		elsif (lc($answer) eq "q")
+		{
+			print "NO CARRIER, good bye.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			interactive_menu_add_file($anvil, $terminal);
+		}
+	}
+	
+	return(0);
+}
+
+sub interactive_menu_manage_file
+{
+	my ($anvil, $terminal) = @_;
+	
+	print $terminal->Tputs('cl');
+	print "-=] Anvil! File Management - Manage an existing file\n\n";
+	
+	if (0)
+	{
+	}
+	else
+	{
+		print "NO CARRIER, good bye.\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub interactive_menu_manage_anvil
+{
+	my ($anvil, $terminal) = @_;
+	
+	
+	print $terminal->Tputs('cl');
+	print "-=] Anvil! File Management - Manage Files on an Anvil!\n\n";
+	
+	if (0)
+	{
+	}
+	else
+	{
+		print "NO CARRIER, good bye.\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+# This looks for files in /mnt/shared/incoming and collects their file_uuid, if found in the database.
+sub get_file_list
+{
+	my ($anvil) = @_;
+	
+	if (exists $anvil->data->{manage_files})
+	{
+		delete $anvil->data->{manage_files};
+	}
+	my $directory = $anvil->data->{path}{directories}{shared}{incoming};
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $directory);
+	while(my $file_name = readdir(DIRECTORY))
+	{
+		next if $file_name eq ".";
+		next if $file_name eq "..";
+		# Ignore hidden files (which includes files still being copied)
+		next if $file_name =~ /^\./;
+		my $full_path = $directory."/".$file_name;
+		
+		# No file should match, but just in case...
+		if (exists $anvil->data->{files}{file_name}{$file_name})
+		{
+			### TODO: Log that this is a duplicate.
+			$anvil->data->{manage_files}{$file_name}{file_uuid} = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+			$anvil->data->{manage_files}{$file_name}{file_new}  = 0;
+			
+		}
+		else
+		{
+			$anvil->data->{manage_files}{$file_name}{file_uuid} = "";
+			$anvil->data->{manage_files}{$file_name}{file_new}  = 1;
+		}
+	}
+	closedir(DIRECTORY);
+	
+	return(0);
+}

@@ -15401,6 +15401,8 @@ sub query
 		}}); };
 	if ($@)
 	{
+		### TODO: Report back somehow that the handle is dead.
+		$anvil->Database->disconnect({debug => $debug});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0675", variables => { 
 			query      => (not $secure) ? $query : $anvil->Log->is_secure($query), 
 			server     => $say_server,
