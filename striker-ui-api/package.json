@@ -5,6 +5,7 @@
   "scripts": {
     "build": "pkg --compress GZip --output striker-ui-api --targets node14-linux index.js",
     "clean": "rm -f striker-ui-api",
+    "dev": "node index.js",
     "rebuild": "npm run clean && npm run build",
     "start": "npm run build && ./striker-ui-api"
   },
