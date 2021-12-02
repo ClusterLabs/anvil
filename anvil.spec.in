@@ -131,6 +131,7 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
+Requires:       openssh-askpass
 Requires:       postgresql-server 
 Requires:       syslinux
 Requires:       syslinux-nonlinux
