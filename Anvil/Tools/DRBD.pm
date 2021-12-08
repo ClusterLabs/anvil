@@ -26,6 +26,7 @@ my $THIS_FILE = "DRBD.pm";
 # reload_defaults
 # resource_uuid
 # update_global_common
+# _initialize_kmod
 # 
 
 =pod
@@ -1835,6 +1836,7 @@ sub get_status
 	return(0);
 }
 
+
 =head2 manage_resource
 
 This takes a task, C<< up >>, C<< down >>, C<< primary >>, or C<< secondary >> and a resource name and acts on the request.
@@ -3029,3 +3031,114 @@ sub update_global_common
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _initialize_kmod
+
+This checks to see if the C<< drbd >> kernel module can load. If not, a check is made to see if an RPM that matches the kernel exists. If so, it is installed. If not, C<< akmods >> is asked to build and install the drbd kernel module.
+
+Returns C<< 0 >> is the module loads or is already loaded. C<< !!error!! >> if not.
+
+=cut
+sub _initialize_kmod
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->_initialize_kmod()" }});
+	
+	my $kernel_release = $anvil->Get->kernel_release({debug => $debug});
+	my $shell_call     = $anvil->data->{path}{exe}{modprobe}." drbd";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		kernel_release => $kernel_release,
+		shell_call     => $shell_call,
+	}});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
+	
+	if (not $return_code)
+	{
+		# Loaded fine
+		return(0);
+	}
+	else
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0676"});
+		my $install    = 0;
+		my $shell_call = $anvil->data->{path}{exe}{dnf}." -q search kmod-drbd-".$kernel_release;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /Name Exactly/)
+			{
+				# We can install.
+				$install = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { install => $install }});
+				last;
+			}
+		}
+		
+		# Install or build?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { install => $install }});
+		if ($install)
+		{
+			### TODO: Should this be a background process? 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0677"});
+			my $shell_call = $anvil->data->{path}{exe}{dnf}." -y install kmod-drbd-".$kernel_release;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0678"});
+			my $shell_call = $anvil->data->{path}{exe}{akmods}." --force";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+		
+		# In either case, try again.
+		$output      = undef;
+		$return_code = undef;
+		$shell_call  = $anvil->data->{path}{exe}{modprobe}." drbd";
+		($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		if (not $return_code)
+		{
+			# Loaded fine
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0679"});
+			return(0);
+		}
+		else
+		{
+			# Failed
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0132"});
+		}
+	}
+	
+	return('!!error!!');
+}

@@ -501,6 +501,7 @@ The output, if any, was;
 ====
 		</key>
 		<key name="error_0355">Failed to load the database file: [#!variable!file!#]. Deleting it so it's not considered in the next load attempt.</key>
+		<key name="error_0356">Failed to read the kernel release on the host: [#!variable!target!#]. The return code was: [#!variable!return_code!#] (expected '0') and the release output, if any, was: [#!variable!output!#].</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1947,7 +1948,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0562">The host: [#!variable!host_name!#] is up, no need to check if it needs booting.</key>
 		<key name="log_0563">The host: [#!variable!host_name!#] couldn't be reached directly, but IPMI reports that it is up. Could the IPMI BMC be hung or unplugged?</key>
 		<key name="log_0564">The host: [#!variable!host_name!#] is off. Will check now if it should be booted.</key>
-		<key name="log_0565">The host: [#!variable!host_name!#] has no stop reason, so we'll boot it up in case it lost power without warning.</key>
+		<key name="log_0565">The host: [#!variable!host_name!#] has no stop reason, so we'll check to see if we should power it on, in case it lost power or overheated without warning.</key>
 		<key name="log_0566">The host: [#!variable!host_name!#] was stopped by the user, so we'll leave it off.</key>
 		<key name="log_0567">The host: [#!variable!host_name!#] was powered off because of power loss. Checking to see if it is now safe to restart it.</key>
 		<key name="log_0568">The host: [#!variable!host_name!#] was powered off because of thermal issues. Checking to see if it is now safe to restart it.</key>
@@ -1955,7 +1956,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0570">Unable to parse the install manifest uuid: [#!variable!manifest_uuid!#] for the Anvil! [#!variable!anvil_name!#]. As such, unable to determine what UPSes power the machine: [#!variable!host_name!#]. Unable to determine if the power feeding this node is OK or not.</key>
 		<key name="log_0571">The UPS referenced by the 'power_uuid': [#!variable!power_uuid!#] under the host: [#!variable!host_name!#] has no record of being on mains power, so we can't determine how long it's been on batteries. Setting the "shortest time on batteries" to zero seconds.</key>
 		<key name="log_0572">Marking the host as 'online' and clearing the host's stop reason.</key>
-		<key name="log_0573">The host: [#!variable!host_name!#] is off, but there appears to be a problem translating the 'fence_ipmilan' into a workable 'ipmitool' command. Unable to check the thermal data of the host, and so, unable to determine if it's safe to boot the node.</key>
+		<key name="log_0573">There appears to be a problem translating the 'fence_ipmilan' into a workable 'ipmitool' command for the host: [#!variable!host_name!#]. Unable to check the thermal data of the host.</key>
 		<key name="log_0574">The host: [#!variable!host_name!#] was powered off because of power loss. Power is back and the UPSes are sufficiently charged. Booting it back up now.</key>
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
@@ -2061,6 +2062,15 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0668">No password for the database on the host with UUID: [#!variable!uuid!#], skipping it.</key>
 		<key name="log_0669">The firewalld daemon isn't running, skipping firewall setup.</key>
 		<key name="log_0670">The postgresql server is installed.</key>
+		<key name="log_0671">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. Will not boot this host.</key>
+		<key name="log_0672">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. If power and temperature looks good, we'll boot it.</key>
+		<key name="log_0673">The host: [#!variable!host_name!#] has good power and temperature readings. Booting it back up now.</key>
+		<key name="log_0674">The resync has completed in: [#!variable!took!#] second(s).</key>
+		<key name="log_0675"><![CDATA[[ Error ] - There was a database handle error while preparing the database query: [#!variable!query!#] on: [#!variable!server!#]. The eval error was: [#!variable!eval_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set. ]]></key>
+		<key name="log_0676">[ Note ] - The DRBD kernel module failed to load. It is possible the kernel was updated. We will check to see if we can install a pre-built RPM, or if we need to build one ourselves.</key>
+		<key name="log_0677">Found an installable DRBD kernel module RPM that matches the current kernel. Installing it now.</key>
+		<key name="log_0678">[ Note ] - We need to build the DRBD kernel module. This can take a few minutes, please be patient! Use 'journalctl -f' to monitor the build process.</key>
+		<key name="log_0679">Successfully built and installed the new DRBD kernel module!</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3086,6 +3096,7 @@ We will sleep a bit and try again.
 		</key>
 		<key name="warning_0130">[ Warning ] - The storage group: [#!variable!storage_group_name!#] had the host: [#!variable!host_name!#] as a member. This host is not a member (anymore?) of the Anvil!: [#!variable!anvil_name!#]. Removing it from the storage group now.</key>
 		<key name="warning_0131">[ Warning ] - The postgresql server is not installed yet. Sleeping for a bit, then will check again.</key>
+		<key name="warning_0132">[ Warning ] - Failed to build or install the DRBD kernel module! It is very likely that this machine will be able to run any servers until this is fixed.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
