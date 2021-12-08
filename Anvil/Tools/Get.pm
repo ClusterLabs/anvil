@@ -31,6 +31,7 @@ my $THIS_FILE = "Get.pm";
 # host_uuid_from_name
 # host_type
 # host_uuid
+# kernel_release
 # md5sum
 # os_type
 # server_uuid_from_name
@@ -1776,6 +1777,94 @@ sub host_uuid
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->{HOST}{UUID} }});
 	return($anvil->{HOST}{UUID});
 }
+
+
+=head2 kernel_release
+
+This returns the kernel release (same output as C<<uname -r>>) on the local or remote host. If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the kernel release. If this is not set, the local system's kernel release is checked.
+
+=cut
+sub kernel_release
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->kernel_release()" }});
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		target      => $target, 
+		port        => $port, 
+		remote_user => $remote_user, 
+		password    => $anvil->Log->is_secure($password), 
+	}});
+	
+	my $kernel_release = "";
+	my $return_code    = "";
+	my $shell_call     = $anvil->data->{path}{exe}{uname}." --kernel-release";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call
+		($kernel_release, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			kernel_release => $kernel_release, 
+			return_code    => $return_code,
+		}});
+	}
+	else
+	{
+		# Remote call
+		($kernel_release, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			kernel_release => $kernel_release, 
+			error          => $error,
+			return_code    => $return_code,
+		}});
+		
+		if ($return_code)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0356", variables => {
+				target      => $target, 
+				output      => $kernel_release, 
+				return_code => $return_code,
+			}});
+			$kernel_release = "!!error!!";
+		}
+	}
+	
+	return($kernel_release);
+}
+
 
 =head2 md5sum
 

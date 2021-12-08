@@ -1126,11 +1126,12 @@ sub handle_special_cases
 {
 	my ($anvil) = @_;
 	
-	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 	my $host_type = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type ne "striker")
 	{
+		### TODO: Test that this is fixed. The bug is now ERRATA
+		# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 		# We're a node or DR host. We need to touch this file.
 		my $work_around_file = "/etc/qemu/firmware/50-edk2-ovmf-cc.json";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { work_around_file => $work_around_file }});
@@ -1147,6 +1148,9 @@ sub handle_special_cases
 				group     => "root",
 			});
 		}
+		
+		# Make sure DRBD compiled after a kernel upgrade.
+		$anvil->DRBD->_initialize_kmod({debug => 2});
 	}
 	
 	return(0);
