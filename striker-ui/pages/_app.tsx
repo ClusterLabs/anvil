@@ -14,7 +14,6 @@ const App = ({ Component, pageProps }: AppProps): JSX.Element => {
     }
   }, []);
 
-  // eslint-disable-next-line react/jsx-props-no-spreading
   return (
     <ThemeProvider theme={theme}>
       <Component
