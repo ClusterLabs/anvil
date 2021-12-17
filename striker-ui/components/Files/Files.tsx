@@ -1,10 +1,12 @@
+import { useRef } from 'react';
 import { Box, IconButton, Input, InputLabel } from '@material-ui/core';
 import AddIcon from '@material-ui/icons/Add';
-import { makeStyles } from '@material-ui/styles';
-import { useRef } from 'react';
+import { makeStyles } from '@material-ui/core/styles';
 
 import ICON_BUTTON_STYLE from '../../lib/consts/ICON_BUTTON_STYLE';
+
 import { Panel } from '../Panels';
+import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
 
@@ -19,6 +21,10 @@ const Files = (): JSX.Element => {
   const classes = useStyles();
   const addFileInputRef = useRef<HTMLInputElement>();
 
+  const { data, isLoading } = PeriodicFetch(
+    `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
+  );
+
   // Let the icon button trigger the invisible input element.
   const onAddFileButtonClick = () => {
     addFileInputRef.current?.click();
@@ -26,8 +32,8 @@ const Files = (): JSX.Element => {
 
   return (
     <Panel>
-      <Box display="flex">
-        <Box flexGrow={1}>
+      <Box style={{ display: 'flex', width: '100%' }}>
+        <Box style={{ flexGrow: 1 }}>
           <HeaderText text="Files" />
         </Box>
         <Box>
@@ -49,7 +55,13 @@ const Files = (): JSX.Element => {
           </form>
         </Box>
       </Box>
-      <Spinner />
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <Box>
+          <span>{data}</span>
+        </Box>
+      )}
     </Panel>
   );
 };
