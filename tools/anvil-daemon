@@ -276,7 +276,7 @@ sub check_if_mapping
 		# shouldn't fire in practice).
 		my $expire_age      = 86400;
 		my $map_network_age = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:map_network_value'         => $map_network_value, 
 			's2:map_network_mtime'         => $map_network_mtime, 
 			's3:map_network_modified_date' => $map_network_modified_date, 

@@ -14,6 +14,7 @@ my $THIS_FILE = "Server.pm";
 ### Methods;
 # active_migrations
 # boot_virsh
+# count_servers
 # find
 # get_definition
 # get_runtime
@@ -262,6 +263,74 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
 }
+
+
+=head2 count_servers
+
+This method counts the number of hosted servers and returns that number. If C<< virsh >> is not available, C<< 0 >> is returned. Note that it's B< possible >>, though unlikely on an Anvil!, that a qemu server is running outside C<< libvirtd >>.
+
+This method takes no parameters.
+
+=cut
+sub count_servers
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->count_servers()" }});
+	
+	my $count = 0;
+	if (-e $anvil->data->{path}{exe}{virsh})
+	{
+		my $shell_call = $anvil->data->{path}{exe}{virsh}." list";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$line = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			
+			if ($line =~ /^\d+ (.*) (.*?)$/)
+			{
+=cut
+* Server states;
+running     - The domain is currently running on a CPU
+idle        - The domain is idle, and not running or runnable.  This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
+paused      - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+in shutdown - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
+shut off    - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
+crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
+pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3 state.
+=cut
+				my $name   = $1;
+				my $status = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					status => $status, 
+					name   => $name, 
+				}});
+				
+				if ((lc($status) eq "running")     or 
+				    (lc($status) eq "paused")      or 
+				    (lc($status) eq "in shutdown") or 
+				    (lc($status) eq "pmsuspended"))
+				{
+					$count++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+				}
+			}
+		}
+		
+	}
+	
+	return($count);
+}
+
 
 =head2 find
 

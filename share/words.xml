@@ -16,7 +16,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2021 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2022 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		<key name="brand_0007">Node</key>
 		<key name="brand_0008">DR Host</key>
@@ -2071,6 +2071,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0677">Found an installable DRBD kernel module RPM that matches the current kernel. Installing it now.</key>
 		<key name="log_0678">[ Note ] - We need to build the DRBD kernel module. This can take a few minutes, please be patient! Use 'journalctl -f' to monitor the build process.</key>
 		<key name="log_0679">Successfully built and installed the new DRBD kernel module!</key>
+		<key name="log_0680">We were asked to resync the database, but this host is hosting: [#!variable!count!#] server(s). Resync is not allowed when servers are running to reduce the risk the kernel's out of memory handler shooting a VM if the resync consumes too much RAM. You can see which servers are running with 'virsh list' and look for servers whose states are "running", "paused", "in shutdown" or "pmsuspended".</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3096,7 +3097,7 @@ We will sleep a bit and try again.
 		</key>
 		<key name="warning_0130">[ Warning ] - The storage group: [#!variable!storage_group_name!#] had the host: [#!variable!host_name!#] as a member. This host is not a member (anymore?) of the Anvil!: [#!variable!anvil_name!#]. Removing it from the storage group now.</key>
 		<key name="warning_0131">[ Warning ] - The postgresql server is not installed yet. Sleeping for a bit, then will check again.</key>
-		<key name="warning_0132">[ Warning ] - Failed to build or install the DRBD kernel module! It is very likely that this machine will be able to run any servers until this is fixed.</key>
+		<key name="warning_0132">[ Warning ] - Failed to build or install the DRBD kernel module! It is very unlikely that this machine will be able to run any servers until this is fixed.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
@@ -3826,7 +3827,7 @@ We will sleep a bit and try again.
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">ストライカ</key>
 		<key name="brand_0004">スカンコア</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2018 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2022 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
 		
 	</language>
 </words>
