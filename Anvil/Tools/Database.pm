@@ -15680,6 +15680,15 @@ sub resync_databases
 		return(0);
 	}
 	
+	# If we're hosting servers, don't resync. Too high of a risk of oom-killer being triggered.
+	my $server_count = $anvil->Server->count_servers({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_count => $server_count }});
+	if ($server_count)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0680", variables => { count => $server_count }});
+		return(0);
+	}
+	
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
 	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
