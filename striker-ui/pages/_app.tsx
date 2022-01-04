@@ -1,26 +1,32 @@
-import { useEffect } from 'react';
 import { AppProps } from 'next/app';
-import { ThemeProvider } from '@material-ui/core/styles';
+import { ThemeProvider } from '@mui/material';
+import { CacheProvider, EmotionCache } from '@emotion/react';
+
+import createEmotionCache from '../lib/create_emotion_cache/createEmotionCache';
 import theme from '../theme';
 import '../styles/globals.css';
 
-const App = ({ Component, pageProps }: AppProps): JSX.Element => {
-  // This hook is for ensuring the styling is in sync between client and server
-  useEffect(() => {
-    // Remove the server-side injected CSS.
-    const jssStyles = document.querySelector('#jss-server-side');
-    if (jssStyles) {
-      jssStyles.parentElement?.removeChild(jssStyles);
-    }
-  }, []);
+const clientSideEmotionCache = createEmotionCache();
 
+interface MyAppProps extends AppProps {
+  // eslint-disable-next-line react/require-default-props
+  emotionCache?: EmotionCache;
+}
+
+const App = ({
+  Component,
+  emotionCache = clientSideEmotionCache,
+  pageProps,
+}: MyAppProps): JSX.Element => {
   return (
-    <ThemeProvider theme={theme}>
-      <Component
-        // eslint-disable-next-line react/jsx-props-no-spreading
-        {...pageProps}
-      />
-    </ThemeProvider>
+    <CacheProvider value={emotionCache}>
+      <ThemeProvider theme={theme}>
+        <Component
+          // eslint-disable-next-line react/jsx-props-no-spreading
+          {...pageProps}
+        />
+      </ThemeProvider>
+    </CacheProvider>
   );
 };
 
