@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { Box } from '@material-ui/core';
+import { Box } from '@mui/material';
 import * as prettyBytes from 'pretty-bytes';
 import { Panel } from './Panels';
 import { AllocationBar } from './Bars';
