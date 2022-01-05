@@ -1,12 +1,10 @@
-import { Typography } from '@material-ui/core';
-import { withStyles } from '@material-ui/core/styles';
+import Typography from '@mui/material/Typography';
+import { styled } from '@mui/material/styles';
 import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 
-const WhiteTypography = withStyles({
-  root: {
-    color: TEXT,
-  },
-})(Typography);
+const WhiteTypography = styled(Typography)({
+  color: TEXT,
+});
 
 const HeaderText = ({ text }: { text: string }): JSX.Element => {
   return <WhiteTypography variant="h4">{text}</WhiteTypography>;

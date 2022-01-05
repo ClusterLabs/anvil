@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
-import { Box, Menu, MenuItem, Typography, Button } from '@material-ui/core';
+import { Box, Menu, MenuItem, Button } from '@material-ui/core';
+import Typography from '@mui/material/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import CloseIcon from '@material-ui/icons/Close';
 import KeyboardIcon from '@material-ui/icons/Keyboard';

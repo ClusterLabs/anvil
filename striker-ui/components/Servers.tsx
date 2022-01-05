@@ -9,8 +9,8 @@ import {
   Checkbox,
   Menu,
   MenuItem,
-  Typography,
 } from '@material-ui/core';
+import Typography from '@mui/material/Typography';
 import EditIcon from '@material-ui/icons/Edit';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
 import CheckIcon from '@material-ui/icons/Check';
