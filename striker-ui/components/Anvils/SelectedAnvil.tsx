@@ -1,21 +1,28 @@
 import { useContext } from 'react';
-import { Switch, Box } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import Box from '@mui/material/Box';
+import Switch from '@mui/material/Switch';
+import { styled } from '@mui/material/styles';
 import { HeaderText } from '../Text';
-import { SELECTED_ANVIL } from '../../lib/consts/DEFAULT_THEME';
 import anvilState from '../../lib/consts/ANVILS';
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
 import putFetch from '../../lib/fetchers/putFetch';
 
-const useStyles = makeStyles(() => ({
-  root: {
+const PREFIX = 'SelectedAnvil';
+
+const classes = {
+  root: `${PREFIX}-root`,
+  anvilName: `${PREFIX}-anvilName`,
+};
+
+const StyledBox = styled(Box)(() => ({
+  [`&.${classes.root}`]: {
+    display: 'flex',
+    flexDirection: 'row',
     width: '100%',
-    '&:hover $child': {
-      backgroundColor: SELECTED_ANVIL,
-    },
   },
-  anvilName: {
+
+  [`& .${classes.anvilName}`]: {
     paddingLeft: 0,
   },
 }));
@@ -42,14 +49,13 @@ const isAnvilOn = (anvil: AnvilListItem): boolean =>
 
 const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const classes = useStyles();
 
   const index = list.findIndex(
     (anvil: AnvilListItem) => anvil.anvil_uuid === uuid,
   );
 
   return (
-    <Box display="flex" flexDirection="row" width="100%">
+    <StyledBox className={classes.root}>
       {uuid !== '' && (
         <>
           <Box p={1}>
@@ -76,7 +82,7 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
           </Box>
         </>
       )}
-    </Box>
+    </StyledBox>
   );
 };
 
