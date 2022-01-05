@@ -11,16 +11,13 @@ import putFetch from '../../lib/fetchers/putFetch';
 const PREFIX = 'SelectedAnvil';
 
 const classes = {
-  root: `${PREFIX}-root`,
   anvilName: `${PREFIX}-anvilName`,
 };
 
 const StyledBox = styled(Box)(() => ({
-  [`&.${classes.root}`]: {
-    display: 'flex',
-    flexDirection: 'row',
-    width: '100%',
-  },
+  display: 'flex',
+  flexDirection: 'row',
+  width: '100%',
 
   [`& .${classes.anvilName}`]: {
     paddingLeft: 0,
@@ -55,7 +52,7 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
   );
 
   return (
-    <StyledBox className={classes.root}>
+    <StyledBox>
       {uuid !== '' && (
         <>
           <Box p={1}>
