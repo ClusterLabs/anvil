@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { Box } from '@material-ui/core';
+import { Box } from '@mui/material';
 import { Panel } from './Panels';
 import { HeaderText, BodyText } from './Text';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
