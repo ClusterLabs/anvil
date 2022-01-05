@@ -1,4 +1,4 @@
-import { makeStyles } from '@material-ui/core/styles';
+import { styled } from '@mui/material/styles';
 import {
   BLUE,
   GREY,
@@ -7,31 +7,41 @@ import {
   BORDER_RADIUS,
 } from '../lib/consts/DEFAULT_THEME';
 
-export type Colours = 'ok' | 'off' | 'error' | 'warning';
+const PREFIX = 'Decorator';
 
-const useStyles = makeStyles(() => ({
-  decorator: {
-    width: '1.4em',
-    height: '100%',
-    borderRadius: BORDER_RADIUS,
-  },
-  ok: {
+const classes = {
+  ok: `${PREFIX}-ok`,
+  warning: `${PREFIX}-warning`,
+  error: `${PREFIX}-error`,
+  off: `${PREFIX}-off`,
+};
+
+const StyledDiv = styled('div')(() => ({
+  width: '1.4em',
+  height: '100%',
+  borderRadius: BORDER_RADIUS,
+
+  [`&.${classes.ok}`]: {
     backgroundColor: BLUE,
   },
-  warning: {
+
+  [`&.${classes.warning}`]: {
     backgroundColor: PURPLE,
   },
-  error: {
+
+  [`&.${classes.error}`]: {
     backgroundColor: RED,
   },
-  off: {
+
+  [`&.${classes.off}`]: {
     backgroundColor: GREY,
   },
 }));
 
+export type Colours = 'ok' | 'off' | 'error' | 'warning';
+
 const Decorator = ({ colour }: { colour: Colours }): JSX.Element => {
-  const classes = useStyles();
-  return <div className={`${classes.decorator} ${classes[colour]}`} />;
+  return <StyledDiv className={classes[colour]} />;
 };
 
 export default Decorator;
