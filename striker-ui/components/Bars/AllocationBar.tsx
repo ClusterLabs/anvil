@@ -1,45 +1,47 @@
-import { makeStyles, withStyles } from '@material-ui/core/styles';
-import { LinearProgress } from '@material-ui/core';
+import { LinearProgress } from '@mui/material';
+import { styled } from '@mui/material/styles';
+
 import {
   PURPLE,
   RED,
   BLUE,
-  PANEL_BACKGROUND,
   BORDER_RADIUS,
 } from '../../lib/consts/DEFAULT_THEME';
+import BorderLinearProgress from './BorderLinearProgress';
+
+const PREFIX = 'AllocationBar';
+
+const classes = {
+  barOk: `${PREFIX}-barOk`,
+  barWarning: `${PREFIX}-barWarning`,
+  barAlert: `${PREFIX}-barAlert`,
+  underline: `${PREFIX}-underline`,
+};
+
+const StyledDiv = styled('div')(() => ({
+  [`& .${classes.barOk}`]: {
+    backgroundColor: BLUE,
+  },
+
+  [`& .${classes.barWarning}`]: {
+    backgroundColor: PURPLE,
+  },
+
+  [`& .${classes.barAlert}`]: {
+    backgroundColor: RED,
+  },
+
+  [`& .${classes.underline}`]: {
+    borderRadius: BORDER_RADIUS,
+  },
+}));
 
 const breakpointWarning = 70;
 const breakpointAlert = 90;
 
-const BorderLinearProgress = withStyles({
-  root: {
-    height: '1em',
-    borderRadius: BORDER_RADIUS,
-  },
-  colorPrimary: {
-    backgroundColor: PANEL_BACKGROUND,
-  },
-  bar: {
-    borderRadius: BORDER_RADIUS,
-  },
-})(LinearProgress);
-
-const useStyles = makeStyles(() => ({
-  barOk: {
-    backgroundColor: BLUE,
-  },
-  barWarning: {
-    backgroundColor: PURPLE,
-  },
-  barAlert: {
-    backgroundColor: RED,
-  },
-}));
-
 const AllocationBar = ({ allocated }: { allocated: number }): JSX.Element => {
-  const classes = useStyles();
   return (
-    <>
+    <StyledDiv>
       <BorderLinearProgress
         classes={{
           bar:
@@ -53,8 +55,12 @@ const AllocationBar = ({ allocated }: { allocated: number }): JSX.Element => {
         variant="determinate"
         value={allocated}
       />
-      <LinearProgress variant="determinate" value={0} />
-    </>
+      <LinearProgress
+        className={classes.underline}
+        variant="determinate"
+        value={0}
+      />
+    </StyledDiv>
   );
 };
 
