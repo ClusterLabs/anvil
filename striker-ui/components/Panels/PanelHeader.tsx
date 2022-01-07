@@ -1,18 +1,20 @@
 import { ReactNode } from 'react';
-import { Box } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
-type Props = {
-  children: ReactNode;
+const PREFIX = 'PanelHeader';
+
+const classes = {
+  header: `${PREFIX}-header`,
 };
 
-const useStyles = makeStyles(() => ({
-  innerHeader: {
-    position: 'relative',
-    padding: '0 .7em',
-  },
-  header: {
+const StyledBox = styled(Box)(() => ({
+  position: 'relative',
+  padding: '0 .7em',
+  whiteSpace: 'pre-wrap',
+
+  [`& .${classes.header}`]: {
     top: '-.3em',
     left: '-.3em',
     padding: '1.4em 0',
@@ -26,14 +28,16 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const PanelHeader = ({ children }: Props): JSX.Element => {
-  const classes = useStyles();
+type Props = {
+  children: ReactNode;
+};
 
+const PanelHeader = ({ children }: Props): JSX.Element => {
   return (
-    <Box className={classes.innerHeader} whiteSpace="pre-wrap">
+    <StyledBox>
       <div className={classes.header} />
       {children}
-    </Box>
+    </StyledBox>
   );
 };
 
