@@ -1,42 +1,58 @@
 import * as prettyBytes from 'pretty-bytes';
-import { makeStyles, Box, Divider } from '@material-ui/core';
-import InsertLinkIcon from '@material-ui/icons/InsertLink';
+import { Box, Divider } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import InsertLinkIcon from '@mui/icons-material/InsertLink';
 import { InnerPanel, PanelHeader } from '../Panels';
 import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    overflow: 'auto',
-    height: '100%',
-    paddingLeft: '.3em',
-    [theme.breakpoints.down('md')]: {
-      overflow: 'hidden',
-    },
+const PREFIX = 'ResourceVolumes';
+
+const classes = {
+  connection: `${PREFIX}-connection`,
+  bar: `${PREFIX}-bar`,
+  header: `${PREFIX}-header`,
+  label: `${PREFIX}-label`,
+  decoratorBox: `${PREFIX}-decoratorBox`,
+  divider: `${PREFIX}-divider`,
+};
+
+const StyledBox = styled(Box)(({ theme }) => ({
+  overflow: 'auto',
+  height: '100%',
+  paddingLeft: '.3em',
+  [theme.breakpoints.down('md')]: {
+    overflow: 'hidden',
   },
-  connection: {
+
+  [`& .${classes.connection}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
     paddingTop: '1em',
     paddingBottom: '.7em',
   },
-  bar: {
+
+  [`& .${classes.bar}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
   },
-  header: {
+
+  [`& .${classes.header}`]: {
     paddingTop: '.3em',
     paddingRight: '.7em',
   },
-  label: {
+
+  [`& .${classes.label}`]: {
     paddingTop: '.3em',
   },
-  decoratorBox: {
+
+  [`& .${classes.decoratorBox}`]: {
     paddingRight: '.3em',
   },
-  divider: {
-    background: DIVIDER,
+
+  [`& .${classes.divider}`]: {
+    backgroundColor: DIVIDER,
   },
 }));
 
@@ -56,10 +72,8 @@ const ResourceVolumes = ({
 }: {
   resource: AnvilReplicatedStorage;
 }): JSX.Element => {
-  const classes = useStyles();
-
   return (
-    <Box className={classes.root}>
+    <StyledBox>
       {resource &&
         resource.volumes.map((volume) => {
           return (
@@ -124,7 +138,7 @@ const ResourceVolumes = ({
             </InnerPanel>
           );
         })}
-    </Box>
+    </StyledBox>
   );
 };
 
