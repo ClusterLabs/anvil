@@ -1,27 +1,33 @@
 import { ReactNode } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
+import { GlobalStyles } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import {
   BORDER_RADIUS,
   PANEL_BACKGROUND,
   TEXT,
 } from '../../lib/consts/DEFAULT_THEME';
 
-type Props = {
-  children: ReactNode;
+const PREFIX = 'Panel';
+
+const classes = {
+  paper: `${PREFIX}-paper`,
+  square: `${PREFIX}-square`,
+  topSquare: `${PREFIX}-topSquare`,
+  bottomSquare: `${PREFIX}-bottomSquare`,
 };
 
-const useStyles = makeStyles(() => ({
-  paper: {
+const StyledDiv = styled('div')(() => ({
+  margin: '1em',
+  position: 'relative',
+
+  [`& .${classes.paper}`]: {
     padding: '2.1em',
     backgroundColor: PANEL_BACKGROUND,
     opacity: 0.8,
     zIndex: 999,
   },
-  container: {
-    margin: '1em',
-    position: 'relative',
-  },
-  square: {
+
+  [`& .${classes.square}`]: {
     content: '""',
     position: 'absolute',
     width: '2.1em',
@@ -34,38 +40,48 @@ const useStyles = makeStyles(() => ({
     padding: 0,
     margin: 0,
   },
-  topSquare: {
+
+  [`& .${classes.topSquare}`]: {
     top: '-.3em',
     left: '-.3em',
   },
-  bottomSquare: {
+
+  [`& .${classes.bottomSquare}`]: {
     bottom: '-.3em',
     right: '-.3em',
   },
-  '@global': {
-    '*::-webkit-scrollbar': {
-      width: '.6em',
-    },
-    '*::-webkit-scrollbar-track': {
-      backgroundColor: PANEL_BACKGROUND,
-    },
-    '*::-webkit-scrollbar-thumb': {
-      backgroundColor: TEXT,
-      outline: '1px solid transparent',
-      borderRadius: BORDER_RADIUS,
-    },
-  },
 }));
 
-const Panel = ({ children }: Props): JSX.Element => {
-  const classes = useStyles();
+type Props = {
+  children: ReactNode;
+};
 
+const styledScrollbars = (
+  <GlobalStyles
+    styles={{
+      '*::-webkit-scrollbar': {
+        width: '.6em',
+      },
+      '*::-webkit-scrollbar-track': {
+        backgroundColor: PANEL_BACKGROUND,
+      },
+      '*::-webkit-scrollbar-thumb': {
+        backgroundColor: TEXT,
+        outline: '1px solid transparent',
+        borderRadius: BORDER_RADIUS,
+      },
+    }}
+  />
+);
+
+const Panel = ({ children }: Props): JSX.Element => {
   return (
-    <div className={classes.container}>
+    <StyledDiv>
+      {styledScrollbars}
       <div className={`${classes.square} ${classes.topSquare}`} />
       <div className={`${classes.square} ${classes.bottomSquare}`} />
       <div className={classes.paper}>{children}</div>
-    </div>
+    </StyledDiv>
   );
 };
 
