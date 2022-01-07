@@ -1,4 +1,4 @@
-import { Grid } from '@material-ui/core';
+import { Grid } from '@mui/material';
 import * as prettyBytes from 'pretty-bytes';
 import { Panel } from './Panels';
 import { AllocationBar } from './Bars';
@@ -14,7 +14,7 @@ const Storage = ({ uuid }: { uuid: string }): JSX.Element => {
 
   return (
     <Panel>
-      <Grid container alignItems="center" justify="space-around">
+      <Grid container alignItems="center" justifyContent="space-around">
         <Grid item xs={12}>
           <HeaderText text="Storage Resync" />
         </Grid>
