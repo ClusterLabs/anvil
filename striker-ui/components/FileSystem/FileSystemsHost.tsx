@@ -1,21 +1,31 @@
-import { Box } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import * as prettyBytes from 'pretty-bytes';
 import { AllocationBar } from '../Bars';
 import { BodyText } from '../Text';
 import Decorator from '../Decorator';
 
-const useStyles = makeStyles(() => ({
-  fs: {
+const PREFIX = 'SharedStorageHost';
+
+const classes = {
+  fs: `${PREFIX}-fs`,
+  bar: `${PREFIX}-bar`,
+  decoratorBox: `${PREFIX}-decoratorBox`,
+};
+
+const StyledDiv = styled('div')(() => ({
+  [`& .${classes.fs}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
     paddingTop: '1.2em',
   },
-  bar: {
+
+  [`& .${classes.bar}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
   },
-  decoratorBox: {
+
+  [`& .${classes.decoratorBox}`]: {
     paddingRight: '.3em',
   },
 }));
@@ -25,9 +35,8 @@ const SharedStorageHost = ({
 }: {
   host: AnvilFileSystemHost;
 }): JSX.Element => {
-  const classes = useStyles();
   return (
-    <>
+    <StyledDiv>
       <Box display="flex" width="100%" className={classes.fs}>
         <Box flexGrow={1}>
           <BodyText text={host.host_name || 'Not Available'} />
@@ -73,7 +82,7 @@ const SharedStorageHost = ({
           </Box>
         </>
       )}
-    </>
+    </StyledDiv>
   );
 };
 
