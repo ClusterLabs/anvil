@@ -1,5 +1,5 @@
-import { Box, Switch } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Box, Switch } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { InnerPanel, PanelHeader } from '../Panels';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
@@ -9,34 +9,47 @@ import HOST_STATUS from '../../lib/consts/NODES';
 import putFetch from '../../lib/fetchers/putFetch';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    overflow: 'auto',
-    height: '28vh',
-    paddingLeft: '.3em',
-    paddingRight: '.3em',
-    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
-      height: '100%',
-      overflow: 'hidden',
-    },
+const PREFIX = 'AnvilHost';
+
+const classes = {
+  state: `${PREFIX}-state`,
+  bar: `${PREFIX}-bar`,
+  header: `${PREFIX}-header`,
+  label: `${PREFIX}-label`,
+  decoratorBox: `${PREFIX}-decoratorBox`,
+};
+
+const StyledBox = styled(Box)(({ theme }) => ({
+  overflow: 'auto',
+  height: '28vh',
+  paddingLeft: '.3em',
+  paddingRight: '.3em',
+  [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
+    height: '100%',
+    overflow: 'hidden',
   },
-  state: {
+
+  [`& .${classes.state}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
     paddingTop: '1em',
   },
-  bar: {
+
+  [`& .${classes.bar}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
   },
-  header: {
+
+  [`& .${classes.header}`]: {
     paddingTop: '.3em',
     paddingRight: '.7em',
   },
-  label: {
+
+  [`& .${classes.label}`]: {
     paddingTop: '.3em',
   },
-  decoratorBox: {
+
+  [`& .${classes.decoratorBox}`]: {
     paddingRight: '.3em',
   },
 }));
@@ -66,12 +79,11 @@ const AnvilHost = ({
 }: {
   hosts: Array<AnvilStatusHost>;
 }): JSX.Element => {
-  const classes = useStyles();
   const stateRegex = /^[a-zA-Z]/;
   const messageRegex = /^(message_[0-9]+)/;
 
   return (
-    <Box className={classes.root}>
+    <StyledBox>
       {hosts &&
         hosts.map(
           (host): JSX.Element => {
@@ -160,7 +172,7 @@ const AnvilHost = ({
             );
           },
         )}
-    </Box>
+    </StyledBox>
   );
 };
 
