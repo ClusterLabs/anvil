@@ -1,31 +1,37 @@
-import Typography from '@mui/material/Typography';
-import { makeStyles } from '@material-ui/core/styles';
+import { Typography } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
+
+const PREFIX = 'BodyText';
+
+const classes = {
+  selected: `${PREFIX}-selected`,
+  unselected: `${PREFIX}-unselected`,
+};
+
+const StyledTypography = styled(Typography)(() => ({
+  [`&.${classes.selected}`]: {
+    color: TEXT,
+  },
+
+  [`&.${classes.unselected}`]: {
+    color: UNSELECTED,
+  },
+}));
 
 interface TextProps {
   text: string;
   selected?: boolean;
 }
 
-const useStyles = makeStyles(() => ({
-  selected: {
-    color: TEXT,
-  },
-  unselected: {
-    color: UNSELECTED,
-  },
-}));
-
 const BodyText = ({ text, selected }: TextProps): JSX.Element => {
-  const classes = useStyles();
-
   return (
-    <Typography
+    <StyledTypography
       variant="subtitle1"
       className={selected ? classes.selected : classes.unselected}
     >
       {text}
-    </Typography>
+    </StyledTypography>
   );
 };
 
