@@ -1,10 +1,10 @@
-import { BLACK, GREY, TEXT } from './DEFAULT_THEME';
+import { BLACK, BORDER_RADIUS, GREY } from './DEFAULT_THEME';
 
 const ICON_BUTTON_STYLE: Readonly<Record<string, unknown>> = {
-  borderRadius: 8,
+  borderRadius: BORDER_RADIUS,
   backgroundColor: GREY,
   '&:hover': {
-    backgroundColor: TEXT,
+    backgroundColor: GREY,
   },
   color: BLACK,
 };

@@ -9,12 +9,12 @@ import {
   Checkbox,
   Menu,
   MenuItem,
-} from '@material-ui/core';
-import Typography from '@mui/material/Typography';
-import EditIcon from '@material-ui/icons/Edit';
-import MoreVertIcon from '@material-ui/icons/MoreVert';
-import CheckIcon from '@material-ui/icons/Check';
-import { makeStyles } from '@material-ui/core/styles';
+  Typography,
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CheckIcon from '@mui/icons-material/Check';
+import { styled } from '@mui/material/styles';
 import { Panel } from './Panels';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
@@ -28,6 +28,7 @@ import {
   BLACK,
   LARGE_MOBILE_BREAKPOINT,
 } from '../lib/consts/DEFAULT_THEME';
+import ICON_BUTTON_STYLE from '../lib/consts/ICON_BUTTON_STYLE';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
 import Decorator, { Colours } from './Decorator';
@@ -36,8 +37,29 @@ import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 
 import putFetch from '../lib/fetchers/putFetch';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
+const PREFIX = 'Servers';
+
+const classes = {
+  root: `${PREFIX}-root`,
+  divider: `${PREFIX}-divider`,
+  verticalDivider: `${PREFIX}-verticalDivider`,
+  button: `${PREFIX}-button`,
+  headerPadding: `${PREFIX}-headerPadding`,
+  hostsBox: `${PREFIX}-hostsBox`,
+  hostBox: `${PREFIX}-hostBox`,
+  checkbox: `${PREFIX}-checkbox`,
+  serverActionButton: `${PREFIX}-serverActionButton`,
+  editButton: `${PREFIX}-editButton`,
+  editButtonBox: `${PREFIX}-editButtonBox`,
+  dropdown: `${PREFIX}-dropdown`,
+  power: `${PREFIX}-power`,
+  on: `${PREFIX}-on`,
+  off: `${PREFIX}-off`,
+  all: `${PREFIX}-all`,
+};
+
+const StyledDiv = styled('div')(({ theme }) => ({
+  [`& .${classes.root}`]: {
     width: '100%',
     overflow: 'auto',
     height: '78vh',
@@ -47,63 +69,65 @@ const useStyles = makeStyles((theme) => ({
       overflow: 'hidden',
     },
   },
-  divider: {
-    background: DIVIDER,
+
+  [`& .${classes.divider}`]: {
+    backgroundColor: DIVIDER,
   },
-  verticalDivider: {
+
+  [`& .${classes.verticalDivider}`]: {
     height: '75%',
     paddingTop: '1em',
   },
-  button: {
+
+  [`& .${classes.button}`]: {
     '&:hover': {
       backgroundColor: HOVER,
     },
     paddingLeft: 0,
   },
-  headerPadding: {
+
+  [`& .${classes.headerPadding}`]: {
     paddingLeft: '.3em',
   },
-  hostsBox: {
+
+  [`& .${classes.hostsBox}`]: {
     padding: '1em',
     paddingRight: 0,
   },
-  hostBox: {
+
+  [`& .${classes.hostBox}`]: {
     paddingTop: 0,
   },
-  checkbox: {
+
+  [`& .${classes.checkbox}`]: {
     paddingTop: '.8em',
   },
-  menuItem: {
-    backgroundColor: GREY,
-    paddingRight: '3em',
+
+  [`& .${classes.serverActionButton}`]: {
+    backgroundColor: TEXT,
+    color: BLACK,
+    textTransform: 'none',
     '&:hover': {
       backgroundColor: GREY,
     },
   },
-  editButton: {
-    borderRadius: 8,
-    backgroundColor: GREY,
-    '&:hover': {
-      backgroundColor: GREY,
-    },
-  },
-  editButtonBox: {
+
+  [`& .${classes.editButton}`]: ICON_BUTTON_STYLE,
+
+  [`& .${classes.editButtonBox}`]: {
     paddingTop: '.3em',
   },
-  dropdown: {
+
+  [`& .${classes.dropdown}`]: {
     paddingTop: '.8em',
     paddingBottom: '.8em',
   },
-  power: {
+
+  [`& .${classes.power}`]: {
     color: BLACK,
   },
-  on: {
-    color: BLUE,
-  },
-  off: {
-    color: RED,
-  },
-  all: {
+
+  [`& .${classes.all}`]: {
     paddingTop: '.5em',
     paddingLeft: '.3em',
   },
@@ -122,6 +146,24 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
+const ServerActionButtonMenuItem = styled(MenuItem)({
+  backgroundColor: GREY,
+  paddingRight: '3em',
+  '&:hover': {
+    backgroundColor: GREY,
+  },
+});
+
+const ServerActionButtonMenuItemLabel = styled(Typography)({
+  [`&.${classes.on}`]: {
+    color: BLUE,
+  },
+
+  [`&.${classes.off}`]: {
+    color: RED,
+  },
+});
+
 type ButtonLabels = 'on' | 'off';
 
 const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
@@ -129,9 +171,10 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
   const [allSelected, setAllSelected] = useState<boolean>(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const buttonLabels = useRef<ButtonLabels[]>([]);
+
   const { uuid } = useContext(AnvilContext);
-  const classes = useStyles();
+
+  const buttonLabels = useRef<ButtonLabels[]>([]);
 
   const { data, isLoading } = PeriodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
@@ -187,171 +230,173 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   return (
     <Panel>
-      <Box className={classes.headerPadding} display="flex">
-        <Box flexGrow={1}>
-          <HeaderText text="Servers" />
+      <StyledDiv>
+        <Box className={classes.headerPadding} display="flex">
+          <Box flexGrow={1}>
+            <HeaderText text="Servers" />
+          </Box>
+          <Box className={classes.editButtonBox}>
+            <IconButton
+              className={classes.editButton}
+              onClick={() => setShowCheckbox(!showCheckbox)}
+            >
+              {showCheckbox ? <CheckIcon /> : <EditIcon />}
+            </IconButton>
+          </Box>
         </Box>
-        <Box className={classes.editButtonBox}>
-          <IconButton
-            className={classes.editButton}
-            style={{ color: BLACK }}
-            onClick={() => setShowCheckbox(!showCheckbox)}
-          >
-            {showCheckbox ? <CheckIcon /> : <EditIcon />}
-          </IconButton>
-        </Box>
-      </Box>
-      {showCheckbox && (
-        <>
-          <Box className={classes.headerPadding} display="flex">
-            <Box flexGrow={1} className={classes.dropdown}>
-              <Button
-                variant="contained"
-                startIcon={<MoreVertIcon />}
-                onClick={handleClick}
-                style={{ textTransform: 'none' }}
-              >
-                <Typography className={classes.power} variant="subtitle1">
-                  Power
-                </Typography>
-              </Button>
-              <Menu
-                anchorEl={anchorEl}
-                keepMounted
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-              >
-                {buttonLabels.current.map((label: ButtonLabels) => {
-                  return (
-                    <MenuItem
-                      onClick={() => handlePower(label)}
-                      className={classes.menuItem}
-                      key={label}
-                    >
-                      <Typography
-                        className={classes[label]}
-                        variant="subtitle1"
+        {showCheckbox && (
+          <>
+            <Box className={classes.headerPadding} display="flex">
+              <Box flexGrow={1} className={classes.dropdown}>
+                <Button
+                  variant="contained"
+                  startIcon={<MoreVertIcon />}
+                  onClick={handleClick}
+                  className={classes.serverActionButton}
+                >
+                  <Typography className={classes.power} variant="subtitle1">
+                    Power
+                  </Typography>
+                </Button>
+                <Menu
+                  anchorEl={anchorEl}
+                  keepMounted
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                >
+                  {buttonLabels.current.map((label: ButtonLabels) => {
+                    return (
+                      <ServerActionButtonMenuItem
+                        onClick={() => handlePower(label)}
+                        key={label}
                       >
-                        {label.replace(/^[a-z]/, (c) => c.toUpperCase())}
-                      </Typography>
-                    </MenuItem>
-                  );
-                })}
-              </Menu>
-            </Box>
-          </Box>
-          <Box display="flex">
-            <Box>
-              <Checkbox
-                style={{ color: TEXT }}
-                color="secondary"
-                checked={allSelected}
-                onChange={() => {
-                  if (!allSelected) {
-                    setButtons(data.servers);
-                    setSelected(
-                      data.servers.map(
-                        (server: AnvilServer) => server.server_uuid,
-                      ),
+                        <ServerActionButtonMenuItemLabel
+                          className={classes[label]}
+                          variant="subtitle1"
+                        >
+                          {label.replace(/^[a-z]/, (c) => c.toUpperCase())}
+                        </ServerActionButtonMenuItemLabel>
+                      </ServerActionButtonMenuItem>
                     );
-                  } else {
-                    setButtons([]);
-                    setSelected([]);
-                  }
+                  })}
+                </Menu>
+              </Box>
+            </Box>
+            <Box display="flex">
+              <Box>
+                <Checkbox
+                  style={{ color: TEXT }}
+                  color="secondary"
+                  checked={allSelected}
+                  onChange={() => {
+                    if (!allSelected) {
+                      setButtons(data.servers);
+                      setSelected(
+                        data.servers.map(
+                          (server: AnvilServer) => server.server_uuid,
+                        ),
+                      );
+                    } else {
+                      setButtons([]);
+                      setSelected([]);
+                    }
 
-                  setAllSelected(!allSelected);
-                }}
-              />
+                    setAllSelected(!allSelected);
+                  }}
+                />
+              </Box>
+              <Box className={classes.all}>
+                <BodyText text="All" />
+              </Box>
             </Box>
-            <Box className={classes.all}>
-              <BodyText text="All" />
-            </Box>
-          </Box>
-        </>
-      )}
-      {!isLoading ? (
-        <Box className={classes.root}>
-          <List component="nav">
-            {data?.servers.map((server: AnvilServer) => {
-              return (
-                <>
-                  <ListItem
-                    button
-                    className={classes.button}
-                    key={server.server_uuid}
-                    component={showCheckbox ? 'div' : 'a'}
-                    href={`/server?uuid=${server.server_uuid}&server_name=${server.server_name}`}
-                    onClick={() => handleChange(server.server_uuid)}
-                  >
-                    <Box display="flex" flexDirection="row" width="100%">
-                      {showCheckbox && (
-                        <Box className={classes.checkbox}>
-                          <Checkbox
-                            style={{ color: TEXT }}
-                            color="secondary"
-                            checked={
-                              selected.find((s) => s === server.server_uuid) !==
-                              undefined
+          </>
+        )}
+        {!isLoading ? (
+          <Box className={classes.root}>
+            <List component="nav">
+              {data?.servers.map((server: AnvilServer) => {
+                return (
+                  <>
+                    <ListItem
+                      button
+                      className={classes.button}
+                      key={server.server_uuid}
+                      component={showCheckbox ? 'div' : 'a'}
+                      href={`/server?uuid=${server.server_uuid}&server_name=${server.server_name}`}
+                      onClick={() => handleChange(server.server_uuid)}
+                    >
+                      <Box display="flex" flexDirection="row" width="100%">
+                        {showCheckbox && (
+                          <Box className={classes.checkbox}>
+                            <Checkbox
+                              style={{ color: TEXT }}
+                              color="secondary"
+                              checked={
+                                selected.find(
+                                  (s) => s === server.server_uuid,
+                                ) !== undefined
+                              }
+                            />
+                          </Box>
+                        )}
+                        <Box p={1}>
+                          <Decorator
+                            colour={selectDecorator(server.server_state)}
+                          />
+                        </Box>
+                        <Box p={1} flexGrow={1}>
+                          <BodyText text={server.server_name} />
+                          <BodyText
+                            text={
+                              serverState.get(server.server_state) ||
+                              'Not Available'
                             }
                           />
                         </Box>
-                      )}
-                      <Box p={1}>
-                        <Decorator
-                          colour={selectDecorator(server.server_state)}
-                        />
+                        <Box display="flex" className={classes.hostsBox}>
+                          {server.server_state !== 'shut off' &&
+                            server.server_state !== 'crashed' &&
+                            filteredHosts.map(
+                              (
+                                host: AnvilStatusHost,
+                                index: number,
+                              ): JSX.Element => (
+                                <>
+                                  <Box
+                                    p={1}
+                                    key={host.host_uuid}
+                                    className={classes.hostBox}
+                                  >
+                                    <BodyText
+                                      text={host.host_name}
+                                      selected={
+                                        server.server_host_uuid ===
+                                        host.host_uuid
+                                      }
+                                    />
+                                  </Box>
+                                  {index !== filteredHosts.length - 1 && (
+                                    <Divider
+                                      className={`${classes.divider} ${classes.verticalDivider}`}
+                                      orientation="vertical"
+                                    />
+                                  )}
+                                </>
+                              ),
+                            )}
+                        </Box>
                       </Box>
-                      <Box p={1} flexGrow={1}>
-                        <BodyText text={server.server_name} />
-                        <BodyText
-                          text={
-                            serverState.get(server.server_state) ||
-                            'Not Available'
-                          }
-                        />
-                      </Box>
-                      <Box display="flex" className={classes.hostsBox}>
-                        {server.server_state !== 'shut off' &&
-                          server.server_state !== 'crashed' &&
-                          filteredHosts.map(
-                            (
-                              host: AnvilStatusHost,
-                              index: number,
-                            ): JSX.Element => (
-                              <>
-                                <Box
-                                  p={1}
-                                  key={host.host_uuid}
-                                  className={classes.hostBox}
-                                >
-                                  <BodyText
-                                    text={host.host_name}
-                                    selected={
-                                      server.server_host_uuid === host.host_uuid
-                                    }
-                                  />
-                                </Box>
-                                {index !== filteredHosts.length - 1 && (
-                                  <Divider
-                                    className={`${classes.divider} ${classes.verticalDivider}`}
-                                    orientation="vertical"
-                                  />
-                                )}
-                              </>
-                            ),
-                          )}
-                      </Box>
-                    </Box>
-                  </ListItem>
-                  <Divider className={classes.divider} />
-                </>
-              );
-            })}
-          </List>
-        </Box>
-      ) : (
-        <Spinner />
-      )}
+                    </ListItem>
+                    <Divider className={classes.divider} />
+                  </>
+                );
+              })}
+            </List>
+          </Box>
+        ) : (
+          <Spinner />
+        )}
+      </StyledDiv>
     </Panel>
   );
 };
