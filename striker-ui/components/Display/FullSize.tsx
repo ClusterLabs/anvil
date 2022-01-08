@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect, Dispatch, SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
-import { Box, Menu, MenuItem, Button } from '@material-ui/core';
-import Typography from '@mui/material/Typography';
-import { makeStyles } from '@material-ui/core/styles';
-import CloseIcon from '@material-ui/icons/Close';
-import KeyboardIcon from '@material-ui/icons/Keyboard';
-import IconButton from '@material-ui/core/IconButton';
+import {
+  Box,
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import CloseIcon from '@mui/icons-material/Close';
+import KeyboardIcon from '@mui/icons-material/Keyboard';
 import RFB from '@novnc/novnc/core/rfb';
 import { Panel } from '../Panels';
 import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
@@ -15,10 +20,21 @@ import putFetchWithTimeout from '../../lib/fetchers/putFetchWithTimeout';
 import { HeaderText } from '../Text';
 import Spinner from '../Spinner';
 
-const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
+const PREFIX = 'FullSize';
 
-const useStyles = makeStyles(() => ({
-  displayBox: {
+const classes = {
+  displayBox: `${PREFIX}-displayBox`,
+  spinnerBox: `${PREFIX}-spinnerBox`,
+  closeButton: `${PREFIX}-closeButton`,
+  keyboardButton: `${PREFIX}-keyboardButton`,
+  closeBox: `${PREFIX}-closeBox`,
+  buttonsBox: `${PREFIX}-buttonsBox`,
+  keysItem: `${PREFIX}-keysItem`,
+  buttonText: `${PREFIX}-buttonText`,
+};
+
+const StyledDiv = styled('div')(() => ({
+  [`& .${classes.displayBox}`]: {
     width: '75vw',
     height: '75vh',
     paddingTop: '1em',
@@ -26,46 +42,55 @@ const useStyles = makeStyles(() => ({
     paddingLeft: 0,
     paddingRight: 0,
   },
-  spinnerBox: {
+
+  [`& .${classes.spinnerBox}`]: {
     flexDirection: 'column',
     width: '75vw',
     height: '75vh',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeButton: {
+
+  [`& .${classes.closeButton}`]: {
     borderRadius: 8,
     backgroundColor: RED,
     '&:hover': {
       backgroundColor: RED,
     },
   },
-  keyboardButton: {
+
+  [`& .${classes.keyboardButton}`]: {
     borderRadius: 8,
     backgroundColor: TEXT,
     '&:hover': {
       backgroundColor: TEXT,
     },
   },
-  closeBox: {
+
+  [`& .${classes.closeBox}`]: {
     paddingBottom: '1em',
     paddingLeft: '.7em',
     paddingRight: 0,
   },
-  buttonsBox: {
+
+  [`& .${classes.buttonsBox}`]: {
     paddingTop: 0,
   },
-  keysItem: {
+
+  [`& .${classes.keysItem}`]: {
     backgroundColor: TEXT,
     paddingRight: '3em',
     '&:hover': {
       backgroundColor: TEXT,
     },
   },
-  buttonText: {
+
+  [`& .${classes.buttonText}`]: {
     color: BLACK,
   },
 }));
+
+const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
 interface FullSizeProps {
   setMode: Dispatch<SetStateAction<boolean>>;
@@ -90,7 +115,6 @@ const FullSize = ({
     VncConnectionProps | undefined
   >(undefined);
   const [isError, setIsError] = useState<boolean>(false);
-  const classes = useStyles();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -146,97 +170,104 @@ const FullSize = ({
 
   return (
     <Panel>
-      <Box flexGrow={1}>
-        <HeaderText text={`Server: ${serverName}`} />
-      </Box>
-      {vncConnection ? (
-        <Box display="flex" className={classes.displayBox}>
-          <VncDisplay
-            rfb={rfb}
-            url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
-            viewOnly={false}
-            focusOnClick={false}
-            clipViewport={false}
-            dragViewport={false}
-            scaleViewport
-            resizeSession
-            showDotCursor={false}
-            background=""
-            qualityLevel={6}
-            compressionLevel={2}
-          />
-          <Box>
-            <Box className={classes.closeBox}>
-              <IconButton
-                className={classes.closeButton}
-                style={{ color: TEXT }}
-                component="span"
-                onClick={() => {
-                  handleClickClose();
-                  setMode(true);
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
-            <Box className={classes.closeBox}>
-              <IconButton
-                className={classes.keyboardButton}
-                style={{ color: BLACK }}
-                component="span"
-                onClick={handleClick}
-              >
-                <KeyboardIcon />
-              </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                keepMounted
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-              >
-                {keyCombinations.map(({ keys, scans }) => {
-                  return (
-                    <MenuItem
-                      onClick={() => handleSendKeys(scans)}
-                      className={classes.keysItem}
-                      key={keys}
-                    >
-                      <Typography variant="subtitle1">{keys}</Typography>
-                    </MenuItem>
-                  );
-                })}
-              </Menu>
+      <StyledDiv>
+        <Box flexGrow={1}>
+          <HeaderText text={`Server: ${serverName}`} />
+        </Box>
+        {vncConnection ? (
+          <Box display="flex" className={classes.displayBox}>
+            <VncDisplay
+              rfb={rfb}
+              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
+              viewOnly={false}
+              focusOnClick={false}
+              clipViewport={false}
+              dragViewport={false}
+              scaleViewport
+              resizeSession
+              showDotCursor={false}
+              background=""
+              qualityLevel={6}
+              compressionLevel={2}
+            />
+            <Box>
+              <Box className={classes.closeBox}>
+                <IconButton
+                  className={classes.closeButton}
+                  style={{ color: TEXT }}
+                  component="span"
+                  onClick={() => {
+                    handleClickClose();
+                    setMode(true);
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+              <Box className={classes.closeBox}>
+                <IconButton
+                  className={classes.keyboardButton}
+                  style={{ color: BLACK }}
+                  component="span"
+                  onClick={handleClick}
+                >
+                  <KeyboardIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  keepMounted
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                >
+                  {keyCombinations.map(({ keys, scans }) => {
+                    return (
+                      <MenuItem
+                        onClick={() => handleSendKeys(scans)}
+                        className={classes.keysItem}
+                        key={keys}
+                      >
+                        <Typography variant="subtitle1">{keys}</Typography>
+                      </MenuItem>
+                    );
+                  })}
+                </Menu>
+              </Box>
             </Box>
           </Box>
-        </Box>
-      ) : (
-        <Box display="flex" className={classes.spinnerBox}>
-          {!isError ? (
-            <>
-              <HeaderText text={`Establishing connection with ${serverName}`} />
-              <HeaderText text="This may take a few minutes" />
-              <Spinner />
-            </>
-          ) : (
-            <>
-              <Box style={{ paddingBottom: '2em' }}>
-                <HeaderText text="There was a problem connecting to the server, please try again" />
-              </Box>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  setIsError(false);
-                }}
-                style={{ textTransform: 'none' }}
-              >
-                <Typography className={classes.buttonText} variant="subtitle1">
-                  Reconnect
-                </Typography>
-              </Button>
-            </>
-          )}
-        </Box>
-      )}
+        ) : (
+          <Box display="flex" className={classes.spinnerBox}>
+            {!isError ? (
+              <>
+                <HeaderText
+                  text={`Establishing connection with ${serverName}`}
+                />
+                <HeaderText text="This may take a few minutes" />
+                <Spinner />
+              </>
+            ) : (
+              <>
+                <Box style={{ paddingBottom: '2em' }}>
+                  <HeaderText text="There was a problem connecting to the server, please try again" />
+                </Box>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    setIsError(false);
+                  }}
+                  style={{ textTransform: 'none' }}
+                >
+                  <Typography
+                    className={classes.buttonText}
+                    variant="subtitle1"
+                  >
+                    Reconnect
+                  </Typography>
+                </Button>
+              </>
+            )}
+          </Box>
+        )}
+      </StyledDiv>
     </Panel>
   );
 };
