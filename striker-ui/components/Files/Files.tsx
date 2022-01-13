@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Box, IconButton, Input, InputLabel } from '@mui/material';
+import { useState } from 'react';
+import { Box, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '@mui/material/styles';
 
@@ -9,6 +9,8 @@ import { Panel } from '../Panels';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
+import FileInfo from './FileInfo';
+import FileList from './FileList';
 
 const PREFIX = 'Files';
 
@@ -26,15 +28,14 @@ const StyledDiv = styled('div')(() => ({
 }));
 
 const Files = (): JSX.Element => {
-  const addFileInputRef = useRef<HTMLInputElement>();
+  const [isShowUploadForm, setIsShowUploadForm] = useState<boolean>(false);
 
-  const { data, isLoading } = PeriodicFetch(
+  const { data: fileList, isLoading } = PeriodicFetch(
     `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
   );
 
-  // Let the icon button trigger the invisible input element.
   const onAddFileButtonClick = () => {
-    addFileInputRef.current?.click();
+    setIsShowUploadForm(!isShowUploadForm);
   };
 
   return (
@@ -45,31 +46,18 @@ const Files = (): JSX.Element => {
             <HeaderText text="Files" />
           </Box>
           <Box>
-            <form encType="multipart/form-data">
-              <InputLabel htmlFor="add-file-input">
-                <Input
-                  className={classes.addFileInput}
-                  id="add-file-input"
-                  ref={addFileInputRef}
-                  type="file"
-                />
-                <IconButton
-                  className={classes.addFileButton}
-                  onClick={onAddFileButtonClick}
-                >
-                  <AddIcon />
-                </IconButton>
-              </InputLabel>
-            </form>
+            <IconButton
+              className={classes.addFileButton}
+              onClick={onAddFileButtonClick}
+            >
+              <AddIcon />
+            </IconButton>
           </Box>
         </Box>
-        {isLoading ? (
-          <Spinner />
-        ) : (
-          <Box>
-            <span>{data}</span>
-          </Box>
+        {isShowUploadForm && (
+          <FileInfo anvilList={[]} isShowSelectFileOnStart />
         )}
+        {isLoading ? <Spinner /> : <FileList list={fileList} />}
       </StyledDiv>
     </Panel>
   );
