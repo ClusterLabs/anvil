@@ -4798,7 +4798,7 @@ sub process_fences
 		
 		# We add in 'name'
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{unique}       = "0";
-		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{required}     = "0";
+		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{required}     = "1";
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{description}  = "#!string!striker_0223!#";
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{content_type} = "string";
 		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{'default'}    = "";

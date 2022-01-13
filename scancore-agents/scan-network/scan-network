@@ -565,6 +565,13 @@ sub collect_data
 				{
 					$media = lc($1);
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
+					
+					# This can be 'tp	 mii', which breaks json.
+					if ($media =~ /\t/)
+					{
+						$media =~ s/\t/,/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
+					}
 					last;
 				}
 			}
