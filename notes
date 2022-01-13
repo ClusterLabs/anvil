@@ -744,6 +744,8 @@ mediawiki on EL8 install notes (starting from a minimal install);
 
 dnf module reset php
 dnf module enable php:7.4
+
+# PgSQL
 dnf install httpd php php-gd php-xml php-mbstring php-json \
             vim bash-completion wget tar rsync mlocate php-pecl-apcu \
             memcached php-pear icu php-intl php-pgsql bzip2 
@@ -792,16 +794,6 @@ MariaDB [(none)]> exit
 # Back to terminal
 systemctl enable mariadb
 
-# Common
-systemctl start httpd.service 
-systemctl enable httpd.service 
-systemctl start memcached.service
-systemctl enable memcached.service
-firewall-cmd --permanent --zone=public --add-service=http
-firewall-cmd --permanent --zone=public --add-service=https
-systemctl restart firewalld
-
-
 # diff -u /var/lib/pgsql/data/pg_hba.conf.orig /var/lib/pgsql/data/pg_hba.conf
 ====
 --- /var/lib/pgsql/data/pg_hba.conf.orig	2021-02-17 02:50:10.959000000 -0500
@@ -836,6 +828,15 @@ systemctl restart firewalld
  
  ;;;;
  ; Note: packaged extension modules are now loaded via the .ini files
+
+
+# Download and install
+cd /var/www/
+wget https://releases.wikimedia.org/mediawiki/1.37/mediawiki-1.37.1.tar.gz
+tar -xvzf mediawiki-1.37.1.tar.gz 
+cd /var/www/html
+ln -s ../mediawiki-1.37.1 ./w
+
 ====
 
 Dell S4128T-ON Configuration
