@@ -233,7 +233,7 @@ WHERE
 	{
 		foreach my $query (@{$queries})
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 

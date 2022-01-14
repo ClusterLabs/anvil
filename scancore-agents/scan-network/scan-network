@@ -3457,9 +3457,11 @@ AND
 		
 		# Don't set / clear interfaces that appear down but aren't named ifn/bcn/sn as they're probably 
 		# unconfigured/unusued interfaces.
-		my $problem = 0;
-		my $check   = 0;
-		if ($anvil->Network->is_our_interface({interface => $network_interface_name}))
+		my $problem   = 0;
+		my $check     = 0;
+		my $monitored = $anvil->Network->is_our_interface({interface => $network_interface_name});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { monitored => $monitored }});
+		if ($monitored)
 		{
 			# One we monitor
 			$check = 1;
