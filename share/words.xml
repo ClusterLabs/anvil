@@ -2435,6 +2435,8 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0265">Failed to get server VM screenshot; got non-zero return code.</key>
 		<key name="message_0266">Finished attempting to get server VM screenshot; no operations happened because requirements not met.</key>>>> master
 		<key name="message_0267">Preparing to manage DR for a server.</key>
+		<key name="message_0268">UUID Column counts for: [history.#!variable!table!#]:</key>
+		<key name="message_0269">Counting entries for each unique: [#!variable!column!#] in the table [#!variable!table!#]. Please be patient.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -3098,6 +3100,7 @@ We will sleep a bit and try again.
 		<key name="warning_0130">[ Warning ] - The storage group: [#!variable!storage_group_name!#] had the host: [#!variable!host_name!#] as a member. This host is not a member (anymore?) of the Anvil!: [#!variable!anvil_name!#]. Removing it from the storage group now.</key>
 		<key name="warning_0131">[ Warning ] - The postgresql server is not installed yet. Sleeping for a bit, then will check again.</key>
 		<key name="warning_0132">[ Warning ] - Failed to build or install the DRBD kernel module! It is very unlikely that this machine will be able to run any servers until this is fixed.</key>
+		<key name="warning_0133">[ Warning ] - Table: [history.#!variable!table!#] not found.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

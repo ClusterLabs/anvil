@@ -16677,10 +16677,11 @@ sub _age_out_data
 	# We don't use 'anvil->data' to prevent injecting SQL queries in anvil.conf
 	my $to_clean = {};
 	
-	# Power, temperatures and ip addresses
+	# Power, temperatures, ip addresses and variables
 	$to_clean->{table}{temperature}{child_table}{temperature}{uuid_column}   = "temperature_uuid";
 	$to_clean->{table}{power}{child_table}{power}{uuid_column}               = "power_uuid";
 	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column} = "ip_address_uuid";
+	$to_clean->{table}{variables}{child_table}{variables}{uuid_column}       = "variable_uuid";
 	
 	# scan_apc_pdu
 	$to_clean->{table}{scan_apc_pdus}{child_table}{scan_apc_pdu_phases}{uuid_column}    = "scan_apc_pdu_phase_uuid";
@@ -16760,7 +16761,7 @@ sub _age_out_data
 							count   => $count, 
 						}});
 						
-						if ($count)
+						if ($count > 1)
 						{
 							# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
 							my $query = "SELECT history_id FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date > '".$old_timestamp."';";
@@ -16781,16 +16782,17 @@ sub _age_out_data
 							}
 							else
 							{
-								# This would delete everything, reserve at least one record.
-								foreach my $row (@{$results})
-								{
-									my $history_id = $row->[0];
-									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
-									
-									my $query = "DELETE FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND history_id = '".$history_id."';";
-									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-									push @{$queries}, $query;
-								}
+								# This would delete everything, reserve at 
+								# least one record.
+								my $query = "SELECT history_id FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." ORDER BY modified_date DESC LIMIT 1;";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+								
+								my $history_id = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+								
+								$query = "DELETE FROM history.".$child_table." WHERE ".$uuid_column." = ".$anvil->Database->quote($column_uuid)." AND modified_date <= '".$old_timestamp."' AND history_id != '".$history_id."';";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+								push @{$queries}, $query;
 							}
 						}
 					}
