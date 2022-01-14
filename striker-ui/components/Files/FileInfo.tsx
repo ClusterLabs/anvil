@@ -1,96 +1,63 @@
-import { useEffect, useRef } from 'react';
 import {
-  Box,
-  Button,
   Checkbox,
+  FormControl,
   FormControlLabel,
-  Input,
-  InputLabel,
   MenuItem,
   Select,
   TextField,
 } from '@mui/material';
-import { BodyText } from '../Text';
+
+import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 type FileInfoProps = {
-  anvilList: {
+  fileName: string;
+  fileType: string;
+  fileSyncAnvilList: {
     anvilName: string;
     anvilDescription: string;
     anvilUUID: string;
+    isSync: boolean;
   }[];
-  isShowSelectFileOnStart?: boolean;
 };
-
-const FILE_TYPE_LIST = {
-  iso: 'ISO (optical disc)',
-  other: 'Other file type',
-  script: 'Script (program)',
-};
-
-// Used to solve react/require-default-params AND ensure linting works within the function component.
-const FILE_INFO_DEFAULT_PROPS = { isShowSelectFileOnStart: false };
 
 const FileInfo = ({
-  anvilList,
-  isShowSelectFileOnStart = FILE_INFO_DEFAULT_PROPS.isShowSelectFileOnStart,
+  fileName,
+  fileType,
+  fileSyncAnvilList,
 }: FileInfoProps): JSX.Element => {
-  const selectFileRef = useRef<HTMLInputElement>();
-
-  const openFilePicker = () => {
-    selectFileRef.current?.click();
-  };
-
-  useEffect(() => {
-    if (isShowSelectFileOnStart) {
-      openFilePicker();
-    }
-  }, [isShowSelectFileOnStart]);
-
   return (
-    <form encType="multipart/form-data">
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <InputLabel htmlFor="select-file">
-          <Input
-            id="select-file"
-            ref={selectFileRef}
-            sx={{ display: 'none' }}
-            type="file"
-          />
-        </InputLabel>
-        <Box
-          sx={{ alignItems: 'center', display: 'flex', flexDirection: 'row' }}
-        >
-          <TextField id="file-name" label="File name" sx={{ flexGrow: 1 }} />
-          <Button onClick={openFilePicker} sx={{ textTransform: 'none' }}>
-            <BodyText text="Browse" />
-          </Button>
-        </Box>
-        <Select id="file-type" label="File type" value="other">
-          {Object.entries(FILE_TYPE_LIST).map(
-            ([fileType, fileTypeDisplayString]) => {
-              return (
-                <MenuItem key={fileType} value={fileType}>
-                  {fileTypeDisplayString}
-                </MenuItem>
-              );
-            },
-          )}
-        </Select>
-        {anvilList.map(({ anvilName, anvilDescription, anvilUUID }) => {
+    <FormControl>
+      <TextField
+        defaultValue={fileName}
+        id="file-name"
+        label="File name"
+        sx={{ flexGrow: 1 }}
+      />
+      <Select defaultValue={fileType} id="file-type" label="File type">
+        {UPLOAD_FILE_TYPES_ARRAY.map(
+          ([fileTypeKey, [, fileTypeDisplayString]]) => {
+            return (
+              <MenuItem key={fileTypeKey} value={fileTypeKey}>
+                {fileTypeDisplayString}
+              </MenuItem>
+            );
+          },
+        )}
+      </Select>
+      {fileSyncAnvilList.map(
+        ({ anvilName, anvilDescription, anvilUUID, isSync }) => {
           return (
             <FormControlLabel
-              control={<Checkbox />}
+              control={<Checkbox checked={isSync} />}
               key={anvilUUID}
               label={`${anvilName}: ${anvilDescription}`}
               value={`${anvilUUID}-sync`}
             />
           );
-        })}
-      </Box>
-    </form>
+        },
+      )}
+    </FormControl>
   );
 };
-
-FileInfo.defaultProps = FILE_INFO_DEFAULT_PROPS;
 
 export default FileInfo;

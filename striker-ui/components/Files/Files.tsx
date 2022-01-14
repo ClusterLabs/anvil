@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { Box, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { styled } from '@mui/material/styles';
+import EventEmitter from 'events';
 
 import ICON_BUTTON_STYLE from '../../lib/consts/ICON_BUTTON_STYLE';
 
@@ -9,8 +9,8 @@ import { Panel } from '../Panels';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
-import FileInfo from './FileInfo';
 import FileList from './FileList';
+import FileUploadInfo from './FileUploadInfo';
 
 const PREFIX = 'Files';
 
@@ -28,14 +28,14 @@ const StyledDiv = styled('div')(() => ({
 }));
 
 const Files = (): JSX.Element => {
-  const [isShowUploadForm, setIsShowUploadForm] = useState<boolean>(false);
+  const openFilePickerEventEmitter: EventEmitter = new EventEmitter();
 
   const { data: fileList, isLoading } = PeriodicFetch(
     `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
   );
 
   const onAddFileButtonClick = () => {
-    setIsShowUploadForm(!isShowUploadForm);
+    openFilePickerEventEmitter.emit('open');
   };
 
   return (
@@ -54,9 +54,9 @@ const Files = (): JSX.Element => {
             </IconButton>
           </Box>
         </Box>
-        {isShowUploadForm && (
-          <FileInfo anvilList={[]} isShowSelectFileOnStart />
-        )}
+        <FileUploadInfo
+          openFilePickerEventEmitter={openFilePickerEventEmitter}
+        />
         {isLoading ? <Spinner /> : <FileList list={fileList} />}
       </StyledDiv>
     </Panel>
