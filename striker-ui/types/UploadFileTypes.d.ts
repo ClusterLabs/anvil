@@ -1,1 +1,1 @@
-declare type UploadFileTypes = 'iso' | 'other' | 'script';
+declare type UploadFileType = 'iso' | 'other' | 'script';

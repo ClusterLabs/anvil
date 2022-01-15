@@ -32,6 +32,7 @@ const Files = (): JSX.Element => {
 
   const { data: fileList, isLoading } = PeriodicFetch(
     `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
+    0,
   );
 
   const onAddFileButtonClick = () => {

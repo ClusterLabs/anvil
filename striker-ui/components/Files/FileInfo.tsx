@@ -7,23 +7,14 @@ import {
   TextField,
 } from '@mui/material';
 
+import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
-
-type FileInfoProps = {
-  fileName: string;
-  fileType: string;
-  fileSyncAnvilList: {
-    anvilName: string;
-    anvilDescription: string;
-    anvilUUID: string;
-    isSync: boolean;
-  }[];
-};
 
 const FileInfo = ({
   fileName,
   fileType,
-  fileSyncAnvilList,
+  fileSyncAnvils,
+  onChange,
 }: FileInfoProps): JSX.Element => {
   return (
     <FormControl>
@@ -31,9 +22,20 @@ const FileInfo = ({
         defaultValue={fileName}
         id="file-name"
         label="File name"
-        sx={{ flexGrow: 1 }}
+        onChange={({ target: { value } }) =>
+          onChange?.call(null, { fileName: value })
+        }
+        sx={{ color: TEXT }}
       />
-      <Select defaultValue={fileType} id="file-type" label="File type">
+      <Select
+        defaultValue={fileType}
+        id="file-type"
+        label="File type"
+        onChange={({ target: { value } }) =>
+          onChange?.call(null, { fileType: value as UploadFileType })
+        }
+        sx={{ color: TEXT }}
+      >
         {UPLOAD_FILE_TYPES_ARRAY.map(
           ([fileTypeKey, [, fileTypeDisplayString]]) => {
             return (
@@ -44,7 +46,7 @@ const FileInfo = ({
           },
         )}
       </Select>
-      {fileSyncAnvilList.map(
+      {fileSyncAnvils.map(
         ({ anvilName, anvilDescription, anvilUUID, isSync }) => {
           return (
             <FormControlLabel
