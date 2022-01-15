@@ -1,6 +1,8 @@
 const express = require('express');
 const { spawnSync } = require('child_process');
 
+const uploadSharedFiles = require('../middlewares/uploadSharedFiles');
+
 const router = express.Router();
 
 router
@@ -75,6 +77,19 @@ router
     }
 
     response.status(200).send(stdoutJSON);
+  })
+  .post('/', uploadSharedFiles.single('file'), ({ file, body }, response) => {
+    console.log('Receiving shared file.');
+
+    if (file) {
+      console.log(`file:`);
+      console.dir(file);
+
+      console.log('body:');
+      console.dir(body);
+
+      response.status(200).send();
+    }
   });
 
 module.exports = router;
