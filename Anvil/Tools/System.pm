@@ -2075,6 +2075,7 @@ LIMIT 1
 	my $wait_until  = time + 120;
 	while ($waiting)
 	{
+		my $debug = 2;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
@@ -2118,6 +2119,8 @@ LIMIT 1
 				}
 			}
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_name => $user_name }});
+		last if $user_name;
 		
 		# Try again later or give up?
 		if (time > $wait_until)
@@ -2137,6 +2140,7 @@ LIMIT 1
 			sleep 10;
 		}
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_name => $user_name }});
 	if (not $user_name)
 	{
 		# Failed to find a user.
