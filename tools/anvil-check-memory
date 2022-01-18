@@ -50,10 +50,10 @@ if (not $anvil->data->{switches}{program})
 
 # Find the PID(s) of the program.
 $anvil->data->{sys}{pids} = $anvil->System->pids({ignore_me => 1, program_name => $anvil->data->{switches}{program}});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'sys::pids' => $anvil->data->{sys}{pids} }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::pids' => $anvil->data->{sys}{pids} }});
 
 my $pids_found = @{$anvil->data->{sys}{pids}};
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { pids_found => $pids_found }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pids_found => $pids_found }});
 
 if (not $pids_found)
 {
@@ -66,7 +66,7 @@ if (not $pids_found)
 foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
 {
 	my $smaps_path = "/proc/".$pid."/smaps";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { smaps_path => $smaps_path }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { smaps_path => $smaps_path }});
 	
 	# This will store the amount of RAM used by this specific PID.
 	$anvil->data->{memory}{pid}{$pid} = 0;

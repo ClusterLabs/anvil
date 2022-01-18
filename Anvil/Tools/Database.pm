@@ -952,9 +952,15 @@ sub configure_pgsql
 	}
 	
 	# Start or restart the daemon?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+		's1:running'                => $running,
+		's2:update_postgresql_file' => $update_postgresql_file, 
+		's3:update_pg_hba_file'     => $update_pg_hba_file, 
+	}});
 	if (not $running)
 	{
 		# Did we initialize?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { initialized => $initialized }});
 		if ($initialized)
 		{
 			# Start the daemon.
@@ -991,6 +997,11 @@ sub configure_pgsql
 	}
 	
 	# Do user and DB checks only if we're made a change above.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+		's1:initialized'            => $initialized,
+		's2:update_postgresql_file' => $update_postgresql_file, 
+		's3:update_pg_hba_file'     => $update_pg_hba_file, 
+	}});
 	if (($initialized) or ($update_postgresql_file) or ($update_pg_hba_file))
 	{
 		# Create the .pgpass file, if needed.
