@@ -2072,6 +2072,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0678">[ Note ] - We need to build the DRBD kernel module. This can take a few minutes, please be patient! Use 'journalctl -f' to monitor the build process.</key>
 		<key name="log_0679">Successfully built and installed the new DRBD kernel module!</key>
 		<key name="log_0680">We were asked to resync the database, but this host is hosting: [#!variable!count!#] server(s). Resync is not allowed when servers are running to reduce the risk the kernel's out of memory handler shooting a VM if the resync consumes too much RAM. You can see which servers are running with 'virsh list' and look for servers whose states are "running", "paused", "in shutdown" or "pmsuspended".</key>
+		<key name="log_0681">Testing that our short host name resolves to one of our IP prior to starting the cluster.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3101,6 +3102,7 @@ We will sleep a bit and try again.
 		<key name="warning_0131">[ Warning ] - The postgresql server is not installed yet. Sleeping for a bit, then will check again.</key>
 		<key name="warning_0132">[ Warning ] - Failed to build or install the DRBD kernel module! It is very unlikely that this machine will be able to run any servers until this is fixed.</key>
 		<key name="warning_0133">[ Warning ] - Table: [history.#!variable!table!#] not found.</key>
+		<key name="warning_0134">[ Warning ] - Holding off starting the cluster. Tested access to ourself, and failed. Is '/etc/hosts' populated? Will try again in ten seconds.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

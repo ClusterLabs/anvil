@@ -1770,6 +1770,16 @@ LIMIT 1
 		password_length => $password_length,
 	}});
 	
+	# If the password has spaces, some IPMI BMCs won't allow them. If we need to use it, we'll take out 
+	# the spaces and shrink the length.
+	my $ipmi_no_space_password = "";
+	if ($ipmi_password =~ /\s/)
+	{
+		$ipmi_no_space_password =  $ipmi_password; 
+		$ipmi_no_space_password =~ s/\s//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_no_space_password => $ipmi_no_space_password }});
+	}
+	
 	my $subnet_mask = "";
 	my $gateway     = "";
 	my $in_network  = "";
@@ -2075,6 +2085,7 @@ LIMIT 1
 	my $wait_until  = time + 120;
 	while ($waiting)
 	{
+		my $debug = 2;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
@@ -2118,6 +2129,8 @@ LIMIT 1
 				}
 			}
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_name => $user_name }});
+		last if $user_name;
 		
 		# Try again later or give up?
 		if (time > $wait_until)
@@ -2137,6 +2150,7 @@ LIMIT 1
 			sleep 10;
 		}
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_name => $user_name }});
 	if (not $user_name)
 	{
 		# Failed to find a user.
@@ -2225,6 +2239,13 @@ LIMIT 1
 		}
 		else
 		{
+			# If we used the no-space password, set it as the ipmi_password now.
+			if ($ipmi_no_space_password)
+			{
+				$ipmi_password = $ipmi_no_space_password;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_password => $ipmi_password }});
+			}
+			
 			# Change the password and then try again.
 			my $escaped_ipmi_password = shell_quote($ipmi_password);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { escaped_ipmi_password => $escaped_ipmi_password }});
