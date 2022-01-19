@@ -78,18 +78,13 @@ const accessDB = {
     return execDatabaseModuleSubroutine('insert_or_update_jobs', subParams)
       .stdout;
   },
-  dbQuery: (query, accessMode, options) => {
-    const args = ['--query', query];
-
-    if (accessMode) {
-      args.push('--mode', accessMode);
-    }
-
-    return execStrikerAccessDatabase(args, options);
-  },
+  dbQuery: (query, options) =>
+    execStrikerAccessDatabase(['--query', query], options),
   dbSub: execDatabaseModuleSubroutine,
   dbSubRefreshTimestamp: () =>
     execDatabaseModuleSubroutine('refresh_timestamp').stdout,
+  dbWrite: (query, options) =>
+    execStrikerAccessDatabase(['--query', query, '--mode', 'write'], options),
 };
 
 module.exports = accessDB;

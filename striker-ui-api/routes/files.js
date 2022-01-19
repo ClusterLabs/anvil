@@ -4,6 +4,7 @@ const {
   dbJobAnvilSyncShared,
   dbQuery,
   dbSubRefreshTimestamp,
+  dbWrite,
 } = require('../lib/accessDB');
 const getFilesOverview = require('../lib/request_handlers/files/getFilesOverview');
 const getFileDetail = require('../lib/request_handlers/files/getFileDetail');
@@ -12,6 +13,28 @@ const uploadSharedFiles = require('../middlewares/uploadSharedFiles');
 const router = express.Router();
 
 router
+  .delete('/:fileUUID', (request, response) => {
+    const { fileUUID } = request.params;
+    const FILE_TYPE_DELETED = 'DELETED';
+
+    const [[oldFileType]] = dbQuery(
+      `SELECT file_type FROM files WHERE file_uuid = '${fileUUID}';`,
+    ).stdout;
+
+    if (oldFileType !== FILE_TYPE_DELETED) {
+      dbWrite(
+        `UPDATE files
+          SET
+            file_type = '${FILE_TYPE_DELETED}',
+            modified_date = '${dbSubRefreshTimestamp()}'
+          WHERE file_uuid = '${fileUUID}';`,
+      ).stdout;
+
+      dbJobAnvilSyncShared('purge', `file_uuid=${fileUUID}`, '0136', '0137');
+    }
+
+    response.status(204).send();
+  })
   .get('/', getFilesOverview)
   .get('/:fileUUID', getFileDetail)
   .post('/', uploadSharedFiles.single('file'), ({ file, body }, response) => {
@@ -44,11 +67,11 @@ router
 
       if (fileName !== oldFileName) {
         query += `
-        UPDATE files
-        SET
-          file_name = '${fileName}',
-          modified_date = '${dbSubRefreshTimestamp()}'
-        WHERE file_uuid = '${fileUUID}';`;
+          UPDATE files
+          SET
+            file_name = '${fileName}',
+            modified_date = '${dbSubRefreshTimestamp()}'
+          WHERE file_uuid = '${fileUUID}';`;
 
         anvilSyncSharedFunctions.push(() =>
           dbJobAnvilSyncShared(
@@ -132,7 +155,7 @@ router
     let queryStdout;
 
     try {
-      ({ stdout: queryStdout } = dbQuery(query, 'write'));
+      ({ stdout: queryStdout } = dbWrite(query));
     } catch (queryError) {
       console.log(`Query error: ${queryError}`);
 
