@@ -7,7 +7,8 @@
     "clean": "rm -f striker-ui-api",
     "dev": "node index.js",
     "rebuild": "npm run clean && npm run build",
-    "start": "npm run build && ./striker-ui-api"
+    "start": "npm run build && ./striker-ui-api",
+    "style:fix": "prettier --write *"
   },
   "dependencies": {
     "cors": "^2.8.5",
