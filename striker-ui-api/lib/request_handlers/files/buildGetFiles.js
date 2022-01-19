@@ -1,4 +1,4 @@
-const accessDB = require('../../accessDB');
+const { dbQuery } = require('../../accessDB');
 
 const buildGetFiles = (query) => (request, response) => {
   console.log('Calling CLI script to get data.');
@@ -6,7 +6,7 @@ const buildGetFiles = (query) => (request, response) => {
   let queryStdout;
 
   try {
-    ({ stdout: queryStdout } = accessDB.query(
+    ({ stdout: queryStdout } = dbQuery(
       typeof query === 'function' ? query(request) : query,
     ));
   } catch (queryError) {

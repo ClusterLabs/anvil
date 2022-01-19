@@ -8,6 +8,7 @@ const SERVER_PATHS = {
   },
   usr: {
     sbin: {
+      'anvil-sync-shared': {},
       'striker-access-database': {},
     },
   },
