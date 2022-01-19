@@ -6,6 +6,11 @@ const SERVER_PATHS = {
       incoming: {},
     },
   },
+  usr: {
+    sbin: {
+      'striker-access-database': {},
+    },
+  },
 };
 
 const generatePaths = (
