@@ -7,6 +7,7 @@ SELECT
   file_size,
   file_type,
   file_md5sum
-FROM files;`);
+FROM files
+WHERE file_type != 'DELETED';`);
 
 module.exports = getFilesOverview;

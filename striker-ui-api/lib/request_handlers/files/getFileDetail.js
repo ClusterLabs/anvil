@@ -18,7 +18,8 @@ const getFileDetail = buildGetFiles(
         ON fil.file_uuid = fil_loc.file_location_file_uuid
       JOIN anvils AS anv
         ON fil_loc.file_location_anvil_uuid = anv.anvil_uuid
-      WHERE fil.file_uuid = '${request.params.fileUUID}';`,
+      WHERE fil.file_uuid = '${request.params.fileUUID}'
+        AND fil.file_type != 'DELETED';`,
 );
 
 module.exports = getFileDetail;
