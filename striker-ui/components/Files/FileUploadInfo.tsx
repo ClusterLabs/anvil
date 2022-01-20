@@ -19,33 +19,35 @@ type FileUploadInfoProps = {
   openFilePickerEventEmitter?: EventEmitter;
 };
 
-type SelectedFile = {
+type SelectedFile = Pick<
+  FileDetailMetadata,
+  'fileName' | 'fileLocations' | 'fileType'
+> & {
   file: File;
-  metadata: FileInfoMetadata;
 };
 
-type InUploadFile = Pick<FileInfoMetadata, 'fileName'> & {
+type InUploadFile = Pick<FileDetailMetadata, 'fileName'> & {
   progressValue: number;
 };
 
-const FILE_UPLOAD_INFO_DEFAULT_PROPS = {
+const FILE_UPLOAD_INFO_DEFAULT_PROPS: Partial<FileUploadInfoProps> = {
   openFilePickerEventEmitter: undefined,
 };
 
-const FileUploadInfo = ({
-  openFilePickerEventEmitter,
-}: FileUploadInfoProps = FILE_UPLOAD_INFO_DEFAULT_PROPS): JSX.Element => {
+const FileUploadInfo = (
+  {
+    openFilePickerEventEmitter,
+  }: FileUploadInfoProps = FILE_UPLOAD_INFO_DEFAULT_PROPS as FileUploadInfoProps,
+): JSX.Element => {
   const selectFileRef = useRef<HTMLInputElement>();
 
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [inUploadFiles, setInUploadFiles] = useState<InUploadFile[]>([]);
 
-  const convertMIMETypeToFileTypeKey = (
-    fileMIMEType: string,
-  ): UploadFileType => {
+  const convertMIMETypeToFileTypeKey = (fileMIMEType: string): FileType => {
     const fileTypesIterator = UPLOAD_FILE_TYPES.entries();
 
-    let fileType: UploadFileType | undefined;
+    let fileType: FileType | undefined;
 
     do {
       const fileTypesResult = fileTypesIterator.next();
@@ -72,11 +74,9 @@ const FileUploadInfo = ({
         Array.from(files).map(
           (file): SelectedFile => ({
             file,
-            metadata: {
-              fileName: file.name,
-              fileType: convertMIMETypeToFileTypeKey(file.type),
-              fileSyncAnvils: [],
-            },
+            fileName: file.name,
+            fileLocations: [],
+            fileType: convertMIMETypeToFileTypeKey(file.type),
           }),
         ),
       );
@@ -85,9 +85,9 @@ const FileUploadInfo = ({
 
   const generateFileInfoOnChangeHandler = (
     fileIndex: number,
-  ): ((inputValues: Partial<FileInfoMetadata>) => void) => (inputValues) => {
-    selectedFiles[fileIndex].metadata = {
-      ...selectedFiles[fileIndex].metadata,
+  ): FileInfoChangeHandler => (inputValues) => {
+    selectedFiles[fileIndex] = {
+      ...selectedFiles[fileIndex],
       ...inputValues,
     };
   };
@@ -99,10 +99,7 @@ const FileUploadInfo = ({
       const selectedFile = selectedFiles.shift();
 
       if (selectedFile) {
-        const {
-          file,
-          metadata: { fileName, fileType },
-        } = selectedFile;
+        const { file, fileName, fileType } = selectedFile;
 
         const fileFormData = new FormData();
 
@@ -164,12 +161,14 @@ const FileUploadInfo = ({
           (
             {
               file: { name: originalFileName },
-              metadata: { fileName, fileType, fileSyncAnvils },
+              fileName,
+              fileType,
+              fileLocations,
             },
             fileIndex,
           ) => (
             <FileInfo
-              {...{ fileName, fileType, fileSyncAnvils }}
+              {...{ fileName, fileType, fileLocations }}
               // Use a non-changing key to prevent recreating the component.
               // fileName holds the string from the file-name input, thus it changes when users makes a change.
               key={`selected-${originalFileName}`}
