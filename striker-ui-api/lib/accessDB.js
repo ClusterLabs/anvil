@@ -60,12 +60,11 @@ const accessDB = {
     jobData,
     jobTitle,
     jobDescription,
-    { jobHostUUID } = { jobHostUUID: 'all' },
+    { jobHostUUID } = { jobHostUUID: undefined },
   ) => {
     const subParams = {
       file: __filename,
       line: 0,
-      job_host_uuid: jobHostUUID,
       job_command: SERVER_PATHS.usr.sbin['anvil-sync-shared'].self,
       job_data: jobData,
       job_name: `storage::${jobName}`,
@@ -73,6 +72,11 @@ const accessDB = {
       job_description: `job_${jobDescription}`,
       job_progress: 0,
     };
+
+    if (jobHostUUID) {
+      subParams.job_host_uuid = jobHostUUID;
+    }
+
     console.log(JSON.stringify(subParams, null, 2));
 
     return execDatabaseModuleSubroutine('insert_or_update_jobs', subParams)

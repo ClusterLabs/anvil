@@ -30,7 +30,9 @@ router
           WHERE file_uuid = '${fileUUID}';`,
       ).stdout;
 
-      dbJobAnvilSyncShared('purge', `file_uuid=${fileUUID}`, '0136', '0137');
+      dbJobAnvilSyncShared('purge', `file_uuid=${fileUUID}`, '0136', '0137', {
+        jobHostUUID: 'all',
+      });
     }
 
     response.status(204).send();
@@ -41,17 +43,22 @@ router
     console.log('Receiving shared file.');
 
     if (file) {
-      console.log(`file:`);
-      console.dir(file);
+      console.log(`file: ${JSON.stringify(file, null, 2)}`);
+      console.log(`body: ${JSON.stringify(body, null, 2)}`);
 
-      console.log('body:');
-      console.dir(body);
+      dbJobAnvilSyncShared(
+        'move_incoming',
+        `file=${file.path}`,
+        '0132',
+        '0133',
+      );
 
       response.status(200).send();
     }
   })
   .put('/:fileUUID', (request, response) => {
     console.log('Begin edit single file.');
+    console.dir(request.body);
 
     const { fileUUID } = request.params;
     const { fileName, fileLocations, fileType } = request.body;
@@ -79,6 +86,7 @@ router
             `file_uuid=${fileUUID}\nold_name=${oldFileName}\nnew_name=${fileName}`,
             '0138',
             '0139',
+            { jobHostUUID: 'all' },
           ),
         );
       }
@@ -98,6 +106,7 @@ router
           `file_uuid=${fileUUID}`,
           '0143',
           '0144',
+          { jobHostUUID: 'all' },
         ),
       );
     }
