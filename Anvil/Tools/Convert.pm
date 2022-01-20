@@ -848,8 +848,8 @@ sub format_mmddyy_to_yymmdd
 		date => $date, 
 	}});
 	
-	# Sometimes we're passed '--' which is not strictly an error, so we'll return it back.
-	if ($date eq "--")
+	# Sometimes we're passed '--' or '#!no_value!#' which is not strictly an error, so we'll return it back.
+	if (($date eq "--") or ($date eq "#!no_value!#"))
 	{
 		return($date);
 	}
