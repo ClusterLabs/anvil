@@ -158,12 +158,24 @@ const FileUploadForm = (
         {inUploadFiles.map(({ fileName, progressValue }) => (
           <Box
             key={`in-upload-${fileName}`}
-            sx={{ display: 'flex', flexDirection: 'row' }}
+            sx={{
+              alignItems: { md: 'center' },
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              '& > :first-child': {
+                minWidth: 100,
+                overflow: 'hidden',
+                overflowWrap: 'normal',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                width: { xs: '100%', md: 200 },
+                wordBreak: 'keep-all',
+              },
+              '& > :last-child': { flexGrow: 1 },
+            }}
           >
             <BodyText text={fileName} />
-            <Box sx={{ flexGrow: 1 }}>
-              <ProgressBar progressPercentage={progressValue} />
-            </Box>
+            <ProgressBar progressPercentage={progressValue} />
           </Box>
         ))}
         {selectedFiles.map(
