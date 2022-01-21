@@ -2074,6 +2074,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0680">We were asked to resync the database, but this host is hosting: [#!variable!count!#] server(s). Resync is not allowed when servers are running to reduce the risk the kernel's out of memory handler shooting a VM if the resync consumes too much RAM. You can see which servers are running with 'virsh list' and look for servers whose states are "running", "paused", "in shutdown" or "pmsuspended".</key>
 		<key name="log_0681">Testing that our short host name resolves to one of our IP prior to starting the cluster.</key>
 		<key name="log_0682">Changing the ownership of: [#!variable!file!#] to be owned by: [#!variable!user!#:#!variable!user!#].</key>
+		<key name="log_0683">Enabling 'ping' for all users.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

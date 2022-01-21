@@ -1246,6 +1246,7 @@ sub _set_paths
 				su				=>	"/usr/bin/su",
 				'subscription-manager'		=>	"/usr/sbin/subscription-manager",
 				swapon				=>	"/usr/sbin/swapon",
+				sysctl				=>	"/usr/sbin/sysctl",
 				systemctl			=>	"/usr/bin/systemctl",
 				timeout				=>	"/usr/bin/timeout",
 				touch				=>	"/usr/bin/touch",
