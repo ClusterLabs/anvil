@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, IconButton } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
@@ -7,12 +7,12 @@ import EventEmitter from 'events';
 import ICON_BUTTON_STYLE from '../../lib/consts/ICON_BUTTON_STYLE';
 
 import { Panel } from '../Panels';
-import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
 import FileList from './FileList';
-import FileUploadInfo from './FileUploadInfo';
+import FileUploadForm from './FileUploadForm';
 import FileEditForm from './FileEditForm';
+import fetchJSON from '../../lib/fetchers/fetchJSON';
 
 const PREFIX = 'Files';
 
@@ -32,6 +32,11 @@ const StyledDiv = styled('div')(() => ({
 const StyledIconButton = styled(IconButton)(ICON_BUTTON_STYLE);
 
 const Files = (): JSX.Element => {
+  const [rawFilesOverview, setRawFilesOverview] = useState<string[][]>([]);
+  const [
+    isLoadingRawFilesOverview,
+    setIsLoadingRawFilesOverview,
+  ] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   const openFilePickerEventEmitter: EventEmitter = new EventEmitter();
@@ -44,10 +49,7 @@ const Files = (): JSX.Element => {
     setIsEditMode(!isEditMode);
   };
 
-  const buildFileList = (
-    rawFilesOverview: string[][] = [],
-    isLoadingRawFilesOverview: boolean,
-  ): JSX.Element => {
+  const buildFileList = (): JSX.Element => {
     let elements: JSX.Element;
     if (isLoadingRawFilesOverview) {
       elements = <Spinner />;
@@ -74,13 +76,22 @@ const Files = (): JSX.Element => {
     return elements;
   };
 
-  const {
-    data: rawFilesOverview,
-    isLoading: isLoadingRawFilesOverview,
-  } = PeriodicFetch<string[][]>(
-    `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
-    0,
-  );
+  const fetchRawFilesOverview = async () => {
+    setIsLoadingRawFilesOverview(true);
+
+    const data = await fetchJSON<string[][]>(
+      `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
+    );
+
+    setRawFilesOverview(data);
+    setIsLoadingRawFilesOverview(false);
+  };
+
+  useEffect(() => {
+    if (!isEditMode) {
+      fetchRawFilesOverview();
+    }
+  }, [isEditMode]);
 
   return (
     <Panel>
@@ -100,10 +111,13 @@ const Files = (): JSX.Element => {
             </StyledIconButton>
           </Box>
         </Box>
-        <FileUploadInfo
+        <FileUploadForm
+          onFileUploadComplete={() => {
+            fetchRawFilesOverview();
+          }}
           openFilePickerEventEmitter={openFilePickerEventEmitter}
         />
-        {buildFileList(rawFilesOverview, isLoadingRawFilesOverview)}
+        {buildFileList()}
       </StyledDiv>
     </Panel>
   );

@@ -15,7 +15,8 @@ import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
 
-type FileUploadInfoProps = {
+type FileUploadFormProps = {
+  onFileUploadComplete?: () => void;
   openFilePickerEventEmitter?: EventEmitter;
 };
 
@@ -30,14 +31,16 @@ type InUploadFile = Pick<FileDetailMetadata, 'fileName'> & {
   progressValue: number;
 };
 
-const FILE_UPLOAD_INFO_DEFAULT_PROPS: Partial<FileUploadInfoProps> = {
+const FILE_UPLOAD_FORM_DEFAULT_PROPS: Partial<FileUploadFormProps> = {
+  onFileUploadComplete: undefined,
   openFilePickerEventEmitter: undefined,
 };
 
-const FileUploadInfo = (
+const FileUploadForm = (
   {
+    onFileUploadComplete,
     openFilePickerEventEmitter,
-  }: FileUploadInfoProps = FILE_UPLOAD_INFO_DEFAULT_PROPS as FileUploadInfoProps,
+  }: FileUploadFormProps = FILE_UPLOAD_FORM_DEFAULT_PROPS as FileUploadFormProps,
 ): JSX.Element => {
   const selectFileRef = useRef<HTMLInputElement>();
 
@@ -109,20 +112,26 @@ const FileUploadInfo = (
         const inUploadFile: InUploadFile = { fileName, progressValue: 0 };
         inUploadFiles.push(inUploadFile);
 
-        mainAxiosInstance.post('/files', fileFormData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          onUploadProgress: ({ loaded, total }) => {
-            inUploadFile.progressValue = Math.round((loaded / total) * 100);
-            setInUploadFiles([...inUploadFiles]);
+        mainAxiosInstance
+          .post('/files', fileFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: ({ loaded, total }) => {
+              inUploadFile.progressValue = Math.round((loaded / total) * 100);
+              setInUploadFiles([...inUploadFiles]);
+            },
+          })
+          .then(() => {
+            onFileUploadComplete?.call(null);
 
-            // Should probably write a onUploadFileComplete to update the file list in the parent every time a file finishes upload.
-          },
-        });
+            inUploadFiles.splice(inUploadFiles.indexOf(inUploadFile), 1);
+            setInUploadFiles([...inUploadFiles]);
+          });
       }
     }
 
+    // Clears "staging area" (selected files) and populates "in-progress area" (in-upload files).
     setSelectedFiles([]);
     setInUploadFiles([...inUploadFiles]);
   };
@@ -186,6 +195,6 @@ const FileUploadInfo = (
   );
 };
 
-FileUploadInfo.defaultProps = FILE_UPLOAD_INFO_DEFAULT_PROPS;
+FileUploadForm.defaultProps = FILE_UPLOAD_FORM_DEFAULT_PROPS;
 
-export default FileUploadInfo;
+export default FileUploadForm;
