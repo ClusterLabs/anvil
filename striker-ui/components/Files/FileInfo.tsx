@@ -4,6 +4,7 @@ import {
   FormControl,
   FormControlLabel,
   inputClasses,
+  inputLabelClasses,
   MenuItem,
   outlinedInputClasses,
   Select,
@@ -15,7 +16,14 @@ import {
   SyncDisabled as SyncDisabledIcon,
 } from '@mui/icons-material';
 
-import { BLUE, GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import {
+  BLUE,
+  BORDER_RADIUS,
+  GREY,
+  RED,
+  TEXT,
+  UNSELECTED,
+} from '../../lib/consts/DEFAULT_THEME';
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 type FileInfoProps = Pick<FileDetailMetadata, 'fileName' | 'fileLocations'> &
@@ -30,12 +38,41 @@ const FILE_INFO_DEFAULT_PROPS: Partial<FileInfoProps> = {
 };
 
 const StyledTextField = styled(TextField)({
-  [`& .${outlinedInputClasses.root}`]: {
+  [`& .${inputLabelClasses.root}`]: {
     color: GREY,
+
+    [`&.${inputClasses.focused}`]: {
+      backgroundColor: BLUE,
+      borderRadius: BORDER_RADIUS,
+      color: TEXT,
+      padding: '.1em .6em',
+    },
   },
 
-  [`& .${inputClasses.focused}`]: {
-    color: TEXT,
+  [`& .${outlinedInputClasses.root}`]: {
+    color: GREY,
+
+    [`& .${outlinedInputClasses.notchedOutline}`]: {
+      borderColor: UNSELECTED,
+    },
+
+    '&:hover': {
+      [`& .${outlinedInputClasses.notchedOutline}`]: {
+        borderColor: GREY,
+      },
+    },
+
+    [`&.${inputClasses.focused}`]: {
+      color: TEXT,
+
+      [`& .${outlinedInputClasses.notchedOutline}`]: {
+        borderColor: BLUE,
+
+        '& legend': {
+          paddingRight: '1.2em',
+        },
+      },
+    },
   },
 });
 
