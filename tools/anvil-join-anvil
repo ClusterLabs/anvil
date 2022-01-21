@@ -2190,7 +2190,7 @@ sub check_local_network
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0113"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0113");
-	$anvil->System->check_ssh_keys({debug => 3});
+	$anvil->System->check_ssh_keys({debug => 2});
 	
 	# Setup IPMI, if needed.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0114"});

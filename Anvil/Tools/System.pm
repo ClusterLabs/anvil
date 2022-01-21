@@ -728,10 +728,29 @@ sub check_ssh_keys
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0270", variables => { user => $user }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 			if (-e $ssh_public_key_file)
 			{
 				# Success!
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0271", variables => { user => $user, output => $output }});
+				
+				# Set the ownership
+				foreach my $file ($ssh_private_key_file, $ssh_public_key_file)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0682", variables => { 
+						file => $file,
+						user => $user,
+					}});
+					$anvil->Storage->change_owner({
+						debug => 2,
+						path  => $file,
+						user  => $user,
+						group => $user,
+					});
+				}
 			}
 			else
 			{
