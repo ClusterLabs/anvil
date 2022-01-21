@@ -102,12 +102,14 @@ const FileUploadForm = (
       const selectedFile = selectedFiles.shift();
 
       if (selectedFile) {
-        const { file, fileName, fileType } = selectedFile;
+        const { file, fileName } = selectedFile;
 
         const fileFormData = new FormData();
 
         fileFormData.append('file', new File([file], fileName, { ...file }));
-        fileFormData.append('file-type', fileType);
+        // Re-add when the back-end tools can support changing file type on file upload.
+        // Note: get file type from destructuring selectedFile.
+        // fileFormData.append('file-type', fileType);
 
         const inUploadFile: InUploadFile = { fileName, progressValue: 0 };
         inUploadFiles.push(inUploadFile);
@@ -183,13 +185,15 @@ const FileUploadForm = (
             {
               file: { name: originalFileName },
               fileName,
-              fileType,
+              // Re-add when the back-end tools can support changing file type on file upload.
+              // Note: file type must be supplied to FileInfo.
+              // fileType,
               fileLocations,
             },
             fileIndex,
           ) => (
             <FileInfo
-              {...{ fileName, fileType, fileLocations }}
+              {...{ fileName, fileLocations }}
               // Use a non-changing key to prevent recreating the component.
               // fileName holds the string from the file-name input, thus it changes when users makes a change.
               key={`selected-${originalFileName}`}

@@ -18,13 +18,11 @@ import {
 import { BLUE, GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
-type FileInfoProps = Pick<
-  FileDetailMetadata,
-  'fileName' | 'fileLocations' | 'fileType'
-> & {
-  isReadonly?: boolean;
-  onChange?: FileInfoChangeHandler;
-};
+type FileInfoProps = Pick<FileDetailMetadata, 'fileName' | 'fileLocations'> &
+  Partial<Pick<FileDetailMetadata, 'fileType'>> & {
+    isReadonly?: boolean;
+    onChange?: FileInfoChangeHandler;
+  };
 
 const FILE_INFO_DEFAULT_PROPS: Partial<FileInfoProps> = {
   isReadonly: undefined,
@@ -69,26 +67,28 @@ const FileInfo = (
           onChange?.call(null, { fileName: value })
         }
       />
-      <Select
-        defaultValue={fileType}
-        disabled={isReadonly}
-        id="file-type"
-        label="File type"
-        onChange={({ target: { value } }) =>
-          onChange?.call(null, { fileType: value as FileType })
-        }
-        sx={{ color: TEXT }}
-      >
-        {UPLOAD_FILE_TYPES_ARRAY.map(
-          ([fileTypeKey, [, fileTypeDisplayString]]) => {
-            return (
-              <MenuItem key={fileTypeKey} value={fileTypeKey}>
-                {fileTypeDisplayString}
-              </MenuItem>
-            );
-          },
-        )}
-      </Select>
+      {fileType && (
+        <Select
+          defaultValue={fileType}
+          disabled={isReadonly}
+          id="file-type"
+          label="File type"
+          onChange={({ target: { value } }) =>
+            onChange?.call(null, { fileType: value as FileType })
+          }
+          sx={{ color: TEXT }}
+        >
+          {UPLOAD_FILE_TYPES_ARRAY.map(
+            ([fileTypeKey, [, fileTypeDisplayString]]) => {
+              return (
+                <MenuItem key={fileTypeKey} value={fileTypeKey}>
+                  {fileTypeDisplayString}
+                </MenuItem>
+              );
+            },
+          )}
+        </Select>
+      )}
       {fileLocations.map(
         (
           { anvilName, anvilDescription, anvilUUID, isFileLocationActive },
