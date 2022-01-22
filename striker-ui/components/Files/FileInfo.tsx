@@ -3,20 +3,24 @@ import {
   checkboxClasses,
   FormControl,
   FormControlLabel,
-  inputClasses,
+  FormGroup,
+  InputLabel,
   inputLabelClasses,
   MenuItem,
+  OutlinedInput,
   outlinedInputClasses,
   Select,
+  selectClasses,
   styled,
-  TextField,
 } from '@mui/material';
 import {
   Sync as SyncIcon,
   SyncDisabled as SyncDisabledIcon,
 } from '@mui/icons-material';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
+  BLACK,
   BLUE,
   BORDER_RADIUS,
   GREY,
@@ -37,42 +41,46 @@ const FILE_INFO_DEFAULT_PROPS: Partial<FileInfoProps> = {
   onChange: undefined,
 };
 
-const StyledTextField = styled(TextField)({
-  [`& .${inputLabelClasses.root}`]: {
-    color: GREY,
+const StyledInputLabel = styled(InputLabel)({
+  color: GREY,
 
-    [`&.${inputClasses.focused}`]: {
-      backgroundColor: BLUE,
-      borderRadius: BORDER_RADIUS,
-      color: TEXT,
-      padding: '.1em .6em',
+  [`&.${inputLabelClasses.focused}`]: {
+    backgroundColor: GREY,
+    borderRadius: BORDER_RADIUS,
+    color: BLACK,
+    padding: '.1em .6em',
+  },
+});
+
+const StyledOutlinedInput = styled(OutlinedInput)({
+  color: GREY,
+
+  [`& .${outlinedInputClasses.notchedOutline}`]: {
+    borderColor: UNSELECTED,
+  },
+
+  '&:hover': {
+    [`& .${outlinedInputClasses.notchedOutline}`]: {
+      borderColor: GREY,
     },
   },
 
-  [`& .${outlinedInputClasses.root}`]: {
-    color: GREY,
+  [`&.${outlinedInputClasses.focused}`]: {
+    color: TEXT,
 
     [`& .${outlinedInputClasses.notchedOutline}`]: {
-      borderColor: UNSELECTED,
-    },
+      borderColor: GREY,
 
-    '&:hover': {
-      [`& .${outlinedInputClasses.notchedOutline}`]: {
-        borderColor: GREY,
+      '& legend': {
+        paddingRight: '1.2em',
       },
     },
+  },
+});
 
-    [`&.${inputClasses.focused}`]: {
-      color: TEXT,
-
-      [`& .${outlinedInputClasses.notchedOutline}`]: {
-        borderColor: BLUE,
-
-        '& legend': {
-          paddingRight: '1.2em',
-        },
-      },
-    },
+const StyledSelect = styled(Select)({
+  [`& .${selectClasses.icon}`]: {
+    color: GREY,
   },
 });
 
@@ -93,38 +101,55 @@ const FileInfo = (
     onChange,
   }: FileInfoProps = FILE_INFO_DEFAULT_PROPS as FileInfoProps,
 ): JSX.Element => {
+  const idExtension = uuidv4();
+
+  const fileNameElementId = `file-name-${idExtension}`;
+  const fileNameElementLabel = 'File name';
+
+  const fileTypeElementId = `file-type-${idExtension}`;
+  const fileTypeElementLabel = 'File type';
+
   return (
-    <FormControl>
-      <StyledTextField
-        defaultValue={fileName}
-        disabled={isReadonly}
-        id="file-name"
-        label="File name"
-        onChange={({ target: { value } }) =>
-          onChange?.call(null, { fileName: value })
-        }
-      />
-      {fileType && (
-        <Select
-          defaultValue={fileType}
+    <FormGroup sx={{ '> :not(:first-child)': { marginTop: '1em' } }}>
+      <FormControl>
+        <StyledInputLabel htmlFor={fileNameElementId} variant="outlined">
+          {fileNameElementLabel}
+        </StyledInputLabel>
+        <StyledOutlinedInput
+          defaultValue={fileName}
           disabled={isReadonly}
-          id="file-type"
-          label="File type"
+          id={fileNameElementId}
+          label={fileNameElementLabel}
           onChange={({ target: { value } }) =>
-            onChange?.call(null, { fileType: value as FileType })
+            onChange?.call(null, { fileName: value })
           }
-          sx={{ color: TEXT }}
-        >
-          {UPLOAD_FILE_TYPES_ARRAY.map(
-            ([fileTypeKey, [, fileTypeDisplayString]]) => {
-              return (
-                <MenuItem key={fileTypeKey} value={fileTypeKey}>
-                  {fileTypeDisplayString}
-                </MenuItem>
-              );
-            },
-          )}
-        </Select>
+        />
+      </FormControl>
+      {fileType && (
+        <FormControl>
+          <StyledInputLabel htmlFor={fileTypeElementId} variant="outlined">
+            {fileTypeElementLabel}
+          </StyledInputLabel>
+          <StyledSelect
+            defaultValue={fileType}
+            disabled={isReadonly}
+            id={fileTypeElementId}
+            input={<StyledOutlinedInput label={fileTypeElementLabel} />}
+            onChange={({ target: { value } }) =>
+              onChange?.call(null, { fileType: value as FileType })
+            }
+          >
+            {UPLOAD_FILE_TYPES_ARRAY.map(
+              ([fileTypeKey, [, fileTypeDisplayString]]) => {
+                return (
+                  <MenuItem key={fileTypeKey} value={fileTypeKey}>
+                    {fileTypeDisplayString}
+                  </MenuItem>
+                );
+              },
+            )}
+          </StyledSelect>
+        </FormControl>
       )}
       {fileLocations.map(
         (
@@ -154,7 +179,7 @@ const FileInfo = (
           />
         ),
       )}
-    </FormControl>
+    </FormGroup>
   );
 };
 
