@@ -6,12 +6,13 @@ import {
 } from 'react';
 import { Box, Checkbox, checkboxClasses } from '@mui/material';
 
-import { GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
 import FileInfo from './FileInfo';
 import fetchJSON from '../../lib/fetchers/fetchJSON';
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
 import StyledContainedButton from './StyledContainedButton';
+import Spinner from '../Spinner';
 
 type FileEditProps = {
   filesOverview: FileOverviewMetadata[];
@@ -24,6 +25,9 @@ type FileToEdit = FileDetailMetadata & {
 
 const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
   const [filesToEdit, setFilesToEdit] = useState<FileToEdit[]>([]);
+  const [isLoadingFilesToEdit, setIsLoadingFilesToEdit] = useState<boolean>(
+    false,
+  );
 
   const generateFileInfoChangeHandler = (
     fileIndex: number,
@@ -73,6 +77,8 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
   };
 
   useEffect(() => {
+    setIsLoadingFilesToEdit(true);
+
     Promise.all(
       filesOverview.map(async (fileOverview: FileOverviewMetadata) => {
         const fileToEdit: FileToEdit = {
@@ -114,53 +120,88 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
 
         return fileToEdit;
       }),
-    ).then((fetchedFilesDetail) => setFilesToEdit(fetchedFilesDetail));
+    ).then((fetchedFilesDetail) => {
+      setFilesToEdit(fetchedFilesDetail);
+      setIsLoadingFilesToEdit(false);
+    });
   }, [filesOverview]);
 
   return (
-    <form onSubmit={editFiles}>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        {filesToEdit.map(
-          ({ fileName, fileLocations, fileType, fileUUID }, fileIndex) => (
-            <Box
-              key={`file-edit-${fileUUID}`}
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                '& > :last-child': {
-                  flexGrow: 1,
-                },
-              }}
-            >
-              <Checkbox
-                onChange={({ target: { checked } }) => {
-                  filesToEdit[fileIndex].isSelected = checked;
-                }}
-                sx={{
-                  color: GREY,
+    <>
+      {isLoadingFilesToEdit ? (
+        <Spinner />
+      ) : (
+        <form onSubmit={editFiles}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              '& > :not(:first-child)': { marginTop: '1em' },
+            }}
+          >
+            {filesToEdit.map(
+              ({ fileName, fileLocations, fileType, fileUUID }, fileIndex) => (
+                <Box
+                  key={`file-edit-${fileUUID}`}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    '& > :last-child': {
+                      flexGrow: 1,
+                    },
+                  }}
+                >
+                  <Box sx={{ marginTop: '.4em' }}>
+                    <Checkbox
+                      onChange={({ target: { checked } }) => {
+                        filesToEdit[fileIndex].isSelected = checked;
+                      }}
+                      sx={{
+                        color: GREY,
 
-                  [`&.${checkboxClasses.checked}`]: {
-                    color: TEXT,
+                        [`&.${checkboxClasses.checked}`]: {
+                          color: TEXT,
+                        },
+                      }}
+                    />
+                  </Box>
+                  <FileInfo
+                    {...{ fileName, fileType, fileLocations }}
+                    onChange={generateFileInfoChangeHandler(fileIndex)}
+                  />
+                </Box>
+              ),
+            )}
+            {filesToEdit.length > 0 && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  '& > :not(:last-child)': {
+                    marginRight: '.5em',
                   },
                 }}
-              />
-              <FileInfo
-                {...{ fileName, fileType, fileLocations }}
-                onChange={generateFileInfoChangeHandler(fileIndex)}
-              />
-            </Box>
-          ),
-        )}
-        {filesToEdit.length > 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'row' }}>
-            <StyledContainedButton onClick={purgeFiles}>
-              Purge
-            </StyledContainedButton>
-            <StyledContainedButton type="submit">Update</StyledContainedButton>
+              >
+                <StyledContainedButton
+                  onClick={purgeFiles}
+                  sx={{
+                    backgroundColor: RED,
+                    color: TEXT,
+                    '&:hover': { backgroundColor: RED },
+                  }}
+                >
+                  Purge
+                </StyledContainedButton>
+                <StyledContainedButton type="submit">
+                  Update
+                </StyledContainedButton>
+              </Box>
+            )}
           </Box>
-        )}
-      </Box>
-    </form>
+        </form>
+      )}
+    </>
   );
 };
 

@@ -15,9 +15,10 @@ const StyledButton = styled(Button)({
 const StyledContainedButton = ({
   children,
   onClick,
+  sx,
   type,
 }: ButtonProps): JSX.Element => (
-  <StyledButton {...{ onClick, type }} variant="contained">
+  <StyledButton {...{ onClick, sx, type }} variant="contained">
     {children}
   </StyledButton>
 );
