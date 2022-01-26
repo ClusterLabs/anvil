@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Box, Button, Input, InputLabel } from '@mui/material';
+import { Box, Input, InputLabel } from '@mui/material';
 import EventEmitter from 'events';
 
 import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
@@ -14,6 +14,7 @@ import FileInfo from './FileInfo';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
+import StyledContainedButton from './StyledContainedButton';
 
 type FileUploadFormProps = {
   onFileUploadComplete?: () => void;
@@ -146,7 +147,13 @@ const FileUploadForm = (
 
   return (
     <form onSubmit={uploadFiles}>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          '> :not(:first-child)': { marginTop: '1em' },
+        }}
+      >
         <InputLabel htmlFor="select-file">
           <Input
             id="select-file"
@@ -202,9 +209,7 @@ const FileUploadForm = (
           ),
         )}
         {selectedFiles.length > 0 && (
-          <Button sx={{ textTransform: 'none' }} type="submit">
-            <BodyText text="Upload" />
-          </Button>
+          <StyledContainedButton type="submit">Upload</StyledContainedButton>
         )}
       </Box>
     </form>

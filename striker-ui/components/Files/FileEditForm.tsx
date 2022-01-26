@@ -4,14 +4,14 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Box, Button, Checkbox, checkboxClasses } from '@mui/material';
+import { Box, Checkbox, checkboxClasses } from '@mui/material';
 
 import { GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
-import { BodyText } from '../Text';
 import FileInfo from './FileInfo';
 import fetchJSON from '../../lib/fetchers/fetchJSON';
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
+import StyledContainedButton from './StyledContainedButton';
 
 type FileEditProps = {
   filesOverview: FileOverviewMetadata[];
@@ -127,6 +127,9 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
+                '& > :last-child': {
+                  flexGrow: 1,
+                },
               }}
             >
               <Checkbox
@@ -142,9 +145,7 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
                 }}
               />
               <FileInfo
-                fileName={fileName}
-                fileType={fileType}
-                fileLocations={fileLocations}
+                {...{ fileName, fileType, fileLocations }}
                 onChange={generateFileInfoChangeHandler(fileIndex)}
               />
             </Box>
@@ -152,12 +153,10 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
         )}
         {filesToEdit.length > 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'row' }}>
-            <Button onClick={purgeFiles} sx={{ textTransform: 'none' }}>
-              <BodyText text="Purge" />
-            </Button>
-            <Button sx={{ textTransform: 'none' }} type="submit">
-              <BodyText text="Update" />
-            </Button>
+            <StyledContainedButton onClick={purgeFiles}>
+              Purge
+            </StyledContainedButton>
+            <StyledContainedButton type="submit">Update</StyledContainedButton>
           </Box>
         )}
       </Box>
