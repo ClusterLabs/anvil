@@ -18,7 +18,7 @@ import StyledContainedButton from './StyledContainedButton';
 
 type FileUploadFormProps = {
   onFileUploadComplete?: () => void;
-  openFilePickerEventEmitter?: EventEmitter;
+  eventEmitter?: EventEmitter;
 };
 
 type SelectedFile = Pick<
@@ -34,13 +34,13 @@ type InUploadFile = Pick<FileDetailMetadata, 'fileName'> & {
 
 const FILE_UPLOAD_FORM_DEFAULT_PROPS: Partial<FileUploadFormProps> = {
   onFileUploadComplete: undefined,
-  openFilePickerEventEmitter: undefined,
+  eventEmitter: undefined,
 };
 
 const FileUploadForm = (
   {
     onFileUploadComplete,
-    openFilePickerEventEmitter,
+    eventEmitter,
   }: FileUploadFormProps = FILE_UPLOAD_FORM_DEFAULT_PROPS as FileUploadFormProps,
 ): JSX.Element => {
   const selectFileRef = useRef<HTMLInputElement>();
@@ -140,30 +140,28 @@ const FileUploadForm = (
   };
 
   useEffect(() => {
-    openFilePickerEventEmitter?.addListener('open', () => {
+    eventEmitter?.addListener('openFilePicker', () => {
       selectFileRef.current?.click();
     });
-  }, [openFilePickerEventEmitter]);
+
+    eventEmitter?.addListener('clearSelectedFiles', () => {
+      setSelectedFiles([]);
+    });
+  }, [eventEmitter]);
 
   return (
     <form onSubmit={uploadFiles}>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          '> :not(:first-child)': { marginTop: '1em' },
-        }}
-      >
-        <InputLabel htmlFor="select-file">
-          <Input
-            id="select-file"
-            inputProps={{ multiple: true }}
-            onChange={autocompleteAfterSelectFile}
-            ref={selectFileRef}
-            sx={{ display: 'none' }}
-            type="file"
-          />
-        </InputLabel>
+      <InputLabel htmlFor="select-file">
+        <Input
+          id="select-file"
+          inputProps={{ multiple: true }}
+          onChange={autocompleteAfterSelectFile}
+          ref={selectFileRef}
+          sx={{ display: 'none' }}
+          type="file"
+        />
+      </InputLabel>
+      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         {inUploadFiles.map(({ fileName, progressValue }) => (
           <Box
             key={`in-upload-${fileName}`}
@@ -187,6 +185,14 @@ const FileUploadForm = (
             <ProgressBar progressPercentage={progressValue} />
           </Box>
         ))}
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          '& > :not(:first-child)': { marginTop: '1em' },
+        }}
+      >
         {selectedFiles.map(
           (
             {
@@ -209,7 +215,15 @@ const FileUploadForm = (
           ),
         )}
         {selectedFiles.length > 0 && (
-          <StyledContainedButton type="submit">Upload</StyledContainedButton>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <StyledContainedButton type="submit">Upload</StyledContainedButton>
+          </Box>
         )}
       </Box>
     </form>

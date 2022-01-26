@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Box, IconButton } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Check as CheckIcon,
+  Edit as EditIcon,
+} from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import EventEmitter from 'events';
 
+import { BLUE } from '../../lib/consts/DEFAULT_THEME';
 import ICON_BUTTON_STYLE from '../../lib/consts/ICON_BUTTON_STYLE';
 
 import { Panel } from '../Panels';
@@ -12,22 +17,8 @@ import { HeaderText } from '../Text';
 import FileList from './FileList';
 import FileUploadForm from './FileUploadForm';
 import FileEditForm from './FileEditForm';
+
 import fetchJSON from '../../lib/fetchers/fetchJSON';
-
-const PREFIX = 'Files';
-
-const classes = {
-  addFileButton: `${PREFIX}-addFileButton`,
-  addFileInput: `${PREFIX}-addFileInput`,
-};
-
-const StyledDiv = styled('div')(() => ({
-  [`& .${classes.addFileButton}`]: ICON_BUTTON_STYLE,
-
-  [`& .${classes.addFileInput}`]: {
-    display: 'none',
-  },
-}));
 
 const StyledIconButton = styled(IconButton)(ICON_BUTTON_STYLE);
 
@@ -39,13 +30,15 @@ const Files = (): JSX.Element => {
   ] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
-  const openFilePickerEventEmitter: EventEmitter = new EventEmitter();
+  const fileUploadFormEventEmitter: EventEmitter = new EventEmitter();
 
   const onAddFileButtonClick = () => {
-    openFilePickerEventEmitter.emit('open');
+    fileUploadFormEventEmitter.emit('openFilePicker');
   };
 
   const onEditFileButtonClick = () => {
+    fileUploadFormEventEmitter.emit('clearSelectedFiles');
+
     setIsEditMode(!isEditMode);
   };
 
@@ -55,21 +48,19 @@ const Files = (): JSX.Element => {
       elements = <Spinner />;
     } else {
       const filesOverview: FileOverviewMetadata[] = rawFilesOverview.map(
-        ([fileUUID, fileName, fileSizeInBytes, fileType, fileChecksum]) => {
-          return {
-            fileChecksum,
-            fileName,
-            fileSizeInBytes: parseInt(fileSizeInBytes, 10),
-            fileType: fileType as FileType,
-            fileUUID,
-          };
-        },
+        ([fileUUID, fileName, fileSizeInBytes, fileType, fileChecksum]) => ({
+          fileChecksum,
+          fileName,
+          fileSizeInBytes: parseInt(fileSizeInBytes, 10),
+          fileType: fileType as FileType,
+          fileUUID,
+        }),
       );
 
       elements = isEditMode ? (
-        <FileEditForm filesOverview={filesOverview} />
+        <FileEditForm {...{ filesOverview }} />
       ) : (
-        <FileList filesOverview={filesOverview} />
+        <FileList {...{ filesOverview }} />
       );
     }
 
@@ -95,30 +86,36 @@ const Files = (): JSX.Element => {
 
   return (
     <Panel>
-      <StyledDiv>
-        <Box style={{ display: 'flex', width: '100%' }}>
-          <Box style={{ flexGrow: 1 }}>
-            <HeaderText text="Files" />
-          </Box>
-          <Box>
-            <StyledIconButton onClick={onAddFileButtonClick}>
-              <AddIcon />
-            </StyledIconButton>
-          </Box>
-          <Box>
-            <StyledIconButton onClick={onEditFileButtonClick}>
-              <EditIcon />
-            </StyledIconButton>
-          </Box>
-        </Box>
-        <FileUploadForm
-          onFileUploadComplete={() => {
-            fetchRawFilesOverview();
-          }}
-          openFilePickerEventEmitter={openFilePickerEventEmitter}
-        />
-        {buildFileList()}
-      </StyledDiv>
+      <Box
+        sx={{
+          alignItems: 'center',
+          display: 'flex',
+          flexDirection: 'row',
+          marginBottom: '1em',
+          width: '100%',
+          '& > :first-child': { flexGrow: 1 },
+          '& > :not(:first-child, :last-child)': {
+            marginRight: '.3em',
+          },
+        }}
+      >
+        <HeaderText text="Files" />
+        {!isEditMode && (
+          <StyledIconButton onClick={onAddFileButtonClick}>
+            <AddIcon />
+          </StyledIconButton>
+        )}
+        <StyledIconButton onClick={onEditFileButtonClick}>
+          {isEditMode ? <CheckIcon sx={{ color: BLUE }} /> : <EditIcon />}
+        </StyledIconButton>
+      </Box>
+      <FileUploadForm
+        {...{ eventEmitter: fileUploadFormEventEmitter }}
+        onFileUploadComplete={() => {
+          fetchRawFilesOverview();
+        }}
+      />
+      {buildFileList()}
     </Panel>
   );
 };
