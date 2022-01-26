@@ -1,8 +1,13 @@
 import { createTheme, Theme } from '@mui/material';
 import { switchClasses } from '@mui/material/Switch';
+
 import '@fontsource/roboto-condensed/300.css';
 import '@fontsource/roboto-condensed/400.css';
 import '@fontsource/roboto-condensed/700.css';
+
+import '@fontsource/source-code-pro/300.css';
+import '@fontsource/source-code-pro/400.css';
+import '@fontsource/source-code-pro/700.css';
 
 import {
   PANEL_BACKGROUND,
@@ -26,7 +31,7 @@ const theme: Theme = createTheme({
     },
   },
   typography: {
-    fontFamily: ['"Roboto Condensed"'].join(','),
+    fontFamily: ['"Roboto Condensed"', '"Source Code Pro"'].join(','),
     fontWeightRegular: 200,
     fontSize: 14,
   },
