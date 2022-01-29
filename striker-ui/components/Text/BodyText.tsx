@@ -1,5 +1,5 @@
-import { Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { styled, Typography, TypographyProps } from '@mui/material';
+
 import { TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
 const PREFIX = 'BodyText';
@@ -19,16 +19,17 @@ const StyledTypography = styled(Typography)(() => ({
   },
 }));
 
-interface TextProps {
+type BodyTextProps = TypographyProps & {
   text: string;
   selected?: boolean;
-}
+};
 
-const BodyText = ({ text, selected }: TextProps): JSX.Element => {
+const BodyText = ({ sx, text, selected }: BodyTextProps): JSX.Element => {
   return (
     <StyledTypography
-      variant="subtitle1"
+      {...{ sx }}
       className={selected ? classes.selected : classes.unselected}
+      variant="subtitle1"
     >
       {text}
     </StyledTypography>

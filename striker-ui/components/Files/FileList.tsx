@@ -2,6 +2,7 @@ import { Box, Divider, List, ListItem } from '@mui/material';
 import * as prettyBytes from 'pretty-bytes';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 import { BodyText } from '../Text';
 
@@ -19,22 +20,28 @@ const FileList = ({ filesOverview }: FileListProps): JSX.Element => {
           });
 
           return (
-            <ListItem button key={fileUUID}>
+            <ListItem key={fileUUID} sx={{ padding: '.6em 0' }}>
               <Box
                 sx={{
                   display: 'flex',
-                  flexDirection: 'row',
+                  flexDirection: { xs: 'column', md: 'row' },
                   width: '100%',
                 }}
               >
-                <Box sx={{ p: 1, flexGrow: 1 }}>
+                <Box sx={{ flexGrow: 1 }}>
                   <Box
                     sx={{
                       display: 'flex',
                       flexDirection: 'row',
                     }}
                   >
-                    <BodyText text={fileName} />
+                    <BodyText
+                      sx={{
+                        fontFamily: 'Source Code Pro',
+                        fontWeight: 400,
+                      }}
+                      text={fileName}
+                    />
                     <Divider
                       flexItem
                       orientation="vertical"
@@ -44,7 +51,9 @@ const FileList = ({ filesOverview }: FileListProps): JSX.Element => {
                         marginRight: '.5em',
                       }}
                     />
-                    <BodyText text={fileType} />
+                    <BodyText
+                      text={UPLOAD_FILE_TYPES.get(fileType)?.[1] ?? ''}
+                    />
                   </Box>
                   <BodyText text={fileSize} />
                 </Box>
@@ -55,7 +64,13 @@ const FileList = ({ filesOverview }: FileListProps): JSX.Element => {
                     flexDirection: 'row',
                   }}
                 >
-                  <BodyText text={fileChecksum} />
+                  <BodyText
+                    sx={{
+                      fontFamily: 'Source Code Pro',
+                      fontWeight: 400,
+                    }}
+                    text={fileChecksum}
+                  />
                 </Box>
               </Box>
             </ListItem>
