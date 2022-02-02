@@ -16689,10 +16689,11 @@ sub _age_out_data
 	my $to_clean = {};
 	
 	# Power, temperatures, ip addresses and variables
-	$to_clean->{table}{temperature}{child_table}{temperature}{uuid_column}   = "temperature_uuid";
-	$to_clean->{table}{power}{child_table}{power}{uuid_column}               = "power_uuid";
-	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column} = "ip_address_uuid";
-	$to_clean->{table}{variables}{child_table}{variables}{uuid_column}       = "variable_uuid";
+	$to_clean->{table}{temperature}{child_table}{temperature}{uuid_column}               = "temperature_uuid";
+	$to_clean->{table}{power}{child_table}{power}{uuid_column}                           = "power_uuid";
+	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column}             = "ip_address_uuid";
+	$to_clean->{table}{variables}{child_table}{variables}{uuid_column}                   = "variable_uuid";
+	$to_clean->{table}{network_interfaces}{child_table}{network_interfaces}{uuid_column} = "network_interface_uuid";
 	
 	# scan_apc_pdu
 	$to_clean->{table}{scan_apc_pdus}{child_table}{scan_apc_pdu_phases}{uuid_column}    = "scan_apc_pdu_phase_uuid";

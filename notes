@@ -1,3 +1,29 @@
+# Configure APC PDUs and UPSes
+tcpip -i 10.201.2.3 -s 255.255.0.0 -g 10.201.255.254
+web -h enable
+web -s enable
+snmp -S enable -c1 private -a1 writeplus
+snmp -S enable -c2 public -a2 writeplus
+
+Anvil! to Anvil! live migration;
+1. Create LVs 
+2. Make sure /etc/hosts is populated
+3. If DR is used, disconnect first to stay within the max-peers=3
+3. Update dbrd config, A:1 -> A:2, A:1 -> B:1, B:1 -> B:2 (if both online and UpToDate, otherwise both from UpToDate)
+4. Create drbd md on new Anvil!
+5. drbdadm adjust on old nodes.
+6. Wait for DRBD resource to sync to node 1 (it can sync to node 2 later)
+7. Copy server's XML to new cluster
+8. pcs resource unmanage srv01-cs8
+9. Allow dual primary between A1:B1 (or A2:B1) - 
+[root@an-a01n01 ~]# pcs resource disable srv01-cs8
+Warning: 'srv01-cs8' is unmanaged
+[root@an-a01n01 ~]# pcs resource manage srv01-cs8
+[root@an-a01n01 ~]# pcs resource delete srv01-cs8
+Deleting Resource - srv01-cs8
+10. 
+
+
 TODO: 
 - Remove this; (step 2) "This is the user name that you will log into Striker as and the name of the user that owns the database"
 - Being set to the gateway, not the default DNS - "This is the domain name server(s) to use when resolving domain names. You can specify 2 or more, separated by commas."

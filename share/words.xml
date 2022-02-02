@@ -2075,6 +2075,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0681">Testing that our short host name resolves to one of our IP prior to starting the cluster.</key>
 		<key name="log_0682">Changing the ownership of: [#!variable!file!#] to be owned by: [#!variable!user!#:#!variable!user!#].</key>
 		<key name="log_0683">Enabling 'ping' for all users.</key>
+		<key name="log_0684">The network interface: [#!variable!nic!#] on the host: [#!variable!host!#] is recorded in the 'history.network_interfaces' table, but has not corresponding entry in the public table. Removing it.</key>
+		<key name="log_0685">[ Note ] - The network bridge: [#!variable!name!#] with 'bridge_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
