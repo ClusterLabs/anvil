@@ -413,6 +413,39 @@ sub check_network
 		check_firewall($anvil);
 	}
 	
+	# Check that all users can ping.
+	if (1)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{sysctl}." net.ipv4.ping_group_range";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+		
+		if ($output =~ /net.ipv4.ping_group_range = (\d+)\t(\d+)$/)
+		{
+			my $lowest_uid  = $1;
+			my $highest_uid = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				lowest_uid  => $lowest_uid,
+				highest_uid => $highest_uid, 
+			}});
+			
+			if ($highest_uid < 2000)
+			{
+				# Tell the user we're enabling ping for all users.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0683"});
+				
+				my $shell_call = $anvil->data->{path}{exe}{sysctl}." -w net.ipv4.ping_group_range=\"0	2147483647\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { output => $output }});
+				
+			}
+		}
+	}
+	
 	return(0);
 }
 

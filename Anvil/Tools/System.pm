@@ -1887,7 +1887,7 @@ LIMIT 1
 	if (not $has_ipmi)
 	{
 		# Return
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0499"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "err", key => "log_0499"});
 		return(0);
 	}
 

@@ -3500,7 +3500,12 @@ sub sanity_check_manifest_step3
 				# Is the IP valid?
 				if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$machine_ip_key}{value}, debug => 2}))
 				{
-					# Bad subnet
+					# Bad subnet. If this is DR IFN 1, and the value was empty, ignore it
+					# as there simply is no DR on this cluster.
+					if (($machine eq "dr1") && ($anvil->data->{cgi}{$machine_ip_key}{value} eq ""))
+					{
+						next;
+					}
 					my $say_network = "#!string!striker_0255!#";
 					if    ($machine eq "node2") { $say_network = "#!string!striker_0256!#"; }
 					elsif ($machine eq "dr1")   { $say_network = "#!string!striker_0257!#"; }

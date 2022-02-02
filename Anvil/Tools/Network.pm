@@ -2876,22 +2876,34 @@ sub ping
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	}
 	$shell_call .= " || ".$anvil->data->{path}{exe}{echo}." timeout";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
 	my $pinged            = 0;
 	my $average_ping_time = 0;
 	foreach my $try (1..$count)
 	{
 		last if $pinged;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count, try => $try }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			count => $count, 
+			try   => $try,
+		}});
 		
 		my $output = "";
 		my $error  = "";
 		
 		# If the 'target' is set, we'll call over SSH unless 'target' is our host name.
-		if ($anvil->Network->is_local({host => $target}))
+		my $is_local = $anvil->Network->is_local({host => $target});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			target   => $target, 
+			is_local => $is_local,
+		}});
+		if ($is_local)
 		{
 			### Local calls
-			($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
+			($output, my $return_code) = $anvil->System->call({
+				debug      => $debug, 
+				shell_call => $shell_call,
+			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 		}
 		else
