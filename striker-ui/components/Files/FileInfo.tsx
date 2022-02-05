@@ -7,6 +7,7 @@ import {
   InputLabel,
   inputLabelClasses,
   MenuItem,
+  menuItemClasses,
   OutlinedInput,
   outlinedInputClasses,
   Select,
@@ -84,6 +85,24 @@ const StyledSelect = styled(Select)({
   },
 });
 
+const StyledMenuItem = styled(MenuItem)({
+  backgroundColor: TEXT,
+  paddingRight: '3em',
+
+  [`&.${menuItemClasses.selected}`]: {
+    backgroundColor: GREY,
+    fontWeight: 400,
+
+    '&:hover': {
+      backgroundColor: GREY,
+    },
+  },
+
+  '&:hover': {
+    backgroundColor: GREY,
+  },
+});
+
 const FileLocationActiveCheckbox = styled(Checkbox)({
   color: RED,
 
@@ -142,9 +161,9 @@ const FileInfo = (
             {UPLOAD_FILE_TYPES_ARRAY.map(
               ([fileTypeKey, [, fileTypeDisplayString]]) => {
                 return (
-                  <MenuItem key={fileTypeKey} value={fileTypeKey}>
+                  <StyledMenuItem key={fileTypeKey} value={fileTypeKey}>
                     {fileTypeDisplayString}
-                  </MenuItem>
+                  </StyledMenuItem>
                 );
               },
             )}
