@@ -15691,6 +15691,16 @@ sub resync_databases
 		return(0);
 	}
 	
+	# If we're not a striker, don't resync ever.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		# Not a dashboard, don't resync
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0686"});
+		return(1);
+	}
+	
 	# If we're hosting servers, don't resync. Too high of a risk of oom-killer being triggered.
 	my $server_count = $anvil->Server->count_servers({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_count => $server_count }});
@@ -15699,6 +15709,9 @@ sub resync_databases
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0680", variables => { count => $server_count }});
 		return(0);
 	}
+	
+	# Before resync, age out the data in each DB
+	$anvil->Database->_age_out_data({debug => $debug});
 	
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.

@@ -502,6 +502,7 @@ The output, if any, was;
 		</key>
 		<key name="error_0355">Failed to load the database file: [#!variable!file!#]. Deleting it so it's not considered in the next load attempt.</key>
 		<key name="error_0356">Failed to read the kernel release on the host: [#!variable!target!#]. The return code was: [#!variable!return_code!#] (expected '0') and the release output, if any, was: [#!variable!output!#].</key>
+		<key name="error_0357">The program: [#!variable!program!#] is using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). This is probably caused by a memory leak, so we will now exit so that systemctl can restart us. If this is happening repeatedly, please contact support.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2077,6 +2078,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0683">Enabling 'ping' for all users.</key>
 		<key name="log_0684">The network interface: [#!variable!nic!#] on the host: [#!variable!host!#] is recorded in the 'history.network_interfaces' table, but has not corresponding entry in the public table. Removing it.</key>
 		<key name="log_0685">[ Note ] - The network bridge: [#!variable!name!#] with 'bridge_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
+		<key name="log_0686">Skipping resync, not a Striker dashboard.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3107,6 +3109,7 @@ We will sleep a bit and try again.
 		<key name="warning_0132">[ Warning ] - Failed to build or install the DRBD kernel module! It is very unlikely that this machine will be able to run any servers until this is fixed.</key>
 		<key name="warning_0133">[ Warning ] - Table: [history.#!variable!table!#] not found.</key>
 		<key name="warning_0134">[ Warning ] - Holding off starting the cluster. Tested access to ourself, and failed. Is '/etc/hosts' populated? Will try again in ten seconds.</key>
+		<key name="warning_0135">[ Warning ] - The program: [#!variable!program!#] was not found to be running.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
