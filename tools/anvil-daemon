@@ -609,6 +609,9 @@ sub handle_periodic_tasks
 					{
 						$first_uuid = $uuid; 
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
+						
+						# Skip the first UUID so it doesn't evaluate for shutdown.
+						next;
 					}
 					elsif ($uuid eq $host_uuid)
 					{
