@@ -16739,7 +16739,7 @@ sub _age_out_data
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
 		
 		# Does the table exist?
-		$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='scan_apc_pdus' AND schemaname='public';";
+		$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($table)." AND schemaname='public';";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
