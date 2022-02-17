@@ -10,11 +10,14 @@ import {
   MenuItem,
   Typography,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import CheckIcon from '@mui/icons-material/Check';
+import {
+  Add as AddIcon,
+  Check as CheckIcon,
+  Edit as EditIcon,
+  MoreVert as MoreVertIcon,
+} from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { Panel } from './Panels';
+import { Panel, PanelHeader } from './Panels';
 import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import { HeaderText, BodyText } from './Text';
 import {
@@ -227,16 +230,15 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   return (
     <Panel>
       <StyledDiv>
-        <Box className={classes.headerPadding} display="flex">
-          <Box flexGrow={1}>
-            <HeaderText text="Servers" />
-          </Box>
-          <Box className={classes.editButtonBox}>
-            <IconButton onClick={() => setShowCheckbox(!showCheckbox)}>
-              {showCheckbox ? <CheckIcon /> : <EditIcon />}
-            </IconButton>
-          </Box>
-        </Box>
+        <PanelHeader className={classes.headerPadding} sx={{ marginBottom: 0 }}>
+          <HeaderText text="Servers" />
+          <IconButton>
+            <AddIcon />
+          </IconButton>
+          <IconButton onClick={() => setShowCheckbox(!showCheckbox)}>
+            {showCheckbox ? <CheckIcon /> : <EditIcon />}
+          </IconButton>
+        </PanelHeader>
         {showCheckbox && (
           <>
             <Box className={classes.headerPadding} display="flex">
