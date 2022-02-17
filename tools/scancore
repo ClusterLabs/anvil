@@ -163,6 +163,9 @@ while(1)
 	# Clean up
 	cleanup_after_run($anvil);
 	
+	# Check how much RAM we're using.
+	check_ram($anvil);
+	
 	# Sleep until it's time to run again.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0249", variables => { 
 		run_interval => $run_interval,
@@ -180,6 +183,41 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# If we're using too much ram, send an alert and exit.
+sub check_ram
+{
+	my ($anvil) = @_;
+	
+	# Problem 0 == ok, 1 == too much ram used, 2 == no pid found
+	my ($problem, $ram_used) = $anvil->System->check_ram_use({program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		problem  => $problem, 
+		ram_used => $anvil->Convert->add_commas({number => $ram_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}).")", 
+	}});
+	if ($problem)
+	{
+		# Send an alert and exit.
+		$anvil->Alert->register({alert_level => "notice", message => "error_0357", variables => { 
+			program        => $THIS_FILE,
+			ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+			ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+		}, set_by => $THIS_FILE, sort_position => 0});
+		$anvil->Email->send_alerts();
+		
+		# Log the same
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0357", variables => { 
+			program        => $THIS_FILE,
+			ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+			ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+		}});
+		
+		# Exit with RC0 so that systemctl restarts 
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
 
 # This cleans things up after a scan run has completed.
 sub cleanup_after_run

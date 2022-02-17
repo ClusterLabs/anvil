@@ -771,10 +771,10 @@ mediawiki on EL8 install notes (starting from a minimal install);
 dnf module reset php
 dnf module enable php:7.4
 
-# PgSQL
+# All
 dnf install httpd php php-gd php-xml php-mbstring php-json \
             vim bash-completion wget tar rsync mlocate php-pecl-apcu \
-            memcached php-pear icu php-intl php-pgsql bzip2 
+            memcached php-pear icu php-intl php-pgsql bzip2 mod_ssl
 
 ### PostgreSQL
 dnf install postgresql-server postgresql-plperl 
@@ -783,7 +783,9 @@ systemctl start postgresql.service
 systemctl enable postgresql.service 
 
 ### MariaDB
-dnf install php-mysqlnd php-gd php-xml mariadb-server mariadb
+dnf install httpd php php-gd php-xml php-mbstring php-json \
+            php-mysqlnd php-gd php-xml mariadb-server mariadb \
+
 systemctl start mariadb
 mysql_secure_installation
 |Set root password? [Y/n] y
@@ -796,25 +798,25 @@ mysql_secure_installation
 |Reload privilege tables now? [Y/n] y
 mysql -u root -p
 ### In mariadb
-MariaDB [(none)]> CREATE DATABASE digimer_wiki;
-MariaDB [(none)]> CREATE USER 'digimer'@'localhost' IDENTIFIED BY 'Initial1';
-MariaDB [(none)]> GRANT ALL PRIVILEGES ON digimer_wiki.* TO 'digimer'@'localhost';
+MariaDB [(none)]> CREATE DATABASE an_wiki;
+MariaDB [(none)]> CREATE USER 'alteeve'@'localhost' IDENTIFIED BY 'experience tell mineral';
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON an_wiki.* TO 'alteeve'@'localhost';
 MariaDB [(none)]> FLUSH PRIVILEGES;
 MariaDB [(none)]> SHOW DATABASES;
 +--------------------+
 | Database           |
 +--------------------+
-| digimer_wiki       |
+| an_wiki       |
 | information_schema |
 | mysql              |
 | performance_schema |
 +--------------------+
-MariaDB [(none)]> SHOW GRANTS FOR 'digimer'@'localhost';
+MariaDB [(none)]> SHOW GRANTS FOR 'alteeve'@'localhost';
 +----------------------------------------------------------------------------------------------------------------+
 | Grants for digimer@localhost                                                                                   |
 +----------------------------------------------------------------------------------------------------------------+
 | GRANT USAGE ON *.* TO `digimer`@`localhost` IDENTIFIED BY PASSWORD '*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' |
-| GRANT ALL PRIVILEGES ON `digimer_wiki`.* TO `digimer`@`localhost`                                              |
+| GRANT ALL PRIVILEGES ON `an_wiki`.* TO `digimer`@`localhost`                                              |
 +----------------------------------------------------------------------------------------------------------------+
 MariaDB [(none)]> exit
 # Back to terminal
@@ -862,6 +864,38 @@ wget https://releases.wikimedia.org/mediawiki/1.37/mediawiki-1.37.1.tar.gz
 tar -xvzf mediawiki-1.37.1.tar.gz 
 cd /var/www/html
 ln -s ../mediawiki-1.37.1 ./w
+
+systemctl enable httpd.service
+systemctl enable memcached.service 
+systemctl start httpd.service 
+systemctl start memcached.service
+
+firewall-cmd --zone=public --add-service=http --permanent 
+firewall-cmd --zone=public --add-service=https --permanent 
+firewall-cmd --reload 
+
+### Certbot / Let's Encrypt
+# EPEL / snapd
+dnf config-manager --set-enabled powertools
+dnf install epel-release epel-next-release
+dnf install snapd
+systemctl enable --now snapd.socket
+ln -s /var/lib/snapd/snap /snap
+
+### Setup vhost
+# httpd.conf
+
+
+### Log out and back in to ensure snapd path
+# If the next step fails with "too early for operation, device not yet seeded or device model not acknowledged", restart snapd
+snap install core 
+snap refresh core
+snap install --classic certbot
+
+# certbot
+certbot --apache
+
+# answer questions
 
 ====
 
@@ -1256,6 +1290,33 @@ rs-striker03(config-vlan100)#interface range gi1/0/1-14,gi2/0/1-14
 rs-striker03(config-if)#switchport access vlan 100
 rs-striker03(config-if)#no shutdown 
 rs-striker03(config-if)#exit
+
+#### NOTE: Put IP on VID 1! 
+
+rs-switch03(config)#show vlan
+
+VLAN   Name                             Ports          Type
+-----  ---------------                  -------------  --------------
+1      default                          Po1-128,       Default
+                                        Gi1/0/1-12,
+                                        Te1/0/1-4,
+                                        Gi2/0/1-12,
+                                        Te2/0/1-4
+300    IFN1                             Gi1/0/13-24,   Static
+                                        Gi2/0/13-24
+
+rs-switch03(config)#interface vlan 1
+
+rs-switch03(config-if-vlan1)#ip address 10.201.1.3 255.255.0.0
+
+rs-switch03(config-if-vlan1)#exit     
+
+rs-switch03(config)#exit
+
+rs-switch03#copy running-config startup-config 
+
+###########################
+
 
 
 rs-striker03#show vlan 

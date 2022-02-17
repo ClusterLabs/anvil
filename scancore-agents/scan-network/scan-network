@@ -888,8 +888,8 @@ ORDER BY
 					my $queries = [];
 					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
-					push @{$queries}, "DELETE FROM history.bondss WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
-					push @{$queries}, "DELETE FROM bondss WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM history.bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					
@@ -920,8 +920,8 @@ ORDER BY
 					my $queries = [];
 					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
-					push @{$queries}, "DELETE FROM history.bondss WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
-					push @{$queries}, "DELETE FROM bondss WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM history.bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					
