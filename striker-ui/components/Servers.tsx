@@ -4,7 +4,6 @@ import {
   ListItem,
   Divider,
   Box,
-  IconButton,
   Button,
   Checkbox,
   Menu,
@@ -28,10 +27,10 @@ import {
   BLACK,
   LARGE_MOBILE_BREAKPOINT,
 } from '../lib/consts/DEFAULT_THEME';
-import ICON_BUTTON_STYLE from '../lib/consts/ICON_BUTTON_STYLE';
 import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
 import Decorator, { Colours } from './Decorator';
+import IconButton from './IconButton';
 import Spinner from './Spinner';
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 
@@ -49,7 +48,6 @@ const classes = {
   hostBox: `${PREFIX}-hostBox`,
   checkbox: `${PREFIX}-checkbox`,
   serverActionButton: `${PREFIX}-serverActionButton`,
-  editButton: `${PREFIX}-editButton`,
   editButtonBox: `${PREFIX}-editButtonBox`,
   dropdown: `${PREFIX}-dropdown`,
   power: `${PREFIX}-power`,
@@ -111,8 +109,6 @@ const StyledDiv = styled('div')(({ theme }) => ({
       backgroundColor: GREY,
     },
   },
-
-  [`& .${classes.editButton}`]: ICON_BUTTON_STYLE,
 
   [`& .${classes.editButtonBox}`]: {
     paddingTop: '.3em',
@@ -236,10 +232,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
             <HeaderText text="Servers" />
           </Box>
           <Box className={classes.editButtonBox}>
-            <IconButton
-              className={classes.editButton}
-              onClick={() => setShowCheckbox(!showCheckbox)}
-            >
+            <IconButton onClick={() => setShowCheckbox(!showCheckbox)}>
               {showCheckbox ? <CheckIcon /> : <EditIcon />}
             </IconButton>
           </Box>
