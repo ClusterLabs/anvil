@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { Box, Checkbox, checkboxClasses } from '@mui/material';
 
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
 import FileInfo from './FileInfo';
@@ -88,10 +89,7 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
 
         try {
           const data = await fetchJSON<string[][]>(
-            `${process.env.NEXT_PUBLIC_API_URL?.replace(
-              '/cgi-bin',
-              '/api',
-            )}/files/${fileOverview.fileUUID}`,
+            `${API_BASE_URL}/files/${fileOverview.fileUUID}`,
           );
 
           fileToEdit.fileLocations = data.map(

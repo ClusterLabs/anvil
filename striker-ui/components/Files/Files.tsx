@@ -8,12 +8,13 @@ import {
 import { styled } from '@mui/material/styles';
 import EventEmitter from 'events';
 
-import { BLUE } from '../../lib/consts/DEFAULT_THEME';
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
 import ICON_BUTTON_STYLE from '../../lib/consts/ICON_BUTTON_STYLE';
 
 import { Panel } from '../Panels';
 import Spinner from '../Spinner';
-import { HeaderText } from '../Text';
+import { BodyText, HeaderText } from '../Text';
 import FileList from './FileList';
 import FileUploadForm from './FileUploadForm';
 import FileEditForm from './FileEditForm';
@@ -22,8 +23,28 @@ import fetchJSON from '../../lib/fetchers/fetchJSON';
 
 const StyledIconButton = styled(IconButton)(ICON_BUTTON_STYLE);
 
+const MESSAGE_BOX_CLASS_PREFIX = 'MessageBox';
+
+const MESSAGE_BOX_CLASSES = {
+  error: `${MESSAGE_BOX_CLASS_PREFIX}-error`,
+  warning: `${MESSAGE_BOX_CLASS_PREFIX}-warning`,
+};
+
+const MessageBox = styled(Box)({
+  padding: '.2em .4em',
+
+  [`&.${MESSAGE_BOX_CLASSES.error}`]: {
+    backgroundColor: RED,
+  },
+
+  [`&.${MESSAGE_BOX_CLASSES.warning}`]: {
+    backgroundColor: PURPLE,
+  },
+});
+
 const Files = (): JSX.Element => {
   const [rawFilesOverview, setRawFilesOverview] = useState<string[][]>([]);
+  const [fetchRawFilesError, setFetchRawFilesError] = useState<string>();
   const [
     isLoadingRawFilesOverview,
     setIsLoadingRawFilesOverview,
@@ -70,11 +91,13 @@ const Files = (): JSX.Element => {
   const fetchRawFilesOverview = async () => {
     setIsLoadingRawFilesOverview(true);
 
-    const data = await fetchJSON<string[][]>(
-      `${process.env.NEXT_PUBLIC_API_URL?.replace('/cgi-bin', '/api')}/files`,
-    );
+    try {
+      const data = await fetchJSON<string[][]>(`${API_BASE_URL}/files`);
+      setRawFilesOverview(data);
+    } catch (fetchError) {
+      setFetchRawFilesError('Failed to get files due to a network issue.');
+    }
 
-    setRawFilesOverview(data);
     setIsLoadingRawFilesOverview(false);
   };
 
@@ -109,6 +132,11 @@ const Files = (): JSX.Element => {
           {isEditMode ? <CheckIcon sx={{ color: BLUE }} /> : <EditIcon />}
         </StyledIconButton>
       </Box>
+      {fetchRawFilesError && (
+        <MessageBox className={MESSAGE_BOX_CLASSES.error}>
+          <BodyText text={fetchRawFilesError} />
+        </MessageBox>
+      )}
       <FileUploadForm
         {...{ eventEmitter: fileUploadFormEventEmitter }}
         onFileUploadComplete={() => {
