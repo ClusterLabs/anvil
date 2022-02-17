@@ -199,7 +199,7 @@ sub agent_startup
 	if (($anvil->data->{scancore}{$agent}{disable}) && (not $anvil->data->{switches}{force}))
 	{
 		# Exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $THIS_FILE }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $agent }});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	

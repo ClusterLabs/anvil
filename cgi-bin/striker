@@ -6451,6 +6451,7 @@ sub process_power
 		my $job_description = "job_0006";
 		my $say_title       = "#!string!job_0005!#";
 		my $say_description = "#!string!job_0006!#";
+		my $say_reason      = "log_0199";
 		if ($task eq "poweroff")
 		{
 			$job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --poweroff -y".$anvil->Log->switches;
@@ -6458,7 +6459,9 @@ sub process_power
 			$job_description = "job_0008";
 			$say_title       = "#!string!job_0007!#";
 			$say_description = "#!string!job_0008!#";
+			$say_reason      = "log_0200";
 		}
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => $say_reason }});
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			file            => $THIS_FILE, 
 			line            => __LINE__, 

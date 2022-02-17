@@ -246,6 +246,9 @@ while(1)
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
+	# Check how much RAM we're using.
+	check_ram($anvil);
+	
 	# Disconnect from the database(s) and sleep now.
 	$anvil->Database->disconnect();
 	sleep(2);
@@ -257,6 +260,41 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# If we're using too much ram, send an alert and exit.
+sub check_ram
+{
+	my ($anvil) = @_;
+	
+	# Problem 0 == ok, 1 == too much ram used, 2 == no pid found
+	my ($problem, $ram_used) = $anvil->System->check_ram_use({program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		problem  => $problem, 
+		ram_used => $anvil->Convert->add_commas({number => $ram_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}).")", 
+	}});
+	if ($problem)
+	{
+		# Send an alert and exit.
+		$anvil->Alert->register({alert_level => "notice", message => "error_0357", variables => { 
+			program        => $THIS_FILE,
+			ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+			ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+		}, set_by => $THIS_FILE, sort_position => 0});
+		$anvil->Email->send_alerts();
+		
+		# Log the same
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0357", variables => { 
+			program        => $THIS_FILE,
+			ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+			ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+		}});
+		
+		# Exit with RC0 so that systemctl restarts 
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
 
 # Check to see if we're mapping the network on this host.
 sub check_if_mapping
@@ -571,6 +609,9 @@ sub handle_periodic_tasks
 					{
 						$first_uuid = $uuid; 
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
+						
+						# Skip the first UUID so it doesn't evaluate for shutdown.
+						next;
 					}
 					elsif ($uuid eq $host_uuid)
 					{
@@ -1291,7 +1332,7 @@ sub prep_database
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			prep_database                => $prep_database,
-			"sys}{database}{connections" => $anvil->data->{sys}{database}{connections}, 
+			"sys::database::connections" => $anvil->data->{sys}{database}{connections}, 
 		}});
 		if ($prep_database)
 		{

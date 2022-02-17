@@ -1425,7 +1425,7 @@ sub striker_stage1
 {
 	my ($anvil) = @_;
 	
-	### TODO: Validate all steps up front before starting anything.
+	# Validate
 	if ((not defined $anvil->data->{base}{organization_name}) or (not $anvil->data->{base}{organization_name}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0243", variables => { variable => 'base::organization_name' }});
