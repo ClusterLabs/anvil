@@ -66,7 +66,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-interface PreviewProps {
+interface FullSizeProps {
   setMode: Dispatch<SetStateAction<boolean>>;
   uuid: string;
   serverName: string | string[] | undefined;
@@ -77,7 +77,11 @@ interface VncConnectionProps {
   forward_port: number;
 }
 
-const FullSize = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
+const FullSize = ({
+  setMode,
+  uuid,
+  serverName,
+}: FullSizeProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>();
   const hostname = useRef<string | undefined>(undefined);
