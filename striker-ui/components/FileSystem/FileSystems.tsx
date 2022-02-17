@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { BodyText, HeaderText } from '../Text';
-import { Panel, InnerPanel, PanelHeader } from '../Panels';
+import { Panel, InnerPanel, InnerPanelHeader } from '../Panels';
 import SharedStorageHost from './FileSystemsHost';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
@@ -48,7 +48,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
               data.file_systems.map(
                 (fs: AnvilFileSystem): JSX.Element => (
                   <InnerPanel key={fs.mount_point}>
-                    <PanelHeader>
+                    <InnerPanelHeader>
                       <Box
                         display="flex"
                         width="100%"
@@ -58,7 +58,7 @@ const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                           <BodyText text={fs.mount_point} />
                         </Box>
                       </Box>
-                    </PanelHeader>
+                    </InnerPanelHeader>
                     {fs?.hosts &&
                       fs.hosts.map(
                         (

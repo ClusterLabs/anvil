@@ -1,9 +1,9 @@
 import { ReactNode } from 'react';
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { Box, styled } from '@mui/material';
+
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
-const PREFIX = 'PanelHeader';
+const PREFIX = 'InnerPanelHeader';
 
 const classes = {
   header: `${PREFIX}-header`,
@@ -32,7 +32,7 @@ type Props = {
   children: ReactNode;
 };
 
-const PanelHeader = ({ children }: Props): JSX.Element => {
+const InnerPanelHeader = ({ children }: Props): JSX.Element => {
   return (
     <StyledBox>
       <div className={classes.header} />
@@ -41,4 +41,4 @@ const PanelHeader = ({ children }: Props): JSX.Element => {
   );
 };
 
-export default PanelHeader;
+export default InnerPanelHeader;

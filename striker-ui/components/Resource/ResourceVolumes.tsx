@@ -2,7 +2,7 @@ import * as prettyBytes from 'pretty-bytes';
 import { Box, Divider } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import InsertLinkIcon from '@mui/icons-material/InsertLink';
-import { InnerPanel, PanelHeader } from '../Panels';
+import { InnerPanel, InnerPanelHeader } from '../Panels';
 import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
@@ -78,7 +78,7 @@ const ResourceVolumes = ({
         resource.volumes.map((volume) => {
           return (
             <InnerPanel key={volume.drbd_device_minor}>
-              <PanelHeader>
+              <InnerPanelHeader>
                 <Box display="flex" width="100%" className={classes.header}>
                   <Box flexGrow={1}>
                     <BodyText text={`Volume: ${volume.number}`} />
@@ -91,7 +91,7 @@ const ResourceVolumes = ({
                     />
                   </Box>
                 </Box>
-              </PanelHeader>
+              </InnerPanelHeader>
               {volume.connections.map(
                 (connection, index): JSX.Element => {
                   return (

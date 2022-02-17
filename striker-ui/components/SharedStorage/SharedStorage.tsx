@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { BodyText, HeaderText } from '../Text';
-import { Panel, InnerPanel, PanelHeader } from '../Panels';
+import { Panel, InnerPanel, InnerPanelHeader } from '../Panels';
 import SharedStorageHost from './SharedStorageHost';
 import PeriodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
@@ -49,7 +49,7 @@ const SharedStorage = (): JSX.Element => {
               data.storage_groups.map(
                 (storageGroup: AnvilSharedStorageGroup): JSX.Element => (
                   <InnerPanel key={storageGroup.storage_group_uuid}>
-                    <PanelHeader>
+                    <InnerPanelHeader>
                       <Box
                         display="flex"
                         width="100%"
@@ -59,7 +59,7 @@ const SharedStorage = (): JSX.Element => {
                           <BodyText text={storageGroup.storage_group_name} />
                         </Box>
                       </Box>
-                    </PanelHeader>
+                    </InnerPanelHeader>
                     <SharedStorageHost
                       group={storageGroup}
                       key={storageGroup.storage_group_uuid}

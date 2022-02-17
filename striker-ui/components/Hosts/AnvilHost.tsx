@@ -1,6 +1,6 @@
 import { Box, Switch } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { InnerPanel, PanelHeader } from '../Panels';
+import { InnerPanel, InnerPanelHeader } from '../Panels';
 import { ProgressBar } from '../Bars';
 import { BodyText } from '../Text';
 import Decorator, { Colours } from '../Decorator';
@@ -91,7 +91,7 @@ const AnvilHost = ({
             // TODO: figure out why there are undefined host entries.
             return host ? (
               <InnerPanel key={host.host_uuid}>
-                <PanelHeader>
+                <InnerPanelHeader>
                   <Box display="flex" width="100%" className={classes.header}>
                     <Box flexGrow={1}>
                       <BodyText text={host.host_name} />
@@ -109,7 +109,7 @@ const AnvilHost = ({
                       />
                     </Box>
                   </Box>
-                </PanelHeader>
+                </InnerPanelHeader>
                 <Box display="flex" className={classes.state}>
                   <Box className={classes.label}>
                     <BodyText text="Power: " />
