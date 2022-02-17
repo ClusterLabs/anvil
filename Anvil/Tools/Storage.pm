@@ -2177,6 +2177,7 @@ sub get_storage_group_from_path
 	}
 	
 	# Is this a DRBD path?
+	my $gathered_data  = 0;
 	my $logical_volume = "";
 	if ($path !~ /drbd/)
 	{
@@ -2188,8 +2189,9 @@ sub get_storage_group_from_path
 		# Looks like it. If the device path is '/dev/drbd/by-res/...' we'll need to pull out the 
 		# resource name (server name) and volume number as the path only actually exists when DRBD is
 		# up and isn't referenced in the config file.
-		my $resource = "";
-		my $volume   = "";
+		my $resource      = "";
+		my $volume        = "";
+		   $gathered_data = 1;
 		$anvil->DRBD->gather_data({debug => $debug});
 		if ($path =~ /\/dev\/drbd\/by-res\/(.*)\/(\d+)$/)
 		{
@@ -2342,10 +2344,13 @@ LIMIT 1
 				scan_drbd_resource_xml       => $scan_drbd_resource_xml, 
 			}});
 			
-			$anvil->DRBD->gather_data({
-				debug => 3,
-				xml   => $scan_drbd_resource_xml,
-			});
+			if (not $gathered_data)
+			{
+				$anvil->DRBD->gather_data({
+					debug => 3,
+					xml   => $scan_drbd_resource_xml,
+				});
+			}
 			
 			# Dig out the LV behind the volume.
 			foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}})

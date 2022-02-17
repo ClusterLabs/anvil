@@ -661,6 +661,7 @@ sub interactive_configure_main
 		print "[ 3 ] - Storage\n";
 		print "[ 4 ] - Network\n";
 		print "[ 5 ] - Boot Order\n";
+		print "[ 6 ] - Cluster Management\n";
 		print "\n";
 		print "[ B ] - Back\n";
 		print "[ Q ] - Quit\n";
@@ -694,6 +695,11 @@ sub interactive_configure_main
 		elsif ($answer eq "5")
 		{
 			print "Going to Boot order menu\n";
+			sleep 1;
+		}
+		elsif ($answer eq "6")
+		{
+			print "Going to cluster manager menu\n";
 			sleep 1;
 		}
 		elsif (lc($answer) eq "b")
@@ -815,7 +821,7 @@ sub interactive_configure_storage
 				}});
 				
 				my $this_storage_group_uuid = $anvil->Storage->get_storage_group_from_path({
-					debug      => 3,
+					debug      => 2,
 					anvil_uuid => $anvil_uuid,
 					path       => $this_path,
 				});

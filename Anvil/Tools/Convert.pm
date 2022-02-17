@@ -848,6 +848,12 @@ sub format_mmddyy_to_yymmdd
 		date => $date, 
 	}});
 	
+	# Sometimes we're passed '--' or '#!no_value!#' which is not strictly an error, so we'll return it back.
+	if (($date eq "--") or ($date eq "#!no_value!#"))
+	{
+		return($date);
+	}
+	
 	if (not $date)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->format_mmddyy_to_yymmdd()", parameter => "host_name" }});
@@ -905,7 +911,6 @@ sub host_name_to_ip
 	}
 	
 	### TODO: Check local cached information later.
-	
 	# Try to resolve it using 'gethostip'.
 	my $shell_call = $anvil->data->{path}{exe}{gethostip}." -d ".$host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});

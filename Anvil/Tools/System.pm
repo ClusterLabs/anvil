@@ -654,6 +654,159 @@ sub check_memory
 }
 
 
+=head2 check_ram_use
+
+This is meant to be used by daemons to check how much RAM it is using. It returns an anonymous array with the first value being C<< 0 >> if the in-use RAM is below the maximum, and C<< 1 >> it the in-use RAM is too high. The second value is the amount of RAM in use, in bytes. If the program is not found to be running, C<< 2, 0 >> is returned.
+
+ my ($problem, $used_ram) = $anvil->System->check_ram_use({
+ 	program => $THIS_FILE,
+ 	max_ram => 1073741824,
+ });
+
+Parameters;
+
+=head3 program (required)
+
+This is generally C<< $THIS_FILE >>. Though this could be used to check the RAM use of other programs.
+
+=head3 max_ram (optional, default '1073741824' (1 GiB))
+
+This is the limit allowed. If the in-use RAM is greater than this amount, an alert will be generated and sent. 
+
+=cut
+sub check_ram_use
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ram_use()" }});
+	
+	my $program = defined $parameter->{program} ? $parameter->{program} : "";
+	my $max_ram = defined $parameter->{max_ram} ? $parameter->{max_ram} : 1073741824;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		program => $program, 
+		max_ram => $max_ram, 
+	}});
+	
+	# Find the PID(s) of the program.
+	my $problem  = 0;
+	my $ram_used = 0;
+	
+	# See if we're a daemon running under systemctl. If so, the memory reported includes all spawned 
+	# child programs, swap, etc. Much more thorough.
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." status ".$program." --lines=0";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /Memory: (.*)?/)
+		{
+			my $memory   = $1;
+			my $in_bytes = $anvil->Convert->human_readable_to_bytes({size => $memory, base2 => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				memory   => $memory,
+				in_bytes => $anvil->Convert->add_commas({number => $in_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $in_bytes}).")",
+			}});
+			if ($in_bytes =~ /^\d+$/)
+			{
+				$ram_used = $in_bytes;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					ram_used => $anvil->Convert->add_commas({number => $ram_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}).")",
+				}});
+			}
+			last;
+		}
+	}
+	
+	# If we didn't get the RAM from systemctl, read smaps
+	if (not $ram_used)
+	{
+		my $pids = $anvil->System->pids({debug => $debug, program_name => $program});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pids => $pids }});
+
+		my $pids_found = @{$pids};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pids_found => $pids_found }});
+
+		if (not $pids_found)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0135", variables => { program => $program }});
+			return(2, 0);
+		}
+
+		# Read in the smaps for each pid
+		foreach my $pid (sort {$a cmp $b} @{$pids})
+		{
+			my $smaps_path = "/proc/".$pid."/smaps";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { smaps_path => $smaps_path }});
+			
+			# This will store the amount of RAM used by this specific PID.
+			$anvil->data->{memory}{pid}{$pid} = 0;
+			
+			if (not -e $smaps_path)
+			{
+				# It is possible that the program just closed.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0433", variables => { pid => $pid }});
+				next;
+			}
+			
+			# Read in the file.
+			my $body = $anvil->Storage->read_file({debug => $debug, file => $smaps_path});
+			foreach my $line (split/\n/, $body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				if ($line =~ /^Private_Dirty:\s+(\d+) (.*B)$/)
+				{
+					my $size = $1;
+					my $type = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						type => $type,
+						size => $size,
+					}});
+					next if not $size;
+					next if $size =~ /\D/;
+					
+					# This uses 'kB' for 'KiB' >_>
+					$type =  lc($type);
+					$type =~ s/b$/ib/ if $type !~ /ib$/;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+					
+					my $size_in_bytes = $anvil->Convert->human_readable_to_bytes({size => $size, type => $type, base2 => 1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						size_in_bytes => $anvil->Convert->add_commas({number => $size_in_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size_in_bytes}).")",
+					}});
+					
+					$anvil->data->{memory}{pid}{$pid} += $size_in_bytes;
+					$ram_used                         += $size_in_bytes;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"memory::pid::${pid}" => $anvil->Convert->add_commas({number => $anvil->data->{memory}{pid}{$pid}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{memory}{pid}{$pid}}).")",
+						ram_used              => $anvil->Convert->add_commas({number => $ram_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}).")",
+					}});
+				}
+			}
+		}
+	}
+	
+	# Are we using too much RAM?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		max_ram  => $anvil->Convert->add_commas({number => $max_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_ram}).")",
+		ram_used => $anvil->Convert->add_commas({number => $ram_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}).")",
+	}});
+	if ($ram_used > $max_ram)
+	{
+		$problem = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	}
+	
+	return($problem, $ram_used);
+}
+
 =head2 check_ssh_keys
 
 This method does several things;
@@ -728,10 +881,29 @@ sub check_ssh_keys
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0270", variables => { user => $user }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 			if (-e $ssh_public_key_file)
 			{
 				# Success!
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0271", variables => { user => $user, output => $output }});
+				
+				# Set the ownership
+				foreach my $file ($ssh_private_key_file, $ssh_public_key_file)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0682", variables => { 
+						file => $file,
+						user => $user,
+					}});
+					$anvil->Storage->change_owner({
+						debug => 2,
+						path  => $file,
+						user  => $user,
+						group => $user,
+					});
+				}
 			}
 			else
 			{
@@ -1770,6 +1942,16 @@ LIMIT 1
 		password_length => $password_length,
 	}});
 	
+	# If the password has spaces, some IPMI BMCs won't allow them. If we need to use it, we'll take out 
+	# the spaces and shrink the length.
+	my $ipmi_no_space_password = "";
+	if ($ipmi_password =~ /\s/)
+	{
+		$ipmi_no_space_password =  $ipmi_password; 
+		$ipmi_no_space_password =~ s/\s//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_no_space_password => $ipmi_no_space_password }});
+	}
+	
 	my $subnet_mask = "";
 	my $gateway     = "";
 	my $in_network  = "";
@@ -1858,7 +2040,7 @@ LIMIT 1
 	if (not $has_ipmi)
 	{
 		# Return
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0499"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "err", key => "log_0499"});
 		return(0);
 	}
 
@@ -2075,6 +2257,7 @@ LIMIT 1
 	my $wait_until  = time + 120;
 	while ($waiting)
 	{
+		my $debug = 2;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
@@ -2118,6 +2301,8 @@ LIMIT 1
 				}
 			}
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_name => $user_name }});
+		last if $user_name;
 		
 		# Try again later or give up?
 		if (time > $wait_until)
@@ -2137,6 +2322,7 @@ LIMIT 1
 			sleep 10;
 		}
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_name => $user_name }});
 	if (not $user_name)
 	{
 		# Failed to find a user.
@@ -2225,6 +2411,13 @@ LIMIT 1
 		}
 		else
 		{
+			# If we used the no-space password, set it as the ipmi_password now.
+			if ($ipmi_no_space_password)
+			{
+				$ipmi_password = $ipmi_no_space_password;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_password => $ipmi_password }});
+			}
+			
 			# Change the password and then try again.
 			my $escaped_ipmi_password = shell_quote($ipmi_password);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { escaped_ipmi_password => $escaped_ipmi_password }});
@@ -3151,6 +3344,7 @@ sub host_name
 	}});
 	return($host_name, $descriptive);
 }
+
 
 =head2 maintenance_mode
 

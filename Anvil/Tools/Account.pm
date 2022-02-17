@@ -451,7 +451,8 @@ AND
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0198", variables => { user => $anvil->data->{cgi}{username}{value} }});
+	my $user = $anvil->data->{cgi}{username}{value} ? $anvil->data->{cgi}{username}{value} : "--";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0198", variables => { user => $user }});
 	
 	# Log that they're out
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0179"});
@@ -573,7 +574,7 @@ AND
 	$anvil->data->{sys}{users}{user_name}  = $results->[0]->[0];
 	$anvil->data->{sessions}{session_salt} = $results->[0]->[1];
 	$anvil->data->{sessions}{session_salt} = "" if not defined $anvil->data->{sessions}{session_salt};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::users::user_name"  => $anvil->data->{sys}{users}{user_name}, 
 		"sessions::session_salt" => $anvil->data->{sessions}{session_salt},
 	}});
@@ -592,8 +593,9 @@ AND
 		offset => -86400,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		today_hash     => $today_hash,
-		yesterday_hash => $yesterday_hash, 
+		"s1:cookie::anvil_user_hash" => $anvil->data->{cookie}{anvil_user_hash}, 
+		"s2:today_hash"              => $today_hash,
+		"s3:yesterday_hash"          => $yesterday_hash, 
 	}});
 	
 	# See if either hash matches what the user has stored.

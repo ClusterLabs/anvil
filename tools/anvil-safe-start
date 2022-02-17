@@ -237,6 +237,51 @@ sub start_pacemaker
 		# Nope, start it.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0608"});
 		
+		# NOTE: In some odd cases, this can try to run before /etc/hosts has been populated. So wait
+		#       until we can access ourself.
+		my $ok = 0;
+		until ($ok)
+		{
+			# Convert out short host name to an IP and verify that the IP is one of ours.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0681"});
+			my $local_bcn1_ip = $anvil->Convert->host_name_to_ip({debug => 2, host_name => $short_host_name});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_bcn1_ip => $local_bcn1_ip }});
+			
+			if ($local_bcn1_ip)
+			{
+				# Is this one of our IPs, or is DNS being a little shit?
+				if (exists $anvil->data->{network}{$short_host_name})
+				{
+					delete $anvil->data->{network}{$short_host_name};
+				}
+				$anvil->Network->get_ips();
+				
+				foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
+				{
+					next if $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip} eq "";
+					next if $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip} =~ /^127\.0\.0\./;
+					my $this_ip = $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:interface' => $interface,
+						's2:this_ip'   => $this_ip, 
+					}});
+					if ($this_ip eq $local_bcn1_ip)
+					{
+						$ok = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ok => $ok }});
+						last;
+					}
+				}
+			}
+			
+			if (not $ok)
+			{
+				# Sleep 10 seconds.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0134"});
+				sleep 10;
+			}
+		}
+		
 		### TODO: A lot more testing is needed for degraded single-node start later. 
 		###       Should we use --all, or wait for our peer? For now, we wait.
 		#my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start --all";

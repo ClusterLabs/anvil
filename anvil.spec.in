@@ -63,6 +63,7 @@ Requires:       mailx
 Requires:       mlocate 
 Requires:       net-snmp-utils
 Requires:       nvme-cli
+Requires:       pciutils
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
 Requires:       perl-Data-Validate-Domain
@@ -131,6 +132,7 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
+Requires:       openssh-askpass
 Requires:       postgresql-server 
 Requires:       syslinux
 Requires:       syslinux-nonlinux
@@ -237,6 +239,8 @@ systemctl enable chronyd.service
 systemctl start chronyd.service 
 systemctl enable anvil-daemon.service
 systemctl restart anvil-daemon.service
+systemctl enable scancore.service
+systemctl restart scancore.service
 
 
 %post striker
@@ -252,9 +256,10 @@ then
     systemctl enable gdm.service
 fi
 
-echo "Preparing the database"
-striker-prep-database
-anvil-update-states
+### This is handled by anvil-daemon now
+#echo "Preparing the database"
+#striker-prep-database
+#anvil-update-states
 
 # Touch the system type file.
 echo "Touching the system type file"

@@ -295,6 +295,7 @@ sub check_condition_age
 	
 	# See if this variable has been set yet.
 	my ($variable_value, $variable_uuid, $epoch_modified_date, $modified_date) = $anvil->Database->read_variable({
+		debug                 => $debug, 
 		variable_name         => $name, 
 		variable_source_table => $source_table, 
 		variable_source_uuid  => $host_uuid,
@@ -319,8 +320,8 @@ sub check_condition_age
 			});
 		}
 		
-		# if the value was 'clear', change it to 'set'.
-		if ($variable_value eq "clear")
+		# if the 'clear' parameter isn't set, and the value is 'clear', change it to 'set'.
+		if (($variable_value eq "clear") && (not $clear))
 		{
 			# Set it.
 			$variable_uuid = $anvil->Database->insert_or_update_variables({

@@ -48,7 +48,7 @@ if (not $anvil->data->{switches}{'job-uuid'})
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
 }
 
-# If we still don't have a job-uuit, go into interactive mode.
+# If we still don't have a job-uuid, go into interactive mode.
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.

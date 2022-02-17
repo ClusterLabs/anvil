@@ -1,3 +1,29 @@
+# Configure APC PDUs and UPSes
+tcpip -i 10.201.2.3 -s 255.255.0.0 -g 10.201.255.254
+web -h enable
+web -s enable
+snmp -S enable -c1 private -a1 writeplus
+snmp -S enable -c2 public -a2 writeplus
+
+Anvil! to Anvil! live migration;
+1. Create LVs 
+2. Make sure /etc/hosts is populated
+3. If DR is used, disconnect first to stay within the max-peers=3
+3. Update dbrd config, A:1 -> A:2, A:1 -> B:1, B:1 -> B:2 (if both online and UpToDate, otherwise both from UpToDate)
+4. Create drbd md on new Anvil!
+5. drbdadm adjust on old nodes.
+6. Wait for DRBD resource to sync to node 1 (it can sync to node 2 later)
+7. Copy server's XML to new cluster
+8. pcs resource unmanage srv01-cs8
+9. Allow dual primary between A1:B1 (or A2:B1) - 
+[root@an-a01n01 ~]# pcs resource disable srv01-cs8
+Warning: 'srv01-cs8' is unmanaged
+[root@an-a01n01 ~]# pcs resource manage srv01-cs8
+[root@an-a01n01 ~]# pcs resource delete srv01-cs8
+Deleting Resource - srv01-cs8
+10. 
+
+
 TODO: 
 - Remove this; (step 2) "This is the user name that you will log into Striker as and the name of the user that owns the database"
 - Being set to the gateway, not the default DNS - "This is the domain name server(s) to use when resolving domain names. You can specify 2 or more, separated by commas."
@@ -17,6 +43,8 @@ su postgres -c "psql anvil"
 SELECT a.scan_apc_ups_name AS name, a.scan_apc_ups_serial_number AS sn, a.scan_apc_ups_health AS health, a.scan_apc_ups_nmc_serial_number AS nmc_sn, a.scan_apc_ups_nmc_mac_address AS mac, a.scan_apc_ups_ip AS ip, b._percentage_charge AS charge, d.scan_apc_ups_battery_temperature AS btemp FROM scan_apc_upses a, scan_apc_ups_input b, scan_apc_ups_output c, scan_apc_ups_batteries d WHERE a.scan_apc_ups_uuid = b.scan_apc_ups_input_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = c.scan_apc_ups_output_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = d.scan_apc_ups_battery_scan_apc_ups_uuid ORDER BY name ASC;
 
 ============
+
+dnf -y install augeas
 
 
 Jenkins;
@@ -742,9 +770,11 @@ mediawiki on EL8 install notes (starting from a minimal install);
 
 dnf module reset php
 dnf module enable php:7.4
+
+# All
 dnf install httpd php php-gd php-xml php-mbstring php-json \
             vim bash-completion wget tar rsync mlocate php-pecl-apcu \
-            memcached php-pear icu php-intl php-pgsql bzip2 
+            memcached php-pear icu php-intl php-pgsql bzip2 mod_ssl
 
 ### PostgreSQL
 dnf install postgresql-server postgresql-plperl 
@@ -753,7 +783,9 @@ systemctl start postgresql.service
 systemctl enable postgresql.service 
 
 ### MariaDB
-dnf install php-mysqlnd php-gd php-xml mariadb-server mariadb
+dnf install httpd php php-gd php-xml php-mbstring php-json \
+            php-mysqlnd php-gd php-xml mariadb-server mariadb \
+
 systemctl start mariadb
 mysql_secure_installation
 |Set root password? [Y/n] y
@@ -766,39 +798,29 @@ mysql_secure_installation
 |Reload privilege tables now? [Y/n] y
 mysql -u root -p
 ### In mariadb
-MariaDB [(none)]> CREATE DATABASE digimer_wiki;
-MariaDB [(none)]> CREATE USER 'digimer'@'localhost' IDENTIFIED BY 'Initial1';
-MariaDB [(none)]> GRANT ALL PRIVILEGES ON digimer_wiki.* TO 'digimer'@'localhost';
+MariaDB [(none)]> CREATE DATABASE an_wiki;
+MariaDB [(none)]> CREATE USER 'alteeve'@'localhost' IDENTIFIED BY 'experience tell mineral';
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON an_wiki.* TO 'alteeve'@'localhost';
 MariaDB [(none)]> FLUSH PRIVILEGES;
 MariaDB [(none)]> SHOW DATABASES;
 +--------------------+
 | Database           |
 +--------------------+
-| digimer_wiki       |
+| an_wiki       |
 | information_schema |
 | mysql              |
 | performance_schema |
 +--------------------+
-MariaDB [(none)]> SHOW GRANTS FOR 'digimer'@'localhost';
+MariaDB [(none)]> SHOW GRANTS FOR 'alteeve'@'localhost';
 +----------------------------------------------------------------------------------------------------------------+
 | Grants for digimer@localhost                                                                                   |
 +----------------------------------------------------------------------------------------------------------------+
 | GRANT USAGE ON *.* TO `digimer`@`localhost` IDENTIFIED BY PASSWORD '*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' |
-| GRANT ALL PRIVILEGES ON `digimer_wiki`.* TO `digimer`@`localhost`                                              |
+| GRANT ALL PRIVILEGES ON `an_wiki`.* TO `digimer`@`localhost`                                              |
 +----------------------------------------------------------------------------------------------------------------+
 MariaDB [(none)]> exit
 # Back to terminal
 systemctl enable mariadb
-
-# Common
-systemctl start httpd.service 
-systemctl enable httpd.service 
-systemctl start memcached.service
-systemctl enable memcached.service
-firewall-cmd --permanent --zone=public --add-service=http
-firewall-cmd --permanent --zone=public --add-service=https
-systemctl restart firewalld
-
 
 # diff -u /var/lib/pgsql/data/pg_hba.conf.orig /var/lib/pgsql/data/pg_hba.conf
 ====
@@ -834,6 +856,47 @@ systemctl restart firewalld
  
  ;;;;
  ; Note: packaged extension modules are now loaded via the .ini files
+
+
+# Download and install
+cd /var/www/
+wget https://releases.wikimedia.org/mediawiki/1.37/mediawiki-1.37.1.tar.gz
+tar -xvzf mediawiki-1.37.1.tar.gz 
+cd /var/www/html
+ln -s ../mediawiki-1.37.1 ./w
+
+systemctl enable httpd.service
+systemctl enable memcached.service 
+systemctl start httpd.service 
+systemctl start memcached.service
+
+firewall-cmd --zone=public --add-service=http --permanent 
+firewall-cmd --zone=public --add-service=https --permanent 
+firewall-cmd --reload 
+
+### Certbot / Let's Encrypt
+# EPEL / snapd
+dnf config-manager --set-enabled powertools
+dnf install epel-release epel-next-release
+dnf install snapd
+systemctl enable --now snapd.socket
+ln -s /var/lib/snapd/snap /snap
+
+### Setup vhost
+# httpd.conf
+
+
+### Log out and back in to ensure snapd path
+# If the next step fails with "too early for operation, device not yet seeded or device model not acknowledged", restart snapd
+snap install core 
+snap refresh core
+snap install --classic certbot
+
+# certbot
+certbot --apache
+
+# answer questions
+
 ====
 
 Dell S4128T-ON Configuration
@@ -960,19 +1023,24 @@ OS10(config)# write memory
 OS10(config)# hostname zo-switch01
 zo-switch01(config)# interface vlan 100
 zo-switch01(conf-if-vl-100)# description BCN1
+zo-switch01(config)# exit
 zo-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/14
 zo-switch01(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
 zo-switch01(conf-range-eth1/1/1-1/1/10)# no shutdown 
 zo-switch01(conf-range-eth1/1/1-1/1/10)# exit
+
 zo-switch01(config)# interface vlan 200
 zo-switch01(conf-if-vl-200)# description SN1
-zo-switch01(conf-if-vl-200)# interface range ethernet 1/1/11-1/1/14
+zo-switch01(conf-if-vl-200)# exit
+zo-switch01(config)# interface range ethernet 1/1/11-1/1/14
 zo-switch01(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
 zo-switch01(conf-range-eth1/1/11-1/1/14)# no shutdown
 zo-switch01(conf-range-eth1/1/11-1/1/14)# exit
+
 zo-switch01(config)# interface vlan 300
 zo-switch01(conf-if-vl-300)# description IFN1
-zo-switch01(conf-if-vl-300)# interface range ethernet 1/1/15-1/1/24
+zo-switch01(conf-if-vl-300)# exit
+zo-switch01(config)# interface range ethernet 1/1/15-1/1/24
 zo-switch01(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
 zo-switch01(conf-range-eth1/1/15-1/1/24)# no shutdown
 zo-switch01(conf-range-eth1/1/15-1/1/24)# exit
@@ -1223,13 +1291,33 @@ rs-striker03(config-if)#switchport access vlan 100
 rs-striker03(config-if)#no shutdown 
 rs-striker03(config-if)#exit
 
-rs-striker03(config)#interface vlan 300
-rs-striker03(config)#name IFN
-rs-striker03(config-if-vlan300)#interface range gigabitethernet1/0/15-24,gigabitethernet2/0/15-24
-rs-striker03(config-if)#switchport access vlan 300
-rs-striker03(config-if)#no shutdown 
-rs-striker03(config-if)#exit
-rs-striker03(config)#exit
+#### NOTE: Put IP on VID 1! 
+
+rs-switch03(config)#show vlan
+
+VLAN   Name                             Ports          Type
+-----  ---------------                  -------------  --------------
+1      default                          Po1-128,       Default
+                                        Gi1/0/1-12,
+                                        Te1/0/1-4,
+                                        Gi2/0/1-12,
+                                        Te2/0/1-4
+300    IFN1                             Gi1/0/13-24,   Static
+                                        Gi2/0/13-24
+
+rs-switch03(config)#interface vlan 1
+
+rs-switch03(config-if-vlan1)#ip address 10.201.1.3 255.255.0.0
+
+rs-switch03(config-if-vlan1)#exit     
+
+rs-switch03(config)#exit
+
+rs-switch03#copy running-config startup-config 
+
+###########################
+
+
 
 rs-striker03#show vlan 
 
@@ -1411,4 +1499,34 @@ totem.transport (str) = knet
 
 
 Gi1/0/24 + Gi2/0/24
+
+Dell LACP Config (OS10 - https://www.dell.com/support/kbdoc/en-us/000102901/dell-emc-networking-os10-how-to-set-up-virtual-link-trunking-vlt)
+
+* On both switches;
+zo-switch02# configure terminal 
+
+* IFN Port channel is 3
+zo-switch02(config)# interface port-channel 3
+zo-switch02(conf-if-po-3)# <165>1 2021-10-19T04:58:56.022086+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_ASTATE_UP: Interface admin state up :port-channel3
+<165>1 2021-10-19T04:58:56.022722+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_DN: Interface operational state is down :port-channel3
+zo-switch02(conf-if-po-3)# lacp fallback enable 
+zo-switch02(conf-if-po-3)# description IFN1
+zo-switch02(conf-if-po-3)# exit
+zo-switch02(config)# exit
+zo-switch02# show port-channel summary 
+  
+Flags:  D - Down    I - member up but inactive    P - member up and active
+        U - Up (port-channel)    F - Fallback Activated
+--------------------------------------------------------------------------------
+Group Port-Channel           Type     Protocol  Member Ports
+--------------------------------------------------------------------------------
+3    port-channel3    (D)     Eth      STATIC    
+1000 port-channel1000 (U)     Eth      STATIC    1/1/25(P) 1/1/26(P) 
+
+zo-switch02# configure terminal 
+zo-switch02(config)# interface ethernet 1/1/24
+zo-switch02(conf-if-eth1/1/24)# channel-group 3
+zo-switch02(conf-if-eth1/1/24)# <165>1 2021-10-19T05:09:41.237808+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :port-channel3
+exit
+exit
 

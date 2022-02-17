@@ -340,7 +340,7 @@ sub get_password
 	}
 	
 	my $query = "SELECT state_note FROM states WHERE state_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $password = $anvil->Database->query({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	   $password = "" if not defined $password;

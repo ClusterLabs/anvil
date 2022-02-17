@@ -565,6 +565,13 @@ sub collect_data
 				{
 					$media = lc($1);
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
+					
+					# This can be 'tp	 mii', which breaks json.
+					if ($media =~ /\t/)
+					{
+						$media =~ s/\t/,/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
+					}
 					last;
 				}
 			}
@@ -791,24 +798,27 @@ sub read_last_scan
 	return(0);
 }
 
-# There is a bug somewhere where interfaces and ip addresses are periodically being added twice per host. 
-# This checks for / cleans those up. Remove this when the core issue is resolved.
+# There is a bug somewhere where interfaces, bridges and ip addresses are periodically being added twice per 
+# host. This checks for / cleans those up. Remove this when the core issue is resolved.
 sub clear_duplicates
 {
 	my ($anvil) = @_;
 	
+	# Look for duplicate bridges.
 	my $query = "
 SELECT 
-    network_interface_uuid, 
-    network_interface_name, 
-    network_interface_mac_address, 
-    network_interface_operational 
+    bridge_uuid, 
+    bridge_name, 
+    bridge_id, 
+    bridge_mac_address 
 FROM 
-    network_interfaces 
+    bridges 
 WHERE 
-    network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+    bridge_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ORDER BY 
-    network_interface_name ASC;";
+    bridge_name ASC, 
+    bridge_id DESC
+;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -818,15 +828,301 @@ ORDER BY
 	}});
 	foreach my $row (@{$results})
 	{
-		my $network_interface_uuid        = $row->[0];
-		my $network_interface_name        = $row->[1];
-		my $network_interface_mac_address = $row->[2];
-		my $network_interface_operational = $row->[3];
+		my $bridge_uuid        = $row->[0];
+		my $bridge_name        = $row->[1];
+		my $bridge_id          = $row->[2];
+		my $bridge_mac_address = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bridge_uuid        => $bridge_uuid, 
+			bridge_name        => $bridge_name, 
+			bridge_id          => $bridge_id, 
+			bridge_mac_address => $bridge_mac_address, 
+		}});
+		
+		if (not exists $anvil->data->{duplicate_bridges}{seen}{$bridge_name})
+		{
+			$anvil->data->{duplicate_bridges}{seen}{$bridge_name} = [];
+		}
+		push @{$anvil->data->{duplicate_bridges}{seen}{$bridge_name}}, $bridge_uuid;
+		
+		$anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_name}        = $bridge_name;
+		$anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_mac_address} = $bridge_mac_address;
+		$anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_id}          = $bridge_id;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"duplicate_bridges::bridge_uuid::${bridge_uuid}::bridge_name"        => $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_name}, 
+			"duplicate_bridges::bridge_uuid::${bridge_uuid}::bridge_id"          => $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_id}, 
+			"duplicate_bridges::bridge_uuid::${bridge_uuid}::bridge_mac_address" => $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_mac_address}, 
+		}});
+		
+		$anvil->data->{deleted_bridges}{$bridge_uuid} = 0;
+	}
+	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{duplicate_bridges}{seen}})
+	{
+		my $count = @{$anvil->data->{duplicate_bridges}{seen}{$bridge_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:bridge_name' => $bridge_name, 
+			's2:count'       => $count,
+		}});
+		
+		if ($count > 1)
+		{
+			# Duplicate! Is one of them marked as DELETED?
+			foreach my $bridge_uuid (@{$anvil->data->{duplicate_bridges}{seen}{$bridge_name}})
+			{
+				# Is this one deleted?
+				my $bridge_mac_address = $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_mac_address};
+				my $bridge_id          = $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_id};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					bridge_uuid        => $bridge_uuid, 
+					bridge_mac_address => $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_mac_address}, 
+					bridge_id          => $anvil->data->{duplicate_bridges}{bridge_uuid}{$bridge_uuid}{bridge_id}, 
+				}});
+				if ($bridge_id eq "DELETED")
+				{
+					# Take this one out.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0685", variables => { 
+						name => $bridge_name,
+						uuid => $bridge_uuid,
+					}});
+					
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM history.bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					
+					# Write it out.
+					$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					
+					$anvil->data->{deleted_bridges}{$bridge_uuid} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"deleted_bridges::${bridge_uuid}" => $anvil->data->{deleted_bridges}{$bridge_uuid},
+					}});
+				}
+				last if $count == 1;
+			}
+			
+			# If count is still > 1, we need to arbitrarily delete an interface.
+			if ($count > 1)
+			{
+				foreach my $bridge_uuid (@{$anvil->data->{duplicate_bridges}{seen}{$bridge_name}})
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0685", variables => { 
+						name => $bridge_name,
+						uuid => $bridge_uuid,
+					}});
+					
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM history.bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					
+					# Write it out.
+					$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					
+					$anvil->data->{deleted_bridges}{$bridge_uuid} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"deleted_bridges::${bridge_uuid}" => $anvil->data->{deleted_bridges}{$bridge_uuid},
+					}});
+				}
+				last if $count == 1;
+			}
+		}
+	}
+	delete $anvil->data->{duplicate_bridges};
+	
+	# Load the bridges again.
+	$anvil->Database->get_bridges({include_deleted => 1});
+	
+	# Look for duplicate bonds.
+	$query = "
+SELECT 
+    bond_uuid, 
+    bond_name, 
+    bond_operational, 
+    bond_mac_address, 
+    bond_bridge_uuid 
+FROM 
+    bonds 
+WHERE 
+    bond_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+ORDER BY 
+    bond_name ASC, 
+    bond_operational DESC
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $bond_uuid        =         $row->[0];
+		my $bond_name        =         $row->[1];
+		my $bond_operational =         $row->[2];
+		my $bond_mac_address =         $row->[3];
+		my $bond_bridge_uuid = defined $row->[4] ? $row->[4] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bond_uuid        => $bond_uuid, 
+			bond_name        => $bond_name, 
+			bond_operational => $bond_operational, 
+			bond_mac_address => $bond_mac_address, 
+			bond_bridge_uuid => $bond_bridge_uuid, 
+		}});
+		
+		if (not exists $anvil->data->{duplicate_bonds}{seen}{$bond_name})
+		{
+			$anvil->data->{duplicate_bonds}{seen}{$bond_name} = [];
+		}
+		push @{$anvil->data->{duplicate_bonds}{seen}{$bond_name}}, $bond_uuid;
+		
+		$anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_name}        = $bond_name;
+		$anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_mac_address} = $bond_mac_address;
+		$anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_operational} = $bond_operational;
+		$anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_bridge_uuid} = $bond_bridge_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"duplicate_bonds::bond_uuid::${bond_uuid}::bond_name"        => $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_name}, 
+			"duplicate_bonds::bond_uuid::${bond_uuid}::bond_operational" => $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_operational}, 
+			"duplicate_bonds::bond_uuid::${bond_uuid}::bond_mac_address" => $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_mac_address}, 
+			"duplicate_bonds::bond_uuid::${bond_uuid}::bond_bridge_uuid" => $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_bridge_uuid}, 
+		}});
+		
+		$anvil->data->{deleted_bonds}{$bond_uuid} = 0;
+	}
+	foreach my $bond_name (sort {$a cmp $b} keys %{$anvil->data->{duplicate_bonds}{seen}})
+	{
+		my $count = @{$anvil->data->{duplicate_bonds}{seen}{$bond_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:bond_name' => $bond_name, 
+			's2:count'     => $count,
+		}});
+		
+		if ($count > 1)
+		{
+			# Duplicate! Is one of them marked as DELETED?
+			foreach my $bond_uuid (@{$anvil->data->{duplicate_bonds}{seen}{$bond_name}})
+			{
+				# Is this one deleted?
+				my $bond_mac_address = $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_mac_address};
+				my $bond_operational = $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_operational};
+				my $bond_bridge_uuid = $anvil->data->{duplicate_bonds}{bond_uuid}{$bond_uuid}{bond_bridge_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					bond_uuid        => $bond_uuid, 
+					bond_mac_address => $bond_mac_address, 
+					bond_operational => $bond_operational, 
+					bond_bridge_uuid => $bond_bridge_uuid,
+				}});
+				if ((($bond_bridge_uuid) && ($anvil->data->{deleted_bridges}{$bond_bridge_uuid})) or ($bond_operational eq "DELETED"))
+				{
+					# Take this one out.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0685", variables => { 
+						name => $bond_name,
+						uuid => $bond_uuid,
+					}});
+					
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					push @{$queries}, "DELETE FROM history.bonds WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					push @{$queries}, "DELETE FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					
+					# Write it out.
+					$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					
+					$anvil->data->{deleted_bonds}{$bond_uuid} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"deleted_bonds::${bond_uuid}" => $anvil->data->{deleted_bonds}{$bond_uuid},
+					}});
+				}
+			}
+			
+			# If count is still > 1, we need to arbitrarily delete an interface.
+			if ($count > 1)
+			{
+				foreach my $bond_uuid (@{$anvil->data->{duplicate_bonds}{seen}{$bond_name}})
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0685", variables => { 
+						name => $bond_name,
+						uuid => $bond_uuid,
+					}});
+					
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					push @{$queries}, "DELETE FROM history.bonds WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					push @{$queries}, "DELETE FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					
+					# Write it out.
+					$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
+					
+					$count--;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					
+					$anvil->data->{deleted_bonds}{$bond_uuid} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"deleted_bonds::${bond_uuid}" => $anvil->data->{deleted_bonds}{$bond_uuid},
+					}});
+				}
+				last if $count == 1;
+			}
+		}
+	}
+	delete $anvil->data->{duplicate_bonds};
+	
+	
+	# Look for duplicate network interfaces
+	$query = "
+SELECT 
+    network_interface_uuid, 
+    network_interface_name, 
+    network_interface_mac_address, 
+    network_interface_operational, 
+    network_interface_bond_uuid, 
+    network_interface_bridge_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+ORDER BY 
+    network_interface_name ASC;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $network_interface_uuid        =         $row->[0];
+		my $network_interface_name        =         $row->[1];
+		my $network_interface_mac_address =         $row->[2];
+		my $network_interface_operational =         $row->[3];
+		my $network_interface_bond_uuid   = defined $row->[4] ? $row->[4] : "";
+		my $network_interface_bridge_uuid = defined $row->[5] ? $row->[5] : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			network_interface_uuid        => $network_interface_uuid, 
 			network_interface_name        => $network_interface_name, 
 			network_interface_mac_address => $network_interface_mac_address, 
 			network_interface_operational => $network_interface_operational, 
+			network_interface_bond_uuid   => $network_interface_bond_uuid, 
+			network_interface_bridge_uuid => $network_interface_bridge_uuid, 
 		}});
 		
 		if (not exists $anvil->data->{duplicate_nics}{seen}{$network_interface_name})
@@ -838,10 +1134,14 @@ ORDER BY
 		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_name}        = $network_interface_name;
 		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address} = $network_interface_mac_address;
 		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational} = $network_interface_operational;
+		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid}   = $network_interface_bond_uuid;
+		$anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid} = $network_interface_bridge_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_name"        => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_name}, 
 			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_mac_address" => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address}, 
 			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_operational" => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational}, 
+			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_bond_uuid"   => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid}, 
+			"duplicate_nics::network_interface_uuid::${network_interface_uuid}::network_interface_bridge_uuid" => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid}, 
 		}});
 	}
 	foreach my $network_interface_name (sort {$a cmp $b} keys %{$anvil->data->{duplicate_nics}{seen}})
@@ -860,12 +1160,18 @@ ORDER BY
 				# Is this one deleted?
 				my $network_interface_mac_address = $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address};
 				my $network_interface_operational = $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational};
+				my $network_interface_bond_uuid   = $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid};
+				my $network_interface_bridge_uuid = $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					network_interface_uuid        => $network_interface_uuid, 
-					network_interface_mac_address => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address}, 
-					network_interface_operational => $anvil->data->{duplicate_nics}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational}, 
+					network_interface_mac_address => $network_interface_mac_address, 
+					network_interface_operational => $network_interface_operational, 
+					network_interface_bond_uuid   => $network_interface_bond_uuid, 
+					network_interface_bridge_uuid => $network_interface_bridge_uuid, 
 				}});
-				if ($network_interface_operational eq "DELETED")
+				if ((($network_interface_bond_uuid)   && ($anvil->data->{deleted_bonds}{$network_interface_bond_uuid}))     or 
+				    (($network_interface_bridge_uuid) && ($anvil->data->{deleted_bridges}{$network_interface_bridge_uuid})) or 
+				     ($network_interface_operational eq "DELETED"))
 				{
 					# Take this one out.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0647", variables => { 
@@ -880,7 +1186,6 @@ ORDER BY
 					$count--;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 				}
-				last if $count == 1;
 			}
 			
 			# If count is still > 1, we need to arbitrarily delete an interface.
@@ -894,6 +1199,7 @@ ORDER BY
 					}});
 					
 					my $query = "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;
@@ -997,6 +1303,7 @@ ORDER BY
 					}});
 					
 					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;
@@ -1006,6 +1313,7 @@ ORDER BY
 			}
 		}
 	}
+	
 	
 	return(0);
 }
@@ -3450,9 +3758,11 @@ AND
 		
 		# Don't set / clear interfaces that appear down but aren't named ifn/bcn/sn as they're probably 
 		# unconfigured/unusued interfaces.
-		my $problem = 0;
-		my $check   = 0;
-		if ($anvil->Network->is_our_interface({interface => $network_interface_name}))
+		my $problem   = 0;
+		my $check     = 0;
+		my $monitored = $anvil->Network->is_our_interface({interface => $network_interface_name});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { monitored => $monitored }});
+		if ($monitored)
 		{
 			# One we monitor
 			$check = 1;

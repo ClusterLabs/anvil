@@ -91,7 +91,10 @@ $anvil->System->_check_anvil_conf();
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
-$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
+$anvil->Database->connect({
+	check_if_configured => 1, 
+	check_for_resync    => 1,
+});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
 # If I have no databases, sleep for a second and then exit (systemd will restart us).
@@ -105,8 +108,7 @@ if (not $anvil->data->{sys}{database}{connections})
 		prep_database($anvil);
 		
 		# Try connecting again
-		$anvil->refresh();
-		$anvil->Database->connect();
+		$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 		if (not $anvil->data->{sys}{database}{connections})
 		{
@@ -244,6 +246,9 @@ while(1)
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
+	# Check how much RAM we're using.
+	check_ram($anvil);
+	
 	# Disconnect from the database(s) and sleep now.
 	$anvil->Database->disconnect();
 	sleep(2);
@@ -255,6 +260,41 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# If we're using too much ram, send an alert and exit.
+sub check_ram
+{
+	my ($anvil) = @_;
+	
+	# Problem 0 == ok, 1 == too much ram used, 2 == no pid found
+	my ($problem, $ram_used) = $anvil->System->check_ram_use({program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		problem  => $problem, 
+		ram_used => $anvil->Convert->add_commas({number => $ram_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}).")", 
+	}});
+	if ($problem)
+	{
+		# Send an alert and exit.
+		$anvil->Alert->register({alert_level => "notice", message => "error_0357", variables => { 
+			program        => $THIS_FILE,
+			ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+			ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+		}, set_by => $THIS_FILE, sort_position => 0});
+		$anvil->Email->send_alerts();
+		
+		# Log the same
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0357", variables => { 
+			program        => $THIS_FILE,
+			ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+			ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+		}});
+		
+		# Exit with RC0 so that systemctl restarts 
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
 
 # Check to see if we're mapping the network on this host.
 sub check_if_mapping
@@ -274,7 +314,7 @@ sub check_if_mapping
 		# shouldn't fire in practice).
 		my $expire_age      = 86400;
 		my $map_network_age = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:map_network_value'         => $map_network_value, 
 			's2:map_network_mtime'         => $map_network_mtime, 
 			's3:map_network_modified_date' => $map_network_modified_date, 
@@ -411,6 +451,39 @@ sub check_network
 		check_firewall($anvil);
 	}
 	
+	# Check that all users can ping.
+	if (1)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{sysctl}." net.ipv4.ping_group_range";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+		
+		if ($output =~ /net.ipv4.ping_group_range = (\d+)\t(\d+)$/)
+		{
+			my $lowest_uid  = $1;
+			my $highest_uid = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				lowest_uid  => $lowest_uid,
+				highest_uid => $highest_uid, 
+			}});
+			
+			if ($highest_uid < 2000)
+			{
+				# Tell the user we're enabling ping for all users.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0683"});
+				
+				my $shell_call = $anvil->data->{path}{exe}{sysctl}." -w net.ipv4.ping_group_range=\"0	2147483647\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { output => $output }});
+				
+			}
+		}
+	}
+	
 	return(0);
 }
 
@@ -439,7 +512,7 @@ sub handle_periodic_tasks
 		check_install_target($anvil);
 		
 		# Check that the users we care about have ssh public keys and they're recorded in ssh_keys.
-		$anvil->System->check_ssh_keys({debug => 3});
+		$anvil->System->check_ssh_keys({debug => 2});
 		
 		$anvil->System->update_hosts({debug => 3});
 		
@@ -506,6 +579,9 @@ sub handle_periodic_tasks
 		# Check mail server config.
 		my $problem = $anvil->Email->check_config({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+		
+		# Check if any files have been uploaded to /mnt/shared/incoming on striker
+		check_incoming($anvil);
 	}
 	
 	# Now check to see if it's time to run less frequent tasks.
@@ -533,6 +609,9 @@ sub handle_periodic_tasks
 					{
 						$first_uuid = $uuid; 
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
+						
+						# Skip the first UUID so it doesn't evaluate for shutdown.
+						next;
 					}
 					elsif ($uuid eq $host_uuid)
 					{
@@ -693,6 +772,77 @@ sub handle_periodic_tasks
 	return(0);
 }
 
+# On dashboards, this checks to see if any files are in /mnt/shared/incoming and, if so, that they've been processed.
+sub check_incoming
+{
+	my ($anvil) = @_;
+	
+	my $system_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { system_type => $system_type }});
+	if ($system_type eq "striker")
+	{
+		# Look for files in /mnt/shared/incoming that are not yet in the database. 
+		my $directory = $anvil->data->{path}{directories}{shared}{incoming};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+			next if $file eq ".";
+			next if $file eq "..";
+			next if $file =~ /^\./;	# This is files being rsync'ed still
+			my $full_path = $directory."/".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+			
+			# Skip anything that is not a file.
+			next if not -f $full_path;
+			
+			# Is this file already in the DB?
+			my $query = "SELECT file_uuid FROM files WHERE file_name = ".$anvil->Database->quote($file).";";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if (not $count)
+			{
+				# Add it to the database.
+				my $size             = (stat($full_path))[7];
+				my $say_size_human   = $anvil->Convert->bytes_to_human_readable({'bytes' => $size});
+				my $say_size_comma   = $anvil->Convert->add_commas({number => $size});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					size             => $size,
+					say_size_human   => $say_size_human, 
+					say_size_comma   => $say_size_comma, 
+				}});
+				
+				# Register a job to call anvil-sync-shared 
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					file            => $THIS_FILE, 
+					line            => __LINE__, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
+					job_data        => "file=".$full_path, 
+					job_name        => "storage::move_incoming", 
+					job_title       => "job_0132", 
+					job_description => "job_0133", 
+					job_progress    => 0,
+					job_host_uuid   => $anvil->data->{sys}{host_uuid},
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			}
+			
+		}
+		closedir(DIRECTORY);
+	}
+	
+	return(0);
+}
+
 # This calls striker-manage-install-target to see if the dhcpd is running or not. If it is or isn't, the config
 # variable 'install-target::enabled' is set/updated. On non-Striker hosts, this simply returns without doing 
 # anything.
@@ -761,7 +911,7 @@ sub run_once
 	
 	# Check the ssh stuff. 
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
-	$anvil->System->check_ssh_keys();
+	$anvil->System->check_ssh_keys({debug => 2});
 	
 	# Check setuid wrappers
 	check_setuid_wrappers($anvil);
@@ -1124,11 +1274,12 @@ sub handle_special_cases
 {
 	my ($anvil) = @_;
 	
-	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 	my $host_type = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type ne "striker")
 	{
+		### TODO: Test that this is fixed. The bug is now ERRATA
+		# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 		# We're a node or DR host. We need to touch this file.
 		my $work_around_file = "/etc/qemu/firmware/50-edk2-ovmf-cc.json";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { work_around_file => $work_around_file }});
@@ -1145,6 +1296,9 @@ sub handle_special_cases
 				group     => "root",
 			});
 		}
+		
+		# Make sure DRBD compiled after a kernel upgrade.
+		$anvil->DRBD->_initialize_kmod({debug => 2});
 	}
 	
 	return(0);
@@ -1156,6 +1310,7 @@ sub prep_database
 	my ($anvil) = @_;
 	
 	# If there's a backup file, we're configured and possibly just off. 
+	my $prep_database = 1;
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
 		my $dump_file =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$uuid.".sql";
@@ -1165,7 +1320,8 @@ sub prep_database
 		{
 			# No need to prepare.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0665", variables => { file => $dump_file }});
-			return(0);
+			$prep_database = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { prep_database => $prep_database }});
 		}
 	}
 	
@@ -1174,13 +1330,37 @@ sub prep_database
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "striker")
 	{
-		### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-		#my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__ });
-		my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure", source => $THIS_FILE, line => __LINE__ });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			database_output => $database_output,
-			return_code     => $return_code, 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			prep_database                => $prep_database,
+			"sys::database::connections" => $anvil->data->{sys}{database}{connections}, 
 		}});
+		if ($prep_database)
+		{
+			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
+			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				database_output => $database_output,
+				return_code     => $return_code, 
+			}});
+		}
+		elsif (not $anvil->data->{sys}{database}{connections})
+		{
+			# Start the daemon locally, if needed.
+			my $running = $anvil->System->check_daemon({daemon => "postgresql"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+			if ($running == 2)
+			{
+				# Not installed, nothing to do.
+			}
+			elsif (not $running)
+			{
+				# Start it.
+				my $return_code = $anvil->System->start_daemon({daemon => "postgresql"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+			}
+		}
 	}
 	
 	return(0);

@@ -21,6 +21,7 @@ my $THIS_FILE = "ScanCore.pm";
 # check_health
 # check_power
 # check_temperature
+# check_temperature_direct
 # count_servers
 # post_scan_analysis
 # post_scan_analysis_dr
@@ -198,7 +199,7 @@ sub agent_startup
 	if (($anvil->data->{scancore}{$agent}{disable}) && (not $anvil->data->{switches}{force}))
 	{
 		# Exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $THIS_FILE }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0646", variables => { program => $agent }});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -1157,6 +1158,109 @@ ORDER BY
 	}
 	
 	return($temperature_health, $warning_age, $critical_age);
+}
+
+
+=head2 check_temperature_direct
+
+This calls a target's IPMI interface to check the temperature sensors that are available. The status is returns as;
+
+ 0 = Failed to read temperature sensors / IPMI unavailable
+ 1 = All available temperatures are nominal.
+ 2 = One of more sensors are in warning or critical.
+
+Parameters;
+
+=head3 host_uuid (Optional, default Get->host_uuid() )
+
+This is the host's UUID to look at. 
+
+=cut
+sub check_temperature_direct
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->check_temperature_direct()" }});
+	
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+	}});
+	
+	#  * 0 - Failed to read temperature sensors / IPMI unavailable
+	#  * 1 - All available temperatures are nominal
+	#  * 2 - One of more sensors are in warning or critical.
+	my $status = 0;
+	if ((not defined $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}) or (not $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi}))
+	{
+		$anvil->Database->get_hosts_info({debug => $debug});
+	}
+	my $host_ipmi = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_ipmi};
+	my $host_name = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_ipmi => $host_ipmi,
+		host_name => $host_name, 
+	}});
+	
+	my ($ipmitool_command, $ipmi_password) = $anvil->Convert->fence_ipmilan_to_ipmitool({
+		debug                 => 2,
+		fence_ipmilan_command => $host_ipmi,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmitool_command => $ipmitool_command,
+		ipmi_password    => $anvil->Log->is_secure($ipmi_password), 
+	}});
+	
+	if ((not $ipmitool_command) or ($ipmitool_command eq "!!error!!"))
+	{
+		# No IPMI tool to call.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0573", variables => { host_name => $host_name }});
+		return($status);
+	}
+	
+	$anvil->System->collect_ipmi_data({
+		debug            => $debug, 
+		host_name        => $host_name, 
+		ipmitool_command => $ipmitool_command, 
+		ipmi_password    => $ipmi_password, 
+	});
+	
+	# Now look for thermal values.
+	foreach my $sensor_name (sort {$a cmp $b} keys %{$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}})
+	{
+		my $current_value = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value};
+		my $units         = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units};
+		my $sensor_status = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			current_value => $current_value, 
+			sensor_name   => $sensor_name, 
+			units         => $units, 
+			sensor_status => $sensor_status, 
+		}});
+		
+		# If this is a temperature, check to see if it is outside its nominal range and, if
+		# so, record it into a hash for loading into ScanCore's 'temperature' table.
+		if ($units eq "C")
+		{
+			if ($sensor_status eq "ok")
+			{
+				# We've found at least one temperature sensor. Set status to '1' if not previously set
+				$status = 1 if not $status;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
+			}
+			else
+			{
+				# Sensor isn't OK yet.
+				$status = 2 if not $status;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
+	return($status);
 }
 
 
@@ -2527,9 +2631,7 @@ LIMIT 1;";
 		if (not $stop_reason)
 		{
 			$stop_reason = "unknown";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_reason => $stop_reason }});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0565", variables => { host_name => $host_name }});
-			
 		}
 		
 		if ($stop_reason eq "user")
@@ -2538,7 +2640,71 @@ LIMIT 1;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0566", variables => { host_name => $host_name }});
 			next;
 		}
-		elsif (($stop_reason eq "power") or ($stop_reason eq "unknown"))
+		elsif ($stop_reason eq "unknown")
+		{
+			# Check both power and temp.
+			if ((not defined $anvil->data->{feature}{scancore}{disable}{'boot-unknown-stop'}) or (not exists $anvil->data->{feature}{scancore}{disable}{'boot-unknown-stop'}) or ($anvil->data->{feature}{scancore}{disable}{'boot-unknown-stop'} eq ""))
+			{
+				$anvil->data->{feature}{scancore}{disable}{'boot-unknown-stop'} = 1;
+			}
+			if (not $anvil->data->{feature}{scancore}{disable}{'boot-unknown-stop'})
+			{
+				# Ignore. 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0671", variables => { host_name => $host_name }});
+			}
+			else
+			{
+				# Evaluate for boot.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0672", variables => { host_name => $host_name }});
+				
+				# Check power 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0567", variables => { host_name => $host_name }});
+				my ($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time) = $anvil->ScanCore->check_power({
+					debug      => $debug,
+					anvil_uuid => $anvil_uuid,
+					anvil_name => $anvil_name,
+					host_uuid  => $host_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					power_health               => $power_health,
+					shortest_time_on_batteries => $shortest_time_on_batteries, 
+					highest_charge_percentage  => $highest_charge_percentage, 
+					estimated_hold_up_time     => $estimated_hold_up_time, 
+				}});
+				
+				# Check temp.
+				my ($temp_health) = $anvil->ScanCore->check_temperature_direct({
+					debug     => $debug,
+					host_uuid => $host_uuid, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_health => $temp_health }});
+				
+				### Temp
+				# * 0 = Failed to read temperature sensors / IPMI unavailable
+				# * 1 = All available temperatures are nominal.
+				# * 2 = One of more sensors are in warning or critical.
+				### Power
+				# * 0 = No UPSes found for the host
+				# * 1 = One or more UPSes found and at least one has input power from mains.
+				# * 2 = One or more UPSes found, all are running on battery.
+				if (($temp_health eq "1") && ($power_health eq "1"))
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0673", variables => { host_name => $host_name }});
+					
+					$shell_call =~ s/--action status/ --action on/;
+					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					
+					# Mark it as booting.
+					$anvil->Database->update_host_status({
+						debug       => $debug,
+						host_uuid   => $host_uuid,
+						host_status => "booting",
+					});
+				}
+			}
+		}
+		elsif ($stop_reason eq "power")
 		{
 			# Check now if the power is OK
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0567", variables => { host_name => $host_name }});
@@ -2590,72 +2756,20 @@ LIMIT 1;";
 		}
 		elsif ($stop_reason eq "thermal")
 		{
-			### TODO: Switch to  ->check_temperature()
 			# Check now if the temperature is OK.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0568", variables => { host_name => $host_name }});
-			
-			my ($ipmitool_command, $ipmi_password) = $anvil->Convert->fence_ipmilan_to_ipmitool({
-				debug                 => 2,
-				fence_ipmilan_command => $host_ipmi,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				ipmitool_command => $ipmitool_command,
-				ipmi_password    => $anvil->Log->is_secure($ipmi_password), 
-			}});
-			
-			if ((not $ipmitool_command) or ($ipmitool_command eq "!!error!!"))
-			{
-				# No IPMI tool to call.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0573", variables => { host_name => $host_name }});
-				next;
-			}
-			
-			$anvil->System->collect_ipmi_data({
-				host_name        => $host_name, 
-				ipmitool_command => $ipmitool_command, 
-				ipmi_password    => $ipmi_password, 
+			my ($temp_health) = $anvil->ScanCore->check_temperature_direct({
+				debug     => $debug,
+				host_uuid => $host_uuid, 
 			});
 			
-			# Now look for thermal values.
-			my $sensor_found    = 0;
-			my $temperatures_ok = 1;
-			foreach my $sensor_name (sort {$a cmp $b} keys %{$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}})
-			{
-				my $current_value = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_value_sensor_value};
-				my $units         = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_units};
-				my $status        = $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$sensor_name}{scan_ipmitool_sensor_status};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					current_value => $current_value, 
-					sensor_name   => $sensor_name, 
-					units         => $units, 
-					status        => $status, 
-				}});
-				
-				# If this is a temperature, check to see if it is outside its nominal range and, if
-				# so, record it into a hash for loading into ScanCore's 'temperature' table.
-				if ($units eq "C")
-				{
-					if (not $sensor_found)
-					{
-						# We've found at least one temperature sensor.
-						$sensor_found = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sensor_found => $sensor_found }});
-					}
-					
-					if ($status ne "ok")
-					{
-						# Sensor isn't OK yet.
-						$temperatures_ok = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperatures_ok => $temperatures_ok }});
-					}
-				}
-			}
+			### Temp
+			# * 0 = Failed to read temperature sensors / IPMI unavailable
+			# * 1 = All available temperatures are nominal.
+			# * 2 = One of more sensors are in warning or critical.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_health => $temp_health }});
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				sensor_found    => $sensor_found,
-				temperatures_ok => $temperatures_ok, 
-			}});
-			if (($sensor_found) && ($temperatures_ok))
+			if ($temp_health eq "1")
 			{
 				### TODO: We'll want to revisit M2's restart cooldown logic. It never 
 				###       actually proved useful in M2, but it doesn't mean it wouldn't help

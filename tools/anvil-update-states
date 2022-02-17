@@ -42,6 +42,10 @@ process_interface_cache($anvil);
 update_network($anvil);
 
 # Write out the interface cache
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	"cache::new_file"           => $anvil->data->{cache}{new_file}, 
+	"path::data::network_cache" => $anvil->data->{path}{data}{network_cache}, 
+}});
 $anvil->Storage->write_file({
 	debug     => 3,
 	body      => $anvil->data->{cache}{new_file},
@@ -446,7 +450,14 @@ sub update_network
 				if ($line =~ /Supported ports: \[ (.*?) \]/i)
 				{
 					$media = lc($1);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { media => $media }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
+					
+					# This can be 'tp	 mii', which breaks json.
+					if ($media =~ /\t/)
+					{
+						$media =~ s/\t/,/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
+					}
 					last;
 				}
 			}
@@ -948,7 +959,7 @@ ORDER BY
 			network_interface_bond_uuid   => defined $row->[9]  ? $row->[9]  : 'NULL',
 			network_interface_bridge_uuid => defined $row->[10] ? $row->[10] : 'NULL',
 		};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"network_interfaces::${network_interface_uuid}::network_interface_mac_address" => $anvil->data->{network_interfaces}{$network_interface_uuid}{network_interface_mac_address},
 			"network_interfaces::${network_interface_uuid}::network_interface_name"        => $anvil->data->{network_interfaces}{$network_interface_uuid}{network_interface_name},
 			"network_interfaces::${network_interface_uuid}::network_interface_speed"       => $anvil->data->{network_interfaces}{$network_interface_uuid}{network_interface_speed},

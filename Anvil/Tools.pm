@@ -1102,6 +1102,7 @@ sub _set_paths
 				units				=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
+				akmods				=>	"/usr/sbin/akmods",
 				'alteeve-repo-setup'		=>	"/usr/sbin/alteeve-repo-setup",
 				'anvil-boot-server'		=>	"/usr/sbin/anvil-boot-server",
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
@@ -1197,6 +1198,7 @@ sub _set_paths
 				md5sum				=>	"/usr/bin/md5sum",
 				'mkdir'				=>	"/usr/bin/mkdir",
 				modifyrepo_c			=>	"/usr/bin/modifyrepo_c",
+				modprobe			=>	"/usr/sbin/modprobe",
 				mv				=>	"/usr/bin/mv",
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",
@@ -1244,6 +1246,7 @@ sub _set_paths
 				su				=>	"/usr/bin/su",
 				'subscription-manager'		=>	"/usr/sbin/subscription-manager",
 				swapon				=>	"/usr/sbin/swapon",
+				sysctl				=>	"/usr/sbin/sysctl",
 				systemctl			=>	"/usr/bin/systemctl",
 				timeout				=>	"/usr/bin/timeout",
 				touch				=>	"/usr/bin/touch",

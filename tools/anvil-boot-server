@@ -321,12 +321,16 @@ sub boot_all_servers
 	### TODO: Manage the boot order here.
 	# We top out at 90, bottom is 20. 
 	my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
-	my $increment    = int(70 / $server_count);
-	my $percent      = 15;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server_count => $server_count, 
-		increment    => $increment,
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
+	if (not $server_count)
+	{
+		# No servers exist yet.
+		return(0);
+	}
+	
+	my $increment = int(70 / $server_count);
+	my $percent   = 15;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { increment => $increment }});
 	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
 	{
 		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
