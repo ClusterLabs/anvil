@@ -799,22 +799,23 @@ sub start_drbd_resource
 		peer    => $peer,
 	}});
 	
+	### TODO: Local start up below, move the peer check to have local startup is handled
 	# Do we need startup?
-	my $startup_needed = 0;
+	my $local_startup_needed = 0;
 	$anvil->DRBD->get_status({debug => 3});
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
-		# Is the current resource up locally already? If it is, we're done. 
+		# Is the current resource up locally already?
 		my $role = defined $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} ? $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			resource => $resource, 
-			role     => $role,
+			's1:resource' => $resource, 
+			's2:role'     => $role,
 		}});
 		
 		if ((lc($role) ne "secondary") && (lc($role) ne "primary"))
 		{
-			$startup_needed = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
+			$local_startup_needed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_startup_needed => $local_startup_needed }});
 			last;
 		}
 		else
@@ -826,95 +827,234 @@ sub start_drbd_resource
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
-	if (not $startup_needed)
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_startup_needed => $local_startup_needed }});
+	if ($local_startup_needed)
+	{
+		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
+		{
+			my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0419", variables => { 
+				server   => $server,
+				peer     => $peer, 
+				peer_ip  => $peer_ip, 
+				resource => $resource,
+			}});
+			
+			# Bring the local resource up
+			$anvil->DRBD->manage_resource({
+				resource => $resource, 
+				task     => "up",
+			});
+			
+			# Bring the peer's resource up.
+			$anvil->DRBD->manage_resource({
+				resource => $resource, 
+				task     => "up",
+				target   => $peer_ip, 
+			});
+			
+			# Now wait for it to be connected or UpToDate...
+			my $waiting = 1;
+			while($waiting)
+			{
+				$anvil->DRBD->get_status({debug => 3});
+				
+				print "==] ".$local_host." [==] ".$resource." [==] ".$peer." [==\n";
+				print Dumper $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$peer};
+				print "=========================================================\n";
+				
+				my $connection_state = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$peer}{'connection-state'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
+				
+				my $all_ready = 1;
+				foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}})
+				{
+					my $disk_state        = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'};
+					my $replication_state = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$peer}{volume}{$volume}{'replication-state'};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						disk_state        => $disk_state,
+						replication_state => $replication_state, 
+					}});
+					
+					# Is the peer isn't connected (directly or by being in Sync), or this volume 
+					# isn't UpToDate, we need to keep waiting.
+					if ((lc($disk_state) ne "uptodate") && ($replication_state !~ /^Sync/i) && (lc($connection_state) ne "connected"))
+					{
+						$all_ready = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
+					}
+				}
+				
+				die;
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
+				if ($all_ready)
+				{
+					$waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				}
+				
+				if ($waiting)
+				{
+					sleep 1;
+				}
+			}
+		}
+		
+		# If auto-promote isn't set, promote the resource.
+		if (not $anvil->data->{drbd}{config}{$local_host}{'auto-promote'})
+		{
+			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0420", variables => { 
+					server   => $server,
+					resource => $resource,
+				}});
+				# Make the local resource primary.
+				$anvil->DRBD->manage_resource({
+					resource => $resource, 
+					task     => "primary",
+				});
+			}
+		}
+	}
+	
+	# See if we're inconsistent and, if so, if we can connect our peers.
+	sleep 5;
+	$anvil->DRBD->get_status({debug => 3});
+	my $peer_startup_needed = 0;
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
+	{
+		# Is the current resource up locally already?
+		my $role = defined $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} ? $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:resource' => $resource, 
+			's2:role'     => $role,
+		}});
+		
+		# Check all volumes.
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}})
+		{
+			my $disk_state = defined $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'} ? $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disk_state => $disk_state }});
+		
+			if ((lc($disk_state) eq "consistent") or 
+			    (lc($disk_state) eq "outdated")   or 
+			    (lc($disk_state) eq "failed")     or
+			    (not $disk_state))
+			{
+				# This will trigger trying to ssh into peer(s) and up'ing their resource.
+				$peer_startup_needed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_startup_needed => $peer_startup_needed }});
+				last;
+			}
+		}
+	}
+	
+	# Do we need to start the resource on our peers?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_startup_needed => $peer_startup_needed }});
+	if (not $peer_startup_needed)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0431"});
 		return(0);
 	}
 	
-	# Start DRBD locally.
+	# Start DRBD on the peer(s).
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
-		my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0419", variables => { 
-			server   => $server,
-			peer     => $peer, 
-			peer_ip  => $peer_ip, 
-			resource => $resource,
-		}});
-		
-		# Bring the local resource up
-		$anvil->DRBD->manage_resource({
-			resource => $resource, 
-			task     => "up",
-		});
-		
-		# Bring the peer's resource up.
-		$anvil->DRBD->manage_resource({
-			resource => $resource, 
-			task     => "up",
-			target   => $peer_ip, 
-		});
-		
-		# Now wait for it to be connected or UpToDate...
-		my $waiting = 1;
-		while($waiting)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
+		foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}})
 		{
-			$anvil->DRBD->get_status({debug => 3});
-			
-			my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer}{'connection-state'};
+			my $is_local = $anvil->Network->is_local({host => $host});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				connection_state => $connection_state,
+				's1:host'     => $host,
+				's2:is_local' => $is_local, 
 			}});
 			
-			my $all_ready = 1;
-			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}})
+			my $connection_state = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$host}{'connection-state'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
+			
+			if (lc($connection_state) ne "connected")
 			{
-				my $disk_state        = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'};
-				my $replication_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer}{volume}{$volume}{'replication-state'};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					disk_state        => $disk_state,
-					replication_state => $replication_state, 
+				# Try to connect to the peer and up this reasource.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0694", variables => { 
+					host             => $host,
+					resource         => $resource,
+					connection_state => $connection_state, 
 				}});
-				
-				# Is the peer isn't connected (directly or by being in Sync), or this volume 
-				# isn't UpToDate, we need to keep waiting.
-				if ((lc($disk_state) ne "uptodate") && ($replication_state !~ /^Sync/i) && (lc($connection_state) ne "connected"))
+				my ($access) = $anvil->Remote->test_access({target => $host});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+				if ($access)
 				{
-					$all_ready = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
+					my ($output, $error, $return_code) = $anvil->Remote->call({
+						target     => $host,
+						shell_call => $anvil->data->{path}{exe}{drbdadm}." up ".$resource,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						error       => $error, 
+						return_code => $return_code,
+					}});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0695", variables => { 
+						return_code => $return_code,
+						error       => $error,
+						output      => $output, 
+					}});
 				}
-			}
-			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
-			if ($all_ready)
-			{
-				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-			}
-			
-			if ($waiting)
-			{
-				sleep 1;
+				else
+				{
+					# No access
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0136", variables => { host => $host }});
+				}
 			}
 		}
 	}
 	
-	# If auto-promote isn't set, promote the resource.
-	if (not $anvil->data->{drbd}{config}{$host}{'auto-promote'})
+	# Loop until all our resources are Connected or UpToDate
+	my $waiting    = 1;
+	my $wait_until = time + 30;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:time'       => time, 
+		's2:wait_until' => $wait_until,
+	}});
+	while($waiting)
 	{
+		sleep 5;
+		my $all_connected = 1;
+		$anvil->DRBD->get_status({debug => 3});
 		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0420", variables => { 
-				server   => $server,
-				resource => $resource,
-			}});
-			# Make the local resource primary.
-			$anvil->DRBD->manage_resource({
-				resource => $resource, 
-				task     => "primary",
-			});
+			foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+				next if $anvil->Network->is_local({host => $host});
+				foreach my $connection (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}})
+				{
+					my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{'connection-state'};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						connection       => $connection,
+						connection_state => $connection_state, 
+					}});
+					
+					if (lc($connection_state) ne "connected")
+					{
+						$all_connected = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_connected => $all_connected }});
+					}
+				}
+			}
+		}
+		
+		if ($all_connected)
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+		elsif (time > $wait_until)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0137"});
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 		}
 	}
 	
