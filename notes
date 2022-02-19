@@ -312,6 +312,12 @@ pcs constraint location srv01-test prefers el8-a01n01=200 el8-a01n02=100
 stonith-max-attempts=INFINITY
 cluster-recheck-interval puts an upper bound on the "i give up" time
 
+====
+
+pcs resource create srv01-cs8 ocf:alteeve:server name="srv01-cs8" meta allow-migrate="true" target-role="stopped" op monitor interval="60" start timeout="INFINITY" on-fail="block" stop timeout="INFINITY" on-fail="block" migrate_to timeout="INFINITY"
+pcs constraint location srv01-cs8 prefers mk-a02n01=200 mk-a02n02=100
+
+
 ==== DRBD notes
 
 * resources can contain an US-ASCII character, except for spaces
