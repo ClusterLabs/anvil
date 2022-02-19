@@ -11,6 +11,7 @@ class MyDocument extends Document {
 
     ctx.renderPage = () =>
       originalRenderPage({
+        /* eslint-disable react/display-name */
         enhanceApp: (App) => (props) =>
           materialUiSheets.collect(
             <App
