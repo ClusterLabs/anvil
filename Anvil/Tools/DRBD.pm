@@ -1648,7 +1648,7 @@ sub get_status
 		($output, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output                               => $output,
-			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
+			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{$host}{return_code},
 		}});
 	}
 	else
@@ -1666,7 +1666,7 @@ sub get_status
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error                                => $error,
 			output                               => $output,
-			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
+			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{$host}{return_code},
 		}});
 	}
 	
@@ -1913,12 +1913,14 @@ sub manage_resource
 	###       can block startup, so to be safe, during start, we'll call adjust
 	if ($task eq "up")
 	{
+		# This generally brings up the resource
 		my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
 		my $output      = "";
 		my $return_code = 255; 
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				output      => $output,
@@ -1928,6 +1930,7 @@ sub manage_resource
 		else
 		{
 			# Remote call.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			($output, my $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				shell_call  => $shell_call, 
@@ -1944,12 +1947,15 @@ sub manage_resource
 		}
 	}
 	
+	# If we 'adjust'ed abovem this will likely complain that the backing disk already exists, and that's 
+	# fine.
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";
 	my $return_code = 255; 
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output,
@@ -1959,6 +1965,7 @@ sub manage_resource
 	else
 	{
 		# Remote call.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		($output, my $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
