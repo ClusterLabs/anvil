@@ -8,8 +8,6 @@ import {
   inputLabelClasses,
   MenuItem,
   menuItemClasses,
-  OutlinedInput,
-  outlinedInputClasses,
   Select,
   selectClasses,
   styled,
@@ -27,9 +25,10 @@ import {
   GREY,
   RED,
   TEXT,
-  UNSELECTED,
 } from '../../lib/consts/DEFAULT_THEME';
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
+
+import OutlinedInput from '../OutlinedInput';
 
 type FileInfoProps = Pick<FileDetailMetadata, 'fileName' | 'fileLocations'> &
   Partial<Pick<FileDetailMetadata, 'fileType'>> & {
@@ -50,32 +49,6 @@ const StyledInputLabel = styled(InputLabel)({
     borderRadius: BORDER_RADIUS,
     color: BLACK,
     padding: '.1em .6em',
-  },
-});
-
-const StyledOutlinedInput = styled(OutlinedInput)({
-  color: GREY,
-
-  [`& .${outlinedInputClasses.notchedOutline}`]: {
-    borderColor: UNSELECTED,
-  },
-
-  '&:hover': {
-    [`& .${outlinedInputClasses.notchedOutline}`]: {
-      borderColor: GREY,
-    },
-  },
-
-  [`&.${outlinedInputClasses.focused}`]: {
-    color: TEXT,
-
-    [`& .${outlinedInputClasses.notchedOutline}`]: {
-      borderColor: GREY,
-
-      '& legend': {
-        paddingRight: '1.2em',
-      },
-    },
   },
 });
 
@@ -134,7 +107,7 @@ const FileInfo = (
         <StyledInputLabel htmlFor={fileNameElementId} variant="outlined">
           {fileNameElementLabel}
         </StyledInputLabel>
-        <StyledOutlinedInput
+        <OutlinedInput
           defaultValue={fileName}
           disabled={isReadonly}
           id={fileNameElementId}
@@ -153,7 +126,7 @@ const FileInfo = (
             defaultValue={fileType}
             disabled={isReadonly}
             id={fileTypeElementId}
-            input={<StyledOutlinedInput label={fileTypeElementLabel} />}
+            input={<OutlinedInput label={fileTypeElementLabel} />}
             onChange={({ target: { value } }) =>
               onChange?.call(null, { fileType: value as FileType })
             }
