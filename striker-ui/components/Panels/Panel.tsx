@@ -1,6 +1,5 @@
-import { ReactNode } from 'react';
-import { GlobalStyles } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { GlobalStyles, PaperProps, styled } from '@mui/material';
+
 import {
   BORDER_RADIUS,
   PANEL_BACKGROUND,
@@ -52,9 +51,7 @@ const StyledDiv = styled('div')(() => ({
   },
 }));
 
-type Props = {
-  children: ReactNode;
-};
+type PanelProps = PaperProps;
 
 const styledScrollbars = (
   <GlobalStyles
@@ -74,7 +71,7 @@ const styledScrollbars = (
   />
 );
 
-const Panel = ({ children }: Props): JSX.Element => {
+const Panel = ({ children }: PanelProps): JSX.Element => {
   return (
     <StyledDiv>
       {styledScrollbars}
