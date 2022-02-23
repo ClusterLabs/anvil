@@ -4,8 +4,6 @@ import {
   FormControl,
   FormControlLabel,
   FormGroup,
-  InputLabel,
-  inputLabelClasses,
   MenuItem,
   menuItemClasses,
   Select,
@@ -18,17 +16,11 @@ import {
 } from '@mui/icons-material';
 import { v4 as uuidv4 } from 'uuid';
 
-import {
-  BLACK,
-  BLUE,
-  BORDER_RADIUS,
-  GREY,
-  RED,
-  TEXT,
-} from '../../lib/consts/DEFAULT_THEME';
+import { BLUE, GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 import OutlinedInput from '../OutlinedInput';
+import OutlinedInputLabel from '../OutlinedInputLabel';
 
 type FileInfoProps = Pick<FileDetailMetadata, 'fileName' | 'fileLocations'> &
   Partial<Pick<FileDetailMetadata, 'fileType'>> & {
@@ -40,17 +32,6 @@ const FILE_INFO_DEFAULT_PROPS: Partial<FileInfoProps> = {
   isReadonly: undefined,
   onChange: undefined,
 };
-
-const StyledInputLabel = styled(InputLabel)({
-  color: GREY,
-
-  [`&.${inputLabelClasses.focused}`]: {
-    backgroundColor: GREY,
-    borderRadius: BORDER_RADIUS,
-    color: BLACK,
-    padding: '.1em .6em',
-  },
-});
 
 const StyledSelect = styled(Select)({
   [`& .${selectClasses.icon}`]: {
@@ -104,9 +85,9 @@ const FileInfo = (
   return (
     <FormGroup sx={{ '> :not(:first-child)': { marginTop: '1em' } }}>
       <FormControl>
-        <StyledInputLabel htmlFor={fileNameElementId} variant="outlined">
+        <OutlinedInputLabel htmlFor={fileNameElementId}>
           {fileNameElementLabel}
-        </StyledInputLabel>
+        </OutlinedInputLabel>
         <OutlinedInput
           defaultValue={fileName}
           disabled={isReadonly}
@@ -119,9 +100,9 @@ const FileInfo = (
       </FormControl>
       {fileType && (
         <FormControl>
-          <StyledInputLabel htmlFor={fileTypeElementId} variant="outlined">
+          <OutlinedInputLabel htmlFor={fileTypeElementId}>
             {fileTypeElementLabel}
-          </StyledInputLabel>
+          </OutlinedInputLabel>
           <StyledSelect
             defaultValue={fileType}
             disabled={isReadonly}
