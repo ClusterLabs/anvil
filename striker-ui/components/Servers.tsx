@@ -1,13 +1,14 @@
 import { useState, useContext, useRef } from 'react';
 import {
-  List,
-  ListItem,
-  Divider,
   Box,
   Button,
   Checkbox,
+  Divider,
+  List,
+  ListItem,
   Menu,
   MenuItem,
+  styled,
   Typography,
 } from '@mui/material';
 import {
@@ -16,27 +17,28 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
-import { Panel, PanelHeader } from './Panels';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import { HeaderText, BodyText } from './Text';
+
 import {
-  HOVER,
-  DIVIDER,
-  TEXT,
-  BLUE,
-  RED,
-  GREY,
   BLACK,
+  BLUE,
+  DIVIDER,
+  GREY,
+  HOVER,
   LARGE_MOBILE_BREAKPOINT,
+  RED,
+  TEXT,
 } from '../lib/consts/DEFAULT_THEME';
-import { AnvilContext } from './AnvilContext';
 import serverState from '../lib/consts/SERVERS';
+
+import { AnvilContext } from './AnvilContext';
 import Decorator, { Colours } from './Decorator';
 import IconButton from './IconButton';
+import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
-import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
+import { BodyText, HeaderText } from './Text';
 
+import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
+import PeriodicFetch from '../lib/fetchers/periodicFetch';
 import putFetch from '../lib/fetchers/putFetch';
 
 const PREFIX = 'Servers';
