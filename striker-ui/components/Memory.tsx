@@ -4,13 +4,13 @@ import * as prettyBytes from 'pretty-bytes';
 import { Panel } from './Panels';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import { AnvilContext } from './AnvilContext';
 import Spinner from './Spinner';
 
 const Memory = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const { data, isLoading } = PeriodicFetch<AnvilMemory>(
+  const { data, isLoading } = periodicFetch<AnvilMemory>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_memory?anvil_uuid=${uuid}`,
   );
 

@@ -3,7 +3,7 @@ import { Box, Divider } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Panel } from '../Panels';
 import { HeaderText, BodyText } from '../Text';
-import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import {
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
@@ -69,7 +69,7 @@ const selectDecorator = (state: string): Colours => {
 const Network = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
-  const { data, isLoading } = PeriodicFetch<AnvilNetwork>(
+  const { data, isLoading } = periodicFetch<AnvilNetwork>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_networks?anvil_uuid=${uuid}`,
   );
 

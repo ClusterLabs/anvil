@@ -38,7 +38,7 @@ import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
 
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import putFetch from '../lib/fetchers/putFetch';
 
 const PREFIX = 'Servers';
@@ -177,7 +177,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const buttonLabels = useRef<ButtonLabels[]>([]);
 
-  const { data, isLoading } = PeriodicFetch<AnvilServers>(
+  const { data, isLoading } = periodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
   );
 

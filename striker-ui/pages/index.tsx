@@ -8,7 +8,7 @@ import CPU from '../components/CPU';
 import SharedStorage from '../components/SharedStorage';
 import Memory from '../components/Memory';
 import Network from '../components/Network';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import Servers from '../components/Servers';
 import Header from '../components/Header';
 import AnvilProvider from '../components/AnvilContext';
@@ -57,7 +57,7 @@ const StyledDiv = styled('div')(({ theme }) => ({
 const Dashboard = (): JSX.Element => {
   const width = useWindowDimensions();
 
-  const { data } = PeriodicFetch<AnvilList>(
+  const { data } = periodicFetch<AnvilList>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
   );
 

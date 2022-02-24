@@ -5,7 +5,7 @@ import { styled } from '@mui/material/styles';
 import { BodyText, HeaderText } from '../Text';
 import { Panel, InnerPanel, InnerPanelHeader } from '../Panels';
 import SharedStorageHost from './FileSystemsHost';
-import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
 import Spinner from '../Spinner';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
@@ -35,7 +35,7 @@ const StyledDiv = styled('div')(({ theme }) => ({
 
 const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const { data, isLoading } = PeriodicFetch<AnvilSharedStorage>(
+  const { data, isLoading } = periodicFetch<AnvilSharedStorage>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_shared_storage?anvil_uuid=${uuid}`,
   );
   return (

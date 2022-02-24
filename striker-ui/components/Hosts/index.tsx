@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { Panel } from '../Panels';
 import { HeaderText } from '../Text';
 import AnvilHost from './AnvilHost';
-import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { AnvilContext } from '../AnvilContext';
 import Spinner from '../Spinner';
 import hostsSanitizer from '../../lib/sanitizers/hostsSanitizer';
@@ -10,7 +10,7 @@ import hostsSanitizer from '../../lib/sanitizers/hostsSanitizer';
 const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
-  const { data, isLoading } = PeriodicFetch<AnvilStatus>(
+  const { data, isLoading } = periodicFetch<AnvilStatus>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_status?anvil_uuid=${uuid}`,
   );
 
