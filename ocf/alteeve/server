@@ -839,7 +839,7 @@ sub start_drbd_resource
 			
 			# Now wait for it to come up.
 			my $waiting    = 1;
-			my $wait_until = time + 10;
+			my $wait_until = time + 5;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:time'       => time, 
 				's2:wait_until' => $wait_until,
@@ -876,7 +876,7 @@ sub start_drbd_resource
 				}
 				if ($waiting)
 				{
-					sleep 2;
+					sleep 1;
 				}
 				elsif (time > $wait_until)
 				{
@@ -908,7 +908,7 @@ sub start_drbd_resource
 	# See if we're inconsistent and, if so, if we can connect our peers.
 	sleep 2;
 	$anvil->DRBD->get_status({debug => 3});
-	my $peer_startup_needed = 0;
+	my $peer_startup_needed = 1;
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
 		# Is the current resource up locally already?
@@ -930,7 +930,7 @@ sub start_drbd_resource
 			    (not $disk_state))
 			{
 				# This will trigger trying to ssh into peer(s) and up'ing their resource.
-				$peer_startup_needed = 1;
+				$peer_startup_needed = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_startup_needed => $peer_startup_needed }});
 				last;
 			}
@@ -994,40 +994,100 @@ sub start_drbd_resource
 	
 	# Loop until all our resources are Connected or UpToDate
 	my $waiting    = 1;
-	my $wait_until = time + 30;
+	my $wait_until = time + 5;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:time'       => time, 
 		's2:wait_until' => $wait_until,
 	}});
 	while($waiting)
 	{
-		sleep 5;
-		my $all_connected = 1;
+		sleep 1;
 		$anvil->DRBD->get_status({debug => 3});
+		my $all_resources_ok = 1;
 		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 		{
-			foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}})
+			# This is set to '1' is either the volumes are UpToDate or Sync'ing.
+			$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{ok} = 0;
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}})
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
-				next if $anvil->Network->is_local({host => $host});
-				foreach my $connection (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}})
+				# This will be used to mark if a volume is being sync'ed later, if needed.
+				$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok} = 0;
+				
+				my $disk_state = lc($anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'});
+				   $disk_state = "" if not defined $disk_state;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disk_state => $disk_state }});
+				
+				if ($disk_state ne "uptodate")
 				{
-					my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{'connection-state'};
+					$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"drbd::status::${local_host}::resource::${resource}::devices::volume::${volume}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok},
+					}});
+				}
+			}
+			
+			if (not $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{ok})
+			{
+				# See if we're a SyncTarget
+				foreach my $connection (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}})
+				{
+					my $connection_state = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{'connection-state'};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						connection       => $connection,
 						connection_state => $connection_state, 
 					}});
 					
-					if (lc($connection_state) ne "connected")
+					foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$connection}{volume}})
 					{
-						$all_connected = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_connected => $all_connected }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"drbd::status::${local_host}::resource::${resource}::devices::volume::${volume}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok},
+						}});
+						next if $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok};
+						
+						my $replication_state = lc($anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$connection}{volume}{$volume}{'replication-state'});
+						   $replication_state = "" if not defined $replication_state;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:volume'            => $volume,
+							's2:replication_state' => $replication_state, 
+						}});
+						
+						if ($replication_state =~ /sync/)
+						{
+							# We're good to go.
+							$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok} = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"drbd::status::${local_host}::resource::${resource}::devices::volume::${volume}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok},
+							}});
+						}
 					}
 				}
 			}
+			
+			# Loop through all volumes on all resources and see if they're OK. If they are, mark the resource as OK.
+			my $resource_ok = 1;
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}})
+			{
+				my $volume_ok = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					volume    => $volume,
+					volume_ok => $volume_ok, 
+				}});
+				
+				if (not $volume_ok)
+				{
+					$resource_ok = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_ok => $resource_ok }});
+				}
+			}
+			
+			if (not $resource_ok)
+			{
+				$all_resources_ok = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_resources_ok => $all_resources_ok }});
+			}
 		}
 		
-		if ($all_connected)
+		if ($all_resources_ok)
 		{
 			$waiting = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
@@ -1308,7 +1368,7 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0525", variables => { server_name => $server }});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { loop => $loop }});
 						
-						sleep 2;
+						sleep 1;
 						last;
 					}
 					elsif ($state eq "shut off")

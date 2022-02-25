@@ -615,29 +615,40 @@ sub handle_periodic_tasks
 					}
 					elsif ($uuid eq $host_uuid)
 					{
-						# This is us, backup and shut down.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0659"});
-						
-						# Switch the read_uuid and then close 
-						$anvil->data->{sys}{database}{read_uuid} = $first_uuid;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
-						
-						# Disconnect
-						$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
-						delete $anvil->data->{cache}{database_handle}{$uuid};
-						
-						# Create a backup, this is useful also for setting the mtime of the last time
-						# we were up.
-						my $dump_file = $anvil->Database->backup_database({debug => 3});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
-						
-						# Stop the daemon
-						my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
-						if ($return_code eq "0")
+						### TODO: We need to have a way to tell clients to disconnect
+						###       and then shutdown cleanly. This "Wait for an hour" 
+						###       is a kludge.
+						# This is us, Have we been up for at least an hour?
+						my $uptime = $anvil->Get->uptime();
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+						if ($uptime > 3600)
 						{
-							# Stopped the daemon.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0660"});
+							# backup and shut down.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0659"});
+							
+							# Switch the read_uuid and then close 
+							$anvil->data->{sys}{database}{read_uuid} = $first_uuid;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+								"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
+							}});
+							
+							# Disconnect
+							$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+							delete $anvil->data->{cache}{database_handle}{$uuid};
+							
+							# Create a backup, this is useful also for setting 
+							# the mtime of the last time we were up.
+							my $dump_file = $anvil->Database->backup_database({debug => 3});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
+							
+							# Stop the daemon
+							my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+							if ($return_code eq "0")
+							{
+								# Stopped the daemon.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0660"});
+							}
 						}
 					}
 				}
