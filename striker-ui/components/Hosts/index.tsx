@@ -23,11 +23,17 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         <>
           {anvilIndex !== -1 && data && (
             <AnvilHost
-              hosts={hostsSanitizer(anvil[anvilIndex].hosts).map(
-                (host, index) => {
-                  return data.hosts[index];
-                },
-              )}
+              hosts={hostsSanitizer(anvil[anvilIndex].hosts).reduce<
+                Array<AnvilStatusHost>
+              >((reducedHosts, host, index) => {
+                const hostStatus = data.hosts[index];
+
+                if (hostStatus) {
+                  reducedHosts.push(hostStatus);
+                }
+
+                return reducedHosts;
+              }, [])}
             />
           )}
         </>
