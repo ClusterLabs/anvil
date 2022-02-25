@@ -2087,7 +2087,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0692">The anvil-safe-stop job has completed and will now power off.</key>
 		<key name="log_0693">The anvil-configure-host tool is requesting a reboot.</key>
 		<key name="log_0694">The connection to: [#!variable!host!#] for the resource: [#!variable!resource!#] is in the connection state: [#!variable!connection_state!#]. Will try to connect to the peer and up the resource now.</key>
-		<key name="log_0695">About to request the start of the resource: [#variable!resource!#] on: [#!variable!host!#].</key>
+		<key name="log_0695">About to request the start of the resource: [#!variable!resource!#] on: [#!variable!host!#].</key>
 		<key name="log_0696">The peer: [#!variable!peer!#] is defined in the resource: [#!variable!resource!#] but we don't connect to it, ignoring it.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->

@@ -101,7 +101,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				'switches::power-off' => $anvil->data->{switches}{'power-off'},
 			}});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "log_0691" }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0691!#" }});
 		}
 		if ($line =~ /stop-reason=(.*?)$/)
 		{
@@ -157,7 +157,7 @@ if ($anvil->data->{switches}{'power-off'})
 		host_status => "stopping",
 	});
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "log_0692" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0692!#" }});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0325"});
 	$anvil->Job->update_progress({progress => 100, message => "job_0325"});
 	

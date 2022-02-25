@@ -173,7 +173,7 @@ sub run_os_update
 		if ($line =~ /^kernel /)
 		{
 			# Reboot will be needed.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "log_0690" }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0690!#" }});
 			my $reboot_needed = $anvil->System->reboot_needed({set => 1});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
 		}
