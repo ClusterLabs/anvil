@@ -3123,6 +3123,7 @@ We will sleep a bit and try again.
 		<key name="warning_0136">[ Warning ] - Failed to connect to the host: [#!variable!host!#]! Unable to up the resource, so the server may not start. If the peer can't be recovered, manually forcing the local resource(s) to UpToDate may be required.</key>
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
+		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, which might be why the RAM is high. NOT exiting while this program is running.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

@@ -3854,6 +3854,11 @@ sub get_jobs
 		job_host_uuid => $job_host_uuid, 
 	}});
 	
+	if (exists $anvil->data->{jobs}{running})
+	{
+		delete $anvil->data->{jobs}{running};
+	}
+	
 	my $query = "
 SELECT 
     job_uuid, 
@@ -3937,6 +3942,31 @@ WHERE
 			job_status       => $job_status, 
 			modified_date    => $modified_date, 
 		};
+		
+		$anvil->data->{jobs}{running}{$job_uuid}{job_command}      = $job_command;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_data}         = $job_data;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_picked_up_by} = $job_picked_up_by;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_picked_up_at} = $job_picked_up_at;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_updated}      = $job_updated;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_name}         = $job_name;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_progress}     = $job_progress;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_title}        = $job_title;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_description}  = $job_description;
+		$anvil->data->{jobs}{running}{$job_uuid}{job_status}       = $job_status;
+		$anvil->data->{jobs}{running}{$job_uuid}{modified_date}    = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"jobs::running::${job_uuid}::job_command"      => $anvil->data->{jobs}{running}{$job_uuid}{job_command}, 
+			"jobs::running::${job_uuid}::job_data"         => $anvil->data->{jobs}{running}{$job_uuid}{job_data}, 
+			"jobs::running::${job_uuid}::job_picked_up_by" => $anvil->data->{jobs}{running}{$job_uuid}{job_picked_up_by}, 
+			"jobs::running::${job_uuid}::job_picked_up_at" => $anvil->data->{jobs}{running}{$job_uuid}{job_picked_up_at}, 
+			"jobs::running::${job_uuid}::job_updated"      => $anvil->data->{jobs}{running}{$job_uuid}{job_updated}, 
+			"jobs::running::${job_uuid}::job_name"         => $anvil->data->{jobs}{running}{$job_uuid}{job_name}, 
+			"jobs::running::${job_uuid}::job_progress"     => $anvil->data->{jobs}{running}{$job_uuid}{job_progress}, 
+			"jobs::running::${job_uuid}::job_title"        => $anvil->data->{jobs}{running}{$job_uuid}{job_title}, 
+			"jobs::running::${job_uuid}::job_description"  => $anvil->data->{jobs}{running}{$job_uuid}{job_description}, 
+			"jobs::running::${job_uuid}::job_status"       => $anvil->data->{jobs}{running}{$job_uuid}{job_status}, 
+			"jobs::running::${job_uuid}::modified_date"    => $anvil->data->{jobs}{running}{$job_uuid}{modified_date}, 
+		}});
 	}
 	
 	my $return_count = @{$return};

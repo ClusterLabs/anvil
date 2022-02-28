@@ -274,6 +274,30 @@ sub check_ram
 	}});
 	if ($problem)
 	{
+		# See if an [anvil-sync-shared' job is running and, if so, don't exit. The file copy is 
+		# counted and not an actual problem.
+		$anvil->Database->get_jobs({debug => 2});
+		foreach my $job_uuid (keys %{$anvil->data->{jobs}{running}})
+		{
+			my $job_command  = $anvil->data->{jobs}{running}{$job_uuid}{job_command};
+			my $job_progress = $anvil->data->{jobs}{running}{$job_uuid}{job_progress};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				job_command  => $job_command,
+				job_progress => $job_progress, 
+			}});
+			
+			if (($job_progress != 100) && ($job_command =~ /anvil-sync-shared/))
+			{
+				# Don't abort.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0139", variables => { 
+					job_command    => $job_command,
+					ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
+					ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
+				}});
+				return(0);
+			}
+		}
+		
 		# Send an alert and exit.
 		$anvil->Alert->register({alert_level => "notice", message => "error_0357", variables => { 
 			program        => $THIS_FILE,
