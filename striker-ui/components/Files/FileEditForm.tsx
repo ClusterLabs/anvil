@@ -9,6 +9,7 @@ import { Box, Checkbox, checkboxClasses } from '@mui/material';
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
+import ConfirmDialog from '../ConfirmDialog';
 import ContainedButton from '../ContainedButton';
 import FileInfo from './FileInfo';
 import Spinner from '../Spinner';
@@ -29,6 +30,16 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
   const [filesToEdit, setFilesToEdit] = useState<FileToEdit[]>([]);
   const [isLoadingFilesToEdit, setIsLoadingFilesToEdit] =
     useState<boolean>(false);
+  const [isOpenPurgeConfirmDialog, setIsOpenConfirmPurgeDialog] =
+    useState<boolean>(false);
+  const [selectedFilesCount, setSelectedFilesCount] = useState<number>(0);
+
+  const purgeButtonStyleOverride = {
+    backgroundColor: RED,
+    color: TEXT,
+
+    '&:hover': { backgroundColor: RED },
+  };
 
   const generateFileInfoChangeHandler =
     (fileIndex: number): FileInfoChangeHandler =>
@@ -70,11 +81,33 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
   };
 
   const purgeFiles: MouseEventHandler<HTMLButtonElement> = () => {
+    setIsOpenConfirmPurgeDialog(false);
+
     filesToEdit
       .filter(({ isSelected }) => isSelected)
       .forEach(({ fileUUID }) => {
         mainAxiosInstance.delete(`/files/${fileUUID}`);
       });
+  };
+
+  const cancelPurge: MouseEventHandler<HTMLButtonElement> = () => {
+    setIsOpenConfirmPurgeDialog(false);
+  };
+
+  const confirmPurge: MouseEventHandler<HTMLButtonElement> = () => {
+    // We need this local variable because setState functions are async; the
+    // changes won't reflect until the next render cycle.
+    // In this case, the user would have to click on the purge button twice to
+    // trigger the confirmation dialog without using this local variable.
+    const localSelectedFilesCount = filesToEdit.filter(
+      ({ isSelected }) => isSelected,
+    ).length;
+
+    setSelectedFilesCount(localSelectedFilesCount);
+
+    if (localSelectedFilesCount > 0) {
+      setIsOpenConfirmPurgeDialog(true);
+    }
   };
 
   useEffect(() => {
@@ -182,12 +215,8 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
                 }}
               >
                 <ContainedButton
-                  onClick={purgeFiles}
-                  sx={{
-                    backgroundColor: RED,
-                    color: TEXT,
-                    '&:hover': { backgroundColor: RED },
-                  }}
+                  onClick={confirmPurge}
+                  sx={purgeButtonStyleOverride}
                 >
                   Purge
                 </ContainedButton>
@@ -195,6 +224,15 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
               </Box>
             )}
           </Box>
+          <ConfirmDialog
+            actionProceedText="Purge"
+            contentText={`${selectedFilesCount} files will be removed from the system. You cannot undo this purge.`}
+            dialogProps={{ open: isOpenPurgeConfirmDialog }}
+            onCancel={cancelPurge}
+            onProceed={purgeFiles}
+            proceedButtonProps={{ sx: purgeButtonStyleOverride }}
+            titleText={`Are you sure you want to purge ${selectedFilesCount} selected files? `}
+          />
         </form>
       )}
     </>
