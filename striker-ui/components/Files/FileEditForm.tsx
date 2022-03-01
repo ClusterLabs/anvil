@@ -9,11 +9,12 @@ import { Box, Checkbox, checkboxClasses } from '@mui/material';
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
+import ContainedButton from '../ContainedButton';
 import FileInfo from './FileInfo';
+import Spinner from '../Spinner';
+
 import fetchJSON from '../../lib/fetchers/fetchJSON';
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
-import StyledContainedButton from './StyledContainedButton';
-import Spinner from '../Spinner';
 
 type FileEditProps = {
   filesOverview: FileOverviewMetadata[];
@@ -26,25 +27,24 @@ type FileToEdit = FileDetailMetadata & {
 
 const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
   const [filesToEdit, setFilesToEdit] = useState<FileToEdit[]>([]);
-  const [isLoadingFilesToEdit, setIsLoadingFilesToEdit] = useState<boolean>(
-    false,
-  );
+  const [isLoadingFilesToEdit, setIsLoadingFilesToEdit] =
+    useState<boolean>(false);
 
-  const generateFileInfoChangeHandler = (
-    fileIndex: number,
-  ): FileInfoChangeHandler => (inputValues, { fileLocationIndex } = {}) => {
-    if (fileLocationIndex) {
-      filesToEdit[fileIndex].fileLocations[fileLocationIndex] = {
-        ...filesToEdit[fileIndex].fileLocations[fileLocationIndex],
-        ...inputValues,
-      };
-    } else {
-      filesToEdit[fileIndex] = {
-        ...filesToEdit[fileIndex],
-        ...inputValues,
-      };
-    }
-  };
+  const generateFileInfoChangeHandler =
+    (fileIndex: number): FileInfoChangeHandler =>
+    (inputValues, { fileLocationIndex } = {}) => {
+      if (fileLocationIndex) {
+        filesToEdit[fileIndex].fileLocations[fileLocationIndex] = {
+          ...filesToEdit[fileIndex].fileLocations[fileLocationIndex],
+          ...inputValues,
+        };
+      } else {
+        filesToEdit[fileIndex] = {
+          ...filesToEdit[fileIndex],
+          ...inputValues,
+        };
+      }
+    };
 
   const editFiles: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
@@ -181,7 +181,7 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
                   },
                 }}
               >
-                <StyledContainedButton
+                <ContainedButton
                   onClick={purgeFiles}
                   sx={{
                     backgroundColor: RED,
@@ -190,10 +190,8 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
                   }}
                 >
                   Purge
-                </StyledContainedButton>
-                <StyledContainedButton type="submit">
-                  Update
-                </StyledContainedButton>
+                </ContainedButton>
+                <ContainedButton type="submit">Update</ContainedButton>
               </Box>
             )}
           </Box>

@@ -1,6 +1,6 @@
 import { Button, ButtonProps, styled } from '@mui/material';
 
-import { BLACK, GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { BLACK, GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 const StyledButton = styled(Button)({
   backgroundColor: TEXT,
@@ -12,7 +12,7 @@ const StyledButton = styled(Button)({
   },
 });
 
-const StyledContainedButton = ({
+const ContainedButton = ({
   children,
   onClick,
   sx,
@@ -23,4 +23,4 @@ const StyledContainedButton = ({
   </StyledButton>
 );
 
-export default StyledContainedButton;
+export default ContainedButton;

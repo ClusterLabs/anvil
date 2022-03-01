@@ -1,3 +1,4 @@
+import EventEmitter from 'events';
 import {
   ChangeEventHandler,
   FormEventHandler,
@@ -6,15 +7,15 @@ import {
   useState,
 } from 'react';
 import { Box, Input, InputLabel } from '@mui/material';
-import EventEmitter from 'events';
 
 import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
-import FileInfo from './FileInfo';
 import { ProgressBar } from '../Bars';
+import ContainedButton from '../ContainedButton';
+import FileInfo from './FileInfo';
 import { BodyText } from '../Text';
+
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
-import StyledContainedButton from './StyledContainedButton';
 
 type FileUploadFormProps = {
   onFileUploadComplete?: () => void;
@@ -87,14 +88,14 @@ const FileUploadForm = (
     }
   };
 
-  const generateFileInfoOnChangeHandler = (
-    fileIndex: number,
-  ): FileInfoChangeHandler => (inputValues) => {
-    selectedFiles[fileIndex] = {
-      ...selectedFiles[fileIndex],
-      ...inputValues,
+  const generateFileInfoOnChangeHandler =
+    (fileIndex: number): FileInfoChangeHandler =>
+    (inputValues) => {
+      selectedFiles[fileIndex] = {
+        ...selectedFiles[fileIndex],
+        ...inputValues,
+      };
     };
-  };
 
   const uploadFiles: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
@@ -222,7 +223,7 @@ const FileUploadForm = (
               justifyContent: 'flex-end',
             }}
           >
-            <StyledContainedButton type="submit">Upload</StyledContainedButton>
+            <ContainedButton type="submit">Upload</ContainedButton>
           </Box>
         )}
       </Box>
