@@ -45,10 +45,8 @@ const MessageBox = styled(Box)({
 const Files = (): JSX.Element => {
   const [rawFilesOverview, setRawFilesOverview] = useState<string[][]>([]);
   const [fetchRawFilesError, setFetchRawFilesError] = useState<string>();
-  const [
-    isLoadingRawFilesOverview,
-    setIsLoadingRawFilesOverview,
-  ] = useState<boolean>(false);
+  const [isLoadingRawFilesOverview, setIsLoadingRawFilesOverview] =
+    useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   const fileUploadFormEventEmitter: EventEmitter = new EventEmitter();
@@ -61,6 +59,19 @@ const Files = (): JSX.Element => {
     fileUploadFormEventEmitter.emit('clearSelectedFiles');
 
     setIsEditMode(!isEditMode);
+  };
+
+  const fetchRawFilesOverview = async () => {
+    setIsLoadingRawFilesOverview(true);
+
+    try {
+      const data = await fetchJSON<string[][]>(`${API_BASE_URL}/files`);
+      setRawFilesOverview(data);
+    } catch (fetchError) {
+      setFetchRawFilesError('Failed to get files due to a network issue.');
+    }
+
+    setIsLoadingRawFilesOverview(false);
   };
 
   const buildFileList = (): JSX.Element => {
@@ -79,26 +90,17 @@ const Files = (): JSX.Element => {
       );
 
       elements = isEditMode ? (
-        <FileEditForm {...{ filesOverview }} />
+        <FileEditForm
+          {...{ filesOverview }}
+          onEditFilesComplete={fetchRawFilesOverview}
+          onPurgeFilesComplete={fetchRawFilesOverview}
+        />
       ) : (
         <FileList {...{ filesOverview }} />
       );
     }
 
     return elements;
-  };
-
-  const fetchRawFilesOverview = async () => {
-    setIsLoadingRawFilesOverview(true);
-
-    try {
-      const data = await fetchJSON<string[][]>(`${API_BASE_URL}/files`);
-      setRawFilesOverview(data);
-    } catch (fetchError) {
-      setFetchRawFilesError('Failed to get files due to a network issue.');
-    }
-
-    setIsLoadingRawFilesOverview(false);
   };
 
   useEffect(() => {
@@ -139,9 +141,7 @@ const Files = (): JSX.Element => {
       )}
       <FileUploadForm
         {...{ eventEmitter: fileUploadFormEventEmitter }}
-        onFileUploadComplete={() => {
-          fetchRawFilesOverview();
-        }}
+        onFileUploadComplete={fetchRawFilesOverview}
       />
       {buildFileList()}
     </Panel>

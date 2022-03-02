@@ -19,6 +19,8 @@ import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
 
 type FileEditProps = {
   filesOverview: FileOverviewMetadata[];
+  onEditFilesComplete?: () => void;
+  onPurgeFilesComplete?: () => void;
 };
 
 type FileToEdit = FileDetailMetadata & {
@@ -26,7 +28,18 @@ type FileToEdit = FileDetailMetadata & {
   isSelected?: boolean;
 };
 
-const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
+const FILE_EDIT_FORM_DEFAULT_PROPS = {
+  onEditFilesComplete: undefined,
+  onPurgeFilesComplete: undefined,
+};
+
+const FileEditForm = (
+  {
+    filesOverview,
+    onEditFilesComplete,
+    onPurgeFilesComplete,
+  }: FileEditProps = FILE_EDIT_FORM_DEFAULT_PROPS as FileEditProps,
+): JSX.Element => {
   const [filesToEdit, setFilesToEdit] = useState<FileToEdit[]>([]);
   const [isLoadingFilesToEdit, setIsLoadingFilesToEdit] =
     useState<boolean>(false);
@@ -60,34 +73,48 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
   const editFiles: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
-    filesToEdit.forEach(({ fileLocations, fileName, fileType, fileUUID }) => {
-      mainAxiosInstance.put(
-        `/files/${fileUUID}`,
-        JSON.stringify({
-          fileName,
-          fileType,
-          fileLocations: fileLocations.map(
-            ({ fileLocationUUID, isFileLocationActive }) => ({
-              fileLocationUUID,
-              isFileLocationActive,
-            }),
-          ),
-        }),
-        {
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
-    });
+    setIsLoadingFilesToEdit(true);
+
+    const editPromises = filesToEdit.map(
+      ({ fileLocations, fileName, fileType, fileUUID }) =>
+        mainAxiosInstance.put(
+          `/files/${fileUUID}`,
+          JSON.stringify({
+            fileName,
+            fileType,
+            fileLocations: fileLocations.map(
+              ({ fileLocationUUID, isFileLocationActive }) => ({
+                fileLocationUUID,
+                isFileLocationActive,
+              }),
+            ),
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+    );
+
+    Promise.all(editPromises)
+      .then(() => {
+        setIsLoadingFilesToEdit(false);
+      })
+      .then(onEditFilesComplete);
   };
 
   const purgeFiles: MouseEventHandler<HTMLButtonElement> = () => {
     setIsOpenConfirmPurgeDialog(false);
+    setIsLoadingFilesToEdit(true);
 
-    filesToEdit
+    const purgePromises = filesToEdit
       .filter(({ isSelected }) => isSelected)
-      .forEach(({ fileUUID }) => {
-        mainAxiosInstance.delete(`/files/${fileUUID}`);
-      });
+      .map(({ fileUUID }) => mainAxiosInstance.delete(`/files/${fileUUID}`));
+
+    Promise.all(purgePromises)
+      .then(() => {
+        setIsLoadingFilesToEdit(false);
+      })
+      .then(onPurgeFilesComplete);
   };
 
   const cancelPurge: MouseEventHandler<HTMLButtonElement> = () => {
@@ -238,5 +265,7 @@ const FileEditForm = ({ filesOverview }: FileEditProps): JSX.Element => {
     </>
   );
 };
+
+FileEditForm.defaultProps = FILE_EDIT_FORM_DEFAULT_PROPS;
 
 export default FileEditForm;
