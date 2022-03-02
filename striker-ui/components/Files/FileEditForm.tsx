@@ -1,3 +1,4 @@
+import { AxiosResponse } from 'axios';
 import {
   FormEventHandler,
   MouseEventHandler,
@@ -16,6 +17,16 @@ import Spinner from '../Spinner';
 
 import fetchJSON from '../../lib/fetchers/fetchJSON';
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
+
+type ReducedFileLocation = Partial<
+  Pick<FileLocation, 'fileLocationUUID' | 'isFileLocationActive'>
+>;
+
+type EditRequestContent = Partial<
+  Pick<FileDetailMetadata, 'fileName' | 'fileType' | 'fileUUID'>
+> & {
+  fileLocations: ReducedFileLocation[];
+};
 
 type FileEditProps = {
   filesOverview: FileOverviewMetadata[];
@@ -40,6 +51,9 @@ const FileEditForm = (
     onPurgeFilesComplete,
   }: FileEditProps = FILE_EDIT_FORM_DEFAULT_PROPS as FileEditProps,
 ): JSX.Element => {
+  const [editRequestContents, setEditRequestContents] = useState<
+    EditRequestContent[]
+  >([]);
   const [filesToEdit, setFilesToEdit] = useState<FileToEdit[]>([]);
   const [isLoadingFilesToEdit, setIsLoadingFilesToEdit] =
     useState<boolean>(false);
@@ -57,14 +71,14 @@ const FileEditForm = (
   const generateFileInfoChangeHandler =
     (fileIndex: number): FileInfoChangeHandler =>
     (inputValues, { fileLocationIndex } = {}) => {
-      if (fileLocationIndex) {
-        filesToEdit[fileIndex].fileLocations[fileLocationIndex] = {
-          ...filesToEdit[fileIndex].fileLocations[fileLocationIndex],
+      if (fileLocationIndex !== undefined) {
+        editRequestContents[fileIndex].fileLocations[fileLocationIndex] = {
+          ...editRequestContents[fileIndex].fileLocations[fileLocationIndex],
           ...inputValues,
         };
       } else {
-        filesToEdit[fileIndex] = {
-          ...filesToEdit[fileIndex],
+        editRequestContents[fileIndex] = {
+          ...editRequestContents[fileIndex],
           ...inputValues,
         };
       }
@@ -75,24 +89,61 @@ const FileEditForm = (
 
     setIsLoadingFilesToEdit(true);
 
-    const editPromises = filesToEdit.map(
-      ({ fileLocations, fileName, fileType, fileUUID }) =>
-        mainAxiosInstance.put(
-          `/files/${fileUUID}`,
-          JSON.stringify({
-            fileName,
-            fileType,
-            fileLocations: fileLocations.map(
-              ({ fileLocationUUID, isFileLocationActive }) => ({
+    const editPromises = editRequestContents.reduce<Promise<AxiosResponse>[]>(
+      (
+        reducedEditPromises,
+        { fileLocations, fileName, fileType, fileUUID },
+      ) => {
+        const editRequestContent: Partial<EditRequestContent> = {};
+
+        if (fileName !== undefined) {
+          editRequestContent.fileName = fileName;
+        }
+
+        if (fileType !== undefined) {
+          editRequestContent.fileType = fileType;
+        }
+
+        const changedFileLocations = fileLocations.reduce<
+          ReducedFileLocation[]
+        >(
+          (
+            reducedFileLocations,
+            { fileLocationUUID, isFileLocationActive },
+          ) => {
+            if (isFileLocationActive !== undefined) {
+              reducedFileLocations.push({
                 fileLocationUUID,
                 isFileLocationActive,
-              }),
-            ),
-          }),
-          {
-            headers: { 'Content-Type': 'application/json' },
+              });
+            }
+
+            return reducedFileLocations;
           },
-        ),
+          [],
+        );
+
+        if (changedFileLocations.length > 0) {
+          editRequestContent.fileLocations = changedFileLocations;
+        }
+
+        const stringEditFileRequestContent = JSON.stringify(editRequestContent);
+
+        if (stringEditFileRequestContent !== '{}') {
+          reducedEditPromises.push(
+            mainAxiosInstance.put(
+              `/files/${fileUUID}`,
+              stringEditFileRequestContent,
+              {
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
+          );
+        }
+
+        return reducedEditPromises;
+      },
+      [],
     );
 
     Promise.all(editPromises)
@@ -180,6 +231,27 @@ const FileEditForm = (
       }),
     ).then((fetchedFilesDetail) => {
       setFilesToEdit(fetchedFilesDetail);
+
+      const initialEditRequestContents: EditRequestContent[] = [];
+
+      for (
+        let fileIndex = 0;
+        fileIndex < fetchedFilesDetail.length;
+        fileIndex += 1
+      ) {
+        const fetchedFileDetail = fetchedFilesDetail[fileIndex];
+        initialEditRequestContents.push({
+          fileUUID: fetchedFileDetail.fileUUID,
+          fileLocations: fetchedFileDetail.fileLocations.map(
+            ({ fileLocationUUID }) => ({
+              fileLocationUUID,
+            }),
+          ),
+        });
+      }
+
+      setEditRequestContents(initialEditRequestContents);
+
       setIsLoadingFilesToEdit(false);
     });
   }, [filesOverview]);

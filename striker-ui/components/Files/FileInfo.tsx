@@ -93,9 +93,11 @@ const FileInfo = (
           disabled={isReadonly}
           id={fileNameElementId}
           label={fileNameElementLabel}
-          onChange={({ target: { value } }) =>
-            onChange?.call(null, { fileName: value })
-          }
+          onChange={({ target: { value } }) => {
+            onChange?.call(null, {
+              fileName: value === fileName ? undefined : value,
+            });
+          }}
         />
       </FormControl>
       {fileType && (
@@ -108,9 +110,11 @@ const FileInfo = (
             disabled={isReadonly}
             id={fileTypeElementId}
             input={<OutlinedInput label={fileTypeElementLabel} />}
-            onChange={({ target: { value } }) =>
-              onChange?.call(null, { fileType: value as FileType })
-            }
+            onChange={({ target: { value } }) => {
+              onChange?.call(null, {
+                fileType: value === fileType ? undefined : (value as FileType),
+              });
+            }}
           >
             {UPLOAD_FILE_TYPES_ARRAY.map(
               ([fileTypeKey, [, fileTypeDisplayString]]) => {
@@ -136,13 +140,16 @@ const FileInfo = (
                 defaultChecked={isFileLocationActive}
                 disabled={isReadonly}
                 icon={<SyncDisabledIcon />}
-                onChange={({ target: { checked } }) =>
+                onChange={({ target: { checked } }) => {
                   onChange?.call(
                     null,
-                    { isFileLocationActive: checked },
+                    {
+                      isFileLocationActive:
+                        checked === isFileLocationActive ? undefined : checked,
+                    },
                     { fileLocationIndex },
-                  )
-                }
+                  );
+                }}
               />
             }
             key={anvilUUID}
