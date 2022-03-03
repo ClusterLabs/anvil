@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Box, IconButton } from '@mui/material';
+import { Box } from '@mui/material';
 import {
   Add as AddIcon,
   Check as CheckIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { styled } from '@mui/material/styles';
 import EventEmitter from 'events';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BLUE } from '../../lib/consts/DEFAULT_THEME';
-import ICON_BUTTON_STYLE from '../../lib/consts/ICON_BUTTON_STYLE';
 
 import FileEditForm from './FileEditForm';
 import FileList from './FileList';
@@ -21,8 +19,7 @@ import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
 
 import fetchJSON from '../../lib/fetchers/fetchJSON';
-
-const StyledIconButton = styled(IconButton)(ICON_BUTTON_STYLE);
+import IconButton from '../IconButton';
 
 const Files = (): JSX.Element => {
   const [rawFilesOverview, setRawFilesOverview] = useState<string[][]>([]);
@@ -108,13 +105,13 @@ const Files = (): JSX.Element => {
       >
         <HeaderText text="Files" />
         {!isEditMode && (
-          <StyledIconButton onClick={onAddFileButtonClick}>
+          <IconButton onClick={onAddFileButtonClick}>
             <AddIcon />
-          </StyledIconButton>
+          </IconButton>
         )}
-        <StyledIconButton onClick={onEditFileButtonClick}>
+        <IconButton onClick={onEditFileButtonClick}>
           {isEditMode ? <CheckIcon sx={{ color: BLUE }} /> : <EditIcon />}
-        </StyledIconButton>
+        </IconButton>
       </Box>
       {fetchRawFilesError && (
         <MessageBox text={fetchRawFilesError} type="error" />
