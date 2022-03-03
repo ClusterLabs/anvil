@@ -22,7 +22,7 @@ ACLOCAL_AMFLAGS		= -I m4
 
 SUBDIRS			= Anvil cgi-bin html journald.conf.d man ocf \
 			  pxe scancore-agents scripts share striker-ui \
-			  tools units
+			  striker-ui-api tools units
 
 anvilconfdir		= ${sysconfdir}/anvil
 
