@@ -241,6 +241,8 @@ systemctl enable anvil-daemon.service
 systemctl restart anvil-daemon.service
 systemctl enable scancore.service
 systemctl restart scancore.service
+systemctl enable striker-ui-api.service
+systemctl restart striker-ui-api.service
 
 
 %post striker

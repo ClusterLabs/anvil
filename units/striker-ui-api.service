@@ -1,0 +1,16 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - Striker UI API
+Wants=network.target
+
+[Service]
+Type=simple
+# Run as apache to allow the API to access apache-owned locations; i.e., /mnt/shared.
+User=apache
+Group=apache
+ExecStart=/usr/sbin/striker-ui-api
+ExecStop=/bin/kill -WINCH ${MAINPID}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
