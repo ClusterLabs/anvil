@@ -238,7 +238,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
             <AddIcon />
           </IconButton>
           <IconButton onClick={() => setShowCheckbox(!showCheckbox)}>
-            {showCheckbox ? <CheckIcon /> : <EditIcon />}
+            {showCheckbox ? <CheckIcon sx={{ color: BLUE }} /> : <EditIcon />}
           </IconButton>
         </PanelHeader>
         {showCheckbox && (
