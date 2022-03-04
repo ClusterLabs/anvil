@@ -13,6 +13,7 @@ import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 import { ProgressBar } from '../Bars';
 import ContainedButton from '../ContainedButton';
 import FileInfo from './FileInfo';
+import MessageBox from '../MessageBox';
 import { BodyText } from '../Text';
 
 import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
@@ -194,6 +195,12 @@ const FileUploadForm = (
           '& > :not(:first-child)': { marginTop: '1em' },
         }}
       >
+        {selectedFiles.length > 0 && (
+          <MessageBox
+            text="Uploaded files will be listed automatically, but it may take a while for larger files to appear."
+            type="info"
+          />
+        )}
         {selectedFiles.map(
           (
             {
