@@ -2,7 +2,7 @@ export const ICONS = [
   {
     text: 'Files',
     image: '/pngs/files_on.png',
-    uri: '/striker?files=true',
+    uri: '/file-manager',
   },
   {
     text: 'Tasks',
