@@ -13,13 +13,16 @@ import { BLUE } from '../../lib/consts/DEFAULT_THEME';
 import FileEditForm from './FileEditForm';
 import FileList from './FileList';
 import FileUploadForm from './FileUploadForm';
+import IconButton from '../IconButton';
 import { Panel } from '../Panels';
 import MessageBox from '../MessageBox';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
 
 import fetchJSON from '../../lib/fetchers/fetchJSON';
-import IconButton from '../IconButton';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
+
+const FILES_ENDPOINT_URL = `${API_BASE_URL}/files`;
 
 const Files = (): JSX.Element => {
   const [rawFilesOverview, setRawFilesOverview] = useState<string[][]>([]);
@@ -44,7 +47,7 @@ const Files = (): JSX.Element => {
     setIsLoadingRawFilesOverview(true);
 
     try {
-      const data = await fetchJSON<string[][]>(`${API_BASE_URL}/files`);
+      const data = await fetchJSON<string[][]>(FILES_ENDPOINT_URL);
       setRawFilesOverview(data);
     } catch (fetchError) {
       setFetchRawFilesError('Failed to get files due to a network issue.');
@@ -81,6 +84,23 @@ const Files = (): JSX.Element => {
 
     return elements;
   };
+
+  /**
+   * Check for new files periodically and update the file list.
+   *
+   * We need this because adding new files is done async; adding the file may
+   * not finish before the request returns.
+   *
+   * We don't care about edit because database updates are done before the
+   * edit request returns.
+   */
+  periodicFetch<string[][]>(FILES_ENDPOINT_URL, {
+    onSuccess: (periodicFilesOverview) => {
+      if (periodicFilesOverview.length !== rawFilesOverview.length) {
+        setRawFilesOverview(periodicFilesOverview);
+      }
+    },
+  });
 
   useEffect(() => {
     if (!isEditMode) {
