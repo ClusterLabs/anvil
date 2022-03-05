@@ -97,4 +97,6 @@ const MessageBox = ({ type, text }: MessageBoxProps): JSX.Element => {
   );
 };
 
+export type { MessageBoxProps, MessageBoxType };
+
 export default MessageBox;
