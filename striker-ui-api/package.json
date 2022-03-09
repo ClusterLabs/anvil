@@ -3,13 +3,11 @@
   "version": "0.1.0",
   "description": "API for striker-ui",
   "scripts": {
-    "build": "pkg --compress GZip --output striker-ui-api --targets node14-linux index.js",
-    "build:clean": "rm -f striker-ui-api",
-    "compress": "[[ -e striker-ui-api ]] && XZ_OPT='--verbose -9e' tar --create --verbose --xz --file striker-ui-api.tar.xz striker-ui-api || echo 'Cannot find output of build.' && exit 1",
-    "decompress": "tar --extract --verbose --file striker-ui-api.tar.xz",
+    "build": "ncc build --out out --minify --target es2015",
+    "build:clean": "rm -rf out",
     "dev": "node index.js",
-    "rebuild": "npm run clean && npm run build",
-    "start": "npm run build && ./striker-ui-api",
+    "rebuild": "npm run build:clean && npm run build",
+    "start": "npm run rebuild && node out/index.js",
     "style:fix": "prettier --write *"
   },
   "dependencies": {
@@ -18,6 +16,7 @@
     "multer": "^1.4.4"
   },
   "devDependencies": {
+    "@vercel/ncc": "^0.33.3",
     "pkg": "^5.5.1",
     "prettier": "^2.5.0"
   }

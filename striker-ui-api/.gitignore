@@ -1,6 +1,2 @@
 # dependencies
-/node_modules
-
-# production
-/striker-ui-api
-!/striker-ui-api.tar.xz
+node_modules
