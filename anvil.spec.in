@@ -132,8 +132,21 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
-Requires:       nodejs >= 1:14
 # Failed attempts:
+#
+# Attempt (3) reason: it was mentioned before that lower versions of the same package with a higher EPOCH has higher priority; try to add EPOCH.
+# Failed reason: DNF gives the following error:
+# Problem: package anvil-striker-2.90-1.1184.3826.el8.noarch requires nodejs >= 1:14, but none of the providers can be installed
+#  - conflicting requests
+#  - package nodejs-1:14.16.0-2.module_el8.4.0+716+f63d6d3d.x86_64 is filtered out by modular filtering
+#  - package nodejs-1:14.17.3-2.module_el8.5.0+861+a6fe2112.x86_64 is filtered out by modular filtering
+#  - package nodejs-1:14.17.5-1.module_el8.6.0+939+4802ccb9.x86_64 is filtered out by modular filtering
+#  - package nodejs-1:16.4.2-1.module_el8.5.0+900+545f34ef.x86_64 is filtered out by modular filtering
+#  - package nodejs-1:16.7.0-2.module_el8.5.0+917+002e3877.x86_64 is filtered out by modular filtering
+#  - package nodejs-1:16.8.0-1.module_el8.6.0+928+039f010b.x86_64 is filtered out by modular filtering
+#
+# ^ Expected to pick the highest minor version of the given major version requirement (14), but the target package seems to ignored. Perhaps there needs to be special macros enabled in the SPEC?
+# Requires:       nodejs >= 1:14
 #
 # Attmept (2) reason: try to fix the previous attempt by using the correct package name.
 # Failed reason: package version is dependent on the stream enabled; i.e., if stream 12 was enabled, nodejs v12.x... would be chosen.
