@@ -132,9 +132,14 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
-Requires:       nodejs >= 14
+Requires:       nodejs >= 1:14
 # Failed attempts:
-# Attempt reason: try to include the stream (14) according to the module streams syntax.
+#
+# Attmept (2) reason: try to fix the previous attempt by using the correct package name.
+# Failed reason: package version is dependent on the stream enabled; i.e., if stream 12 was enabled, nodejs v12.x... would be chosen.
+# Requires:       nodejs >= 14
+#
+# Attempt (1) reason: try to include the stream (14) according to the module streams syntax.
 # Failed reason: package name doesn't match any packages.
 # Requires:       nodejs:14 >= 14
 Requires:       openssh-askpass
