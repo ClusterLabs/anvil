@@ -5,7 +5,7 @@
   "scripts": {
     "build": "webpack",
     "build:clean": "rm -rf out",
-    "dev": "node index.js",
+    "dev": "node src/index.js",
     "rebuild": "npm run build:clean && npm run build",
     "start": "npm run rebuild && node out/index.js",
     "style:fix": "prettier --write *"
