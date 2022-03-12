@@ -606,6 +606,9 @@ sub handle_periodic_tasks
 		
 		# Check if any files have been uploaded to /mnt/shared/incoming on striker
 		check_incoming($anvil);
+		
+		# Check for stale db_in_use states.
+		check_db_in_use_states($anvil);
 	}
 	
 	# Now check to see if it's time to run less frequent tasks.
@@ -639,6 +642,9 @@ sub handle_periodic_tasks
 					}
 					elsif ($uuid eq $host_uuid)
 					{
+						# This won't return until we're down.
+						$anvil->Database->shutdown({debug => 2});
+=cut
 						### TODO: We need to have a way to tell clients to disconnect
 						###       and then shutdown cleanly. This "Wait for an hour" 
 						###       is a kludge.
@@ -674,6 +680,7 @@ sub handle_periodic_tasks
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0660"});
 							}
 						}
+=cut
 					}
 				}
 			}
@@ -802,6 +809,66 @@ sub handle_periodic_tasks
 			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
 			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
 		}});
+	}
+	
+	return(0);
+}
+
+### NOTE: This logic plays out in a slightly different way in Database->shutdown().
+# Check for stale db_in_use states.
+sub check_db_in_use_states
+{
+	my ($anvil) = @_;
+	
+	# We only reap db_in_use entries for us.
+	$anvil->System->pids();
+	my $host_uuid =  $anvil->Database->quote($anvil->Get->host_uuid);
+	   $host_uuid =~ s/^'(.*)'$/$1/;
+	my $query     =  "
+SELECT 
+    state_uuid, 
+    state_name, 
+    state_note 
+FROM 
+    states 
+WHERE 
+    state_name LIKE 'db_in_use::".$host_uuid."::%'
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		foreach my $row (@{$results})
+		{
+			my $state_uuid = $row->[0];
+			my $state_name = $row->[1];
+			my $state_note = $row->[2];
+			my $state_pid  = ($state_name =~ /db_in_use::.*?::(.*)$/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:state_uuid' => $state_uuid, 
+				's2:state_name' => $state_name, 
+				's3:state_note' => $state_note, 
+				's4:state_pid'  => $state_pid, 
+			}});
+			
+			if (not exists $anvil->data->{pids}{$state_pid})
+			{
+				# Reap the 'db_is_use'.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0140", variables => { pid => $state_pid }});
+				
+				my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+				$anvil->Database->write({debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			### TODO: What are the chances of a PID being reused in the minute between 
+			###       the program's death and us detecting it? Should we filter the 
+			###       'pids::<pid>::command' value against our programs and scan agents?
+		}
 	}
 	
 	return(0);
@@ -1348,7 +1415,7 @@ sub prep_database
 	my $prep_database = 1;
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
-		my $dump_file =  $anvil->data->{path}{directories}{pgsql}."/".$anvil->data->{sys}{database}{name}."_db_dump.".$uuid.".sql";
+		my $dump_file =  $anvil->data->{path}{directories}{pgsql}."/anvil_db_dump.".$uuid.".sql";
 		   $dump_file =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
 		if (-e $dump_file)

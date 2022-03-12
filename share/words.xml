@@ -1389,7 +1389,7 @@ The database connection error was:
 		<key name="log_0069">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] was refused. Is the database server running?</key>
 		<key name="log_0070">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] failed because the name could not be translated to an IP address. Is this database server's host name in '/etc/hosts'?</key>
 		<key name="log_0071">Successfully Connected to the database: [#!variable!name!#] (id: [#!variable!uuid!#]) on host: [#!variable!host!#:#!variable!port!#].</key>
-		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::database::read_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::database::read_uuid' doesn't contain a database ID, either. Are any databases available? The query source was: [#!variable!source!#:#!variable!line!#] -> [#!variable!query!#].]]></key>
 		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with UUID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0074">About to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
@@ -2089,6 +2089,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0694">The connection to: [#!variable!host!#] for the resource: [#!variable!resource!#] is in the connection state: [#!variable!connection_state!#]. Will try to connect to the peer and up the resource now.</key>
 		<key name="log_0695">About to request the start of the resource: [#!variable!resource!#] on: [#!variable!host!#].</key>
 		<key name="log_0696">The peer: [#!variable!peer!#] is defined in the resource: [#!variable!resource!#] but we don't connect to it, ignoring it.</key>
+		<key name="log_0697">All clients using our database are gone, ready to stop the postgresql daemon.</key>
+		<key name="log_0698">[ Note ] - Marking our database as active.</key>
+		<key name="log_0699">[ Note ] - The Striker database host: [#!variable!host!#] is inactive, skipping it.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2781,6 +2784,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0291">This is the number of bytes transmitted (tx) by a network interface since it was last started.</key>
 		<key name="striker_0292">Stay Off</key>
 		<key name="striker_0293">This is the command used to provision the referenced server.</key>
+		<key name="striker_0294">This indicates if a Striker's DB is available to be used.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -3124,6 +3128,9 @@ We will sleep a bit and try again.
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
 		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, which might be why the RAM is high. NOT exiting while this program is running.</key>
+		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] had marked our database as "in_use", but the PID is gone now. Reaping the flag.</key>
+		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
+		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
