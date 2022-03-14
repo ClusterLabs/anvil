@@ -1,0 +1,62 @@
+#!/usr/bin/perl
+# 
+# This is a machine parsable output of the database states.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->Database->connect({debug => 2, check_for_resync => 0});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->Get->switches();
+
+print "# Access = talked to DB. Active = flagged as active and usable.\n";
+print "connections=".$anvil->data->{sys}{database}{connections}."\n";
+if ($anvil->data->{sys}{database}{connections})
+{
+	foreach my $uuid (keys %{$anvil->data->{db_status}})
+	{
+		my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => $uuid});
+		   $host_name = "<unknown>" if not $host_name;
+		my $access    = $anvil->data->{db_status}{$uuid}{access};
+		my $active    = $anvil->data->{db_status}{$uuid}{active};
+		my $details   = $anvil->data->{db_status}{$uuid}{details};
+		
+		# Show the state
+		print "host_name=".$host_name.",host_uuid=".$uuid.",access=".$access.",active=".$active."\n";
+		
+		# If we want to show access failure details;
+# 		print "host_name=".$host_name.",host_uuid=".$uuid.",access=".$access.",active=".$active;
+# 		if (not $access)
+# 		{
+# 			print ",details:\n";
+# 			print "====\n";
+# 			print $details;
+# 			print "====";
+# 		}
+# 		print "\n";
+	}
+}
+
+$anvil->nice_exit({exit_code => 0});

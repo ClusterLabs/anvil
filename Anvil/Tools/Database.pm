@@ -1498,6 +1498,11 @@ sub connect
 			}
 		}
 		
+		# This stores data used by striker-db-status
+		$anvil->data->{db_status}{$uuid}{access}  = 0;
+		$anvil->data->{db_status}{$uuid}{active}  = 0;
+		$anvil->data->{db_status}{$uuid}{details} = "";
+		
 		# Connect!
 		my $dbh = "";
 		### NOTE: The Database->write() method, when passed an array, will automatically disable 
@@ -1527,6 +1532,11 @@ sub connect
 				uuid => $uuid,
 				host => $host,
 				name => $name,
+			}});
+			
+			$anvil->data->{db_status}{$uuid}{details} = "error=".$@;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"db_status::${uuid}::details" => $anvil->data->{db_status}{$uuid}{details},
 			}});
 			
 			push @{$failed_connections}, $uuid;
@@ -1586,6 +1596,11 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				dbh                               => $dbh,
 				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
+			}});
+			
+			$anvil->data->{db_status}{$uuid}{access} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"db_status::${uuid}::access" => $anvil->data->{db_status}{$uuid}{access},
 			}});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0071", variables => { 
@@ -1691,6 +1706,11 @@ sub connect
 						variable_source_uuid  => "NULL", 
 						variable_source_table => "", 
 					});
+					
+					$anvil->data->{db_status}{$uuid}{active} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
+					}});
 				}
 				else
 				{
@@ -1707,6 +1727,12 @@ sub connect
 					next;
 				}
 			}
+			
+			# Still here? We're active
+			$anvil->data->{db_status}{$uuid}{active} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
+			}});
 			
 			# Set the first ID to be the one I read from later. Alternatively, if this host is 
 			# local, use it.
