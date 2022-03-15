@@ -48,7 +48,8 @@ dist_sbin_SCRIPTS	= \
 			  striker-purge-target \
 			  striker-scan-network \
 			  striker-show-db-counts \
-			  striker-auto-initialize-all
+			  striker-auto-initialize-all \
+			  striker-db-status
 
 fencedir		= ${FASEXECPREFIX}/sbin
 
