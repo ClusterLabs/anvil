@@ -1,14 +1,14 @@
-const express = require('express');
+import express from 'express';
 
-const {
+import {
   dbJobAnvilSyncShared,
   dbQuery,
   dbSubRefreshTimestamp,
   dbWrite,
-} = require('../lib/accessDB');
-const getFilesOverview = require('../lib/request_handlers/files/getFilesOverview');
-const getFileDetail = require('../lib/request_handlers/files/getFileDetail');
-const uploadSharedFiles = require('../middlewares/uploadSharedFiles');
+} from '../lib/accessDB';
+import getFilesOverview from '../lib/request_handlers/files/getFilesOverview';
+import getFileDetail from '../lib/request_handlers/files/getFileDetail';
+import uploadSharedFiles from '../middlewares/uploadSharedFiles';
 
 const router = express.Router();
 
@@ -112,28 +112,35 @@ router
     }
 
     if (fileLocations) {
-      fileLocations.forEach(({ fileLocationUUID, isFileLocationActive }) => {
-        let fileLocationActive = 0;
-        let jobName = 'purge';
-        let jobTitle = '0136';
-        let jobDescription = '0137';
+      fileLocations.forEach(
+        ({
+          fileLocationUUID,
+          isFileLocationActive,
+        }: {
+          fileLocationUUID: string;
+          isFileLocationActive: boolean;
+        }) => {
+          let fileLocationActive = 0;
+          let jobName = 'purge';
+          let jobTitle = '0136';
+          let jobDescription = '0137';
 
-        if (isFileLocationActive) {
-          fileLocationActive = 1;
-          jobName = 'pull_file';
-          jobTitle = '0132';
-          jobDescription = '0133';
-        }
+          if (isFileLocationActive) {
+            fileLocationActive = 1;
+            jobName = 'pull_file';
+            jobTitle = '0132';
+            jobDescription = '0133';
+          }
 
-        query += `
+          query += `
           UPDATE file_locations
           SET
             file_location_active = '${fileLocationActive}',
             modified_date = '${dbSubRefreshTimestamp()}'
           WHERE file_location_uuid = '${fileLocationUUID}';`;
 
-        const targetHosts = dbQuery(
-          `SELECT
+          const targetHosts = dbQuery(
+            `SELECT
               anv.anvil_node1_host_uuid,
               anv.anvil_node2_host_uuid,
               anv.anvil_dr1_host_uuid
@@ -141,22 +148,23 @@ router
             JOIN file_locations AS fil_loc
               ON anv.anvil_uuid = fil_loc.file_location_anvil_uuid
             WHERE fil_loc.file_location_uuid = '${fileLocationUUID}';`,
-        ).stdout;
+          ).stdout;
 
-        targetHosts.flat().forEach((hostUUID) => {
-          if (hostUUID) {
-            anvilSyncSharedFunctions.push(() =>
-              dbJobAnvilSyncShared(
-                jobName,
-                `file_uuid=${fileUUID}`,
-                jobTitle,
-                jobDescription,
-                { jobHostUUID: hostUUID },
-              ),
-            );
-          }
-        });
-      });
+          targetHosts.flat().forEach((hostUUID: string) => {
+            if (hostUUID) {
+              anvilSyncSharedFunctions.push(() =>
+                dbJobAnvilSyncShared(
+                  jobName,
+                  `file_uuid=${fileUUID}`,
+                  jobTitle,
+                  jobDescription,
+                  { jobHostUUID: hostUUID },
+                ),
+              );
+            }
+          });
+        },
+      );
     }
 
     console.log(`Query (type=[${typeof query}]): [${query}]`);
@@ -191,4 +199,4 @@ router
     response.status(200).send(queryStdout);
   });
 
-module.exports = router;
+export default router;

@@ -1,6 +1,6 @@
-const multer = require('multer');
+import multer from 'multer';
 
-const SERVER_PATHS = require('../lib/consts/SERVER_PATHS');
+import SERVER_PATHS from '../lib/consts/SERVER_PATHS';
 
 const storage = multer.diskStorage({
   destination: (request, file, callback) => {
@@ -13,4 +13,4 @@ const storage = multer.diskStorage({
 
 const uploadSharedFiles = multer({ storage });
 
-module.exports = uploadSharedFiles;
+export default uploadSharedFiles;

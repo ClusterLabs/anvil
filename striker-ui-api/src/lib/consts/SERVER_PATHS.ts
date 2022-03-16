@@ -1,6 +1,6 @@
-const path = require('path');
+import path from 'path';
 
-const SERVER_PATHS = {
+const EMPTY_SERVER_PATHS: ServerPath = {
   mnt: {
     shared: {
       incoming: {},
@@ -15,20 +15,22 @@ const SERVER_PATHS = {
 };
 
 const generatePaths = (
-  currentObject,
+  currentObject: ServerPath,
   parents = path.parse(process.cwd()).root,
 ) => {
   Object.keys(currentObject).forEach((pathKey) => {
-    const currentPath = path.join(parents, pathKey);
-
-    currentObject[pathKey].self = currentPath;
-
     if (pathKey !== 'self') {
+      const currentPath = path.join(parents, pathKey);
+
+      currentObject[pathKey].self = currentPath;
+
       generatePaths(currentObject[pathKey], currentPath);
     }
   });
+
+  return currentObject as ReadonlyServerPath;
 };
 
-generatePaths(SERVER_PATHS);
+const SERVER_PATHS = generatePaths(EMPTY_SERVER_PATHS);
 
-module.exports = SERVER_PATHS;
+export default SERVER_PATHS;

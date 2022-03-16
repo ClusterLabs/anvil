@@ -1,6 +1,6 @@
-const app = require('./app');
+import app from './app';
 
-const SERVER_PORT = require('./lib/consts/SERVER_PORT');
+import SERVER_PORT from './lib/consts/SERVER_PORT';
 
 app.listen(SERVER_PORT, () => {
   console.log(`Listening on localhost:${SERVER_PORT}.`);

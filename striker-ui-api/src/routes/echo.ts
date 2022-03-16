@@ -1,4 +1,4 @@
-const express = require('express');
+import express from 'express';
 
 const router = express.Router();
 
@@ -14,4 +14,4 @@ router
     response.status(200).send({ message });
   });
 
-module.exports = router;
+export default router;
