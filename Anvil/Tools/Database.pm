@@ -12226,6 +12226,48 @@ sub insert_or_update_states
 		return("");
 	}
 	
+	# It's possible during initialization that a state could be set before the host is in the database's
+	# hosts table. This prevents that condition from causing a problem.
+	my $hosts_ok = 1;
+	my $db_uuids = [];
+	my $query    = "SELECT COUNT(*) FROM hosts WHERE host_uuid = ".$anvil->Database->quote($state_host_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	if ($uuid)
+	{
+		push @{$db_uuids}, $uuid;
+	}
+	else
+	{
+		foreach my $db_uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+		{
+			push @{$db_uuids}, $db_uuid;
+		}
+	}
+	foreach my $db_uuid (@{$db_uuids})
+	{
+		my $count = $anvil->Database->query({debug => 2, uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's2:db_uuid' => $db_uuid, 
+			's2:count'   => $count,
+		}});
+		if (not $count)
+		{
+			$hosts_ok = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hosts_ok => $hosts_ok }});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0144", variables => { 
+				state_info => $state_name." -> ".$state_note,
+				db_uuid    => $db_uuid, 
+				host_uuid  => $state_host_uuid, 
+			}});
+		}
+	}
+	if (not $hosts_ok)
+	{
+		# Don't save.
+		return("");
+	}
+	
 	# If we don't have a UUID, see if we can find one for the given state server name.
 	if (not $state_uuid)
 	{
