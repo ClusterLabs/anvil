@@ -250,7 +250,7 @@ while(1)
 	check_ram($anvil);
 	
 	# Disconnect from the database(s) and sleep now.
-	$anvil->Database->disconnect();
+	$anvil->Database->disconnect({debug => 2});
 	sleep(2);
 }
 
@@ -621,71 +621,76 @@ sub handle_periodic_tasks
 			host_uuid => $host_uuid, 
 		}});
 		
-		# Are we a Striker and is there two or more connections? If so, evaluate if we should shut down our 
-		# database.
+		# Are we a Striker and is there two or more connections? If so, evaluate if we should shut 
+		# down our database.
 		if ($host_type eq "striker")
 		{
 			if ($anvil->data->{sys}{database}{connections} > 1)
 			{
-				# Sort by UUID, skip the first, and see if we're one of the others.
-				my $first_uuid = "";
+				# Make sure that all active databases are in the host's table. If they're 
+				# not, we're still early in setup. To do this, we create an array of hosts
+				# and then query both/all DBs to ensure they all have all hosts.
+				my $all_in_hosts = 1;
+				my $db_hosts     = [];
 				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
-					if (not $first_uuid)
+					push @{$db_hosts}, $uuid;
+				}
+				foreach my $db_uuid (@{$db_hosts})
+				{
+					my $query = "SELECT COUNT(*) FROM hosts WHERE host_uuid = ".$anvil->Database->quote($db_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:db_uuid' => $db_uuid, 
+						's2:query'   => $query,
+					}});
+					foreach my $host_uuid (@{$db_hosts})
 					{
-						$first_uuid = $uuid; 
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
-						
-						# Skip the first UUID so it doesn't evaluate for shutdown.
-						next;
-					}
-					elsif ($uuid eq $host_uuid)
-					{
-						# This won't return until we're down.
-						$anvil->Database->shutdown({debug => 2});
-=cut
-						### TODO: We need to have a way to tell clients to disconnect
-						###       and then shutdown cleanly. This "Wait for an hour" 
-						###       is a kludge.
-						# This is us, Have we been up for at least an hour?
-						my $uptime = $anvil->Get->uptime();
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
-						if ($uptime > 3600)
+						my $count = $anvil->Database->query({debug => 2, uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:host_uuid' => $host_uuid, 
+							's2:db_uuid'   => $db_uuid, 
+							's2:count'     => $count,
+						}});
+						if (not $count)
 						{
-							# backup and shut down.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0659"});
-							
-							# Switch the read_uuid and then close 
-							$anvil->data->{sys}{database}{read_uuid} = $first_uuid;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-								"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0143", variables => { 
+								db_uuid   => $db_uuid, 
+								host_uuid => $host_uuid, 
 							}});
 							
-							# Disconnect
-							$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
-							delete $anvil->data->{cache}{database_handle}{$uuid};
-							
-							# Create a backup, this is useful also for setting 
-							# the mtime of the last time we were up.
-							my $dump_file = $anvil->Database->backup_database({debug => 3});
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dump_file => $dump_file }});
-							
-							# Stop the daemon
-							my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
-							if ($return_code eq "0")
-							{
-								# Stopped the daemon.
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0660"});
-							}
+							$all_in_hosts = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_in_hosts => $all_in_hosts }});
 						}
-=cut
+					}
+				}
+				
+				# Sort by UUID, skip the first, and see if we're one of the others.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_in_hosts => $all_in_hosts }});
+				if ($all_in_hosts)
+				{
+					my $first_uuid = "";
+					foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
+						if (not $first_uuid)
+						{
+							$first_uuid = $uuid; 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
+							
+							# Skip the first UUID so it doesn't evaluate for 
+							# shutdown.
+							next;
+						}
+						elsif ($uuid eq $host_uuid)
+						{
+							# This won't return until we're down.
+							$anvil->Database->shutdown({debug => 2});
+						}
 					}
 				}
 			}
 			
-			# If we're the active database, dump out database out and rsync it to our peers.
+			# If we're the active database, dump our database out and rsync it to our peers.
 			my $peers       = keys %{$anvil->data->{database}};
 			my $connections = $anvil->data->{sys}{database}{connections}; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

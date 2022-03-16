@@ -3131,6 +3131,7 @@ We will sleep a bit and try again.
 		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] had marked our database as "in_use", but the PID is gone now. Reaping the flag.</key>
 		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
+		<key name="warning_0143">[ Warning ] - While evaluating database shutdown, the host UUID: [#!variable!host_uuid!#] was not yet found in the database on host: [#!variable!db_uuid!#]. DB shutdown will not happen until all hosts are in all DBs.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

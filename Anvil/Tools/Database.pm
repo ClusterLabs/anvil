@@ -15262,6 +15262,7 @@ sub mark_active
 		my $pid        = $$;
 		my $state_name = "db_in_use::".$uuid."::".$pid;
 		my $state_uuid = $anvil->Database->insert_or_update_states({
+			debug           => $debug, 
 			state_name      => $state_name,
 			state_host_uuid => $anvil->data->{sys}{host_uuid},
 			state_note      => $value,
@@ -16471,6 +16472,9 @@ sub shutdown
 		}
 	}
 	
+	$host_uuid = $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	
 	# Delete all jobs on our local database, and then stop the DB
 	$query = "DELETE FROM history.jobs; DELETE FROM jobs;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0124", variables => { query => $query }});
@@ -16480,6 +16484,7 @@ sub shutdown
 	my $pid        = $$;
 	my $state_name = "db_in_use::".$host_uuid."::".$pid;
 	my $state_uuid = $anvil->Database->insert_or_update_states({
+		debug           => $debug, 
 		state_name      => $state_name,
 		state_host_uuid => $anvil->data->{sys}{host_uuid},
 		state_note      => "0",
@@ -16492,8 +16497,9 @@ sub shutdown
 	
 	# Close our own connection.
 	$anvil->Database->locking({debug => $debug, release => 1});
-	$anvil->data->{cache}{database_handle}{$host_uuid}->disconnect;
-	delete $anvil->data->{cache}{database_handle}{$host_uuid};
+	
+	# Disconnect from all databases and then stop the daemon, then reconnect.
+	$anvil->Database->disconnect({debug => $debug});
 	
 	# Stop the daemon.
 	my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
@@ -16503,6 +16509,10 @@ sub shutdown
 		# Stopped the daemon.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0660"});
 	}
+	
+	# Reconnect
+	$anvil->refresh();
+	$anvil->Database->connect({debug => $debug});
 	
 	return(0);
 }
