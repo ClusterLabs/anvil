@@ -1646,7 +1646,7 @@ sub connect
 				die;
 			}
 			
-			# If the '$test_table' isn't the same as 'sys::database::test_table', see if the core schema needs loading first.
+			# Check to see if the schema needs to be loaded.
 			if ($test_table ne $anvil->data->{sys}{database}{test_table})
 			{
 				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
@@ -1664,7 +1664,7 @@ sub connect
 				}
 			}
 			
-			# Now that I have connected, see if my 'hosts' table exists.
+			# Now that I have connected, see if the 'test_table' exists.
 			$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($test_table)." AND schemaname='public';";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
