@@ -406,7 +406,12 @@ sub configure_machine_networks
 		if ($waiting)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0269"});
-			sleep 10
+			
+			# Disconnect and reconnect in case a DB goes offline.
+			$anvil->Database->disconnect();
+			sleep 10;
+			$anvil->refresh();
+			$anvil->Database->connect();
 		}
 	}
 	
@@ -547,7 +552,12 @@ sub run_manifests
 		{
 			# Wait a bit and check again.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0262"});
+			
+			# Disconnect and reconnect in case a DB goes offline.
+			$anvil->Database->disconnect();
 			sleep 10;
+			$anvil->refresh();
+			$anvil->Database->connect();
 		}
 		else
 		{
@@ -805,7 +815,12 @@ sub initialize_machines
 		if ($waiting)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0255"});
+			
+			# Disconnect and reconnect in case a DB goes offline.
+			$anvil->Database->disconnect();
 			sleep 10;
+			$anvil->refresh();
+			$anvil->Database->connect();
 		}
 	}
 	
@@ -1371,7 +1386,12 @@ fi;
 				{
 					# Wait 30 seconds and try again
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0230", variables => { number => $striker_number }});
+			
+					# Disconnect and reconnect in case a DB goes offline.
+					$anvil->Database->disconnect();
 					sleep 30;
+					$anvil->refresh();
+					$anvil->Database->connect();
 				}
 			}
 		}

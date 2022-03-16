@@ -1281,6 +1281,8 @@ AND
 		}});
 	}
 	
+	### TODO: This shouldn't be needed anymore. anvil-manage-power doesn't set the progress to '50' prior
+	###       to reboot anymore.
 	# If a reboot is needed, see if the uptime is less than the time since the reboot needed flag was 
 	# set. If the uptime is less, then the system rebooted since it was requested so clear it. h/t to
 	# Lisa Seelye (@thedoh) for this idea!
