@@ -1,4 +1,4 @@
-const buildGetFiles = require('./buildGetFiles');
+import buildGetFiles from './buildGetFiles';
 
 const getFilesOverview = buildGetFiles(`
 SELECT
@@ -10,4 +10,4 @@ SELECT
 FROM files
 WHERE file_type != 'DELETED';`);
 
-module.exports = getFilesOverview;
+export default getFilesOverview;

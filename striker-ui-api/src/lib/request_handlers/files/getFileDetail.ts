@@ -1,4 +1,4 @@
-const buildGetFiles = require('./buildGetFiles');
+import buildGetFiles from './buildGetFiles';
 
 const getFileDetail = buildGetFiles(
   (request) =>
@@ -22,4 +22,4 @@ const getFileDetail = buildGetFiles(
         AND fil.file_type != 'DELETED';`,
 );
 
-module.exports = getFileDetail;
+export default getFileDetail;
