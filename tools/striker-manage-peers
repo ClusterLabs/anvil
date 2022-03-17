@@ -89,8 +89,8 @@ foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{sorted}{db}})
 {
 	my $uuid     = $anvil->data->{sorted}{db}{$host};
 	my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
-	my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
-	my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
+	my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : "anvil";
+	my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : "admin";
 	my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
 	print $anvil->Words->string({key => "message_0032", variables => { 
 		peer => $user."\@".$host.":".$port,

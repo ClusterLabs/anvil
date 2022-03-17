@@ -278,7 +278,7 @@ if ($local_uuid)
 	
 	# Does the database user exist?
 	my $create_user   = 1;
-	my $database_user = $anvil->data->{database}{$local_uuid}{user} ? $anvil->data->{database}{$local_uuid}{user} : $anvil->data->{sys}{database}{user};
+	my $database_user = $anvil->data->{database}{$local_uuid}{user} ? $anvil->data->{database}{$local_uuid}{user} : "admin";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_user => $database_user }});
 	if (not $database_user)
 	{
@@ -374,7 +374,7 @@ if ($local_uuid)
 	
 	# Create the database, if needed.
 	my $create_database = 1;
-	my $database_name   = $anvil->data->{database}{$local_uuid}{name} ? $anvil->data->{database}{$local_uuid}{name} : $anvil->data->{sys}{database}{name};
+	my $database_name   = $anvil->data->{database}{$local_uuid}{name} ? $anvil->data->{database}{$local_uuid}{name} : "anvil";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_name => $database_name }});
 	if (not $database_name)
 	{
@@ -456,6 +456,18 @@ if ($local_uuid)
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0107"});
 		}
 	}
+	
+	# In some cases, the database won't allow connections to the admin user. To deal with this, we'll 
+	# call stop->start on the daemon (reload doesn't fix it).
+	my $return_code = $anvil->System->stop_daemon({daemon => "postgresql"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	
+	$return_code = $anvil->System->start_daemon({daemon => "postgresql"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	
+	# Connect and then disconnect from the database. This will trigger the schema load if needed.
+	$anvil->Database->connect();
+	$anvil->Database->disconnect();
 	
 	#####################################################################################################
 	# NOTE: Below here is stuff that is for general setup. If it grows, we'll have to rename this tool. #

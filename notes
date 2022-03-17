@@ -655,6 +655,10 @@ virsh attach-interface win2019_test bridge ifn_bridge1 --live --model virtio
 # Detach a network interface:
 virsh detach-interface win2019_test bridge --mac 52:54:00:ee:b5:1d
 
+# Attach disks
+virsh attach-disk srv34-nas /dev/drbd/by-res/srv34-nas/1 vdb --persistent --targetbus virtio --sourcetype block --subdriver raw
+
+
 # Change the MTU of a device;
 ip link set <dev> mtu 9000
 

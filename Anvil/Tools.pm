@@ -874,15 +874,9 @@ sub _set_defaults
 			locking_reap_age		=>	300,
 			log_transactions		=>	0,
 			maximum_batch_size		=>	25000,
-			# NOTE: Do NOT change this unless you are certain all machines that use this host 
-			#       have been likewise updated!
-			name				=>	"anvil",
 			read_uuid			=>	"",
 			test_table			=>	"hosts",
 			timestamp			=>	"",
-			# NOTE: Do NOT change this unless you are certain all machines that use this host 
-			#       have been likewise updated!
-			user				=>	"admin",
 			use_handle			=>	"",
 		},
 		host_type			=>	"",

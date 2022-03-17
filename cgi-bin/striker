@@ -6645,7 +6645,7 @@ sub process_sync_page
 		next if not $anvil->Validate->subnet_mask({subnet_mask => $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask}});
 		my ($network_type, $network_number) = ($interface =~ /^(.*?)(\d+)_/);
 		
-		my $database_user = $anvil->data->{database}{$host_uuid}{user} ? $anvil->data->{database}{$host_uuid}{user} : $anvil->data->{sys}{database}{user};
+		my $database_user = $anvil->data->{database}{$host_uuid}{user} ? $anvil->data->{database}{$host_uuid}{user} : "admin";
 		my $database_port = $anvil->data->{database}{$host_uuid}{port};
 		my $network_key   = $network_type eq "bcn" ? "striker_0018" : "striker_0022";
 		my $say_network   = $anvil->Words->string({key => $network_key, variables => { number => $network_number }});
@@ -6682,8 +6682,8 @@ sub process_sync_page
 		
 		my $host     = $anvil->data->{database}{$uuid}{host}     ? $anvil->data->{database}{$uuid}{host}     : ""; # This should fail
 		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
-		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
-		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
+		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : "anvil";
+		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : "admin";
 		my $ping     = $anvil->data->{database}{$uuid}{ping}     ? $anvil->data->{database}{$uuid}{ping}     : 1;
 		my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -6759,8 +6759,8 @@ sub delete_sync_peer
 	my $uuid      = $anvil->data->{cgi}{'delete'}{value};
 	my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => $uuid});
 	my $host      = $anvil->data->{database}{$uuid}{host} ? $anvil->data->{database}{$uuid}{host} : ""; # This should fail
-	my $name      = $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
-	my $user      = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};
+	my $name      = $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "anvil";
+	my $user      = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "admin";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		uuid      => $uuid,
 		host_name => $host_name, 
@@ -6816,10 +6816,10 @@ sub add_sync_peer
 	my ($anvil) = @_;
 	
 	# Break up the user, host and port. If anything goes wrong, we'll set an error and send it back.
-	my $pgsql_user = $anvil->data->{sys}{database}{user};
+	my $pgsql_user = "admin";
 	my $host       = $anvil->data->{cgi}{new_peer_access}{value};
 	my $password   = $anvil->data->{cgi}{new_peer_password}{value};
-	my $db_name    = $anvil->data->{sys}{database}{name};
+	my $db_name    = "anvil";
 	my $ping       = $anvil->data->{cgi}{new_peer_ping}{value} eq "on" ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		pgsql_user => $pgsql_user,
