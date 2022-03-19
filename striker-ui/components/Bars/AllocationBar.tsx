@@ -39,29 +39,27 @@ const StyledDiv = styled('div')(() => ({
 const breakpointWarning = 70;
 const breakpointAlert = 90;
 
-const AllocationBar = ({ allocated }: { allocated: number }): JSX.Element => {
-  return (
-    <StyledDiv>
-      <BorderLinearProgress
-        classes={{
-          bar:
-            /* eslint-disable no-nested-ternary */
-            allocated > breakpointWarning
-              ? allocated > breakpointAlert
-                ? classes.barAlert
-                : classes.barWarning
-              : classes.barOk,
-        }}
-        variant="determinate"
-        value={allocated}
-      />
-      <LinearProgress
-        className={classes.underline}
-        variant="determinate"
-        value={0}
-      />
-    </StyledDiv>
-  );
-};
+const AllocationBar = ({ allocated }: { allocated: number }): JSX.Element => (
+  <StyledDiv>
+    <BorderLinearProgress
+      classes={{
+        bar:
+          /* eslint-disable no-nested-ternary */
+          allocated > breakpointWarning
+            ? allocated > breakpointAlert
+              ? classes.barAlert
+              : classes.barWarning
+            : classes.barOk,
+      }}
+      variant="determinate"
+      value={allocated}
+    />
+    <LinearProgress
+      className={classes.underline}
+      variant="determinate"
+      value={0}
+    />
+  </StyledDiv>
+);
 
 export default AllocationBar;

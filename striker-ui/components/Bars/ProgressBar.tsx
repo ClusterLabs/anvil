@@ -32,26 +32,24 @@ const ProgressBar = ({
   progressPercentage,
 }: {
   progressPercentage: number;
-}): JSX.Element => {
-  return (
-    <StyledDiv>
-      <BorderLinearProgress
-        classes={{
-          bar:
-            progressPercentage < completed
-              ? classes.barInProgress
-              : classes.barOk,
-        }}
-        variant="determinate"
-        value={progressPercentage}
-      />
-      <LinearProgress
-        className={classes.underline}
-        variant="determinate"
-        value={0}
-      />
-    </StyledDiv>
-  );
-};
+}): JSX.Element => (
+  <StyledDiv>
+    <BorderLinearProgress
+      classes={{
+        bar:
+          progressPercentage < completed
+            ? classes.barInProgress
+            : classes.barOk,
+      }}
+      variant="determinate"
+      value={progressPercentage}
+    />
+    <LinearProgress
+      className={classes.underline}
+      variant="determinate"
+      value={0}
+    />
+  </StyledDiv>
+);
 
 export default ProgressBar;

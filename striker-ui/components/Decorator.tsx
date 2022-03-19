@@ -40,8 +40,8 @@ const StyledDiv = styled('div')(() => ({
 
 export type Colours = 'ok' | 'off' | 'error' | 'warning';
 
-const Decorator = ({ colour }: { colour: Colours }): JSX.Element => {
-  return <StyledDiv className={classes[colour]} />;
-};
+const Decorator = ({ colour }: { colour: Colours }): JSX.Element => (
+  <StyledDiv className={classes[colour]} />
+);
 
 export default Decorator;

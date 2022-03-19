@@ -71,75 +71,59 @@ const ResourceVolumes = ({
   resource,
 }: {
   resource: AnvilReplicatedStorage;
-}): JSX.Element => {
-  return (
-    <StyledBox>
-      {resource &&
-        resource.volumes.map((volume) => {
-          return (
-            <InnerPanel key={volume.drbd_device_minor}>
-              <InnerPanelHeader>
-                <Box display="flex" width="100%" className={classes.header}>
-                  <Box flexGrow={1}>
-                    <BodyText text={`Volume: ${volume.number}`} />
-                  </Box>
-                  <Box>
-                    <BodyText
-                      text={`Size: ${prettyBytes.default(volume.size, {
-                        binary: true,
-                      })}`}
+}): JSX.Element => (
+  <StyledBox>
+    {resource &&
+      resource.volumes.map((volume) => (
+        <InnerPanel key={volume.drbd_device_minor}>
+          <InnerPanelHeader>
+            <Box display="flex" width="100%" className={classes.header}>
+              <Box flexGrow={1}>
+                <BodyText text={`Volume: ${volume.number}`} />
+              </Box>
+              <Box>
+                <BodyText
+                  text={`Size: ${prettyBytes.default(volume.size, {
+                    binary: true,
+                  })}`}
+                />
+              </Box>
+            </Box>
+          </InnerPanelHeader>
+          {volume.connections.map(
+            (connection, index): JSX.Element => (
+              <>
+                <Box
+                  key={connection.fencing}
+                  display="flex"
+                  width="100%"
+                  className={classes.connection}
+                >
+                  <Box className={classes.decoratorBox}>
+                    <Decorator
+                      colour={selectDecorator(connection.connection_state)}
                     />
                   </Box>
+                  <Box>
+                    <Box display="flex" width="100%">
+                      <BodyText text={connection.targets[0].target_name} />
+                      <InsertLinkIcon style={{ color: DIVIDER }} />
+                      <BodyText text={connection.targets[1].target_name} />
+                    </Box>
+                    <Box display="flex" justifyContent="center" width="100%">
+                      <BodyText text={connection.connection_state} />
+                    </Box>
+                  </Box>
                 </Box>
-              </InnerPanelHeader>
-              {volume.connections.map(
-                (connection, index): JSX.Element => {
-                  return (
-                    <>
-                      <Box
-                        key={connection.fencing}
-                        display="flex"
-                        width="100%"
-                        className={classes.connection}
-                      >
-                        <Box className={classes.decoratorBox}>
-                          <Decorator
-                            colour={selectDecorator(
-                              connection.connection_state,
-                            )}
-                          />
-                        </Box>
-                        <Box>
-                          <Box display="flex" width="100%">
-                            <BodyText
-                              text={connection.targets[0].target_name}
-                            />
-                            <InsertLinkIcon style={{ color: DIVIDER }} />
-                            <BodyText
-                              text={connection.targets[1].target_name}
-                            />
-                          </Box>
-                          <Box
-                            display="flex"
-                            justifyContent="center"
-                            width="100%"
-                          >
-                            <BodyText text={connection.connection_state} />
-                          </Box>
-                        </Box>
-                      </Box>
-                      {volume.connections.length - 1 !== index ? (
-                        <Divider className={classes.divider} />
-                      ) : null}
-                    </>
-                  );
-                },
-              )}
-            </InnerPanel>
-          );
-        })}
-    </StyledBox>
-  );
-};
+                {volume.connections.length - 1 !== index ? (
+                  <Divider className={classes.divider} />
+                ) : null}
+              </>
+            ),
+          )}
+        </InnerPanel>
+      ))}
+  </StyledBox>
+);
 
 export default ResourceVolumes;

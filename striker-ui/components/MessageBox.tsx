@@ -64,9 +64,8 @@ const StyledBox = styled(Box)({
 });
 
 const MessageBox = ({ type, text }: MessageBoxProps): JSX.Element => {
-  const buildMessageBoxClasses = (messageBoxType: MessageBoxType) => {
-    return MESSAGE_BOX_CLASSES[messageBoxType];
-  };
+  const buildMessageBoxClasses = (messageBoxType: MessageBoxType) =>
+    MESSAGE_BOX_CLASSES[messageBoxType];
 
   const buildMessageIcon = (messageBoxType: MessageBoxType) => {
     let messageIcon;
@@ -85,9 +84,9 @@ const MessageBox = ({ type, text }: MessageBoxProps): JSX.Element => {
     return messageIcon;
   };
 
-  const buildMessage = (message: string, messageBoxType: MessageBoxType) => {
-    return <BodyText inverted={messageBoxType === 'info'} text={message} />;
-  };
+  const buildMessage = (message: string, messageBoxType: MessageBoxType) => (
+    <BodyText inverted={messageBoxType === 'info'} text={message} />
+  );
 
   return (
     <StyledBox className={buildMessageBoxClasses(type)}>

@@ -19,12 +19,10 @@ const StyledDiv = styled('div')(() => ({
   },
 }));
 
-const Spinner = (): JSX.Element => {
-  return (
-    <StyledDiv>
-      <CircularProgress variant="indeterminate" className={classes.spinner} />
-    </StyledDiv>
-  );
-};
+const Spinner = (): JSX.Element => (
+  <StyledDiv>
+    <CircularProgress variant="indeterminate" className={classes.spinner} />
+  </StyledDiv>
+);
 
 export default Spinner;

@@ -32,13 +32,11 @@ type Props = {
   children: ReactNode;
 };
 
-const InnerPanelHeader = ({ children }: Props): JSX.Element => {
-  return (
-    <StyledBox>
-      <div className={classes.header} />
-      {children}
-    </StyledBox>
-  );
-};
+const InnerPanelHeader = ({ children }: Props): JSX.Element => (
+  <StyledBox>
+    <div className={classes.header} />
+    {children}
+  </StyledBox>
+);
 
 export default InnerPanelHeader;

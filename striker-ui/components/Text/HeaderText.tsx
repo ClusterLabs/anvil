@@ -6,8 +6,8 @@ const WhiteTypography = styled(Typography)({
   color: TEXT,
 });
 
-const HeaderText = ({ text }: { text: string }): JSX.Element => {
-  return <WhiteTypography variant="h4">{text}</WhiteTypography>;
-};
+const HeaderText = ({ text }: { text: string }): JSX.Element => (
+  <WhiteTypography variant="h4">{text}</WhiteTypography>
+);
 
 export default HeaderText;

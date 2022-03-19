@@ -75,28 +75,26 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
         className={classes.root}
         aria-label="mailbox folders"
       >
-        {sortAnvils(list).map((anvil) => {
-          return (
-            <>
-              <Divider className={classes.divider} />
-              <ListItem
-                button
-                className={classes.button}
-                key={anvil.anvil_uuid}
-                onClick={() => setAnvilUuid(anvil.anvil_uuid)}
-              >
-                <Box display="flex" flexDirection="row" width="100%">
-                  <Box p={1}>
-                    <Decorator colour={selectDecorator(anvil.anvil_state)} />
-                  </Box>
-                  <Box p={1} flexGrow={1} className={classes.anvil}>
-                    <Anvil anvil={anvil} />
-                  </Box>
+        {sortAnvils(list).map((anvil) => (
+          <>
+            <Divider className={classes.divider} />
+            <ListItem
+              button
+              className={classes.button}
+              key={anvil.anvil_uuid}
+              onClick={() => setAnvilUuid(anvil.anvil_uuid)}
+            >
+              <Box display="flex" flexDirection="row" width="100%">
+                <Box p={1}>
+                  <Decorator colour={selectDecorator(anvil.anvil_state)} />
                 </Box>
-              </ListItem>
-            </>
-          );
-        })}
+                <Box p={1} flexGrow={1} className={classes.anvil}>
+                  <Anvil anvil={anvil} />
+                </Box>
+              </Box>
+            </ListItem>
+          </>
+        ))}
       </List>
     </StyledDiv>
   );

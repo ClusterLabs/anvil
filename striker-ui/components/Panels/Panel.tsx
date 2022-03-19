@@ -71,15 +71,13 @@ const styledScrollbars = (
   />
 );
 
-const Panel = ({ children }: PanelProps): JSX.Element => {
-  return (
-    <StyledDiv>
-      {styledScrollbars}
-      <div className={`${classes.square} ${classes.topSquare}`} />
-      <div className={`${classes.square} ${classes.bottomSquare}`} />
-      <div className={classes.paper}>{children}</div>
-    </StyledDiv>
-  );
-};
+const Panel = ({ children }: PanelProps): JSX.Element => (
+  <StyledDiv>
+    {styledScrollbars}
+    <div className={`${classes.square} ${classes.topSquare}`} />
+    <div className={`${classes.square} ${classes.bottomSquare}`} />
+    <div className={classes.paper}>{children}</div>
+  </StyledDiv>
+);
 
 export default Panel;

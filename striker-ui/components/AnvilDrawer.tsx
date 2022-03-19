@@ -45,63 +45,61 @@ interface DrawerProps {
   setOpen: Dispatch<SetStateAction<boolean>>;
 }
 
-const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
-  return (
-    <StyledDrawer
-      BackdropProps={{ invisible: true }}
-      anchor="left"
-      open={open}
-      onClose={() => setOpen(!open)}
-    >
-      <div role="presentation">
-        <List className={classes.list}>
-          <ListItem button>
-            <HeaderText text="Admin" />
-          </ListItem>
-          <Divider className={classes.divider} />
-          <ListItem button component="a" href="/index.html">
-            <Box display="flex" flexDirection="row" width="100%">
-              <Box className={classes.dashboardButton}>
-                <DashboardIcon className={classes.dashboardIcon} />
-              </Box>
-              <Box flexGrow={1} className={classes.text}>
-                <BodyText text="Dashboard" />
-              </Box>
+const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => (
+  <StyledDrawer
+    BackdropProps={{ invisible: true }}
+    anchor="left"
+    open={open}
+    onClose={() => setOpen(!open)}
+  >
+    <div role="presentation">
+      <List className={classes.list}>
+        <ListItem button>
+          <HeaderText text="Admin" />
+        </ListItem>
+        <Divider className={classes.divider} />
+        <ListItem button component="a" href="/index.html">
+          <Box display="flex" flexDirection="row" width="100%">
+            <Box className={classes.dashboardButton}>
+              <DashboardIcon className={classes.dashboardIcon} />
             </Box>
-          </ListItem>
-          {ICONS.map(
-            (icon): JSX.Element => (
-              <ListItem
-                button
-                key={icon.image}
-                component="a"
-                href={
-                  icon.uri.search(/^https?:/) !== -1
-                    ? icon.uri
-                    : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
-                }
-              >
-                <Box display="flex" flexDirection="row" width="100%">
-                  <Box>
-                    <img
-                      alt=""
-                      key="icon"
-                      src={icon.image}
-                      // eslint-disable-next-line react/jsx-props-no-spreading
-                      {...ICON_SIZE}
-                    />
-                  </Box>
-                  <Box flexGrow={1} className={classes.text}>
-                    <BodyText text={icon.text} />
-                  </Box>
+            <Box flexGrow={1} className={classes.text}>
+              <BodyText text="Dashboard" />
+            </Box>
+          </Box>
+        </ListItem>
+        {ICONS.map(
+          (icon): JSX.Element => (
+            <ListItem
+              button
+              key={icon.image}
+              component="a"
+              href={
+                icon.uri.search(/^https?:/) !== -1
+                  ? icon.uri
+                  : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
+              }
+            >
+              <Box display="flex" flexDirection="row" width="100%">
+                <Box>
+                  <img
+                    alt=""
+                    key="icon"
+                    src={icon.image}
+                    // eslint-disable-next-line react/jsx-props-no-spreading
+                    {...ICON_SIZE}
+                  />
                 </Box>
-              </ListItem>
-            ),
-          )}
-        </List>
-      </div>
-    </StyledDrawer>
-  );
-};
+                <Box flexGrow={1} className={classes.text}>
+                  <BodyText text={icon.text} />
+                </Box>
+              </Box>
+            </ListItem>
+          ),
+        )}
+      </List>
+    </div>
+  </StyledDrawer>
+);
 
 export default AnvilDrawer;

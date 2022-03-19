@@ -219,17 +219,15 @@ const FullSize = ({
                   open={Boolean(anchorEl)}
                   onClose={() => setAnchorEl(null)}
                 >
-                  {keyCombinations.map(({ keys, scans }) => {
-                    return (
-                      <MenuItem
-                        onClick={() => handleSendKeys(scans)}
-                        className={classes.keysItem}
-                        key={keys}
-                      >
-                        <Typography variant="subtitle1">{keys}</Typography>
-                      </MenuItem>
-                    );
-                  })}
+                  {keyCombinations.map(({ keys, scans }) => (
+                    <MenuItem
+                      onClick={() => handleSendKeys(scans)}
+                      className={classes.keysItem}
+                      key={keys}
+                    >
+                      <Typography variant="subtitle1">{keys}</Typography>
+                    </MenuItem>
+                  ))}
                 </Menu>
               </Box>
             </Box>

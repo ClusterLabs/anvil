@@ -5,7 +5,5 @@ export const UPLOAD_FILE_TYPES_ARRAY: ReadonlyArray<
   ['other', ['text/plain', 'Other file type']],
   ['script', ['text/plain', 'Script (program)']],
 ];
-export const UPLOAD_FILE_TYPES: ReadonlyMap<
-  FileType,
-  [string, string]
-> = new Map(UPLOAD_FILE_TYPES_ARRAY);
+export const UPLOAD_FILE_TYPES: ReadonlyMap<FileType, [string, string]> =
+  new Map(UPLOAD_FILE_TYPES_ARRAY);

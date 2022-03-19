@@ -18,8 +18,8 @@ type Props = {
   children: ReactNode;
 };
 
-const InnerPanel = ({ children }: Props): JSX.Element => {
-  return <StyledBox>{children}</StyledBox>;
-};
+const InnerPanel = ({ children }: Props): JSX.Element => (
+  <StyledBox>{children}</StyledBox>
+);
 
 export default InnerPanel;

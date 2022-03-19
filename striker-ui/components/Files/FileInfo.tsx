@@ -117,13 +117,11 @@ const FileInfo = (
             }}
           >
             {UPLOAD_FILE_TYPES_ARRAY.map(
-              ([fileTypeKey, [, fileTypeDisplayString]]) => {
-                return (
-                  <StyledMenuItem key={fileTypeKey} value={fileTypeKey}>
-                    {fileTypeDisplayString}
-                  </StyledMenuItem>
-                );
-              },
+              ([fileTypeKey, [, fileTypeDisplayString]]) => (
+                <StyledMenuItem key={fileTypeKey} value={fileTypeKey}>
+                  {fileTypeDisplayString}
+                </StyledMenuItem>
+              ),
             )}
           </StyledSelect>
         </FormControl>

@@ -17,17 +17,15 @@ const App = ({
   Component,
   emotionCache = clientSideEmotionCache,
   pageProps,
-}: MyAppProps): JSX.Element => {
-  return (
-    <CacheProvider value={emotionCache}>
-      <ThemeProvider theme={theme}>
-        <Component
-          // eslint-disable-next-line react/jsx-props-no-spreading
-          {...pageProps}
-        />
-      </ThemeProvider>
-    </CacheProvider>
-  );
-};
+}: MyAppProps): JSX.Element => (
+  <CacheProvider value={emotionCache}>
+    <ThemeProvider theme={theme}>
+      <Component
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...pageProps}
+      />
+    </ThemeProvider>
+  </CacheProvider>
+);
 
 export default App;
