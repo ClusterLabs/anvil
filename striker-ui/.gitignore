@@ -14,8 +14,9 @@
 # production
 /build
 /out/*
-!/out/index.html
-!/out/server.html
+# The next 2 lines omits all HTML files but includes a specific HTML file; the order of 2 lines matters.
+!/out/*.html
+/out/404.html
 !/out/_next
 
 # misc
