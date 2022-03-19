@@ -5,11 +5,12 @@
   "scripts": {
     "build": "next build && next export",
     "dev": "next dev",
-    "lint": "eslint --config .eslintrc.json --ext js,jsx,ts,tsx --max-warnings=0",
-    "lint_next": "next lint",
-    "lint:dryrun": "npm run lint -- .",
-    "lint:fix": "npm run lint -- --fix .",
+    "eslint:base": "eslint --config .eslintrc.json --ext js,jsx,ts,tsx --max-warnings=0",
+    "lint": "npm run eslint:base -- . && npm run prettier:base -- --check",
+    "lint:next": "next lint",
+    "lint:fix": "npm run eslint:base -- --fix . && npm run prettier:base -- --write",
     "postinstall": "cd .. && husky install striker-ui/.husky",
+    "prettier:base": "prettier './!(out)/**/*.{js,json,jsx,md,ts,tsx}'",
     "start": "next start"
   },
   "dependencies": {
