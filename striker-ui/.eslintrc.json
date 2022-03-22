@@ -13,7 +13,6 @@
     "plugin:import/typescript",
     "plugin:import/warnings",
     "plugin:jsx-a11y/recommended",
-    "plugin:prettier/recommended",
     "plugin:react/recommended",
     "plugin:react-hooks/recommended",
     "prettier",
@@ -23,7 +22,6 @@
     "@typescript-eslint",
     "import",
     "jsx-a11y",
-    "prettier",
     "react",
     "react-hooks"
   ],

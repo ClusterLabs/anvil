@@ -1,57 +1,55 @@
-import { makeStyles, withStyles } from '@material-ui/core/styles';
-import { LinearProgress } from '@material-ui/core';
-import {
-  PURPLE,
-  BLUE,
-  PANEL_BACKGROUND,
-  BORDER_RADIUS,
-} from '../../lib/consts/DEFAULT_THEME';
+import { LinearProgress } from '@mui/material';
+import { styled } from '@mui/material/styles';
 
-const completed = 100;
+import { PURPLE, BLUE, BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
+import BorderLinearProgress from './BorderLinearProgress';
 
-const BorderLinearProgress = withStyles({
-  root: {
-    height: '1em',
-    borderRadius: BORDER_RADIUS,
-  },
-  colorPrimary: {
-    backgroundColor: PANEL_BACKGROUND,
-  },
-  bar: {
-    borderRadius: BORDER_RADIUS,
-  },
-})(LinearProgress);
+const PREFIX = 'ProgressBar';
 
-const useStyles = makeStyles(() => ({
-  barOk: {
+const classes = {
+  barOk: `${PREFIX}-barOk`,
+  barInProgress: `${PREFIX}-barInProgress`,
+  underline: `${PREFIX}-underline`,
+};
+
+const StyledDiv = styled('div')(() => ({
+  [`& .${classes.barOk}`]: {
     backgroundColor: BLUE,
   },
-  barInProgress: {
+
+  [`& .${classes.barInProgress}`]: {
     backgroundColor: PURPLE,
   },
+
+  [`& .${classes.underline}`]: {
+    borderRadius: BORDER_RADIUS,
+  },
 }));
+
+const completed = 100;
 
 const ProgressBar = ({
   progressPercentage,
 }: {
   progressPercentage: number;
-}): JSX.Element => {
-  const classes = useStyles();
-  return (
-    <>
-      <BorderLinearProgress
-        classes={{
-          bar:
-            progressPercentage < completed
-              ? classes.barInProgress
-              : classes.barOk,
-        }}
-        variant="determinate"
-        value={progressPercentage}
-      />
-      <LinearProgress variant="determinate" value={0} />
-    </>
-  );
-};
+}): JSX.Element => (
+  <StyledDiv>
+    <BorderLinearProgress
+      classes={{
+        bar:
+          progressPercentage < completed
+            ? classes.barInProgress
+            : classes.barOk,
+      }}
+      variant="determinate"
+      value={progressPercentage}
+    />
+    <LinearProgress
+      className={classes.underline}
+      variant="determinate"
+      value={0}
+    />
+  </StyledDiv>
+);
 
 export default ProgressBar;

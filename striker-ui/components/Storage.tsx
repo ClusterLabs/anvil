@@ -1,12 +1,12 @@
-import { Grid } from '@material-ui/core';
+import { Grid } from '@mui/material';
 import * as prettyBytes from 'pretty-bytes';
 import { Panel } from './Panels';
 import { AllocationBar } from './Bars';
 import { HeaderText, BodyText } from './Text';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 
 const Storage = ({ uuid }: { uuid: string }): JSX.Element => {
-  const { data, isLoading } = PeriodicFetch<AnvilMemory>(
+  const { data, isLoading } = periodicFetch<AnvilMemory>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_memory?anvil_uuid=${uuid}`,
   );
 
@@ -14,7 +14,7 @@ const Storage = ({ uuid }: { uuid: string }): JSX.Element => {
 
   return (
     <Panel>
-      <Grid container alignItems="center" justify="space-around">
+      <Grid container alignItems="center" justifyContent="space-around">
         <Grid item xs={12}>
           <HeaderText text="Storage Resync" />
         </Grid>

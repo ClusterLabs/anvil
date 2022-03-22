@@ -1,29 +1,28 @@
-import { makeStyles } from '@material-ui/core/styles';
-import CircularProgress from '@material-ui/core/CircularProgress';
+import { styled } from '@mui/material/styles';
+import { CircularProgress } from '@mui/material';
 import { TEXT } from '../lib/consts/DEFAULT_THEME';
 
-const useStyles = makeStyles(() => ({
-  root: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: '3em',
-  },
-  spinner: {
+const PREFIX = 'Spinner';
+
+const classes = {
+  spinner: `${PREFIX}-spinner`,
+};
+
+const StyledDiv = styled('div')(() => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: '3em',
+
+  [`& .${classes.spinner}`]: {
     color: TEXT,
-    variant: 'indeterminate',
-    size: '50em',
   },
 }));
 
-const Spinner = (): JSX.Element => {
-  const classes = useStyles();
-
-  return (
-    <div className={classes.root}>
-      <CircularProgress className={classes.spinner} />
-    </div>
-  );
-};
+const Spinner = (): JSX.Element => (
+  <StyledDiv>
+    <CircularProgress variant="indeterminate" className={classes.spinner} />
+  </StyledDiv>
+);
 
 export default Spinner;

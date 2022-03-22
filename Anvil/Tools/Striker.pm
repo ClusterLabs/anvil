@@ -201,6 +201,31 @@ sub check_httpd_conf
 		$write_shell_call .= "set ".$last_rewriterule_arg."[3] [L]\n";
 	}
 
+    # Attempt to setup forwarding from the Apache server to the Striker UI API.
+
+    $augtool_path    = "/files".$anvil->data->{path}{data}{httpd_conf}."/Location[arg='\"/api\"']";
+    $read_shell_call = $anvil->data->{path}{exe}{augtool}." <<EOF\nmatch ".$augtool_path."\nquit\nEOF\n";
+
+    ($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $read_shell_call });
+    $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+        shell_call        => $read_shell_call,
+        shell_output      => $shell_output,
+        shell_return_code => $shell_return_code
+    } });
+
+    if (($shell_return_code == 0) and (not $shell_output =~ /^\//))
+    {
+        $is_write = 1;
+
+        my $new_ifmodule_directive = $augtool_path."/IfModule[arg='proxy_module']";
+        my $striker_ui_api_url     = "http://localhost:8080/api";
+
+        $write_shell_call .= "set ".$augtool_path =~ s/(Location)[^\s]+$/$1/r."[last()+1]/arg[1] '\"/api\"'\n";
+        $write_shell_call .= "set ".$augtool_path."/IfModule[last()+1]/arg[1] 'proxy_module'\n";
+        $write_shell_call .= "set ".$new_ifmodule_directive."/directive[last()+1] 'ProxyPass'\n";
+        $write_shell_call .= "set ".$new_ifmodule_directive."/directive[.='ProxyPass']/arg[1] '".$striker_ui_api_url."'\n";
+    }
+
 	if ($is_write)
 	{
 		$write_shell_call .= "save\nquit\nEOF\n";

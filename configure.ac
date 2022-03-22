@@ -166,6 +166,7 @@ AC_CONFIG_FILES([Makefile
 		 scripts/Makefile
 		 share/Makefile
 		 striker-ui/Makefile
+		 striker-ui-api/Makefile
 		 tools/Makefile
 		 units/Makefile])
 

@@ -1,29 +1,25 @@
 import { ReactNode } from 'react';
-import { Box } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+
+const StyledBox = styled(Box)({
+  borderWidth: '1px',
+  borderRadius: BORDER_RADIUS,
+  borderStyle: 'solid',
+  borderColor: DIVIDER,
+  marginTop: '1.4em',
+  marginBottom: '1.4em',
+  paddingBottom: 0,
+  position: 'relative',
+});
 
 type Props = {
   children: ReactNode;
 };
 
-const useStyles = makeStyles(() => ({
-  innerBody: {
-    borderWidth: '1px',
-    borderRadius: BORDER_RADIUS,
-    borderStyle: 'solid',
-    borderColor: DIVIDER,
-    marginTop: '1.4em',
-    marginBottom: '1.4em',
-    paddingBottom: 0,
-    position: 'relative',
-  },
-}));
-
-const InnerPanel = ({ children }: Props): JSX.Element => {
-  const classes = useStyles();
-
-  return <Box className={classes.innerBody}>{children}</Box>;
-};
+const InnerPanel = ({ children }: Props): JSX.Element => (
+  <StyledBox>{children}</StyledBox>
+);
 
 export default InnerPanel;

@@ -1,15 +1,15 @@
 import { useContext } from 'react';
-import { Box } from '@material-ui/core';
+import { Box } from '@mui/material';
 import { Panel } from './Panels';
 import { HeaderText, BodyText } from './Text';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import { AnvilContext } from './AnvilContext';
 import Spinner from './Spinner';
 
 const CPU = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
-  const { data, isLoading } = PeriodicFetch<AnvilCPU>(
+  const { data, isLoading } = periodicFetch<AnvilCPU>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_cpu?anvil_uuid=${uuid}`,
   );
 

@@ -1,6 +1,6 @@
 import { useContext, useEffect } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import { List, Box, Divider, ListItem } from '@material-ui/core';
+import { styled } from '@mui/material/styles';
+import { List, Box, Divider, ListItem } from '@mui/material';
 import {
   HOVER,
   DIVIDER,
@@ -11,8 +11,17 @@ import { AnvilContext } from '../AnvilContext';
 import sortAnvils from './sortAnvils';
 import Decorator, { Colours } from '../Decorator';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
+const PREFIX = 'AnvilList';
+
+const classes = {
+  root: `${PREFIX}-root`,
+  divider: `${PREFIX}-divider`,
+  button: `${PREFIX}-button`,
+  anvil: `${PREFIX}-anvil`,
+};
+
+const StyledDiv = styled('div')(({ theme }) => ({
+  [`& .${classes.root}`]: {
     width: '100%',
     overflow: 'auto',
     height: '30vh',
@@ -22,16 +31,19 @@ const useStyles = makeStyles((theme) => ({
       overflow: 'hidden',
     },
   },
-  divider: {
-    background: DIVIDER,
+
+  [`& .${classes.divider}`]: {
+    backgroundColor: DIVIDER,
   },
-  button: {
+
+  [`& .${classes.button}`]: {
     '&:hover': {
       backgroundColor: HOVER,
     },
     paddingLeft: 0,
   },
-  anvil: {
+
+  [`& .${classes.anvil}`]: {
     paddingLeft: 0,
   },
 }));
@@ -51,16 +63,19 @@ const selectDecorator = (state: string): Colours => {
 
 const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
   const { uuid, setAnvilUuid } = useContext(AnvilContext);
-  const classes = useStyles();
 
   useEffect(() => {
     if (uuid === '') setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
   }, [uuid, list, setAnvilUuid]);
 
   return (
-    <List component="nav" className={classes.root} aria-label="mailbox folders">
-      {sortAnvils(list).map((anvil) => {
-        return (
+    <StyledDiv>
+      <List
+        component="nav"
+        className={classes.root}
+        aria-label="mailbox folders"
+      >
+        {sortAnvils(list).map((anvil) => (
           <>
             <Divider className={classes.divider} />
             <ListItem
@@ -79,9 +94,9 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
               </Box>
             </ListItem>
           </>
-        );
-      })}
-    </List>
+        ))}
+      </List>
+    </StyledDiv>
   );
 };
 

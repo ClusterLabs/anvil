@@ -1,5 +1,6 @@
-import PanelHeader from './PanelHeader';
 import InnerPanel from './InnerPanel';
+import InnerPanelHeader from './InnerPanelHeader';
 import Panel from './Panel';
+import PanelHeader from './PanelHeader';
 
-export { Panel, PanelHeader, InnerPanel };
+export { InnerPanel, InnerPanelHeader, Panel, PanelHeader };

@@ -1,43 +1,68 @@
 import { useState, useContext, useRef } from 'react';
 import {
-  List,
-  ListItem,
-  Divider,
   Box,
-  IconButton,
   Button,
   Checkbox,
+  Divider,
+  List,
+  ListItem,
   Menu,
   MenuItem,
+  styled,
   Typography,
-} from '@material-ui/core';
-import EditIcon from '@material-ui/icons/Edit';
-import MoreVertIcon from '@material-ui/icons/MoreVert';
-import CheckIcon from '@material-ui/icons/Check';
-import { makeStyles } from '@material-ui/core/styles';
-import { Panel } from './Panels';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
-import { HeaderText, BodyText } from './Text';
+} from '@mui/material';
 import {
-  HOVER,
-  DIVIDER,
-  TEXT,
-  BLUE,
-  RED,
-  GREY,
-  BLACK,
-  LARGE_MOBILE_BREAKPOINT,
-} from '../lib/consts/DEFAULT_THEME';
-import { AnvilContext } from './AnvilContext';
-import serverState from '../lib/consts/SERVERS';
-import Decorator, { Colours } from './Decorator';
-import Spinner from './Spinner';
-import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
+  Add as AddIcon,
+  Check as CheckIcon,
+  Edit as EditIcon,
+  MoreVert as MoreVertIcon,
+} from '@mui/icons-material';
 
+import {
+  BLACK,
+  BLUE,
+  DIVIDER,
+  GREY,
+  HOVER,
+  LARGE_MOBILE_BREAKPOINT,
+  RED,
+  TEXT,
+} from '../lib/consts/DEFAULT_THEME';
+import serverState from '../lib/consts/SERVERS';
+
+import { AnvilContext } from './AnvilContext';
+import Decorator, { Colours } from './Decorator';
+import IconButton from './IconButton';
+import { Panel, PanelHeader } from './Panels';
+import Spinner from './Spinner';
+import { BodyText, HeaderText } from './Text';
+
+import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import putFetch from '../lib/fetchers/putFetch';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
+const PREFIX = 'Servers';
+
+const classes = {
+  root: `${PREFIX}-root`,
+  divider: `${PREFIX}-divider`,
+  verticalDivider: `${PREFIX}-verticalDivider`,
+  button: `${PREFIX}-button`,
+  headerPadding: `${PREFIX}-headerPadding`,
+  hostsBox: `${PREFIX}-hostsBox`,
+  hostBox: `${PREFIX}-hostBox`,
+  checkbox: `${PREFIX}-checkbox`,
+  serverActionButton: `${PREFIX}-serverActionButton`,
+  editButtonBox: `${PREFIX}-editButtonBox`,
+  dropdown: `${PREFIX}-dropdown`,
+  power: `${PREFIX}-power`,
+  on: `${PREFIX}-on`,
+  off: `${PREFIX}-off`,
+  all: `${PREFIX}-all`,
+};
+
+const StyledDiv = styled('div')(({ theme }) => ({
+  [`& .${classes.root}`]: {
     width: '100%',
     overflow: 'auto',
     height: '78vh',
@@ -47,63 +72,63 @@ const useStyles = makeStyles((theme) => ({
       overflow: 'hidden',
     },
   },
-  divider: {
-    background: DIVIDER,
+
+  [`& .${classes.divider}`]: {
+    backgroundColor: DIVIDER,
   },
-  verticalDivider: {
+
+  [`& .${classes.verticalDivider}`]: {
     height: '75%',
     paddingTop: '1em',
   },
-  button: {
+
+  [`& .${classes.button}`]: {
     '&:hover': {
       backgroundColor: HOVER,
     },
     paddingLeft: 0,
   },
-  headerPadding: {
+
+  [`& .${classes.headerPadding}`]: {
     paddingLeft: '.3em',
   },
-  hostsBox: {
+
+  [`& .${classes.hostsBox}`]: {
     padding: '1em',
     paddingRight: 0,
   },
-  hostBox: {
+
+  [`& .${classes.hostBox}`]: {
     paddingTop: 0,
   },
-  checkbox: {
+
+  [`& .${classes.checkbox}`]: {
     paddingTop: '.8em',
   },
-  menuItem: {
-    backgroundColor: GREY,
-    paddingRight: '3em',
+
+  [`& .${classes.serverActionButton}`]: {
+    backgroundColor: TEXT,
+    color: BLACK,
+    textTransform: 'none',
     '&:hover': {
       backgroundColor: GREY,
     },
   },
-  editButton: {
-    borderRadius: 8,
-    backgroundColor: GREY,
-    '&:hover': {
-      backgroundColor: GREY,
-    },
-  },
-  editButtonBox: {
+
+  [`& .${classes.editButtonBox}`]: {
     paddingTop: '.3em',
   },
-  dropdown: {
+
+  [`& .${classes.dropdown}`]: {
     paddingTop: '.8em',
     paddingBottom: '.8em',
   },
-  power: {
+
+  [`& .${classes.power}`]: {
     color: BLACK,
   },
-  on: {
-    color: BLUE,
-  },
-  off: {
-    color: RED,
-  },
-  all: {
+
+  [`& .${classes.all}`]: {
     paddingTop: '.5em',
     paddingLeft: '.3em',
   },
@@ -122,6 +147,24 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
+const ServerActionButtonMenuItem = styled(MenuItem)({
+  backgroundColor: GREY,
+  paddingRight: '3em',
+  '&:hover': {
+    backgroundColor: GREY,
+  },
+});
+
+const ServerActionButtonMenuItemLabel = styled(Typography)({
+  [`&.${classes.on}`]: {
+    color: BLUE,
+  },
+
+  [`&.${classes.off}`]: {
+    color: RED,
+  },
+});
+
 type ButtonLabels = 'on' | 'off';
 
 const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
@@ -129,11 +172,12 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
   const [allSelected, setAllSelected] = useState<boolean>(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const buttonLabels = useRef<ButtonLabels[]>([]);
-  const { uuid } = useContext(AnvilContext);
-  const classes = useStyles();
 
-  const { data, isLoading } = PeriodicFetch<AnvilServers>(
+  const { uuid } = useContext(AnvilContext);
+
+  const buttonLabels = useRef<ButtonLabels[]>([]);
+
+  const { data, isLoading } = periodicFetch<AnvilServers>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
   );
 
@@ -187,93 +231,85 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   return (
     <Panel>
-      <Box className={classes.headerPadding} display="flex">
-        <Box flexGrow={1}>
+      <StyledDiv>
+        <PanelHeader className={classes.headerPadding} sx={{ marginBottom: 0 }}>
           <HeaderText text="Servers" />
-        </Box>
-        <Box className={classes.editButtonBox}>
-          <IconButton
-            className={classes.editButton}
-            style={{ color: BLACK }}
-            onClick={() => setShowCheckbox(!showCheckbox)}
-          >
-            {showCheckbox ? <CheckIcon /> : <EditIcon />}
+          <IconButton>
+            <AddIcon />
           </IconButton>
-        </Box>
-      </Box>
-      {showCheckbox && (
-        <>
-          <Box className={classes.headerPadding} display="flex">
-            <Box flexGrow={1} className={classes.dropdown}>
-              <Button
-                variant="contained"
-                startIcon={<MoreVertIcon />}
-                onClick={handleClick}
-                style={{ textTransform: 'none' }}
-              >
-                <Typography className={classes.power} variant="subtitle1">
-                  Power
-                </Typography>
-              </Button>
-              <Menu
-                anchorEl={anchorEl}
-                keepMounted
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-              >
-                {buttonLabels.current.map((label: ButtonLabels) => {
-                  return (
-                    <MenuItem
+          <IconButton onClick={() => setShowCheckbox(!showCheckbox)}>
+            {showCheckbox ? <CheckIcon sx={{ color: BLUE }} /> : <EditIcon />}
+          </IconButton>
+        </PanelHeader>
+        {showCheckbox && (
+          <>
+            <Box className={classes.headerPadding} display="flex">
+              <Box flexGrow={1} className={classes.dropdown}>
+                <Button
+                  variant="contained"
+                  startIcon={<MoreVertIcon />}
+                  onClick={handleClick}
+                  className={classes.serverActionButton}
+                >
+                  <Typography className={classes.power} variant="subtitle1">
+                    Power
+                  </Typography>
+                </Button>
+                <Menu
+                  anchorEl={anchorEl}
+                  keepMounted
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                >
+                  {buttonLabels.current.map((label: ButtonLabels) => (
+                    <ServerActionButtonMenuItem
                       onClick={() => handlePower(label)}
-                      className={classes.menuItem}
                       key={label}
                     >
-                      <Typography
+                      <ServerActionButtonMenuItemLabel
                         className={classes[label]}
                         variant="subtitle1"
                       >
                         {label.replace(/^[a-z]/, (c) => c.toUpperCase())}
-                      </Typography>
-                    </MenuItem>
-                  );
-                })}
-              </Menu>
+                      </ServerActionButtonMenuItemLabel>
+                    </ServerActionButtonMenuItem>
+                  ))}
+                </Menu>
+              </Box>
             </Box>
-          </Box>
-          <Box display="flex">
-            <Box>
-              <Checkbox
-                style={{ color: TEXT }}
-                color="secondary"
-                checked={allSelected}
-                onChange={() => {
-                  if (!allSelected) {
-                    setButtons(data.servers);
-                    setSelected(
-                      data.servers.map(
-                        (server: AnvilServer) => server.server_uuid,
-                      ),
-                    );
-                  } else {
-                    setButtons([]);
-                    setSelected([]);
-                  }
+            <Box display="flex">
+              <Box>
+                <Checkbox
+                  style={{ color: TEXT }}
+                  color="secondary"
+                  checked={allSelected}
+                  onChange={() => {
+                    if (!allSelected) {
+                      setButtons(data.servers);
+                      setSelected(
+                        data.servers.map(
+                          (server: AnvilServer) => server.server_uuid,
+                        ),
+                      );
+                    } else {
+                      setButtons([]);
+                      setSelected([]);
+                    }
 
-                  setAllSelected(!allSelected);
-                }}
-              />
+                    setAllSelected(!allSelected);
+                  }}
+                />
+              </Box>
+              <Box className={classes.all}>
+                <BodyText text="All" />
+              </Box>
             </Box>
-            <Box className={classes.all}>
-              <BodyText text="All" />
-            </Box>
-          </Box>
-        </>
-      )}
-      {!isLoading ? (
-        <Box className={classes.root}>
-          <List component="nav">
-            {data?.servers.map((server: AnvilServer) => {
-              return (
+          </>
+        )}
+        {!isLoading ? (
+          <Box className={classes.root}>
+            <List component="nav">
+              {data?.servers.map((server: AnvilServer) => (
                 <>
                   <ListItem
                     button
@@ -345,13 +381,13 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                   </ListItem>
                   <Divider className={classes.divider} />
                 </>
-              );
-            })}
-          </List>
-        </Box>
-      ) : (
-        <Spinner />
-      )}
+              ))}
+            </List>
+          </Box>
+        ) : (
+          <Spinner />
+        )}
+      </StyledDiv>
     </Panel>
   );
 };

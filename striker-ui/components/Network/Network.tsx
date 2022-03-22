@@ -1,9 +1,9 @@
 import { useContext } from 'react';
-import { Box, Divider } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Box, Divider } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { Panel } from '../Panels';
 import { HeaderText, BodyText } from '../Text';
-import PeriodicFetch from '../../lib/fetchers/periodicFetch';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import {
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
@@ -13,8 +13,18 @@ import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
 import Spinner from '../Spinner';
 
-const useStyles = makeStyles((theme) => ({
-  container: {
+const PREFIX = 'Network';
+
+const classes = {
+  container: `${PREFIX}-container`,
+  root: `${PREFIX}-root`,
+  noPaddingLeft: `${PREFIX}-noPaddingLeft`,
+  divider: `${PREFIX}-divider`,
+  verticalDivider: `${PREFIX}-verticalDivider`,
+};
+
+const StyledDiv = styled('div')(({ theme }) => ({
+  [`& .${classes.container}`]: {
     width: '100%',
     overflow: 'auto',
     height: '32vh',
@@ -24,17 +34,21 @@ const useStyles = makeStyles((theme) => ({
       overflow: 'hidden',
     },
   },
-  root: {
+
+  [`& .${classes.root}`]: {
     paddingTop: '.7em',
     paddingBottom: '.7em',
   },
-  noPaddingLeft: {
+
+  [`& .${classes.noPaddingLeft}`]: {
     paddingLeft: 0,
   },
-  divider: {
-    background: DIVIDER,
+
+  [`& .${classes.divider}`]: {
+    backgroundColor: DIVIDER,
   },
-  verticalDivider: {
+
+  [`& .${classes.verticalDivider}`]: {
     height: '3.5em',
   },
 }));
@@ -54,21 +68,20 @@ const selectDecorator = (state: string): Colours => {
 
 const Network = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const classes = useStyles();
 
-  const { data, isLoading } = PeriodicFetch<AnvilNetwork>(
+  const { data, isLoading } = periodicFetch<AnvilNetwork>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_networks?anvil_uuid=${uuid}`,
   );
 
   const processed = processNetworkData(data);
   return (
     <Panel>
-      <HeaderText text="Network" />
-      {!isLoading ? (
-        <Box className={classes.container}>
-          {data &&
-            processed.bonds.map((bond: ProcessedBond) => {
-              return (
+      <StyledDiv>
+        <HeaderText text="Network" />
+        {!isLoading ? (
+          <Box className={classes.container}>
+            {data &&
+              processed.bonds.map((bond: ProcessedBond) => (
                 <>
                   <Box
                     display="flex"
@@ -114,12 +127,12 @@ const Network = (): JSX.Element => {
                   </Box>
                   <Divider className={classes.divider} />
                 </>
-              );
-            })}
-        </Box>
-      ) : (
-        <Spinner />
-      )}
+              ))}
+          </Box>
+        ) : (
+          <Spinner />
+        )}
+      </StyledDiv>
     </Panel>
   );
 };

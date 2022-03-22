@@ -1,35 +1,77 @@
-import { Typography } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
-import { TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
+import { styled, Typography, TypographyProps } from '@mui/material';
 
-interface TextProps {
-  text: string;
-  selected?: boolean;
-}
+import { BLACK, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
-const useStyles = makeStyles(() => ({
-  selected: {
+const PREFIX = 'BodyText';
+
+const classes = {
+  inverted: `${PREFIX}-inverted`,
+  selected: `${PREFIX}-selected`,
+  unselected: `${PREFIX}-unselected`,
+};
+
+const StyledTypography = styled(Typography)(() => ({
+  [`&.${classes.inverted}`]: {
+    color: BLACK,
+  },
+
+  [`&.${classes.selected}`]: {
     color: TEXT,
   },
-  unselected: {
+
+  [`&.${classes.unselected}`]: {
     color: UNSELECTED,
   },
 }));
 
-const BodyText = ({ text, selected }: TextProps): JSX.Element => {
-  const classes = useStyles();
+type BodyTextProps = TypographyProps & {
+  inverted?: boolean;
+  selected?: boolean;
+  text: string;
+};
+
+const BodyText = ({
+  inverted,
+  selected,
+  sx,
+  text,
+}: BodyTextProps): JSX.Element => {
+  const buildBodyTextClasses = ({
+    isInvert,
+    isSelect,
+  }: {
+    isInvert?: boolean;
+    isSelect?: boolean;
+  }) => {
+    let bodyTextClasses = '';
+
+    if (isInvert) {
+      bodyTextClasses += classes.inverted;
+    } else if (isSelect) {
+      bodyTextClasses += classes.selected;
+    } else {
+      bodyTextClasses += classes.unselected;
+    }
+
+    return bodyTextClasses;
+  };
 
   return (
-    <Typography
+    <StyledTypography
+      {...{ sx }}
+      className={buildBodyTextClasses({
+        isInvert: inverted,
+        isSelect: selected,
+      })}
       variant="subtitle1"
-      className={selected ? classes.selected : classes.unselected}
     >
       {text}
-    </Typography>
+    </StyledTypography>
   );
 };
 
 BodyText.defaultProps = {
+  inverted: false,
   selected: true,
 };
 

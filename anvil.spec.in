@@ -132,6 +132,7 @@ Requires:       gdm
 Requires:       gnome-terminal
 Requires:       httpd
 Requires:       nmap
+Requires:       nodejs
 Requires:       openssh-askpass
 Requires:       postgresql-server 
 Requires:       syslinux
@@ -241,6 +242,8 @@ systemctl enable anvil-daemon.service
 systemctl restart anvil-daemon.service
 systemctl enable scancore.service
 systemctl restart scancore.service
+systemctl enable striker-ui-api.service
+systemctl restart striker-ui-api.service
 
 
 %post striker
@@ -373,6 +376,7 @@ fi
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
+%{_datadir}/striker-ui-api/*
 %{_mandir}/*
 
 %files striker

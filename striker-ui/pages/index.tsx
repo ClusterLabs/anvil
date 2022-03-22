@@ -1,6 +1,6 @@
 import Head from 'next/head';
-import { Box } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 
 import Anvils from '../components/Anvils';
 import Hosts from '../components/Hosts';
@@ -8,15 +8,23 @@ import CPU from '../components/CPU';
 import SharedStorage from '../components/SharedStorage';
 import Memory from '../components/Memory';
 import Network from '../components/Network';
-import PeriodicFetch from '../lib/fetchers/periodicFetch';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import Servers from '../components/Servers';
 import Header from '../components/Header';
 import AnvilProvider from '../components/AnvilContext';
 import { LARGE_MOBILE_BREAKPOINT } from '../lib/consts/DEFAULT_THEME';
 import useWindowDimensions from '../hooks/useWindowDimenions';
 
-const useStyles = makeStyles((theme) => ({
-  child: {
+const PREFIX = 'Dashboard';
+
+const classes = {
+  child: `${PREFIX}-child`,
+  server: `${PREFIX}-server`,
+  container: `${PREFIX}-container`,
+};
+
+const StyledDiv = styled('div')(({ theme }) => ({
+  [`& .${classes.child}`]: {
     width: '22%',
     height: '100%',
     [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
@@ -26,14 +34,16 @@ const useStyles = makeStyles((theme) => ({
       width: '100%',
     },
   },
-  server: {
+
+  [`& .${classes.server}`]: {
     width: '35%',
     height: '100%',
     [theme.breakpoints.down('md')]: {
       width: '100%',
     },
   },
-  container: {
+
+  [`& .${classes.container}`]: {
     display: 'flex',
     flexDirection: 'row',
     width: '100%',
@@ -44,16 +54,15 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const Home = (): JSX.Element => {
-  const classes = useStyles();
+const Dashboard = (): JSX.Element => {
   const width = useWindowDimensions();
 
-  const { data } = PeriodicFetch<AnvilList>(
+  const { data } = periodicFetch<AnvilList>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
   );
 
   return (
-    <>
+    <StyledDiv>
       <Head>
         <title>Dashboard</title>
       </Head>
@@ -95,8 +104,8 @@ const Home = (): JSX.Element => {
             </Box>
           ))}
       </AnvilProvider>
-    </>
+    </StyledDiv>
   );
 };
 
-export default Home;
+export default Dashboard;
