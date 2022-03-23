@@ -4,13 +4,11 @@
   "description": "API for striker-ui",
   "scripts": {
     "build": "webpack",
-    "build:clean": "rm -rf out",
     "eslint:base": "eslint --ext js,ts --max-warnings=0",
     "lint": "npm run eslint:base -- . && npm run prettier:base -- --check",
     "lint:fix": "npm run eslint:base -- --fix . && npm run prettier:base -- --write",
     "prettier:base": "prettier '**/*.{js,json,md,ts}'",
-    "rebuild": "npm run build:clean && npm run build",
-    "start": "npm run rebuild && node out/index.js"
+    "start": "npm run build && node out/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -21,8 +21,9 @@ module.exports = {
     minimize: true,
   },
   output: {
-    path: path.resolve(__dirname, 'out'),
+    clean: true,
     filename: 'index.js',
+    path: path.resolve(__dirname, 'out'),
   },
   resolve: {
     extensions: ['.js', '.ts'],
