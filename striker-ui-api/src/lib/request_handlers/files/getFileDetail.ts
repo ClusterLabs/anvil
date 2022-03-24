@@ -1,7 +1,7 @@
-import buildGetFiles from './buildGetFiles';
+import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryFilesDetail from './buildQueryFilesDetail';
 
-const getFileDetail = buildGetFiles((request) =>
+const getFileDetail = buildGetRequestHandler((request) =>
   buildQueryFilesDetail({ filesUUID: [request.params.fileUUID] }),
 );
 
