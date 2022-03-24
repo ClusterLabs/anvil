@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 
-import { dbQuery } from '../../accessDB';
+import { dbQuery } from '../accessDB';
 
-const buildGetFiles =
+const buildGetRequestHandler =
   (query: string | ((request: Request) => string)) =>
   (request: Request, response: Response) => {
     console.log('Calling CLI script to get data.');
@@ -30,4 +30,4 @@ const buildGetFiles =
     response.json(queryStdout);
   };
 
-export default buildGetFiles;
+export default buildGetRequestHandler;
