@@ -1,11 +1,14 @@
+import join from '../../join';
+
 const buildQueryFilesDetail = ({ filesUUID }: { filesUUID?: string[] }) => {
-  let condFilesUUID = '';
+  const condFilesUUID = join(filesUUID, {
+    beforeReturn: (toReturn) =>
+      toReturn ? `AND fil.file_uuid IN (${toReturn})` : '',
+    elementWrapper: "'",
+    separator: ', ',
+  });
 
-  if (filesUUID instanceof Array && filesUUID.length > 0) {
-    const catFilesUUID = `'${filesUUID.join("', '")}'`;
-
-    condFilesUUID = `AND fil.file_uuid IN (${catFilesUUID})`;
-  }
+  console.log(`condFilesUUID=[${condFilesUUID}]`);
 
   return `
     SELECT
