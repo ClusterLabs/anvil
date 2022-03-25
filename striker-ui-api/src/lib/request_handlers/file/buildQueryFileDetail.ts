@@ -1,6 +1,10 @@
 import join from '../../join';
 
-const buildQueryFilesDetail = ({ filesUUID }: { filesUUID?: string[] }) => {
+const buildQueryFileDetail = ({
+  filesUUID,
+}: {
+  filesUUID?: string[] | '*';
+}) => {
   const condFilesUUID = join(filesUUID, {
     beforeReturn: (toReturn) =>
       toReturn ? `AND fil.file_uuid IN (${toReturn})` : '',
@@ -31,4 +35,4 @@ const buildQueryFilesDetail = ({ filesUUID }: { filesUUID?: string[] }) => {
       ${condFilesUUID};`;
 };
 
-export default buildQueryFilesDetail;
+export default buildQueryFileDetail;

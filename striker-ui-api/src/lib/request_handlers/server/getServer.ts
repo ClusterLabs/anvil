@@ -1,7 +1,7 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import join from '../../join';
 
-const getServers = buildGetRequestHandler((request) => {
+const getServer = buildGetRequestHandler((request) => {
   const { anvilsUUID } = request.body;
 
   const condAnvilsUUID = join(anvilsUUID, {
@@ -24,4 +24,4 @@ const getServers = buildGetRequestHandler((request) => {
       ${condAnvilsUUID};`;
 });
 
-export default getServers;
+export default getServer;

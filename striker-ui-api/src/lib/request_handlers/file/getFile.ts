@@ -1,7 +1,7 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import buildQueryFilesDetail from './buildQueryFilesDetail';
+import buildQueryFileDetail from './buildQueryFileDetail';
 
-const getFiles = buildGetRequestHandler((request) => {
+const getFile = buildGetRequestHandler((request) => {
   const { filesUUID } = request.body;
 
   let query = `
@@ -15,10 +15,10 @@ const getFiles = buildGetRequestHandler((request) => {
     WHERE file_type != 'DELETED';`;
 
   if (filesUUID) {
-    query = buildQueryFilesDetail({ filesUUID });
+    query = buildQueryFileDetail({ filesUUID });
   }
 
   return query;
 });
 
-export default getFiles;
+export default getFile;
