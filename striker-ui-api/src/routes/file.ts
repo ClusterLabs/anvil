@@ -6,8 +6,8 @@ import {
   dbSubRefreshTimestamp,
   dbWrite,
 } from '../lib/accessDB';
-import getFiles from '../lib/request_handlers/files/getFiles';
-import getFileDetail from '../lib/request_handlers/files/getFileDetail';
+import getFile from '../lib/request_handlers/file/getFile';
+import getFileDetail from '../lib/request_handlers/file/getFileDetail';
 import uploadSharedFiles from '../middlewares/uploadSharedFiles';
 
 const router = express.Router();
@@ -37,7 +37,7 @@ router
 
     response.status(204).send();
   })
-  .get('/', getFiles)
+  .get('/', getFile)
   .get('/:fileUUID', getFileDetail)
   .post('/', uploadSharedFiles.single('file'), ({ file, body }, response) => {
     console.log('Receiving shared file.');

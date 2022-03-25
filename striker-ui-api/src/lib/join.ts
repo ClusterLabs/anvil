@@ -1,6 +1,8 @@
+import call from './call';
+
 const join = (
-  elements: string[] | undefined,
-  { beforeReturn, elementWrapper = '', separator = '' }: JoinOptions,
+  elements: string[] | string | undefined,
+  { beforeReturn, elementWrapper = '', separator = '' }: JoinOptions = {},
 ) => {
   const joinSeparator = `${elementWrapper}${separator}${elementWrapper}`;
 
@@ -9,7 +11,10 @@ const join = (
       ? `${elementWrapper}${elements.join(joinSeparator)}${elementWrapper}`
       : undefined;
 
-  return typeof beforeReturn === 'function' ? beforeReturn(toReturn) : toReturn;
+  return call<string | undefined>(beforeReturn, {
+    parameters: [toReturn],
+    notCallableReturn: toReturn,
+  });
 };
 
 export default join;
