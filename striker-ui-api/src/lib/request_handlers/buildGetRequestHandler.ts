@@ -26,7 +26,17 @@ const buildGetRequestHandler =
       console.log(`Query error: ${queryError}`);
 
       response.status(500).send();
+
+      return;
     }
+
+    console.log(
+      `Query stdout pre-hooks (type=[${typeof queryStdout}]): ${JSON.stringify(
+        queryStdout,
+        null,
+        2,
+      )}`,
+    );
 
     const { afterQueryReturn } = buildQueryOptions;
 
@@ -41,7 +51,7 @@ const buildGetRequestHandler =
     });
 
     console.log(
-      `Query stdout (type=[${typeof queryStdout}]): ${JSON.stringify(
+      `Query stdout post-hooks (type=[${typeof queryStdout}]): ${JSON.stringify(
         queryStdout,
         null,
         2,

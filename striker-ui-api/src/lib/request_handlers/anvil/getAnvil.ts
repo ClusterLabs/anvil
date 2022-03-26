@@ -11,28 +11,35 @@ const getAnvil = buildGetRequestHandler((request, options) => {
       hos.host_uuid
     FROM anvils AS anv
     JOIN hosts AS hos
-      ON anv.anvil_uuid = hos.host_anvil_uuid;`;
+      ON hos.host_uuid IN (
+        anv.anvil_node1_host_uuid,
+        anv.anvil_node2_host_uuid,
+        anv.anvil_dr1_host_uuid
+      )
+    ORDER BY anv.anvil_uuid;`;
 
   if (options) {
     options.afterQueryReturn = (queryStdout) => {
       let results = queryStdout;
 
       if (queryStdout instanceof Array) {
-        let rowStage: AnvilOverview;
+        let rowStage: AnvilOverview | undefined;
 
         results = queryStdout.reduce<AnvilOverview[]>(
           (reducedRows, [anvilName, anvilUUID, hostName, hostUUID]) => {
-            if (rowStage && anvilUUID === rowStage.anvilUUID) {
-              rowStage.hosts.push({ hostName, hostUUID });
-            } else {
-              rowStage = {
-                anvilName,
-                anvilUUID,
-                hosts: [],
-              };
+            if (!rowStage || anvilUUID !== rowStage.anvilUUID) {
+              {
+                rowStage = {
+                  anvilName,
+                  anvilUUID,
+                  hosts: [],
+                };
 
-              reducedRows.push(rowStage);
+                reducedRows.push(rowStage);
+              }
             }
+
+            rowStage.hosts.push({ hostName, hostUUID });
 
             return reducedRows;
           },
