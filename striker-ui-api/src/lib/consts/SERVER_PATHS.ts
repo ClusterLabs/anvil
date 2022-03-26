@@ -7,9 +7,13 @@ const EMPTY_SERVER_PATHS: ServerPath = {
     },
   },
   usr: {
+    bin: {
+      sed: {},
+    },
     sbin: {
       'anvil-sync-shared': {},
       'striker-access-database': {},
+      'striker-parse-os-list': {},
     },
   },
 };

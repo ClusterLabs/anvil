@@ -1,7 +1,8 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import buildQueryAnvilDetail from './buildQueryAnvilDetail';
 
-const getAnvil = buildGetRequestHandler((request, options) => {
-  const { anvilsUUID } = request.body;
+const getAnvil = buildGetRequestHandler((request, buildQueryOptions) => {
+  const { anvilsUUID, isForProvisionServer } = request.body;
 
   let query = `
     SELECT
@@ -18,8 +19,8 @@ const getAnvil = buildGetRequestHandler((request, options) => {
       )
     ORDER BY anv.anvil_uuid;`;
 
-  if (options) {
-    options.afterQueryReturn = (queryStdout) => {
+  if (buildQueryOptions) {
+    buildQueryOptions.afterQueryReturn = (queryStdout) => {
       let results = queryStdout;
 
       if (queryStdout instanceof Array) {
@@ -52,7 +53,19 @@ const getAnvil = buildGetRequestHandler((request, options) => {
   }
 
   if (anvilsUUID) {
-    query = 'SELECT * FROM anvils;';
+    const {
+      query: anvilDetailQuery,
+      afterQueryReturn: anvilDetailAfterQueryReturn,
+    } = buildQueryAnvilDetail({
+      anvilsUUID,
+      isForProvisionServer,
+    });
+
+    query = anvilDetailQuery;
+
+    if (buildQueryOptions) {
+      buildQueryOptions.afterQueryReturn = anvilDetailAfterQueryReturn;
+    }
   }
 
   return query;
