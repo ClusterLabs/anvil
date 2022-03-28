@@ -1,0 +1,310 @@
+#!/usr/bin/perl
+# 
+# This tool provides a way to perform actions on a host that normally are handled by other processes, like 
+# marking a system as configure, etc. This will likely grow constantly over time.
+# 
+# Supported switches;
+# --mark-configured, --mark-unconfigured 
+#   - Set / unset the 'system::configured' flag for the host.
+# --database-active, --database-inactive
+#   - On Striker, mark the local database as active / inactive
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->data->{switches}{'age-out-database'}  = "";
+$anvil->data->{switches}{'check-configured'}  = "";
+$anvil->data->{switches}{'check-database'}    = "";
+$anvil->data->{switches}{'database-active'}   = "";
+$anvil->data->{switches}{'database-inactive'} = "";
+$anvil->data->{switches}{'mark-configured'}   = "";
+$anvil->data->{switches}{'mark-unconfigured'} = "";
+$anvil->data->{switches}{'resync-database'}   = "";
+$anvil->Get->switches;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::age-out-database'  => $anvil->data->{switches}{'age-out-database'},
+	'switches::check-configured'  => $anvil->data->{switches}{'check-configured'},
+	'switches::check-database'    => $anvil->data->{switches}{'check-database'},
+	'switches::database-active'   => $anvil->data->{switches}{'database-active'},
+	'switches::database-inactive' => $anvil->data->{switches}{'database-inactive'},
+	'switches::mark-configured'   => $anvil->data->{switches}{'mark-configured'},
+	'switches::mark-unconfigured' => $anvil->data->{switches}{'mark-unconfigured'},
+	'switches::resync-database'   => $anvil->data->{switches}{'resync-database'},
+}});
+
+$anvil->Database->connect({all => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, we can't do anything.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+if (($anvil->data->{switches}{'mark-configured'}) or ($anvil->data->{switches}{'mark-unconfigured'}) or ($anvil->data->{switches}{'check-configured'}))
+{
+	update_config($anvil);
+}
+elsif (($anvil->data->{switches}{'database-active'}) or ($anvil->data->{switches}{'database-inactive'}) or ($anvil->data->{switches}{'check-database'}))
+{
+	update_database($anvil);
+}
+elsif ($anvil->data->{switches}{'age-out-database'})
+{
+	age_out_data($anvil);
+}
+elsif ($anvil->data->{switches}{'resync-database'})
+{
+	resync_database($anvil);
+}
+else
+{
+	# Show the options.
+	print $anvil->Words->string({key => "message_0282"})."\n";
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub age_out_data
+{
+	my ($anvil) = @_;
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0285"});
+	$anvil->Database->_age_out_data({debug => 2});
+
+	return(0);
+}
+
+sub resync_database
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{sys}{database}{connections} == 1)
+	{
+		# No reason to proceed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0283"});
+		return(0);
+	}
+	
+	# Before we reconnect, make sure all scan agent tables are loaded. 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0286"});
+	$anvil->ScanCore->_scan_directory({directory => $anvil->data->{path}{directories}{scan_agents}});
+	my $tables = "";
+	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+	{
+		my $agent_path  = $anvil->data->{scancore}{agent}{$agent_name};
+		my $agent_words = $agent_path.".xml";
+		my $schema_file = $agent_path.".sql";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			agent_name  => $agent_name,
+			agent_path  => $agent_path, 
+			agent_words => $agent_words, 
+			schema_file => $schema_file,
+		}});
+		
+		if (-e $schema_file)
+		{
+			# See that it's loaded.
+			$tables = $anvil->Database->get_tables_from_schema({schema_file => $schema_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tables => $tables }});
+			foreach my $table (@{$tables})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { table => $table }});
+			}
+			$anvil->Database->check_agent_data({
+				agent  => $agent_name,
+				tables => $tables, 
+			});
+		}
+	}
+	
+	# Disconnect and reconnect.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0284"});
+	$anvil->Database->disconnect();
+	$anvil->refresh();
+	$anvil->Database->connect({
+		all              => 1,
+		check_for_resync => 1,
+	});
+	
+	return(0);
+}
+
+sub update_database
+{
+	my ($anvil) = @_;
+	
+	# Are we a striker?
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		# Nope.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0358"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $host_uuid     = $anvil->Get->host_uuid();
+	my $variable_name = "database::".$host_uuid."::active";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid     => $host_uuid,
+		variable_name => $variable_name, 
+	}});
+	
+	
+	# Read if it's active or inactive yet.
+	my ($active_value, undef, undef) = $anvil->Database->read_variable({variable_name => "database::".$host_uuid."::active"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_value  => $active_value }});
+	if ($anvil->data->{switches}{'check-database'})
+	{
+		if ($active_value)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0277"});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0276"});
+		}
+		return(0);
+	}
+	
+	# Are we enabling or disabling the database?
+	if ($active_value)
+	{
+		if ($anvil->data->{switches}{'database-active'})
+		{
+			# Already active.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0279"});
+		}
+		else
+		{
+			# Mark inactive
+			my $variable_uuid = $anvil->Database->insert_or_update_variables({
+				variable_name         => $variable_name,
+				variable_value        => "0",
+				variable_default      => "0", 
+				variable_description  => "striker_0294", 
+				variable_section      => "database", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0280"});
+		}
+	}
+	else
+	{
+		if ($anvil->data->{switches}{'database-inactive'})
+		{
+			# Already inactive
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0281"});
+		}
+		else
+		{
+			# Mark active
+			my $variable_uuid = $anvil->Database->insert_or_update_variables({
+				variable_name         => $variable_name,
+				variable_value        => "1",
+				variable_default      => "0", 
+				variable_description  => "striker_0294", 
+				variable_section      => "database", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0278"});
+		}
+	}
+	
+	return(0);
+}
+
+sub update_config
+{
+	my ($anvil) = @_;
+	
+	# Check if it's already configured.
+	my $configured = $anvil->System->check_if_configured({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+	
+	if ($anvil->data->{switches}{'check-configured'})
+	{
+		if ($configured)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0275"});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0274"});
+		}
+		return(0);
+	}
+	
+	if ($configured)
+	{
+		if ($anvil->data->{switches}{'mark-configured'})
+		{
+			# Nothing to do.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0271"});
+		}
+		else
+		{
+			# Mark UN configures.
+			my $variable_uuid = $anvil->Database->insert_or_update_variables({
+				variable_name         => "system::configured", 
+				variable_value        => 0, 
+				variable_default      => "", 
+				variable_description  => "striker_0048", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0272"});
+		}
+	}
+	else
+	{
+		if ($anvil->data->{switches}{'mark-unconfigured'})
+		{
+			# Nothing to do.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0273"});
+		}
+		else
+		{
+			# Mark configures.
+			my $variable_uuid = $anvil->Database->insert_or_update_variables({
+				variable_name         => "system::configured", 
+				variable_value        => 1, 
+				variable_default      => "", 
+				variable_description  => "striker_0048", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0270"});
+		}
+	}
+	
+	
+	return(0);
+}
