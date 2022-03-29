@@ -15930,12 +15930,10 @@ sub resync_databases
 	# Before resync, age out the data in each DB
 	$anvil->Database->_age_out_data({debug => $debug});
 	
-	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
-	###       to avoid trouble with primary/foreign keys.
-	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
-	# 'sys::database::check_tables'
+	# Build a list of tables 
+	my $tables     = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => "all"});
 	my $start_time = time;
-	foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
+	foreach my $table (@{$tables})
 	{
 		# We don't sync 'states' as it's transient and sometimes per-DB.
 		next if $table eq "states";

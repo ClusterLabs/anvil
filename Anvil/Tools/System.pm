@@ -2668,6 +2668,8 @@ sub generate_state_json
 				debug  => $debug,
 				first  => $anvil->Get->short_host_name(),
 				second => $short_host_name, 
+				source => $THIS_FILE, 
+				line   => __LINE__,
 			});
 			
 			if ($match)

@@ -1241,6 +1241,8 @@ ORDER BY
 					debug  => 2,
 					first  => $local_short_host_name, 
 					second => $short_host_name,
+					source => $THIS_FILE, 
+					line   => __LINE__,
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
 				if (ref($match) eq "HASH")

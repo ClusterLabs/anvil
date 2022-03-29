@@ -1060,9 +1060,13 @@ sub find_matches
 	
 	my $first  = defined $parameter->{first}  ? $parameter->{first}  : "";
 	my $second = defined $parameter->{second} ? $parameter->{second} : "";
+	my $source = defined $parameter->{source} ? $parameter->{source} : $THIS_FILE;
+	my $line   = defined $parameter->{line}   ? $parameter->{line}   : __LINE__;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		first  => $first, 
 		second => $second, 
+		source => $source, 
+		line   => $line, 
 	}});
 	
 	if (not $first)
@@ -1072,7 +1076,11 @@ sub find_matches
 	}
 	elsif (ref($anvil->data->{network}{$first}) ne "HASH")
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { key => "first -> network::".$first }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
+			key    => "first -> network::".$first,
+			source => $source, 
+			line   => $line,
+		}});
 		return("");
 	}
 	if (not $second)
@@ -1082,7 +1090,11 @@ sub find_matches
 	}
 	elsif (ref($anvil->data->{network}{$second}) ne "HASH")
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { key => "second -> network::".$second }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
+			key    => "second -> network::".$second,
+			source => $source, 
+			line   => $line,
+		}});
 		return("");
 	}
 	
@@ -1221,6 +1233,8 @@ sub find_target_ip
 		debug  => $debug,
 		first  => $short_host_name,
 		second => $target_host_name, 
+		source => $THIS_FILE, 
+		line   => __LINE__,
 	});
 	if ($match)
 	{
