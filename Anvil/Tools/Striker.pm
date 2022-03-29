@@ -1398,6 +1398,8 @@ sub parse_all_status_json
 				debug  => 3,
 				first  => $anvil->Get->short_host_name(),
 				second => $short_name, 
+				source => $THIS_FILE, 
+				line   => __LINE__,
 			});
 			if ($match)
 			{

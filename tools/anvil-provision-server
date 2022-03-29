@@ -953,6 +953,8 @@ sub get_sn_details
 	my $match = $anvil->Network->find_matches({
 		first  => $anvil->data->{job}{node1_short_host_name},
 		second => $anvil->data->{job}{node2_short_host_name}, 
+		source => $THIS_FILE, 
+		line   => __LINE__,
 	});
 	
 	my $node1_short_host_name = $anvil->data->{job}{node1_short_host_name};

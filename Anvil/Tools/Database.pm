@@ -1197,6 +1197,10 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
+=head3 all (optional, default 0)
+
+If set, then the checks to see if a database is active or not is ignored. If the postgresql server is running, we will connect to it.
+
 =head3 check_for_resync (optional, default 0)
 
 If set to C<< 1 >>, and there are 2 or more databases available, a check will be make to see if the databases need to be resync'ed or not. This is also set if the command line switch C<< --resync-db >> is used.
@@ -1281,6 +1285,7 @@ sub connect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->connect()" }});
 	
+	my $all                 = defined $parameter->{all}                 ? $parameter->{all}                 : 0;
 	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
 	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
@@ -1292,6 +1297,7 @@ sub connect
 	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
 	my $test_table          = defined $parameter->{test_table}          ? $parameter->{test_table}          : $anvil->data->{sys}{database}{test_table};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		all                 => $all,
 		check_if_configured => $check_if_configured, 
 		db_uuid             => $db_uuid,
 		check_for_resync    => $check_for_resync, 
@@ -1682,49 +1688,52 @@ sub connect
 				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 			}});
 			
-			# Before I continue, see if this database is going offline.
-			my ($active_value, undef, undef) = $anvil->Database->read_variable({
-				debug         => $debug,
-				uuid          => $uuid,
-				variable_name => "database::".$uuid."::active",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_value  => $active_value }});
-			if (not $active_value)
+			# Before I continue, see if this database is inactive (unless 'all' is set).
+			if (not $all)
 			{
-				# If we're "retry", we just started up.
-				if (($retry) && ($is_local))
+				my ($active_value, undef, undef) = $anvil->Database->read_variable({
+					debug         => $debug,
+					uuid          => $uuid,
+					variable_name => "database::".$uuid."::active",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_value  => $active_value }});
+				if (not $active_value)
 				{
-					# Set the variable saying we're active.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0698"});
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
-						uuid                  => $uuid, 
-						variable_name         => "database::".$uuid."::active",
-						variable_value        => "1",
-						variable_default      => "0", 
-						variable_description  => "striker_0294", 
-						variable_section      => "database", 
-						variable_source_uuid  => "NULL", 
-						variable_source_table => "", 
-					});
-					
-					$anvil->data->{db_status}{$uuid}{active} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
-					}});
-				}
-				else
-				{
-					# Don't use this database.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0699", variables => { host => $uuid }});
-					$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
-					delete $anvil->data->{cache}{database_handle}{$uuid};
-					
-					if ($anvil->data->{sys}{database}{read_uuid} eq $uuid)
+					# If we're "retry", we just started up.
+					if (($retry) && ($is_local))
 					{
-						$anvil->data->{sys}{database}{read_uuid} = "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+						# Set the variable saying we're active.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0698"});
+						my $variable_uuid = $anvil->Database->insert_or_update_variables({
+							uuid                  => $uuid, 
+							variable_name         => "database::".$uuid."::active",
+							variable_value        => "1",
+							variable_default      => "0", 
+							variable_description  => "striker_0294", 
+							variable_section      => "database", 
+							variable_source_uuid  => "NULL", 
+							variable_source_table => "", 
+						});
+						
+						$anvil->data->{db_status}{$uuid}{active} = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
+						}});
 					}
-					next;
+					else
+					{
+						# Don't use this database.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0699", variables => { host => $uuid }});
+						$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+						delete $anvil->data->{cache}{database_handle}{$uuid};
+						
+						if ($anvil->data->{sys}{database}{read_uuid} eq $uuid)
+						{
+							$anvil->data->{sys}{database}{read_uuid} = "";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+						}
+						next;
+					}
 				}
 			}
 			
@@ -1776,25 +1785,30 @@ sub connect
 			$anvil->data->{sys}{database}{read_uuid} = $uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 			
-			# If we're a striker, set the variable saying we're active if we need to.
-			my ($active_value, undef, undef) = $anvil->Database->read_variable({
-				debug         => $debug,
-				uuid          => $uuid,
-				variable_name => "database::".$uuid."::active",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_value  => $active_value }});
-			if (not $active_value)
+			# If we're being called with 'all', don't set active as we could be just checking if 
+			# we're active or not.
+			if (not $all)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0698"});
-				my $variable_uuid = $anvil->Database->insert_or_update_variables({
-					variable_name         => "database::".$uuid."::active",
-					variable_value        => "1",
-					variable_default      => "0", 
-					variable_description  => "striker_0294", 
-					variable_section      => "database", 
-					variable_source_uuid  => "NULL", 
-					variable_source_table => "", 
+				# If we're a striker, set the variable saying we're active if we need to.
+				my ($active_value, undef, undef) = $anvil->Database->read_variable({
+					debug         => $debug,
+					uuid          => $uuid,
+					variable_name => "database::".$uuid."::active",
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_value  => $active_value }});
+				if (not $active_value)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0698"});
+					my $variable_uuid = $anvil->Database->insert_or_update_variables({
+						variable_name         => "database::".$uuid."::active",
+						variable_value        => "1",
+						variable_default      => "0", 
+						variable_description  => "striker_0294", 
+						variable_section      => "database", 
+						variable_source_uuid  => "NULL", 
+						variable_source_table => "", 
+					});
+				}
 			}
 		}
 		elsif (not $anvil->data->{sys}{database}{read_uuid})
@@ -1841,6 +1855,10 @@ sub connect
 	}
 	
 	# If we're a striker and no connections were found, start our database.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		local_host_type              => $local_host_type,
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
 	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
 	{
 		# Tell the user we're going to try to load and start.
@@ -1854,7 +1872,7 @@ sub connect
 		my $db_name       = "anvil";
 		my $dump_files    = [];
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
 		local(*DIRECTORY);
 		opendir(DIRECTORY, $directory);
 		while(my $file = readdir(DIRECTORY))
@@ -1982,7 +2000,7 @@ sub connect
 		
 		# Check if the dameon is running
 		my $running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
 		if (not $running)
 		{
 			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
@@ -12245,15 +12263,15 @@ sub insert_or_update_states
 	}
 	foreach my $db_uuid (@{$db_uuids})
 	{
-		my $count = $anvil->Database->query({debug => 2, uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		my $count = $anvil->Database->query({uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's2:db_uuid' => $db_uuid, 
 			's2:count'   => $count,
 		}});
 		if (not $count)
 		{
 			$hosts_ok = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hosts_ok => $hosts_ok }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hosts_ok => $hosts_ok }});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0144", variables => { 
 				state_info => $state_name." -> ".$state_note,
@@ -15912,12 +15930,10 @@ sub resync_databases
 	# Before resync, age out the data in each DB
 	$anvil->Database->_age_out_data({debug => $debug});
 	
-	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
-	###       to avoid trouble with primary/foreign keys.
-	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
-	# 'sys::database::check_tables'
+	# Build a list of tables 
+	my $tables     = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => "all"});
 	my $start_time = time;
-	foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
+	foreach my $table (@{$tables})
 	{
 		# We don't sync 'states' as it's transient and sometimes per-DB.
 		next if $table eq "states";
@@ -17143,13 +17159,25 @@ sub _age_out_data
 						uuid_column => $uuid_column, 
 					}});
 					
+					# Make sure the table exists, skip it if not.
+					my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($child_table)." AND schemaname='public';";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					my $count     = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+					
+					if (not $count)
+					{
+						# Table doesn't exist yet, skip it.
+						next;
+					}
+					
 					# Get a list of all records.
 					my $queries = [];
-					my $query   = "SELECT ".$uuid_column." FROM ".$child_table.";";
+					   $query   = "SELECT ".$uuid_column." FROM ".$child_table.";";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					
 					my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-					my $count   = @{$results};
+					   $count   = @{$results};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						results => $results, 
 						count   => $count, 

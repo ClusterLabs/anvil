@@ -625,6 +625,8 @@ sub handle_periodic_tasks
 		# down our database.
 		if ($host_type eq "striker")
 		{
+			### NOTE: Database shutdown logic is disabled. Too flaky.
+=cut
 			if ($anvil->data->{sys}{database}{connections} > 1)
 			{
 				# Make sure that all active databases are in the host's table. If they're 
@@ -689,7 +691,8 @@ sub handle_periodic_tasks
 					}
 				}
 			}
-			
+=cut
+
 			# If we're the active database, dump our database out and rsync it to our peers.
 			my $peers       = keys %{$anvil->data->{database}};
 			my $connections = $anvil->data->{sys}{database}{connections}; 
@@ -768,6 +771,10 @@ sub handle_periodic_tasks
 			# Archive old data
 			$anvil->Database->archive_database();
 			
+			### TODO: This is here only to handle the period of time where we disabled postgres 
+			###       on boot. This should be removed sometime after 2022-08-01
+			$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			
 			# Record a job, don't call it directly. It takes too long to run.
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
@@ -838,6 +845,8 @@ FROM
     states 
 WHERE 
     state_name LIKE 'db_in_use::".$host_uuid."::%'
+AND 
+    state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});

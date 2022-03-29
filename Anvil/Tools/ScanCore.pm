@@ -2404,6 +2404,8 @@ LIMIT 1;";
 			debug  => $debug, 
 			first  => $anvil->Get->host_uuid,
 			second => $host_uuid, 
+			source => $THIS_FILE, 
+			line   => __LINE__,
 		});
 		my $matched_ips = keys %{$match};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { matched_ips => $matched_ips }});

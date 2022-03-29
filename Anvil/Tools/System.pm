@@ -592,6 +592,7 @@ sub check_if_configured
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_if_configured()" }});
 	
 	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		debug                 => $debug,
 		variable_name         => "system::configured", 
 		variable_source_uuid  => $anvil->Get->host_uuid, 
 		variable_source_table => "hosts", 
@@ -2667,6 +2668,8 @@ sub generate_state_json
 				debug  => $debug,
 				first  => $anvil->Get->short_host_name(),
 				second => $short_host_name, 
+				source => $THIS_FILE, 
+				line   => __LINE__,
 			});
 			
 			if ($match)
