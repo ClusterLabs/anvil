@@ -16053,11 +16053,12 @@ sub resync_databases
 			$query =~ s/, $/ /;
 			$query .= "FROM ".$schema.".".$table;
 			
-			# Restrict to this host if a host column was found.
-			if ($host_column)
-			{
-				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
-			}
+			### NOTE: No longer restricting to the host, given only the strikers can do resyncs now.
+# 			# Restrict to this host if a host column was found.
+# 			if ($host_column)
+# 			{
+# 				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
+# 			}
 			$query .= " ORDER BY utc_modified_date DESC;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 			
@@ -17774,18 +17775,19 @@ sub _find_behind_databases
 				"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 			}});
 			
+			### Only Strikers resync, so limiting to the host_uuid doesn't make sense anymore.
 			my $schema = $has_history ? "history" : "public";
 			   $query  =  "
 SELECT DISTINCT 
     round(extract(epoch from modified_date)) AS unix_modified_date 
 FROM 
     ".$schema.".".$table." ";
-				if ($host_column)
-				{
-					$query .= "
-WHERE 
-    ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}) ;
-				}
+# 				if ($host_column)
+# 				{
+# 					$query .= "
+# WHERE 
+#     ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}) ;
+# 				}
 				$query .= "
 ORDER BY 
     unix_modified_date DESC
