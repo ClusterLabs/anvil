@@ -17697,85 +17697,85 @@ sub _find_behind_databases
 		}});
 	}
 	
-	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
+	# Look at all the databases and find the most recent time stamp (and the ID of the DB). Do this by 
+	# table then by database to keep the counts close together and reduce the chance of tables changing 
+	# between counts.
 	my $source_updated_time = 0;
-	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+	foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
 	{
-		my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "#!string!log_0185!#";
-		my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "#!string!log_0185!#";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
-			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
-			"database::${uuid}::name"     => $database_name,
-			"database::${uuid}::user"     => $database_user, 
-			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
-		}});
+		# We don't sync 'states' or 'oui' as it's transient and sometimes per-DB.
+		next if $table eq "states";
+		next if $table eq "oui";
 		
-		# Loop through the tables in this DB. For each table, we'll record the most recent time 
-		# stamp. Later, We'll look through again and any table/DB with an older time stamp will be 
-		# behind and a resync will be needed.
-		foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
+		# Does this table exist yet?
+		my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		# If not, skip. It'll get sync'ed later when the table is added.
+		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+		next if not $count;
+		
+		### Get the host_uuid column (we can get this from whatever DB we're reading from.
+		# Some tables, like 'servers', has a host_uuid column, but it's not used to restrict data to 
+		# a host, but instead show which host a movable resource is on. This prevents us from using 
+		# the column by accident.
+		my $host_column = "";
+		if (($table ne "servers") && 
+		    ($table ne "jobs"))
 		{
-			# We don't sync 'states' or 'oui' as it's transient and sometimes per-DB.
-			next if $table eq "states";
-			next if $table eq "oui";
-			
-			# Does this table exist yet?
-			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			
-			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-			
-			if ($count == 1)
+			# Does this table have a '*_host_uuid' column?
+			my $test_columns = [$table."_host_uuid"];
+			if ($table =~ /^(.*)s$/)
 			{
-				# Some tables, like 'servers', has a host_uuid column, but it's not used to 
-				# restrict data to a host, but instead show which host a movable resource is 
-				# on. This prevents us from using the column by accident.
-				my $host_column = "";
-				if (($table ne "servers") && 
-				    ($table ne "jobs"))
-				{
-					# Does this table have a '*_host_uuid' column?
-					my $test_columns = [$table."_host_uuid"];
-					if ($table =~ /^(.*)s$/)
-					{
-						push @{$test_columns}, $1."_host_uuid";
-					}
-					if ($table =~ /^(.*)es$/)
-					{
-						push @{$test_columns}, $1."_host_uuid";
-					}
-					
-					foreach my $test_column (@{$test_columns})
-					{
-						my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = ".$anvil->Database->quote($test_column)." AND table_name = ".$anvil->Database->quote($table).";";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-						
-						# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
-						# it later to restrict resync activity to these columns with the local 
-						# 'sys::host_uuid'.
-						my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-						
-						if ($count)
-						{
-							$host_column = $test_column;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
-							last;
-						}
-					}
-				}
-				
-				# Does this table have a history schema version?
-				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
+				push @{$test_columns}, $1."_host_uuid";
+			}
+			if ($table =~ /^(.*)es$/)
+			{
+				push @{$test_columns}, $1."_host_uuid";
+			}
+			
+			foreach my $test_column (@{$test_columns})
+			{
+				my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = ".$anvil->Database->quote($test_column)." AND table_name = ".$anvil->Database->quote($table).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
+				# it later to restrict resync activity to these columns with the local 
+				# 'sys::host_uuid'.
+				my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
-				my $schema = $count ? "history" : "public";
-				   $query  =  "
+				if ($count)
+				{
+					$host_column = $test_column;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
+					last;
+				}
+			}
+		}
+		
+		# Does this table have a history schema version?
+		$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $has_history = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { has_history => $has_history }});
+		
+		foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
+		{
+			my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "#!string!log_0185!#";
+			my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "#!string!log_0185!#";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
+				"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
+				"database::${uuid}::name"     => $database_name,
+				"database::${uuid}::user"     => $database_user, 
+				"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
+			}});
+			
+			my $schema = $has_history ? "history" : "public";
+			   $query  =  "
 SELECT DISTINCT 
     round(extract(epoch from modified_date)) AS unix_modified_date 
 FROM 
@@ -17790,60 +17790,55 @@ WHERE
 ORDER BY 
     unix_modified_date DESC
 ;";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					uuid  => $uuid, 
-					query => $query, 
-				}});
-				
-				# Get the count of columns as well as the most recent one.
-				my $results   = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-				my $row_count = @{$results};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					results   => $results, 
-					row_count => $row_count, 
-				}});
-				
-				my $last_updated = $results->[0]->[0];
-				   $last_updated = 0 if not defined $last_updated;
-				
-				# Record this table's last modified_date for later comparison. We'll also 
-				# record the schema and host column, if found, to save looking the same thing
-				# up later if we do need a resync.
-				$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} = $last_updated;
-				$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}    = $row_count;
-				$anvil->data->{sys}{database}{table}{$table}{schema}                    = $schema;
-				$anvil->data->{sys}{database}{table}{$table}{host_column}               = $host_column;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
-					"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
-					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated},
-					"sys::database::table::${table}::schema"                      => $anvil->data->{sys}{database}{table}{$table}{schema},
-					"sys::database::table::${table}::host_column"                 => $anvil->data->{sys}{database}{table}{$table}{host_column},
-				}});
-				
-				if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count} > $anvil->data->{sys}{database}{table}{$table}{row_count})
-				{
-					$anvil->data->{sys}{database}{table}{$table}{row_count} = $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"sys::database::table::${table}::row_count" => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
-					}});
-				}
-				
-				if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{last_updated})
-				{
-					$anvil->data->{sys}{database}{table}{$table}{last_updated} = $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
-					}});
-				}
-			}
-			else
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				uuid  => $uuid, 
+				query => $query, 
+			}});
+			
+			# Get the count of columns as well as the most recent one.
+			my $results   = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $row_count = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results   => $results, 
+				row_count => $row_count, 
+			}});
+			
+			my $last_updated = $results->[0]->[0];
+			   $last_updated = 0 if not defined $last_updated;
+			
+			# Record this table's last modified_date for later comparison. We'll also 
+			# record the schema and host column, if found, to save looking the same thing
+			# up later if we do need a resync.
+			$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} = $last_updated;
+			$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}    = $row_count;
+			$anvil->data->{sys}{database}{table}{$table}{schema}                    = $schema;
+			$anvil->data->{sys}{database}{table}{$table}{host_column}               = $host_column;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+				"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
+				"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated},
+				"sys::database::table::${table}::schema"                      => $anvil->data->{sys}{database}{table}{$table}{schema},
+				"sys::database::table::${table}::host_column"                 => $anvil->data->{sys}{database}{table}{$table}{host_column},
+			}});
+			
+			if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count} > $anvil->data->{sys}{database}{table}{$table}{row_count})
 			{
-				### NOTE: We could recover a lost table here if we tried to find the table in
-				###       a .sql file and load it. Might be worth adding later.
+				$anvil->data->{sys}{database}{table}{$table}{row_count} = $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::database::table::${table}::row_count" => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
+				}});
+			}
+			
+			if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{last_updated})
+			{
+				$anvil->data->{sys}{database}{table}{$table}{last_updated} = $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
+				}});
 			}
 		}
 	}
+	
 	
 	# Are being asked to trigger a resync?
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
@@ -17884,27 +17879,27 @@ ORDER BY
 				"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 			}});
-# 			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
-# 			{
-# 				# Resync needed.
-# 				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
-# 					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
-# 					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
-# 				}});
-# 
-# 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
-# 					seconds => $difference, 
-# 					table   => $table, 
-# 					uuid    => $uuid,
-# 					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
-# 				}});
-# 				
-# 				# Mark it as behind.
-# 				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
-# 				last;
-# 			}
+			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
+			{
+				# Resync needed.
+				my $difference = $anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:difference"                                                  => $anvil->Convert->add_commas({number => $difference }), 
+					"s2:sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
+					"s3:sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+				}});
+
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
+					seconds => $difference, 
+					table   => $table, 
+					uuid    => $uuid,
+					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
+				}});
+				
+				# Mark it as behind.
+				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+				last;
+			}
 			if ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
 				# Resync needed.
