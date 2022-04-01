@@ -879,9 +879,6 @@ AND
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 				$anvil->Database->write({debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
 			}
-			### TODO: What are the chances of a PID being reused in the minute between 
-			###       the program's death and us detecting it? Should we filter the 
-			###       'pids::<pid>::command' value against our programs and scan agents?
 		}
 	}
 	
