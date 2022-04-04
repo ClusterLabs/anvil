@@ -388,13 +388,15 @@ sub collect_data
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
-			my $link_state  = -e $full_path."/carrier"   ? $anvil->Storage->read_file({file => $full_path."/carrier"})   : 0;
-			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
-			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
-			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
+			my $link_state  = -e $full_path."/carrier"         ? $anvil->Storage->read_file({file => $full_path."/carrier"})         : 0;
+			my $mtu         = -e $full_path."/mtu"             ? $anvil->Storage->read_file({file => $full_path."/mtu"})             : 0;
+			my $duplex      = -e $full_path."/duplex"          ? $anvil->Storage->read_file({file => $full_path."/duplex"})          : "unknown";	# full or half?
+			my $operational = -e $full_path."/operstate"       ? $anvil->Storage->read_file({file => $full_path."/operstate"})       : "unknown";	# up or down
+			my $modalias    = -e $full_path."/device/modalias" ? $anvil->Storage->read_file({file => $full_path."/device/modalias"}) : "unknown";
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			my $media       = "unknown";
 			my $type        = "interface";
+			my $driver      = "";
 			my $tx_bytes    = 0;	# How many bytes transmitted
 			my $rx_bytes    = 0;	# How many bytes received
 			
@@ -404,6 +406,7 @@ sub collect_data
 			$duplex      =~ s/\n$//;
 			$operational =~ s/\n$//;
 			$speed       =~ s/\n$//;
+			$modalias    =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
 				link_state  => $link_state, 
@@ -411,7 +414,16 @@ sub collect_data
 				duplex      => $duplex, 
 				operational => $operational,
 				speed       => $speed, 
+				modalias    => $modalias, 
 			}});
+			
+			### NOTE: This only parses virtio so far.
+			# Pick out our driver.
+			if ($modalias =~ /^virtio:/)
+			{
+				$driver = "virtio";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { driver => $driver }});
+			}
 			
 			# The MAC address can faked by a number of ways, so we make an explicit call to 'ethtool' to get the permanent mac address.
 			my $mac_address = "";
@@ -490,7 +502,7 @@ sub collect_data
 			
 			# If this is a virtual interface, set some fake values that don't actually exist on 
 			# the system for the sake of a cleaner display.
-			if ($mac_address =~ /^52:54:00/)
+			if (($mac_address =~ /^52:54:00/) or ($driver eq "virtio"))
 			{
 				### Set some fake values.
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
