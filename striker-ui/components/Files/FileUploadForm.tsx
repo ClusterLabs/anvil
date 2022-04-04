@@ -118,7 +118,7 @@ const FileUploadForm = (
         inUploadFiles.push(inUploadFile);
 
         mainAxiosInstance
-          .post('/files', fileFormData, {
+          .post('/file', fileFormData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
