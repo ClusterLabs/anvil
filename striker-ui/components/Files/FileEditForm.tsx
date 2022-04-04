@@ -132,7 +132,7 @@ const FileEditForm = (
         if (stringEditFileRequestContent !== '{}') {
           reducedEditPromises.push(
             mainAxiosInstance.put(
-              `/files/${fileUUID}`,
+              `/file/${fileUUID}`,
               stringEditFileRequestContent,
               {
                 headers: { 'Content-Type': 'application/json' },
@@ -159,7 +159,7 @@ const FileEditForm = (
 
     const purgePromises = filesToEdit
       .filter(({ isSelected }) => isSelected)
-      .map(({ fileUUID }) => mainAxiosInstance.delete(`/files/${fileUUID}`));
+      .map(({ fileUUID }) => mainAxiosInstance.delete(`/file/${fileUUID}`));
 
     Promise.all(purgePromises)
       .then(() => {
@@ -200,7 +200,7 @@ const FileEditForm = (
 
         try {
           const data = await fetchJSON<string[][]>(
-            `${API_BASE_URL}/files/${fileOverview.fileUUID}`,
+            `${API_BASE_URL}/file/${fileOverview.fileUUID}`,
           );
 
           fileToEdit.fileLocations = data.map(
