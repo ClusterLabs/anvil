@@ -1,5 +1,5 @@
-declare type GetResponses = {
-  data: T;
+declare type GetResponses<T> = {
+  data: T | undefined;
+  error: Error | undefined;
   isLoading: boolean;
-  isError: Error;
 };
