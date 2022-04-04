@@ -85,6 +85,9 @@ process_health($anvil);
 # This clears the TX and RX variable data for interfaces older than 'scancore::database::age_out'.
 clear_old_variables($anvil);
 
+# This removes network interfaces that have been marked as DELETED for a while now.
+clear_old_interfaces($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -92,6 +95,81 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This removes network interfaces that have been marked as DELETED for a while now.
+sub clear_old_interfaces
+{
+	my ($anvil) = @_;
+	
+	# Read in all interfaces and for each, delete historical records over the age-out time.
+	my $age = $anvil->data->{scancore}{database}{age_out};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { age => $age }});
+	
+	if ($age =~ /\D/)
+	{
+		# Age is not valid, set it to defaults.
+		$age = 24;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { age => $age }});
+	}
+	
+	my $query         = "SELECT now() - '".$age."h'::interval;";
+	my $old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		query         => $query, 
+		old_timestamp => $old_timestamp, 
+	}});
+	
+	$query = "
+SELECT 
+    network_interface_uuid, 
+    network_interface_mac_address, 
+    network_interface_name 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    network_interface_operational = 'DELETED' 
+AND 
+    modified_date < '".$old_timestamp."' 
+ORDER BY 
+    network_interface_name ASC;
+;";
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $network_interface_uuid        = $row->[0];
+		my $network_interface_mac_address = $row->[1];
+		my $network_interface_name        = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:network_interface_uuid'        => $network_interface_uuid, 
+			's2:network_interface_mac_address' => $network_interface_mac_address, 
+			's3:network_interface_name'        => $network_interface_name,
+		}});
+	
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0002", variables => { 
+			age  => $age, 
+			mac  => $network_interface_mac_address,
+			name => $network_interface_name,
+		}});
+		
+		my $queries = [];
+		push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_uuid = '".$network_interface_uuid."';";
+		push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_uuid = '".$network_interface_uuid."';";
+		foreach my $query (@{$queries})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		}
+		$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
 
 # This clears the TX and RX variable data for interfaces older than 'scancore::database::age_out'.
 sub clear_old_variables
@@ -416,8 +494,14 @@ sub collect_data
 			{
 				### Set some fake values.
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
-				$speed  = 1000   if ((not $speed) or ($speed eq "-1"));
-				$duplex = "full" if not $duplex;
+				if ((not $speed) or ($speed eq "-1"))
+				{
+					$speed = 10000;
+				}
+				if ((not $duplex) or ($duplex eq "unknown"))
+				{
+					$duplex = "full";
+				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					speed  => $speed, 
 					duplex => $duplex,

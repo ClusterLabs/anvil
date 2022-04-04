@@ -17634,7 +17634,7 @@ sub _find_column
 
 This returns the most up to date database ID, the time it was last updated and an array or DB IDs that are behind.
 
-If there is a problem, C<< !!error!! >> is returned.
+If there is a problem, C<< !!error!! >> is returned. If this is called by a host that isn't a Striker, C<< 0 >> is returned and no actions are take.
 
 Parameters;
 
@@ -17661,6 +17661,14 @@ sub _find_behind_databases
 		source => $source, 
 		tables => $tables, 
 	}});
+	
+	# If we're not a striker, return.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		return(0);
+	}
 	
 	# This should always be set, but just in case...
 	if (not $source)
