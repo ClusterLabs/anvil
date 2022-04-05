@@ -1,4 +1,4 @@
-import { GlobalStyles, PaperProps, styled } from '@mui/material';
+import { Box, GlobalStyles, PaperProps, styled } from '@mui/material';
 
 import {
   BORDER_RADIUS,
@@ -15,7 +15,7 @@ const classes = {
   bottomSquare: `${PREFIX}-bottomSquare`,
 };
 
-const StyledDiv = styled('div')(() => ({
+const StyledBox = styled(Box)(() => ({
   margin: '1em',
   position: 'relative',
 
@@ -71,13 +71,20 @@ const styledScrollbars = (
   />
 );
 
-const Panel = ({ children }: PanelProps): JSX.Element => (
-  <StyledDiv>
+const Panel = ({
+  children,
+  classes: rootClasses,
+  className: rootClassName,
+  sx: rootSx,
+}: PanelProps): JSX.Element => (
+  <StyledBox
+    {...{ classes: rootClasses, className: rootClassName, sx: rootSx }}
+  >
     {styledScrollbars}
     <div className={`${classes.square} ${classes.topSquare}`} />
     <div className={`${classes.square} ${classes.bottomSquare}`} />
     <div className={classes.paper}>{children}</div>
-  </StyledDiv>
+  </StyledBox>
 );
 
 export default Panel;
