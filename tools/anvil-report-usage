@@ -1,0 +1,141 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->data->{switches}{brief} = 0;
+$anvil->Get->switches();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::brief" => $anvil->data->{switches}{brief}, 
+}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0359"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+gather_data($anvil);
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub gather_data
+{
+	my ($anvil) = @_;
+	
+	collect_anvil_data($anvil);
+	collect_server_data($anvil);
+# 	collect_cpu_data($conf);
+# 	collect_ram_data($conf);
+# 	collect_storage_data($conf);
+# 	collect_server_data($conf);
+# 	collect_bridges($conf);
+	
+	return(0);
+}
+
+sub collect_server_data
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_anvils();
+	$anvil->Database->get_servers();
+	$anvil->Database->get_server_definitions();
+	
+	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
+	{
+		my $server_name       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		my $anvil_uuid        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
+		my $server_ram        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram} > $server_ram)
+		{
+			$server_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_name' => $server_name,
+			's2:anvil_name'  => $anvil_name, 
+			's3:server_ram'  => $anvil->Convert->add_commas({number => $server_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram}).")", 
+		}});
+		
+		my $target = $anvil->Get->short_host_name;
+		my $source = "from_db";
+		$anvil->Server->parse_definition({
+			debug      => 2,
+			source     => $source, 
+			server     => $server_name, 
+			definition => $server_definition,
+			anvil_uuid => $anvil_uuid,
+		});
+		
+		# CPU info
+		my $total_cores  = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{total_cores};
+		my $cpu_sockets  = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{sockets};
+		my $cpu_cores    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{cores};
+		my $cpu_threads  = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{threads};
+		my $cpu_model    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_name};
+		my $cpu_fallback = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_fallback};
+		my $cpu_match    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{match};
+		my $cpu_vendor   = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{vendor};
+		my $cpu_mode     = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{mode};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:total_cores'  => $total_cores,
+			's2:cpu_sockets'  => $cpu_sockets,
+			's3:cpu_cores'    => $cpu_cores, 
+			's4:cpu_threads'  => $cpu_threads, 
+			's5:cpu_model'    => $cpu_model, 
+			's6:cpu_fallback' => $cpu_fallback, 
+			's7:cpu_match'    => $cpu_match, 
+			's8:cpu_vendor'   => $cpu_vendor, 
+			's9:cpu_mode'     => $cpu_mode, 
+		}});
+		
+		# Storage info.
+		
+	}
+	
+	return(0);
+}
+
+sub collect_anvil_data
+{
+	my ($anvil) = @_;
+	
+	# Get a list of Anvil's and what free RAM and disk space they have available.
+	$anvil->Database->get_anvils();
+	
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}            = $anvil_uuid;
+# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}     = $anvil_description;
+# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid} = $anvil_node1_host_uuid;
+# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
+# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
+	}
+	
+	return(0);
+}

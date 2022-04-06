@@ -1045,6 +1045,10 @@ This finds all of the configured '/dev/drbdX' devices and maps them to their res
 
 Parameters;
 
+=head3 anvil_uuid (optional)
+
+If set, the C<< drbdadm dump-xml >> is not called, instead the most recent version as recorded in C<< scan_drbd -> scan_drbd_common_xml >> is loaded from one of the hosts.
+
 =head3 password (optional)
 
 This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
@@ -1070,48 +1074,102 @@ sub get_devices
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_devices()" }});
 	
+	my $anvil_uuid  = defined $parameter->{anvil_uuid}  ? $parameter->{anvil_uuid}  : "";
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid  => $anvil_uuid, 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
 	}});
 	
-	# Is this a local call or a remote call?
-	my $host       = $anvil->Get->short_host_name;
-	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
-	my $output     = "";
-	if ($anvil->Network->is_local({host => $target}))
+	# If we've got an anvil_uuid, search for the drbd common XML from the database.
+	my $host   = $anvil->Get->short_host_name;
+	my $output = "";
+	if ($anvil_uuid)
 	{
-		# Local.
-		($output, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+		{
+			$anvil->Database->get_anvils({debug => $debug});
+			if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+			{
+				# Failed to find the Anvil! data.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0360", variables => { anvil_uuid => $anvil_uuid }});
+				return("!!error!!");
+			}
+		}
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output                           => $output,
-			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
+			node1_host_uuid => $node1_host_uuid,
+			node2_host_uuid => $node2_host_uuid,
 		}});
+		
+		my $query = "
+SELECT 
+    scan_drbd_common_xml 
+FROM 
+    scan_drbd 
+WHERE 
+    scan_drbd_host_uuid = '618e8007-3a0b-4bbf-a616-a64fd7d2dc30' 
+OR 
+    scan_drbd_host_uuid = '75070e21-a0e3-4ba5-b4f7-476bf5d08107' 
+ORDER BY modified_date DESC 
+LIMIT 1
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# Nothing found
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0361", variables => { anvil_uuid => $anvil_uuid }});
+			return("!!error!!");
+		}
+		$output = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	}
 	else
 	{
-		# Remote call.
-		($output, my $error, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->Remote->call({
-			debug       => $debug, 
-			shell_call  => $shell_call, 
-			target      => $target,
-			port        => $port, 
-			password    => $password,
-			remote_user => $remote_user, 
-		});
-		$host = $target;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host                             => $host,
-			error                            => $error,
-			output                           => $output,
-			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
-		}});
+		# Is this a local call or a remote call?
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			# Local.
+			($output, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output                           => $output,
+				"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
+			}});
+		}
+		else
+		{
+			# Remote call.
+			($output, my $error, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$host = $target;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				host                             => $host,
+				error                            => $error,
+				output                           => $output,
+				"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
+			}});
+		}
 	}
 	
 	# Clear the hash where we'll store the data.

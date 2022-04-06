@@ -504,6 +504,9 @@ The output, if any, was;
 		<key name="error_0356">Failed to read the kernel release on the host: [#!variable!target!#]. The return code was: [#!variable!return_code!#] (expected '0') and the release output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0357">The program: [#!variable!program!#] is using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). This is probably caused by a memory leak, so we will now exit so that systemctl can restart us. If this is happening repeatedly, please contact support.</key>
 		<key name="error_0358">This is not a Striker host.</key>
+		<key name="error_0359">There are no databases available, exiting.</key>
+		<key name="error_0360">Unable to find the Anvil! information for the Anvil! UUID: [#!variable!anvil_uuid!#].</key>
+		<key name="error_0361">Unable to find the DRBD config from either node in the Anvil! with the Anvil! UUID: [#!variable!anvil_uuid!#]. Has scan_drbd (as part of scancore) run on either nodes?</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
