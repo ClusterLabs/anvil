@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Box,
   inputLabelClasses as muiInputLabelClasses,
+  OutlinedInputProps as MUIOutlinedInputProps,
   outlinedInputClasses as muiOutlinedInputClasses,
   Slider as MUISlider,
   sliderClasses as muiSliderClasses,
@@ -32,6 +33,8 @@ type SliderProps = {
   value: SliderValue;
 } & SliderOptionalProps;
 
+type TextInputOnChange = Exclude<MUIOutlinedInputProps['onChange'], undefined>;
+
 const SLIDER_DEFAULT_PROPS: Required<SliderOptionalProps> = {
   isAllowTextInput: false,
   labelId: '',
@@ -39,7 +42,13 @@ const SLIDER_DEFAULT_PROPS: Required<SliderOptionalProps> = {
   sliderProps: {},
 };
 
-const createInputLabelDecorator = (label: string, isFocused: boolean) => {
+const createInputLabelDecorator = ({
+  isFocused,
+  label,
+}: {
+  isFocused?: boolean;
+  label: string;
+}) => {
   const borderColor = GREY;
   const borderStyle = 'solid';
   const borderWidth = isFocused ? '2px 0 0 0' : '1px 0 0 0';
@@ -90,17 +99,31 @@ const createInputLabelDecorator = (label: string, isFocused: boolean) => {
   );
 };
 
-const createOutlinedInput = (
-  sliderValue: SliderValue,
-  isFocused: boolean,
-  onFocus: SliderOnFocus,
-  onBlur: SliderOnBlur,
-) => (
+const createOutlinedInput = ({
+  isFocused,
+  max,
+  min,
+  onBlur,
+  onChange,
+  onFocus,
+  sliderValue,
+}: {
+  isFocused?: boolean;
+  max?: number;
+  min?: number;
+  onBlur?: SliderOnBlur;
+  onChange?: TextInputOnChange;
+  onFocus?: SliderOnFocus;
+  sliderValue: SliderValue;
+}) => (
   <OutlinedInput
     {...{
       className: isFocused ? muiOutlinedInputClasses.focused : '',
+      inputProps: { max, min },
       onBlur,
+      onChange,
       onFocus,
+      type: 'number',
       value: sliderValue,
     }}
   />
@@ -116,6 +139,8 @@ const Slider = ({
 }: SliderProps): JSX.Element => {
   const { sx: labelSx } = labelProps ?? SLIDER_DEFAULT_PROPS.labelProps;
   const {
+    max,
+    min,
     onChange: sliderChangeCallback,
     sx: sliderSx,
     valueLabelDisplay: sliderValueLabelDisplay,
@@ -134,6 +159,12 @@ const Slider = ({
 
   const handleLocalSliderFocus: SliderOnFocus = () => {
     setIsFocused(true);
+  };
+
+  const handleLocalTextInputChange: TextInputOnChange = ({
+    target: { value: newValue },
+  }) => {
+    setSliderValue(parseFloat(newValue));
   };
 
   const handleSliderChange = sliderChangeCallback
@@ -156,7 +187,7 @@ const Slider = ({
       >
         {label}
       </OutlinedInputLabel>
-      {createInputLabelDecorator(label, isFocused)}
+      {createInputLabelDecorator({ isFocused, label })}
       <Box
         sx={{
           alignItems: 'center',
@@ -168,6 +199,8 @@ const Slider = ({
         <MUISlider
           {...{
             'aria-labelledby': labelId,
+            max,
+            min,
             onBlur: handleLocalSliderBlur,
             onChange: handleSliderChange,
             onFocus: handleLocalSliderFocus,
@@ -188,12 +221,15 @@ const Slider = ({
           }}
         />
         {isAllowTextInput &&
-          createOutlinedInput(
-            sliderValue,
+          createOutlinedInput({
             isFocused,
-            handleLocalSliderFocus,
-            handleLocalSliderBlur,
-          )}
+            max,
+            min,
+            onBlur: handleLocalSliderBlur,
+            onChange: handleLocalTextInputChange,
+            onFocus: handleLocalSliderFocus,
+            sliderValue,
+          })}
       </Box>
     </Box>
   );
