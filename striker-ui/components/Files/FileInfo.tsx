@@ -4,10 +4,6 @@ import {
   FormControl,
   FormControlLabel,
   FormGroup,
-  MenuItem,
-  menuItemClasses,
-  Select,
-  selectClasses,
   styled,
 } from '@mui/material';
 import {
@@ -16,11 +12,13 @@ import {
 } from '@mui/icons-material';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BLUE, GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { BLUE, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
+import MenuItem from '../MenuItem';
 import OutlinedInput from '../OutlinedInput';
 import OutlinedInputLabel from '../OutlinedInputLabel';
+import Select from '../Select';
 
 type FileInfoProps = Pick<FileDetailMetadata, 'fileName' | 'fileLocations'> &
   Partial<Pick<FileDetailMetadata, 'fileType'>> & {
@@ -32,30 +30,6 @@ const FILE_INFO_DEFAULT_PROPS: Partial<FileInfoProps> = {
   isReadonly: undefined,
   onChange: undefined,
 };
-
-const StyledSelect = styled(Select)({
-  [`& .${selectClasses.icon}`]: {
-    color: GREY,
-  },
-});
-
-const StyledMenuItem = styled(MenuItem)({
-  backgroundColor: TEXT,
-  paddingRight: '3em',
-
-  [`&.${menuItemClasses.selected}`]: {
-    backgroundColor: GREY,
-    fontWeight: 400,
-
-    '&:hover': {
-      backgroundColor: GREY,
-    },
-  },
-
-  '&:hover': {
-    backgroundColor: GREY,
-  },
-});
 
 const FileLocationActiveCheckbox = styled(Checkbox)({
   color: RED,
@@ -105,7 +79,7 @@ const FileInfo = (
           <OutlinedInputLabel htmlFor={fileTypeElementId}>
             {fileTypeElementLabel}
           </OutlinedInputLabel>
-          <StyledSelect
+          <Select
             defaultValue={fileType}
             disabled={isReadonly}
             id={fileTypeElementId}
@@ -118,12 +92,12 @@ const FileInfo = (
           >
             {UPLOAD_FILE_TYPES_ARRAY.map(
               ([fileTypeKey, [, fileTypeDisplayString]]) => (
-                <StyledMenuItem key={fileTypeKey} value={fileTypeKey}>
+                <MenuItem key={fileTypeKey} value={fileTypeKey}>
                   {fileTypeDisplayString}
-                </StyledMenuItem>
+                </MenuItem>
               ),
             )}
-          </StyledSelect>
+          </Select>
         </FormControl>
       )}
       {fileLocations.map(

@@ -1,0 +1,44 @@
+import {
+  MenuItem as MUIMenuItem,
+  menuItemClasses as muiMenuItemClasses,
+  MenuItemProps as MUIMenuItemProps,
+} from '@mui/material';
+
+import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
+
+const MenuItem = (menuItemProps: MUIMenuItemProps): JSX.Element => {
+  const { children, sx } = menuItemProps;
+  const combinedSx = {
+    backgroundColor: TEXT,
+    paddingRight: '3em',
+
+    [`&.${muiMenuItemClasses.selected}`]: {
+      backgroundColor: GREY,
+      fontWeight: 400,
+
+      '&:hover': {
+        backgroundColor: GREY,
+      },
+    },
+
+    '&:hover': {
+      backgroundColor: GREY,
+    },
+
+    ...sx,
+  };
+
+  return (
+    <MUIMenuItem
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...{
+        ...menuItemProps,
+        sx: combinedSx,
+      }}
+    >
+      {children}
+    </MUIMenuItem>
+  );
+};
+
+export default MenuItem;
