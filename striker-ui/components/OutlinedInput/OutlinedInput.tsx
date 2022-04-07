@@ -6,9 +6,9 @@ import {
 
 import { GREY, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
-const OutlinedInput = (
-  outlinedInputProps: MUIOutlinedInputProps,
-): JSX.Element => {
+type OutlinedInputProps = MUIOutlinedInputProps;
+
+const OutlinedInput = (outlinedInputProps: OutlinedInputProps): JSX.Element => {
   const { label, sx } = outlinedInputProps;
   const combinedSx = {
     color: GREY,
@@ -48,5 +48,7 @@ const OutlinedInput = (
     />
   );
 };
+
+export type { OutlinedInputProps };
 
 export default OutlinedInput;
