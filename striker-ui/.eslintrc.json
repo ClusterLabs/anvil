@@ -45,6 +45,8 @@
         "tsx": "never"
       }
     ],
+    "camelcase": "off",
+    "no-param-reassign": ["error", { "props": false }],
     // Allow JSX in files with other extensions
     "react/jsx-filename-extension": [1, { "extensions": [".tsx"] }],
     // Use TypeScript's types for component props
@@ -52,9 +54,8 @@
     // Importing React is not required in Next.js
     "react/react-in-jsx-scope": "off",
     "react/jsx-curly-newline": "off",
-    "camelcase": "off",
-    "@typescript-eslint/camelcase": "off",
-    "@next/next/no-img-element": "off"
+    "@next/next/no-img-element": "off",
+    "@typescript-eslint/camelcase": "off"
   },
   "settings": {
     "react": { "version": "detect" }
