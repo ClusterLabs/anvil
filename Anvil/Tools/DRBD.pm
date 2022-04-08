@@ -1283,6 +1283,9 @@ LIMIT 1
 				my $by_res                                                                                          = "/dev/drbd/by-res/".$this_resource."/".$volume;
 				my $minor                                                                                           = $volume_href->{device}->[0]->{minor};
 				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_path}        = "/dev/drbd".$minor;
+				   ### TODO: Anything using these are broken as the values get rewritten and 
+				   ###       only store the last DRBD node's data. Switch to using the 
+				   ###       'this_host' stored values below
 				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_path_by_res} = $by_res;
 				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_minor}       = $minor;
 				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{'meta-disk'}      = $volume_href->{'meta-disk'}->[0];
@@ -1294,12 +1297,13 @@ LIMIT 1
 					"drbd::config::${host}::resource::${this_resource}::volume::${volume}::meta-disk"        => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{'meta-disk'},
 					"drbd::config::${host}::resource::${this_resource}::volume::${volume}::backing_lv"       => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{backing_lv},
 				}});
+				
 				if (($anvil->data->{drbd}{config}{$host}{host}) && ($anvil->data->{drbd}{config}{$host}{host} eq $this_host))
 				{
 					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on}       = $lv_path;
 					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource} = $this_resource;
 					$anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under}        = $drbd_path;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 						"drbd::config::${host}::drbd_path::${drbd_path}::on"       => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on},
 						"drbd::config::${host}::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource},
 						"drbd::config::${host}::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under},
@@ -1317,6 +1321,20 @@ LIMIT 1
 						"drbd::config::${host}::by-res::${by_res}::backing_lv" => $anvil->data->{drbd}{config}{$host}{'by-res'}{$by_res}{backing_lv},
 					}});
 				}
+				
+				# This records the backing LV data for all hosts in this resource.
+				$anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{drbd_path}        = "/dev/drbd".$minor;
+				$anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{drbd_path_by_res} = $by_res;
+				$anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{drbd_minor}       = $minor;
+				$anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{'meta-disk'}      = $volume_href->{'meta-disk'}->[0];
+				$anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{backing_lv}       = $lv_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"drbd::drbd_node::${this_host}::config::resource::${this_resource}::volume::${volume}::drbd_path"        => $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{drbd_path},
+					"drbd::drbd_node::${this_host}::config::resource::${this_resource}::volume::${volume}::drbd_path_by_res" => $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{drbd_path_by_res},
+					"drbd::drbd_node::${this_host}::config::resource::${this_resource}::volume::${volume}::drbd_minor"       => $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{drbd_minor},
+					"drbd::drbd_node::${this_host}::config::resource::${this_resource}::volume::${volume}::meta-disk"        => $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{'meta-disk'},
+					"drbd::drbd_node::${this_host}::config::resource::${this_resource}::volume::${volume}::backing_lv"       => $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$this_resource}{volume}{$volume}{backing_lv},
+				}});
 			}
 		}
 		

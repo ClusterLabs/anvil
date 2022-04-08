@@ -54,6 +54,54 @@ sub gather_data
 # 	collect_server_data($conf);
 # 	collect_bridges($conf);
 	
+	print "Server | Anvil! | CPU | RAM | Disk | Size\n";
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server_data}})
+	{
+		# There should only ever be one UUID for a given name, but it's not impossible for there to be two.
+		foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}})
+		{
+			my $anvil_name      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name};
+			my $anvil_uuid      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid};
+			my $ram_used        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used};
+			my $say_ram_used    = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used};
+			my $cpu_total_cores = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{total_cores};
+			my $cpu_sockets     = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{sockets};
+			my $cpu_cores       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{cores};
+			my $cpu_threads     = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{threads};
+			my $cpu_model       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name};
+			my $cpu_fallback    = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback};
+			my $cpu_match       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match};
+			my $cpu_vendor      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor};
+			my $cpu_mode        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode};
+			my $say_cpu         = $cpu_total_cores." (".$cpu_sockets."s/".$cpu_cores."c/".$cpu_threads."t)";
+			my $resource = 0;
+			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}})
+			{
+				foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}})
+				{
+					my $say_size = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size};
+					if (not $resource)
+					{
+						print $server_name." | ".$anvil_name." | ".$say_cpu." | ".$say_ram_used." | ".$resource."/".$volume." | ".$say_size."\n";
+					}
+					else
+					{
+						print $server_name." | ".$anvil_name." | ".$say_cpu." | ".$say_ram_used." | ".$resource."/".$volume." | ".$say_size."\n";
+					}
+					foreach my $drbd_node (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}})
+					{
+						my $drbd_path        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path};
+						my $drbd_path_by_res = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res};
+						my $drbd_minor       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor};
+						my $meta_disk        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'};
+						my $backing_lv       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv};
+						my $node_host_uuid   = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid};
+					}
+				}
+			}
+		}
+	}
+	
 	return(0);
 }
 
@@ -65,6 +113,12 @@ sub collect_server_data
 	$anvil->Database->get_servers();
 	$anvil->Database->get_server_definitions();
 	
+	$anvil->data->{longest}{server_name}   = 0;
+	$anvil->data->{longest}{anvil_name}    = 0;
+	$anvil->data->{longest}{resource_name} = 0;
+	$anvil->data->{longest}{ram_length}    = 0;
+	$anvil->data->{longest}{cpu_model}     = 0;
+	$anvil->data->{longest}{disk_length}   = 0;
 	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
 	{
 		my $server_name       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
@@ -76,10 +130,11 @@ sub collect_server_data
 		{
 			$server_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
 		}
+		my $say_server_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:server_name' => $server_name,
 			's2:anvil_name'  => $anvil_name, 
-			's3:server_ram'  => $anvil->Convert->add_commas({number => $server_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram}).")", 
+			's3:server_ram'  => $anvil->Convert->add_commas({number => $server_ram})." (".$say_server_ram.")", 
 		}});
 		
 		my $target = $anvil->Get->short_host_name;
@@ -93,29 +148,234 @@ sub collect_server_data
 		});
 		
 		# CPU info
-		my $total_cores  = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{total_cores};
-		my $cpu_sockets  = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{sockets};
-		my $cpu_cores    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{cores};
-		my $cpu_threads  = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{threads};
-		my $cpu_model    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_name};
-		my $cpu_fallback = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_fallback};
-		my $cpu_match    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{match};
-		my $cpu_vendor   = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{vendor};
-		my $cpu_mode     = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{mode};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name}          = $anvil_name;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid}          = $anvil_uuid;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used}            = $server_ram;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used}        = $say_server_ram;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{total_cores}    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{total_cores};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{sockets}        = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{sockets};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{cores}          = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{cores};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{threads}        = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{threads};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name}     = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_name};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback} = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_fallback};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match}          = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{match};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor}         = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{vendor};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode}           = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{mode};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:total_cores'  => $total_cores,
-			's2:cpu_sockets'  => $cpu_sockets,
-			's3:cpu_cores'    => $cpu_cores, 
-			's4:cpu_threads'  => $cpu_threads, 
-			's5:cpu_model'    => $cpu_model, 
-			's6:cpu_fallback' => $cpu_fallback, 
-			's7:cpu_match'    => $cpu_match, 
-			's8:cpu_vendor'   => $cpu_vendor, 
-			's9:cpu_mode'     => $cpu_mode, 
+			"s1:server_data::${server_name}::server_uuid::${server_uuid}::anvil_name"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name},
+			"s2:server_data::${server_name}::server_uuid::${server_uuid}::anvil_uuid"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid},
+			"s3:server_data::${server_name}::server_uuid::${server_uuid}::ram_used"            => $anvil->Convert->add_commas({number => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used}})." (".$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used}.")", ,
+			"s4:server_data::${server_name}::server_uuid::${server_uuid}::cpu::total_cores"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{total_cores},
+			"s5:server_data::${server_name}::server_uuid::${server_uuid}::cpu::sockets"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{sockets},
+			"s5:server_data::${server_name}::server_uuid::${server_uuid}::cpu::cores"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{cores},
+			"s6:server_data::${server_name}::server_uuid::${server_uuid}::cpu::threads"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{threads},
+			"s7:server_data::${server_name}::server_uuid::${server_uuid}::cpu::model_name"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name},
+			"s8:server_data::${server_name}::server_uuid::${server_uuid}::cpu::model_fallback" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback},
+			"s9:server_data::${server_name}::server_uuid::${server_uuid}::cpu::match"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match},
+			"s10:server_data::${server_name}::server_uuid::${server_uuid}::cpu::vendor"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor},
+			"s11:server_data::${server_name}::server_uuid::${server_uuid}::cpu::mode"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode},
+		}});
+		
+		if (length($server_name) > $anvil->data->{longest}{server_name})
+		{
+			$anvil->data->{longest}{server_name} = length($server_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::server_name' => $anvil->data->{longest}{server_name} }});
+		}
+		if (length($anvil_name) > $anvil->data->{longest}{anvil_name})
+		{
+			$anvil->data->{longest}{anvil_name} = length($anvil_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::anvil_name' => $anvil->data->{longest}{anvil_name} }});
+		}
+		if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used}) > $anvil->data->{longest}{ram_length})
+		{
+			$anvil->data->{longest}{ram_length} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::ram_length' => $anvil->data->{longest}{ram_length} }});
+		}
+		if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name}) > $anvil->data->{longest}{cpu_model})
+		{
+			$anvil->data->{longest}{cpu_model} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::cpu_model' => $anvil->data->{longest}{cpu_model} }});
+		}
+		
+		# I need to know what nodes are in this cluster, so I don't look at another node that may 
+		# have a matching node name.
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+		
+		# Get names.
+		my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+		my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+		my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+		my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+		my $dr1_host_name        = "";
+		my $dr1_short_host_name   = "";
+		if (($dr1_host_uuid) && (exists $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}))
+		{
+			$dr1_host_name      = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
+			$dr1_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:node1_host_name'       => $node1_host_name, 
+			's2:node1_short_host_name' => $node1_short_host_name, 
+			's3:node2_host_name'       => $node2_host_name, 
+			's4:node2_short_host_name' => $node2_short_host_name, 
+			's5:dr1_host_name'         => $dr1_host_name, 
+			's6:dr1_short_host_name'   => $dr1_short_host_name, 
 		}});
 		
 		# Storage info.
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}})
+		{
+			my $address_domain   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{address}{domain};
+			my $address_slot     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{address}{slot};
+			my $address_function = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{address}{function};
+			my $device_path      = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{path};
+			my $driver_io        = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{driver}{io};
+			my $driver_cache     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{driver}{cache};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:device_target'    => $device_target,
+				's2:address_domain'   => $address_domain,
+				's3:address_slot'     => $address_slot, 
+				's4:address_function' => $address_function, 
+				's5:device_path'      => $device_path, 
+				's6:driver_io'        => $driver_io, 
+				's7:driver_cache'     => $driver_cache, 
+			}});
+			
+			# What is the DRBD resource name?
+			my ($resource, $volume) = ($device_path =~ /\/dev\/drbd\/by-res\/(.*?)\/(\d+)$/);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:resource' => $resource,
+				's2:volume'   => $volume, 
+			}});
+			if (length($resource) > $anvil->data->{longest}{resource_name})
+			{
+				$anvil->data->{longest}{resource_name} = length($resource);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::resource_name' => $anvil->data->{longest}{resource_name} }});
+			}
+			
+			# This will store the largest size LV becking the volume
+			my $disk_size = 0;
+			foreach my $drbd_node (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_node => $drbd_node }});
+				if (($drbd_node eq $node1_host_name)       or 
+				    ($drbd_node eq $node1_short_host_name) or 
+				    ($drbd_node eq $node2_host_name)       or 
+				    ($drbd_node eq $node2_short_host_name) or 
+				    (($dr1_host_name)       && ($drbd_node eq $dr1_host_name)) or 
+				    (($dr1_short_host_name) && ($drbd_node eq $dr1_short_host_name)))
+				{
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path}        = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_path};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res} = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_path_by_res};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor}       = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_minor};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'}      = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{'meta-disk'};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv}       = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{backing_lv};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+						"s1:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::drbd_path"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path}, 
+						"s2:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::drbd_path_by_res" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res}, 
+						"s3:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::drbd_minor"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor}, 
+						"s4:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::meta_disk"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'}, 
+						"s5:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::backing_lv"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv}, 
+					}});
+					
+					# What this node's host uuid?
+					my $node_host_uuid = "";
+					if (($drbd_node eq $node1_host_name) or ($drbd_node eq $node1_short_host_name))
+					{
+						$node_host_uuid = $node1_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
+					}
+					elsif (($drbd_node eq $node2_host_name) or ($drbd_node eq $node2_short_host_name))
+					{
+						$node_host_uuid = $node2_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
+					}
+					elsif (($drbd_node eq $dr1_host_name) or ($drbd_node eq $dr1_short_host_name))
+					{
+						$node_host_uuid = $dr1_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
+					}
+					
+					# How big is this LV?
+					my $backing_lv = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv};
+					my $query      = "SELECT scan_lvm_lv_size FROM scan_lvm_lvs WHERE scan_lvm_lv_path = ".$anvil->Database->quote($backing_lv);
+					if ($node_host_uuid)
+					{
+						# Find the size of the LV
+						$query .= " AND scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node_host_uuid);
+						
+						# Store the host_uuid as well.
+						$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid} = $node_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+							"s1:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::host_uuid" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid}, 
+						}});
+					}
+					$query .= ";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
+					
+					if ($count)
+					{
+						my $size = $results->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							size => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")", 
+						}});
+						if ($size > $disk_size)
+						{
+							$disk_size = $size;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								disk_size => $anvil->Convert->add_commas({number => $disk_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $disk_size}).")", 
+							}});
+						}
+					}
+				}
+			}
+			
+			# Store the disk size.
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size}     = $disk_size;
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size} = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::size" => $anvil->Convert->add_commas({number => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size}})." (".$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size}.")", ,
+			}});
+			
+			if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size}) > $anvil->data->{longest}{disk_length})
+			{
+				$anvil->data->{longest}{disk_length} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::disk_length' => $anvil->data->{longest}{disk_length} }});
+			}
+		}
 		
+		# Find networks
+		foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}})
+		{
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bridge}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{bridge};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{alias}    = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{alias};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{target}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{target};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{model}    = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{model};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bus}      = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{bus};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{domain}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{domain};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{type}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{type};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{slot}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{slot};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{function} = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{function};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bridge"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{bridge}, 
+				"s2:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::alias"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{alias}, 
+				"s3:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::target"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{target}, 
+				"s4:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::model"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{model}, 
+				"s5:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bus"      => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{bus}, 
+				"s6:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::domain"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{domain}, 
+				"s7:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::type"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{type}, 
+				"s8:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::slot"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{slot}, 
+				"s9:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::function" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{function}, 
+			}});
+		}
 	}
 	
 	return(0);

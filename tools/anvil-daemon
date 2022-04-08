@@ -404,21 +404,21 @@ sub set_delay
 {
 	my ($anvil) = @_;
 	
-	my $delay = 7200;
-	my $type  = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
-	if ($type eq "striker")
+	my $delay     = 7200;
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type eq "striker")
 	{
-		foreach my $uuid (keys %{$anvil->data->{database}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"sys::host_uuid" => $anvil->data->{sys}{host_uuid}, 
 				uuid             => $uuid, 
 			}});
 			if ($uuid eq $anvil->data->{sys}{host_uuid})
 			{
 				$delay = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { delay => $delay }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { delay => $delay }});
 			}
 			last;
 		}
@@ -516,14 +516,14 @@ sub handle_periodic_tasks
 {
 	my ($anvil) = @_;
 	
-	my $now_time = time;
-	my $type     = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	my $now_time  = time;
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"s1:now_time"                      => $now_time, 
 		"s2:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
 		"s3:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
 		"s4:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check},
-		"s5:type"                          => $type,
+		"s5:host_type"                     => $host_type,
 	}});
 	
 	# Time to run once per minute tasks.
@@ -625,74 +625,6 @@ sub handle_periodic_tasks
 		# down our database.
 		if ($host_type eq "striker")
 		{
-			### NOTE: Database shutdown logic is disabled. Too flaky.
-=cut
-			if ($anvil->data->{sys}{database}{connections} > 1)
-			{
-				# Make sure that all active databases are in the host's table. If they're 
-				# not, we're still early in setup. To do this, we create an array of hosts
-				# and then query both/all DBs to ensure they all have all hosts.
-				my $all_in_hosts = 1;
-				my $db_hosts     = [];
-				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
-				{
-					push @{$db_hosts}, $uuid;
-				}
-				foreach my $db_uuid (@{$db_hosts})
-				{
-					my $query = "SELECT COUNT(*) FROM hosts WHERE host_uuid = ".$anvil->Database->quote($db_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						's1:db_uuid' => $db_uuid, 
-						's2:query'   => $query,
-					}});
-					foreach my $host_uuid (@{$db_hosts})
-					{
-						my $count = $anvil->Database->query({debug => 2, uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:host_uuid' => $host_uuid, 
-							's2:db_uuid'   => $db_uuid, 
-							's2:count'     => $count,
-						}});
-						if (not $count)
-						{
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0143", variables => { 
-								db_uuid   => $db_uuid, 
-								host_uuid => $host_uuid, 
-							}});
-							
-							$all_in_hosts = 0;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_in_hosts => $all_in_hosts }});
-						}
-					}
-				}
-				
-				# Sort by UUID, skip the first, and see if we're one of the others.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_in_hosts => $all_in_hosts }});
-				if ($all_in_hosts)
-				{
-					my $first_uuid = "";
-					foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
-					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
-						if (not $first_uuid)
-						{
-							$first_uuid = $uuid; 
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { first_uuid => $first_uuid }});
-							
-							# Skip the first UUID so it doesn't evaluate for 
-							# shutdown.
-							next;
-						}
-						elsif ($uuid eq $host_uuid)
-						{
-							# This won't return until we're down.
-							$anvil->Database->shutdown({debug => 2});
-						}
-					}
-				}
-			}
-=cut
-
 			# If we're the active database, dump our database out and rsync it to our peers.
 			my $peers       = keys %{$anvil->data->{database}};
 			my $connections = $anvil->data->{sys}{database}{connections}; 
@@ -763,7 +695,7 @@ sub handle_periodic_tasks
 		### NOTE: We call it once/day, but this will also trigger on restart of anvil-daemon. As such, we
 		###       don't use '--force' and let striker-manage-install-target skip the repo update if it happened
 		###       recently enough.
-		if ($type eq "striker")
+		if ($host_type eq "striker")
 		{
 			# Age out old data. This takes up to a minute. 
 			$anvil->Database->_age_out_data();
@@ -817,7 +749,7 @@ sub handle_periodic_tasks
 		
 		# Update the next check time.
 		$anvil->data->{timing}{next_daily_check} = $now_time + $anvil->data->{timing}{daily_checks};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
 			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
 		}});
@@ -1378,7 +1310,7 @@ AND
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "striker")
 	{
-		$anvil->Striker->check_httpd_conf({debug => 2});
+		$anvil->Striker->check_httpd_conf({debug => 3});
 	}
 	
 	return(0);

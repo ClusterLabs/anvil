@@ -1696,7 +1696,7 @@ sub connect
 					uuid          => $uuid,
 					variable_name => "database::".$uuid."::active",
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_value  => $active_value }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_value  => $active_value }});
 				if (not $active_value)
 				{
 					# If we're "retry", we just started up.
