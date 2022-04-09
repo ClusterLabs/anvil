@@ -21,6 +21,7 @@ my $THIS_FILE = "Network.pm";
 # find_target_ip
 # get_company_from_mac
 # get_ips
+# get_ip_from_mac
 # get_network
 # is_local
 # is_our_interface
@@ -1942,6 +1943,50 @@ sub get_company_from_mac
 	
 	return($company);
 }
+
+
+=head2 get_ip_from_mac
+
+This takes a MAC address and tries to convert it to an IP address. If no IP is found, an empty string is returned.
+
+Parameters;
+
+=head3 mac (required)
+
+This is the MAC address we're looking for an IP to match to. The format must be C<< aa:bb:cc:dd:ee:ff >>.
+
+=cut
+sub get_ip_from_mac
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_ip_from_mac()" }});
+	
+	my $ip  = "";
+	my $mac = defined $parameter->{mac} ? $parameter->{mac} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		mac => $mac, 
+	}});
+	
+	my $query = "SELECT mac_to_ip_ip_address FROM mac_to_ip WHERE mac_to_ip_mac_address = ".$anvil->Database->quote(lc($mac)).";";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	if ($count)
+	{
+		$ip = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+	}
+	
+	return($ip);
+}
+
 
 =head2 get_ips
 

@@ -364,16 +364,18 @@ sub collect_server_data
 			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{type}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{type};
 			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{slot}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{slot};
 			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{function} = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{function};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{ip}       = $anvil->Network->get_ip_from_mac({debug => 2, mac => $mac});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bridge"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{bridge}, 
-				"s2:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::alias"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{alias}, 
-				"s3:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::target"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{target}, 
-				"s4:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::model"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{model}, 
-				"s5:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bus"      => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{bus}, 
-				"s6:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::domain"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{domain}, 
-				"s7:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::type"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{type}, 
-				"s8:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::slot"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{slot}, 
-				"s9:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::function" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{net}{$mac}{function}, 
+				"s01:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bridge"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bridge}, 
+				"s02:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::alias"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{alias}, 
+				"s03:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::target"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{target}, 
+				"s04:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::model"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{model}, 
+				"s05:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bus"      => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bus}, 
+				"s06:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::domain"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{domain}, 
+				"s07:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::type"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{type}, 
+				"s08:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::slot"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{slot}, 
+				"s09:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::function" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{function}, 
+				"s10:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::ip"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{ip}, 
 			}});
 		}
 	}

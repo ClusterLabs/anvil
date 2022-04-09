@@ -937,13 +937,14 @@ sub start_drbd_resource
 		}
 	}
 	
+	### NOTE: We always check the peer now, in case it's resource is down and ours happens to be up.
 	# Do we need to start the resource on our peers?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_startup_needed => $peer_startup_needed }});
-	if (not $peer_startup_needed)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0431"});
-		return(0);
-	}
+	#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_startup_needed => $peer_startup_needed }});
+	#if (not $peer_startup_needed)
+	#{
+	#	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0431"});
+	#	return(0);
+	#}
 	
 	# Start DRBD on the peer(s).
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
@@ -1244,17 +1245,18 @@ sub server_status
 		}
 		else
 		{
+			# On EL8 and above, libvirtd starts on demand, so this error isn't 
 			if (not $warning_shown)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0522", variables => { wait_time => ($wait_until - time) }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0522", variables => { wait_time => ($wait_until - time) }});
 				$warning_shown = 1;
 			}
 			sleep 1;
 			if (time > $wait_until)
 			{
 				# Libvirtd isn't running, try to find the PID of the server (in case it's 
-				# running a libvirtd isn't)
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0057"});
+				# running and libvirtd isn't)
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "warning_0057"});
 				$look_for_pid  = 1;
 				$libvirtd_wait = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

@@ -981,9 +981,31 @@ ORDER BY
 						uuid => $bridge_uuid,
 					}});
 					
+					# If there's a bond connected to this bridge, get it's bond_uuid so 
+					# we can remove any interfaces linked to it.
+					my $bond_uuid = "";
+					my $query     = "SELECT bond_uuid FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count,
+					}});
+					if ($count)
+					{
+						$bond_uuid = $results->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_uuid => $bond_uuid }});
+					}
+					
 					my $queries = [];
 					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					if ($bond_uuid)
+					{
+						push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+						push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					}
 					push @{$queries}, "DELETE FROM history.bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
@@ -1013,9 +1035,31 @@ ORDER BY
 						uuid => $bridge_uuid,
 					}});
 					
+					# If there's a bond connected to this bridge, get it's bond_uuid so 
+					# we can remove any interfaces linked to it.
+					my $bond_uuid = "";
+					my $query     = "SELECT bond_uuid FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count,
+					}});
+					if ($count)
+					{
+						$bond_uuid = $results->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_uuid => $bond_uuid }});
+					}
+					
 					my $queries = [];
 					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					if ($bond_uuid)
+					{
+						push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+						push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					}
 					push @{$queries}, "DELETE FROM history.bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
 					push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
