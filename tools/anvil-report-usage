@@ -46,15 +46,25 @@ sub gather_data
 {
 	my ($anvil) = @_;
 	
-	collect_anvil_data($anvil);
 	collect_server_data($anvil);
-# 	collect_cpu_data($conf);
-# 	collect_ram_data($conf);
-# 	collect_storage_data($conf);
-# 	collect_server_data($conf);
-# 	collect_bridges($conf);
 	
-	print "Server | Anvil! | CPU | RAM | Disk | Size\n";
+	my $server_header       = $anvil->Words->string({key => "header_0065"});
+	my $longest_server_name = length($server_header) > $anvil->data->{longest}{server_name} ? length($server_header) : $anvil->data->{longest}{server_name};
+	my $anvil_header        = $anvil->Words->string({key => "brand_0002"});
+	my $longest_anvil_name  = length($anvil_header) > $anvil->data->{longest}{anvil_name} ? length($anvil_header) : $anvil->data->{longest}{anvil_name};
+	
+	my $lines       =  [];
+	my $break_line  =  "+-".sprintf("%0${longest_server_name}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_server_name}d", 0);
+	   $break_line  .= "--------+-----+-----+------+------+--------+-----+---------+"
+	   $break_line  =~ s/0/-/g;
+	my $header_line =  "| ".sprintf("%-${longest_server_name}s", $server_header)." | Anvil! | CPU | RAM | Disk | Size | Bridge | MAC | Last IP |";
+	my $blank_lead  =  "| ".sprintf("%-${longest_server_name}s", " ")."   Anvil!   CPU   RAM | Disk | Size | Bridge | MAC | Last IP |";
+	
+	push @{$lines}, $break_line;
+	push @{$lines}, $header_line;
+	push @{$lines}, $break_line;
+	push @{$lines}, $blank_lead;
 	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server_data}})
 	{
 		# There should only ever be one UUID for a given name, but it's not impossible for there to be two.
@@ -74,20 +84,16 @@ sub gather_data
 			my $cpu_vendor      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor};
 			my $cpu_mode        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode};
 			my $say_cpu         = $cpu_total_cores." (".$cpu_sockets."s/".$cpu_cores."c/".$cpu_threads."t)";
-			my $resource = 0;
+			my $first_line      = "| ".$server_name." | ".$anvil_name." | ".$say_cpu." | ".$say_ram_used." | ";
+			
+			my $drbd_lines = [];
 			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}})
 			{
 				foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}})
 				{
 					my $say_size = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size};
-					if (not $resource)
-					{
-						print $server_name." | ".$anvil_name." | ".$say_cpu." | ".$say_ram_used." | ".$resource."/".$volume." | ".$say_size."\n";
-					}
-					else
-					{
-						print $server_name." | ".$anvil_name." | ".$say_cpu." | ".$say_ram_used." | ".$resource."/".$volume." | ".$say_size."\n";
-					}
+					
+					push @{$drbd_lines}, $resource."/".$volume." | ".$say_size." | ";
 					foreach my $drbd_node (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}})
 					{
 						my $drbd_path        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path};
@@ -99,8 +105,65 @@ sub gather_data
 					}
 				}
 			}
+			
+			my $net_lines = [];
+			foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}})
+			{
+				foreach my $alias (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}})
+				{
+					foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}})
+					{
+						my $model = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model};
+						my $ip    = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip};
+						if (not $ip)
+						{
+							$ip = "--";
+						}
+						push @{$net_lines}, $bridge." | ".$mac." | ".$ip." |";
+					}
+				}
+			}
+			
+# 			print "--------------------------------\n";
+# 			print Dumper $drbd_lines;
+# 			print "--------------------------------\n";
+# 			print Dumper $net_lines;
+# 			print "--------------------------------\n";
+			
+			my $drbd_count = @{$drbd_lines};
+			my $net_count   = @{$net_lines};
+			my $line_count = $drbd_count > $net_count ? $drbd_count : $net_count;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:drbd_count' => $drbd_count,
+				's2:line_count' => $line_count, 
+				's3:line_count' => $line_count, 
+			}});
+			foreach (my $i = 0; $i < $line_count; $i++)
+			{
+				my $drbd_line = $drbd_lines->[$i] ? $drbd_lines->[$i] : "-- | -- | ";
+				my $net_line  = $net_lines->[$i]  ? $net_lines->[$i]  : "-- | -- | -- ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:i'         => $i,
+					's2:drbd_line' => $drbd_line, 
+					's3:drbd_line' => $net_line, 
+				}});
+				if ($i == 0)
+				{
+					push @{$lines}, $first_line.$drbd_line.$net_line;
+				}
+				else
+				{
+					push @{$lines}, "| -- | -- | -- | -- | ".$drbd_line.$net_line;
+				}
+			}
 		}
 	}
+	
+	foreach my $line (@{$lines})
+	{
+		print $line."\n";
+	}
+	print $break_line."\n";
 	
 	return(0);
 }
@@ -115,10 +178,14 @@ sub collect_server_data
 	
 	$anvil->data->{longest}{server_name}   = 0;
 	$anvil->data->{longest}{anvil_name}    = 0;
-	$anvil->data->{longest}{resource_name} = 0;
-	$anvil->data->{longest}{ram_length}    = 0;
+	$anvil->data->{longest}{cpu_string}    = 0;
 	$anvil->data->{longest}{cpu_model}     = 0;
+	$anvil->data->{longest}{ram_length}    = 0;
+	$anvil->data->{longest}{resource_name} = 0;
+	$anvil->data->{longest}{resource_size} = 0;
 	$anvil->data->{longest}{disk_length}   = 0;
+	$anvil->data->{longest}{bridge_name}   = 0;
+	$anvil->data->{longest}{ip_address}    = 0;
 	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
 	{
 		my $server_name       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
@@ -355,48 +422,33 @@ sub collect_server_data
 		# Find networks
 		foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}})
 		{
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bridge}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{bridge};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{alias}    = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{alias};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{target}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{target};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{model}    = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{model};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bus}      = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{bus};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{domain}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{domain};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{type}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{type};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{slot}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{slot};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{function} = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{function};
-			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{ip}       = $anvil->Network->get_ip_from_mac({debug => 2, mac => $mac});
+			my $bridge = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{bridge};
+			my $alias  = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{alias};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s01:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bridge"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bridge}, 
-				"s02:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::alias"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{alias}, 
-				"s03:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::target"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{target}, 
-				"s04:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::model"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{model}, 
-				"s05:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::bus"      => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{bus}, 
-				"s06:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::domain"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{domain}, 
-				"s07:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::type"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{type}, 
-				"s08:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::slot"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{slot}, 
-				"s09:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::function" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{function}, 
-				"s10:server_data::${server_name}::server_uuid::${server_uuid}::net::${mac}::ip"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$mac}{ip}, 
+				"s1:mac"    => $mac, 
+				"s2:bridge" => $bridge, 
+				"s3:alias"  => $alias, 
+			}});
+			
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{target}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{target};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model}    = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{model};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{bus}      = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{bus};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{domain}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{domain};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{type}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{type};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{slot}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{slot};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{function} = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{function};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip}       = $anvil->Network->get_ip_from_mac({debug => 2, mac => $mac});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::target"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{target}, 
+				"s2:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::model"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model}, 
+				"s3:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::bus"      => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{bus}, 
+				"s4:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::domain"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{domain}, 
+				"s5:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::type"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{type}, 
+				"s6:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::slot"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{slot}, 
+				"s7:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::function" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{function}, 
+				"s8:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::ip"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip}, 
 			}});
 		}
-	}
-	
-	return(0);
-}
-
-sub collect_anvil_data
-{
-	my ($anvil) = @_;
-	
-	# Get a list of Anvil's and what free RAM and disk space they have available.
-	$anvil->Database->get_anvils();
-	
-	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
-	{
-# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}            = $anvil_uuid;
-# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}     = $anvil_description;
-# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid} = $anvil_node1_host_uuid;
-# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
-# 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
 	}
 	
 	return(0);

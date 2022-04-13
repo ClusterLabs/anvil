@@ -848,6 +848,7 @@ resource #!variable!server!# {
 		<key name="header_0062">Table</key>
 		<key name="header_0063">public</key>		<!-- SQL schema -->
 		<key name="header_0064">history</key>		<!-- SQL schema -->
+		<key name="header_0065">Server</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
