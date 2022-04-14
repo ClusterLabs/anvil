@@ -16,6 +16,10 @@ const MenuItem = (menuItemProps: MUIMenuItemProps): JSX.Element => {
       backgroundColor: GREY,
       fontWeight: 400,
 
+      [`&.${muiMenuItemClasses.focusVisible}`]: {
+        backgroundColor: GREY,
+      },
+
       '&:hover': {
         backgroundColor: GREY,
       },
