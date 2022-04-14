@@ -61,7 +61,7 @@ const createInputLabelDecorator = ({
         display: 'flex',
         flexDirection: 'row',
         position: 'absolute',
-        width: '24em',
+        width: '100%',
 
         '> :last-child': {
           flexGrow: 1,
@@ -107,6 +107,7 @@ const createOutlinedInput = ({
   onChange,
   onFocus,
   sliderValue,
+  sx,
 }: {
   isFocused?: boolean;
   max?: number;
@@ -114,7 +115,8 @@ const createOutlinedInput = ({
   onBlur?: SliderOnBlur;
   onChange?: TextInputOnChange;
   onFocus?: SliderOnFocus;
-  sliderValue: SliderValue;
+  sliderValue?: SliderValue;
+  sx?: MUISliderProps['sx'];
 }) => (
   <OutlinedInput
     {...{
@@ -123,6 +125,7 @@ const createOutlinedInput = ({
       onBlur,
       onChange,
       onFocus,
+      sx,
       type: 'number',
       value: sliderValue,
     }}
@@ -206,8 +209,8 @@ const Slider = ({
             onFocus: handleLocalSliderFocus,
             sx: {
               color: GREY,
-              marginLeft: '13px',
-              marginRight: '26px',
+              marginLeft: '1em',
+              marginRight: '1em',
 
               [`& .${muiSliderClasses.thumb}`]: {
                 borderRadius: BORDER_RADIUS,
@@ -220,16 +223,20 @@ const Slider = ({
             valueLabelDisplay: sliderValueLabelDisplay,
           }}
         />
-        {isAllowTextInput &&
-          createOutlinedInput({
-            isFocused,
-            max,
-            min,
-            onBlur: handleLocalSliderBlur,
-            onChange: handleLocalTextInputChange,
-            onFocus: handleLocalSliderFocus,
-            sliderValue,
-          })}
+        {createOutlinedInput({
+          isFocused,
+          max,
+          min,
+          onBlur: handleLocalSliderBlur,
+          onChange: handleLocalTextInputChange,
+          onFocus: handleLocalSliderFocus,
+          sliderValue,
+          sx: isAllowTextInput
+            ? undefined
+            : {
+                visibility: 'collapse',
+              },
+        })}
       </Box>
     </Box>
   );
