@@ -6,7 +6,9 @@ import {
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
-const Select = (selectProps: MUISelectProps): JSX.Element => {
+type SelectProps = MUISelectProps;
+
+const Select = (selectProps: SelectProps): JSX.Element => {
   const { children, sx } = selectProps;
   const combinedSx = {
     [`& .${muiSelectClasses.icon}`]: {
@@ -28,5 +30,7 @@ const Select = (selectProps: MUISelectProps): JSX.Element => {
     </MUISelect>
   );
 };
+
+export type { SelectProps };
 
 export default Select;
