@@ -1,24 +1,96 @@
+import { useEffect, useState } from 'react';
 import {
+  Box,
   Dialog,
   DialogProps,
   FormControl,
   FormGroup,
-  Select,
 } from '@mui/material';
+import { dSize, dSizeStr } from 'format-data-size';
 
+import MenuItem from './MenuItem';
 import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
 import { Panel, PanelHeader } from './Panels';
+import Select from './Select';
 import Slider, { SliderProps } from './Slider';
-import { HeaderText } from './Text';
+import { BodyText, HeaderText } from './Text';
 
 type ProvisionServerDialogProps = {
   dialogProps: DialogProps;
 };
 
+const BIGINT_ZERO = BigInt(0);
+
+const createOutlinedInput = (id: string, label: string): JSX.Element => (
+  <FormControl>
+    <OutlinedInputLabel {...{ htmlFor: id }}>{label}</OutlinedInputLabel>
+    <OutlinedInput {...{ id, label }} />
+  </FormControl>
+);
+
+const createOutlinedSelect = (
+  id: string,
+  label: string | undefined,
+  value: string,
+  selectItems: string[][] | string[],
+): JSX.Element => (
+  <FormControl>
+    {label && (
+      <OutlinedInputLabel {...{ htmlFor: id }}>{label}</OutlinedInputLabel>
+    )}
+    <Select {...{ id, input: <OutlinedInput {...{ label }} />, value }}>
+      {selectItems.map((item) => {
+        let itemValue;
+        let itemDisplayValue;
+
+        if (item instanceof Array) {
+          [itemValue, itemDisplayValue] = item;
+        } else {
+          itemValue = item;
+          itemDisplayValue = item;
+        }
+
+        return (
+          <MenuItem key={`${id}-${itemValue}`} value={itemValue}>
+            {itemDisplayValue}
+          </MenuItem>
+        );
+      })}
+    </Select>
+  </FormControl>
+);
+
+const createOutlinedSlider = (
+  id: string,
+  label: string,
+  sliderProps?: Partial<SliderProps>,
+): JSX.Element => (
+  <FormControl>
+    <Slider
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...{
+        isAllowTextInput: true,
+        label,
+        labelId: `${id}-label`,
+        value: 1,
+        ...sliderProps,
+      }}
+    />
+  </FormControl>
+);
+
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
+  const [sliderMaxAvailableCPUCores, setSliderMaxAvailableCPUCores] =
+    useState<number>(0);
+  const [sliderMaxAvailableMemory, setSliderMaxAvailableMemory] =
+    useState<number>(0);
+
+  const [memory, setMemory] = useState<bigint>(BIGINT_ZERO);
+  const [memoryUnit, setMemoryUnit] = useState<string>('');
+
   const data = {
     anvils: [
       {
@@ -141,52 +213,58 @@ const ProvisionServerDialog = ({
     ],
   };
 
-  const generateFormControl = (
-    id: string,
-    label: string,
+  const { maxAvailableCPUCores, maxAvailableMemory } = data.anvils.reduce<{
+    maxAvailableCPUCores: number;
+    maxAvailableMemory: bigint;
+  }>(
+    (
+      reducedValues,
+      { anvilTotalAvailableCPUCores, anvilTotalAvailableMemory },
+    ) => {
+      const convertedAnvilTotalAvailableMemory = BigInt(
+        anvilTotalAvailableMemory,
+      );
+
+      reducedValues.maxAvailableCPUCores = Math.max(
+        anvilTotalAvailableCPUCores,
+        reducedValues.maxAvailableCPUCores,
+      );
+
+      if (
+        convertedAnvilTotalAvailableMemory > reducedValues.maxAvailableMemory
+      ) {
+        reducedValues.maxAvailableMemory = convertedAnvilTotalAvailableMemory;
+      }
+
+      return reducedValues;
+    },
     {
-      inputType = 'text',
-      sliderProps,
-    }: {
-      inputType?: 'select' | 'slider' | 'text';
-      sliderProps?: SliderProps;
-    } = {},
-  ) => {
-    const labelElement = (
-      <OutlinedInputLabel htmlFor={id}>{label}</OutlinedInputLabel>
-    );
+      maxAvailableCPUCores: 0,
+      maxAvailableMemory: BIGINT_ZERO,
+    },
+  );
 
-    let inputElement = (
-      <>
-        {labelElement}
-        <OutlinedInput id={id} label={label} />
-      </>
-    );
+  const optimizeOSList = data.osList.map((keyValuePair) =>
+    keyValuePair.split(','),
+  );
 
-    if (inputType === 'slider') {
-      inputElement = (
-        <Slider
-          // eslint-disable-next-line react/jsx-props-no-spreading
-          {...{
-            isAllowTextInput: true,
-            label,
-            labelId: `${id}-label`,
-            value: 0,
-            ...sliderProps,
-          }}
-        />
+  useEffect(() => {
+    setSliderMaxAvailableCPUCores(maxAvailableCPUCores);
+
+    const formattedMaxAvailableMemory = dSize(maxAvailableMemory, {
+      precision: 2,
+    });
+
+    console.dir(formattedMaxAvailableMemory, { depth: null });
+
+    if (formattedMaxAvailableMemory) {
+      setSliderMaxAvailableMemory(
+        parseFloat(formattedMaxAvailableMemory.value),
       );
-    } else if (inputType === 'select') {
-      inputElement = (
-        <>
-          {labelElement}
-          <Select />
-        </>
-      );
+
+      setMemoryUnit(formattedMaxAvailableMemory.unit);
     }
-
-    return <FormControl>{inputElement}</FormControl>;
-  };
+  }, [maxAvailableCPUCores, maxAvailableMemory]);
 
   return (
     <Dialog
@@ -202,18 +280,54 @@ const ProvisionServerDialog = ({
         <HeaderText text="Provision a Server" />
       </PanelHeader>
       <FormGroup>
-        {generateFormControl('ps-server-name', 'Server name')}
-        {generateFormControl('ps-cpu-cores', 'CPU cores', {
-          inputType: 'slider',
+        {createOutlinedInput('ps-server-name', 'Server name')}
+        {createOutlinedSlider('ps-cpu-cores', 'CPU cores', {
+          sliderProps: { max: sliderMaxAvailableCPUCores, min: 1 },
         })}
-        {generateFormControl('ps-memory', 'Memory', { inputType: 'slider' })}
-        {generateFormControl('ps-storage-group', 'Storage group')}
-        {generateFormControl('ps-image-size', 'Virtual disk size', {
-          inputType: 'slider',
-        })}
-        {generateFormControl('ps-install-image', 'Install ISO')}
-        {generateFormControl('ps-driver-image', 'Driver ISO')}
-        {generateFormControl('ps-optimize-for-os', 'Optimize for OS')}
+        <BodyText text={`Memory: ${memory.toString()}`} />
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+
+            '& > :first-child': {
+              flexGrow: 1,
+            },
+          }}
+        >
+          {createOutlinedSlider('ps-memory', 'Memory', {
+            sliderProps: {
+              max: sliderMaxAvailableMemory,
+              min: 1,
+              onChange: (event, newValue) => {
+                console.log(`newValue=${newValue}`);
+              },
+            },
+          })}
+          {createOutlinedSelect('ps-memory-unit', undefined, memoryUnit, [
+            'B',
+            'KiB',
+            'kB',
+            'MiB',
+            'MB',
+            'GiB',
+            'GB',
+            'TiB',
+            'TB',
+          ])}
+        </Box>
+        {/* {createOutlinedSlider('ps-memory', 'Memory')}
+        {createOutlinedSelect('ps-storage-group', 'Storage group', [
+          ['b594f417-852a-4bd4-a215-fae32d226b0b', 'Storage group 1'],
+        ])}
+        {createOutlinedSlider('ps-image-size', 'Virtual disk size')}
+        {createOutlinedSelect('ps-install-image', 'Install ISO', [])}
+        {createOutlinedSelect('ps-driver-image', 'Driver ISO', [])}
+        {createOutlinedSelect(
+          'ps-optimize-for-os',
+          'Optimize for OS',
+          optimizeOSList,
+        )} */}
       </FormGroup>
     </Dialog>
   );
