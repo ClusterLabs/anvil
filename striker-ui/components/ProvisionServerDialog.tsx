@@ -104,7 +104,9 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
       serverMemory: bigint;
     }
   >;
+  storageGroupUUIDs: string[];
   storageGroups: Array<OrganizedStorageGroupMetadataForProvisionServer>;
+  fileUUIDs: string[];
 };
 
 const MOCK_DATA = {
@@ -211,6 +213,39 @@ const MOCK_DATA = {
           fileName: 'alpine-virt-3.15.0-x86_64.iso',
         },
       ],
+    },
+    {
+      anvilUUID: '68470d36-e46b-44a5-b2cd-d57b2e7b5ddb',
+      anvilName: 'mock-anvil-02',
+      anvilTotalCPUCores: 16,
+      anvilTotalMemory: '1234567890',
+      anvilTotalAllocatedCPUCores: 7,
+      anvilTotalAllocatedMemory: '12345',
+      anvilTotalAvailableCPUCores: 9,
+      anvilTotalAvailableMemory: '1234555545',
+      hosts: [
+        {
+          hostUUID: 'ee1f4852-b3bc-44ca-93b7-8000c3063292',
+          hostName: 'mock-a03n01.alteeve.com',
+          hostCPUCores: 16,
+          hostMemory: '1234567890',
+        },
+        {
+          hostUUID: '26f9d3c4-0f91-4266-9f6f-1309e521c693',
+          hostName: 'mock-a03n02.alteeve.com',
+          hostCPUCores: 16,
+          hostMemory: '1234567890',
+        },
+        {
+          hostUUID: 'eb1b1bd6-2caa-4907-ac68-7dba465b7a67',
+          hostName: 'mock-a03dr01.alteeve.com',
+          hostCPUCores: 16,
+          hostMemory: '1234567890',
+        },
+      ],
+      servers: [],
+      storageGroups: [],
+      files: [],
     },
   ],
   osList: [
@@ -379,7 +414,32 @@ const organizeAnvils = (
       hosts,
       servers,
       storageGroups,
+      files,
     } = anvil;
+
+    const { storageGroupUUIDs, organizedStorageGroups } = storageGroups.reduce<{
+      storageGroupUUIDs: string[];
+      organizedStorageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
+    }>(
+      (reduced, storageGroup) => {
+        reduced.storageGroupUUIDs.push(storageGroup.storageGroupUUID);
+        reduced.organizedStorageGroups.push({
+          ...storageGroup,
+          anvilUUID,
+          anvilName,
+          storageGroupSize: BigInt(storageGroup.storageGroupSize),
+          storageGroupFree: BigInt(storageGroup.storageGroupFree),
+        });
+
+        return reduced;
+      },
+      {
+        storageGroupUUIDs: [],
+        organizedStorageGroups: [],
+      },
+    );
+
+    const fileUUIDs = files.map(({ fileUUID }) => fileUUID);
 
     return {
       ...anvil,
@@ -394,13 +454,9 @@ const organizeAnvils = (
         ...server,
         serverMemory: BigInt(server.serverMemory),
       })),
-      storageGroups: storageGroups.map((storageGroup) => ({
-        ...storageGroup,
-        anvilUUID,
-        anvilName,
-        storageGroupSize: BigInt(storageGroup.storageGroupSize),
-        storageGroupFree: BigInt(storageGroup.storageGroupFree),
-      })),
+      storageGroupUUIDs,
+      storageGroups: organizedStorageGroups,
+      fileUUIDs,
     };
   });
 
@@ -412,6 +468,26 @@ const organizeStorageGroups = (
       reducedStorageGroups.push(...storageGroups);
 
       return reducedStorageGroups;
+    },
+    [],
+  );
+
+const organizeFiles = (
+  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
+) =>
+  organizedAnvils.reduce<FileMetadataForProvisionServer[]>(
+    (reducedFiles, { files }) => {
+      files.forEach((file) => {
+        // Avoid pushing duplicate file UUIDs.
+        if (
+          reducedFiles.find(({ fileUUID }) => file.fileUUID === fileUUID) ===
+          undefined
+        ) {
+          reducedFiles.push(file);
+        }
+      });
+
+      return reducedFiles;
     },
     [],
   );
@@ -582,12 +658,16 @@ const ProvisionServerDialog = ({
     useState<DataSizeUnit>('B');
 
   const [storageGroupValue, setStorageGroupValue] = useState<string[]>([]);
-  const [excludedStorageGroupsUUID, setExcludedStorageGroupsUUID] = useState<
+  const [excludedStorageGroupUUIDs, setExcludedStorageGroupUUIDs] = useState<
     string[]
   >([]);
   const [selectedStorageGroupUUID, setSelectedStorageGroupUUID] = useState<
     string | undefined
   >();
+
+  const [installISOFileUUID, setInstallISOFileUUID] = useState<string>('');
+  const [driverISOFileUUID, setDriverISOFileUUID] = useState<string>('');
+  const [excludedFileUUIDs, setExcludedFileUUIDs] = useState<string[]>([]);
 
   const [anvilValue, setAnvilValue] = useState<string[]>([]);
   const [selectedAnvilUUID, setSelectedAnvilUUID] = useState<
@@ -598,9 +678,15 @@ const ProvisionServerDialog = ({
 
   const organizedAnvils = organizeAnvils(data.anvils);
   const organizedStorageGroups = organizeStorageGroups(organizedAnvils);
+  const organizedFiles = organizeFiles(organizedAnvils);
 
   const { maxCPUCores, maxMemory, maxVirtualDiskSize } =
     getMaxAvailableValues(organizedAnvils);
+
+  const selectFiles = organizedFiles.map(({ fileUUID, fileName }) => ({
+    displayValue: fileName,
+    value: fileUUID,
+  }));
 
   // const optimizeOSList = data.osList.map((keyValuePair) =>
   //   keyValuePair.split(','),
@@ -629,7 +715,7 @@ const ProvisionServerDialog = ({
         {createOutlinedInput('ps-server-name', 'Server name')}
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', cpuCoresValue, {
           sliderProps: {
-            onChange: (event, value) => {
+            onChange: (value) => {
               setCPUCoresValue(value as number);
             },
             max: inputCPUCoresMax,
@@ -739,7 +825,7 @@ const ProvisionServerDialog = ({
           ),
           {
             checkItem: (value) => storageGroupValue.includes(value),
-            hideItem: (value) => excludedStorageGroupsUUID.includes(value),
+            hideItem: (value) => excludedStorageGroupUUIDs.includes(value),
             selectProps: {
               multiple: true,
               onChange: ({ target: { value } }) => {
@@ -769,6 +855,24 @@ const ProvisionServerDialog = ({
             },
           },
         )}
+        {createOutlinedSelect('ps-install-image', 'Install ISO', selectFiles, {
+          hideItem: (value) => excludedFileUUIDs.includes(value),
+          selectProps: {
+            onChange: ({ target: { value } }) => {
+              setInstallISOFileUUID(value as string);
+            },
+            value: installISOFileUUID,
+          },
+        })}
+        {createOutlinedSelect('ps-driver-image', 'Driver ISO', selectFiles, {
+          hideItem: (value) => excludedFileUUIDs.includes(value),
+          selectProps: {
+            onChange: ({ target: { value } }) => {
+              setDriverISOFileUUID(value as string);
+            },
+            value: driverISOFileUUID,
+          },
+        })}
         <BodyText text={`Selected anvil UUID: ${selectedAnvilUUID}`} />
         {createOutlinedSelect(
           'ps-anvil',
@@ -782,57 +886,85 @@ const ProvisionServerDialog = ({
             selectProps: {
               multiple: true,
               onChange: ({ target: { value } }) => {
-                const subsetAnvilsUUID: string[] =
+                const subsetAnvilUUIDs: string[] =
                   typeof value === 'string'
                     ? value.split(',')
                     : (value as string[]);
 
-                setAnvilValue(subsetAnvilsUUID);
+                setAnvilValue(subsetAnvilUUIDs);
 
-                let newExcludedStorageGroupsUUID: string[] = [];
+                const includedFileUUIDs: string[] = [];
 
-                if (subsetAnvilsUUID.length > 0) {
-                  newExcludedStorageGroupsUUID = organizedAnvils.reduce<
-                    string[]
-                  >(
-                    (
-                      reducedStorageGroupsUUID,
-                      { anvilUUID, storageGroups },
-                    ) => {
-                      if (!subsetAnvilsUUID.includes(anvilUUID)) {
-                        reducedStorageGroupsUUID.push(
-                          ...storageGroups.map(
-                            ({ storageGroupUUID }) => storageGroupUUID,
-                          ),
-                        );
-                      }
+                let newExcludedStorageGroupUUIDs: string[] = [];
+                let newExcludedFileUUIDs: string[] = [];
 
-                      return reducedStorageGroupsUUID;
-                    },
-                    [],
-                  );
+                if (subsetAnvilUUIDs.length > 0) {
+                  ({ newExcludedStorageGroupUUIDs, newExcludedFileUUIDs } =
+                    organizedAnvils.reduce<{
+                      newExcludedStorageGroupUUIDs: string[];
+                      newExcludedFileUUIDs: string[];
+                    }>(
+                      (
+                        reduced,
+                        { anvilUUID, storageGroupUUIDs, fileUUIDs },
+                      ) => {
+                        if (subsetAnvilUUIDs.includes(anvilUUID)) {
+                          includedFileUUIDs.push(...fileUUIDs);
+                        } else {
+                          reduced.newExcludedStorageGroupUUIDs.push(
+                            ...storageGroupUUIDs,
+                          );
+                          reduced.newExcludedFileUUIDs.push(...fileUUIDs);
+                        }
+
+                        return reduced;
+                      },
+                      {
+                        newExcludedStorageGroupUUIDs: [],
+                        newExcludedFileUUIDs: [],
+                      },
+                    ));
+
+                  includedFileUUIDs.forEach((fileUUID) => {
+                    newExcludedFileUUIDs.splice(
+                      newExcludedFileUUIDs.indexOf(fileUUID),
+                      1,
+                    );
+                  });
                 }
 
-                setExcludedStorageGroupsUUID(newExcludedStorageGroupsUUID);
+                setExcludedStorageGroupUUIDs(newExcludedStorageGroupUUIDs);
+                setExcludedFileUUIDs(newExcludedFileUUIDs);
 
                 const newStorageGroupValue = storageGroupValue.filter(
-                  (uuid) => !newExcludedStorageGroupsUUID.includes(uuid),
+                  (uuid) => !newExcludedStorageGroupUUIDs.includes(uuid),
                 );
-
                 setStorageGroupValue(newStorageGroupValue);
+
+                newExcludedFileUUIDs.forEach((excludedFileUUID) => {
+                  if (installISOFileUUID === excludedFileUUID) {
+                    setInstallISOFileUUID('');
+                  }
+
+                  if (driverISOFileUUID === excludedFileUUID) {
+                    setDriverISOFileUUID('');
+                  }
+                });
 
                 const {
                   maxCPUCores: localMaxCPUCores,
                   maxMemory: localMaxMemory,
                   maxVirtualDiskSize: localMaxVDSize,
                 } = getMaxAvailableValues(organizedAnvils, {
-                  includeAnvilUUIDs: subsetAnvilsUUID,
+                  includeAnvilUUIDs: subsetAnvilUUIDs,
                   includeStorageGroupUUIDs: newStorageGroupValue,
                 });
 
                 setInputCPUCoresMax(localMaxCPUCores);
                 setInputMemoryMax(localMaxMemory);
                 setInputVirtualDiskSizeMax(localMaxVDSize);
+
+                setCPUCoresValue(Math.min(cpuCoresValue, localMaxCPUCores));
 
                 setSelectedAnvilUUID(
                   filterAnvils(
@@ -848,8 +980,6 @@ const ProvisionServerDialog = ({
           },
         )}
         {/*
-        {createOutlinedSelect('ps-install-image', 'Install ISO', [])}
-        {createOutlinedSelect('ps-driver-image', 'Driver ISO', [])}
         {createOutlinedSelect(
           'ps-optimize-for-os',
           'Optimize for OS',
