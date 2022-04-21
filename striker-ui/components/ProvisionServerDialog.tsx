@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogProps, FormControl, FormGroup } from '@mui/material';
+import {
+  Checkbox,
+  Dialog,
+  DialogProps,
+  FormControl,
+  FormGroup,
+} from '@mui/material';
 import {
   dSize as baseDSize,
   DataSizeUnit,
@@ -15,6 +21,11 @@ import Select, { SelectProps } from './Select';
 import Slider, { SliderProps } from './Slider';
 import { BodyText, HeaderText } from './Text';
 import ContainedButton from './ContainedButton';
+
+type SelectItem<SelectItemValueType = string> = {
+  displayValue?: SelectItemValueType;
+  value: SelectItemValueType;
+};
 
 type ProvisionServerDialogProps = {
   dialogProps: DialogProps;
@@ -46,6 +57,16 @@ type FileMetadataForProvisionServer = {
   fileName: string;
 };
 
+type OrganizedStorageGroupMetadataForProvisionServer = Omit<
+  StorageGroupMetadataForProvisionServer,
+  'storageGroupSize' | 'storageGroupFree'
+> & {
+  anvilUUID: string;
+  anvilName: string;
+  storageGroupSize: bigint;
+  storageGroupFree: bigint;
+};
+
 type AnvilDetailMetadataForProvisionServer = {
   anvilUUID: string;
   anvilName: string;
@@ -73,7 +94,6 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
   anvilTotalMemory: bigint;
   anvilTotalAllocatedMemory: bigint;
   anvilTotalAvailableMemory: bigint;
-  anvilMaxAvailableStorage: bigint;
   hosts: Array<
     Omit<HostMetadataForProvisionServerHost, 'hostMemory'> & {
       hostMemory: bigint;
@@ -84,15 +104,7 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
       serverMemory: bigint;
     }
   >;
-  storageGroups: Array<
-    Omit<
-      StorageGroupMetadataForProvisionServer,
-      'storageGroupSize' | 'storageGroupFree'
-    > & {
-      storageGroupSize: bigint;
-      storageGroupFree: bigint;
-    }
-  >;
+  storageGroups: Array<OrganizedStorageGroupMetadataForProvisionServer>;
 };
 
 const MOCK_DATA = {
@@ -187,7 +199,7 @@ const MOCK_DATA = {
           storageGroupFree: '85882568704',
         },
         {
-          storageGroupUUID: '271651b0-c064-401b-9391-549bbced2383',
+          storageGroupUUID: '1d57d618-9c6a-4fda-bcc3-d9014ea55161',
           storageGroupName: 'Mock storage group 2',
           storageGroupSize: '205988560896',
           storageGroupFree: '171765137408',
@@ -232,16 +244,16 @@ const MOCK_DATA = {
 
 const BIGINT_ZERO = BigInt(0);
 
-const DATA_SIZE_UNITS: DataSizeUnit[] = [
-  'B',
-  'KiB',
-  'MiB',
-  'GiB',
-  'TiB',
-  'kB',
-  'MB',
-  'GB',
-  'TB',
+const DATA_SIZE_UNITS: SelectItem<DataSizeUnit>[] = [
+  { value: 'B' },
+  { value: 'KiB' },
+  { value: 'MiB' },
+  { value: 'GiB' },
+  { value: 'TiB' },
+  { value: 'kB' },
+  { value: 'MB' },
+  { value: 'GB' },
+  { value: 'TB' },
 ];
 
 const createOutlinedInput = (
@@ -259,8 +271,18 @@ const createOutlinedInput = (
 const createOutlinedSelect = (
   id: string,
   label: string | undefined,
-  selectItems: [string, string][] | string[],
-  selectProps?: Partial<SelectProps>,
+  selectItems: SelectItem[],
+  {
+    checkItem,
+    disableItem,
+    selectProps,
+    isCheckableItems = selectProps?.multiple,
+  }: {
+    checkItem?: (value: string) => boolean;
+    disableItem?: (value: string) => boolean;
+    isCheckableItems?: boolean;
+    selectProps?: Partial<SelectProps>;
+  } = {},
 ): JSX.Element => (
   <FormControl>
     {label && (
@@ -274,23 +296,18 @@ const createOutlinedSelect = (
         ...selectProps,
       }}
     >
-      {selectItems.map((item) => {
-        let itemValue;
-        let itemDisplayValue;
-
-        if (item instanceof Array) {
-          [itemValue, itemDisplayValue] = item;
-        } else {
-          itemValue = item;
-          itemDisplayValue = item;
-        }
-
-        return (
-          <MenuItem key={`${id}-${itemValue}`} value={itemValue}>
-            {itemDisplayValue}
-          </MenuItem>
-        );
-      })}
+      {selectItems.map(({ value, displayValue = value }) => (
+        <MenuItem
+          disabled={disableItem?.call(null, value)}
+          key={`${id}-${value}`}
+          value={value}
+        >
+          {isCheckableItems && (
+            <Checkbox checked={checkItem?.call(null, value)} />
+          )}
+          {displayValue}
+        </MenuItem>
+      ))}
     </Select>
   </FormControl>
 );
@@ -318,7 +335,7 @@ const createOutlinedSlider = (
 const createOutlinedInputWithSelect = (
   id: string,
   label: string,
-  selectItems: [string, string][] | string[],
+  selectItems: SelectItem[],
   {
     inputProps,
     selectProps,
@@ -338,12 +355,9 @@ const createOutlinedInputWithSelect = (
     }}
   >
     {createOutlinedInput(id, label, inputProps)}
-    {createOutlinedSelect(
-      `${id}-nested-select`,
-      undefined,
-      selectItems,
+    {createOutlinedSelect(`${id}-nested-select`, undefined, selectItems, {
       selectProps,
-    )}
+    })}
   </FormControl>
 );
 
@@ -351,78 +365,117 @@ const organizeAnvils = (
   data: AnvilDetailMetadataForProvisionServer[],
 ): OrganizedAnvilDetailMetadataForProvisionServer[] =>
   data.map((anvil) => {
-    const anvilMaxAvailableStorage = anvil.storageGroups.reduce<bigint>(
-      (reducedStorageGroupFree, { storageGroupFree }) => {
-        const convertedStorageGroupFree = BigInt(storageGroupFree);
-
-        return convertedStorageGroupFree > reducedStorageGroupFree
-          ? convertedStorageGroupFree
-          : reducedStorageGroupFree;
-      },
-      BIGINT_ZERO,
-    );
+    const {
+      anvilUUID,
+      anvilName,
+      anvilTotalMemory,
+      anvilTotalAllocatedMemory,
+      anvilTotalAvailableMemory,
+      hosts,
+      servers,
+      storageGroups,
+    } = anvil;
 
     return {
       ...anvil,
-      anvilTotalMemory: BigInt(anvil.anvilTotalMemory),
-      anvilTotalAllocatedMemory: BigInt(anvil.anvilTotalAllocatedMemory),
-      anvilTotalAvailableMemory: BigInt(anvil.anvilTotalAvailableMemory),
-      anvilMaxAvailableStorage,
-      hosts: anvil.hosts.map((host) => ({
+      anvilTotalMemory: BigInt(anvilTotalMemory),
+      anvilTotalAllocatedMemory: BigInt(anvilTotalAllocatedMemory),
+      anvilTotalAvailableMemory: BigInt(anvilTotalAvailableMemory),
+      hosts: hosts.map((host) => ({
         ...host,
         hostMemory: BigInt(host.hostMemory),
       })),
-      servers: anvil.servers.map((server) => ({
+      servers: servers.map((server) => ({
         ...server,
         serverMemory: BigInt(server.serverMemory),
       })),
-      storageGroups: anvil.storageGroups.map((storageGroup) => ({
+      storageGroups: storageGroups.map((storageGroup) => ({
         ...storageGroup,
+        anvilUUID,
+        anvilName,
         storageGroupSize: BigInt(storageGroup.storageGroupSize),
         storageGroupFree: BigInt(storageGroup.storageGroupFree),
       })),
     };
   });
 
-const getMaxAvailableValues = (
-  anvils: OrganizedAnvilDetailMetadataForProvisionServer[],
+const organizeStorageGroups = (
+  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
 ) =>
-  anvils.reduce<{
-    maxAvailableCPUCores: number;
-    maxAvailableMemory: bigint;
-    maxAvailableVirtualDiskSize: bigint;
+  organizedAnvils.reduce<OrganizedStorageGroupMetadataForProvisionServer[]>(
+    (reducedStorageGroups, { storageGroups }) => {
+      reducedStorageGroups.push(...storageGroups);
+
+      return reducedStorageGroups;
+    },
+    [],
+  );
+
+const getMaxAvailableValues = (
+  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
+  {
+    includeAnvilUUIDs,
+    includeStorageGroupUUIDs,
+  }: {
+    includeAnvilUUIDs?: string[];
+    includeStorageGroupUUIDs?: string[];
+  } = {},
+) => {
+  let testIncludeAnvil: (uuid: string) => boolean = () => true;
+  let testIncludeStorageGroup: (uuid: string) => boolean = () => true;
+
+  if (includeAnvilUUIDs && includeAnvilUUIDs.length > 0) {
+    testIncludeAnvil = (uuid: string) => includeAnvilUUIDs.includes(uuid);
+  }
+
+  if (includeStorageGroupUUIDs && includeStorageGroupUUIDs.length > 0) {
+    testIncludeStorageGroup = (uuid: string) =>
+      includeStorageGroupUUIDs.includes(uuid);
+  }
+
+  return organizedAnvils.reduce<{
+    maxCPUCores: number;
+    maxMemory: bigint;
+    maxVirtualDiskSize: bigint;
   }>(
     (
       reducedValues,
       {
-        anvilTotalAvailableCPUCores,
+        anvilUUID,
+        anvilTotalCPUCores,
         anvilTotalAvailableMemory,
-        anvilMaxAvailableStorage,
+        storageGroups,
       },
     ) => {
-      reducedValues.maxAvailableCPUCores = Math.max(
-        anvilTotalAvailableCPUCores,
-        reducedValues.maxAvailableCPUCores,
-      );
+      if (testIncludeAnvil(anvilUUID)) {
+        reducedValues.maxCPUCores = Math.max(
+          anvilTotalCPUCores,
+          reducedValues.maxCPUCores,
+        );
 
-      if (anvilTotalAvailableMemory > reducedValues.maxAvailableMemory) {
-        reducedValues.maxAvailableMemory = anvilTotalAvailableMemory;
-      }
+        if (anvilTotalAvailableMemory > reducedValues.maxMemory) {
+          reducedValues.maxMemory = anvilTotalAvailableMemory;
+        }
 
-      if (
-        anvilMaxAvailableStorage > reducedValues.maxAvailableVirtualDiskSize
-      ) {
-        reducedValues.maxAvailableVirtualDiskSize = anvilMaxAvailableStorage;
+        storageGroups.forEach(({ storageGroupUUID, storageGroupFree }) => {
+          if (
+            testIncludeStorageGroup(storageGroupUUID) &&
+            storageGroupFree > reducedValues.maxVirtualDiskSize
+          ) {
+            reducedValues.maxVirtualDiskSize = storageGroupFree;
+          }
+        });
       }
 
       return reducedValues;
     },
     {
-      maxAvailableCPUCores: 0,
-      maxAvailableMemory: BIGINT_ZERO,
-      maxAvailableVirtualDiskSize: BIGINT_ZERO,
+      maxCPUCores: 0,
+      maxMemory: BIGINT_ZERO,
+      maxVirtualDiskSize: BIGINT_ZERO,
     },
   );
+};
 
 const dSize = (
   valueToFormat: FormatDataSizeInputValue,
@@ -466,17 +519,42 @@ const filterAnvils = (
   organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
   cpuCores: number,
   memory: bigint,
-  virtualDiskSize: bigint,
+  selectedStorageGroupUUID: string | undefined,
 ) =>
-  organizedAnvils
-    .filter((anvil) => {
-      const isEnoughCPUCores = cpuCores <= anvil.anvilTotalAvailableCPUCores;
-      const isEnoughMemory = memory <= anvil.anvilTotalAvailableMemory;
-      const isEnoughStorage = virtualDiskSize <= anvil.anvilMaxAvailableStorage;
+  organizedAnvils.filter(
+    ({ anvilTotalCPUCores, anvilTotalAvailableMemory, storageGroups }) => {
+      const isEnoughCPUCores = cpuCores <= anvilTotalCPUCores;
+      const isEnoughMemory = memory <= anvilTotalAvailableMemory;
+      const hasSelectedStorageGroup =
+        storageGroups.find(
+          ({ storageGroupUUID }) =>
+            storageGroupUUID === selectedStorageGroupUUID,
+        ) !== undefined;
 
-      return isEnoughCPUCores && isEnoughMemory && isEnoughStorage;
-    })
-    .map(({ anvilUUID, anvilName }) => [anvilUUID, anvilName]);
+      return isEnoughCPUCores && isEnoughMemory && hasSelectedStorageGroup;
+    },
+  );
+
+const filterStorageGroups = (
+  organizedStorageGroups: OrganizedStorageGroupMetadataForProvisionServer[],
+  virtualDiskSize: bigint,
+  includeUUIDs?: string[],
+) => {
+  let testInclude: (uuid: string) => boolean = () => true;
+
+  if (includeUUIDs && includeUUIDs.length > 0) {
+    testInclude = (uuid: string) => includeUUIDs.includes(uuid);
+  }
+
+  return organizedStorageGroups.filter(
+    ({ storageGroupUUID, storageGroupFree }) => {
+      const isEnoughStorage = virtualDiskSize <= storageGroupFree;
+      const isIncluded = testInclude(storageGroupUUID);
+
+      return isEnoughStorage && isIncluded;
+    },
+  );
+};
 
 /**
  * 1. Fetch anvils detail for provision server from the back-end.
@@ -486,50 +564,53 @@ const filterAnvils = (
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
-  const [sliderCPUCoresMax, setSliderCPUCoresMax] = useState<number>(0);
-  // const [sliderMemoryMax, setSliderMemoryMax] = useState<number>(0);
-
   const [cpuCoresValue, setCPUCoresValue] = useState<number>(1);
+  const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
 
   const [memoryValue, setMemoryValue] = useState<bigint>(BIGINT_ZERO);
+  const [inputMemoryMax, setInputMemoryMax] = useState<bigint>(BIGINT_ZERO);
   const [inputMemoryValue, setInputMemoryValue] = useState<string>('');
   const [inputMemoryUnit, setInputMemoryUnit] = useState<DataSizeUnit>('B');
 
   const [virtualDiskSizeValue, setVirtualDiskSizeValue] =
+    useState<bigint>(BIGINT_ZERO);
+  const [inputVirtualDiskSizeMax, setInputVirtualDiskSizeMax] =
     useState<bigint>(BIGINT_ZERO);
   const [inputVirtualDiskSizeValue, setInputVirtualDiskSizeValue] =
     useState<string>('');
   const [inputVirtualDiskSizeUnit, setInputVirtualDiskSizeUnit] =
     useState<DataSizeUnit>('B');
 
-  // const [storageGroupUUID, setStorageGroupUUID] = useState<string>('');
+  const [storageGroupValue, setStorageGroupValue] = useState<string[]>([]);
+  const [excludedStorageGroupsUUID, setExcludedStorageGroupsUUID] = useState<
+    string[]
+  >([]);
+  const [selectedStorageGroupUUID, setSelectedStorageGroupUUID] = useState<
+    string | undefined
+  >();
+
+  const [anvilValue, setAnvilValue] = useState<string[]>([]);
+  const [selectedAnvilUUID, setSelectedAnvilUUID] = useState<
+    string | undefined
+  >();
 
   const data = MOCK_DATA;
 
   const organizedAnvils = organizeAnvils(data.anvils);
+  const organizedStorageGroups = organizeStorageGroups(organizedAnvils);
 
-  const {
-    maxAvailableCPUCores,
-    maxAvailableMemory,
-    maxAvailableVirtualDiskSize,
-  } = getMaxAvailableValues(organizedAnvils);
+  const { maxCPUCores, maxMemory, maxVirtualDiskSize } =
+    getMaxAvailableValues(organizedAnvils);
 
   // const optimizeOSList = data.osList.map((keyValuePair) =>
   //   keyValuePair.split(','),
   // );
 
   useEffect(() => {
-    setSliderCPUCoresMax(maxAvailableCPUCores);
-
-    dSize(maxAvailableMemory, {
-      onSuccess: {
-        number: (value, unit) => {
-          setSliderMemoryMax(value);
-          setInputMemoryUnit(unit);
-        },
-      },
-    });
-  }, [maxAvailableCPUCores, maxAvailableMemory, maxAvailableVirtualDiskSize]);
+    setInputCPUCoresMax(maxCPUCores);
+    setInputMemoryMax(maxMemory);
+    setInputVirtualDiskSizeMax(maxVirtualDiskSize);
+  }, [maxCPUCores, maxMemory, maxVirtualDiskSize]);
 
   return (
     <Dialog
@@ -551,11 +632,13 @@ const ProvisionServerDialog = ({
             onChange: (event, value) => {
               setCPUCoresValue(value as number);
             },
-            max: sliderCPUCoresMax,
+            max: inputCPUCoresMax,
             min: 1,
           },
         })}
-        <BodyText text={`Memory: ${memoryValue.toString()}`} />
+        <BodyText
+          text={`Memory: ${memoryValue.toString()}, Max: ${inputMemoryMax.toString()}`}
+        />
         {createOutlinedInputWithSelect('ps-memory', 'Memory', DATA_SIZE_UNITS, {
           inputProps: {
             type: 'number',
@@ -596,7 +679,7 @@ const ProvisionServerDialog = ({
           },
         })}
         <BodyText
-          text={`Virtual disk size: ${virtualDiskSizeValue.toString()}`}
+          text={`Virtual disk size: ${virtualDiskSizeValue.toString()}, Max: ${inputVirtualDiskSizeMax.toString()}`}
         />
         {createOutlinedInputWithSelect(
           'ps-virtual-disk-size',
@@ -642,11 +725,129 @@ const ProvisionServerDialog = ({
             },
           },
         )}
+        <BodyText
+          text={`Selected storage group UUID: ${selectedStorageGroupUUID}`}
+        />
+        {createOutlinedSelect(
+          'ps-storage-group',
+          'Storage group',
+          organizedStorageGroups.map(
+            ({ anvilName, storageGroupUUID, storageGroupName }) => ({
+              displayValue: `${anvilName} -- ${storageGroupName}`,
+              value: storageGroupUUID,
+            }),
+          ),
+          {
+            checkItem: (value) => storageGroupValue.includes(value),
+            disableItem: (value) => excludedStorageGroupsUUID.includes(value),
+            selectProps: {
+              multiple: true,
+              onChange: ({ target: { value } }) => {
+                const subsetStorageGroupsUUID: string[] =
+                  typeof value === 'string'
+                    ? value.split(',')
+                    : (value as string[]);
+
+                setStorageGroupValue(subsetStorageGroupsUUID);
+
+                setSelectedStorageGroupUUID(
+                  filterStorageGroups(
+                    organizedStorageGroups,
+                    virtualDiskSizeValue,
+                    subsetStorageGroupsUUID,
+                  )[0]?.storageGroupUUID,
+                );
+
+                setInputVirtualDiskSizeMax(
+                  getMaxAvailableValues(organizedAnvils, {
+                    includeAnvilUUIDs: anvilValue,
+                    includeStorageGroupUUIDs: subsetStorageGroupsUUID,
+                  }).maxVirtualDiskSize,
+                );
+              },
+              value: storageGroupValue,
+            },
+          },
+        )}
+        <BodyText text={`Selected anvil UUID: ${selectedAnvilUUID}`} />
+        {createOutlinedSelect(
+          'ps-anvil',
+          'Anvil',
+          organizedAnvils.map(({ anvilUUID, anvilName }) => ({
+            displayValue: anvilName,
+            value: anvilUUID,
+          })),
+          {
+            checkItem: (value) => anvilValue.includes(value),
+            selectProps: {
+              multiple: true,
+              onChange: ({ target: { value } }) => {
+                const subsetAnvilsUUID: string[] =
+                  typeof value === 'string'
+                    ? value.split(',')
+                    : (value as string[]);
+
+                setAnvilValue(subsetAnvilsUUID);
+
+                let newExcludedStorageGroupsUUID: string[] = [];
+
+                if (subsetAnvilsUUID.length > 0) {
+                  newExcludedStorageGroupsUUID = organizedAnvils.reduce<
+                    string[]
+                  >(
+                    (
+                      reducedStorageGroupsUUID,
+                      { anvilUUID, storageGroups },
+                    ) => {
+                      if (!subsetAnvilsUUID.includes(anvilUUID)) {
+                        reducedStorageGroupsUUID.push(
+                          ...storageGroups.map(
+                            ({ storageGroupUUID }) => storageGroupUUID,
+                          ),
+                        );
+                      }
+
+                      return reducedStorageGroupsUUID;
+                    },
+                    [],
+                  );
+                }
+
+                setExcludedStorageGroupsUUID(newExcludedStorageGroupsUUID);
+
+                const newStorageGroupValue = storageGroupValue.filter(
+                  (uuid) => !newExcludedStorageGroupsUUID.includes(uuid),
+                );
+
+                setStorageGroupValue(newStorageGroupValue);
+
+                const {
+                  maxCPUCores: localMaxCPUCores,
+                  maxMemory: localMaxMemory,
+                  maxVirtualDiskSize: localMaxVDSize,
+                } = getMaxAvailableValues(organizedAnvils, {
+                  includeAnvilUUIDs: subsetAnvilsUUID,
+                  includeStorageGroupUUIDs: newStorageGroupValue,
+                });
+
+                setInputCPUCoresMax(localMaxCPUCores);
+                setInputMemoryMax(localMaxMemory);
+                setInputVirtualDiskSizeMax(localMaxVDSize);
+
+                setSelectedAnvilUUID(
+                  filterAnvils(
+                    organizedAnvils,
+                    cpuCoresValue,
+                    memoryValue,
+                    selectedStorageGroupUUID,
+                  )[0]?.anvilUUID,
+                );
+              },
+              value: anvilValue,
+            },
+          },
+        )}
         {/*
-        {createOutlinedSelect('ps-storage-group', 'Storage group', [
-          ['b594f417-852a-4bd4-a215-fae32d226b0b', 'Storage group 1'],
-        ])}
-        {createOutlinedSlider('ps-image-size', 'Virtual disk size')}
         {createOutlinedSelect('ps-install-image', 'Install ISO', [])}
         {createOutlinedSelect('ps-driver-image', 'Driver ISO', [])}
         {createOutlinedSelect(
@@ -654,17 +855,6 @@ const ProvisionServerDialog = ({
           'Optimize for OS',
           optimizeOSList,
         )} */}
-        {filterAnvils(
-          organizedAnvils,
-          cpuCoresValue,
-          memoryValue,
-          virtualDiskSizeValue,
-        ).map(([anvilUUID, anvilName]) => (
-          <BodyText
-            key={`ps-filtered-anvils-${anvilUUID}`}
-            text={`${anvilUUID},${anvilName}`}
-          />
-        ))}
       </FormGroup>
       <ContainedButton>Provision</ContainedButton>
     </Dialog>
