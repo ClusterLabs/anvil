@@ -275,11 +275,13 @@ const createOutlinedSelect = (
   {
     checkItem,
     disableItem,
+    hideItem,
     selectProps,
     isCheckableItems = selectProps?.multiple,
   }: {
     checkItem?: (value: string) => boolean;
     disableItem?: (value: string) => boolean;
+    hideItem?: (value: string) => boolean;
     isCheckableItems?: boolean;
     selectProps?: Partial<SelectProps>;
   } = {},
@@ -300,6 +302,9 @@ const createOutlinedSelect = (
         <MenuItem
           disabled={disableItem?.call(null, value)}
           key={`${id}-${value}`}
+          sx={{
+            display: hideItem?.call(null, value) ? 'none' : undefined,
+          }}
           value={value}
         >
           {isCheckableItems && (
@@ -556,11 +561,6 @@ const filterStorageGroups = (
   );
 };
 
-/**
- * 1. Fetch anvils detail for provision server from the back-end.
- * 2. Get the max values for CPU cores, memory, and virtual disk size.
- */
-
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
@@ -739,7 +739,7 @@ const ProvisionServerDialog = ({
           ),
           {
             checkItem: (value) => storageGroupValue.includes(value),
-            disableItem: (value) => excludedStorageGroupsUUID.includes(value),
+            hideItem: (value) => excludedStorageGroupsUUID.includes(value),
             selectProps: {
               multiple: true,
               onChange: ({ target: { value } }) => {
