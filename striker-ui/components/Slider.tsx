@@ -25,7 +25,9 @@ type SliderOptionalProps = {
   isAllowTextInput?: boolean;
   labelId?: string;
   labelProps?: MUITypographyProps;
-  sliderProps?: MUISliderProps;
+  sliderProps?: Omit<MUISliderProps, 'onChange'> & {
+    onChange?: (value: number | number[]) => void;
+  };
 };
 
 type SliderProps = {
@@ -149,33 +151,25 @@ const Slider = ({
     valueLabelDisplay: sliderValueLabelDisplay,
   } = sliderProps ?? SLIDER_DEFAULT_PROPS.sliderProps;
 
-  const [sliderValue, setSliderValue] = useState<SliderValue>(value);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
   const handleLocalSliderBlur: SliderOnBlur = () => {
     setIsFocused(false);
   };
 
-  const handleLocalSliderChange: SliderOnChange = (event, newValue) => {
-    setSliderValue(newValue);
-  };
-
   const handleLocalSliderFocus: SliderOnFocus = () => {
     setIsFocused(true);
   };
 
-  const handleLocalTextInputChange: TextInputOnChange = ({
-    target: { value: newValue },
-  }) => {
-    setSliderValue(parseFloat(newValue));
+  const handleSliderChange: SliderOnChange = (event, newValue) => {
+    sliderChangeCallback?.call(null, newValue);
   };
 
-  const handleSliderChange = sliderChangeCallback
-    ? (...args: Parameters<SliderOnChange>) => {
-        handleLocalSliderChange(...args);
-        sliderChangeCallback(...args);
-      }
-    : handleLocalSliderChange;
+  const handleTextInputChange: TextInputOnChange = ({
+    target: { value: newValue },
+  }) => {
+    sliderChangeCallback?.call(null, parseFloat(newValue));
+  };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -219,7 +213,7 @@ const Slider = ({
 
               ...sliderSx,
             },
-            value: sliderValue,
+            value,
             valueLabelDisplay: sliderValueLabelDisplay,
           }}
         />
@@ -228,9 +222,9 @@ const Slider = ({
           max,
           min,
           onBlur: handleLocalSliderBlur,
-          onChange: handleLocalTextInputChange,
+          onChange: handleTextInputChange,
           onFocus: handleLocalSliderFocus,
-          sliderValue,
+          sliderValue: value,
           sx: isAllowTextInput
             ? undefined
             : {
