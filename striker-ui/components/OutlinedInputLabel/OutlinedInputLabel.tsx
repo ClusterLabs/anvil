@@ -6,8 +6,10 @@ import {
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
+type OutlinedInputLabelProps = MUIInputLabelProps;
+
 const OutlinedInputLabel = (
-  inputLabelProps: MUIInputLabelProps,
+  inputLabelProps: OutlinedInputLabelProps,
 ): JSX.Element => {
   const { children, sx } = inputLabelProps;
   const combinedSx = {
@@ -39,5 +41,7 @@ const OutlinedInputLabel = (
     </MUIInputLabel>
   );
 };
+
+export type { OutlinedInputLabelProps };
 
 export default OutlinedInputLabel;
