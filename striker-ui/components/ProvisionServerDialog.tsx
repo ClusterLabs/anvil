@@ -13,6 +13,7 @@ import {
   FormatDataSizeInputValue,
 } from 'format-data-size';
 
+import Autocomplete from './Autocomplete';
 import MenuItem from './MenuItem';
 import OutlinedInput, { OutlinedInputProps } from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
@@ -21,6 +22,8 @@ import Select, { SelectProps } from './Select';
 import Slider, { SliderProps } from './Slider';
 import { BodyText, HeaderText } from './Text';
 import ContainedButton from './ContainedButton';
+import { OutlinedInputLabelProps } from './OutlinedInputLabel/OutlinedInputLabel';
+import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 
 type SelectItem<SelectItemValueType = string> = {
   displayValue?: SelectItemValueType;
@@ -291,18 +294,6 @@ const DATA_SIZE_UNITS: SelectItem<DataSizeUnit>[] = [
   { value: 'TB' },
 ];
 
-const createOutlinedInput = (
-  id: string,
-  label: string,
-  inputProps?: Partial<OutlinedInputProps>,
-): JSX.Element => (
-  <FormControl>
-    <OutlinedInputLabel {...{ htmlFor: id }}>{label}</OutlinedInputLabel>
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-    <OutlinedInput {...{ id, label, ...inputProps }} />
-  </FormControl>
-);
-
 const createOutlinedSelect = (
   id: string,
   label: string | undefined,
@@ -378,9 +369,11 @@ const createOutlinedInputWithSelect = (
   selectItems: SelectItem[],
   {
     inputProps,
+    inputLabelProps,
     selectProps,
   }: {
     inputProps?: Partial<OutlinedInputProps>;
+    inputLabelProps?: Partial<OutlinedInputLabelProps>;
     selectProps?: Partial<SelectProps>;
   } = {},
 ) => (
@@ -394,7 +387,7 @@ const createOutlinedInputWithSelect = (
       },
     }}
   >
-    {createOutlinedInput(id, label, inputProps)}
+    <OutlinedInputWithLabel {...{ id, label, inputProps, inputLabelProps }} />
     {createOutlinedSelect(`${id}-nested-select`, undefined, selectItems, {
       selectProps,
     })}
@@ -596,6 +589,21 @@ const dSize = (
   }
 };
 
+const dSizeToBytes = (
+  value: FormatDataSizeInputValue,
+  fromUnit: DataSizeUnit,
+  onSuccess: (newValue: bigint, unit: DataSizeUnit) => void,
+) => {
+  dSize(value, {
+    fromUnit,
+    onSuccess: {
+      bigint: onSuccess,
+    },
+    precision: 0,
+    toUnit: 'B',
+  });
+};
+
 const filterAnvils = (
   organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
   cpuCores: number,
@@ -688,9 +696,14 @@ const ProvisionServerDialog = ({
     value: fileUUID,
   }));
 
-  // const optimizeOSList = data.osList.map((keyValuePair) =>
-  //   keyValuePair.split(','),
-  // );
+  const optimizeOSList = data.osList.map((keyValuePair) => {
+    const [osKey, osValue] = keyValuePair.split(',');
+
+    return {
+      label: osValue,
+      key: osKey,
+    };
+  });
 
   useEffect(() => {
     setInputCPUCoresMax(maxCPUCores);
@@ -712,7 +725,7 @@ const ProvisionServerDialog = ({
         <HeaderText text="Provision a Server" />
       </PanelHeader>
       <FormGroup>
-        {createOutlinedInput('ps-server-name', 'Server name')}
+        <OutlinedInputWithLabel id="ps-server-name" label="Server name" />
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', cpuCoresValue, {
           sliderProps: {
             onChange: (value) => {
@@ -731,16 +744,7 @@ const ProvisionServerDialog = ({
             onChange: ({ target: { value } }) => {
               setInputMemoryValue(value);
 
-              dSize(value, {
-                fromUnit: inputMemoryUnit,
-                onSuccess: {
-                  bigint: (newValue) => {
-                    setMemoryValue(newValue);
-                  },
-                },
-                precision: 0,
-                toUnit: 'B',
-              });
+              dSizeToBytes(value, inputMemoryUnit, setMemoryValue);
             },
             value: inputMemoryValue,
           },
@@ -750,16 +754,7 @@ const ProvisionServerDialog = ({
 
               setInputMemoryUnit(selectedUnit);
 
-              dSize(inputMemoryValue, {
-                fromUnit: selectedUnit,
-                onSuccess: {
-                  bigint: (newValue) => {
-                    setMemoryValue(newValue);
-                  },
-                },
-                precision: 0,
-                toUnit: 'B',
-              });
+              dSizeToBytes(inputMemoryValue, selectedUnit, setMemoryValue);
             },
             value: inputMemoryUnit,
           },
@@ -777,16 +772,11 @@ const ProvisionServerDialog = ({
               onChange: ({ target: { value } }) => {
                 setInputVirtualDiskSizeValue(value);
 
-                dSize(value, {
-                  fromUnit: inputVirtualDiskSizeUnit,
-                  onSuccess: {
-                    bigint: (newValue) => {
-                      setVirtualDiskSizeValue(newValue);
-                    },
-                  },
-                  precision: 0,
-                  toUnit: 'B',
-                });
+                dSizeToBytes(
+                  value,
+                  inputVirtualDiskSizeUnit,
+                  setVirtualDiskSizeValue,
+                );
               },
               value: inputVirtualDiskSizeValue,
             },
@@ -796,16 +786,11 @@ const ProvisionServerDialog = ({
 
                 setInputVirtualDiskSizeUnit(selectedUnit);
 
-                dSize(inputVirtualDiskSizeValue, {
-                  fromUnit: selectedUnit,
-                  onSuccess: {
-                    bigint: (newValue) => {
-                      setVirtualDiskSizeValue(newValue);
-                    },
-                  },
-                  precision: 0,
-                  toUnit: 'B',
-                });
+                dSizeToBytes(
+                  inputVirtualDiskSizeValue,
+                  selectedUnit,
+                  setVirtualDiskSizeValue,
+                );
               },
               value: inputVirtualDiskSizeUnit,
             },
@@ -979,12 +964,13 @@ const ProvisionServerDialog = ({
             },
           },
         )}
-        {/*
-        {createOutlinedSelect(
-          'ps-optimize-for-os',
-          'Optimize for OS',
-          optimizeOSList,
-        )} */}
+        <Autocomplete
+          id="ps-optimize-for-os"
+          label="Optimize for OS"
+          noOptionsText="No matching OS"
+          openOnFocus
+          options={optimizeOSList}
+        />
       </FormGroup>
       <ContainedButton>Provision</ContainedButton>
     </Dialog>
