@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Checkbox,
-  Dialog,
-  DialogProps,
-  FormControl,
-  FormGroup,
-} from '@mui/material';
+import { Box, Checkbox, Dialog, DialogProps, FormControl } from '@mui/material';
 import {
   dSize as baseDSize,
   DataSizeUnit,
@@ -724,7 +718,18 @@ const ProvisionServerDialog = ({
       <PanelHeader>
         <HeaderText text="Provision a Server" />
       </PanelHeader>
-      <FormGroup>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '50vh',
+          overflowY: 'scroll',
+
+          '& > :not(:first-child)': {
+            marginTop: '1em',
+          },
+        }}
+      >
         <OutlinedInputWithLabel id="ps-server-name" label="Server name" />
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', cpuCoresValue, {
           sliderProps: {
@@ -971,8 +976,18 @@ const ProvisionServerDialog = ({
           openOnFocus
           options={optimizeOSList}
         />
-      </FormGroup>
-      <ContainedButton>Provision</ContainedButton>
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          marginTop: '1em',
+          width: '100%',
+        }}
+      >
+        <ContainedButton>Provision</ContainedButton>
+      </Box>
     </Dialog>
   );
 };
