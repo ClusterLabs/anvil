@@ -53,9 +53,19 @@ const createInputLabelDecorator = ({
 }) => {
   const borderColor = GREY;
   const borderStyle = 'solid';
-  const borderWidth = isFocused ? '2px 0 0 0' : '1px 0 0 0';
   const content = '""';
-  const opacity = isFocused ? '1' : '0.3';
+
+  let rootTop = '0';
+  let labelGapMargin = '0 .6em 0 .4em';
+  let borderWidth = '1px 0 0 0';
+  let opacity = '0.3';
+
+  if (isFocused) {
+    rootTop = '-1px';
+    labelGapMargin = '0 1em 0 1em';
+    borderWidth = '2px 0 0 0';
+    opacity = '1';
+  }
 
   return (
     <Box
@@ -63,6 +73,7 @@ const createInputLabelDecorator = ({
         display: 'flex',
         flexDirection: 'row',
         position: 'absolute',
+        top: rootTop,
         width: '100%',
 
         '> :last-child': {
@@ -83,7 +94,7 @@ const createInputLabelDecorator = ({
       <BodyText
         sx={{
           fontSize: '.75em',
-          margin: isFocused ? '0 1em 0 1em' : '0 .6em 0 .4em',
+          margin: labelGapMargin,
           visibility: 'hidden',
         }}
         text={label}
