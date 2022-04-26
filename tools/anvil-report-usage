@@ -1,0 +1,1005 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->data->{switches}{detailed} = 0;
+$anvil->Get->switches();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::detailed" => $anvil->data->{switches}{detailed}, 
+}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0359"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->data->{display}{lines} = [];
+collect_server_data($anvil);
+collect_anvil_data($anvil);
+show_servers($anvil);
+show_anvils($anvil);
+
+# Show the results	
+foreach my $line (@{$anvil->data->{display}{lines}})
+{
+	print $line."\n";
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub collect_anvil_data
+{
+	$anvil->data->{longest}{anvil_name}      = 0;
+	$anvil->data->{longest}{description}     = 0;
+	$anvil->data->{longest}{host_cpu_string} = 0;
+	$anvil->data->{longest}{ram_used}        = 0;
+	$anvil->data->{longest}{ram_free}        = 0;
+	$anvil->data->{longest}{bridge_string}   = 0;
+	$anvil->data->{longest}{storage_group}   = 0;
+	$anvil->data->{longest}{sg_used}         = 0;
+	$anvil->data->{longest}{sg_free}         = 0;
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name" => $anvil_name, 
+			"s2:anvil_uuid" => $anvil_uuid, 
+		}});
+		
+		$anvil->data->{anvil_data}{$anvil_name}{description}       = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+		$anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
+		$anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+		$anvil->data->{anvil_data}{$anvil_name}{dr1_host_uuid}     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_data::${anvil_name}::anvil_description" => $anvil->data->{anvil_data}{$anvil_name}{description}, 
+			"s2:anvil_data::${anvil_name}::node1_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}, 
+			"s3:anvil_data::${anvil_name}::node2_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}, 
+			"s4:anvil_data::${anvil_name}::dr1_host_uuid"     => $anvil->data->{anvil_data}{$anvil_name}{dr1_host_uuid}, 
+		}});
+		
+		if (length($anvil_name) > $anvil->data->{longest}{anvil_name})
+		{
+			$anvil->data->{longest}{anvil_name} = length($anvil_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::anvil_name' => $anvil->data->{longest}{anvil_name}, 
+			}});
+		}
+		
+		if (length($anvil->data->{anvil_data}{$anvil_name}{description}) > $anvil->data->{longest}{description})
+		{
+			$anvil->data->{longest}{description} = length($anvil->data->{anvil_data}{$anvil_name}{description});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::description' => $anvil->data->{longest}{description}, 
+			}});
+		}
+		
+		my $node1_host_uuid = $anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvil_data}{$anvil_name}{dr1_host_uuid};
+		if ($anvil->data->{switches}{detailed})
+		{
+			$anvil->data->{anvil_data}{$anvil_name}{node1_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+			$anvil->data->{anvil_data}{$anvil_name}{node2_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+			$anvil->data->{anvil_data}{$anvil_name}{dr1_host_name}   = "";
+			if ($dr1_host_uuid)
+			{
+				$anvil->data->{anvil_data}{$anvil_name}{dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:anvil_data::${anvil_name}::node1_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node1_host_name}, 
+				"s2:anvil_data::${anvil_name}::node2_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node2_host_name}, 
+				"s3:anvil_data::${anvil_name}::dr1_host_name"   => $anvil->data->{anvil_data}{$anvil_name}{dr1_host_name}, 
+			}});
+		}
+		else
+		{
+			$anvil->data->{anvil_data}{$anvil_name}{node1_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+			$anvil->data->{anvil_data}{$anvil_name}{node2_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+			if ($dr1_host_uuid)
+			{
+				$anvil->data->{anvil_data}{$anvil_name}{dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:anvil_data::${anvil_name}::node1_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node1_host_name}, 
+				"s2:anvil_data::${anvil_name}::node2_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node2_host_name}, 
+				"s3:anvil_data::${anvil_name}::dr1_host_name"   => $anvil->data->{anvil_data}{$anvil_name}{dr1_host_name}, 
+			}});
+		}
+		
+		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		my $cpu_cores         = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores};
+		my $cpu_threads       = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
+		my $say_cpu           = $anvil->Words->string({key => "message_0289", variables => {
+			cores   => $cpu_cores, 
+			threads => $cpu_threads, 
+		}});
+		my $ram_available     = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
+		my $say_ram_available = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available});
+		my $ram_used          = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated};
+		my $say_ram_used      = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used});
+		my $ram_hardware      = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware};
+		my $say_ram_hardware  = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_hardware});
+		
+		my $bridges = "";
+		foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}})
+		{
+			$bridges .= $bridge_name.", ";
+		}
+		$bridges =~ s/, $//;
+		
+		# Store
+		$anvil->data->{anvil_data}{$anvil_name}{cpu_string}      = $say_cpu;
+		$anvil->data->{anvil_data}{$anvil_name}{ram_used_string} = $say_ram_hardware;
+		$anvil->data->{anvil_data}{$anvil_name}{ram_free_string} = $say_ram_available;
+		$anvil->data->{anvil_data}{$anvil_name}{bridge_string}   = $bridges;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_data::${anvil_name}::cpu_string"      => $anvil->data->{anvil_data}{$anvil_name}{cpu_string}, 
+			"s2:anvil_data::${anvil_name}::ram_used_string" => $anvil->data->{anvil_data}{$anvil_name}{ram_used_string}, 
+			"s3:anvil_data::${anvil_name}::ram_free_string" => $anvil->data->{anvil_data}{$anvil_name}{ram_free_string}, 
+			"s4:anvil_data::${anvil_name}::bridge_string"   => $anvil->data->{anvil_data}{$anvil_name}{bridge_string}, 
+		}});
+		
+		if (length($anvil->data->{anvil_data}{$anvil_name}{cpu_string}) > $anvil->data->{longest}{host_cpu_string})
+		{
+			$anvil->data->{longest}{host_cpu_string} = length($anvil->data->{anvil_data}{$anvil_name}{cpu_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::host_cpu_string' => $anvil->data->{longest}{host_cpu_string}, 
+			}});
+		}
+		
+		if (length($anvil->data->{anvil_data}{$anvil_name}{ram_used_string}) > $anvil->data->{longest}{ram_used})
+		{
+			$anvil->data->{longest}{ram_used} = length($anvil->data->{anvil_data}{$anvil_name}{ram_used_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::ram_used' => $anvil->data->{longest}{ram_used}, 
+			}});
+		}
+		
+		if (length($anvil->data->{anvil_data}{$anvil_name}{ram_free_string}) > $anvil->data->{longest}{ram_free})
+		{
+			$anvil->data->{longest}{ram_free} = length($anvil->data->{anvil_data}{$anvil_name}{ram_free_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::ram_free' => $anvil->data->{longest}{ram_free}, 
+			}});
+		}
+		
+		if (length($anvil->data->{anvil_data}{$anvil_name}{bridge_string}) > $anvil->data->{longest}{bridge_string})
+		{
+			$anvil->data->{longest}{bridge_string} = length($anvil->data->{anvil_data}{$anvil_name}{bridge_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::bridge_string' => $anvil->data->{longest}{bridge_string}, 
+			}});
+		}
+		
+		my $storage_groups = [];
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
+		{
+			my $storage_group_uuid = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+			my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+			my $free_size          = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+			my $sg_used            = $vg_size - $free_size;
+			my $vg_size_on_dr      = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
+			my $free_size_on_dr    = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
+			my $sg_used_on_dr      = $vg_size_on_dr - $free_size_on_dr;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:storage_group_name' => $storage_group_name, 
+				's2:storage_group_uuid' => $storage_group_uuid, 
+				's3:vg_size'            => $anvil->Convert->add_commas({number => $vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
+				's4:free_size'          => $anvil->Convert->add_commas({number => $free_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size}).")", 
+				's5:sg_used'            => $anvil->Convert->add_commas({number => $sg_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used}).")", 
+				's6:vg_size_on_dr'      => $anvil->Convert->add_commas({number => $vg_size_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size_on_dr}).")", 
+				's7:free_size_on_dr'    => $anvil->Convert->add_commas({number => $free_size_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size_on_dr}).")", 
+				's8:sg_used_on_dr'      => $anvil->Convert->add_commas({number => $sg_used_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used_on_dr}).")", 
+			}});
+			
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size} = $anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used});
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size} = $anvil->Convert->bytes_to_human_readable({'bytes' => $free_size});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:anvil_data::${anvil_name}::storage_group::${storage_group_name}::say_used_size" => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size},
+				"s2:anvil_data::${anvil_name}::storage_group::${storage_group_name}::say_free_size" => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size},
+			}});
+			
+			if (length($storage_group_name) > $anvil->data->{longest}{storage_group})
+			{
+				$anvil->data->{longest}{storage_group} = length($storage_group_name);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'longest::storage_group' => $anvil->data->{longest}{storage_group}, 
+				}});
+			}
+			
+			if (length($anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size}) > $anvil->data->{longest}{sg_used})
+			{
+				$anvil->data->{longest}{sg_used} = length($anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'longest::sg_used' => $anvil->data->{longest}{sg_used}, 
+				}});
+			}
+			
+			if (length($anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size}) > $anvil->data->{longest}{sg_free})
+			{
+				$anvil->data->{longest}{sg_free} = length($anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'longest::sg_used' => $anvil->data->{longest}{sg_used}, 
+				}});
+			}
+		}
+	}
+}
+
+sub show_anvils
+{
+	my ($anvil) = @_;
+	
+	my $anvil_header          = $anvil->Words->string({key => "header_0081"});
+	my $longest_anvil_name    = length($anvil_header) > $anvil->data->{longest}{anvil_name}            ? length($anvil_header)         : $anvil->data->{longest}{anvil_name};
+	my $description_header    = $anvil->Words->string({key => "header_0074"});
+	my $longest_description   = length($description_header) > $anvil->data->{longest}{description}     ? length($description_header)   : $anvil->data->{longest}{description};
+	my $cpu_header            = $anvil->Words->string({key => "header_0066"});
+	my $longest_cpu_string    = length($cpu_header) > $anvil->data->{longest}{host_cpu_string}         ? length($cpu_header)           : $anvil->data->{longest}{host_cpu_string};
+	my $ram_used_header       = $anvil->Words->string({key => "header_0075"});
+	my $longest_ram_used      = length($ram_used_header) > $anvil->data->{longest}{ram_used}           ? length($ram_used_header)      : $anvil->data->{longest}{ram_used};
+	my $ram_free_header       = $anvil->Words->string({key => "header_0076"});
+	my $longest_ram_free      = length($ram_free_header) > $anvil->data->{longest}{ram_free}           ? length($ram_free_header)      : $anvil->data->{longest}{ram_free};
+	my $bridge_header         = $anvil->Words->string({key => "header_0077"});
+	my $longest_bridge_string = length($bridge_header) > $anvil->data->{longest}{bridge_string}        ? length($bridge_header)        : $anvil->data->{longest}{bridge_string};
+	my $storage_group_header  = $anvil->Words->string({key => "header_0078"});
+	my $longest_storage_group = length($storage_group_header) > $anvil->data->{longest}{storage_group} ? length($storage_group_header) : $anvil->data->{longest}{storage_group};
+	my $sg_used_header        = $anvil->Words->string({key => "header_0079"});
+	my $longest_sg_used       = length($sg_used_header) > $anvil->data->{longest}{sg_used}             ? length($sg_used_header)       : $anvil->data->{longest}{sg_used};
+	my $sg_free_header        = $anvil->Words->string({key => "header_0080"});
+	my $longest_sg_free       = length($sg_free_header) > $anvil->data->{longest}{sg_free}             ? length($sg_free_header)       : $anvil->data->{longest}{sg_free};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:longest_anvil_name'    => $longest_anvil_name, 
+		's2:longest_description'   => $longest_description, 
+		's3:longest_cpu_string'    => $longest_cpu_string, 
+		's4:longest_ram_used'      => $longest_ram_used, 
+		's5:longest_ram_free'      => $longest_ram_free, 
+		's6:longest_bridge_string' => $longest_bridge_string, 
+		's7:longest_storage_group' => $longest_storage_group, 
+		's8:longest_sg_used'       => $longest_sg_used, 
+		's9:longest_sg_free'       => $longest_sg_free, 
+	}});
+	
+	# Anvil!
+	my $break_line  = "+-".sprintf("%0${longest_anvil_name}d", 0);
+	my $header_line = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
+	my $blank_lead  = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
+	if ($anvil->data->{switches}{detailed})
+	{
+		# Description
+		$break_line  .= "-+-".sprintf("%0${longest_description}d", 0);
+		$header_line .= "| ".sprintf("%-${longest_description}s", $description_header)." ";
+		$blank_lead  .= "   ".sprintf("%-${longest_description}s", $description_header)." ";
+		
+	}
+	# CPU String
+	$break_line  .= "-+-".sprintf("%0${longest_cpu_string}d", 0);
+	$header_line .= "| ".sprintf("%-${longest_cpu_string}s", $cpu_header)." ";
+	$blank_lead  .= "   ".sprintf("%-${longest_cpu_string}s", $cpu_header)." ";
+	
+	if ($anvil->data->{switches}{detailed})
+	{
+		# RAM used
+		$break_line  .= "-+-".sprintf("%0${longest_ram_used}d", 0);
+		$header_line .= "| ".sprintf("%-${longest_ram_used}s", $ram_used_header)." ";
+		$blank_lead  .= "   ".sprintf("%-${longest_ram_used}s", $ram_used_header)." ";
+	}
+	
+	# RAM Free
+	$break_line  .= "-+-".sprintf("%0${longest_ram_free}d", 0);
+	$header_line .= "| ".sprintf("%-${longest_ram_free}s", $ram_free_header)." ";
+	$blank_lead  .= "   ".sprintf("%-${longest_ram_free}s", $ram_free_header)." ";
+	
+	# Bridges
+	$break_line  .= "-+-".sprintf("%0${longest_bridge_string}d", 0);
+	$header_line .= "| ".sprintf("%-${longest_bridge_string}s", $bridge_header)." ";
+	$blank_lead  .= "   ".sprintf("%-${longest_bridge_string}s", $bridge_header)." ";
+	
+	# Storage Group 
+	$break_line  .= "-+-".sprintf("%0${longest_storage_group}d", 0);
+	$header_line .= "| ".sprintf("%-${longest_storage_group}s", $storage_group_header)." ";
+	
+	if ($anvil->data->{switches}{detailed})
+	{
+		# Storage Group Used
+		$break_line  .= "-+-".sprintf("%0${longest_sg_used}d", 0);
+		$header_line .= "| ".sprintf("%-${longest_sg_used}s", $sg_used_header)." ";
+	}
+	
+	# Storage Group Free Space
+	$break_line  .= "-+-".sprintf("%0${longest_sg_free}d", 0)."-+";
+	$header_line .= "| ".sprintf("%-${longest_sg_free}s", $sg_free_header)." |";
+	
+	$break_line =~ s/0/-/g;
+	
+	push @{$anvil->data->{display}{lines}}, "";
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	push @{$anvil->data->{display}{lines}}, $header_line;
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_data}})
+	{
+		my $anvil_description = $anvil->data->{anvil_data}{$anvil_name}{description};
+		my $cpu_string        = $anvil->data->{anvil_data}{$anvil_name}{cpu_string};
+		my $ram_used_string   = $anvil->data->{anvil_data}{$anvil_name}{ram_used_string};
+		my $ram_free_string   = $anvil->data->{anvil_data}{$anvil_name}{ram_free_string};
+		my $bridge_string     = $anvil->data->{anvil_data}{$anvil_name}{bridge_string};
+		
+		my $first_line = "| ".sprintf("%-${longest_anvil_name}s", $anvil_name);
+		if ($anvil->data->{switches}{detailed})
+		{
+			$first_line .= " | ".sprintf("%-${longest_description}s", $anvil_description);
+		}
+		$first_line .= " | ".sprintf("%-${longest_cpu_string}s", $cpu_string);
+		if ($anvil->data->{switches}{detailed})
+		{
+			$first_line .= " | ".sprintf("%-${longest_ram_used}s", $ram_used_string);
+		}
+		$first_line .= " | ".sprintf("%-${longest_ram_free}s", $ram_used_string);
+		$first_line .= " | ".sprintf("%-${longest_bridge_string}s", $bridge_string);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { first_line => $first_line }});
+		
+		my $storage_groups = [];
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_data}{$anvil_name}{storage_group}})
+		{
+			my $say_used_size = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size};
+			my $say_free_size = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:storage_group_name' => $storage_group_name, 
+				's2:say_used_size'      => $say_used_size, 
+				's3:say_free_size'      => $say_free_size, 
+			}});
+			
+			my $storage_line = " | ".sprintf("%-${longest_storage_group}s", $storage_group_name);
+			if ($anvil->data->{switches}{detailed})
+			{
+				$storage_line .= " | ".sprintf("%-${longest_sg_used}s", $say_used_size);
+			}
+			$storage_line .= " | ".sprintf("%-${longest_sg_free}s", $say_free_size)." |";
+			
+			push @{$storage_groups}, $storage_line;
+		}
+		
+		my $line_count = @{$storage_groups};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line_count => $line_count }});
+		foreach (my $i = 0; $i < $line_count; $i++)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i }});
+			if ($i == 0)
+			{
+				push @{$anvil->data->{display}{lines}}, $first_line.$storage_groups->[$i];
+			}
+			else
+			{
+				push @{$anvil->data->{display}{lines}}, $blank_lead.$storage_groups->[$i];
+			}
+		}
+		
+	}
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	
+	return(0);
+}
+
+sub show_servers
+{
+	my ($anvil) = @_;
+	
+	my $server_header          = $anvil->Words->string({key => "header_0065"});
+	my $longest_server_name    = length($server_header) > $anvil->data->{longest}{server_name}          ? length($server_header)        : $anvil->data->{longest}{server_name};
+	my $anvil_header           = $anvil->Words->string({key => "brand_0002"});
+	my $longest_anvil_name     = length($anvil_header) > $anvil->data->{longest}{anvil_name}            ? length($anvil_header)         : $anvil->data->{longest}{anvil_name};
+	my $cpu_header             = $anvil->Words->string({key => "header_0066"});
+	my $longest_cpu_string     = length($cpu_header) > $anvil->data->{longest}{cpu_string}              ? length($cpu_header)           : $anvil->data->{longest}{cpu_string};
+	my $ram_header             = $anvil->Words->string({key => "header_0067"});
+	my $longest_ram_string     = length($ram_header) > $anvil->data->{longest}{ram_string}              ? length($ram_header)           : $anvil->data->{longest}{ram_string};
+	my $resource_header        = $anvil->Words->string({key => "header_0068"});
+	my $longest_resource_name  = length($resource_header) > $anvil->data->{longest}{resource_name}      ? length($resource_header)      : $anvil->data->{longest}{resource_name};
+	my $disk_header            = $anvil->Words->string({key => "header_0069"});
+	my $longest_disk_size      = length($disk_header) > $anvil->data->{longest}{disk_size}              ? length($disk_header)          : $anvil->data->{longest}{disk_size};
+	my $storage_group_header   = $anvil->Words->string({key => "header_0070"});
+	my $longest_storage_group  = length($storage_group_header) > $anvil->data->{longest}{storage_group} ? length($storage_group_header) : $anvil->data->{longest}{storage_group};
+	my $bridge_header          = $anvil->Words->string({key => "header_0071"});
+	my $longest_bridge_name    = length($bridge_header) > $anvil->data->{longest}{bridge_name}          ? length($bridge_header)        : $anvil->data->{longest}{bridge_name};
+	my $net_model_header       = $anvil->Words->string({key => "header_0072"});
+	my $longest_net_model_name = length($net_model_header) > $anvil->data->{longest}{net_model_name}    ? length($net_model_header)     : $anvil->data->{longest}{net_model_name};
+	my $mac_address_header     = $anvil->Words->string({key => "header_0002"});
+	my $longest_mac_address    = length($mac_address_header) > $anvil->data->{longest}{mac_address}     ? length($mac_address_header)   : $anvil->data->{longest}{mac_address};
+	my $ip_address_header      = $anvil->Words->string({key => "header_0073"});
+	my $longest_ip_address     = length($ip_address_header) > $anvil->data->{longest}{ip_address}       ? length($ip_address_header)    : $anvil->data->{longest}{ip_address};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's01:longest_server_name'    => $longest_server_name, 
+		's02:longest_anvil_name'     => $longest_anvil_name, 
+		's03:longest_cpu_string'     => $longest_cpu_string, 
+		's04:longest_ram_string'     => $longest_ram_string, 
+		's05:longest_resource_name'  => $longest_resource_name, 
+		's06:longest_disk_size'      => $longest_disk_size, 
+		's07:longest_storage_group'  => $longest_storage_group, 
+		's08:longest_bridge_name'    => $longest_bridge_name, 
+		's09:longest_net_model_name' => $longest_net_model_name, 
+		's10:longest_mac_address'    => $longest_mac_address, 
+		's11:longest_ip_address'     => $longest_ip_address, 
+	}});
+	
+	my $break_line  =  "+-".sprintf("%0${longest_server_name}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_anvil_name}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_cpu_string}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_ram_string}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_resource_name}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_disk_size}d", 0);
+	if ($anvil->data->{switches}{detailed})
+	{
+	   $break_line  .= "-+-".sprintf("%0${longest_storage_group}d", 0);
+	}
+	   $break_line  .= "-+-".sprintf("%0${longest_bridge_name}d", 0);
+	if ($anvil->data->{switches}{detailed})
+	{
+	   $break_line  .= "-+-".sprintf("%0${longest_net_model_name}d", 0);
+	   $break_line  .= "-+-".sprintf("%0${longest_mac_address}d", 0);
+	}
+	   $break_line  .= "-+-".sprintf("%0${longest_ip_address}d", 0)."-+";
+	   $break_line  =~ s/0/-/g;
+	
+	my $header_line =  "| ".sprintf("%-${longest_server_name}s", $server_header)." ";
+	   $header_line .= "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
+	   $header_line .= "| ".sprintf("%-${longest_cpu_string}s", $cpu_header)." ";
+	   $header_line .= "| ".sprintf("%-${longest_ram_string}s", $ram_header)." ";
+	   $header_line .= "| ".sprintf("%-${longest_resource_name}s", $resource_header)." ";
+	   $header_line .= "| ".sprintf("%-${longest_disk_size}s", $disk_header)." ";
+	if ($anvil->data->{switches}{detailed})
+	{
+	   $header_line .= "| ".sprintf("%-${longest_storage_group}s", $storage_group_header)." ";
+	}
+	   $header_line .= "| ".sprintf("%-${longest_bridge_name}s", $bridge_header)." ";
+	if ($anvil->data->{switches}{detailed})
+	{
+	   $header_line .= "| ".sprintf("%-${longest_net_model_name}s", $net_model_header)." ";
+	   $header_line .= "| ".sprintf("%-${longest_mac_address}s", $mac_address_header)." ";
+	}
+	   $header_line .= "| ".sprintf("%-${longest_ip_address}s", $ip_address_header)." |";
+	   
+	my $blank_lead  =  "| ".sprintf("%-${longest_server_name}s", " ")." ";
+	   $blank_lead  .= "  ".sprintf("%-${longest_anvil_name}s", " ")." ";
+	   $blank_lead  .= "  ".sprintf("%-${longest_cpu_string}s", " ")." ";
+	   $blank_lead  .= "  ".sprintf("%-${longest_ram_string}s", " ")." ";
+	my $blank_drbd =  "";
+	my $blank_net  =  "";
+	
+	push @{$anvil->data->{display}{lines}}, $anvil->Words->string({key => "message_0290"});
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	push @{$anvil->data->{display}{lines}}, $header_line;
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	#push @{$anvil->data->{display}{lines}}, $blank_lead;
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server_data}})
+	{
+		# There should only ever be one UUID for a given name, but it's not impossible for there to be two.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+		foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}})
+		{
+			my $anvil_name      =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name};
+			my $anvil_uuid      =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid};
+			my $say_cpu         =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{say_cpu};
+			my $ram_used        =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used};
+			my $say_ram_used    =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used};
+			my $first_line      =  "| ".sprintf("%-${longest_server_name}s", $server_name);
+			   $first_line      .= " | ".sprintf("%-${longest_anvil_name}s", $anvil_name);
+			   $first_line      .= " | ".sprintf("%-${longest_cpu_string}s", $say_cpu);
+			   $first_line      .= " | ".sprintf("%-${longest_ram_string}s", $say_ram_used)." | ";
+			
+			my $drbd_lines = [];
+			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}})
+			{
+				foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}})
+				{
+					my $say_size      =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size};
+					my $storage_group =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{storage_group};
+					my $say_resource  =  $resource."/".$volume;
+					my $storage_line  =  sprintf("%-${longest_resource_name}s", $say_resource)." | ";
+					   $storage_line  .= sprintf("%-${longest_disk_size}s", $say_size)." | ";
+					if ($anvil->data->{switches}{detailed})
+					{
+					   $storage_line  .= sprintf("%-${longest_storage_group}s", $storage_group)." | ";
+					}
+					
+					push @{$drbd_lines}, $storage_line;
+					foreach my $drbd_node (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}})
+					{
+						my $drbd_path        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path};
+						my $drbd_path_by_res = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res};
+						my $drbd_minor       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor};
+						my $meta_disk        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'};
+						my $backing_lv       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv};
+						my $node_host_uuid   = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid};
+					}
+					
+					if (not length($blank_drbd))
+					{
+						$blank_drbd =  sprintf("%-${longest_resource_name}s", " ")."   ";
+						if ($anvil->data->{switches}{detailed})
+						{
+							$blank_drbd .= sprintf("%-${longest_disk_size}s", " ")."   ";
+							$blank_drbd .= sprintf("%-${longest_storage_group}s", " ")." | ";
+						}
+						else
+						{
+							$blank_drbd .= sprintf("%-${longest_disk_size}s", " ")." |";
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { blank_drbd => $blank_drbd }});
+					}
+				}
+			}
+			
+			my $net_lines = [];
+			foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}})
+			{
+				foreach my $alias (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}})
+				{
+					foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}})
+					{
+						my $model = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model};
+						my $ip    = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip};
+						if (not $ip)
+						{
+							$ip = "--";
+						}
+						my $net_line =  sprintf("%-${longest_bridge_name}s", $bridge)." | ";
+						if ($anvil->data->{switches}{detailed})
+						{
+						   $net_line .= sprintf("%-${longest_net_model_name}s", $model)." | ";
+						   $net_line .= sprintf("%-${longest_mac_address}s", $mac)." | ";
+						}
+						   $net_line .= sprintf("%-${longest_ip_address}s", $ip)." |";
+						
+						push @{$net_lines}, $net_line;
+						
+						if (not length($blank_net))
+						{
+							$blank_net =  sprintf("%-${longest_bridge_name}s", " ")."   ";
+							if ($anvil->data->{switches}{detailed})
+							{
+								$blank_net .= sprintf("%-${longest_net_model_name}s", " ")."   ";
+								$blank_net .= sprintf("%-${longest_mac_address}s", " ")."   ";
+							}
+							$blank_net .= sprintf("%-${longest_ip_address}s", " ")." |";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { blank_net => $blank_net }});
+						}
+					}
+				}
+			}
+			
+			my $drbd_count = @{$drbd_lines};
+			my $net_count   = @{$net_lines};
+			my $line_count = $drbd_count > $net_count ? $drbd_count : $net_count;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:drbd_count' => $drbd_count,
+				's2:net_count'  => $net_count, 
+				's3:line_count' => $line_count, 
+			}});
+			foreach (my $i = 0; $i < $line_count; $i++)
+			{
+				my $drbd_line = $drbd_lines->[$i] ? $drbd_lines->[$i] : $blank_drbd;
+				my $net_line  = $net_lines->[$i]  ? $net_lines->[$i]  : "-- | -- | -- ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:i'         => $i,
+					's2:drbd_line' => $drbd_line, 
+					's3:drbd_line' => $net_line, 
+				}});
+				if ($i == 0)
+				{
+					push @{$anvil->data->{display}{lines}}, $first_line.$drbd_line.$net_line;
+				}
+				else
+				{
+					push @{$anvil->data->{display}{lines}}, $blank_lead.$drbd_line.$net_line;
+				}
+			}
+		}
+	}
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	
+	return(0);
+}
+
+sub collect_server_data
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_anvils();
+	$anvil->Database->get_servers();
+	$anvil->Database->get_server_definitions();
+	
+	$anvil->data->{longest}{server_name}    = 0;
+	$anvil->data->{longest}{anvil_name}     = 0;
+	$anvil->data->{longest}{cpu_string}     = 0;
+	$anvil->data->{longest}{ram_string}     = 0;
+	$anvil->data->{longest}{resource_name}  = 0;
+	$anvil->data->{longest}{disk_size}      = 0;
+	$anvil->data->{longest}{storage_group}  = 0;
+	$anvil->data->{longest}{bridge_name}    = 0;
+	$anvil->data->{longest}{net_model_name} = 0;
+	$anvil->data->{longest}{mac_address}    = 0;
+	$anvil->data->{longest}{ip_address}     = 0;
+	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
+	{
+		my $server_name       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		my $anvil_uuid        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
+		my $server_ram        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram} > $server_ram)
+		{
+			$server_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
+		}
+		my $say_server_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_name' => $server_name,
+			's2:anvil_name'  => $anvil_name, 
+			's3:server_ram'  => $anvil->Convert->add_commas({number => $server_ram})." (".$say_server_ram.")", 
+		}});
+		
+		my $target = $anvil->Get->short_host_name;
+		my $source = "from_db";
+		$anvil->Server->parse_definition({
+			debug      => 2,
+			source     => $source, 
+			server     => $server_name, 
+			definition => $server_definition,
+			anvil_uuid => $anvil_uuid,
+		});
+		
+		# CPU info
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name}          = $anvil_name;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid}          = $anvil_uuid;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used}            = $server_ram;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used}        = $say_server_ram;
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{total_cores}    = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{total_cores};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{sockets}        = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{sockets};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{cores}          = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{cores};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{threads}        = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{threads};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name}     = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_name};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback} = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_fallback};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match}          = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{match};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor}         = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{vendor};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode}           = $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{mode};
+		$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{say_cpu}        = $anvil->Words->string({key => "message_0287", variables => {
+			total_cores => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{total_cores}, 
+			sockets     => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{sockets}, 
+		}});
+		if ($anvil->data->{switches}{detailed})
+		{
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{say_cpu} = $anvil->Words->string({key => "message_0288", variables => {
+				total_cores => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{total_cores}, 
+				sockets     => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{sockets}, 
+				cores       => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{cores}, 
+				threads     => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{threads}, 
+				model       => $anvil->data->{server}{$target}{$server_name}{$source}{cpu}{model_name},
+				mode        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode},
+			}});
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:server_data::${server_name}::server_uuid::${server_uuid}::anvil_name"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name},
+			"s2:server_data::${server_name}::server_uuid::${server_uuid}::anvil_uuid"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid},
+			"s3:server_data::${server_name}::server_uuid::${server_uuid}::ram_used"            => $anvil->Convert->add_commas({number => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used}})." (".$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used}.")", ,
+			"s4:server_data::${server_name}::server_uuid::${server_uuid}::cpu::total_cores"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{total_cores},
+			"s5:server_data::${server_name}::server_uuid::${server_uuid}::cpu::sockets"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{sockets},
+			"s5:server_data::${server_name}::server_uuid::${server_uuid}::cpu::cores"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{cores},
+			"s6:server_data::${server_name}::server_uuid::${server_uuid}::cpu::threads"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{threads},
+			"s7:server_data::${server_name}::server_uuid::${server_uuid}::cpu::model_name"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name},
+			"s8:server_data::${server_name}::server_uuid::${server_uuid}::cpu::model_fallback" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback},
+			"s9:server_data::${server_name}::server_uuid::${server_uuid}::cpu::match"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match},
+			"s10:server_data::${server_name}::server_uuid::${server_uuid}::cpu::vendor"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor},
+			"s11:server_data::${server_name}::server_uuid::${server_uuid}::cpu::mode"          => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode},
+			"s12:server_data::${server_name}::server_uuid::${server_uuid}::cpu::say_cpu"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{say_cpu},
+		}});
+		
+		if (length($server_name) > $anvil->data->{longest}{server_name})
+		{
+			$anvil->data->{longest}{server_name} = length($server_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::server_name' => $anvil->data->{longest}{server_name} }});
+		}
+		if (length($anvil_name) > $anvil->data->{longest}{anvil_name})
+		{
+			$anvil->data->{longest}{anvil_name} = length($anvil_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::anvil_name' => $anvil->data->{longest}{anvil_name} }});
+		}
+		if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{say_cpu}) > $anvil->data->{longest}{cpu_string})
+		{
+			$anvil->data->{longest}{cpu_string} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{say_cpu});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::cpu_string' => $anvil->data->{longest}{cpu_string} }});
+		}
+		if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used}) > $anvil->data->{longest}{ram_string})
+		{
+			$anvil->data->{longest}{ram_string} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::ram_string' => $anvil->data->{longest}{ram_string} }});
+		}
+		
+		# I need to know what nodes are in this cluster, so I don't look at another node that may 
+		# have a matching node name.
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+		
+		# Get names.
+		my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+		my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+		my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+		my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+		my $dr1_host_name         = "";
+		my $dr1_short_host_name   = "";
+		if (($dr1_host_uuid) && (exists $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}))
+		{
+			$dr1_host_name      = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
+			$dr1_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:node1_host_name'       => $node1_host_name, 
+			's2:node1_short_host_name' => $node1_short_host_name, 
+			's3:node2_host_name'       => $node2_host_name, 
+			's4:node2_short_host_name' => $node2_short_host_name, 
+			's5:dr1_host_name'         => $dr1_host_name, 
+			's6:dr1_short_host_name'   => $dr1_short_host_name, 
+		}});
+		
+		# Storage info.
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}})
+		{
+			my $address_domain   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{address}{domain};
+			my $address_slot     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{address}{slot};
+			my $address_function = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{address}{function};
+			my $device_path      = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{path};
+			my $driver_io        = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{driver}{io};
+			my $driver_cache     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{disk}{target}{$device_target}{driver}{cache};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:device_target'    => $device_target,
+				's2:address_domain'   => $address_domain,
+				's3:address_slot'     => $address_slot, 
+				's4:address_function' => $address_function, 
+				's5:device_path'      => $device_path, 
+				's6:driver_io'        => $driver_io, 
+				's7:driver_cache'     => $driver_cache, 
+			}});
+			
+			# What is the DRBD resource name?
+			my ($resource, $volume) = ($device_path =~ /\/dev\/drbd\/by-res\/(.*?)\/(\d+)$/);
+			my $say_resource        = $resource."/".$volume;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:resource'     => $resource,
+				's2:volume'       => $volume, 
+				's3:say_resource' => $say_resource, 
+			}});
+			if (length($say_resource) > $anvil->data->{longest}{resource_name})
+			{
+				$anvil->data->{longest}{resource_name} = length($say_resource);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::resource_name' => $anvil->data->{longest}{resource_name} }});
+			}
+			
+			# This will store the largest size LV becking the volume
+			my $disk_size          = 0;
+			my $storage_group_name = "";
+			foreach my $drbd_node (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_node => $drbd_node }});
+				if (($drbd_node eq $node1_host_name)       or 
+				    ($drbd_node eq $node1_short_host_name) or 
+				    ($drbd_node eq $node2_host_name)       or 
+				    ($drbd_node eq $node2_short_host_name) or 
+				    (($dr1_host_name)       && ($drbd_node eq $dr1_host_name)) or 
+				    (($dr1_short_host_name) && ($drbd_node eq $dr1_short_host_name)))
+				{
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path}        = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_path};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res} = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_path_by_res};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor}       = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_minor};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'}      = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{'meta-disk'};
+					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv}       = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{backing_lv};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+						"s1:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::drbd_path"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path}, 
+						"s2:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::drbd_path_by_res" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res}, 
+						"s3:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::drbd_minor"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor}, 
+						"s4:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::meta_disk"        => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'}, 
+						"s5:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::backing_lv"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv}, 
+					}});
+					
+					# What this node's host uuid?
+					my $node_host_uuid = "";
+					if (($drbd_node eq $node1_host_name) or ($drbd_node eq $node1_short_host_name))
+					{
+						$node_host_uuid = $node1_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
+					}
+					elsif (($drbd_node eq $node2_host_name) or ($drbd_node eq $node2_short_host_name))
+					{
+						$node_host_uuid = $node2_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
+					}
+					elsif (($drbd_node eq $dr1_host_name) or ($drbd_node eq $dr1_short_host_name))
+					{
+						$node_host_uuid = $dr1_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
+					}
+					
+					# How big is this LV?
+					my $backing_lv = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv};
+					my $query      = "
+SELECT 
+    a.scan_lvm_lv_size, 
+    d.storage_group_name 
+FROM 
+    scan_lvm_lvs a, 
+    scan_lvm_vgs b, 
+    storage_group_members c, 
+    storage_groups d 
+WHERE 
+    a.scan_lvm_lv_path               = ".$anvil->Database->quote($backing_lv);
+					if ($node_host_uuid)
+					{
+						$query .= "
+AND 
+    a.scan_lvm_lv_host_uuid          = ".$anvil->Database->quote($node_host_uuid);
+					}
+					$query .= "
+AND 
+    a.scan_lvm_lv_on_vg              = b.scan_lvm_vg_name";
+					if ($node_host_uuid)
+					{
+						$query .= "
+AND 
+    b.scan_lvm_vg_host_uuid          = ".$anvil->Database->quote($node_host_uuid);
+					}
+					$query .= "
+AND 
+    b.scan_lvm_vg_internal_uuid      = c.storage_group_member_vg_uuid";
+					if ($node_host_uuid)
+					{
+						$query .= "
+AND 
+    c.storage_group_member_host_uuid = ".$anvil->Database->quote($node_host_uuid);
+					}
+					$query .= "
+AND 
+    c.storage_group_member_storage_group_uuid = d.storage_group_uuid
+;";
+					if ($node_host_uuid)
+					{
+						# Store the host_uuid as well.
+						$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid} = $node_host_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+							"s1:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::node::${drbd_node}::host_uuid" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid}, 
+						}});
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
+					
+					if ($count)
+					{
+						my $size             = $results->[0]->[0];
+						my $in_storage_group = $results->[0]->[1];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							size             => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")", 
+							in_storage_group => $in_storage_group, 
+						}});
+						if ($size > $disk_size)
+						{
+							$disk_size = $size;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								disk_size => $anvil->Convert->add_commas({number => $disk_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $disk_size}).")", 
+							}});
+						}
+						
+						if ((not $storage_group_name) && ($in_storage_group))
+						{
+							$storage_group_name = $in_storage_group;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_name => $storage_group_name }});
+						}
+					}
+				}
+			}
+			
+			# Store the disk size.
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size}          = $disk_size;
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size}      = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size}});
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{storage_group} = $storage_group_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::size"          => $anvil->Convert->add_commas({number => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size}})." (".$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size}.")",
+				"s2:server_data::${server_name}::server_uuid::${server_uuid}::disk::${resource}::${volume}::storage_group" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{storage_group},
+			}});
+			
+			if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size}) > $anvil->data->{longest}{disk_size})
+			{
+				$anvil->data->{longest}{disk_size} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::disk_size' => $anvil->data->{longest}{disk_size} }});
+			}
+			
+			if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{storage_group}) > $anvil->data->{longest}{storage_group})
+			{
+				$anvil->data->{longest}{storage_group} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{storage_group});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::storage_group' => $anvil->data->{longest}{storage_group} }});
+			}
+		}
+		
+		# Find networks
+		foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}})
+		{
+			my $bridge = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{bridge};
+			my $alias  = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{alias};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:mac"    => $mac, 
+				"s2:bridge" => $bridge, 
+				"s3:alias"  => $alias, 
+			}});
+			
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{target}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{target};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model}    = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{model};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{bus}      = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{bus};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{domain}   = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{domain};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{type}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{type};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{slot}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{slot};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{function} = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac}{address}{function};
+			$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip}       = $anvil->Network->get_ip_from_mac({debug => 2, mac => $mac});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::target"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{target}, 
+				"s2:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::model"    => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model}, 
+				"s3:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::bus"      => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{bus}, 
+				"s4:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::domain"   => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{domain}, 
+				"s5:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::type"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{type}, 
+				"s6:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::slot"     => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{slot}, 
+				"s7:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::function" => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{function}, 
+				"s8:server_data::${server_name}::server_uuid::${server_uuid}::net::${bridge}::${alias}::${mac}::ip"       => $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip}, 
+			}});
+			
+			if (length($bridge) > $anvil->data->{longest}{bridge_name})
+			{
+				$anvil->data->{longest}{bridge_name} = length($bridge);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::bridge_name' => $anvil->data->{longest}{bridge_name} }});
+			}
+			
+			if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model}) > $anvil->data->{longest}{net_model_name})
+			{
+				$anvil->data->{longest}{net_model_name} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::net_model_name' => $anvil->data->{longest}{net_model_name} }});
+			}
+			
+			if (length($mac) > $anvil->data->{longest}{mac_address})
+			{
+				$anvil->data->{longest}{mac_address} = length($mac);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::mac_address' => $anvil->data->{longest}{mac_address} }});
+			}
+			
+			if (length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip}) > $anvil->data->{longest}{ip_address})
+			{
+				$anvil->data->{longest}{ip_address} = length($anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'longest::ip_address' => $anvil->data->{longest}{ip_address} }});
+			}
+		}
+	}
+	
+	return(0);
+}

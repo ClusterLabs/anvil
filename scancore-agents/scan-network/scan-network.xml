@@ -215,5 +215,6 @@ This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
 		</key>
 
 		<key name="scan_network_log_0001">Aging out RX and TX data under: [#!variable!records!#] interfaces. These have 1 or more historical records older than: [#!variable!age!#] hours old from the database host: [#!variable!host!#].</key>
+		<key name="scan_network_log_0002">The old network interface: [#!variable!name!#] with the MAC address: [#!variable!mac!#] was marked as deleted more than: [#!variable!age!#] hours ago. Purging it from the database.</key>
 	</language>
 </words>

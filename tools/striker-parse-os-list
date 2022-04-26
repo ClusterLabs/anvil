@@ -22,8 +22,14 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->data->{switches}{new} = 0;
+$anvil->data->{switches}{xml} = 0;
 $anvil->Get->switches;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::new' => $anvil->data->{switches}{new},
+	'switches::xml' => $anvil->data->{switches}{xml},
+}});
 
 my $words_file = $anvil->data->{path}{words}{'words.xml'};
 my $language   = $anvil->Words->language;
@@ -50,10 +56,26 @@ foreach my $line (split/\n/, $output)
 	}});
 	
 	my $os_key = "os_list_".$os_code;
-	if ((not exists $anvil->data->{words}{$words_file}{language}{$language}{key}{$os_key}) or (not $anvil->data->{words}{$words_file}{language}{$language}{key}{$os_key}{content}))
+	if ($anvil->data->{switches}{new})
 	{
-		# Print already known.
-		print "\t\t<key name=\"".$os_key."\"><![CDATA[".$os_name."]]></key>\n";
+		# --xml only makes sense with '--new'. Without --new, we're comparing against the 
+		if ((not exists $anvil->data->{words}{$words_file}{language}{$language}{key}{$os_key}) or (not $anvil->data->{words}{$words_file}{language}{$language}{key}{$os_key}{content}))
+		{
+			# Print already known.
+			print "\t\t<key name=\"".$os_key."\"><![CDATA[".$os_name."]]></key>\n";
+		}
+	}
+	else
+	{
+		# Which format?
+		if ($anvil->data->{switches}{xml})
+		{
+			print "\t\t<key name=\"".$os_key."\"><![CDATA[".$os_name."]]></key>\n";
+		}
+		else
+		{
+			print "key=".$os_code.",name=\"".$os_name."\"\n";
+		}
 	}
 }
 

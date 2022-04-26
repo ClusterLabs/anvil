@@ -1696,7 +1696,7 @@ sub connect
 					uuid          => $uuid,
 					variable_name => "database::".$uuid."::active",
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_value  => $active_value }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_value  => $active_value }});
 				if (not $active_value)
 				{
 					# If we're "retry", we just started up.
@@ -16053,11 +16053,12 @@ sub resync_databases
 			$query =~ s/, $/ /;
 			$query .= "FROM ".$schema.".".$table;
 			
-			# Restrict to this host if a host column was found.
-			if ($host_column)
-			{
-				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
-			}
+			### NOTE: No longer restricting to the host, given only the strikers can do resyncs now.
+# 			# Restrict to this host if a host column was found.
+# 			if ($host_column)
+# 			{
+# 				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
+# 			}
 			$query .= " ORDER BY utc_modified_date DESC;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 			
@@ -17633,7 +17634,7 @@ sub _find_column
 
 This returns the most up to date database ID, the time it was last updated and an array or DB IDs that are behind.
 
-If there is a problem, C<< !!error!! >> is returned.
+If there is a problem, C<< !!error!! >> is returned. If this is called by a host that isn't a Striker, C<< 0 >> is returned and no actions are take.
 
 Parameters;
 
@@ -17660,6 +17661,14 @@ sub _find_behind_databases
 		source => $source, 
 		tables => $tables, 
 	}});
+	
+	# If we're not a striker, return.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		return(0);
+	}
 	
 	# This should always be set, but just in case...
 	if (not $source)
@@ -17774,18 +17783,19 @@ sub _find_behind_databases
 				"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 			}});
 			
+			### Only Strikers resync, so limiting to the host_uuid doesn't make sense anymore.
 			my $schema = $has_history ? "history" : "public";
 			   $query  =  "
 SELECT DISTINCT 
     round(extract(epoch from modified_date)) AS unix_modified_date 
 FROM 
     ".$schema.".".$table." ";
-				if ($host_column)
-				{
-					$query .= "
-WHERE 
-    ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}) ;
-				}
+# 				if ($host_column)
+# 				{
+# 					$query .= "
+# WHERE 
+#     ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}) ;
+# 				}
 				$query .= "
 ORDER BY 
     unix_modified_date DESC

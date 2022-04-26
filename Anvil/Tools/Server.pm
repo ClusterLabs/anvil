@@ -1259,6 +1259,10 @@ B<< Note >>: This method currently parses out data needed for specific tasks, an
 
 Parameters;
 
+=head3 anvil_uuid (optional)
+
+If passed, the C<< anvil_uuid >> will be passed on to C<< DRBD->get_devices >>.
+
 =head3 server (required)
 
 This is the name of the server whose XML is being parsed.
@@ -1297,12 +1301,14 @@ sub parse_definition
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->parse_definition()" }});
 	
 	# Source is required.
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
 	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->Get->short_host_name;
 	my $target     = $anvil->Get->short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid => $anvil_uuid, 
 		server     => $server,
 		source     => $source, 
 		definition => $definition, 
@@ -1344,7 +1350,10 @@ sub parse_definition
 	$anvil->data->{server}{$target}{$server}{$source}{parsed} = $server_xml;
 	
 	# Get the DRBD data that this server will almost certainly be using.
-	$anvil->DRBD->get_devices({debug => $debug});
+	$anvil->DRBD->get_devices({
+		debug      => $debug,
+		anvil_uuid => $anvil_uuid, 
+	});
 	
 	# Pull out some basic server info.
 	$anvil->data->{server}{$target}{$server}{$source}{info}{uuid}         = $server_xml->{uuid}->[0];

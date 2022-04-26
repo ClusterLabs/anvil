@@ -270,33 +270,42 @@ sub scan
 		$anvil->Network->get_ips();
 		my $target  = "local";
 		my $to_scan = [];
-		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$target}{interface}})
+		foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{network}})
 		{
-			my $ip          = $anvil->data->{network}{$target}{interface}{$interface}{ip};
-			my $subnet_mask = $anvil->data->{network}{$target}{interface}{$interface}{subnet_mask};
+			my $is_local = $anvil->Network->is_local({host => $target});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				ip          => $ip,
-				subnet_mask => $subnet_mask,
+				target   => $target,
+				is_local => $is_local, 
 			}});
-			if (($ip) && ($subnet_mask))
+			next if not $is_local;
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$target}{interface}})
 			{
-				my $network = $anvil->Network->get_network({ip => $ip, subnet_mask => $subnet_mask});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
-				
-				if ($network)
+				my $ip          = $anvil->data->{network}{$target}{interface}{$interface}{ip};
+				my $subnet_mask = $anvil->data->{network}{$target}{interface}{$interface}{subnet_mask};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ip          => $ip,
+					subnet_mask => $subnet_mask,
+				}});
+				if (($ip) && ($subnet_mask))
 				{
-					# Scan it.
-					my $address = $network."/".$subnet_mask;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
-					push @{$to_scan}, $address;
+					my $network = $anvil->Network->get_network({ip => $ip, subnet_mask => $subnet_mask});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+					
+					if ($network)
+					{
+						# Scan it.
+						my $address = $network."/".$subnet_mask;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
+						push @{$to_scan}, $address;
+					}
 				}
 			}
-		}
-		
-		# Scan what we found
-		foreach my $address (sort {$a cmp $b} @{$to_scan})
-		{
-			call_nmap($anvil, $address);
+			
+			# Scan what we found
+			foreach my $address (sort {$a cmp $b} @{$to_scan})
+			{
+				call_nmap($anvil, $address);
+			}
 		}
 	}
 	
@@ -350,7 +359,8 @@ sub call_nmap
 	my $this_ip    = "";
 	my $this_mac   = "";
 	my $section    = "";
-	my $shell_call = $anvil->data->{path}{exe}{nmap}." -sP -T4 --min-parallelism 100 --max-parallelism 256 ".$address;
+	my $shell_call = $anvil->data->{path}{exe}{nmap}." -sP -T4 -n --min-parallelism 100 --max-parallelism 256 ".$address;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	open (my $file_handle, $shell_call." 2>&1  |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{
