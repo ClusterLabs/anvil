@@ -849,6 +849,22 @@ resource #!variable!server!# {
 		<key name="header_0063">public</key>		<!-- SQL schema -->
 		<key name="header_0064">history</key>		<!-- SQL schema -->
 		<key name="header_0065">Server</key>
+		<key name="header_0066">CPU</key>
+		<key name="header_0067">RAM</key>
+		<key name="header_0068">Disk</key>
+		<key name="header_0069">Size</key>
+		<key name="header_0070">Storage Group</key>
+		<key name="header_0071">Bridge</key>
+		<key name="header_0072">Model</key>
+		<key name="header_0073">Last Known IP</key>
+		<key name="header_0074">Description</key>
+		<key name="header_0075">RAM Used</key>
+		<key name="header_0076">RAM Free</key>
+		<key name="header_0077">Bridges</key>
+		<key name="header_0078">Storage Group</key>
+		<key name="header_0079">Used</key>
+		<key name="header_0080">Free</key>
+		<key name="header_0081">Anvil! Node Pair</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -2513,6 +2529,10 @@ Available options;
 		<key name="message_0284">I was asked to resync. Calling the resync now.</key>
 		<key name="message_0285">Aging out data to thin down the database(s).</key>
 		<key name="message_0286">Prior to resync, we will check to see if any scan agent schemas need to be loaded.</key>
+		<key name="message_0287">#!variable!total_cores!#c (#!variable!sockets!#s)</key>
+		<key name="message_0288">#!variable!total_cores!#c (#!variable!sockets!#s, #!variable!cores!#c, #!variable!threads!#t), #!variable!model!#, #!variable!mode!#</key>
+		<key name="message_0289">#!variable!cores!#c (#!variable!threads!#t)</key>
+		<key name="message_0290">-=] Server Usage and Anvil! Node Resource Availability</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

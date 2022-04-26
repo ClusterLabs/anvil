@@ -5407,16 +5407,18 @@ sub _check_anvil_conf
 		admin_uid => $admin_uid,
 		admin_gid => $admin_gid, 
 	}});
-	if (not $admin_gid)
+	if ((not $admin_uid) && (not $admin_gid))
 	{
-		# Create the admin group 
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{groupadd}." --system admin"});
+		# Create the admin user and group
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{useradd}." --create-home --comment \"Anvil! user account\" admin"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
 			return_code => $return_code, 
 		}});
 		
+		$admin_uid = getpwnam('admin');
 		$admin_gid = getgrnam('admin');
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0119", variables => { uid => $admin_uid }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0118", variables => { gid => $admin_gid }});
 	}
 	if (not $admin_uid)
@@ -5428,8 +5430,20 @@ sub _check_anvil_conf
 			return_code => $return_code, 
 		}});
 		
-		my $admin_uid = getpwnam('admin');
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0119", variables => { uid => $admin_gid }});
+		$admin_uid = getpwnam('admin');
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0119", variables => { uid => $admin_uid }});
+	}
+	if (not $admin_gid)
+	{
+		# Create the admin group 
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{groupadd}." admin"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		
+		$admin_gid = getgrnam('admin');
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0118", variables => { gid => $admin_gid }});
 	}
 	
 	# Does the file exist?
