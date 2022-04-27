@@ -294,8 +294,8 @@ sub show_anvils
 		$break_line  .= "-+-".sprintf("%0${longest_description}d", 0);
 		$header_line .= "| ".sprintf("%-${longest_description}s", $description_header)." ";
 		$blank_lead  .= "   ".sprintf("%-${longest_description}s", $description_header)." ";
-		
 	}
+	
 	# CPU String
 	$break_line  .= "-+-".sprintf("%0${longest_cpu_string}d", 0);
 	$header_line .= "| ".sprintf("%-${longest_cpu_string}s", $cpu_header)." ";

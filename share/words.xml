@@ -865,6 +865,10 @@ resource #!variable!server!# {
 		<key name="header_0079">Used</key>
 		<key name="header_0080">Free</key>
 		<key name="header_0081">Anvil! Node Pair</key>
+		<key name="header_0082">Interface</key>
+		<key name="header_0083">Gateway (*DG)</key>
+		<key name="header_0084">Transmitted</key>
+		<key name="header_0085">Received</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

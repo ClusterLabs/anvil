@@ -1,0 +1,290 @@
+#!/usr/bin/perl
+# 
+# This is an easier to read list of IPs and optional other details about the local network.
+# When called without '--detailed', it shows interfaces with IPs and their MAC addresses. When called with
+# '--detailed', it shows all interfaces, including their MTU and TX/RX data.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->data->{switches}{detailed} = 0;
+$anvil->Get->switches();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::detailed" => $anvil->data->{switches}{detailed}, 
+}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0359"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->data->{display}{lines} = [];
+collect_data($anvil);
+show_data($anvil);
+
+# Show the results	
+foreach my $line (@{$anvil->data->{display}{lines}})
+{
+	print $line."\n";
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub collect_data
+{
+	my ($anvil) = @_;
+	
+	# Call ip
+	$anvil->Network->get_ips({debug => 2});
+	
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+	
+	$anvil->data->{longest}{interface}      = 0;
+	$anvil->data->{longest}{ip_address}     = 0;
+	$anvil->data->{longest}{subnet_mask}    = 0;
+	$anvil->data->{longest}{mac_address}    = 0;
+	$anvil->data->{longest}{gateway_string} = 0;
+	$anvil->data->{longest}{gateway_string} = 0;
+	$anvil->data->{longest}{tx_string}      = 0;
+	$anvil->data->{longest}{rx_string}      = 0;
+	$anvil->data->{longest}{dns_string}     = 0;
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
+	{
+		my $ip_address      = $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip};
+		my $subnet_mask     = $anvil->data->{network}{$short_host_name}{interface}{$interface}{subnet_mask};
+		my $mac_address     = $anvil->data->{network}{$short_host_name}{interface}{$interface}{mac_address};
+		my $mtu             = $anvil->data->{network}{$short_host_name}{interface}{$interface}{mtu};
+		my $default_gateway = $anvil->data->{network}{$short_host_name}{interface}{$interface}{default_gateway};
+		my $gateway         = $anvil->data->{network}{$short_host_name}{interface}{$interface}{gateway};
+		my $dns             = $anvil->data->{network}{$short_host_name}{interface}{$interface}{dns};
+		my $tx_bytes        = $anvil->data->{network}{$short_host_name}{interface}{$interface}{tx_bytes};
+		my $rx_bytes        = $anvil->data->{network}{$short_host_name}{interface}{$interface}{rx_bytes};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s01:interface"       => $interface, 
+			"s02:ip_address"      => $ip_address, 
+			"s03:subnet_mask"     => $subnet_mask, 
+			"s04:mac_address"     => $mac_address, 
+			"s05:mtu"             => $mtu, 
+			"s06:default_gateway" => $default_gateway, 
+			"s07:gateway"         => $gateway, 
+			"s08:dns"             => $dns, 
+			"s09:tx_bytes"        => $tx_bytes, 
+			"s10:rx_bytes"        => $rx_bytes, 
+		}});
+		
+		if ((not $ip_address) && not ($anvil->data->{switches}{detailed}))
+		{
+			next;
+		}
+		
+		my $say_is_dg   = $default_gateway ? "*"                 : " ";
+		my $say_gateway = $gateway         ? $gateway.$say_is_dg : "-- ".$say_is_dg;
+		my $say_tx      = $anvil->Convert->bytes_to_human_readable({'bytes' => $tx_bytes});
+		my $say_rx      = $anvil->Convert->bytes_to_human_readable({'bytes' => $rx_bytes});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:say_gateway" => $say_gateway, 
+			"s2:say_is_dg"   => $say_is_dg, 
+			"s3:tx_bytes"    => $say_tx, 
+			"s4:rx_bytes"    => $say_rx, 
+		}});
+		
+		$anvil->data->{interface_data}{$interface}{ip_address}     = $ip_address;
+		$anvil->data->{interface_data}{$interface}{subnet_mask}    = $subnet_mask;
+		$anvil->data->{interface_data}{$interface}{mac_address}    = $mac_address;
+		$anvil->data->{interface_data}{$interface}{gateway_string} = $say_gateway;
+		$anvil->data->{interface_data}{$interface}{tx_string}      = $say_tx;
+		$anvil->data->{interface_data}{$interface}{rx_string}      = $say_rx;
+		$anvil->data->{interface_data}{$interface}{dns_string}     = $dns;
+		
+		if (length($interface) > $anvil->data->{longest}{interface})
+		{
+			$anvil->data->{longest}{interface} = length($interface);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::interface" => $anvil->data->{longest}{interface}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{ip_address}) > $anvil->data->{longest}{ip_address})
+		{
+			$anvil->data->{longest}{ip_address} = length($anvil->data->{interface_data}{$interface}{ip_address});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::ip_address" => $anvil->data->{longest}{ip_address}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{subnet_mask}) > $anvil->data->{longest}{subnet_mask})
+		{
+			$anvil->data->{longest}{subnet_mask} = length($anvil->data->{interface_data}{$interface}{subnet_mask});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::subnet_mask" => $anvil->data->{longest}{subnet_mask}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{mac_address}) > $anvil->data->{longest}{mac_address})
+		{
+			$anvil->data->{longest}{mac_address} = length($anvil->data->{interface_data}{$interface}{mac_address});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::mac_address" => $anvil->data->{longest}{mac_address}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{gateway_string}) > $anvil->data->{longest}{gateway_string})
+		{
+			$anvil->data->{longest}{gateway_string} = length($anvil->data->{interface_data}{$interface}{gateway_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::gateway_string" => $anvil->data->{longest}{gateway_string}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{tx_string}) > $anvil->data->{longest}{tx_string})
+		{
+			$anvil->data->{longest}{tx_string} = length($anvil->data->{interface_data}{$interface}{tx_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::tx_string" => $anvil->data->{longest}{tx_string}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{rx_string}) > $anvil->data->{longest}{rx_string})
+		{
+			$anvil->data->{longest}{rx_string} = length($anvil->data->{interface_data}{$interface}{rx_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::rx_string" => $anvil->data->{longest}{rx_string}, 
+			}});
+		}
+		
+		if (length($anvil->data->{interface_data}{$interface}{dns_string}) > $anvil->data->{longest}{dns_string})
+		{
+			$anvil->data->{longest}{dns_string} = length($anvil->data->{interface_data}{$interface}{dns_string});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"longest::dns_string" => $anvil->data->{longest}{dns_string}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+sub show_data
+{
+	my ($anvil) = @_;
+	
+	my $interface_header       = $anvil->Words->string({key => "header_0082"});
+	my $longest_interface      = length($interface_header)   > $anvil->data->{longest}{interface}   ? length($interface_header)   : $anvil->data->{longest}{interface};
+	my $ip_address_header      = $anvil->Words->string({key => "header_0025"});
+	my $longest_ip_address     = length($ip_address_header) > $anvil->data->{longest}{ip_address}   ? length($ip_address_header)  : $anvil->data->{longest}{ip_address};
+	my $subnet_mask_header     = $anvil->Words->string({key => "striker_0025"});
+	my $longest_subnet_mask    = length($subnet_mask_header) > $anvil->data->{longest}{subnet_mask} ? length($subnet_mask_header) : $anvil->data->{longest}{subnet_mask};
+	my $mac_address_header     = $anvil->Words->string({key => "header_0002"});
+	my $longest_mac_address    = length($mac_address_header) > $anvil->data->{longest}{mac_address} ? length($mac_address_header) : $anvil->data->{longest}{mac_address};
+	my $gateway_header         = $anvil->Words->string({key => "header_0083"});
+	my $longest_gateway_string = length($gateway_header) > $anvil->data->{longest}{gateway_string}  ? length($gateway_header)     : $anvil->data->{longest}{gateway_string};
+	my $tx_header              = $anvil->Words->string({key => "header_0084"});
+	my $longest_tx_string      = length($tx_header) > $anvil->data->{longest}{tx_string}            ? length($tx_header)          : $anvil->data->{longest}{tx_string};
+	my $rx_header              = $anvil->Words->string({key => "header_0085"});
+	my $longest_rx_string      = length($rx_header) > $anvil->data->{longest}{rx_string}            ? length($rx_header)          : $anvil->data->{longest}{rx_string};
+	my $dns_header             = $anvil->Words->string({key => "striker_0037"});
+	my $longest_dns_string     = length($dns_header) > $anvil->data->{longest}{dns_string}          ? length($dns_header)         : $anvil->data->{longest}{dns_string};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:longest_interface"       => $longest_interface, 
+		"s2:longest_ip_address"      => $longest_ip_address, 
+		"s3:longest_subnet_mask"     => $longest_subnet_mask, 
+		"s4:longest_mac_address"     => $longest_mac_address, 
+		"s5:longest_gateway_string"  => $longest_gateway_string, 
+	}});
+	
+	# Interface
+	my $break_line  = "+-".sprintf("%0${longest_interface}d", 0);
+	my $header_line = "| ".sprintf("%-${longest_interface}s", $interface_header);
+	
+	# IP Address
+	$break_line  .= "-+-".sprintf("%0${longest_ip_address}d", 0);
+	$header_line .= " | ".sprintf("%-${longest_ip_address}s", $ip_address_header);
+	
+	# Subnet Mask
+	$break_line  .= "-+-".sprintf("%0${longest_subnet_mask}d", 0);
+	$header_line .= " | ".sprintf("%-${longest_subnet_mask}s", $subnet_mask_header);
+	
+	# MAC Address
+	$break_line  .= "-+-".sprintf("%0${longest_mac_address}d", 0);
+	$header_line .= " | ".sprintf("%-${longest_mac_address}s", $mac_address_header);
+	
+	if ($anvil->data->{switches}{detailed})
+	{
+		# (DG) Gateway
+		$break_line  .= "-+-".sprintf("%0${longest_gateway_string}d", 0);
+		$header_line .= " | ".sprintf("%-${longest_gateway_string}s", $gateway_header);
+		
+		# Transmitted
+		$break_line  .= "-+-".sprintf("%0${longest_tx_string}d", 0);
+		$header_line .= " | ".sprintf("%-${longest_tx_string}s", $tx_header);
+		
+		# Received
+		$break_line  .= "-+-".sprintf("%0${longest_rx_string}d", 0);
+		$header_line .= " | ".sprintf("%-${longest_rx_string}s", $rx_header);
+		
+		# DNS
+		$break_line  .= "-+-".sprintf("%0${longest_dns_string}d", 0);
+		$header_line .= " | ".sprintf("%-${longest_dns_string}s", $dns_header);
+	}
+	$break_line  .= "-+";
+	$header_line .= " |";
+	
+	$break_line =~ s/0/-/g;
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	push @{$anvil->data->{display}{lines}}, $header_line;
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{interface_data}})
+	{
+		my $ip_address     = $anvil->data->{interface_data}{$interface}{ip_address};
+		my $subnet_mask    = $anvil->data->{interface_data}{$interface}{subnet_mask};
+		my $mac_address    = $anvil->data->{interface_data}{$interface}{mac_address};
+		my $gateway_string = $anvil->data->{interface_data}{$interface}{gateway_string};
+		my $tx_string      = $anvil->data->{interface_data}{$interface}{tx_string};
+		my $rx_string      = $anvil->data->{interface_data}{$interface}{rx_string};
+		my $dns_string     = $anvil->data->{interface_data}{$interface}{dns_string};
+		
+		my $interface_line =  "| ".sprintf("%-${longest_interface}s", $interface);
+		   $interface_line .= " | ".sprintf("%-${longest_ip_address}s", $ip_address);
+		   $interface_line .= " | ".sprintf("%-${longest_subnet_mask}s", $subnet_mask);
+		   $interface_line .= " | ".sprintf("%-${longest_mac_address}s", $mac_address);
+		if ($anvil->data->{switches}{detailed})
+		{
+			$interface_line .= " | ".sprintf("%-${longest_gateway_string}s", $gateway_string);
+			$interface_line .= " | ".sprintf("%-${longest_tx_string}s", $tx_string);
+			$interface_line .= " | ".sprintf("%-${longest_rx_string}s", $rx_string);
+			$interface_line .= " | ".sprintf("%-${longest_dns_string}s", $dns_string);
+		}
+		$interface_line .= " |";
+		   
+		push @{$anvil->data->{display}{lines}}, $interface_line;
+	}
+
+	push @{$anvil->data->{display}{lines}}, $break_line;
+	
+	return(0);
+}
