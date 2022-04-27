@@ -388,97 +388,116 @@ const createOutlinedInputWithSelect = (
   </FormControl>
 );
 
-const organizeAnvils = (
-  data: AnvilDetailMetadataForProvisionServer[],
-): OrganizedAnvilDetailMetadataForProvisionServer[] =>
-  data.map((anvil) => {
-    const {
-      anvilUUID,
-      anvilName,
-      anvilTotalMemory,
-      anvilTotalAllocatedMemory,
-      anvilTotalAvailableMemory,
-      hosts,
-      servers,
-      storageGroups,
-      files,
-    } = anvil;
+const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
+  const anvilFiles: Record<string, FileMetadataForProvisionServer> = {};
 
-    const { storageGroupUUIDs, organizedStorageGroups } = storageGroups.reduce<{
-      storageGroupUUIDs: string[];
-      organizedStorageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
-    }>(
-      (reduced, storageGroup) => {
-        reduced.storageGroupUUIDs.push(storageGroup.storageGroupUUID);
-        reduced.organizedStorageGroups.push({
-          ...storageGroup,
-          anvilUUID,
-          anvilName,
-          storageGroupSize: BigInt(storageGroup.storageGroupSize),
-          storageGroupFree: BigInt(storageGroup.storageGroupFree),
-        });
+  const result = data.reduce<{
+    anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
+    anvilSelectItems: SelectItem[];
+    files: FileMetadataForProvisionServer[];
+    fileSelectItems: SelectItem[];
+    storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
+    storageGroupSelectItems: SelectItem[];
+  }>(
+    (reduceContainer, anvil) => {
+      const {
+        anvilUUID,
+        anvilName,
+        anvilTotalMemory,
+        anvilTotalAllocatedMemory,
+        anvilTotalAvailableMemory,
+        hosts,
+        servers,
+        storageGroups,
+        files,
+      } = anvil;
 
-        return reduced;
-      },
-      {
-        storageGroupUUIDs: [],
-        organizedStorageGroups: [],
-      },
-    );
+      const { storageGroupUUIDs, anvilStorageGroups } = storageGroups.reduce<{
+        storageGroupUUIDs: string[];
+        anvilStorageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
+      }>(
+        (reducedStorageGroups, storageGroup) => {
+          const anvilStorageGroup = {
+            ...storageGroup,
+            anvilUUID,
+            anvilName,
+            storageGroupSize: BigInt(storageGroup.storageGroupSize),
+            storageGroupFree: BigInt(storageGroup.storageGroupFree),
+          };
 
-    const fileUUIDs = files.map(({ fileUUID }) => fileUUID);
+          reducedStorageGroups.storageGroupUUIDs.push(
+            storageGroup.storageGroupUUID,
+          );
+          reducedStorageGroups.anvilStorageGroups.push(anvilStorageGroup);
 
-    return {
-      ...anvil,
-      anvilTotalMemory: BigInt(anvilTotalMemory),
-      anvilTotalAllocatedMemory: BigInt(anvilTotalAllocatedMemory),
-      anvilTotalAvailableMemory: BigInt(anvilTotalAvailableMemory),
-      hosts: hosts.map((host) => ({
-        ...host,
-        hostMemory: BigInt(host.hostMemory),
-      })),
-      servers: servers.map((server) => ({
-        ...server,
-        serverMemory: BigInt(server.serverMemory),
-      })),
-      storageGroupUUIDs,
-      storageGroups: organizedStorageGroups,
-      fileUUIDs,
-    };
-  });
+          reduceContainer.storageGroups.push(anvilStorageGroup);
+          reduceContainer.storageGroupSelectItems.push({
+            displayValue: `${anvilName} -- ${storageGroup.storageGroupName}`,
+            value: storageGroup.storageGroupUUID,
+          });
 
-const organizeStorageGroups = (
-  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
-) =>
-  organizedAnvils.reduce<OrganizedStorageGroupMetadataForProvisionServer[]>(
-    (reducedStorageGroups, { storageGroups }) => {
-      reducedStorageGroups.push(...storageGroups);
+          return reducedStorageGroups;
+        },
+        {
+          storageGroupUUIDs: [],
+          anvilStorageGroups: [],
+        },
+      );
 
-      return reducedStorageGroups;
-    },
-    [],
-  );
+      const fileUUIDs: string[] = [];
 
-const organizeFiles = (
-  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
-) =>
-  organizedAnvils.reduce<FileMetadataForProvisionServer[]>(
-    (reducedFiles, { files }) => {
       files.forEach((file) => {
-        // Avoid pushing duplicate file UUIDs.
-        if (
-          reducedFiles.find(({ fileUUID }) => file.fileUUID === fileUUID) ===
-          undefined
-        ) {
-          reducedFiles.push(file);
-        }
+        const { fileUUID } = file;
+
+        fileUUIDs.push(fileUUID);
+
+        anvilFiles[fileUUID] = file;
       });
 
-      return reducedFiles;
+      reduceContainer.anvils.push({
+        ...anvil,
+        anvilTotalMemory: BigInt(anvilTotalMemory),
+        anvilTotalAllocatedMemory: BigInt(anvilTotalAllocatedMemory),
+        anvilTotalAvailableMemory: BigInt(anvilTotalAvailableMemory),
+        hosts: hosts.map((host) => ({
+          ...host,
+          hostMemory: BigInt(host.hostMemory),
+        })),
+        servers: servers.map((server) => ({
+          ...server,
+          serverMemory: BigInt(server.serverMemory),
+        })),
+        storageGroupUUIDs,
+        storageGroups: anvilStorageGroups,
+        fileUUIDs,
+      });
+      reduceContainer.anvilSelectItems.push({
+        displayValue: anvilName,
+        value: anvilUUID,
+      });
+
+      return reduceContainer;
     },
-    [],
+    {
+      anvils: [],
+      anvilSelectItems: [],
+      files: [],
+      fileSelectItems: [],
+      storageGroups: [],
+      storageGroupSelectItems: [],
+    },
   );
 
+  Object.values(anvilFiles).forEach((distinctFile) => {
+    result.files.push(distinctFile);
+    result.fileSelectItems.push({
+      displayValue: distinctFile.fileName,
+      value: distinctFile.fileUUID,
+    });
+  });
+
+  return result;
+};
 const dSize = (
   valueToFormat: FormatDataSizeInputValue,
   {
@@ -536,6 +555,7 @@ const filterAnvils = (
   organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
   cpuCores: number,
   memory: bigint,
+  fileUUIDs: string[],
   {
     includeAnvilUUIDs = [],
     includeStorageGroupUUIDs = [],
@@ -559,21 +579,35 @@ const filterAnvils = (
   return organizedAnvils.reduce<{
     anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
     anvilUUIDs: string[];
+    fileUUIDs: string[];
     maxCPUCores: number;
     maxMemory: bigint;
     maxVirtualDiskSize: bigint;
+    storageGroupUUIDs: string[];
   }>(
     (result, organizedAnvil) => {
       const { anvilUUID } = organizedAnvil;
 
       if (testIncludeAnvil(anvilUUID)) {
-        const { anvilTotalCPUCores, anvilTotalAvailableMemory, storageGroups } =
-          organizedAnvil;
+        const {
+          anvilTotalCPUCores,
+          anvilTotalAvailableMemory,
+          files,
+          fileUUIDs: localFileUUIDs,
+          storageGroups,
+        } = organizedAnvil;
 
         const isEnoughCPUCores = cpuCores <= anvilTotalCPUCores;
         const isEnoughMemory = memory <= anvilTotalAvailableMemory;
+        const hasFiles = fileUUIDs.reduce<boolean>(
+          (localHasFiles, fileUUID) =>
+            fileUUID === ''
+              ? localHasFiles
+              : localHasFiles && localFileUUIDs.includes(fileUUID),
+          true,
+        );
 
-        if (isEnoughCPUCores && isEnoughMemory) {
+        if (isEnoughCPUCores && isEnoughMemory && hasFiles) {
           result.anvils.push(organizedAnvil);
           result.anvilUUIDs.push(anvilUUID);
 
@@ -583,11 +617,19 @@ const filterAnvils = (
             result.maxMemory = anvilTotalAvailableMemory;
           }
 
+          files.forEach(({ fileUUID }) => {
+            if (!result.fileUUIDs.includes(fileUUID)) {
+              result.fileUUIDs.push(fileUUID);
+            }
+          });
+
           storageGroups.forEach(({ storageGroupUUID, storageGroupFree }) => {
             if (
               testIncludeStorageGroup(storageGroupUUID) &&
               storageGroupFree > result.maxVirtualDiskSize
             ) {
+              result.storageGroupUUIDs.push(storageGroupUUID);
+
               result.maxVirtualDiskSize = storageGroupFree;
             }
           });
@@ -599,9 +641,11 @@ const filterAnvils = (
     {
       anvils: [],
       anvilUUIDs: [],
+      fileUUIDs: [],
       maxCPUCores: 0,
       maxMemory: BIGINT_ZERO,
       maxVirtualDiskSize: BIGINT_ZERO,
+      storageGroupUUIDs: [],
     },
   );
 };
@@ -630,6 +674,25 @@ const filterStorageGroups = (
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
+  const [allAnvils, setAllAnvils] = useState<
+    OrganizedAnvilDetailMetadataForProvisionServer[]
+  >([]);
+  const [allFiles, setAllFiles] = useState<FileMetadataForProvisionServer[]>(
+    [],
+  );
+  const [allStorageGroups, setAllStorageGroups] = useState<
+    OrganizedStorageGroupMetadataForProvisionServer[]
+  >([]);
+
+  const [anvilSelectItems, setAnvilSelectItems] = useState<SelectItem[]>([]);
+  const [fileSelectItems, setFileSelectItems] = useState<SelectItem[]>([]);
+  const [osAutocompleteOptions, setOSAutocompleteOptions] = useState<
+    { label: string; key: string }[]
+  >([]);
+  const [storageGroupSelectItems, setStorageGroupSelectItems] = useState<
+    SelectItem[]
+  >([]);
+
   const [cpuCoresValue, setCPUCoresValue] = useState<number>(1);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
 
@@ -648,7 +711,7 @@ const ProvisionServerDialog = ({
     useState<DataSizeUnit>('B');
 
   const [storageGroupValue, setStorageGroupValue] = useState<string[]>([]);
-  const [excludedStorageGroupUUIDs, setExcludedStorageGroupUUIDs] = useState<
+  const [includeStorageGroupUUIDs, setIncludeStorageGroupUUIDs] = useState<
     string[]
   >([]);
   const [selectedStorageGroupUUID, setSelectedStorageGroupUUID] = useState<
@@ -657,42 +720,61 @@ const ProvisionServerDialog = ({
 
   const [installISOFileUUID, setInstallISOFileUUID] = useState<string>('');
   const [driverISOFileUUID, setDriverISOFileUUID] = useState<string>('');
-  const [excludedFileUUIDs, setExcludedFileUUIDs] = useState<string[]>([]);
+  const [includeFileUUIDs, setIncludeFileUUIDs] = useState<string[]>([]);
 
   const [anvilValue, setAnvilValue] = useState<string[]>([]);
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
 
-  const data = MOCK_DATA;
-
-  const organizedAnvils = organizeAnvils(data.anvils);
-  const organizedStorageGroups = organizeStorageGroups(organizedAnvils);
-  const organizedFiles = organizeFiles(organizedAnvils);
-
-  const { maxCPUCores, maxMemory, maxVirtualDiskSize } = filterAnvils(
-    organizedAnvils,
-    0,
-    BIGINT_ZERO,
-  );
-
-  const selectFiles = organizedFiles.map(({ fileUUID, fileName }) => ({
-    displayValue: fileName,
-    value: fileUUID,
-  }));
-
-  const optimizeOSList = data.osList.map((keyValuePair) => {
-    const [osKey, osValue] = keyValuePair.split(',');
-
-    return {
-      label: osValue,
-      key: osKey,
-    };
-  });
-
   useEffect(() => {
-    setInputCPUCoresMax(maxCPUCores);
-    setInputMemoryMax(maxMemory);
-    setInputVirtualDiskSizeMax(maxVirtualDiskSize);
-  }, [maxCPUCores, maxMemory, maxVirtualDiskSize]);
+    console.log(`After server returns data.`);
+
+    const data = MOCK_DATA;
+
+    const {
+      anvils: localAllAnvils,
+      anvilSelectItems: localAnvilSelectItems,
+      files: localAllFiles,
+      fileSelectItems: localFileSelectItems,
+      storageGroups: localAllStorageGroups,
+      storageGroupSelectItems: localStorageGroupSelectItems,
+    } = organizeAnvils(data.anvils);
+
+    setAllAnvils(localAllAnvils);
+    setAllFiles(localAllFiles);
+    setAllStorageGroups(localAllStorageGroups);
+
+    setAnvilSelectItems(localAnvilSelectItems);
+    setFileSelectItems(localFileSelectItems);
+    setStorageGroupSelectItems(localStorageGroupSelectItems);
+
+    const {
+      anvilUUIDs: initialIncludeAnvilUUIDs,
+      fileUUIDs: initialIncludeFileUUIDs,
+      maxCPUCores: initialMaxCPUCores,
+      maxMemory: initialMaxMemory,
+      maxVirtualDiskSize: initialMaxVDSize,
+      storageGroupUUIDs: initialIncludeStorageGroupUUIDs,
+    } = filterAnvils(localAllAnvils, 0, BIGINT_ZERO, []);
+
+    setIncludeAnvilUUIDs(initialIncludeAnvilUUIDs);
+    setIncludeFileUUIDs(initialIncludeFileUUIDs);
+    setIncludeStorageGroupUUIDs(initialIncludeStorageGroupUUIDs);
+
+    setOSAutocompleteOptions(
+      data.osList.map((keyValuePair) => {
+        const [osKey, osValue] = keyValuePair.split(',');
+
+        return {
+          label: osValue,
+          key: osKey,
+        };
+      }),
+    );
+
+    setInputCPUCoresMax(initialMaxCPUCores);
+    setInputMemoryMax(initialMaxMemory);
+    setInputVirtualDiskSizeMax(initialMaxVDSize);
+  }, []);
 
   return (
     <Dialog
@@ -728,16 +810,24 @@ const ProvisionServerDialog = ({
               setCPUCoresValue(setValue);
 
               const {
-                anvilUUIDs,
+                anvilUUIDs: localAnvilUUIDs,
+                fileUUIDs: localFileUUIDs,
                 maxCPUCores: localMaxCPUCores,
                 maxMemory: localMaxMemory,
                 maxVirtualDiskSize: localMaxVDSize,
-              } = filterAnvils(organizedAnvils, setValue, memoryValue);
+                storageGroupUUIDs: localStorageGroupUUIDs,
+              } = filterAnvils(allAnvils, setValue, memoryValue, [
+                installISOFileUUID,
+                driverISOFileUUID,
+              ]);
 
-              setIncludeAnvilUUIDs(anvilUUIDs);
               setInputCPUCoresMax(localMaxCPUCores);
               setInputMemoryMax(localMaxMemory);
               setInputVirtualDiskSizeMax(localMaxVDSize);
+
+              setIncludeAnvilUUIDs(localAnvilUUIDs);
+              setIncludeFileUUIDs(localFileUUIDs);
+              setIncludeStorageGroupUUIDs(localStorageGroupUUIDs);
             },
             max: inputCPUCoresMax,
             min: 1,
@@ -756,20 +846,26 @@ const ProvisionServerDialog = ({
                 setMemoryValue(convertedMemoryValue);
 
                 const {
-                  anvilUUIDs,
+                  anvilUUIDs: localAnvilUUIDs,
+                  fileUUIDs: localFileUUIDs,
                   maxCPUCores: localMaxCPUCores,
                   maxMemory: localMaxMemory,
                   maxVirtualDiskSize: localMaxVDSize,
+                  storageGroupUUIDs: localStorageGroupUUIDs,
                 } = filterAnvils(
-                  organizedAnvils,
+                  allAnvils,
                   cpuCoresValue,
                   convertedMemoryValue,
+                  [installISOFileUUID, driverISOFileUUID],
                 );
 
-                setIncludeAnvilUUIDs(anvilUUIDs);
                 setInputCPUCoresMax(localMaxCPUCores);
                 setInputMemoryMax(localMaxMemory);
                 setInputVirtualDiskSizeMax(localMaxVDSize);
+
+                setIncludeAnvilUUIDs(localAnvilUUIDs);
+                setIncludeFileUUIDs(localFileUUIDs);
+                setIncludeStorageGroupUUIDs(localStorageGroupUUIDs);
               });
             },
             value: inputMemoryValue,
@@ -787,20 +883,26 @@ const ProvisionServerDialog = ({
                   setMemoryValue(convertedMemoryValue);
 
                   const {
-                    anvilUUIDs,
+                    anvilUUIDs: localAnvilUUIDs,
+                    fileUUIDs: localFileUUIDs,
                     maxCPUCores: localMaxCPUCores,
                     maxMemory: localMaxMemory,
                     maxVirtualDiskSize: localMaxVDSize,
+                    storageGroupUUIDs: localStorageGroupUUIDs,
                   } = filterAnvils(
-                    organizedAnvils,
+                    allAnvils,
                     cpuCoresValue,
                     convertedMemoryValue,
+                    [installISOFileUUID, driverISOFileUUID],
                   );
 
-                  setIncludeAnvilUUIDs(anvilUUIDs);
                   setInputCPUCoresMax(localMaxCPUCores);
                   setInputMemoryMax(localMaxMemory);
                   setInputVirtualDiskSizeMax(localMaxVDSize);
+
+                  setIncludeAnvilUUIDs(localAnvilUUIDs);
+                  setIncludeFileUUIDs(localFileUUIDs);
+                  setIncludeStorageGroupUUIDs(localStorageGroupUUIDs);
                 },
               );
             },
@@ -850,15 +952,10 @@ const ProvisionServerDialog = ({
         {createOutlinedSelect(
           'ps-storage-group',
           'Storage group',
-          organizedStorageGroups.map(
-            ({ anvilName, storageGroupUUID, storageGroupName }) => ({
-              displayValue: `${anvilName} -- ${storageGroupName}`,
-              value: storageGroupUUID,
-            }),
-          ),
+          storageGroupSelectItems,
           {
             checkItem: (value) => storageGroupValue.includes(value),
-            hideItem: (value) => excludedStorageGroupUUIDs.includes(value),
+            hideItem: (value) => !includeStorageGroupUUIDs.includes(value),
             selectProps: {
               multiple: true,
               onChange: ({ target: { value } }) => {
@@ -868,145 +965,130 @@ const ProvisionServerDialog = ({
                     : (value as string[]);
 
                 setStorageGroupValue(subsetStorageGroupsUUID);
-
-                setSelectedStorageGroupUUID(
-                  filterStorageGroups(
-                    organizedStorageGroups,
-                    virtualDiskSizeValue,
-                    subsetStorageGroupsUUID,
-                  )[0]?.storageGroupUUID,
-                );
-
-                // setInputVirtualDiskSizeMax(
-                //   getMaxAvailableValues(organizedAnvils, {
-                //     includeAnvilUUIDs: anvilValue,
-                //     includeStorageGroupUUIDs: subsetStorageGroupsUUID,
-                //   }).maxVirtualDiskSize,
-                // );
               },
               value: storageGroupValue,
             },
           },
         )}
-        {createOutlinedSelect('ps-install-image', 'Install ISO', selectFiles, {
-          hideItem: (value) => excludedFileUUIDs.includes(value),
-          selectProps: {
-            onChange: ({ target: { value } }) => {
-              setInstallISOFileUUID(value as string);
-            },
-            value: installISOFileUUID,
-          },
-        })}
-        {createOutlinedSelect('ps-driver-image', 'Driver ISO', selectFiles, {
-          hideItem: (value) => excludedFileUUIDs.includes(value),
-          selectProps: {
-            onChange: ({ target: { value } }) => {
-              setDriverISOFileUUID(value as string);
-            },
-            value: driverISOFileUUID,
-          },
-        })}
         {createOutlinedSelect(
-          'ps-anvil',
-          'Anvil',
-          organizedAnvils.map(({ anvilUUID, anvilName }) => ({
-            displayValue: anvilName,
-            value: anvilUUID,
-          })),
+          'ps-install-image',
+          'Install ISO',
+          fileSelectItems,
           {
-            checkItem: (value) => anvilValue.includes(value),
-            hideItem: (value) => !includeAnvilUUIDs.includes(value),
+            hideItem: (value) => !includeFileUUIDs.includes(value),
             selectProps: {
-              multiple: true,
               onChange: ({ target: { value } }) => {
-                const subsetAnvilUUIDs: string[] =
-                  typeof value === 'string'
-                    ? value.split(',')
-                    : (value as string[]);
-
-                setAnvilValue(subsetAnvilUUIDs);
-
-                const includedFileUUIDs: string[] = [];
-
-                let newExcludedStorageGroupUUIDs: string[] = [];
-                let newExcludedFileUUIDs: string[] = [];
-
-                if (subsetAnvilUUIDs.length > 0) {
-                  ({ newExcludedStorageGroupUUIDs, newExcludedFileUUIDs } =
-                    organizedAnvils.reduce<{
-                      newExcludedStorageGroupUUIDs: string[];
-                      newExcludedFileUUIDs: string[];
-                    }>(
-                      (
-                        reduced,
-                        { anvilUUID, storageGroupUUIDs, fileUUIDs },
-                      ) => {
-                        if (subsetAnvilUUIDs.includes(anvilUUID)) {
-                          includedFileUUIDs.push(...fileUUIDs);
-                        } else {
-                          reduced.newExcludedStorageGroupUUIDs.push(
-                            ...storageGroupUUIDs,
-                          );
-                          reduced.newExcludedFileUUIDs.push(...fileUUIDs);
-                        }
-
-                        return reduced;
-                      },
-                      {
-                        newExcludedStorageGroupUUIDs: [],
-                        newExcludedFileUUIDs: [],
-                      },
-                    ));
-
-                  includedFileUUIDs.forEach((fileUUID) => {
-                    newExcludedFileUUIDs.splice(
-                      newExcludedFileUUIDs.indexOf(fileUUID),
-                      1,
-                    );
-                  });
-                }
-
-                setExcludedStorageGroupUUIDs(newExcludedStorageGroupUUIDs);
-                setExcludedFileUUIDs(newExcludedFileUUIDs);
-
-                const newStorageGroupValue = storageGroupValue.filter(
-                  (uuid) => !newExcludedStorageGroupUUIDs.includes(uuid),
-                );
-                setStorageGroupValue(newStorageGroupValue);
-
-                newExcludedFileUUIDs.forEach((excludedFileUUID) => {
-                  if (installISOFileUUID === excludedFileUUID) {
-                    setInstallISOFileUUID('');
-                  }
-
-                  if (driverISOFileUUID === excludedFileUUID) {
-                    setDriverISOFileUUID('');
-                  }
-                });
-
-                // const {
-                //   maxCPUCores: localMaxCPUCores,
-                //   maxMemory: localMaxMemory,
-                //   maxVirtualDiskSize: localMaxVDSize,
-                // } = getMaxAvailableValues(organizedAnvils, {
-                //   includeAnvilUUIDs: subsetAnvilUUIDs,
-                //   includeStorageGroupUUIDs: newStorageGroupValue,
-                // });
-
-                // setInputCPUCoresMax(localMaxCPUCores);
-                // setInputMemoryMax(localMaxMemory);
-                // setInputVirtualDiskSizeMax(localMaxVDSize);
+                setInstallISOFileUUID(value as string);
               },
-              value: anvilValue,
+              value: installISOFileUUID,
             },
           },
         )}
+        {createOutlinedSelect(
+          'ps-driver-image',
+          'Driver ISO',
+          fileSelectItems,
+          {
+            hideItem: (value) => !includeFileUUIDs.includes(value),
+            selectProps: {
+              onChange: ({ target: { value } }) => {
+                setDriverISOFileUUID(value as string);
+              },
+              value: driverISOFileUUID,
+            },
+          },
+        )}
+        {createOutlinedSelect('ps-anvil', 'Anvil', anvilSelectItems, {
+          checkItem: (value) => anvilValue.includes(value),
+          disableItem: (value) => !includeAnvilUUIDs.includes(value),
+          // hideItem: (value) => !includeAnvilUUIDs.includes(value),
+          selectProps: {
+            multiple: true,
+            onChange: ({ target: { value } }) => {
+              const subsetAnvilUUIDs: string[] =
+                typeof value === 'string'
+                  ? value.split(',')
+                  : (value as string[]);
+
+              setAnvilValue(subsetAnvilUUIDs);
+
+              // const includedFileUUIDs: string[] = [];
+
+              // let newExcludedStorageGroupUUIDs: string[] = [];
+              // let newExcludedFileUUIDs: string[] = [];
+
+              // if (subsetAnvilUUIDs.length > 0) {
+              //   ({ newExcludedStorageGroupUUIDs, newExcludedFileUUIDs } =
+              //     organizedAnvils.reduce<{
+              //       newExcludedStorageGroupUUIDs: string[];
+              //       newExcludedFileUUIDs: string[];
+              //     }>(
+              //       (reduced, { anvilUUID, storageGroupUUIDs, fileUUIDs }) => {
+              //         if (subsetAnvilUUIDs.includes(anvilUUID)) {
+              //           includedFileUUIDs.push(...fileUUIDs);
+              //         } else {
+              //           reduced.newExcludedStorageGroupUUIDs.push(
+              //             ...storageGroupUUIDs,
+              //           );
+              //           reduced.newExcludedFileUUIDs.push(...fileUUIDs);
+              //         }
+
+              //         return reduced;
+              //       },
+              //       {
+              //         newExcludedStorageGroupUUIDs: [],
+              //         newExcludedFileUUIDs: [],
+              //       },
+              //     ));
+
+              //   includedFileUUIDs.forEach((fileUUID) => {
+              //     newExcludedFileUUIDs.splice(
+              //       newExcludedFileUUIDs.indexOf(fileUUID),
+              //       1,
+              //     );
+              //   });
+              // }
+
+              // setIncludeStorageGroupUUIDs(newExcludedStorageGroupUUIDs);
+              // setIncludeFileUUIDs(newExcludedFileUUIDs);
+
+              // const newStorageGroupValue = storageGroupValue.filter(
+              //   (uuid) => !newExcludedStorageGroupUUIDs.includes(uuid),
+              // );
+              // setStorageGroupValue(newStorageGroupValue);
+
+              // newExcludedFileUUIDs.forEach((excludedFileUUID) => {
+              //   if (installISOFileUUID === excludedFileUUID) {
+              //     setInstallISOFileUUID('');
+              //   }
+
+              //   if (driverISOFileUUID === excludedFileUUID) {
+              //     setDriverISOFileUUID('');
+              //   }
+              // });
+
+              // const {
+              //   maxCPUCores: localMaxCPUCores,
+              //   maxMemory: localMaxMemory,
+              //   maxVirtualDiskSize: localMaxVDSize,
+              // } = getMaxAvailableValues(organizedAnvils, {
+              //   includeAnvilUUIDs: subsetAnvilUUIDs,
+              //   includeStorageGroupUUIDs: newStorageGroupValue,
+              // });
+
+              // setInputCPUCoresMax(localMaxCPUCores);
+              // setInputMemoryMax(localMaxMemory);
+              // setInputVirtualDiskSizeMax(localMaxVDSize);
+            },
+            value: anvilValue,
+          },
+        })}
         <Autocomplete
           id="ps-optimize-for-os"
           label="Optimize for OS"
           noOptionsText="No matching OS"
           openOnFocus
-          options={optimizeOSList}
+          options={osAutocompleteOptions}
         />
       </Box>
       <Box
