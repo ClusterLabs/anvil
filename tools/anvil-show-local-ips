@@ -102,7 +102,7 @@ sub collect_data
 		}
 		
 		my $say_is_dg   = $default_gateway ? "*"                 : " ";
-		my $say_gateway = $gateway         ? $gateway.$say_is_dg : "-- ".$say_is_dg;
+		my $say_gateway = $gateway         ? $gateway.$say_is_dg : " ".$say_is_dg;
 		my $say_tx      = $anvil->Convert->bytes_to_human_readable({'bytes' => $tx_bytes});
 		my $say_rx      = $anvil->Convert->bytes_to_human_readable({'bytes' => $rx_bytes});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
