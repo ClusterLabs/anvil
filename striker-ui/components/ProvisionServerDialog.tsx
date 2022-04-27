@@ -671,6 +671,9 @@ const filterStorageGroups = (
   );
 };
 
+const convertSelectValueToArray = (value: unknown) =>
+  typeof value === 'string' ? value.split(',') : (value as string[]);
+
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
@@ -714,9 +717,6 @@ const ProvisionServerDialog = ({
   const [includeStorageGroupUUIDs, setIncludeStorageGroupUUIDs] = useState<
     string[]
   >([]);
-  const [selectedStorageGroupUUID, setSelectedStorageGroupUUID] = useState<
-    string | undefined
-  >();
 
   const [installISOFileUUID, setInstallISOFileUUID] = useState<string>('');
   const [driverISOFileUUID, setDriverISOFileUUID] = useState<string>('');
@@ -725,9 +725,26 @@ const ProvisionServerDialog = ({
   const [anvilValue, setAnvilValue] = useState<string[]>([]);
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
 
-  useEffect(() => {
-    console.log(`After server returns data.`);
+  const updateLimits = (...args: Parameters<typeof filterAnvils>) => {
+    const {
+      anvilUUIDs,
+      fileUUIDs,
+      maxCPUCores,
+      maxMemory,
+      maxVirtualDiskSize,
+      storageGroupUUIDs,
+    } = filterAnvils(...args);
 
+    setInputCPUCoresMax(maxCPUCores);
+    setInputMemoryMax(maxMemory);
+    setInputVirtualDiskSizeMax(maxVirtualDiskSize);
+
+    setIncludeAnvilUUIDs(anvilUUIDs);
+    setIncludeFileUUIDs(fileUUIDs);
+    setIncludeStorageGroupUUIDs(storageGroupUUIDs);
+  };
+
+  useEffect(() => {
     const data = MOCK_DATA;
 
     const {
@@ -747,18 +764,7 @@ const ProvisionServerDialog = ({
     setFileSelectItems(localFileSelectItems);
     setStorageGroupSelectItems(localStorageGroupSelectItems);
 
-    const {
-      anvilUUIDs: initialIncludeAnvilUUIDs,
-      fileUUIDs: initialIncludeFileUUIDs,
-      maxCPUCores: initialMaxCPUCores,
-      maxMemory: initialMaxMemory,
-      maxVirtualDiskSize: initialMaxVDSize,
-      storageGroupUUIDs: initialIncludeStorageGroupUUIDs,
-    } = filterAnvils(localAllAnvils, 0, BIGINT_ZERO, []);
-
-    setIncludeAnvilUUIDs(initialIncludeAnvilUUIDs);
-    setIncludeFileUUIDs(initialIncludeFileUUIDs);
-    setIncludeStorageGroupUUIDs(initialIncludeStorageGroupUUIDs);
+    updateLimits(localAllAnvils, 0, BIGINT_ZERO, []);
 
     setOSAutocompleteOptions(
       data.osList.map((keyValuePair) => {
@@ -770,10 +776,6 @@ const ProvisionServerDialog = ({
         };
       }),
     );
-
-    setInputCPUCoresMax(initialMaxCPUCores);
-    setInputMemoryMax(initialMaxMemory);
-    setInputVirtualDiskSizeMax(initialMaxVDSize);
   }, []);
 
   return (
@@ -805,29 +807,14 @@ const ProvisionServerDialog = ({
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', cpuCoresValue, {
           sliderProps: {
             onChange: (value) => {
-              const setValue = value as number;
+              const newCPUCoresValue = value as number;
 
-              setCPUCoresValue(setValue);
+              setCPUCoresValue(newCPUCoresValue);
 
-              const {
-                anvilUUIDs: localAnvilUUIDs,
-                fileUUIDs: localFileUUIDs,
-                maxCPUCores: localMaxCPUCores,
-                maxMemory: localMaxMemory,
-                maxVirtualDiskSize: localMaxVDSize,
-                storageGroupUUIDs: localStorageGroupUUIDs,
-              } = filterAnvils(allAnvils, setValue, memoryValue, [
+              updateLimits(allAnvils, newCPUCoresValue, memoryValue, [
                 installISOFileUUID,
                 driverISOFileUUID,
               ]);
-
-              setInputCPUCoresMax(localMaxCPUCores);
-              setInputMemoryMax(localMaxMemory);
-              setInputVirtualDiskSizeMax(localMaxVDSize);
-
-              setIncludeAnvilUUIDs(localAnvilUUIDs);
-              setIncludeFileUUIDs(localFileUUIDs);
-              setIncludeStorageGroupUUIDs(localStorageGroupUUIDs);
             },
             max: inputCPUCoresMax,
             min: 1,
@@ -845,27 +832,10 @@ const ProvisionServerDialog = ({
               dSizeToBytes(value, inputMemoryUnit, (convertedMemoryValue) => {
                 setMemoryValue(convertedMemoryValue);
 
-                const {
-                  anvilUUIDs: localAnvilUUIDs,
-                  fileUUIDs: localFileUUIDs,
-                  maxCPUCores: localMaxCPUCores,
-                  maxMemory: localMaxMemory,
-                  maxVirtualDiskSize: localMaxVDSize,
-                  storageGroupUUIDs: localStorageGroupUUIDs,
-                } = filterAnvils(
-                  allAnvils,
-                  cpuCoresValue,
-                  convertedMemoryValue,
-                  [installISOFileUUID, driverISOFileUUID],
-                );
-
-                setInputCPUCoresMax(localMaxCPUCores);
-                setInputMemoryMax(localMaxMemory);
-                setInputVirtualDiskSizeMax(localMaxVDSize);
-
-                setIncludeAnvilUUIDs(localAnvilUUIDs);
-                setIncludeFileUUIDs(localFileUUIDs);
-                setIncludeStorageGroupUUIDs(localStorageGroupUUIDs);
+                updateLimits(allAnvils, cpuCoresValue, convertedMemoryValue, [
+                  installISOFileUUID,
+                  driverISOFileUUID,
+                ]);
               });
             },
             value: inputMemoryValue,
@@ -882,27 +852,10 @@ const ProvisionServerDialog = ({
                 (convertedMemoryValue) => {
                   setMemoryValue(convertedMemoryValue);
 
-                  const {
-                    anvilUUIDs: localAnvilUUIDs,
-                    fileUUIDs: localFileUUIDs,
-                    maxCPUCores: localMaxCPUCores,
-                    maxMemory: localMaxMemory,
-                    maxVirtualDiskSize: localMaxVDSize,
-                    storageGroupUUIDs: localStorageGroupUUIDs,
-                  } = filterAnvils(
-                    allAnvils,
-                    cpuCoresValue,
-                    convertedMemoryValue,
-                    [installISOFileUUID, driverISOFileUUID],
-                  );
-
-                  setInputCPUCoresMax(localMaxCPUCores);
-                  setInputMemoryMax(localMaxMemory);
-                  setInputVirtualDiskSizeMax(localMaxVDSize);
-
-                  setIncludeAnvilUUIDs(localAnvilUUIDs);
-                  setIncludeFileUUIDs(localFileUUIDs);
-                  setIncludeStorageGroupUUIDs(localStorageGroupUUIDs);
+                  updateLimits(allAnvils, cpuCoresValue, convertedMemoryValue, [
+                    installISOFileUUID,
+                    driverISOFileUUID,
+                  ]);
                 },
               );
             },
@@ -946,9 +899,6 @@ const ProvisionServerDialog = ({
             },
           },
         )}
-        <BodyText
-          text={`Selected storage group UUID: ${selectedStorageGroupUUID}`}
-        />
         {createOutlinedSelect(
           'ps-storage-group',
           'Storage group',
@@ -960,9 +910,7 @@ const ProvisionServerDialog = ({
               multiple: true,
               onChange: ({ target: { value } }) => {
                 const subsetStorageGroupsUUID: string[] =
-                  typeof value === 'string'
-                    ? value.split(',')
-                    : (value as string[]);
+                  convertSelectValueToArray(value);
 
                 setStorageGroupValue(subsetStorageGroupsUUID);
               },
@@ -978,7 +926,14 @@ const ProvisionServerDialog = ({
             hideItem: (value) => !includeFileUUIDs.includes(value),
             selectProps: {
               onChange: ({ target: { value } }) => {
-                setInstallISOFileUUID(value as string);
+                const newInstallISOFileUUID = value as string;
+
+                setInstallISOFileUUID(newInstallISOFileUUID);
+
+                updateLimits(allAnvils, cpuCoresValue, memoryValue, [
+                  newInstallISOFileUUID,
+                  driverISOFileUUID,
+                ]);
               },
               value: installISOFileUUID,
             },
@@ -992,7 +947,14 @@ const ProvisionServerDialog = ({
             hideItem: (value) => !includeFileUUIDs.includes(value),
             selectProps: {
               onChange: ({ target: { value } }) => {
-                setDriverISOFileUUID(value as string);
+                const newDriverISOFileUUID = value as string;
+
+                setDriverISOFileUUID(newDriverISOFileUUID);
+
+                updateLimits(allAnvils, cpuCoresValue, memoryValue, [
+                  installISOFileUUID,
+                  newDriverISOFileUUID,
+                ]);
               },
               value: driverISOFileUUID,
             },
@@ -1001,14 +963,11 @@ const ProvisionServerDialog = ({
         {createOutlinedSelect('ps-anvil', 'Anvil', anvilSelectItems, {
           checkItem: (value) => anvilValue.includes(value),
           disableItem: (value) => !includeAnvilUUIDs.includes(value),
-          // hideItem: (value) => !includeAnvilUUIDs.includes(value),
           selectProps: {
             multiple: true,
             onChange: ({ target: { value } }) => {
               const subsetAnvilUUIDs: string[] =
-                typeof value === 'string'
-                  ? value.split(',')
-                  : (value as string[]);
+                convertSelectValueToArray(value);
 
               setAnvilValue(subsetAnvilUUIDs);
 
