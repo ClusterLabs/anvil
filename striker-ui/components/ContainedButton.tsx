@@ -1,26 +1,42 @@
-import { Button, ButtonProps, styled } from '@mui/material';
+import {
+  Button as MUIButton,
+  ButtonProps as MUIButtonProps,
+} from '@mui/material';
 
 import { BLACK, GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
-const StyledButton = styled(Button)({
-  backgroundColor: TEXT,
-  color: BLACK,
-  textTransform: 'none',
+type ContainedButtonProps = MUIButtonProps;
 
-  '&:hover': {
-    backgroundColor: GREY,
-  },
-});
+const ContainedButton = (
+  containedButtonProps: ContainedButtonProps,
+): JSX.Element => {
+  const { children, sx } = containedButtonProps;
+  const combinedSx: ContainedButtonProps['sx'] = {
+    backgroundColor: TEXT,
+    color: BLACK,
+    textTransform: 'none',
 
-const ContainedButton = ({
-  children,
-  onClick,
-  sx,
-  type,
-}: ButtonProps): JSX.Element => (
-  <StyledButton {...{ onClick, sx, type }} variant="contained">
-    {children}
-  </StyledButton>
-);
+    '&:hover': {
+      backgroundColor: GREY,
+    },
+
+    ...sx,
+  };
+
+  return (
+    <MUIButton
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...{
+        variant: 'contained',
+        ...containedButtonProps,
+        sx: combinedSx,
+      }}
+    >
+      {children}
+    </MUIButton>
+  );
+};
+
+export type { ContainedButtonProps };
 
 export default ContainedButton;
