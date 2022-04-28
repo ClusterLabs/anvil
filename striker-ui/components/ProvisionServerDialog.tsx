@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Checkbox, Dialog, DialogProps, FormControl } from '@mui/material';
 import {
   dSize as baseDSize,
@@ -9,15 +9,16 @@ import {
 
 import Autocomplete from './Autocomplete';
 import MenuItem from './MenuItem';
-import OutlinedInput, { OutlinedInputProps } from './OutlinedInput';
+import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
+import OutlinedInputWithLabel, {
+  OutlinedInputWithLabelProps,
+} from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
 import Select, { SelectProps } from './Select';
 import Slider, { SliderProps } from './Slider';
 import { BodyText, HeaderText } from './Text';
 import ContainedButton from './ContainedButton';
-import { OutlinedInputLabelProps } from './OutlinedInputLabel/OutlinedInputLabel';
-import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 
 type SelectItem<SelectItemValueType = string> = {
   displayValue?: SelectItemValueType;
@@ -362,12 +363,10 @@ const createOutlinedInputWithSelect = (
   label: string,
   selectItems: SelectItem[],
   {
-    inputProps,
-    inputLabelProps,
+    inputWithLabelProps,
     selectProps,
   }: {
-    inputProps?: Partial<OutlinedInputProps>;
-    inputLabelProps?: Partial<OutlinedInputLabelProps>;
+    inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;
     selectProps?: Partial<SelectProps>;
   } = {},
 ) => (
@@ -381,7 +380,14 @@ const createOutlinedInputWithSelect = (
       },
     }}
   >
-    <OutlinedInputWithLabel {...{ id, label, inputProps, inputLabelProps }} />
+    <OutlinedInputWithLabel
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...{
+        id,
+        label,
+        ...inputWithLabelProps,
+      }}
+    />
     {createOutlinedSelect(`${id}-nested-select`, undefined, selectItems, {
       selectProps,
     })}
@@ -540,9 +546,15 @@ const dSizeToBytes = (
   value: FormatDataSizeInputValue,
   fromUnit: DataSizeUnit,
   onSuccess: (newValue: bigint, unit: DataSizeUnit) => void,
+  onFailure?: (
+    error?: unknown,
+    unchangedValue?: string,
+    unit?: DataSizeUnit,
+  ) => void,
 ) => {
   dSize(value, {
     fromUnit,
+    onFailure,
     onSuccess: {
       bigint: onSuccess,
     },
@@ -650,6 +662,8 @@ const filterAnvils = (
   );
 };
 
+type FilterAnvilsParameters = Parameters<typeof filterAnvils>;
+
 const filterStorageGroups = (
   organizedStorageGroups: OrganizedStorageGroupMetadataForProvisionServer[],
   virtualDiskSize: bigint,
@@ -700,7 +714,8 @@ const ProvisionServerDialog = ({
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
 
   const [memoryValue, setMemoryValue] = useState<bigint>(BIGINT_ZERO);
-  const [inputMemoryMax, setInputMemoryMax] = useState<bigint>(BIGINT_ZERO);
+  const [memoryValueMax, setMemoryValueMax] = useState<bigint>(BIGINT_ZERO);
+  const [inputMemoryMax, setInputMemoryMax] = useState<string>('0');
   const [inputMemoryValue, setInputMemoryValue] = useState<string>('');
   const [inputMemoryUnit, setInputMemoryUnit] = useState<DataSizeUnit>('B');
 
@@ -725,7 +740,12 @@ const ProvisionServerDialog = ({
   const [anvilValue, setAnvilValue] = useState<string[]>([]);
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
 
-  const updateLimits = (...args: Parameters<typeof filterAnvils>) => {
+  const updateLimits = (
+    filterArgs: FilterAnvilsParameters,
+    {
+      newInputMemoryUnit = inputMemoryUnit,
+    }: { newInputMemoryUnit?: DataSizeUnit } = {},
+  ) => {
     const {
       anvilUUIDs,
       fileUUIDs,
@@ -733,15 +753,48 @@ const ProvisionServerDialog = ({
       maxMemory,
       maxVirtualDiskSize,
       storageGroupUUIDs,
-    } = filterAnvils(...args);
+    } = filterAnvils(...filterArgs);
 
     setInputCPUCoresMax(maxCPUCores);
-    setInputMemoryMax(maxMemory);
+    setMemoryValueMax(maxMemory);
     setInputVirtualDiskSizeMax(maxVirtualDiskSize);
 
     setIncludeAnvilUUIDs(anvilUUIDs);
     setIncludeFileUUIDs(fileUUIDs);
     setIncludeStorageGroupUUIDs(storageGroupUUIDs);
+
+    dSize(maxMemory, {
+      fromUnit: 'B',
+      onSuccess: {
+        string: (value) => setInputMemoryMax(value),
+      },
+      toUnit: newInputMemoryUnit,
+    });
+  };
+
+  const memorizedUpdateLimit = useCallback(updateLimits, [inputMemoryUnit]);
+
+  const handleInputMemoryValueChange = (value: string) => {
+    setInputMemoryValue(value);
+
+    const filterArgs: FilterAnvilsParameters = [
+      allAnvils,
+      cpuCoresValue,
+      BIGINT_ZERO,
+      [installISOFileUUID, driverISOFileUUID],
+    ];
+
+    dSizeToBytes(
+      value,
+      inputMemoryUnit,
+      (convertedMemoryValue) => {
+        setMemoryValue(convertedMemoryValue);
+
+        filterArgs[2] = convertedMemoryValue;
+        updateLimits(filterArgs);
+      },
+      () => updateLimits(filterArgs),
+    );
   };
 
   useEffect(() => {
@@ -764,7 +817,7 @@ const ProvisionServerDialog = ({
     setFileSelectItems(localFileSelectItems);
     setStorageGroupSelectItems(localStorageGroupSelectItems);
 
-    updateLimits(localAllAnvils, 0, BIGINT_ZERO, []);
+    memorizedUpdateLimit([localAllAnvils, 0, BIGINT_ZERO, []]);
 
     setOSAutocompleteOptions(
       data.osList.map((keyValuePair) => {
@@ -776,7 +829,7 @@ const ProvisionServerDialog = ({
         };
       }),
     );
-  }, []);
+  }, [memorizedUpdateLimit]);
 
   return (
     <Dialog
@@ -797,6 +850,7 @@ const ProvisionServerDialog = ({
           flexDirection: 'column',
           maxHeight: '50vh',
           overflowY: 'scroll',
+          paddingTop: '.6em',
 
           '& > :not(:first-child)': {
             marginTop: '1em',
@@ -811,9 +865,11 @@ const ProvisionServerDialog = ({
 
               setCPUCoresValue(newCPUCoresValue);
 
-              updateLimits(allAnvils, newCPUCoresValue, memoryValue, [
-                installISOFileUUID,
-                driverISOFileUUID,
+              updateLimits([
+                allAnvils,
+                newCPUCoresValue,
+                memoryValue,
+                [installISOFileUUID, driverISOFileUUID],
               ]);
             },
             max: inputCPUCoresMax,
@@ -821,24 +877,27 @@ const ProvisionServerDialog = ({
           },
         })}
         <BodyText
-          text={`Memory: ${memoryValue.toString()}, Max: ${inputMemoryMax.toString()}`}
+          text={`Memory: ${memoryValue.toString()}, Max: ${memoryValueMax.toString()}`}
         />
         {createOutlinedInputWithSelect('ps-memory', 'Memory', DATA_SIZE_UNITS, {
-          inputProps: {
-            type: 'number',
-            onChange: ({ target: { value } }) => {
-              setInputMemoryValue(value);
-
-              dSizeToBytes(value, inputMemoryUnit, (convertedMemoryValue) => {
-                setMemoryValue(convertedMemoryValue);
-
-                updateLimits(allAnvils, cpuCoresValue, convertedMemoryValue, [
-                  installISOFileUUID,
-                  driverISOFileUUID,
-                ]);
-              });
+          inputWithLabelProps: {
+            inputProps: {
+              endAdornment: (
+                <ContainedButton
+                  onClick={() => handleInputMemoryValueChange(inputMemoryMax)}
+                  sx={{
+                    marginLeft: '14px',
+                    minWidth: 'unset',
+                    whiteSpace: 'nowrap',
+                  }}
+                >{`Max: ${inputMemoryMax} ${inputMemoryUnit}`}</ContainedButton>
+              ),
+              onChange: ({ target: { value } }) => {
+                handleInputMemoryValueChange(value);
+              },
+              type: 'number',
+              value: inputMemoryValue,
             },
-            value: inputMemoryValue,
           },
           selectProps: {
             onChange: ({ target: { value } }) => {
@@ -846,17 +905,28 @@ const ProvisionServerDialog = ({
 
               setInputMemoryUnit(selectedUnit);
 
+              const filterArgs: FilterAnvilsParameters = [
+                allAnvils,
+                cpuCoresValue,
+                BIGINT_ZERO,
+                [installISOFileUUID, driverISOFileUUID],
+              ];
+
               dSizeToBytes(
                 inputMemoryValue,
                 selectedUnit,
                 (convertedMemoryValue) => {
                   setMemoryValue(convertedMemoryValue);
 
-                  updateLimits(allAnvils, cpuCoresValue, convertedMemoryValue, [
-                    installISOFileUUID,
-                    driverISOFileUUID,
-                  ]);
+                  filterArgs[2] = convertedMemoryValue;
+                  updateLimits(filterArgs, {
+                    newInputMemoryUnit: selectedUnit,
+                  });
                 },
+                () =>
+                  updateLimits(filterArgs, {
+                    newInputMemoryUnit: selectedUnit,
+                  }),
               );
             },
             value: inputMemoryUnit,
@@ -870,18 +940,20 @@ const ProvisionServerDialog = ({
           'Virtual disk size',
           DATA_SIZE_UNITS,
           {
-            inputProps: {
-              type: 'number',
-              onChange: ({ target: { value } }) => {
-                setInputVirtualDiskSizeValue(value);
+            inputWithLabelProps: {
+              inputProps: {
+                onChange: ({ target: { value } }) => {
+                  setInputVirtualDiskSizeValue(value);
 
-                dSizeToBytes(
-                  value,
-                  inputVirtualDiskSizeUnit,
-                  setVirtualDiskSizeValue,
-                );
+                  dSizeToBytes(
+                    value,
+                    inputVirtualDiskSizeUnit,
+                    setVirtualDiskSizeValue,
+                  );
+                },
+                type: 'number',
+                value: inputVirtualDiskSizeValue,
               },
-              value: inputVirtualDiskSizeValue,
             },
             selectProps: {
               onChange: ({ target: { value } }) => {
@@ -930,9 +1002,11 @@ const ProvisionServerDialog = ({
 
                 setInstallISOFileUUID(newInstallISOFileUUID);
 
-                updateLimits(allAnvils, cpuCoresValue, memoryValue, [
-                  newInstallISOFileUUID,
-                  driverISOFileUUID,
+                updateLimits([
+                  allAnvils,
+                  cpuCoresValue,
+                  memoryValue,
+                  [newInstallISOFileUUID, driverISOFileUUID],
                 ]);
               },
               value: installISOFileUUID,
@@ -951,9 +1025,11 @@ const ProvisionServerDialog = ({
 
                 setDriverISOFileUUID(newDriverISOFileUUID);
 
-                updateLimits(allAnvils, cpuCoresValue, memoryValue, [
-                  installISOFileUUID,
-                  newDriverISOFileUUID,
+                updateLimits([
+                  allAnvils,
+                  cpuCoresValue,
+                  memoryValue,
+                  [installISOFileUUID, newDriverISOFileUUID],
                 ]);
               },
               value: driverISOFileUUID,
