@@ -609,17 +609,20 @@ const filterAnvils = (
           storageGroups,
         } = organizedAnvil;
 
-        const isEnoughCPUCores = cpuCores <= anvilTotalCPUCores;
-        const isEnoughMemory = memory <= anvilTotalAvailableMemory;
-        const hasFiles = fileUUIDs.reduce<boolean>(
-          (localHasFiles, fileUUID) =>
-            fileUUID === ''
-              ? localHasFiles
-              : localHasFiles && localFileUUIDs.includes(fileUUID),
-          true,
-        );
+        const usableConditions: boolean[] = [
+          cpuCores <= anvilTotalCPUCores,
+          memory <= anvilTotalAvailableMemory,
+          fileUUIDs.reduce<boolean>(
+            (localHasFiles, fileUUID) =>
+              fileUUID === ''
+                ? localHasFiles
+                : localHasFiles && localFileUUIDs.includes(fileUUID),
+            true,
+          ),
+          storageGroups.length > 0,
+        ];
 
-        if (isEnoughCPUCores && isEnoughMemory && hasFiles) {
+        if (!usableConditions.includes(false)) {
           result.anvils.push(organizedAnvil);
           result.anvilUUIDs.push(anvilUUID);
 
@@ -664,27 +667,6 @@ const filterAnvils = (
 
 type FilterAnvilsParameters = Parameters<typeof filterAnvils>;
 
-const filterStorageGroups = (
-  organizedStorageGroups: OrganizedStorageGroupMetadataForProvisionServer[],
-  virtualDiskSize: bigint,
-  includeUUIDs?: string[],
-) => {
-  let testInclude: (uuid: string) => boolean = () => true;
-
-  if (includeUUIDs && includeUUIDs.length > 0) {
-    testInclude = (uuid: string) => includeUUIDs.includes(uuid);
-  }
-
-  return organizedStorageGroups.filter(
-    ({ storageGroupUUID, storageGroupFree }) => {
-      const isEnoughStorage = virtualDiskSize <= storageGroupFree;
-      const isIncluded = testInclude(storageGroupUUID);
-
-      return isEnoughStorage && isIncluded;
-    },
-  );
-};
-
 const convertSelectValueToArray = (value: unknown) =>
   typeof value === 'string' ? value.split(',') : (value as string[]);
 
@@ -693,12 +675,6 @@ const ProvisionServerDialog = ({
 }: ProvisionServerDialogProps): JSX.Element => {
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
-  >([]);
-  const [allFiles, setAllFiles] = useState<FileMetadataForProvisionServer[]>(
-    [],
-  );
-  const [allStorageGroups, setAllStorageGroups] = useState<
-    OrganizedStorageGroupMetadataForProvisionServer[]
   >([]);
 
   const [anvilSelectItems, setAnvilSelectItems] = useState<SelectItem[]>([]);
@@ -803,15 +779,11 @@ const ProvisionServerDialog = ({
     const {
       anvils: localAllAnvils,
       anvilSelectItems: localAnvilSelectItems,
-      files: localAllFiles,
       fileSelectItems: localFileSelectItems,
-      storageGroups: localAllStorageGroups,
       storageGroupSelectItems: localStorageGroupSelectItems,
     } = organizeAnvils(data.anvils);
 
     setAllAnvils(localAllAnvils);
-    setAllFiles(localAllFiles);
-    setAllStorageGroups(localAllStorageGroups);
 
     setAnvilSelectItems(localAnvilSelectItems);
     setFileSelectItems(localFileSelectItems);
