@@ -1064,6 +1064,42 @@ const ProvisionServerDialog = ({
     );
   };
 
+  const handleInstallISOFileUUIDChange = (uuid: string) => {
+    setInstallISOFileUUID(uuid);
+
+    updateLimits(
+      [
+        allAnvils,
+        storageGroupUUIDMapToFree,
+        cpuCoresValue,
+        memoryValue,
+        virtualDisks.sizes,
+        virtualDisks.inputStorageGroupUUIDs,
+        [uuid, driverISOFileUUID],
+      ],
+      inputMemoryUnit,
+      virtualDisks,
+    );
+  };
+
+  const handleDriverISOFileUUIDChange = (uuid: string) => {
+    setDriverISOFileUUID(uuid);
+
+    updateLimits(
+      [
+        allAnvils,
+        storageGroupUUIDMapToFree,
+        cpuCoresValue,
+        memoryValue,
+        virtualDisks.sizes,
+        virtualDisks.inputStorageGroupUUIDs,
+        [installISOFileUUID, uuid],
+      ],
+      inputMemoryUnit,
+      virtualDisks,
+    );
+  };
+
   useEffect(() => {
     const data = MOCK_DATA;
 
@@ -1245,21 +1281,10 @@ const ProvisionServerDialog = ({
               onChange: ({ target: { value } }) => {
                 const newInstallISOFileUUID = value as string;
 
-                setInstallISOFileUUID(newInstallISOFileUUID);
-
-                updateLimits(
-                  [
-                    allAnvils,
-                    storageGroupUUIDMapToFree,
-                    cpuCoresValue,
-                    memoryValue,
-                    virtualDisks.sizes,
-                    virtualDisks.inputStorageGroupUUIDs,
-                    [newInstallISOFileUUID, driverISOFileUUID],
-                  ],
-                  inputMemoryUnit,
-                  virtualDisks,
-                );
+                handleInstallISOFileUUIDChange(newInstallISOFileUUID);
+              },
+              onClearIndicatorClick: () => {
+                handleInstallISOFileUUIDChange('');
               },
               value: installISOFileUUID,
             },
@@ -1275,21 +1300,10 @@ const ProvisionServerDialog = ({
               onChange: ({ target: { value } }) => {
                 const newDriverISOFileUUID = value as string;
 
-                setDriverISOFileUUID(newDriverISOFileUUID);
-
-                updateLimits(
-                  [
-                    allAnvils,
-                    storageGroupUUIDMapToFree,
-                    cpuCoresValue,
-                    memoryValue,
-                    virtualDisks.sizes,
-                    virtualDisks.inputStorageGroupUUIDs,
-                    [installISOFileUUID, newDriverISOFileUUID],
-                  ],
-                  inputMemoryUnit,
-                  virtualDisks,
-                );
+                handleDriverISOFileUUIDChange(newDriverISOFileUUID);
+              },
+              onClearIndicatorClick: () => {
+                handleDriverISOFileUUIDChange('');
               },
               value: driverISOFileUUID,
             },
