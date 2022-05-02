@@ -115,6 +115,45 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
   fileUUIDs: string[];
 };
 
+type FilterAnvilsFunction = (
+  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
+  storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
+  cpuCores: number,
+  memory: bigint,
+  vdSizes: bigint[],
+  storageGroupUUIDs: string[],
+  fileUUIDs: string[],
+  options?: {
+    includeAnvilUUIDs?: string[];
+    includeStorageGroupUUIDs?: string[];
+  },
+) => {
+  anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
+  anvilUUIDs: string[];
+  fileUUIDs: string[];
+  maxCPUCores: number;
+  maxMemory: bigint;
+  maxVirtualDiskSizes: bigint[];
+  storageGroupUUIDs: string[];
+};
+
+type FilterAnvilsParameters = Parameters<FilterAnvilsFunction>;
+
+type VirtualDiskStates = {
+  maxes: bigint[];
+  inputMaxes: string[];
+  inputSizes: string[];
+  inputStorageGroupUUIDs: string[];
+  inputUnits: DataSizeUnit[];
+  sizes: bigint[];
+};
+
+type UpdateLimitsFunction = (
+  filterArgs: FilterAnvilsParameters,
+  localInputMemoryUnit: DataSizeUnit,
+  localVirtualDisks: VirtualDiskStates,
+) => void;
+
 const MOCK_DATA = {
   anvils: [
     {
@@ -576,7 +615,7 @@ const dSizeToBytes = (
   });
 };
 
-const filterAnvils = (
+const filterAnvils: FilterAnvilsFunction = (
   organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
   storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
   cpuCores: number,
@@ -628,17 +667,16 @@ const filterAnvils = (
     { all: BIGINT_ZERO },
   );
 
-  return organizedAnvils.reduce<{
+  const result = organizedAnvils.reduce<{
     anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
     anvilUUIDs: string[];
     fileUUIDs: string[];
     maxCPUCores: number;
     maxMemory: bigint;
-    // Both of the following should be nested in an array; index maps to each virtual disk.
-    maxVirtualDiskSize: bigint;
+    maxVirtualDiskSizes: bigint[];
     storageGroupUUIDs: string[];
   }>(
-    (result, organizedAnvil) => {
+    (reduceContainer, organizedAnvil) => {
       const { anvilUUID } = organizedAnvil;
 
       if (testIncludeAnvil(anvilUUID)) {
@@ -651,7 +689,7 @@ const filterAnvils = (
         } = organizedAnvil;
 
         const anvilStorageGroupUUIDs: string[] = [];
-        let anvilMaxVDSize: bigint = result.maxVirtualDiskSize;
+        let anvilStorageGroupFreeMax: bigint = BIGINT_ZERO;
         let anvilStorageGroupFreeTotal: bigint = BIGINT_ZERO;
 
         storageGroups.forEach(({ storageGroupUUID, storageGroupFree }) => {
@@ -659,21 +697,29 @@ const filterAnvils = (
             anvilStorageGroupUUIDs.push(storageGroupUUID);
             anvilStorageGroupFreeTotal += storageGroupFree;
 
-            if (storageGroupFree > anvilMaxVDSize) {
-              anvilMaxVDSize = storageGroupFree;
+            if (storageGroupFree > anvilStorageGroupFreeMax) {
+              anvilStorageGroupFreeMax = storageGroupFree;
             }
           }
         });
 
         const usableTests: (() => boolean)[] = [
+          // Does this anvil node pair have at least one storage group?
           () => storageGroups.length > 0,
+          // Does this anvil node pair have enough CPU cores?
           () => cpuCores <= anvilTotalCPUCores,
+          // Does this anvil node pair have enough memory?
           () => memory <= anvilTotalAvailableMemory,
+          // For every virtual disk:
+          // 1. Does this anvil node pair have the selected storage group which
+          //    will contain the VD?
+          // 2. Does the selected storage group OR any storage group on this
+          //    anvil node pair have enough free space?
           () =>
             storageGroupUUIDs.every((uuid, index) => {
               const vdSize = vdSizes[index] ?? BIGINT_ZERO;
               let hasStorageGroup = true;
-              let hasEnoughStorage = vdSize <= anvilMaxVDSize;
+              let hasEnoughStorage = vdSize <= anvilStorageGroupFreeMax;
 
               if (uuid !== '') {
                 hasStorageGroup = anvilStorageGroupUUIDs.includes(uuid);
@@ -682,12 +728,15 @@ const filterAnvils = (
 
               return hasStorageGroup && hasEnoughStorage;
             }),
+          // Do storage groups on this anvil node pair have enough free space
+          // to contain multiple VDs?
           () =>
             Object.entries(storageGroupTotals).every(([uuid, total]) =>
               uuid === 'all'
                 ? total <= anvilStorageGroupFreeTotal
                 : total <= storageGroupUUIDMapToFree[uuid],
             ),
+          // Does this anvil node pair have access to selected files?
           () =>
             fileUUIDs.every(
               (fileUUID) =>
@@ -695,28 +744,32 @@ const filterAnvils = (
             ),
         ];
 
+        // If an anvil doesn't pass all tests, then it and its parts shouldn't be used.
         if (usableTests.every((test) => test())) {
-          result.anvils.push(organizedAnvil);
-          result.anvilUUIDs.push(anvilUUID);
+          reduceContainer.anvils.push(organizedAnvil);
+          reduceContainer.anvilUUIDs.push(anvilUUID);
 
-          result.maxCPUCores = Math.max(anvilTotalCPUCores, result.maxCPUCores);
+          reduceContainer.maxCPUCores = Math.max(
+            anvilTotalCPUCores,
+            reduceContainer.maxCPUCores,
+          );
 
-          if (anvilTotalAvailableMemory > result.maxMemory) {
-            result.maxMemory = anvilTotalAvailableMemory;
+          if (anvilTotalAvailableMemory > reduceContainer.maxMemory) {
+            reduceContainer.maxMemory = anvilTotalAvailableMemory;
           }
 
           files.forEach(({ fileUUID }) => {
-            if (!result.fileUUIDs.includes(fileUUID)) {
-              result.fileUUIDs.push(fileUUID);
+            if (!reduceContainer.fileUUIDs.includes(fileUUID)) {
+              reduceContainer.fileUUIDs.push(fileUUID);
             }
           });
 
-          result.storageGroupUUIDs.push(...anvilStorageGroupUUIDs);
-          result.maxVirtualDiskSize = anvilMaxVDSize;
+          reduceContainer.storageGroupUUIDs.push(...anvilStorageGroupUUIDs);
+          reduceContainer.maxVirtualDiskSizes.fill(anvilStorageGroupFreeMax);
         }
       }
 
-      return result;
+      return reduceContainer;
     },
     {
       anvils: [],
@@ -724,28 +777,19 @@ const filterAnvils = (
       fileUUIDs: [],
       maxCPUCores: 0,
       maxMemory: BIGINT_ZERO,
-      maxVirtualDiskSize: BIGINT_ZERO,
+      maxVirtualDiskSizes: storageGroupUUIDs.map(() => BIGINT_ZERO),
       storageGroupUUIDs: [],
     },
   );
+
+  storageGroupUUIDs.forEach((uuid: string, uuidIndex: number) => {
+    if (uuid !== '') {
+      result.maxVirtualDiskSizes[uuidIndex] = storageGroupUUIDMapToFree[uuid];
+    }
+  });
+
+  return result;
 };
-
-type FilterAnvilsParameters = Parameters<typeof filterAnvils>;
-
-type VirtualDiskStates = {
-  maxes: bigint[];
-  inputMaxes: string[];
-  inputSizes: string[];
-  inputStorageGroupUUIDs: string[];
-  inputUnits: DataSizeUnit[];
-  sizes: bigint[];
-};
-
-type UpdateLimitsFunction = (
-  filterArgs: FilterAnvilsParameters,
-  localInputMemoryUnit: DataSizeUnit,
-  localVirtualDisks: VirtualDiskStates,
-) => void;
 
 const convertSelectValueToArray = (value: unknown) =>
   typeof value === 'string' ? value.split(',') : (value as string[]);
@@ -858,6 +902,12 @@ const createVirtualDiskForm = (
               updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
             },
             value: get('inputStorageGroupUUIDs'),
+            onClearIndicatorClick: () => {
+              set('inputStorageGroupUUIDs', '');
+
+              filterArgs[5] = virtualDisks.inputStorageGroupUUIDs;
+              updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
+            },
           },
         },
       )}
@@ -964,14 +1014,14 @@ const ProvisionServerDialog = ({
       fileUUIDs,
       maxCPUCores,
       maxMemory,
-      maxVirtualDiskSize,
+      maxVirtualDiskSizes,
       storageGroupUUIDs,
     } = filterAnvils(...filterArgs);
 
     setInputCPUCoresMax(maxCPUCores);
     setMemoryValueMax(maxMemory);
 
-    localVirtualDisks.maxes.fill(maxVirtualDiskSize);
+    localVirtualDisks.maxes = maxVirtualDiskSizes;
     setVirtualDisks({ ...localVirtualDisks });
 
     setIncludeAnvilUUIDs(anvilUUIDs);
@@ -1032,18 +1082,19 @@ const ProvisionServerDialog = ({
     setFileSelectItems(localFileSelectItems);
     setStorageGroupSelectItems(localStorageGroupSelectItems);
 
+    const placeholderVirtualDisks = addVirtualDisk();
     memorizedUpdateLimit(
       [
         localAllAnvils,
         localStorageGroupUUIDMapToFree,
         0,
         BIGINT_ZERO,
-        [],
-        [],
+        placeholderVirtualDisks.sizes,
+        placeholderVirtualDisks.inputStorageGroupUUIDs,
         [],
       ],
       'B',
-      addVirtualDisk(),
+      placeholderVirtualDisks,
     );
 
     setOSAutocompleteOptions(
