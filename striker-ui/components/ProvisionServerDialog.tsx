@@ -5,7 +5,14 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Box, Checkbox, Dialog, DialogProps, FormControl } from '@mui/material';
+import {
+  Box,
+  Checkbox,
+  Dialog,
+  DialogProps,
+  FormControl,
+  InputAdornment,
+} from '@mui/material';
 import {
   dSize as baseDSize,
   DataSizeUnit,
@@ -14,7 +21,7 @@ import {
 } from 'format-data-size';
 
 import Autocomplete from './Autocomplete';
-import ContainedButton from './ContainedButton';
+import ContainedButton, { ContainedButtonProps } from './ContainedButton';
 import MenuItem from './MenuItem';
 import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
@@ -330,7 +337,7 @@ const MOCK_DATA = {
 
 const BIGINT_ZERO = BigInt(0);
 
-const DATA_SIZE_UNITS: SelectItem<DataSizeUnit>[] = [
+const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
   { value: 'B' },
   { value: 'KiB' },
   { value: 'MiB' },
@@ -445,6 +452,27 @@ const createOutlinedInputWithSelect = (
       selectProps,
     })}
   </FormControl>
+);
+
+const createMaxValueButton = (
+  maxValue: string,
+  {
+    onButtonClick,
+  }: {
+    onButtonClick?: ContainedButtonProps['onClick'];
+  },
+) => (
+  <InputAdornment position="end">
+    <ContainedButton
+      disabled={onButtonClick === undefined}
+      onClick={onButtonClick}
+      sx={{
+        marginLeft: '14px',
+        minWidth: 'unset',
+        whiteSpace: 'nowrap',
+      }}
+    >{`Max: ${maxValue}`}</ContainedButton>
+  </InputAdornment>
 );
 
 const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
@@ -832,6 +860,11 @@ const createVirtualDiskForm = (
     setVirtualDisks({ ...virtualDisks });
   };
 
+  const changeVDSize = (cvsValue: bigint = BIGINT_ZERO) => {
+    set('sizes', cvsValue);
+    updateLimits({ virtualDisks });
+  };
+
   const handleVDSizeChange = ({
     value = get('inputSizes'),
     unit = get('inputUnits'),
@@ -850,14 +883,8 @@ const createVirtualDiskForm = (
     dSizeToBytes(
       value,
       unit,
-      (convertedVDSizeValue) => {
-        set('sizes', convertedVDSizeValue);
-        updateLimits({ virtualDisks });
-      },
-      () => {
-        set('sizes', BIGINT_ZERO);
-        updateLimits({ virtualDisks });
-      },
+      (convertedVDSize) => changeVDSize(convertedVDSize),
+      () => changeVDSize(),
     );
   };
 
@@ -889,10 +916,19 @@ const createVirtualDiskForm = (
       {createOutlinedInputWithSelect(
         `ps-virtual-disk-size-${vdIndex}`,
         'Virtual disk size',
-        DATA_SIZE_UNITS,
+        DATA_SIZE_UNIT_SELECT_ITEMS,
         {
           inputWithLabelProps: {
             inputProps: {
+              endAdornment: createMaxValueButton(
+                `${get('inputMaxes')} ${get('inputUnits')}`,
+                {
+                  onButtonClick: () => {
+                    set('inputSizes', get('inputMaxes'));
+                    changeVDSize(get('maxes'));
+                  },
+                },
+              ),
               onChange: ({ target: { value } }) => {
                 handleVDSizeChange({ value });
               },
@@ -1068,6 +1104,17 @@ const ProvisionServerDialog = ({
     setMemoryMax(maxMemory);
 
     ulVirtualDisks.maxes = maxVirtualDiskSizes;
+    ulVirtualDisks.maxes.forEach((vdMaxSize, vdIndex) => {
+      dSize(vdMaxSize, {
+        fromUnit: 'B',
+        onSuccess: {
+          string: (value) => {
+            ulVirtualDisks.inputMaxes[vdIndex] = value;
+          },
+        },
+        toUnit: ulVirtualDisks.inputUnits[vdIndex],
+      });
+    });
     setVirtualDisks({ ...ulVirtualDisks });
 
     setIncludeAnvilUUIDs(anvilUUIDs);
@@ -1086,13 +1133,24 @@ const ProvisionServerDialog = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initLimits = useCallback(updateLimits, []);
 
+  const changeMemory = ({
+    cmValue = BIGINT_ZERO,
+    cmUnit = inputMemoryUnit,
+  }: { cmValue?: bigint; cmUnit?: DataSizeUnit } = {}) => {
+    setMemory(cmValue);
+    updateLimits({
+      inputMemoryUnit: cmUnit,
+      memory: cmValue,
+    });
+  };
+
   const handleInputMemoryValueChange = ({
     value = inputMemoryValue,
     unit = inputMemoryUnit,
   }: {
     value?: string;
     unit?: DataSizeUnit;
-  }) => {
+  } = {}) => {
     if (value !== inputMemoryValue) {
       setInputMemoryValue(value);
     }
@@ -1104,17 +1162,9 @@ const ProvisionServerDialog = ({
     dSizeToBytes(
       value,
       unit,
-      (convertedMemory) => {
-        setMemory(convertedMemory);
-
-        updateLimits({
-          memory: convertedMemory,
-        });
-      },
-      () =>
-        updateLimits({
-          memory: BIGINT_ZERO,
-        }),
+      (convertedMemory) =>
+        changeMemory({ cmValue: convertedMemory, cmUnit: unit }),
+      () => changeMemory(),
     );
   };
 
@@ -1226,37 +1276,39 @@ const ProvisionServerDialog = ({
         <BodyText
           text={`Memory: ${memory.toString()}, Max: ${memoryMax.toString()}`}
         />
-        {createOutlinedInputWithSelect('ps-memory', 'Memory', DATA_SIZE_UNITS, {
-          inputWithLabelProps: {
-            inputProps: {
-              endAdornment: (
-                <ContainedButton
-                  onClick={() =>
-                    handleInputMemoryValueChange({ value: inputMemoryMax })
-                  }
-                  sx={{
-                    marginLeft: '14px',
-                    minWidth: 'unset',
-                    whiteSpace: 'nowrap',
-                  }}
-                >{`Max: ${inputMemoryMax} ${inputMemoryUnit}`}</ContainedButton>
-              ),
-              onChange: ({ target: { value } }) => {
-                handleInputMemoryValueChange({ value });
+        {createOutlinedInputWithSelect(
+          'ps-memory',
+          'Memory',
+          DATA_SIZE_UNIT_SELECT_ITEMS,
+          {
+            inputWithLabelProps: {
+              inputProps: {
+                endAdornment: createMaxValueButton(
+                  `${inputMemoryMax} ${inputMemoryUnit}`,
+                  {
+                    onButtonClick: () => {
+                      setInputMemoryValue(inputMemoryMax);
+                      changeMemory({ cmValue: memoryMax });
+                    },
+                  },
+                ),
+                onChange: ({ target: { value } }) => {
+                  handleInputMemoryValueChange({ value });
+                },
+                type: 'number',
+                value: inputMemoryValue,
               },
-              type: 'number',
-              value: inputMemoryValue,
             },
-          },
-          selectProps: {
-            onChange: ({ target: { value } }) => {
-              const selectedUnit = value as DataSizeUnit;
+            selectProps: {
+              onChange: ({ target: { value } }) => {
+                const selectedUnit = value as DataSizeUnit;
 
-              handleInputMemoryValueChange({ unit: selectedUnit });
+                handleInputMemoryValueChange({ unit: selectedUnit });
+              },
+              value: inputMemoryUnit,
             },
-            value: inputMemoryUnit,
           },
-        })}
+        )}
         {virtualDisks.maxes.map((max, vdIndex) =>
           createVirtualDiskForm(
             virtualDisks,
