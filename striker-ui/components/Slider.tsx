@@ -8,6 +8,7 @@ import {
   sliderClasses as muiSliderClasses,
   SliderProps as MUISliderProps,
   TypographyProps as MUITypographyProps,
+  FormControl,
 } from '@mui/material';
 
 import { BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
@@ -183,7 +184,7 @@ const Slider = ({
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+    <FormControl sx={{ display: 'flex', flexDirection: 'column' }}>
       <OutlinedInputLabel
         {...{
           className: isFocused ? muiInputLabelClasses.focused : '',
@@ -243,7 +244,7 @@ const Slider = ({
               },
         })}
       </Box>
-    </Box>
+    </FormControl>
   );
 };
 
