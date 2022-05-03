@@ -1,4 +1,4 @@
-import { Box, styled } from '@mui/material';
+import { Box, BoxProps } from '@mui/material';
 import {
   Error as ErrorIcon,
   Info as InfoIcon,
@@ -18,7 +18,7 @@ import { BodyText } from './Text';
 
 type MessageBoxType = 'error' | 'info' | 'warning';
 
-type MessageBoxProps = {
+type MessageBoxProps = BoxProps & {
   text: string;
   type: MessageBoxType;
 };
@@ -31,68 +31,77 @@ const MESSAGE_BOX_CLASSES: Record<MessageBoxType, string> = {
   warning: `${MESSAGE_BOX_CLASS_PREFIX}-warning`,
 };
 
-const StyledBox = styled(Box)({
-  alignItems: 'center',
-  borderRadius: BORDER_RADIUS,
-  display: 'flex',
-  flexDirection: 'row',
-  padding: '.3em .6em',
+const MESSAGE_BOX_TYPE_MAP_TO_ICON = {
+  error: <ErrorIcon />,
+  info: <InfoIcon />,
+  warning: <WarningIcon />,
+};
 
-  '& > *': {
-    color: TEXT,
-  },
+const MessageBox = ({
+  type,
+  text,
+  ...boxProps
+}: MessageBoxProps): JSX.Element => {
+  const { sx: boxSx } = boxProps;
 
-  '& > :first-child': {
-    marginRight: '.3em',
-  },
-
-  [`&.${MESSAGE_BOX_CLASSES.error}`]: {
-    backgroundColor: RED,
-  },
-
-  [`&.${MESSAGE_BOX_CLASSES.info}`]: {
-    backgroundColor: GREY,
-
-    '& > :first-child': {
-      color: `${BLACK}`,
-    },
-  },
-
-  [`&.${MESSAGE_BOX_CLASSES.warning}`]: {
-    backgroundColor: PURPLE,
-  },
-});
-
-const MessageBox = ({ type, text }: MessageBoxProps): JSX.Element => {
   const buildMessageBoxClasses = (messageBoxType: MessageBoxType) =>
     MESSAGE_BOX_CLASSES[messageBoxType];
 
-  const buildMessageIcon = (messageBoxType: MessageBoxType) => {
-    let messageIcon;
-
-    switch (messageBoxType) {
-      case 'error':
-        messageIcon = <ErrorIcon />;
-        break;
-      case 'warning':
-        messageIcon = <WarningIcon />;
-        break;
-      default:
-        messageIcon = <InfoIcon />;
-    }
-
-    return messageIcon;
-  };
+  const buildMessageIcon = (messageBoxType: MessageBoxType) =>
+    MESSAGE_BOX_TYPE_MAP_TO_ICON[messageBoxType] === undefined
+      ? MESSAGE_BOX_TYPE_MAP_TO_ICON.info
+      : MESSAGE_BOX_TYPE_MAP_TO_ICON[messageBoxType];
 
   const buildMessage = (message: string, messageBoxType: MessageBoxType) => (
     <BodyText inverted={messageBoxType === 'info'} text={message} />
   );
 
+  const combinedBoxSx: BoxProps['sx'] = {
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS,
+    display: 'flex',
+    flexDirection: 'row',
+    padding: '.3em .6em',
+
+    '& > *': {
+      color: TEXT,
+    },
+
+    '& > :first-child': {
+      marginRight: '.3em',
+    },
+
+    [`&.${MESSAGE_BOX_CLASSES.error}`]: {
+      backgroundColor: RED,
+    },
+
+    [`&.${MESSAGE_BOX_CLASSES.info}`]: {
+      backgroundColor: GREY,
+
+      '& > :first-child': {
+        color: `${BLACK}`,
+      },
+    },
+
+    [`&.${MESSAGE_BOX_CLASSES.warning}`]: {
+      backgroundColor: PURPLE,
+    },
+
+    ...boxSx,
+  };
+
   return (
-    <StyledBox className={buildMessageBoxClasses(type)}>
+    <Box
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...{
+        ...boxProps,
+        className: buildMessageBoxClasses(type),
+        sx: combinedBoxSx,
+      }}
+    >
       {buildMessageIcon(type)}
       {buildMessage(text, type)}
-    </StyledBox>
+    </Box>
   );
 };
 
