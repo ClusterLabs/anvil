@@ -116,7 +116,7 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
 };
 
 type FilterAnvilsFunction = (
-  organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
+  allAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
   storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
   cpuCores: number,
   memory: bigint,
@@ -125,6 +125,7 @@ type FilterAnvilsFunction = (
   fileUUIDs: string[],
   options?: {
     includeAnvilUUIDs?: string[];
+    includeFileUUIDs?: string[];
     includeStorageGroupUUIDs?: string[];
   },
 ) => {
@@ -137,8 +138,6 @@ type FilterAnvilsFunction = (
   storageGroupUUIDs: string[];
 };
 
-type FilterAnvilsParameters = Parameters<FilterAnvilsFunction>;
-
 type VirtualDiskStates = {
   maxes: bigint[];
   inputMaxes: string[];
@@ -148,11 +147,18 @@ type VirtualDiskStates = {
   sizes: bigint[];
 };
 
-type UpdateLimitsFunction = (
-  filterArgs: FilterAnvilsParameters,
-  localInputMemoryUnit: DataSizeUnit,
-  localVirtualDisks: VirtualDiskStates,
-) => void;
+type UpdateLimitsFunction = (options?: {
+  allAnvils?: OrganizedAnvilDetailMetadataForProvisionServer[];
+  cpuCores?: number;
+  fileUUIDs?: string[];
+  includeAnvilUUIDs?: string[];
+  includeFileUUIDs?: string[];
+  includeStorageGroupUUIDs?: string[];
+  inputMemoryUnit?: DataSizeUnit;
+  memory?: bigint;
+  storageGroupUUIDMapToFree?: StorageGroupUUIDMapToFree;
+  virtualDisks?: VirtualDiskStates;
+}) => void;
 
 const MOCK_DATA = {
   anvils: [
@@ -625,23 +631,28 @@ const filterAnvils: FilterAnvilsFunction = (
   fileUUIDs: string[],
   {
     includeAnvilUUIDs = [],
+    includeFileUUIDs = [],
     includeStorageGroupUUIDs = [],
-  }: {
-    includeAnvilUUIDs?: string[];
-    includeStorageGroupUUIDs?: string[];
   } = {},
 ) => {
   let testIncludeAnvil: (uuid: string) => boolean = () => true;
+  let testIncludeFile: (uuid: string) => boolean = () => true;
   let testIncludeStorageGroup: (uuid: string) => boolean = () => true;
 
   if (includeAnvilUUIDs.length > 0) {
     testIncludeAnvil = (uuid: string) => includeAnvilUUIDs.includes(uuid);
   }
 
+  if (includeFileUUIDs.length > 0) {
+    testIncludeFile = (uuid: string) => includeFileUUIDs.includes(uuid);
+  }
+
   if (includeStorageGroupUUIDs.length > 0) {
     testIncludeStorageGroup = (uuid: string) =>
       includeStorageGroupUUIDs.includes(uuid);
   }
+
+  const resultFileUUIDs: Record<string, boolean> = {};
 
   const storageGroupTotals = storageGroupUUIDs.reduce<{
     all: bigint;
@@ -692,6 +703,8 @@ const filterAnvils: FilterAnvilsFunction = (
         let anvilStorageGroupFreeMax: bigint = BIGINT_ZERO;
         let anvilStorageGroupFreeTotal: bigint = BIGINT_ZERO;
 
+        // Summarize storage groups in this anvil node pair to produce all
+        // UUIDs, max free space, and total free space.
         storageGroups.forEach(({ storageGroupUUID, storageGroupFree }) => {
           if (testIncludeStorageGroup(storageGroupUUID)) {
             anvilStorageGroupUUIDs.push(storageGroupUUID);
@@ -759,8 +772,8 @@ const filterAnvils: FilterAnvilsFunction = (
           }
 
           files.forEach(({ fileUUID }) => {
-            if (!reduceContainer.fileUUIDs.includes(fileUUID)) {
-              reduceContainer.fileUUIDs.push(fileUUID);
+            if (testIncludeFile(fileUUID)) {
+              resultFileUUIDs[fileUUID] = true;
             }
           });
 
@@ -782,6 +795,8 @@ const filterAnvils: FilterAnvilsFunction = (
     },
   );
 
+  result.fileUUIDs = Object.keys(resultFileUUIDs);
+
   storageGroupUUIDs.forEach((uuid: string, uuidIndex: number) => {
     if (uuid !== '') {
       result.maxVirtualDiskSizes[uuidIndex] = storageGroupUUIDMapToFree[uuid];
@@ -791,8 +806,8 @@ const filterAnvils: FilterAnvilsFunction = (
   return result;
 };
 
-const convertSelectValueToArray = (value: unknown) =>
-  typeof value === 'string' ? value.split(',') : (value as string[]);
+// const convertSelectValueToArray = (value: unknown) =>
+//   typeof value === 'string' ? value.split(',') : (value as string[]);
 
 const createVirtualDiskForm = (
   virtualDisks: VirtualDiskStates,
@@ -801,20 +816,57 @@ const createVirtualDiskForm = (
   storageGroupSelectItems: SelectItem[],
   includeStorageGroupUUIDs: string[],
   updateLimits: UpdateLimitsFunction,
-  filterArgs: FilterAnvilsParameters,
-  inputMemoryUnit: DataSizeUnit,
+  storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
 ) => {
   const get = <Key extends keyof VirtualDiskStates>(
     key: Key,
-    localIndex: number = vdIndex,
-  ) => virtualDisks[key][localIndex] as VirtualDiskStates[Key][number];
+    gIndex: number = vdIndex,
+  ) => virtualDisks[key][gIndex] as VirtualDiskStates[Key][number];
+
   const set = <Key extends keyof VirtualDiskStates>(
     key: Key,
     value: VirtualDiskStates[Key][number],
-    localIndex: number = vdIndex,
+    sIndex: number = vdIndex,
   ) => {
-    virtualDisks[key][localIndex] = value;
+    virtualDisks[key][sIndex] = value;
     setVirtualDisks({ ...virtualDisks });
+  };
+
+  const handleVDSizeChange = ({
+    value = get('inputSizes'),
+    unit = get('inputUnits'),
+  }: {
+    value?: string;
+    unit?: DataSizeUnit;
+  }) => {
+    if (value !== get('inputSizes')) {
+      set('inputSizes', value);
+    }
+
+    if (unit !== get('inputUnits')) {
+      set('inputUnits', unit);
+    }
+
+    dSizeToBytes(
+      value,
+      unit,
+      (convertedVDSizeValue) => {
+        set('sizes', convertedVDSizeValue);
+        updateLimits({ virtualDisks });
+      },
+      () => {
+        set('sizes', BIGINT_ZERO);
+        updateLimits({ virtualDisks });
+      },
+    );
+  };
+
+  const handleVDStorageGroupChange = (uuid = get('inputStorageGroupUUIDs')) => {
+    if (uuid !== get('inputStorageGroupUUIDs')) {
+      set('inputStorageGroupUUIDs', uuid);
+    }
+
+    updateLimits({ virtualDisks });
   };
 
   return (
@@ -842,19 +894,7 @@ const createVirtualDiskForm = (
           inputWithLabelProps: {
             inputProps: {
               onChange: ({ target: { value } }) => {
-                set('inputSizes', value);
-
-                dSizeToBytes(
-                  value,
-                  get('inputUnits'),
-                  (convertedVDSizeValue) => {
-                    set('sizes', convertedVDSizeValue);
-
-                    filterArgs[4] = virtualDisks.sizes;
-                    updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
-                  },
-                  () => updateLimits(filterArgs, inputMemoryUnit, virtualDisks),
-                );
+                handleVDSizeChange({ value });
               },
               type: 'number',
               value: get('inputSizes'),
@@ -864,19 +904,7 @@ const createVirtualDiskForm = (
             onChange: ({ target: { value } }) => {
               const selectedUnit = value as DataSizeUnit;
 
-              set('inputUnits', selectedUnit);
-
-              dSizeToBytes(
-                get('inputSizes'),
-                selectedUnit,
-                (convertedVDSizeValue) => {
-                  set('sizes', convertedVDSizeValue);
-
-                  filterArgs[4] = virtualDisks.sizes;
-                  updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
-                },
-                () => updateLimits(filterArgs, inputMemoryUnit, virtualDisks),
-              );
+              handleVDSizeChange({ unit: selectedUnit });
             },
             value: get('inputUnits'),
           },
@@ -890,24 +918,16 @@ const createVirtualDiskForm = (
           disableItem: (value) =>
             !(
               includeStorageGroupUUIDs.includes(value) &&
-              get('sizes') <= filterArgs[1][value]
+              get('sizes') <= storageGroupUUIDMapToFree[value]
             ),
           selectProps: {
             onChange: ({ target: { value } }) => {
               const selectedStorageGroupUUID = value as string;
 
-              set('inputStorageGroupUUIDs', selectedStorageGroupUUID);
-
-              filterArgs[5] = virtualDisks.inputStorageGroupUUIDs;
-              updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
+              handleVDStorageGroupChange(selectedStorageGroupUUID);
             },
             value: get('inputStorageGroupUUIDs'),
-            onClearIndicatorClick: () => {
-              set('inputStorageGroupUUIDs', '');
-
-              filterArgs[5] = virtualDisks.inputStorageGroupUUIDs;
-              updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
-            },
+            onClearIndicatorClick: () => handleVDStorageGroupChange(''),
           },
         },
       )}
@@ -962,6 +982,9 @@ const addVirtualDisk = ({
   return virtualDisks;
 };
 
+const filterBlanks: (array: string[]) => string[] = (array: string[]) =>
+  array.filter((value) => value !== '');
+
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
@@ -996,7 +1019,7 @@ const ProvisionServerDialog = ({
   const [installISOFileUUID, setInstallISOFileUUID] = useState<string>('');
   const [driverISOFileUUID, setDriverISOFileUUID] = useState<string>('');
 
-  const [anvilValue, setAnvilValue] = useState<string[]>([]);
+  const [anvilValue, setAnvilValue] = useState<string>('');
 
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
   const [includeFileUUIDs, setIncludeFileUUIDs] = useState<string[]>([]);
@@ -1004,11 +1027,19 @@ const ProvisionServerDialog = ({
     string[]
   >([]);
 
-  const updateLimits: UpdateLimitsFunction = (
-    filterArgs: FilterAnvilsParameters,
-    localInputMemoryUnit: DataSizeUnit,
-    localVirtualDisks: VirtualDiskStates,
-  ) => {
+  const updateLimits: UpdateLimitsFunction = ({
+    allAnvils: ulAllAnvils = allAnvils,
+    cpuCores: ulCPUCores = cpuCoresValue,
+    fileUUIDs: ulFileUUIDs = [installISOFileUUID, driverISOFileUUID],
+    includeAnvilUUIDs: ulIncludeAnvilUUIDs = filterBlanks([anvilValue]),
+    includeFileUUIDs: ulIncludeFileUUIDs,
+    includeStorageGroupUUIDs: ulIncludeStorageGroupUUIDs,
+    inputMemoryUnit: ulInputMemoryUnit = inputMemoryUnit,
+    memory: ulMemory = memoryValue,
+    storageGroupUUIDMapToFree:
+      ulStorageGroupUUIDMapToFree = storageGroupUUIDMapToFree,
+    virtualDisks: ulVirtualDisks = virtualDisks,
+  } = {}) => {
     const {
       anvilUUIDs,
       fileUUIDs,
@@ -1016,13 +1047,26 @@ const ProvisionServerDialog = ({
       maxMemory,
       maxVirtualDiskSizes,
       storageGroupUUIDs,
-    } = filterAnvils(...filterArgs);
+    } = filterAnvils(
+      ulAllAnvils,
+      ulStorageGroupUUIDMapToFree,
+      ulCPUCores,
+      ulMemory,
+      ulVirtualDisks.sizes,
+      ulVirtualDisks.inputStorageGroupUUIDs,
+      ulFileUUIDs,
+      {
+        includeAnvilUUIDs: ulIncludeAnvilUUIDs,
+        includeFileUUIDs: ulIncludeFileUUIDs,
+        includeStorageGroupUUIDs: ulIncludeStorageGroupUUIDs,
+      },
+    );
 
     setInputCPUCoresMax(maxCPUCores);
     setMemoryValueMax(maxMemory);
 
-    localVirtualDisks.maxes = maxVirtualDiskSizes;
-    setVirtualDisks({ ...localVirtualDisks });
+    ulVirtualDisks.maxes = maxVirtualDiskSizes;
+    setVirtualDisks({ ...ulVirtualDisks });
 
     setIncludeAnvilUUIDs(anvilUUIDs);
     setIncludeFileUUIDs(fileUUIDs);
@@ -1033,105 +1077,93 @@ const ProvisionServerDialog = ({
       onSuccess: {
         string: (value) => setInputMemoryMax(value),
       },
-      toUnit: localInputMemoryUnit,
+      toUnit: ulInputMemoryUnit,
     });
   };
-  const memorizedUpdateLimit = useCallback(updateLimits, []);
+  // The memorized version of updateLimits() should only be called during first render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const initLimits = useCallback(updateLimits, []);
 
-  const handleInputMemoryValueChange = (value: string) => {
-    setInputMemoryValue(value);
+  const handleInputMemoryValueChange = ({
+    value = inputMemoryValue,
+    unit = inputMemoryUnit,
+  }: {
+    value?: string;
+    unit?: DataSizeUnit;
+  }) => {
+    if (value !== inputMemoryValue) {
+      setInputMemoryValue(value);
+    }
 
-    const filterArgs: FilterAnvilsParameters = [
-      allAnvils,
-      storageGroupUUIDMapToFree,
-      cpuCoresValue,
-      BIGINT_ZERO,
-      virtualDisks.sizes,
-      virtualDisks.inputStorageGroupUUIDs,
-      [installISOFileUUID, driverISOFileUUID],
-    ];
+    if (unit !== inputMemoryUnit) {
+      setInputMemoryUnit(unit);
+    }
 
     dSizeToBytes(
       value,
-      inputMemoryUnit,
+      unit,
       (convertedMemoryValue) => {
         setMemoryValue(convertedMemoryValue);
 
-        filterArgs[3] = convertedMemoryValue;
-        updateLimits(filterArgs, inputMemoryUnit, virtualDisks);
+        updateLimits({
+          memory: convertedMemoryValue,
+        });
       },
-      () => updateLimits(filterArgs, inputMemoryUnit, virtualDisks),
+      () =>
+        updateLimits({
+          memory: BIGINT_ZERO,
+        }),
     );
   };
 
   const handleInstallISOFileUUIDChange = (uuid: string) => {
     setInstallISOFileUUID(uuid);
 
-    updateLimits(
-      [
-        allAnvils,
-        storageGroupUUIDMapToFree,
-        cpuCoresValue,
-        memoryValue,
-        virtualDisks.sizes,
-        virtualDisks.inputStorageGroupUUIDs,
-        [uuid, driverISOFileUUID],
-      ],
-      inputMemoryUnit,
-      virtualDisks,
-    );
+    updateLimits({
+      fileUUIDs: [uuid, driverISOFileUUID],
+    });
   };
 
   const handleDriverISOFileUUIDChange = (uuid: string) => {
     setDriverISOFileUUID(uuid);
 
-    updateLimits(
-      [
-        allAnvils,
-        storageGroupUUIDMapToFree,
-        cpuCoresValue,
-        memoryValue,
-        virtualDisks.sizes,
-        virtualDisks.inputStorageGroupUUIDs,
-        [installISOFileUUID, uuid],
-      ],
-      inputMemoryUnit,
-      virtualDisks,
-    );
+    updateLimits({
+      fileUUIDs: [installISOFileUUID, uuid],
+    });
+  };
+
+  const handleAnvilValueChange = (uuid: string) => {
+    const havcIncludeAnvilUUIDs = filterBlanks([uuid]);
+
+    setAnvilValue(uuid);
+
+    updateLimits({
+      includeAnvilUUIDs: havcIncludeAnvilUUIDs,
+    });
   };
 
   useEffect(() => {
     const data = MOCK_DATA;
 
     const {
-      anvils: localAllAnvils,
-      anvilSelectItems: localAnvilSelectItems,
-      fileSelectItems: localFileSelectItems,
-      storageGroupSelectItems: localStorageGroupSelectItems,
-      storageGroupUUIDMapToFree: localStorageGroupUUIDMapToFree,
+      anvils: ueAllAnvils,
+      anvilSelectItems: ueAnvilSelectItems,
+      fileSelectItems: ueFileSelectItems,
+      storageGroupSelectItems: ueStorageGroupSelectItems,
+      storageGroupUUIDMapToFree: ueStorageGroupUUIDMapToFree,
     } = organizeAnvils(data.anvils);
 
-    setAllAnvils(localAllAnvils);
-    setStorageGroupUUIDMapToFree(localStorageGroupUUIDMapToFree);
+    setAllAnvils(ueAllAnvils);
+    setStorageGroupUUIDMapToFree(ueStorageGroupUUIDMapToFree);
 
-    setAnvilSelectItems(localAnvilSelectItems);
-    setFileSelectItems(localFileSelectItems);
-    setStorageGroupSelectItems(localStorageGroupSelectItems);
+    setAnvilSelectItems(ueAnvilSelectItems);
+    setFileSelectItems(ueFileSelectItems);
+    setStorageGroupSelectItems(ueStorageGroupSelectItems);
 
-    const placeholderVirtualDisks = addVirtualDisk();
-    memorizedUpdateLimit(
-      [
-        localAllAnvils,
-        localStorageGroupUUIDMapToFree,
-        0,
-        BIGINT_ZERO,
-        placeholderVirtualDisks.sizes,
-        placeholderVirtualDisks.inputStorageGroupUUIDs,
-        [],
-      ],
-      'B',
-      placeholderVirtualDisks,
-    );
+    initLimits({
+      allAnvils: ueAllAnvils,
+      storageGroupUUIDMapToFree: ueStorageGroupUUIDMapToFree,
+    });
 
     setOSAutocompleteOptions(
       data.osList.map((keyValuePair) => {
@@ -1143,7 +1175,7 @@ const ProvisionServerDialog = ({
         };
       }),
     );
-  }, [memorizedUpdateLimit]);
+  }, [initLimits]);
 
   return (
     <Dialog
@@ -1177,21 +1209,13 @@ const ProvisionServerDialog = ({
             onChange: (value) => {
               const newCPUCoresValue = value as number;
 
-              setCPUCoresValue(newCPUCoresValue);
+              if (newCPUCoresValue !== cpuCoresValue) {
+                setCPUCoresValue(newCPUCoresValue);
 
-              updateLimits(
-                [
-                  allAnvils,
-                  storageGroupUUIDMapToFree,
-                  newCPUCoresValue,
-                  memoryValue,
-                  virtualDisks.sizes,
-                  virtualDisks.inputStorageGroupUUIDs,
-                  [installISOFileUUID, driverISOFileUUID],
-                ],
-                inputMemoryUnit,
-                virtualDisks,
-              );
+                updateLimits({
+                  cpuCores: newCPUCoresValue,
+                });
+              }
             },
             max: inputCPUCoresMax,
             min: 1,
@@ -1205,7 +1229,9 @@ const ProvisionServerDialog = ({
             inputProps: {
               endAdornment: (
                 <ContainedButton
-                  onClick={() => handleInputMemoryValueChange(inputMemoryMax)}
+                  onClick={() =>
+                    handleInputMemoryValueChange({ value: inputMemoryMax })
+                  }
                   sx={{
                     marginLeft: '14px',
                     minWidth: 'unset',
@@ -1214,7 +1240,7 @@ const ProvisionServerDialog = ({
                 >{`Max: ${inputMemoryMax} ${inputMemoryUnit}`}</ContainedButton>
               ),
               onChange: ({ target: { value } }) => {
-                handleInputMemoryValueChange(value);
+                handleInputMemoryValueChange({ value });
               },
               type: 'number',
               value: inputMemoryValue,
@@ -1224,29 +1250,7 @@ const ProvisionServerDialog = ({
             onChange: ({ target: { value } }) => {
               const selectedUnit = value as DataSizeUnit;
 
-              setInputMemoryUnit(selectedUnit);
-
-              const filterArgs: FilterAnvilsParameters = [
-                allAnvils,
-                storageGroupUUIDMapToFree,
-                cpuCoresValue,
-                BIGINT_ZERO,
-                virtualDisks.sizes,
-                virtualDisks.inputStorageGroupUUIDs,
-                [installISOFileUUID, driverISOFileUUID],
-              ];
-
-              dSizeToBytes(
-                inputMemoryValue,
-                selectedUnit,
-                (convertedMemoryValue) => {
-                  setMemoryValue(convertedMemoryValue);
-
-                  filterArgs[3] = convertedMemoryValue;
-                  updateLimits(filterArgs, selectedUnit, virtualDisks);
-                },
-                () => updateLimits(filterArgs, selectedUnit, virtualDisks),
-              );
+              handleInputMemoryValueChange({ unit: selectedUnit });
             },
             value: inputMemoryUnit,
           },
@@ -1259,16 +1263,7 @@ const ProvisionServerDialog = ({
             storageGroupSelectItems,
             includeStorageGroupUUIDs,
             updateLimits,
-            [
-              allAnvils,
-              storageGroupUUIDMapToFree,
-              cpuCoresValue,
-              memoryValue,
-              virtualDisks.sizes.slice().fill(BIGINT_ZERO),
-              virtualDisks.inputStorageGroupUUIDs.slice().fill(''),
-              [installISOFileUUID, driverISOFileUUID],
-            ],
-            inputMemoryUnit,
+            storageGroupUUIDMapToFree,
           ),
         )}
         {createOutlinedSelect(
@@ -1283,9 +1278,7 @@ const ProvisionServerDialog = ({
 
                 handleInstallISOFileUUIDChange(newInstallISOFileUUID);
               },
-              onClearIndicatorClick: () => {
-                handleInstallISOFileUUIDChange('');
-              },
+              onClearIndicatorClick: () => handleInstallISOFileUUIDChange(''),
               value: installISOFileUUID,
             },
           },
@@ -1302,92 +1295,20 @@ const ProvisionServerDialog = ({
 
                 handleDriverISOFileUUIDChange(newDriverISOFileUUID);
               },
-              onClearIndicatorClick: () => {
-                handleDriverISOFileUUIDChange('');
-              },
+              onClearIndicatorClick: () => handleDriverISOFileUUIDChange(''),
               value: driverISOFileUUID,
             },
           },
         )}
         {createOutlinedSelect('ps-anvil', 'Anvil', anvilSelectItems, {
-          checkItem: (value) => anvilValue.includes(value),
           disableItem: (value) => !includeAnvilUUIDs.includes(value),
           selectProps: {
-            multiple: true,
             onChange: ({ target: { value } }) => {
-              const subsetAnvilUUIDs: string[] =
-                convertSelectValueToArray(value);
+              const newAnvilUUID: string = value as string;
 
-              setAnvilValue(subsetAnvilUUIDs);
-
-              // const includedFileUUIDs: string[] = [];
-
-              // let newExcludedStorageGroupUUIDs: string[] = [];
-              // let newExcludedFileUUIDs: string[] = [];
-
-              // if (subsetAnvilUUIDs.length > 0) {
-              //   ({ newExcludedStorageGroupUUIDs, newExcludedFileUUIDs } =
-              //     organizedAnvils.reduce<{
-              //       newExcludedStorageGroupUUIDs: string[];
-              //       newExcludedFileUUIDs: string[];
-              //     }>(
-              //       (reduced, { anvilUUID, storageGroupUUIDs, fileUUIDs }) => {
-              //         if (subsetAnvilUUIDs.includes(anvilUUID)) {
-              //           includedFileUUIDs.push(...fileUUIDs);
-              //         } else {
-              //           reduced.newExcludedStorageGroupUUIDs.push(
-              //             ...storageGroupUUIDs,
-              //           );
-              //           reduced.newExcludedFileUUIDs.push(...fileUUIDs);
-              //         }
-
-              //         return reduced;
-              //       },
-              //       {
-              //         newExcludedStorageGroupUUIDs: [],
-              //         newExcludedFileUUIDs: [],
-              //       },
-              //     ));
-
-              //   includedFileUUIDs.forEach((fileUUID) => {
-              //     newExcludedFileUUIDs.splice(
-              //       newExcludedFileUUIDs.indexOf(fileUUID),
-              //       1,
-              //     );
-              //   });
-              // }
-
-              // setIncludeStorageGroupUUIDs(newExcludedStorageGroupUUIDs);
-              // setIncludeFileUUIDs(newExcludedFileUUIDs);
-
-              // const newStorageGroupValue = storageGroupValue.filter(
-              //   (uuid) => !newExcludedStorageGroupUUIDs.includes(uuid),
-              // );
-              // setStorageGroupValue(newStorageGroupValue);
-
-              // newExcludedFileUUIDs.forEach((excludedFileUUID) => {
-              //   if (installISOFileUUID === excludedFileUUID) {
-              //     setInstallISOFileUUID('');
-              //   }
-
-              //   if (driverISOFileUUID === excludedFileUUID) {
-              //     setDriverISOFileUUID('');
-              //   }
-              // });
-
-              // const {
-              //   maxCPUCores: localMaxCPUCores,
-              //   maxMemory: localMaxMemory,
-              //   maxVirtualDiskSize: localMaxVDSize,
-              // } = getMaxAvailableValues(organizedAnvils, {
-              //   includeAnvilUUIDs: subsetAnvilUUIDs,
-              //   includeStorageGroupUUIDs: newStorageGroupValue,
-              // });
-
-              // setInputCPUCoresMax(localMaxCPUCores);
-              // setInputMemoryMax(localMaxMemory);
-              // setInputVirtualDiskSizeMax(localMaxVDSize);
+              handleAnvilValueChange(newAnvilUUID);
             },
+            onClearIndicatorClick: () => handleAnvilValueChange(''),
             value: anvilValue,
           },
         })}
