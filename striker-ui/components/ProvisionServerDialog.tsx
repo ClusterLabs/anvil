@@ -23,6 +23,7 @@ import {
 import Autocomplete from './Autocomplete';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
 import MenuItem from './MenuItem';
+import MessageBox from './MessageBox';
 import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
 import OutlinedInputWithLabel, {
@@ -165,7 +166,13 @@ type UpdateLimitsFunction = (options?: {
   memory?: bigint;
   storageGroupUUIDMapToFree?: StorageGroupUUIDMapToFree;
   virtualDisks?: VirtualDiskStates;
-}) => void;
+}) => Partial<ReturnType<FilterAnvilsFunction>>;
+
+type TestArgs = {
+  max: bigint | number;
+  min: bigint | number;
+  value: bigint | number;
+};
 
 const MOCK_DATA = {
   anvils: [
@@ -404,18 +411,16 @@ const createOutlinedSlider = (
   value: number,
   sliderProps?: Partial<SliderProps>,
 ): JSX.Element => (
-  <FormControl>
-    <Slider
-      // eslint-disable-next-line react/jsx-props-no-spreading
-      {...{
-        isAllowTextInput: true,
-        label,
-        labelId: `${id}-label`,
-        value,
-        ...sliderProps,
-      }}
-    />
-  </FormControl>
+  <Slider
+    // eslint-disable-next-line react/jsx-props-no-spreading
+    {...{
+      isAllowTextInput: true,
+      label,
+      labelId: `${id}-label`,
+      value,
+      ...sliderProps,
+    }}
+  />
 );
 
 const createOutlinedInputWithSelect = (
@@ -423,35 +428,42 @@ const createOutlinedInputWithSelect = (
   label: string,
   selectItems: SelectItem[],
   {
+    error,
     inputWithLabelProps,
     selectProps,
   }: {
+    error?: string;
     inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;
     selectProps?: Partial<SelectProps>;
   } = {},
 ) => (
-  <FormControl
-    sx={{
-      display: 'flex',
-      flexDirection: 'row',
+  <Box>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'row',
 
-      '& > :first-child': {
-        flexGrow: 1,
-      },
-    }}
-  >
-    <OutlinedInputWithLabel
-      // eslint-disable-next-line react/jsx-props-no-spreading
-      {...{
-        id,
-        label,
-        ...inputWithLabelProps,
+        '& > :first-child': {
+          flexGrow: 1,
+        },
       }}
-    />
-    {createOutlinedSelect(`${id}-nested-select`, undefined, selectItems, {
-      selectProps,
-    })}
-  </FormControl>
+    >
+      <OutlinedInputWithLabel
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...{
+          id,
+          label,
+          ...inputWithLabelProps,
+        }}
+      />
+      {createOutlinedSelect(`${id}-nested-select`, undefined, selectItems, {
+        selectProps,
+      })}
+    </Box>
+    {error && (
+      <MessageBox sx={{ marginTop: '.4em' }} type="error" text={error} />
+    )}
+  </Box>
 );
 
 const createMaxValueButton = (
@@ -1024,6 +1036,8 @@ const filterBlanks: (array: string[]) => string[] = (array: string[]) =>
 const ProvisionServerDialog = ({
   dialogProps: { open },
 }: ProvisionServerDialogProps): JSX.Element => {
+  const inputCPUCoresMin = 1;
+
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
@@ -1041,9 +1055,15 @@ const ProvisionServerDialog = ({
 
   const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(1);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
+  const [inputCPUCoresError, setInputCPUCoresError] = useState<
+    string | undefined
+  >();
 
   const [memory, setMemory] = useState<bigint>(BIGINT_ZERO);
   const [memoryMax, setMemoryMax] = useState<bigint>(BIGINT_ZERO);
+  const [inputMemoryError, setInputMemoryError] = useState<
+    string | undefined
+  >();
   const [inputMemoryMax, setInputMemoryMax] = useState<string>('0');
   const [inputMemoryValue, setInputMemoryValue] = useState<string>('');
   const [inputMemoryUnit, setInputMemoryUnit] = useState<DataSizeUnit>('B');
@@ -1128,20 +1148,121 @@ const ProvisionServerDialog = ({
       },
       toUnit: ulInputMemoryUnit,
     });
+
+    return {
+      maxCPUCores,
+      maxMemory,
+    };
   };
   // The memorized version of updateLimits() should only be called during first render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initLimits = useCallback(updateLimits, []);
+
+  const testInput = (inputs: { [id: string]: Partial<TestArgs> }): boolean => {
+    const testMax = ({ max, min }: TestArgs) => max >= min;
+    const testRange = ({ max, min, value }: TestArgs) =>
+      value >= min && value <= max;
+
+    const tests: {
+      [id: string]: {
+        defaults: TestArgs & {
+          onSuccess: () => void;
+        };
+        tests: Array<{
+          onFailure?: () => void;
+          onSuccess?: () => void;
+          test: (args: TestArgs) => boolean;
+        }>;
+      };
+    } = {
+      cpuCores: {
+        defaults: {
+          max: inputCPUCoresMax,
+          min: inputCPUCoresMin,
+          onSuccess: () => {
+            setInputCPUCoresError('');
+          },
+          value: inputCPUCoresValue,
+        },
+        tests: [
+          {
+            onFailure: () => {
+              setInputCPUCoresError('Non available.');
+            },
+            test: testMax,
+          },
+          {
+            onFailure: () => {
+              setInputCPUCoresError('Out of range.');
+            },
+            test: testRange,
+          },
+        ],
+      },
+      memory: {
+        defaults: {
+          max: memoryMax,
+          min: 1,
+          onSuccess: () => {
+            setInputMemoryError('');
+          },
+          value: memory,
+        },
+        tests: [
+          {
+            onFailure: () => {
+              setInputMemoryError('Non available.');
+            },
+            test: testMax,
+          },
+          {
+            onFailure: () => {
+              setInputMemoryError('Out of range.');
+            },
+            test: testRange,
+          },
+        ],
+      },
+    };
+
+    return Object.keys(inputs).every((id: string) => {
+      const {
+        defaults: {
+          max: dMax,
+          min: dMin,
+          onSuccess: dOnSuccess,
+          value: dValue,
+        },
+        tests: group,
+      } = tests[id];
+      const { max = dMax, min = dMin, value = dValue } = inputs[id];
+
+      return group.every(({ onFailure, onSuccess = dOnSuccess, test }) => {
+        const result: boolean = test({ max, min, value });
+
+        if (result) {
+          onSuccess?.call(null);
+        } else {
+          onFailure?.call(null);
+        }
+
+        return result;
+      });
+    });
+  };
 
   const changeMemory = ({
     cmValue = BIGINT_ZERO,
     cmUnit = inputMemoryUnit,
   }: { cmValue?: bigint; cmUnit?: DataSizeUnit } = {}) => {
     setMemory(cmValue);
-    updateLimits({
+
+    const { maxMemory } = updateLimits({
       inputMemoryUnit: cmUnit,
       memory: cmValue,
     });
+
+    testInput({ memory: { max: maxMemory, value: cmValue } });
   };
 
   const handleInputMemoryValueChange = ({
@@ -1257,6 +1378,7 @@ const ProvisionServerDialog = ({
       >
         <OutlinedInputWithLabel id="ps-server-name" label="Server name" />
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', inputCPUCoresValue, {
+          error: inputCPUCoresError,
           sliderProps: {
             onChange: (value) => {
               const newCPUCoresValue = value as number;
@@ -1264,13 +1386,17 @@ const ProvisionServerDialog = ({
               if (newCPUCoresValue !== inputCPUCoresValue) {
                 setInputCPUCoresValue(newCPUCoresValue);
 
-                updateLimits({
+                const { maxCPUCores: newCPUCoresMax } = updateLimits({
                   cpuCores: newCPUCoresValue,
+                });
+
+                testInput({
+                  cpuCores: { max: newCPUCoresMax, value: newCPUCoresValue },
                 });
               }
             },
             max: inputCPUCoresMax,
-            min: 1,
+            min: inputCPUCoresMin,
           },
         })}
         <BodyText
@@ -1281,6 +1407,7 @@ const ProvisionServerDialog = ({
           'Memory',
           DATA_SIZE_UNIT_SELECT_ITEMS,
           {
+            error: inputMemoryError,
             inputWithLabelProps: {
               inputProps: {
                 endAdornment: createMaxValueButton(
