@@ -1003,11 +1003,11 @@ const ProvisionServerDialog = ({
     SelectItem[]
   >([]);
 
-  const [cpuCoresValue, setCPUCoresValue] = useState<number>(1);
+  const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(1);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
 
-  const [memoryValue, setMemoryValue] = useState<bigint>(BIGINT_ZERO);
-  const [memoryValueMax, setMemoryValueMax] = useState<bigint>(BIGINT_ZERO);
+  const [memory, setMemory] = useState<bigint>(BIGINT_ZERO);
+  const [memoryMax, setMemoryMax] = useState<bigint>(BIGINT_ZERO);
   const [inputMemoryMax, setInputMemoryMax] = useState<string>('0');
   const [inputMemoryValue, setInputMemoryValue] = useState<string>('');
   const [inputMemoryUnit, setInputMemoryUnit] = useState<DataSizeUnit>('B');
@@ -1016,10 +1016,12 @@ const ProvisionServerDialog = ({
     addVirtualDisk(),
   );
 
-  const [installISOFileUUID, setInstallISOFileUUID] = useState<string>('');
-  const [driverISOFileUUID, setDriverISOFileUUID] = useState<string>('');
+  const [inputInstallISOFileUUID, setInputInstallISOFileUUID] =
+    useState<string>('');
+  const [inputDriverISOFileUUID, setInputDriverISOFileUUID] =
+    useState<string>('');
 
-  const [anvilValue, setAnvilValue] = useState<string>('');
+  const [inputAnvilValue, setInputAnvilValue] = useState<string>('');
 
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
   const [includeFileUUIDs, setIncludeFileUUIDs] = useState<string[]>([]);
@@ -1029,13 +1031,13 @@ const ProvisionServerDialog = ({
 
   const updateLimits: UpdateLimitsFunction = ({
     allAnvils: ulAllAnvils = allAnvils,
-    cpuCores: ulCPUCores = cpuCoresValue,
-    fileUUIDs: ulFileUUIDs = [installISOFileUUID, driverISOFileUUID],
-    includeAnvilUUIDs: ulIncludeAnvilUUIDs = filterBlanks([anvilValue]),
+    cpuCores: ulCPUCores = inputCPUCoresValue,
+    fileUUIDs: ulFileUUIDs = [inputInstallISOFileUUID, inputDriverISOFileUUID],
+    includeAnvilUUIDs: ulIncludeAnvilUUIDs = filterBlanks([inputAnvilValue]),
     includeFileUUIDs: ulIncludeFileUUIDs,
     includeStorageGroupUUIDs: ulIncludeStorageGroupUUIDs,
     inputMemoryUnit: ulInputMemoryUnit = inputMemoryUnit,
-    memory: ulMemory = memoryValue,
+    memory: ulMemory = memory,
     storageGroupUUIDMapToFree:
       ulStorageGroupUUIDMapToFree = storageGroupUUIDMapToFree,
     virtualDisks: ulVirtualDisks = virtualDisks,
@@ -1063,7 +1065,7 @@ const ProvisionServerDialog = ({
     );
 
     setInputCPUCoresMax(maxCPUCores);
-    setMemoryValueMax(maxMemory);
+    setMemoryMax(maxMemory);
 
     ulVirtualDisks.maxes = maxVirtualDiskSizes;
     setVirtualDisks({ ...ulVirtualDisks });
@@ -1102,11 +1104,11 @@ const ProvisionServerDialog = ({
     dSizeToBytes(
       value,
       unit,
-      (convertedMemoryValue) => {
-        setMemoryValue(convertedMemoryValue);
+      (convertedMemory) => {
+        setMemory(convertedMemory);
 
         updateLimits({
-          memory: convertedMemoryValue,
+          memory: convertedMemory,
         });
       },
       () =>
@@ -1116,26 +1118,26 @@ const ProvisionServerDialog = ({
     );
   };
 
-  const handleInstallISOFileUUIDChange = (uuid: string) => {
-    setInstallISOFileUUID(uuid);
+  const handleInputInstallISOFileUUIDChange = (uuid: string) => {
+    setInputInstallISOFileUUID(uuid);
 
     updateLimits({
-      fileUUIDs: [uuid, driverISOFileUUID],
+      fileUUIDs: [uuid, inputDriverISOFileUUID],
     });
   };
 
-  const handleDriverISOFileUUIDChange = (uuid: string) => {
-    setDriverISOFileUUID(uuid);
+  const handleInputDriverISOFileUUIDChange = (uuid: string) => {
+    setInputDriverISOFileUUID(uuid);
 
     updateLimits({
-      fileUUIDs: [installISOFileUUID, uuid],
+      fileUUIDs: [inputInstallISOFileUUID, uuid],
     });
   };
 
-  const handleAnvilValueChange = (uuid: string) => {
+  const handleInputAnvilValueChange = (uuid: string) => {
     const havcIncludeAnvilUUIDs = filterBlanks([uuid]);
 
-    setAnvilValue(uuid);
+    setInputAnvilValue(uuid);
 
     updateLimits({
       includeAnvilUUIDs: havcIncludeAnvilUUIDs,
@@ -1204,13 +1206,13 @@ const ProvisionServerDialog = ({
         }}
       >
         <OutlinedInputWithLabel id="ps-server-name" label="Server name" />
-        {createOutlinedSlider('ps-cpu-cores', 'CPU cores', cpuCoresValue, {
+        {createOutlinedSlider('ps-cpu-cores', 'CPU cores', inputCPUCoresValue, {
           sliderProps: {
             onChange: (value) => {
               const newCPUCoresValue = value as number;
 
-              if (newCPUCoresValue !== cpuCoresValue) {
-                setCPUCoresValue(newCPUCoresValue);
+              if (newCPUCoresValue !== inputCPUCoresValue) {
+                setInputCPUCoresValue(newCPUCoresValue);
 
                 updateLimits({
                   cpuCores: newCPUCoresValue,
@@ -1222,7 +1224,7 @@ const ProvisionServerDialog = ({
           },
         })}
         <BodyText
-          text={`Memory: ${memoryValue.toString()}, Max: ${memoryValueMax.toString()}`}
+          text={`Memory: ${memory.toString()}, Max: ${memoryMax.toString()}`}
         />
         {createOutlinedInputWithSelect('ps-memory', 'Memory', DATA_SIZE_UNITS, {
           inputWithLabelProps: {
@@ -1276,10 +1278,11 @@ const ProvisionServerDialog = ({
               onChange: ({ target: { value } }) => {
                 const newInstallISOFileUUID = value as string;
 
-                handleInstallISOFileUUIDChange(newInstallISOFileUUID);
+                handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
               },
-              onClearIndicatorClick: () => handleInstallISOFileUUIDChange(''),
-              value: installISOFileUUID,
+              onClearIndicatorClick: () =>
+                handleInputInstallISOFileUUIDChange(''),
+              value: inputInstallISOFileUUID,
             },
           },
         )}
@@ -1293,10 +1296,11 @@ const ProvisionServerDialog = ({
               onChange: ({ target: { value } }) => {
                 const newDriverISOFileUUID = value as string;
 
-                handleDriverISOFileUUIDChange(newDriverISOFileUUID);
+                handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
               },
-              onClearIndicatorClick: () => handleDriverISOFileUUIDChange(''),
-              value: driverISOFileUUID,
+              onClearIndicatorClick: () =>
+                handleInputDriverISOFileUUIDChange(''),
+              value: inputDriverISOFileUUID,
             },
           },
         )}
@@ -1306,10 +1310,10 @@ const ProvisionServerDialog = ({
             onChange: ({ target: { value } }) => {
               const newAnvilUUID: string = value as string;
 
-              handleAnvilValueChange(newAnvilUUID);
+              handleInputAnvilValueChange(newAnvilUUID);
             },
-            onClearIndicatorClick: () => handleAnvilValueChange(''),
-            value: anvilValue,
+            onClearIndicatorClick: () => handleInputAnvilValueChange(''),
+            value: inputAnvilValue,
           },
         })}
         <Autocomplete
