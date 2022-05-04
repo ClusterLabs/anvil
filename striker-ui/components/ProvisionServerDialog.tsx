@@ -1537,6 +1537,7 @@ const ProvisionServerDialog = ({
           'Install ISO',
           fileSelectItems,
           {
+            disableItem: (value) => value === inputDriverISOFileUUID,
             hideItem: (value) => !includeFileUUIDs.includes(value),
             selectProps: {
               onChange: ({ target: { value } }) => {
@@ -1555,6 +1556,7 @@ const ProvisionServerDialog = ({
           'Driver ISO',
           fileSelectItems,
           {
+            disableItem: (value) => value === inputInstallISOFileUUID,
             hideItem: (value) => !includeFileUUIDs.includes(value),
             selectProps: {
               onChange: ({ target: { value } }) => {
