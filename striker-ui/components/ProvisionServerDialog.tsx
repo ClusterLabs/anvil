@@ -148,6 +148,7 @@ type FilterAnvilsFunction = (
 
 type VirtualDiskStates = {
   maxes: bigint[];
+  inputErrors: Array<string | undefined>;
   inputMaxes: string[];
   inputSizes: string[];
   inputStorageGroupUUIDs: string[];
@@ -171,8 +172,12 @@ type UpdateLimitsFunction = (options?: {
 type TestArgs = {
   max: bigint | number;
   min: bigint | number;
-  value: bigint | number;
+  value: bigint | number | string;
 };
+
+type TestInputFunction = (inputs: {
+  [id: string]: Partial<TestArgs>;
+}) => boolean;
 
 const MOCK_DATA = {
   anvils: [
@@ -356,6 +361,9 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
   { value: 'TB' },
 ];
 
+const createErrorMessage = (error?: string) =>
+  error && <MessageBox sx={{ marginTop: '.4em' }} type="error" text={error} />;
+
 const createOutlinedSelect = (
   id: string,
   label: string | undefined,
@@ -460,9 +468,7 @@ const createOutlinedInputWithSelect = (
         selectProps,
       })}
     </Box>
-    {error && (
-      <MessageBox sx={{ marginTop: '.4em' }} type="error" text={error} />
-    )}
+    {createErrorMessage(error)}
   </Box>
 );
 
@@ -857,6 +863,7 @@ const createVirtualDiskForm = (
   includeStorageGroupUUIDs: string[],
   updateLimits: UpdateLimitsFunction,
   storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
+  testInput: TestInputFunction,
 ) => {
   const get = <Key extends keyof VirtualDiskStates>(
     key: Key,
@@ -874,7 +881,15 @@ const createVirtualDiskForm = (
 
   const changeVDSize = (cvsValue: bigint = BIGINT_ZERO) => {
     set('sizes', cvsValue);
-    updateLimits({ virtualDisks });
+
+    const { maxVirtualDiskSizes } = updateLimits({ virtualDisks });
+
+    testInput({
+      [`vd${vdIndex}Size`]: {
+        max: maxVirtualDiskSizes?.[vdIndex],
+        value: cvsValue,
+      },
+    });
   };
 
   const handleVDSizeChange = ({
@@ -979,6 +994,7 @@ const createVirtualDiskForm = (
           },
         },
       )}
+      {createErrorMessage(get('inputErrors'))}
     </Box>
   );
 };
@@ -986,6 +1002,7 @@ const createVirtualDiskForm = (
 const addVirtualDisk = ({
   existingVirtualDisks: virtualDisks = {
     maxes: [],
+    inputErrors: [],
     inputMaxes: [],
     inputSizes: [],
     inputStorageGroupUUIDs: [],
@@ -993,6 +1010,7 @@ const addVirtualDisk = ({
     sizes: [],
   },
   max = BIGINT_ZERO,
+  inputError = undefined,
   inputMax = '0',
   inputSize = '',
   inputStorageGroupUUID = '',
@@ -1002,6 +1020,7 @@ const addVirtualDisk = ({
 }: {
   existingVirtualDisks?: VirtualDiskStates;
   max?: bigint;
+  inputError?: string | undefined;
   inputMax?: string;
   inputSize?: string;
   inputStorageGroupUUID?: string;
@@ -1011,6 +1030,7 @@ const addVirtualDisk = ({
 } = {}) => {
   const {
     maxes,
+    inputErrors,
     inputMaxes,
     inputSizes,
     inputStorageGroupUUIDs,
@@ -1019,6 +1039,7 @@ const addVirtualDisk = ({
   } = virtualDisks;
 
   maxes.push(max);
+  inputErrors.push(inputError);
   inputMaxes.push(inputMax);
   inputSizes.push(inputSize);
   inputStorageGroupUUIDs.push(inputStorageGroupUUID);
@@ -1152,13 +1173,17 @@ const ProvisionServerDialog = ({
     return {
       maxCPUCores,
       maxMemory,
+      maxVirtualDiskSizes,
     };
   };
   // The memorized version of updateLimits() should only be called during first render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initLimits = useCallback(updateLimits, []);
 
-  const testInput = (inputs: { [id: string]: Partial<TestArgs> }): boolean => {
+  const testInput: TestInputFunction = (inputs: {
+    [id: string]: Partial<TestArgs>;
+  }): boolean => {
+    const testNotBlank = ({ value }: TestArgs) => value !== '';
     const testMax = ({ max, min }: TestArgs) => max >= min;
     const testRange = ({ max, min, value }: TestArgs) =>
       value >= min && value <= max;
@@ -1169,7 +1194,7 @@ const ProvisionServerDialog = ({
           onSuccess: () => void;
         };
         tests: Array<{
-          onFailure?: () => void;
+          onFailure?: (args: TestArgs) => void;
           onSuccess?: () => void;
           test: (args: TestArgs) => boolean;
         }>;
@@ -1192,8 +1217,10 @@ const ProvisionServerDialog = ({
             test: testMax,
           },
           {
-            onFailure: () => {
-              setInputCPUCoresError('Out of range.');
+            onFailure: ({ max, min }) => {
+              setInputCPUCoresError(
+                `The number of CPU cores is expected to be between ${min} and ${max}.`,
+              );
             },
             test: testRange,
           },
@@ -1216,14 +1243,70 @@ const ProvisionServerDialog = ({
             test: testMax,
           },
           {
-            onFailure: () => {
-              setInputMemoryError('Out of range.');
+            onFailure: ({ max, min }) => {
+              setInputMemoryError(
+                `Memory is expected to be between ${min} B and ${max} B.`,
+              );
             },
             test: testRange,
           },
         ],
       },
     };
+
+    virtualDisks.inputErrors.forEach((error, vdIndex) => {
+      const defaultOnSuccess = () => {
+        virtualDisks.inputErrors[vdIndex] = undefined;
+        setVirtualDisks({ ...virtualDisks });
+      };
+
+      tests[`vd${vdIndex}Size`] = {
+        defaults: {
+          max: virtualDisks.maxes[vdIndex],
+          min: 1,
+          onSuccess: defaultOnSuccess,
+          value: virtualDisks.sizes[vdIndex],
+        },
+        tests: [
+          {
+            onFailure: () => {
+              virtualDisks.inputErrors[vdIndex] = 'Non available.';
+              setVirtualDisks({ ...virtualDisks });
+            },
+            test: testMax,
+          },
+          {
+            onFailure: ({ max, min }) => {
+              virtualDisks.inputErrors[
+                vdIndex
+              ] = `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`;
+              setVirtualDisks({ ...virtualDisks });
+            },
+            test: testRange,
+          },
+        ],
+      };
+
+      tests[`vd${vdIndex}StorageGroup`] = {
+        defaults: {
+          max: 0,
+          min: 0,
+          onSuccess: defaultOnSuccess,
+          value: virtualDisks.inputStorageGroupUUIDs[vdIndex],
+        },
+        tests: [
+          {
+            onFailure: () => {
+              virtualDisks.inputErrors[
+                vdIndex
+              ] = `Virtual disk ${vdIndex} storage group shouldn't be blank.`;
+              setVirtualDisks({ ...virtualDisks });
+            },
+            test: testNotBlank,
+          },
+        ],
+      };
+    });
 
     return Object.keys(inputs).every((id: string) => {
       const {
@@ -1238,12 +1321,13 @@ const ProvisionServerDialog = ({
       const { max = dMax, min = dMin, value = dValue } = inputs[id];
 
       return group.every(({ onFailure, onSuccess = dOnSuccess, test }) => {
-        const result: boolean = test({ max, min, value });
+        const args = { max, min, value };
+        const result: boolean = test(args);
 
         if (result) {
           onSuccess?.call(null);
         } else {
-          onFailure?.call(null);
+          onFailure?.call(null, args);
         }
 
         return result;
@@ -1445,6 +1529,7 @@ const ProvisionServerDialog = ({
             includeStorageGroupUUIDs,
             updateLimits,
             storageGroupUUIDMapToFree,
+            testInput,
           ),
         )}
         {createOutlinedSelect(
