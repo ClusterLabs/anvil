@@ -13,7 +13,7 @@ import {
 
 import { BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
-import MessageBox from './MessageBox';
+import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
 import { BodyText } from './Text';
@@ -24,10 +24,10 @@ type SliderOnFocus = Exclude<MUISliderProps['onFocus'], undefined>;
 type SliderValue = Exclude<MUISliderProps['value'], undefined>;
 
 type SliderOptionalProps = {
-  error?: string | null;
   isAllowTextInput?: boolean;
   labelId?: string;
   labelProps?: MUITypographyProps;
+  messageBoxProps?: Partial<MessageBoxProps>;
   sliderProps?: Omit<MUISliderProps, 'onChange'> & {
     onChange?: (value: number | number[]) => void;
   };
@@ -41,10 +41,10 @@ type SliderProps = {
 type TextInputOnChange = Exclude<MUIOutlinedInputProps['onChange'], undefined>;
 
 const SLIDER_DEFAULT_PROPS: Required<SliderOptionalProps> = {
-  error: null,
   isAllowTextInput: false,
   labelId: '',
   labelProps: {},
+  messageBoxProps: {},
   sliderProps: {},
 };
 
@@ -150,7 +150,10 @@ const createOutlinedInput = ({
 );
 
 const Slider = ({
-  error,
+  messageBoxProps: {
+    text: messageBoxText,
+    type: messageBoxType,
+  } = SLIDER_DEFAULT_PROPS.messageBoxProps,
   isAllowTextInput,
   label,
   labelId,
@@ -249,8 +252,12 @@ const Slider = ({
               },
         })}
       </Box>
-      {error && (
-        <MessageBox sx={{ marginTop: '.4em' }} type="error" text={error} />
+      {messageBoxText && (
+        <MessageBox
+          sx={{ marginTop: '.4em' }}
+          text={messageBoxText}
+          type={messageBoxType}
+        />
       )}
     </FormControl>
   );
