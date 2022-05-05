@@ -2,6 +2,7 @@ import {
   Autocomplete as MUIAutocomplete,
   autocompleteClasses as muiAutocompleteClasses,
   AutocompleteProps as MUIAutocompleteProps,
+  AutocompleteRenderInputParams as MUIAutocompleteRenderInputParams,
   Grow as MUIGrow,
   outlinedInputClasses as muiOutlinedInputClasses,
   Paper as MUIPaper,
@@ -11,17 +12,26 @@ import {
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
-import OutlinedInputWithLabel from './OutlinedInputWithLabel';
+import OutlinedInputWithLabel, {
+  OutlinedInputWithLabelProps,
+} from './OutlinedInputWithLabel';
+
+type AutocompleteOptionalProps = {
+  extendRenderInput?: (
+    inputWithLabelProps: OutlinedInputWithLabelProps,
+    renderInputParams?: MUIAutocompleteRenderInputParams,
+  ) => void;
+};
 
 type AutocompleteProps<
   T,
   Multiple extends boolean | undefined,
   DisableClearable extends boolean | undefined,
   FreeSolo extends boolean | undefined,
-> = { label: string } & Omit<
-  MUIAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
-  'renderInput'
-> &
+> = AutocompleteOptionalProps & { label: string } & Omit<
+    MUIAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
+    'renderInput'
+  > &
   Partial<
     Pick<
       MUIAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
@@ -44,7 +54,8 @@ const Autocomplete = <
 >(
   autocompleteProps: AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
 ): JSX.Element => {
-  const { componentsProps, label, renderInput, sx } = autocompleteProps;
+  const { componentsProps, extendRenderInput, label, renderInput, sx } =
+    autocompleteProps;
   const combinedComponentsProps: AutocompleteProps<
     T,
     Multiple,
@@ -61,24 +72,29 @@ const Autocomplete = <
   };
   const combinedRenderInput =
     renderInput ??
-    (({ fullWidth, InputProps, InputLabelProps, inputProps }) => (
-      <OutlinedInputWithLabel
-        {...{
-          formControlProps: {
-            fullWidth,
-            ref: InputProps.ref,
-          },
-          inputLabelProps: InputLabelProps,
-          inputProps: {
-            className: InputProps.className,
-            endAdornment: InputProps.endAdornment,
-            inputProps,
-            startAdornment: InputProps.startAdornment,
-          },
-          label,
-        }}
-      />
-    ));
+    ((renderInputParams) => {
+      const { fullWidth, InputProps, InputLabelProps, inputProps } =
+        renderInputParams;
+      const inputWithLabelProps: OutlinedInputWithLabelProps = {
+        formControlProps: {
+          fullWidth,
+          ref: InputProps.ref,
+        },
+        inputLabelProps: InputLabelProps,
+        inputProps: {
+          className: InputProps.className,
+          endAdornment: InputProps.endAdornment,
+          inputProps,
+          startAdornment: InputProps.startAdornment,
+        },
+        label,
+      };
+
+      extendRenderInput?.call(null, inputWithLabelProps, renderInputParams);
+
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      return <OutlinedInputWithLabel {...inputWithLabelProps} />;
+    });
   const combinedSx = {
     [`& .${muiOutlinedInputClasses.root} .${muiAutocompleteClasses.endAdornment}`]:
       {
