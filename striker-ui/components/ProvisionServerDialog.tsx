@@ -32,7 +32,17 @@ import OutlinedInputWithLabel, {
 import { Panel, PanelHeader } from './Panels';
 import Select, { SelectProps } from './Select';
 import Slider, { SliderProps } from './Slider';
+import {
+  testInput as baseTestInput,
+  testMax,
+  testNotBlank,
+  testRange,
+} from '../lib/test_input';
 import { BodyText, HeaderText } from './Text';
+import {
+  InputTestBatches,
+  TestInputFunction,
+} from '../types/TestInputFunction';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -171,26 +181,6 @@ type UpdateLimitsFunction = (options?: {
   storageGroupUUIDMapToFree?: StorageGroupUUIDMapToFree;
   virtualDisks?: VirtualDiskStates;
 }) => Partial<ReturnType<FilterAnvilsFunction>>;
-
-type TestArgs = {
-  max: bigint | number;
-  min: bigint | number;
-  value: bigint | number | string;
-};
-
-type InputTest = {
-  onFailure?: (args: TestArgs) => void;
-  onSuccess?: () => void;
-  test: (args: TestArgs) => boolean;
-};
-
-type TestInputFunction = (options?: {
-  inputs?: {
-    [id: string]: Partial<TestArgs>;
-  };
-  isContinueOnFailure?: boolean;
-  isIgnoreOnCallbacks?: boolean;
-}) => boolean;
 
 const MOCK_DATA = {
   anvils: [
@@ -1102,6 +1092,11 @@ const ProvisionServerDialog = ({
     SelectItem[]
   >([]);
 
+  const [inputServerNameValue, setInputServerNameValue] = useState<string>('');
+  const [inputServerNameMessage, setInputServerNameMessage] = useState<
+    InputMessage | undefined
+  >();
+
   const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(1);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
   const [inputCPUCoresMessage, setInputCPUCoresMessage] = useState<
@@ -1140,6 +1135,184 @@ const ProvisionServerDialog = ({
   const [includeStorageGroupUUIDs, setIncludeStorageGroupUUIDs] = useState<
     string[]
   >([]);
+
+  const inputTests: InputTestBatches = {
+    serverName: {
+      defaults: {
+        max: 0,
+        min: 0,
+        onSuccess: () => {
+          setInputServerNameMessage(undefined);
+        },
+        value: inputServerNameValue,
+      },
+      tests: [
+        {
+          onFailure: () => {
+            setInputServerNameMessage({
+              text: 'The server name length must be 1 to 16 characters.',
+              type: 'error',
+            });
+          },
+          test: ({ value }) => {
+            const { length } = value as string;
+
+            return length >= 1 && length <= 16;
+          },
+        },
+        {
+          onFailure: () => {
+            setInputServerNameMessage({
+              text: 'The server name is expected to only contain alphanumeric, hyphen, or underscore characters.',
+              type: 'error',
+            });
+          },
+          test: ({ value }) => /^[a-zA-Z0-9_-]+$/.test(value as string),
+        },
+      ],
+    },
+    cpuCores: {
+      defaults: {
+        max: inputCPUCoresMax,
+        min: inputCPUCoresMin,
+        onSuccess: () => {
+          setInputCPUCoresMessage(undefined);
+        },
+        value: inputCPUCoresValue,
+      },
+      tests: [
+        {
+          onFailure: () => {
+            setInputCPUCoresMessage({
+              text: 'Non available.',
+              type: 'error',
+            });
+          },
+          test: testMax,
+        },
+        {
+          onFailure: ({ max, min }) => {
+            setInputCPUCoresMessage({
+              text: `The number of CPU cores is expected to be between ${min} and ${max}.`,
+              type: 'error',
+            });
+          },
+          test: testRange,
+        },
+      ],
+    },
+    memory: {
+      defaults: {
+        max: memoryMax,
+        min: 1,
+        onSuccess: () => {
+          setInputMemoryMessage(undefined);
+        },
+        value: memory,
+      },
+      tests: [
+        {
+          onFailure: () => {
+            setInputMemoryMessage({ text: 'Non available.', type: 'error' });
+          },
+          test: testMax,
+        },
+        {
+          onFailure: ({ max, min }) => {
+            setInputMemoryMessage({
+              text: `Memory is expected to be between ${min} B and ${max} B.`,
+              type: 'error',
+            });
+          },
+          test: testRange,
+        },
+      ],
+    },
+    installISO: {
+      defaults: {
+        max: 0,
+        min: 0,
+        onSuccess: () => {
+          setInputInstallISOMessage(undefined);
+        },
+        value: inputInstallISOFileUUID,
+      },
+      tests: [
+        {
+          test: testNotBlank,
+        },
+      ],
+    },
+    anvil: {
+      defaults: {
+        max: 0,
+        min: 0,
+        onSuccess: () => {
+          setInputAnvilMessage(undefined);
+        },
+        value: inputAnvilValue,
+      },
+      tests: [
+        {
+          test: testNotBlank,
+        },
+      ],
+    },
+  };
+  virtualDisks.inputSizeMessages.forEach((message, vdIndex) => {
+    inputTests[`vd${vdIndex}Size`] = {
+      defaults: {
+        max: virtualDisks.maxes[vdIndex],
+        min: 1,
+        onSuccess: () => {
+          virtualDisks.inputSizeMessages[vdIndex] = undefined;
+        },
+        value: virtualDisks.sizes[vdIndex],
+      },
+      onFinishBatch: () => {
+        setVirtualDisks({ ...virtualDisks });
+      },
+      tests: [
+        {
+          onFailure: () => {
+            virtualDisks.inputSizeMessages[vdIndex] = {
+              text: 'Non available.',
+              type: 'error',
+            };
+          },
+          test: testMax,
+        },
+        {
+          onFailure: ({ max, min }) => {
+            virtualDisks.inputSizeMessages[vdIndex] = {
+              text: `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`,
+              type: 'error',
+            };
+          },
+          test: testRange,
+        },
+      ],
+    };
+
+    inputTests[`vd${vdIndex}StorageGroup`] = {
+      defaults: {
+        max: 0,
+        min: 0,
+        onSuccess: () => {
+          virtualDisks.inputStorageGroupUUIDMessages[vdIndex] = undefined;
+        },
+        value: virtualDisks.inputStorageGroupUUIDs[vdIndex],
+      },
+      onFinishBatch: () => {
+        setVirtualDisks({ ...virtualDisks });
+      },
+      tests: [
+        {
+          test: testNotBlank,
+        },
+      ],
+    };
+  });
 
   const updateLimits: UpdateLimitsFunction = ({
     allAnvils: ulAllAnvils = allAnvils,
@@ -1215,246 +1388,9 @@ const ProvisionServerDialog = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initLimits = useCallback(updateLimits, []);
 
-  const testInput: TestInputFunction = ({
-    inputs,
-    isContinueOnFailure,
-    isIgnoreOnCallbacks,
-  } = {}): boolean => {
-    const testNotBlank = ({ value }: Pick<TestArgs, 'value'>) => value !== '';
-    const testMax = ({ max, min }: Pick<TestArgs, 'max' | 'min'>) => max >= min;
-    const testRange = ({ max, min, value }: TestArgs) =>
-      value >= min && value <= max;
-
-    const tests: {
-      [id: string]: {
-        defaults: TestArgs & {
-          onSuccess: () => void;
-        };
-        onFinishBatch?: () => void;
-        optionalTests?: Array<InputTest>;
-        tests: Array<InputTest>;
-      };
-    } = {
-      cpuCores: {
-        defaults: {
-          max: inputCPUCoresMax,
-          min: inputCPUCoresMin,
-          onSuccess: () => {
-            setInputCPUCoresMessage(undefined);
-          },
-          value: inputCPUCoresValue,
-        },
-        tests: [
-          {
-            onFailure: () => {
-              setInputCPUCoresMessage({
-                text: 'Non available.',
-                type: 'error',
-              });
-            },
-            test: testMax,
-          },
-          {
-            onFailure: ({ max, min }) => {
-              setInputCPUCoresMessage({
-                text: `The number of CPU cores is expected to be between ${min} and ${max}.`,
-                type: 'error',
-              });
-            },
-            test: testRange,
-          },
-        ],
-      },
-      memory: {
-        defaults: {
-          max: memoryMax,
-          min: 1,
-          onSuccess: () => {
-            setInputMemoryMessage(undefined);
-          },
-          value: memory,
-        },
-        tests: [
-          {
-            onFailure: () => {
-              setInputMemoryMessage({ text: 'Non available.', type: 'error' });
-            },
-            test: testMax,
-          },
-          {
-            onFailure: ({ max, min }) => {
-              setInputMemoryMessage({
-                text: `Memory is expected to be between ${min} B and ${max} B.`,
-                type: 'error',
-              });
-            },
-            test: testRange,
-          },
-        ],
-      },
-      installISO: {
-        defaults: {
-          max: 0,
-          min: 0,
-          onSuccess: () => {
-            setInputInstallISOMessage(undefined);
-          },
-          value: inputInstallISOFileUUID,
-        },
-        tests: [
-          {
-            test: testNotBlank,
-          },
-        ],
-      },
-      anvil: {
-        defaults: {
-          max: 0,
-          min: 0,
-          onSuccess: () => {
-            setInputAnvilMessage(undefined);
-          },
-          value: inputAnvilValue,
-        },
-        tests: [
-          {
-            test: testNotBlank,
-          },
-        ],
-      },
-    };
-
-    virtualDisks.inputSizeMessages.forEach((error, vdIndex) => {
-      tests[`vd${vdIndex}Size`] = {
-        defaults: {
-          max: virtualDisks.maxes[vdIndex],
-          min: 1,
-          onSuccess: () => {
-            virtualDisks.inputSizeMessages[vdIndex] = undefined;
-          },
-          value: virtualDisks.sizes[vdIndex],
-        },
-        onFinishBatch: () => {
-          setVirtualDisks({ ...virtualDisks });
-        },
-        tests: [
-          {
-            onFailure: () => {
-              virtualDisks.inputSizeMessages[vdIndex] = {
-                text: 'Non available.',
-                type: 'error',
-              };
-            },
-            test: testMax,
-          },
-          {
-            onFailure: ({ max, min }) => {
-              virtualDisks.inputSizeMessages[vdIndex] = {
-                text: `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`,
-                type: 'error',
-              };
-            },
-            test: testRange,
-          },
-        ],
-      };
-
-      tests[`vd${vdIndex}StorageGroup`] = {
-        defaults: {
-          max: 0,
-          min: 0,
-          onSuccess: () => {
-            virtualDisks.inputStorageGroupUUIDMessages[vdIndex] = undefined;
-          },
-          value: virtualDisks.inputStorageGroupUUIDs[vdIndex],
-        },
-        onFinishBatch: () => {
-          setVirtualDisks({ ...virtualDisks });
-        },
-        tests: [
-          {
-            test: testNotBlank,
-          },
-        ],
-      };
-    });
-
-    const testsToRun =
-      inputs ??
-      Object.keys(tests).reduce<
-        Exclude<
-          Exclude<Parameters<TestInputFunction>[0], undefined>['inputs'],
-          undefined
-        >
-      >((reduceContainer, id: string) => {
-        reduceContainer[id] = {};
-        return reduceContainer;
-      }, {});
-
-    let allResult = true;
-
-    Object.keys(testsToRun).every((id: string) => {
-      const {
-        defaults: {
-          max: dMax,
-          min: dMin,
-          onSuccess: dOnSuccess,
-          value: dValue,
-        },
-        onFinishBatch: dOnFinishBatch,
-        optionalTests,
-        tests: requiredTests,
-      } = tests[id];
-      const { max = dMax, min = dMin, value = dValue } = testsToRun[id];
-
-      let cbFinishBatch;
-      let setOnResult: (test?: Partial<InputTest>) => {
-        cbFailure: InputTest['onFailure'];
-        cbSuccess: InputTest['onSuccess'];
-      } = () => ({ cbFailure: undefined, cbSuccess: undefined });
-
-      if (!isIgnoreOnCallbacks) {
-        cbFinishBatch = dOnFinishBatch;
-
-        setOnResult = ({ onFailure, onSuccess }: Partial<InputTest> = {}) => ({
-          cbFailure: onFailure,
-          cbSuccess: onSuccess,
-        });
-      }
-
-      const runTest: (test: InputTest) => boolean = ({
-        onFailure,
-        onSuccess = dOnSuccess,
-        test,
-      }) => {
-        const args = { max, min, value };
-        const singleResult: boolean = test(args);
-
-        const { cbFailure, cbSuccess } = setOnResult({ onFailure, onSuccess });
-
-        if (singleResult) {
-          cbSuccess?.call(null);
-        } else {
-          allResult = singleResult;
-
-          cbFailure?.call(null, args);
-        }
-
-        return singleResult;
-      };
-
-      // Don't need to pass optional tests for input to be valid.
-      optionalTests?.forEach(runTest);
-
-      const requiredTestsResult = requiredTests.every(runTest);
-
-      cbFinishBatch?.call(null);
-
-      return requiredTestsResult || isContinueOnFailure;
-    });
-
-    return allResult;
-  };
+  const testInput = (
+    ...[options, ...restArgs]: Parameters<TestInputFunction>
+  ) => baseTestInput({ tests: inputTests, ...options }, ...restArgs);
 
   const changeMemory = ({
     cmValue = BIGINT_ZERO,
@@ -1581,7 +1517,21 @@ const ProvisionServerDialog = ({
           },
         }}
       >
-        <OutlinedInputWithLabel id="ps-server-name" label="Server name" />
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          <OutlinedInputWithLabel
+            id="ps-server-name"
+            label="Server name"
+            inputProps={{
+              onChange: ({ target: { value } }) => {
+                setInputServerNameValue(value);
+
+                testInput({ inputs: { serverName: { value } } });
+              },
+              value: inputServerNameValue,
+            }}
+            messageBoxProps={inputServerNameMessage}
+          />
+        </Box>
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', inputCPUCoresValue, {
           messageBoxProps: inputCPUCoresMessage,
           sliderProps: {
@@ -1677,7 +1627,7 @@ const ProvisionServerDialog = ({
         )}
         {createOutlinedSelect(
           'ps-driver-image',
-          'Driver ISO',
+          'Driver ISO (optional)',
           fileSelectItems,
           {
             disableItem: (value) => value === inputInstallISOFileUUID,
