@@ -1,17 +1,31 @@
 import {
+  Box,
   InputLabel as MUIInputLabel,
   inputLabelClasses as muiInputLabelClasses,
   InputLabelProps as MUIInputLabelProps,
+  svgIconClasses as muiSvgIconClasses,
 } from '@mui/material';
+import { PriorityHighRounded as RequiredIcon } from '@mui/icons-material';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
-type OutlinedInputLabelProps = MUIInputLabelProps;
+type OutlinedInputLabelOptionalProps = {
+  isNotifyRequired?: boolean;
+};
+
+type OutlinedInputLabelProps = MUIInputLabelProps &
+  OutlinedInputLabelOptionalProps;
 
 const OutlinedInputLabel = (
   inputLabelProps: OutlinedInputLabelProps,
 ): JSX.Element => {
-  const { children, sx } = inputLabelProps;
+  const {
+    children,
+    isNotifyRequired,
+    sx,
+    variant = 'outlined',
+    ...inputLabelRestProps
+  } = inputLabelProps;
   const combinedSx = {
     color: GREY,
 
@@ -22,6 +36,11 @@ const OutlinedInputLabel = (
       padding: '.1em .6em',
     },
 
+    [`&.${muiInputLabelClasses.shrink} .${muiSvgIconClasses.root}`]: {
+      fontSize: '1rem',
+      fontWeight: 700,
+    },
+
     ...sx,
   };
 
@@ -30,14 +49,23 @@ const OutlinedInputLabel = (
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         // 1. Specify default props.
-        variant: 'outlined',
+        variant,
         // 2. Override defaults with given props.
-        ...inputLabelProps,
+        ...inputLabelRestProps,
         // 3. Combine the default and given for props that can be both extended or override.
         sx: combinedSx,
       }}
     >
-      {children}
+      <Box
+        sx={{
+          alignItems: 'center',
+          display: 'flex',
+          flexDirection: 'row',
+        }}
+      >
+        {isNotifyRequired && <RequiredIcon sx={{ marginLeft: '-.4rem' }} />}
+        {children}
+      </Box>
     </MUIInputLabel>
   );
 };
