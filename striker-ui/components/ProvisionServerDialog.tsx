@@ -1085,7 +1085,7 @@ const ProvisionServerDialog = ({
           onFailure: () => {
             setInputServerNameMessage({
               text: 'The server name length must be 1 to 16 characters.',
-              type: 'error',
+              type: 'warning',
             });
           },
           test: ({ value }) => {
@@ -1098,7 +1098,7 @@ const ProvisionServerDialog = ({
           onFailure: () => {
             setInputServerNameMessage({
               text: 'The server name is expected to only contain alphanumeric, hyphen, or underscore characters.',
-              type: 'error',
+              type: 'warning',
             });
           },
           test: ({ value }) => /^[a-zA-Z0-9_-]+$/.test(value as string),
@@ -1119,7 +1119,7 @@ const ProvisionServerDialog = ({
           onFailure: () => {
             setInputCPUCoresMessage({
               text: 'Non available.',
-              type: 'error',
+              type: 'warning',
             });
           },
           test: testMax,
@@ -1128,7 +1128,7 @@ const ProvisionServerDialog = ({
           onFailure: ({ max, min }) => {
             setInputCPUCoresMessage({
               text: `The number of CPU cores is expected to be between ${min} and ${max}.`,
-              type: 'error',
+              type: 'warning',
             });
           },
           test: testRange,
@@ -1147,7 +1147,7 @@ const ProvisionServerDialog = ({
       tests: [
         {
           onFailure: () => {
-            setInputMemoryMessage({ text: 'Non available.', type: 'error' });
+            setInputMemoryMessage({ text: 'Non available.', type: 'warning' });
           },
           test: testMax,
         },
@@ -1155,7 +1155,7 @@ const ProvisionServerDialog = ({
           onFailure: ({ max, min }) => {
             setInputMemoryMessage({
               text: `Memory is expected to be between ${min} B and ${max} B.`,
-              type: 'error',
+              type: 'warning',
             });
           },
           test: testRange,
@@ -1211,7 +1211,7 @@ const ProvisionServerDialog = ({
           onFailure: () => {
             virtualDisks.inputSizeMessages[vdIndex] = {
               text: 'Non available.',
-              type: 'error',
+              type: 'warning',
             };
           },
           test: testMax,
@@ -1220,7 +1220,7 @@ const ProvisionServerDialog = ({
           onFailure: ({ max, min }) => {
             virtualDisks.inputSizeMessages[vdIndex] = {
               text: `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`,
-              type: 'error',
+              type: 'warning',
             };
           },
           test: testRange,
