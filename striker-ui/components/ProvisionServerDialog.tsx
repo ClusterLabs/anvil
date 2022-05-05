@@ -119,6 +119,8 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
   fileUUIDs: string[];
 };
 
+type OSAutoCompleteOption = { label: string; key: string };
+
 type FilterAnvilsFunction = (
   allAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
   storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
@@ -975,7 +977,7 @@ const ProvisionServerDialog = ({
   const [anvilSelectItems, setAnvilSelectItems] = useState<SelectItem[]>([]);
   const [fileSelectItems, setFileSelectItems] = useState<SelectItem[]>([]);
   const [osAutocompleteOptions, setOSAutocompleteOptions] = useState<
-    { label: string; key: string }[]
+    OSAutoCompleteOption[]
   >([]);
   const [storageGroupSelectItems, setStorageGroupSelectItems] = useState<
     SelectItem[]
@@ -1020,6 +1022,9 @@ const ProvisionServerDialog = ({
   const [inputAnvilMessage, setInputAnvilMessage] = useState<
     InputMessage | undefined
   >();
+
+  const [inputOptimizeForOSValue, setInputOptimizeForOSValue] =
+    useState<OSAutoCompleteOption | null>(null);
 
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
   const [includeFileUUIDs, setIncludeFileUUIDs] = useState<string[]>([]);
@@ -1553,12 +1558,20 @@ const ProvisionServerDialog = ({
             value: inputAnvilValue,
           }}
         />
+        <BodyText text={`OS: ${inputOptimizeForOSValue}`} />
         <Autocomplete
           id="ps-optimize-for-os"
+          extendRenderInput={({ inputLabelProps = {} }) => {
+            inputLabelProps.isNotifyRequired = inputOptimizeForOSValue === null;
+          }}
           label="Optimize for OS"
           noOptionsText="No matching OS"
+          onChange={(event, value) => {
+            setInputOptimizeForOSValue(value);
+          }}
           openOnFocus
           options={osAutocompleteOptions}
+          value={inputOptimizeForOSValue}
         />
       </Box>
       <Box
