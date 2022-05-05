@@ -862,6 +862,9 @@ const createVirtualDiskForm = (
               type: 'number',
               value: get('inputSizes'),
             },
+            inputLabelProps: {
+              isNotifyRequired: get('sizes') === BIGINT_ZERO,
+            },
           }}
           selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
           selectWithLabelProps={{
@@ -886,6 +889,9 @@ const createVirtualDiskForm = (
               get('sizes') <= storageGroupUUIDMapToFree[value]
             )
           }
+          inputLabelProps={{
+            isNotifyRequired: get('inputStorageGroupUUIDs').length === 0,
+          }}
           messageBoxProps={get('inputStorageGroupUUIDMessages')}
           selectItems={storageGroupSelectItems}
           selectProps={{
@@ -1406,6 +1412,7 @@ const ProvisionServerDialog = ({
           flexDirection: 'column',
           maxHeight: '50vh',
           overflowY: 'scroll',
+          paddingBottom: '.6em',
           paddingTop: '.6em',
 
           '& > :not(:first-child)': {
@@ -1480,7 +1487,7 @@ const ProvisionServerDialog = ({
               value: inputMemoryValue,
             },
             inputLabelProps: {
-              isNotifyRequired: inputMemoryValue.length === 0,
+              isNotifyRequired: memory === BIGINT_ZERO,
             },
           }}
           selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
@@ -1511,6 +1518,9 @@ const ProvisionServerDialog = ({
           disableItem={(value) => value === inputDriverISOFileUUID}
           hideItem={(value) => !includeFileUUIDs.includes(value)}
           id="ps-install-image"
+          inputLabelProps={{
+            isNotifyRequired: inputInstallISOFileUUID.length === 0,
+          }}
           label="Install ISO"
           messageBoxProps={inputInstallISOMessage}
           selectItems={fileSelectItems}
@@ -1545,6 +1555,9 @@ const ProvisionServerDialog = ({
         <SelectWithLabel
           disableItem={(value) => !includeAnvilUUIDs.includes(value)}
           id="ps-anvil"
+          inputLabelProps={{
+            isNotifyRequired: inputAnvilValue.length === 0,
+          }}
           label="Anvil node pair"
           messageBoxProps={inputAnvilMessage}
           selectItems={anvilSelectItems}
@@ -1558,7 +1571,6 @@ const ProvisionServerDialog = ({
             value: inputAnvilValue,
           }}
         />
-        <BodyText text={`OS: ${inputOptimizeForOSValue}`} />
         <Autocomplete
           id="ps-optimize-for-os"
           extendRenderInput={({ inputLabelProps = {} }) => {
