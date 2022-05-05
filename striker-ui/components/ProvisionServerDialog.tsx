@@ -23,7 +23,7 @@ import {
 import Autocomplete from './Autocomplete';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
 import MenuItem from './MenuItem';
-import MessageBox from './MessageBox';
+import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
 import OutlinedInputWithLabel, {
@@ -33,6 +33,8 @@ import { Panel, PanelHeader } from './Panels';
 import Select, { SelectProps } from './Select';
 import Slider, { SliderProps } from './Slider';
 import { BodyText, HeaderText } from './Text';
+
+type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
 type SelectItem<SelectItemValueType = string> = {
   displayValue?: SelectItemValueType;
@@ -148,9 +150,10 @@ type FilterAnvilsFunction = (
 
 type VirtualDiskStates = {
   maxes: bigint[];
-  inputErrors: Array<string | undefined>;
   inputMaxes: string[];
+  inputSizeMessages: Array<InputMessage | undefined>;
   inputSizes: string[];
+  inputStorageGroupUUIDMessages: Array<InputMessage | undefined>;
   inputStorageGroupUUIDs: string[];
   inputUnits: DataSizeUnit[];
   sizes: bigint[];
@@ -175,8 +178,18 @@ type TestArgs = {
   value: bigint | number | string;
 };
 
-type TestInputFunction = (inputs: {
-  [id: string]: Partial<TestArgs>;
+type InputTest = {
+  onFailure?: (args: TestArgs) => void;
+  onSuccess?: () => void;
+  test: (args: TestArgs) => boolean;
+};
+
+type TestInputFunction = (options?: {
+  inputs?: {
+    [id: string]: Partial<TestArgs>;
+  };
+  isContinueOnFailure?: boolean;
+  isIgnoreOnCallbacks?: boolean;
 }) => boolean;
 
 const MOCK_DATA = {
@@ -361,8 +374,8 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
   { value: 'TB' },
 ];
 
-const createErrorMessage = (error?: string) =>
-  error && <MessageBox sx={{ marginTop: '.4em' }} type="error" text={error} />;
+const createInputMessage = ({ text, type }: Partial<MessageBoxProps> = {}) =>
+  text && <MessageBox {...{ sx: { marginTop: '.4em' }, text, type }} />;
 
 const createOutlinedSelect = (
   id: string,
@@ -372,6 +385,7 @@ const createOutlinedSelect = (
     checkItem,
     disableItem,
     hideItem,
+    messageBoxProps,
     selectProps,
     isCheckableItems = selectProps?.multiple,
   }: {
@@ -379,6 +393,7 @@ const createOutlinedSelect = (
     disableItem?: (value: string) => boolean;
     hideItem?: (value: string) => boolean;
     isCheckableItems?: boolean;
+    messageBoxProps?: Partial<MessageBoxProps>;
     selectProps?: Partial<SelectProps>;
   } = {},
 ): JSX.Element => (
@@ -410,6 +425,7 @@ const createOutlinedSelect = (
         </MenuItem>
       ))}
     </Select>
+    {createInputMessage(messageBoxProps)}
   </FormControl>
 );
 
@@ -436,12 +452,12 @@ const createOutlinedInputWithSelect = (
   label: string,
   selectItems: SelectItem[],
   {
-    error,
+    messageBoxProps,
     inputWithLabelProps,
     selectProps,
   }: {
-    error?: string;
     inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;
+    messageBoxProps?: Partial<MessageBoxProps>;
     selectProps?: Partial<SelectProps>;
   } = {},
 ) => (
@@ -468,7 +484,7 @@ const createOutlinedInputWithSelect = (
         selectProps,
       })}
     </Box>
-    {createErrorMessage(error)}
+    {createInputMessage(messageBoxProps)}
   </Box>
 );
 
@@ -885,9 +901,11 @@ const createVirtualDiskForm = (
     const { maxVirtualDiskSizes } = updateLimits({ virtualDisks });
 
     testInput({
-      [`vd${vdIndex}Size`]: {
-        max: maxVirtualDiskSizes?.[vdIndex],
-        value: cvsValue,
+      inputs: {
+        [`vd${vdIndex}Size`]: {
+          max: maxVirtualDiskSizes?.[vdIndex],
+          value: cvsValue,
+        },
       },
     });
   };
@@ -940,61 +958,66 @@ const createVirtualDiskForm = (
           'sizes',
         ).toString()}, Max: ${get('maxes').toString()}`}
       />
-      {createOutlinedInputWithSelect(
-        `ps-virtual-disk-size-${vdIndex}`,
-        'Virtual disk size',
-        DATA_SIZE_UNIT_SELECT_ITEMS,
-        {
-          inputWithLabelProps: {
-            inputProps: {
-              endAdornment: createMaxValueButton(
-                `${get('inputMaxes')} ${get('inputUnits')}`,
-                {
-                  onButtonClick: () => {
-                    set('inputSizes', get('inputMaxes'));
-                    changeVDSize(get('maxes'));
+      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+        {createOutlinedInputWithSelect(
+          `ps-virtual-disk-size-${vdIndex}`,
+          'Virtual disk size',
+          DATA_SIZE_UNIT_SELECT_ITEMS,
+          {
+            inputWithLabelProps: {
+              inputProps: {
+                endAdornment: createMaxValueButton(
+                  `${get('inputMaxes')} ${get('inputUnits')}`,
+                  {
+                    onButtonClick: () => {
+                      set('inputSizes', get('inputMaxes'));
+                      changeVDSize(get('maxes'));
+                    },
                   },
+                ),
+                onChange: ({ target: { value } }) => {
+                  handleVDSizeChange({ value });
                 },
-              ),
-              onChange: ({ target: { value } }) => {
-                handleVDSizeChange({ value });
+                type: 'number',
+                value: get('inputSizes'),
               },
-              type: 'number',
-              value: get('inputSizes'),
             },
-          },
-          selectProps: {
-            onChange: ({ target: { value } }) => {
-              const selectedUnit = value as DataSizeUnit;
+            selectProps: {
+              onChange: ({ target: { value } }) => {
+                const selectedUnit = value as DataSizeUnit;
 
-              handleVDSizeChange({ unit: selectedUnit });
+                handleVDSizeChange({ unit: selectedUnit });
+              },
+              value: get('inputUnits'),
             },
-            value: get('inputUnits'),
           },
-        },
-      )}
-      {createOutlinedSelect(
-        `ps-storage-group-${vdIndex}`,
-        'Storage group',
-        storageGroupSelectItems,
-        {
-          disableItem: (value) =>
-            !(
-              includeStorageGroupUUIDs.includes(value) &&
-              get('sizes') <= storageGroupUUIDMapToFree[value]
-            ),
-          selectProps: {
-            onChange: ({ target: { value } }) => {
-              const selectedStorageGroupUUID = value as string;
+        )}
+        {createInputMessage(get('inputSizeMessages'))}
+      </Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+        {createOutlinedSelect(
+          `ps-storage-group-${vdIndex}`,
+          'Storage group',
+          storageGroupSelectItems,
+          {
+            disableItem: (value) =>
+              !(
+                includeStorageGroupUUIDs.includes(value) &&
+                get('sizes') <= storageGroupUUIDMapToFree[value]
+              ),
+            selectProps: {
+              onChange: ({ target: { value } }) => {
+                const selectedStorageGroupUUID = value as string;
 
-              handleVDStorageGroupChange(selectedStorageGroupUUID);
+                handleVDStorageGroupChange(selectedStorageGroupUUID);
+              },
+              value: get('inputStorageGroupUUIDs'),
+              onClearIndicatorClick: () => handleVDStorageGroupChange(''),
             },
-            value: get('inputStorageGroupUUIDs'),
-            onClearIndicatorClick: () => handleVDStorageGroupChange(''),
           },
-        },
-      )}
-      {createErrorMessage(get('inputErrors'))}
+        )}
+        {createInputMessage(get('inputStorageGroupUUIDMessages'))}
+      </Box>
     </Box>
   );
 };
@@ -1002,46 +1025,51 @@ const createVirtualDiskForm = (
 const addVirtualDisk = ({
   existingVirtualDisks: virtualDisks = {
     maxes: [],
-    inputErrors: [],
     inputMaxes: [],
+    inputSizeMessages: [],
     inputSizes: [],
+    inputStorageGroupUUIDMessages: [],
     inputStorageGroupUUIDs: [],
     inputUnits: [],
     sizes: [],
   },
   max = BIGINT_ZERO,
-  inputError = undefined,
   inputMax = '0',
   inputSize = '',
+  inputSizeMessage = undefined,
   inputStorageGroupUUID = '',
+  inputStorageGroupUUIDMessage = undefined,
   inputUnit = 'B',
   setVirtualDisks,
   size = BIGINT_ZERO,
 }: {
   existingVirtualDisks?: VirtualDiskStates;
   max?: bigint;
-  inputError?: string | undefined;
   inputMax?: string;
   inputSize?: string;
+  inputSizeMessage?: InputMessage | undefined;
   inputStorageGroupUUID?: string;
+  inputStorageGroupUUIDMessage?: InputMessage | undefined;
   inputUnit?: DataSizeUnit;
   setVirtualDisks?: Dispatch<SetStateAction<VirtualDiskStates>>;
   size?: bigint;
 } = {}) => {
   const {
     maxes,
-    inputErrors,
     inputMaxes,
+    inputSizeMessages,
     inputSizes,
+    inputStorageGroupUUIDMessages,
     inputStorageGroupUUIDs,
     inputUnits,
     sizes,
   } = virtualDisks;
 
   maxes.push(max);
-  inputErrors.push(inputError);
   inputMaxes.push(inputMax);
+  inputSizeMessages.push(inputSizeMessage);
   inputSizes.push(inputSize);
+  inputStorageGroupUUIDMessages.push(inputStorageGroupUUIDMessage);
   inputStorageGroupUUIDs.push(inputStorageGroupUUID);
   inputUnits.push(inputUnit);
   sizes.push(size);
@@ -1076,14 +1104,14 @@ const ProvisionServerDialog = ({
 
   const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(1);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
-  const [inputCPUCoresError, setInputCPUCoresError] = useState<
-    string | undefined
+  const [inputCPUCoresMessage, setInputCPUCoresMessage] = useState<
+    InputMessage | undefined
   >();
 
   const [memory, setMemory] = useState<bigint>(BIGINT_ZERO);
   const [memoryMax, setMemoryMax] = useState<bigint>(BIGINT_ZERO);
-  const [inputMemoryError, setInputMemoryError] = useState<
-    string | undefined
+  const [inputMemoryMessage, setInputMemoryMessage] = useState<
+    InputMessage | undefined
   >();
   const [inputMemoryMax, setInputMemoryMax] = useState<string>('0');
   const [inputMemoryValue, setInputMemoryValue] = useState<string>('');
@@ -1095,10 +1123,17 @@ const ProvisionServerDialog = ({
 
   const [inputInstallISOFileUUID, setInputInstallISOFileUUID] =
     useState<string>('');
+  const [inputInstallISOMessage, setInputInstallISOMessage] = useState<
+    InputMessage | undefined
+  >();
   const [inputDriverISOFileUUID, setInputDriverISOFileUUID] =
     useState<string>('');
+  const [inputDriverISOMessage] = useState<InputMessage | undefined>();
 
   const [inputAnvilValue, setInputAnvilValue] = useState<string>('');
+  const [inputAnvilMessage, setInputAnvilMessage] = useState<
+    InputMessage | undefined
+  >();
 
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
   const [includeFileUUIDs, setIncludeFileUUIDs] = useState<string[]>([]);
@@ -1180,11 +1215,13 @@ const ProvisionServerDialog = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initLimits = useCallback(updateLimits, []);
 
-  const testInput: TestInputFunction = (inputs: {
-    [id: string]: Partial<TestArgs>;
-  }): boolean => {
-    const testNotBlank = ({ value }: TestArgs) => value !== '';
-    const testMax = ({ max, min }: TestArgs) => max >= min;
+  const testInput: TestInputFunction = ({
+    inputs,
+    isContinueOnFailure,
+    isIgnoreOnCallbacks,
+  } = {}): boolean => {
+    const testNotBlank = ({ value }: Pick<TestArgs, 'value'>) => value !== '';
+    const testMax = ({ max, min }: Pick<TestArgs, 'max' | 'min'>) => max >= min;
     const testRange = ({ max, min, value }: TestArgs) =>
       value >= min && value <= max;
 
@@ -1193,11 +1230,9 @@ const ProvisionServerDialog = ({
         defaults: TestArgs & {
           onSuccess: () => void;
         };
-        tests: Array<{
-          onFailure?: (args: TestArgs) => void;
-          onSuccess?: () => void;
-          test: (args: TestArgs) => boolean;
-        }>;
+        onFinishBatch?: () => void;
+        optionalTests?: Array<InputTest>;
+        tests: Array<InputTest>;
       };
     } = {
       cpuCores: {
@@ -1205,22 +1240,26 @@ const ProvisionServerDialog = ({
           max: inputCPUCoresMax,
           min: inputCPUCoresMin,
           onSuccess: () => {
-            setInputCPUCoresError('');
+            setInputCPUCoresMessage(undefined);
           },
           value: inputCPUCoresValue,
         },
         tests: [
           {
             onFailure: () => {
-              setInputCPUCoresError('Non available.');
+              setInputCPUCoresMessage({
+                text: 'Non available.',
+                type: 'error',
+              });
             },
             test: testMax,
           },
           {
             onFailure: ({ max, min }) => {
-              setInputCPUCoresError(
-                `The number of CPU cores is expected to be between ${min} and ${max}.`,
-              );
+              setInputCPUCoresMessage({
+                text: `The number of CPU cores is expected to be between ${min} and ${max}.`,
+                type: 'error',
+              });
             },
             test: testRange,
           },
@@ -1231,56 +1270,89 @@ const ProvisionServerDialog = ({
           max: memoryMax,
           min: 1,
           onSuccess: () => {
-            setInputMemoryError('');
+            setInputMemoryMessage(undefined);
           },
           value: memory,
         },
         tests: [
           {
             onFailure: () => {
-              setInputMemoryError('Non available.');
+              setInputMemoryMessage({ text: 'Non available.', type: 'error' });
             },
             test: testMax,
           },
           {
             onFailure: ({ max, min }) => {
-              setInputMemoryError(
-                `Memory is expected to be between ${min} B and ${max} B.`,
-              );
+              setInputMemoryMessage({
+                text: `Memory is expected to be between ${min} B and ${max} B.`,
+                type: 'error',
+              });
             },
             test: testRange,
           },
         ],
       },
+      installISO: {
+        defaults: {
+          max: 0,
+          min: 0,
+          onSuccess: () => {
+            setInputInstallISOMessage(undefined);
+          },
+          value: inputInstallISOFileUUID,
+        },
+        tests: [
+          {
+            test: testNotBlank,
+          },
+        ],
+      },
+      anvil: {
+        defaults: {
+          max: 0,
+          min: 0,
+          onSuccess: () => {
+            setInputAnvilMessage(undefined);
+          },
+          value: inputAnvilValue,
+        },
+        tests: [
+          {
+            test: testNotBlank,
+          },
+        ],
+      },
     };
 
-    virtualDisks.inputErrors.forEach((error, vdIndex) => {
-      const defaultOnSuccess = () => {
-        virtualDisks.inputErrors[vdIndex] = undefined;
-        setVirtualDisks({ ...virtualDisks });
-      };
-
+    virtualDisks.inputSizeMessages.forEach((error, vdIndex) => {
       tests[`vd${vdIndex}Size`] = {
         defaults: {
           max: virtualDisks.maxes[vdIndex],
           min: 1,
-          onSuccess: defaultOnSuccess,
+          onSuccess: () => {
+            virtualDisks.inputSizeMessages[vdIndex] = undefined;
+          },
           value: virtualDisks.sizes[vdIndex],
+        },
+        onFinishBatch: () => {
+          setVirtualDisks({ ...virtualDisks });
         },
         tests: [
           {
             onFailure: () => {
-              virtualDisks.inputErrors[vdIndex] = 'Non available.';
-              setVirtualDisks({ ...virtualDisks });
+              virtualDisks.inputSizeMessages[vdIndex] = {
+                text: 'Non available.',
+                type: 'error',
+              };
             },
             test: testMax,
           },
           {
             onFailure: ({ max, min }) => {
-              virtualDisks.inputErrors[
-                vdIndex
-              ] = `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`;
-              setVirtualDisks({ ...virtualDisks });
+              virtualDisks.inputSizeMessages[vdIndex] = {
+                text: `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`,
+                type: 'error',
+              };
             },
             test: testRange,
           },
@@ -1291,24 +1363,37 @@ const ProvisionServerDialog = ({
         defaults: {
           max: 0,
           min: 0,
-          onSuccess: defaultOnSuccess,
+          onSuccess: () => {
+            virtualDisks.inputStorageGroupUUIDMessages[vdIndex] = undefined;
+          },
           value: virtualDisks.inputStorageGroupUUIDs[vdIndex],
+        },
+        onFinishBatch: () => {
+          setVirtualDisks({ ...virtualDisks });
         },
         tests: [
           {
-            onFailure: () => {
-              virtualDisks.inputErrors[
-                vdIndex
-              ] = `Virtual disk ${vdIndex} storage group shouldn't be blank.`;
-              setVirtualDisks({ ...virtualDisks });
-            },
             test: testNotBlank,
           },
         ],
       };
     });
 
-    return Object.keys(inputs).every((id: string) => {
+    const testsToRun =
+      inputs ??
+      Object.keys(tests).reduce<
+        Exclude<
+          Exclude<Parameters<TestInputFunction>[0], undefined>['inputs'],
+          undefined
+        >
+      >((reduceContainer, id: string) => {
+        reduceContainer[id] = {};
+        return reduceContainer;
+      }, {});
+
+    let allResult = true;
+
+    Object.keys(testsToRun).every((id: string) => {
       const {
         defaults: {
           max: dMax,
@@ -1316,23 +1401,59 @@ const ProvisionServerDialog = ({
           onSuccess: dOnSuccess,
           value: dValue,
         },
-        tests: group,
+        onFinishBatch: dOnFinishBatch,
+        optionalTests,
+        tests: requiredTests,
       } = tests[id];
-      const { max = dMax, min = dMin, value = dValue } = inputs[id];
+      const { max = dMax, min = dMin, value = dValue } = testsToRun[id];
 
-      return group.every(({ onFailure, onSuccess = dOnSuccess, test }) => {
+      let cbFinishBatch;
+      let setOnResult: (test?: Partial<InputTest>) => {
+        cbFailure: InputTest['onFailure'];
+        cbSuccess: InputTest['onSuccess'];
+      } = () => ({ cbFailure: undefined, cbSuccess: undefined });
+
+      if (!isIgnoreOnCallbacks) {
+        cbFinishBatch = dOnFinishBatch;
+
+        setOnResult = ({ onFailure, onSuccess }: Partial<InputTest> = {}) => ({
+          cbFailure: onFailure,
+          cbSuccess: onSuccess,
+        });
+      }
+
+      const runTest: (test: InputTest) => boolean = ({
+        onFailure,
+        onSuccess = dOnSuccess,
+        test,
+      }) => {
         const args = { max, min, value };
-        const result: boolean = test(args);
+        const singleResult: boolean = test(args);
 
-        if (result) {
-          onSuccess?.call(null);
+        const { cbFailure, cbSuccess } = setOnResult({ onFailure, onSuccess });
+
+        if (singleResult) {
+          cbSuccess?.call(null);
         } else {
-          onFailure?.call(null, args);
+          allResult = singleResult;
+
+          cbFailure?.call(null, args);
         }
 
-        return result;
-      });
+        return singleResult;
+      };
+
+      // Don't need to pass optional tests for input to be valid.
+      optionalTests?.forEach(runTest);
+
+      const requiredTestsResult = requiredTests.every(runTest);
+
+      cbFinishBatch?.call(null);
+
+      return requiredTestsResult || isContinueOnFailure;
     });
+
+    return allResult;
   };
 
   const changeMemory = ({
@@ -1346,7 +1467,7 @@ const ProvisionServerDialog = ({
       memory: cmValue,
     });
 
-    testInput({ memory: { max: maxMemory, value: cmValue } });
+    testInput({ inputs: { memory: { max: maxMemory, value: cmValue } } });
   };
 
   const handleInputMemoryValueChange = ({
@@ -1462,7 +1583,7 @@ const ProvisionServerDialog = ({
       >
         <OutlinedInputWithLabel id="ps-server-name" label="Server name" />
         {createOutlinedSlider('ps-cpu-cores', 'CPU cores', inputCPUCoresValue, {
-          error: inputCPUCoresError,
+          messageBoxProps: inputCPUCoresMessage,
           sliderProps: {
             onChange: (value) => {
               const newCPUCoresValue = value as number;
@@ -1475,7 +1596,9 @@ const ProvisionServerDialog = ({
                 });
 
                 testInput({
-                  cpuCores: { max: newCPUCoresMax, value: newCPUCoresValue },
+                  inputs: {
+                    cpuCores: { max: newCPUCoresMax, value: newCPUCoresValue },
+                  },
                 });
               }
             },
@@ -1491,7 +1614,7 @@ const ProvisionServerDialog = ({
           'Memory',
           DATA_SIZE_UNIT_SELECT_ITEMS,
           {
-            error: inputMemoryError,
+            messageBoxProps: inputMemoryMessage,
             inputWithLabelProps: {
               inputProps: {
                 endAdornment: createMaxValueButton(
@@ -1539,6 +1662,7 @@ const ProvisionServerDialog = ({
           {
             disableItem: (value) => value === inputDriverISOFileUUID,
             hideItem: (value) => !includeFileUUIDs.includes(value),
+            messageBoxProps: inputInstallISOMessage,
             selectProps: {
               onChange: ({ target: { value } }) => {
                 const newInstallISOFileUUID = value as string;
@@ -1558,6 +1682,7 @@ const ProvisionServerDialog = ({
           {
             disableItem: (value) => value === inputInstallISOFileUUID,
             hideItem: (value) => !includeFileUUIDs.includes(value),
+            messageBoxProps: inputDriverISOMessage,
             selectProps: {
               onChange: ({ target: { value } }) => {
                 const newDriverISOFileUUID = value as string;
@@ -1572,6 +1697,7 @@ const ProvisionServerDialog = ({
         )}
         {createOutlinedSelect('ps-anvil', 'Anvil', anvilSelectItems, {
           disableItem: (value) => !includeAnvilUUIDs.includes(value),
+          messageBoxProps: inputAnvilMessage,
           selectProps: {
             onChange: ({ target: { value } }) => {
               const newAnvilUUID: string = value as string;
@@ -1599,7 +1725,9 @@ const ProvisionServerDialog = ({
           width: '100%',
         }}
       >
-        <ContainedButton>Provision</ContainedButton>
+        <ContainedButton disabled={!testInput({ isIgnoreOnCallbacks: true })}>
+          Provision
+        </ContainedButton>
       </Box>
     </Dialog>
   );
