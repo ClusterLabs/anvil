@@ -18,10 +18,14 @@ import { BodyText } from './Text';
 
 type MessageBoxType = 'error' | 'info' | 'warning';
 
-type MessageBoxProps = BoxProps & {
-  text: string;
-  type: MessageBoxType;
+type MessageBoxOptionalProps = {
+  type?: MessageBoxType;
 };
+
+type MessageBoxProps = BoxProps &
+  MessageBoxOptionalProps & {
+    text: string;
+  };
 
 const MESSAGE_BOX_CLASS_PREFIX = 'MessageBox';
 
@@ -37,8 +41,12 @@ const MESSAGE_BOX_TYPE_MAP_TO_ICON = {
   warning: <WarningIcon />,
 };
 
+const MESSAGE_BOX_DEFAULT_PROPS: Required<MessageBoxOptionalProps> = {
+  type: 'info',
+};
+
 const MessageBox = ({
-  type,
+  type = MESSAGE_BOX_DEFAULT_PROPS.type,
   text,
   ...boxProps
 }: MessageBoxProps): JSX.Element => {
@@ -104,6 +112,8 @@ const MessageBox = ({
     </Box>
   );
 };
+
+MessageBox.defaultProps = MESSAGE_BOX_DEFAULT_PROPS;
 
 export type { MessageBoxProps, MessageBoxType };
 
