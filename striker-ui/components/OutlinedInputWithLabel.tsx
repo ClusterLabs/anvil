@@ -3,7 +3,8 @@ import {
   FormControlProps as MUIFormControlProps,
 } from '@mui/material';
 
-import MessageBox, { MessageBoxProps } from './MessageBox';
+import InputMessageBox from './InputMessageBox';
+import { MessageBoxProps } from './MessageBox';
 import OutlinedInput, { OutlinedInputProps } from './OutlinedInput';
 import OutlinedInputLabel, {
   OutlinedInputLabelProps,
@@ -37,42 +38,26 @@ const OutlinedInputWithLabel = ({
   inputLabelProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputLabelProps,
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
-}: OutlinedInputWithLabelProps): JSX.Element => {
-  const {
-    sx: messageBoxSx,
-    text: messageBoxText,
-    ...messageBoxRestProps
-  } = messageBoxProps;
-
-  return (
-    // eslint-disable-next-line react/jsx-props-no-spreading
-    <MUIFormControl {...formControlProps}>
-      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-      <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
-        {label}
-      </OutlinedInputLabel>
-      <OutlinedInput
-        // eslint-disable-next-line react/jsx-props-no-spreading
-        {...{
-          fullWidth: formControlProps.fullWidth,
-          id,
-          label,
-          ...inputProps,
-        }}
-      />
-      {messageBoxText && (
-        <MessageBox
-          // eslint-disable-next-line react/jsx-props-no-spreading
-          {...{
-            ...messageBoxRestProps,
-            sx: { marginTop: '.4em', ...messageBoxSx },
-            text: messageBoxText,
-          }}
-        />
-      )}
-    </MUIFormControl>
-  );
-};
+}: OutlinedInputWithLabelProps): JSX.Element => (
+  // eslint-disable-next-line react/jsx-props-no-spreading
+  <MUIFormControl {...formControlProps}>
+    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+    <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
+      {label}
+    </OutlinedInputLabel>
+    <OutlinedInput
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...{
+        fullWidth: formControlProps.fullWidth,
+        id,
+        label,
+        ...inputProps,
+      }}
+    />
+    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+    <InputMessageBox {...messageBoxProps} />
+  </MUIFormControl>
+);
 
 OutlinedInputWithLabel.defaultProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS;
 

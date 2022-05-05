@@ -7,15 +7,17 @@ import {
   Slider as MUISlider,
   sliderClasses as muiSliderClasses,
   SliderProps as MUISliderProps,
-  TypographyProps as MUITypographyProps,
   FormControl,
 } from '@mui/material';
 
 import { BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
-import MessageBox, { MessageBoxProps } from './MessageBox';
+import InputMessageBox from './InputMessageBox';
+import { MessageBoxProps } from './MessageBox';
 import OutlinedInput from './OutlinedInput';
-import OutlinedInputLabel from './OutlinedInputLabel';
+import OutlinedInputLabel, {
+  OutlinedInputLabelProps,
+} from './OutlinedInputLabel';
 import { BodyText } from './Text';
 
 type SliderOnBlur = Exclude<MUISliderProps['onBlur'], undefined>;
@@ -24,9 +26,9 @@ type SliderOnFocus = Exclude<MUISliderProps['onFocus'], undefined>;
 type SliderValue = Exclude<MUISliderProps['value'], undefined>;
 
 type SliderOptionalProps = {
+  inputLabelProps?: Partial<OutlinedInputLabelProps>;
   isAllowTextInput?: boolean;
   labelId?: string;
-  labelProps?: MUITypographyProps;
   messageBoxProps?: Partial<MessageBoxProps>;
   sliderProps?: Omit<MUISliderProps, 'onChange'> & {
     onChange?: (value: number | number[]) => void;
@@ -41,9 +43,9 @@ type SliderProps = {
 type TextInputOnChange = Exclude<MUIOutlinedInputProps['onChange'], undefined>;
 
 const SLIDER_DEFAULT_PROPS: Required<SliderOptionalProps> = {
+  inputLabelProps: {},
   isAllowTextInput: false,
   labelId: '',
-  labelProps: {},
   messageBoxProps: {},
   sliderProps: {},
 };
@@ -154,16 +156,10 @@ const Slider = ({
   isAllowTextInput = SLIDER_DEFAULT_PROPS.isAllowTextInput,
   label,
   labelId = SLIDER_DEFAULT_PROPS.labelId,
-  labelProps = SLIDER_DEFAULT_PROPS.labelProps,
+  inputLabelProps = SLIDER_DEFAULT_PROPS.inputLabelProps,
   sliderProps = SLIDER_DEFAULT_PROPS.sliderProps,
   value,
 }: SliderProps): JSX.Element => {
-  const {
-    sx: messageBoxSx,
-    text: messageBoxText,
-    ...messageBoxRestProps
-  } = messageBoxProps;
-  const { sx: labelSx } = labelProps;
   const {
     max,
     min,
@@ -195,12 +191,11 @@ const Slider = ({
   return (
     <FormControl sx={{ display: 'flex', flexDirection: 'column' }}>
       <OutlinedInputLabel
+        // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
           className: isFocused ? muiInputLabelClasses.focused : '',
           id: labelId,
-          sx: {
-            ...labelSx,
-          },
+          ...inputLabelProps,
         }}
       >
         {label}
@@ -254,16 +249,8 @@ const Slider = ({
               },
         })}
       </Box>
-      {messageBoxText && (
-        <MessageBox
-          // eslint-disable-next-line react/jsx-props-no-spreading
-          {...{
-            ...messageBoxRestProps,
-            sx: { marginTop: '.4em', ...messageBoxSx },
-            text: messageBoxText,
-          }}
-        />
-      )}
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <InputMessageBox {...messageBoxProps} />
     </FormControl>
   );
 };
