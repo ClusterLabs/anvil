@@ -5,7 +5,7 @@ import {
   InputLabelProps as MUIInputLabelProps,
   svgIconClasses as muiSvgIconClasses,
 } from '@mui/material';
-import { PriorityHighRounded as RequiredIcon } from '@mui/icons-material';
+import { Star as RequiredIcon } from '@mui/icons-material';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -37,8 +37,7 @@ const OutlinedInputLabel = (
     },
 
     [`&.${muiInputLabelClasses.shrink} .${muiSvgIconClasses.root}`]: {
-      fontSize: '1rem',
-      fontWeight: 700,
+      display: 'none',
     },
 
     ...sx,
@@ -63,7 +62,9 @@ const OutlinedInputLabel = (
           flexDirection: 'row',
         }}
       >
-        {isNotifyRequired && <RequiredIcon sx={{ marginLeft: '-.4rem' }} />}
+        {isNotifyRequired && (
+          <RequiredIcon sx={{ marginLeft: '-.2rem', marginRight: '.2rem' }} />
+        )}
         {children}
       </Box>
     </MUIInputLabel>
