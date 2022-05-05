@@ -150,25 +150,27 @@ const createOutlinedInput = ({
 );
 
 const Slider = ({
-  messageBoxProps: {
-    text: messageBoxText,
-    type: messageBoxType,
-  } = SLIDER_DEFAULT_PROPS.messageBoxProps,
-  isAllowTextInput,
+  messageBoxProps = SLIDER_DEFAULT_PROPS.messageBoxProps,
+  isAllowTextInput = SLIDER_DEFAULT_PROPS.isAllowTextInput,
   label,
-  labelId,
-  labelProps,
-  sliderProps,
+  labelId = SLIDER_DEFAULT_PROPS.labelId,
+  labelProps = SLIDER_DEFAULT_PROPS.labelProps,
+  sliderProps = SLIDER_DEFAULT_PROPS.sliderProps,
   value,
 }: SliderProps): JSX.Element => {
-  const { sx: labelSx } = labelProps ?? SLIDER_DEFAULT_PROPS.labelProps;
+  const {
+    sx: messageBoxSx,
+    text: messageBoxText,
+    ...messageBoxRestProps
+  } = messageBoxProps;
+  const { sx: labelSx } = labelProps;
   const {
     max,
     min,
     onChange: sliderChangeCallback,
     sx: sliderSx,
     valueLabelDisplay: sliderValueLabelDisplay,
-  } = sliderProps ?? SLIDER_DEFAULT_PROPS.sliderProps;
+  } = sliderProps;
 
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
@@ -254,9 +256,12 @@ const Slider = ({
       </Box>
       {messageBoxText && (
         <MessageBox
-          sx={{ marginTop: '.4em' }}
-          text={messageBoxText}
-          type={messageBoxType}
+          // eslint-disable-next-line react/jsx-props-no-spreading
+          {...{
+            ...messageBoxRestProps,
+            sx: { marginTop: '.4em', ...messageBoxSx },
+            text: messageBoxText,
+          }}
         />
       )}
     </FormControl>
