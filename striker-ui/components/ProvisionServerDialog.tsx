@@ -15,13 +15,9 @@ import {
 
 import Autocomplete from './Autocomplete';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
-import InputMessageBox from './InputMessageBox';
 import { MessageBoxProps } from './MessageBox';
-import OutlinedInputWithLabel, {
-  OutlinedInputWithLabelProps,
-} from './OutlinedInputWithLabel';
+import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
-import { SelectProps } from './Select';
 import SelectWithLabel, { SelectItem } from './SelectWithLabel';
 import Slider, { SliderProps } from './Slider';
 import {
@@ -35,6 +31,7 @@ import {
   TestInputFunction,
 } from '../types/TestInputFunction';
 import { BodyText, HeaderText } from './Text';
+import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -369,48 +366,6 @@ const createOutlinedSlider = (
       ...sliderProps,
     }}
   />
-);
-
-const createOutlinedInputWithSelect = (
-  id: string,
-  label: string,
-  selectItems: SelectItem[],
-  {
-    messageBoxProps,
-    inputWithLabelProps,
-    selectProps,
-  }: {
-    inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;
-    messageBoxProps?: Partial<MessageBoxProps>;
-    selectProps?: Partial<SelectProps>;
-  } = {},
-) => (
-  <Box>
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'row',
-
-        '& > :first-child': {
-          flexGrow: 1,
-        },
-      }}
-    >
-      <OutlinedInputWithLabel
-        // eslint-disable-next-line react/jsx-props-no-spreading
-        {...{
-          id,
-          label,
-          ...inputWithLabelProps,
-        }}
-      />
-      <SelectWithLabel
-        {...{ id: `${id}-nested-select`, selectItems, selectProps }}
-      />
-    </Box>
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-    <InputMessageBox {...messageBoxProps} />
-  </Box>
 );
 
 const createMaxValueButton = (
@@ -884,29 +839,30 @@ const createVirtualDiskForm = (
         ).toString()}, Max: ${get('maxes').toString()}`}
       />
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        {createOutlinedInputWithSelect(
-          `ps-virtual-disk-size-${vdIndex}`,
-          'Virtual disk size',
-          DATA_SIZE_UNIT_SELECT_ITEMS,
-          {
-            inputWithLabelProps: {
-              inputProps: {
-                endAdornment: createMaxValueButton(
-                  `${get('inputMaxes')} ${get('inputUnits')}`,
-                  {
-                    onButtonClick: () => {
-                      set('inputSizes', get('inputMaxes'));
-                      changeVDSize(get('maxes'));
-                    },
+        <OutlinedLabeledInputWithSelect
+          id={`ps-virtual-disk-size-${vdIndex}`}
+          label="Virtual disk size"
+          messageBoxProps={get('inputSizeMessages')}
+          inputWithLabelProps={{
+            inputProps: {
+              endAdornment: createMaxValueButton(
+                `${get('inputMaxes')} ${get('inputUnits')}`,
+                {
+                  onButtonClick: () => {
+                    set('inputSizes', get('inputMaxes'));
+                    changeVDSize(get('maxes'));
                   },
-                ),
-                onChange: ({ target: { value } }) => {
-                  handleVDSizeChange({ value });
                 },
-                type: 'number',
-                value: get('inputSizes'),
+              ),
+              onChange: ({ target: { value } }) => {
+                handleVDSizeChange({ value });
               },
+              type: 'number',
+              value: get('inputSizes'),
             },
+          }}
+          selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
+          selectWithLabelProps={{
             selectProps: {
               onChange: ({ target: { value } }) => {
                 const selectedUnit = value as DataSizeUnit;
@@ -915,10 +871,8 @@ const createVirtualDiskForm = (
               },
               value: get('inputUnits'),
             },
-          },
-        )}
-        {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-        <InputMessageBox {...get('inputSizeMessages')} />
+          }}
+        />
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <SelectWithLabel
@@ -930,6 +884,7 @@ const createVirtualDiskForm = (
               get('sizes') <= storageGroupUUIDMapToFree[value]
             )
           }
+          messageBoxProps={get('inputStorageGroupUUIDMessages')}
           selectItems={storageGroupSelectItems}
           selectProps={{
             onChange: ({ target: { value } }) => {
@@ -941,8 +896,6 @@ const createVirtualDiskForm = (
             onClearIndicatorClick: () => handleVDStorageGroupChange(''),
           }}
         />
-        {/* eslint-disable-next-line react/jsx-props-no-spreading */}
-        <InputMessageBox {...get('inputStorageGroupUUIDMessages')} />
       </Box>
     </Box>
   );
@@ -1500,33 +1453,33 @@ const ProvisionServerDialog = ({
         <BodyText
           text={`Memory: ${memory.toString()}, Max: ${memoryMax.toString()}`}
         />
-        {createOutlinedInputWithSelect(
-          'ps-memory',
-          'Memory',
-          DATA_SIZE_UNIT_SELECT_ITEMS,
-          {
-            messageBoxProps: inputMemoryMessage,
-            inputWithLabelProps: {
-              inputProps: {
-                endAdornment: createMaxValueButton(
-                  `${inputMemoryMax} ${inputMemoryUnit}`,
-                  {
-                    onButtonClick: () => {
-                      setInputMemoryValue(inputMemoryMax);
-                      changeMemory({ cmValue: memoryMax });
-                    },
+        <OutlinedLabeledInputWithSelect
+          id="ps-memory"
+          label="Memory"
+          messageBoxProps={inputMemoryMessage}
+          inputWithLabelProps={{
+            inputProps: {
+              endAdornment: createMaxValueButton(
+                `${inputMemoryMax} ${inputMemoryUnit}`,
+                {
+                  onButtonClick: () => {
+                    setInputMemoryValue(inputMemoryMax);
+                    changeMemory({ cmValue: memoryMax });
                   },
-                ),
-                onChange: ({ target: { value } }) => {
-                  handleInputMemoryValueChange({ value });
                 },
-                type: 'number',
-                value: inputMemoryValue,
+              ),
+              onChange: ({ target: { value } }) => {
+                handleInputMemoryValueChange({ value });
               },
-              inputLabelProps: {
-                isNotifyRequired: inputMemoryValue.length === 0,
-              },
+              type: 'number',
+              value: inputMemoryValue,
             },
+            inputLabelProps: {
+              isNotifyRequired: inputMemoryValue.length === 0,
+            },
+          }}
+          selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
+          selectWithLabelProps={{
             selectProps: {
               onChange: ({ target: { value } }) => {
                 const selectedUnit = value as DataSizeUnit;
@@ -1535,8 +1488,8 @@ const ProvisionServerDialog = ({
               },
               value: inputMemoryUnit,
             },
-          },
-        )}
+          }}
+        />
         {virtualDisks.maxes.map((max, vdIndex) =>
           createVirtualDiskForm(
             virtualDisks,
