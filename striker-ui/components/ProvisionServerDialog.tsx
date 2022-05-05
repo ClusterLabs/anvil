@@ -5,14 +5,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import {
-  Box,
-  Checkbox,
-  Dialog,
-  DialogProps,
-  FormControl,
-  InputAdornment,
-} from '@mui/material';
+import { Box, Dialog, DialogProps, InputAdornment } from '@mui/material';
 import {
   dSize as baseDSize,
   DataSizeUnit,
@@ -22,15 +15,14 @@ import {
 
 import Autocomplete from './Autocomplete';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
-import MenuItem from './MenuItem';
-import MessageBox, { MessageBoxProps } from './MessageBox';
-import OutlinedInput from './OutlinedInput';
-import OutlinedInputLabel from './OutlinedInputLabel';
+import InputMessageBox from './InputMessageBox';
+import { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel, {
   OutlinedInputWithLabelProps,
 } from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
-import Select, { SelectProps } from './Select';
+import { SelectProps } from './Select';
+import SelectWithLabel, { SelectItem } from './SelectWithLabel';
 import Slider, { SliderProps } from './Slider';
 import {
   testInput as baseTestInput,
@@ -38,18 +30,13 @@ import {
   testNotBlank,
   testRange,
 } from '../lib/test_input';
-import { BodyText, HeaderText } from './Text';
 import {
   InputTestBatches,
   TestInputFunction,
 } from '../types/TestInputFunction';
+import { BodyText, HeaderText } from './Text';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
-
-type SelectItem<SelectItemValueType = string> = {
-  displayValue?: SelectItemValueType;
-  value: SelectItemValueType;
-};
 
 type ProvisionServerDialogProps = {
   dialogProps: DialogProps;
@@ -364,61 +351,6 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
   { value: 'TB' },
 ];
 
-const createInputMessage = ({ text, type }: Partial<MessageBoxProps> = {}) =>
-  text && <MessageBox {...{ sx: { marginTop: '.4em' }, text, type }} />;
-
-const createOutlinedSelect = (
-  id: string,
-  label: string | undefined,
-  selectItems: SelectItem[],
-  {
-    checkItem,
-    disableItem,
-    hideItem,
-    messageBoxProps,
-    selectProps,
-    isCheckableItems = selectProps?.multiple,
-  }: {
-    checkItem?: (value: string) => boolean;
-    disableItem?: (value: string) => boolean;
-    hideItem?: (value: string) => boolean;
-    isCheckableItems?: boolean;
-    messageBoxProps?: Partial<MessageBoxProps>;
-    selectProps?: Partial<SelectProps>;
-  } = {},
-): JSX.Element => (
-  <FormControl>
-    {label && (
-      <OutlinedInputLabel {...{ htmlFor: id }}>{label}</OutlinedInputLabel>
-    )}
-    <Select
-      // eslint-disable-next-line react/jsx-props-no-spreading
-      {...{
-        id,
-        input: <OutlinedInput {...{ label }} />,
-        ...selectProps,
-      }}
-    >
-      {selectItems.map(({ value, displayValue = value }) => (
-        <MenuItem
-          disabled={disableItem?.call(null, value)}
-          key={`${id}-${value}`}
-          sx={{
-            display: hideItem?.call(null, value) ? 'none' : undefined,
-          }}
-          value={value}
-        >
-          {isCheckableItems && (
-            <Checkbox checked={checkItem?.call(null, value)} />
-          )}
-          {displayValue}
-        </MenuItem>
-      ))}
-    </Select>
-    {createInputMessage(messageBoxProps)}
-  </FormControl>
-);
-
 const createOutlinedSlider = (
   id: string,
   label: string,
@@ -470,11 +402,12 @@ const createOutlinedInputWithSelect = (
           ...inputWithLabelProps,
         }}
       />
-      {createOutlinedSelect(`${id}-nested-select`, undefined, selectItems, {
-        selectProps,
-      })}
+      <SelectWithLabel
+        {...{ id: `${id}-nested-select`, selectItems, selectProps }}
+      />
     </Box>
-    {createInputMessage(messageBoxProps)}
+    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+    <InputMessageBox {...messageBoxProps} />
   </Box>
 );
 
@@ -982,31 +915,32 @@ const createVirtualDiskForm = (
             },
           },
         )}
-        {createInputMessage(get('inputSizeMessages'))}
+        {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+        <InputMessageBox {...get('inputSizeMessages')} />
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        {createOutlinedSelect(
-          `ps-storage-group-${vdIndex}`,
-          'Storage group',
-          storageGroupSelectItems,
-          {
-            disableItem: (value) =>
-              !(
-                includeStorageGroupUUIDs.includes(value) &&
-                get('sizes') <= storageGroupUUIDMapToFree[value]
-              ),
-            selectProps: {
-              onChange: ({ target: { value } }) => {
-                const selectedStorageGroupUUID = value as string;
+        <SelectWithLabel
+          id={`ps-storage-group-${vdIndex}`}
+          label="Storage group"
+          disableItem={(value) =>
+            !(
+              includeStorageGroupUUIDs.includes(value) &&
+              get('sizes') <= storageGroupUUIDMapToFree[value]
+            )
+          }
+          selectItems={storageGroupSelectItems}
+          selectProps={{
+            onChange: ({ target: { value } }) => {
+              const selectedStorageGroupUUID = value as string;
 
-                handleVDStorageGroupChange(selectedStorageGroupUUID);
-              },
-              value: get('inputStorageGroupUUIDs'),
-              onClearIndicatorClick: () => handleVDStorageGroupChange(''),
+              handleVDStorageGroupChange(selectedStorageGroupUUID);
             },
-          },
-        )}
-        {createInputMessage(get('inputStorageGroupUUIDMessages'))}
+            value: get('inputStorageGroupUUIDs'),
+            onClearIndicatorClick: () => handleVDStorageGroupChange(''),
+          }}
+        />
+        {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+        <InputMessageBox {...get('inputStorageGroupUUIDMessages')} />
       </Box>
     </Box>
   );
@@ -1529,6 +1463,9 @@ const ProvisionServerDialog = ({
               },
               value: inputServerNameValue,
             }}
+            inputLabelProps={{
+              isNotifyRequired: inputServerNameValue.length === 0,
+            }}
             messageBoxProps={inputServerNameMessage}
           />
         </Box>
@@ -1582,6 +1519,9 @@ const ProvisionServerDialog = ({
                 type: 'number',
                 value: inputMemoryValue,
               },
+              inputLabelProps: {
+                isNotifyRequired: inputMemoryValue.length === 0,
+              },
             },
             selectProps: {
               onChange: ({ target: { value } }) => {
@@ -1605,50 +1545,48 @@ const ProvisionServerDialog = ({
             testInput,
           ),
         )}
-        {createOutlinedSelect(
-          'ps-install-image',
-          'Install ISO',
-          fileSelectItems,
-          {
-            disableItem: (value) => value === inputDriverISOFileUUID,
-            hideItem: (value) => !includeFileUUIDs.includes(value),
-            messageBoxProps: inputInstallISOMessage,
-            selectProps: {
-              onChange: ({ target: { value } }) => {
-                const newInstallISOFileUUID = value as string;
+        <SelectWithLabel
+          disableItem={(value) => value === inputDriverISOFileUUID}
+          hideItem={(value) => !includeFileUUIDs.includes(value)}
+          id="ps-install-image"
+          label="Install ISO"
+          messageBoxProps={inputInstallISOMessage}
+          selectItems={fileSelectItems}
+          selectProps={{
+            onChange: ({ target: { value } }) => {
+              const newInstallISOFileUUID = value as string;
 
-                handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
-              },
-              onClearIndicatorClick: () =>
-                handleInputInstallISOFileUUIDChange(''),
-              value: inputInstallISOFileUUID,
+              handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
             },
-          },
-        )}
-        {createOutlinedSelect(
-          'ps-driver-image',
-          'Driver ISO (optional)',
-          fileSelectItems,
-          {
-            disableItem: (value) => value === inputInstallISOFileUUID,
-            hideItem: (value) => !includeFileUUIDs.includes(value),
-            messageBoxProps: inputDriverISOMessage,
-            selectProps: {
-              onChange: ({ target: { value } }) => {
-                const newDriverISOFileUUID = value as string;
+            onClearIndicatorClick: () =>
+              handleInputInstallISOFileUUIDChange(''),
+            value: inputInstallISOFileUUID,
+          }}
+        />
+        <SelectWithLabel
+          disableItem={(value) => value === inputInstallISOFileUUID}
+          hideItem={(value) => !includeFileUUIDs.includes(value)}
+          id="ps-driver-image"
+          label="Driver ISO (optional)"
+          messageBoxProps={inputDriverISOMessage}
+          selectItems={fileSelectItems}
+          selectProps={{
+            onChange: ({ target: { value } }) => {
+              const newDriverISOFileUUID = value as string;
 
-                handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
-              },
-              onClearIndicatorClick: () =>
-                handleInputDriverISOFileUUIDChange(''),
-              value: inputDriverISOFileUUID,
+              handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
             },
-          },
-        )}
-        {createOutlinedSelect('ps-anvil', 'Anvil', anvilSelectItems, {
-          disableItem: (value) => !includeAnvilUUIDs.includes(value),
-          messageBoxProps: inputAnvilMessage,
-          selectProps: {
+            onClearIndicatorClick: () => handleInputDriverISOFileUUIDChange(''),
+            value: inputDriverISOFileUUID,
+          }}
+        />
+        <SelectWithLabel
+          disableItem={(value) => !includeAnvilUUIDs.includes(value)}
+          id="ps-anvil"
+          label="Anvil node pair"
+          messageBoxProps={inputAnvilMessage}
+          selectItems={anvilSelectItems}
+          selectProps={{
             onChange: ({ target: { value } }) => {
               const newAnvilUUID: string = value as string;
 
@@ -1656,8 +1594,8 @@ const ProvisionServerDialog = ({
             },
             onClearIndicatorClick: () => handleInputAnvilValueChange(''),
             value: inputAnvilValue,
-          },
-        })}
+          }}
+        />
         <Autocomplete
           id="ps-optimize-for-os"
           label="Optimize for OS"
