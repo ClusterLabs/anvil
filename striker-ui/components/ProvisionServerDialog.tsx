@@ -351,6 +351,8 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
   { value: 'TB' },
 ];
 
+const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
+
 const createOutlinedSlider = (
   id: string,
   label: string,
@@ -963,7 +965,7 @@ const addVirtualDisk = ({
   inputSizeMessage = undefined,
   inputStorageGroupUUID = '',
   inputStorageGroupUUIDMessage = undefined,
-  inputUnit = 'B',
+  inputUnit = INITIAL_DATA_SIZE_UNIT,
   setVirtualDisks,
   size = BIGINT_ZERO,
 }: {
@@ -1044,7 +1046,9 @@ const ProvisionServerDialog = ({
   >();
   const [inputMemoryMax, setInputMemoryMax] = useState<string>('0');
   const [inputMemoryValue, setInputMemoryValue] = useState<string>('');
-  const [inputMemoryUnit, setInputMemoryUnit] = useState<DataSizeUnit>('B');
+  const [inputMemoryUnit, setInputMemoryUnit] = useState<DataSizeUnit>(
+    INITIAL_DATA_SIZE_UNIT,
+  );
 
   const [virtualDisks, setVirtualDisks] = useState<VirtualDiskStates>(
     addVirtualDisk(),
@@ -1567,7 +1571,7 @@ const ProvisionServerDialog = ({
           disableItem={(value) => value === inputInstallISOFileUUID}
           hideItem={(value) => !includeFileUUIDs.includes(value)}
           id="ps-driver-image"
-          label="Driver ISO (optional)"
+          label="Driver ISO"
           messageBoxProps={inputDriverISOMessage}
           selectItems={fileSelectItems}
           selectProps={{
