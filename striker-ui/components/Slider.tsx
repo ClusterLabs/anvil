@@ -226,6 +226,7 @@ const Slider = ({
         {...{
           className: isFocused ? muiInputLabelClasses.focused : '',
           id: labelId,
+          shrink: true,
           ...inputLabelProps,
         }}
       >
