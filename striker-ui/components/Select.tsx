@@ -29,14 +29,15 @@ const Select: FC<SelectProps> = (selectProps) => {
     onClearIndicatorClick = SELECT_DEFAULT_PROPS.onClearIndicatorClick,
     ...muiSelectProps
   } = selectProps;
-  const { children, sx } = muiSelectProps;
-  const clearIndicator: JSX.Element | undefined = onClearIndicatorClick ? (
-    <MUIInputAdornment position="end">
-      <MUIIconButton onClick={onClearIndicatorClick}>
-        <CloseIcon fontSize="small" />
-      </MUIIconButton>
-    </MUIInputAdornment>
-  ) : undefined;
+  const { children, sx, value } = muiSelectProps;
+  const clearIndicator: JSX.Element | undefined =
+    String(value).length > 0 && onClearIndicatorClick ? (
+      <MUIInputAdornment position="end">
+        <MUIIconButton onClick={onClearIndicatorClick}>
+          <CloseIcon fontSize="small" />
+        </MUIIconButton>
+      </MUIInputAdornment>
+    ) : undefined;
 
   const combinedSx = {
     [`& .${muiSelectClasses.icon}`]: {
