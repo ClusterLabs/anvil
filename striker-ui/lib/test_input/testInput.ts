@@ -61,11 +61,11 @@ const testInput: TestInputFunction = ({
       tests: requiredTests,
     } = tests[id];
     const {
-      displayMax = dDisplayMax ?? String(dMax),
-      displayMin = dDisplayMin ?? String(dMin),
       max = dMax,
       min = dMin,
       value = dValue,
+      displayMax = dDisplayMax || String(max),
+      displayMin = dDisplayMin || String(min),
     } = testsToRun[id];
 
     const { cbFinishBatch } = setBatchCallback({ onFinishBatch });
