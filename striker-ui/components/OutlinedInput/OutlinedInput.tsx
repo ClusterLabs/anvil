@@ -1,3 +1,4 @@
+import { FC } from 'react';
 import {
   OutlinedInput as MUIOutlinedInput,
   outlinedInputClasses as muiOutlinedInputClasses,
@@ -8,8 +9,8 @@ import { GREY, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
 type OutlinedInputProps = MUIOutlinedInputProps;
 
-const OutlinedInput = (outlinedInputProps: OutlinedInputProps): JSX.Element => {
-  const { label, sx } = outlinedInputProps;
+const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
+  const { label, sx, ...outlinedInputRestProps } = outlinedInputProps;
   const combinedSx = {
     color: GREY,
 
@@ -42,7 +43,8 @@ const OutlinedInput = (outlinedInputProps: OutlinedInputProps): JSX.Element => {
     <MUIOutlinedInput
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
-        ...outlinedInputProps,
+        label,
+        ...outlinedInputRestProps,
         sx: combinedSx,
       }}
     />
