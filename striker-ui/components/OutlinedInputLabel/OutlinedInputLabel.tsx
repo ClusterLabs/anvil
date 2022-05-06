@@ -63,7 +63,7 @@ const OutlinedInputLabel = (
         }}
       >
         {isNotifyRequired && (
-          <RequiredIcon sx={{ marginLeft: '-.2rem', marginRight: '.2rem' }} />
+          <RequiredIcon sx={{ marginLeft: '-.2rem', marginRight: '.4rem' }} />
         )}
         {children}
       </Box>
