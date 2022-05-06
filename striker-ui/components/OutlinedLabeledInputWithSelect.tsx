@@ -1,5 +1,11 @@
 import { FC } from 'react';
-import { Box } from '@mui/material';
+import {
+  Box,
+  formControlClasses as muiFormControlClasses,
+  outlinedInputClasses as muiOutlinedInputClasses,
+} from '@mui/material';
+
+import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 import InputMessageBox from './InputMessageBox';
 import { MessageBoxProps } from './MessageBox';
@@ -36,10 +42,10 @@ const OutlinedLabeledInputWithSelect: FC<
 > = ({
   id,
   label,
-  inputWithLabelProps,
-  messageBoxProps,
+  inputWithLabelProps = OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS.inputWithLabelProps,
+  messageBoxProps = OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS.messageBoxProps,
   selectItems,
-  selectWithLabelProps,
+  selectWithLabelProps = OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS.selectWithLabelProps,
 }) => (
   <Box>
     <Box
@@ -53,6 +59,13 @@ const OutlinedLabeledInputWithSelect: FC<
 
         '& > :not(:last-child)': {
           marginRight: '.5em',
+        },
+
+        [`&:hover
+          .${muiFormControlClasses.root}
+          .${muiOutlinedInputClasses.root}
+          .${muiOutlinedInputClasses.notchedOutline}`]: {
+          borderColor: GREY,
         },
       }}
     >
