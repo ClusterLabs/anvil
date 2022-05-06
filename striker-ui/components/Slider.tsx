@@ -14,7 +14,7 @@ import { BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
 import InputMessageBox from './InputMessageBox';
 import { MessageBoxProps } from './MessageBox';
-import OutlinedInput from './OutlinedInput';
+import OutlinedInput, { OutlinedInputProps } from './OutlinedInput';
 import OutlinedInputLabel, {
   OutlinedInputLabelProps,
 } from './OutlinedInputLabel';
@@ -125,37 +125,38 @@ const createInputLabelDecorator = ({
 };
 
 const createOutlinedInput = ({
+  key,
   isFocused,
-  max,
-  min,
-  onBlur,
-  onChange,
-  onFocus,
-  sliderValue,
-  sx,
-}: {
+  ...inputRestProps
+}: OutlinedInputProps & {
+  key: string;
   isFocused?: boolean;
-  max?: number;
-  min?: number;
-  onBlur?: SliderOnBlur;
-  onChange?: TextInputOnChange;
-  onFocus?: SliderOnFocus;
-  sliderValue?: SliderValue;
-  sx?: MUISliderProps['sx'];
 }) => (
   <OutlinedInput
+    // eslint-disable-next-line react/jsx-props-no-spreading
     {...{
+      key,
       className: isFocused ? muiOutlinedInputClasses.focused : '',
-      inputProps: { max, min },
-      onBlur,
-      onChange,
-      onFocus,
-      sx,
       type: 'number',
-      value: sliderValue,
+      ...inputRestProps,
     }}
   />
 );
+
+const stringToNumber = (value: string, fallback: number) => {
+  const converted = Number.parseFloat(value);
+  return Number.isNaN(converted) ? fallback : converted;
+};
+
+const toRangeString = (value: SliderValue) =>
+  value instanceof Array
+    ? value.map((element) => String(element))
+    : [String(value)];
+
+const toSliderValue = (rangeString: string[], value: SliderValue) =>
+  value instanceof Array
+    ? rangeString.map((element, index) => stringToNumber(element, value[index]))
+    : stringToNumber(rangeString[0], value);
 
 const Slider = ({
   messageBoxProps = SLIDER_DEFAULT_PROPS.messageBoxProps,
@@ -173,6 +174,11 @@ const Slider = ({
     sx: sliderSx,
     valueLabelDisplay: sliderValueLabelDisplay,
   } = sliderProps;
+  let assignableValue: SliderValue = value;
+
+  const [textRangeValue, SetTextRangeValue] = useState<{ range: string[] }>({
+    range: toRangeString(value),
+  });
 
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
@@ -185,13 +191,17 @@ const Slider = ({
   };
 
   const handleSliderChange: SliderOnChange = (event, newValue) => {
+    SetTextRangeValue({
+      range: toRangeString(newValue),
+    });
+
     sliderChangeCallback?.call(null, newValue);
   };
 
-  const handleTextInputChange: TextInputOnChange = ({
-    target: { value: newValue },
-  }) => {
-    sliderChangeCallback?.call(null, parseFloat(newValue));
+  const handleTextInputChange: TextInputOnChange = () => {
+    assignableValue = toSliderValue(textRangeValue.range, assignableValue);
+
+    sliderChangeCallback?.call(null, assignableValue);
   };
 
   return (
@@ -251,24 +261,31 @@ const Slider = ({
 
               ...sliderSx,
             },
-            value,
+            value: assignableValue,
             valueLabelDisplay: sliderValueLabelDisplay,
           }}
         />
-        {createOutlinedInput({
-          isFocused,
-          max,
-          min,
-          onBlur: handleLocalSliderBlur,
-          onChange: handleTextInputChange,
-          onFocus: handleLocalSliderFocus,
-          sliderValue: value,
-          sx: isAllowTextInput
-            ? undefined
-            : {
-                visibility: 'collapse',
-              },
-        })}
+        {textRangeValue.range.map((textValue, textValueIndex) =>
+          createOutlinedInput({
+            key: `slider-nested-text-input-${textValueIndex}`,
+            inputProps: { max, min },
+            isFocused,
+            onBlur: handleLocalSliderBlur,
+            onChange: (...args) => {
+              textRangeValue.range[textValueIndex] = args[0].target.value;
+              SetTextRangeValue({ ...textRangeValue });
+
+              handleTextInputChange(...args);
+            },
+            onFocus: handleLocalSliderFocus,
+            sx: isAllowTextInput
+              ? undefined
+              : {
+                  visibility: 'collapse',
+                },
+            value: textValue,
+          }),
+        )}
       </Box>
       {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <InputMessageBox {...messageBoxProps} />
