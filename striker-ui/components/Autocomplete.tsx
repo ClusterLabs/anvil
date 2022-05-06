@@ -65,6 +65,7 @@ const Autocomplete = <
     messageBoxProps,
     renderInput,
     sx,
+    ...autocompleteRestProps
   } = autocompleteProps;
   const combinedComponentsProps: AutocompleteProps<
     T,
@@ -124,7 +125,7 @@ const Autocomplete = <
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
           PaperComponent: GrowPaper,
-          ...autocompleteProps,
+          ...autocompleteRestProps,
           componentsProps: combinedComponentsProps,
           renderInput: combinedRenderInput,
           sx: combinedSx,
