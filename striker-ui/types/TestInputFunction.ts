@@ -1,7 +1,7 @@
 export type InputTestArgs = {
   max: bigint | number;
   min: bigint | number;
-  value: bigint | number | string;
+  value?: bigint | number | null | string;
 };
 
 export type InputTest = {

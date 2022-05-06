@@ -1031,6 +1031,9 @@ const ProvisionServerDialog = ({
 
   const [inputOptimizeForOSValue, setInputOptimizeForOSValue] =
     useState<OSAutoCompleteOption | null>(null);
+  const [inputOptimizeForOSMessage, setInputOptimizeForOSMessage] = useState<
+    InputMessage | undefined
+  >();
 
   const [includeAnvilUUIDs, setIncludeAnvilUUIDs] = useState<string[]>([]);
   const [includeFileUUIDs, setIncludeFileUUIDs] = useState<string[]>([]);
@@ -1139,11 +1142,7 @@ const ProvisionServerDialog = ({
         },
         value: inputInstallISOFileUUID,
       },
-      tests: [
-        {
-          test: testNotBlank,
-        },
-      ],
+      tests: [{ test: testNotBlank }],
     },
     anvil: {
       defaults: {
@@ -1154,11 +1153,18 @@ const ProvisionServerDialog = ({
         },
         value: inputAnvilValue,
       },
-      tests: [
-        {
-          test: testNotBlank,
+      tests: [{ test: testNotBlank }],
+    },
+    optimizeForOS: {
+      defaults: {
+        max: 0,
+        min: 0,
+        onSuccess: () => {
+          setInputOptimizeForOSMessage(undefined);
         },
-      ],
+        value: inputOptimizeForOSValue?.key,
+      },
+      tests: [{ test: testNotBlank }],
     },
   };
   virtualDisks.inputSizeMessages.forEach((message, vdIndex) => {
@@ -1208,11 +1214,7 @@ const ProvisionServerDialog = ({
       onFinishBatch: () => {
         setVirtualDisks({ ...virtualDisks });
       },
-      tests: [
-        {
-          test: testNotBlank,
-        },
-      ],
+      tests: [{ test: testNotBlank }],
     };
   });
 
@@ -1577,6 +1579,7 @@ const ProvisionServerDialog = ({
             inputLabelProps.isNotifyRequired = inputOptimizeForOSValue === null;
           }}
           label="Optimize for OS"
+          messageBoxProps={inputOptimizeForOSMessage}
           noOptionsText="No matching OS"
           onChange={(event, value) => {
             setInputOptimizeForOSValue(value);
