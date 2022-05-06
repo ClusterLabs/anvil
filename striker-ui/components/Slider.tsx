@@ -50,6 +50,11 @@ const SLIDER_DEFAULT_PROPS: Required<SliderOptionalProps> = {
   sliderProps: {},
 };
 
+const SLIDER_INPUT_LABEL_DECORATOR_CLASS_PREFIX = 'SliderInputLabelDecorator';
+const SLIDER_INPUT_LABEL_DECORATOR_CLASSES = {
+  root: `${SLIDER_INPUT_LABEL_DECORATOR_CLASS_PREFIX}-root`,
+};
+
 const createInputLabelDecorator = ({
   isFocused,
   label,
@@ -75,12 +80,13 @@ const createInputLabelDecorator = ({
 
   return (
     <Box
+      className={SLIDER_INPUT_LABEL_DECORATOR_CLASSES.root}
       sx={{
         display: 'flex',
         flexDirection: 'row',
         position: 'absolute',
         top: rootTop,
-        width: '100%',
+        width: 'calc(100% - 6px)',
 
         '> :last-child': {
           flexGrow: 1,
@@ -189,7 +195,22 @@ const Slider = ({
   };
 
   return (
-    <FormControl sx={{ display: 'flex', flexDirection: 'column' }}>
+    <FormControl
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+
+        '&:hover': {
+          [`& .${SLIDER_INPUT_LABEL_DECORATOR_CLASSES.root} div`]: {
+            opacity: 1,
+          },
+
+          [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
+            borderColor: GREY,
+          },
+        },
+      }}
+    >
       <OutlinedInputLabel
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
