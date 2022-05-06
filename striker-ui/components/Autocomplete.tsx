@@ -3,6 +3,7 @@ import {
   autocompleteClasses as muiAutocompleteClasses,
   AutocompleteProps as MUIAutocompleteProps,
   AutocompleteRenderInputParams as MUIAutocompleteRenderInputParams,
+  Box,
   Grow as MUIGrow,
   outlinedInputClasses as muiOutlinedInputClasses,
   Paper as MUIPaper,
@@ -12,6 +13,8 @@ import {
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
+import InputMessageBox from './InputMessageBox';
+import { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel, {
   OutlinedInputWithLabelProps,
 } from './OutlinedInputWithLabel';
@@ -21,6 +24,7 @@ type AutocompleteOptionalProps = {
     inputWithLabelProps: OutlinedInputWithLabelProps,
     renderInputParams?: MUIAutocompleteRenderInputParams,
   ) => void;
+  messageBoxProps?: Partial<MessageBoxProps>;
 };
 
 type AutocompleteProps<
@@ -54,8 +58,14 @@ const Autocomplete = <
 >(
   autocompleteProps: AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
 ): JSX.Element => {
-  const { componentsProps, extendRenderInput, label, renderInput, sx } =
-    autocompleteProps;
+  const {
+    componentsProps,
+    extendRenderInput,
+    label,
+    messageBoxProps,
+    renderInput,
+    sx,
+  } = autocompleteProps;
   const combinedComponentsProps: AutocompleteProps<
     T,
     Multiple,
@@ -109,16 +119,20 @@ const Autocomplete = <
   };
 
   return (
-    <MUIAutocomplete
-      // eslint-disable-next-line react/jsx-props-no-spreading
-      {...{
-        PaperComponent: GrowPaper,
-        ...autocompleteProps,
-        componentsProps: combinedComponentsProps,
-        renderInput: combinedRenderInput,
-        sx: combinedSx,
-      }}
-    />
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <MUIAutocomplete
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...{
+          PaperComponent: GrowPaper,
+          ...autocompleteProps,
+          componentsProps: combinedComponentsProps,
+          renderInput: combinedRenderInput,
+          sx: combinedSx,
+        }}
+      />
+      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+      <InputMessageBox {...messageBoxProps} />
+    </Box>
   );
 };
 
