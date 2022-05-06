@@ -166,7 +166,13 @@ type UpdateLimitsFunction = (options?: {
   memory?: bigint;
   storageGroupUUIDMapToFree?: StorageGroupUUIDMapToFree;
   virtualDisks?: VirtualDiskStates;
-}) => Partial<ReturnType<FilterAnvilsFunction>>;
+}) => Pick<
+  ReturnType<FilterAnvilsFunction>,
+  'maxCPUCores' | 'maxMemory' | 'maxVirtualDiskSizes'
+> & {
+  formattedMaxMemory: string;
+  formattedMaxVDSizes: string[];
+};
 
 const MOCK_DATA = {
   anvils: [
@@ -780,12 +786,15 @@ const createVirtualDiskForm = (
   const changeVDSize = (cvsValue: bigint = BIGINT_ZERO) => {
     set('sizes', cvsValue);
 
-    const { maxVirtualDiskSizes } = updateLimits({ virtualDisks });
+    const { formattedMaxVDSizes, maxVirtualDiskSizes } = updateLimits({
+      virtualDisks,
+    });
 
     testInput({
       inputs: {
         [`vd${vdIndex}Size`]: {
-          max: maxVirtualDiskSizes?.[vdIndex],
+          displayMax: `${formattedMaxVDSizes[vdIndex]}`,
+          max: maxVirtualDiskSizes[vdIndex],
           value: cvsValue,
         },
       },
@@ -1096,9 +1105,9 @@ const ProvisionServerDialog = ({
           test: testMax,
         },
         {
-          onFailure: ({ max, min }) => {
+          onFailure: ({ displayMax, displayMin }) => {
             setInputCPUCoresMessage({
-              text: `The number of CPU cores is expected to be between ${min} and ${max}.`,
+              text: `The number of CPU cores is expected to be between ${displayMin} and ${displayMax}.`,
               type: 'warning',
             });
           },
@@ -1108,6 +1117,8 @@ const ProvisionServerDialog = ({
     },
     memory: {
       defaults: {
+        displayMax: `${inputMemoryMax} ${inputMemoryUnit}`,
+        displayMin: '1 B',
         max: memoryMax,
         min: 1,
         onSuccess: () => {
@@ -1123,9 +1134,9 @@ const ProvisionServerDialog = ({
           test: testMax,
         },
         {
-          onFailure: ({ max, min }) => {
+          onFailure: ({ displayMax, displayMin }) => {
             setInputMemoryMessage({
-              text: `Memory is expected to be between ${min} B and ${max} B.`,
+              text: `Memory is expected to be between ${displayMin} and ${displayMax}.`,
               type: 'warning',
             });
           },
@@ -1170,6 +1181,8 @@ const ProvisionServerDialog = ({
   virtualDisks.inputSizeMessages.forEach((message, vdIndex) => {
     inputTests[`vd${vdIndex}Size`] = {
       defaults: {
+        displayMax: `${virtualDisks.inputMaxes[vdIndex]} ${virtualDisks.inputUnits[vdIndex]}`,
+        displayMin: '1 B',
         max: virtualDisks.maxes[vdIndex],
         min: 1,
         onSuccess: () => {
@@ -1191,9 +1204,9 @@ const ProvisionServerDialog = ({
           test: testMax,
         },
         {
-          onFailure: ({ max, min }) => {
+          onFailure: ({ displayMax, displayMin }) => {
             virtualDisks.inputSizeMessages[vdIndex] = {
-              text: `Virtual disk ${vdIndex} size is expected to be between ${min} B and ${max} B.`,
+              text: `Virtual disk ${vdIndex} size is expected to be between ${displayMin} and ${displayMax}.`,
               type: 'warning',
             };
           },
@@ -1256,13 +1269,16 @@ const ProvisionServerDialog = ({
     setInputCPUCoresMax(maxCPUCores);
     setMemoryMax(maxMemory);
 
+    const formattedMaxVDSizes: string[] = [];
+
     ulVirtualDisks.maxes = maxVirtualDiskSizes;
     ulVirtualDisks.maxes.forEach((vdMaxSize, vdIndex) => {
       dSize(vdMaxSize, {
         fromUnit: 'B',
         onSuccess: {
-          string: (value) => {
+          string: (value, unit) => {
             ulVirtualDisks.inputMaxes[vdIndex] = value;
+            formattedMaxVDSizes[vdIndex] = `${value} ${unit}`;
           },
         },
         toUnit: ulVirtualDisks.inputUnits[vdIndex],
@@ -1274,15 +1290,22 @@ const ProvisionServerDialog = ({
     setIncludeFileUUIDs(fileUUIDs);
     setIncludeStorageGroupUUIDs(storageGroupUUIDs);
 
+    let formattedMaxMemory = '';
+
     dSize(maxMemory, {
       fromUnit: 'B',
       onSuccess: {
-        string: (value) => setInputMemoryMax(value),
+        string: (value, unit) => {
+          setInputMemoryMax(value);
+          formattedMaxMemory = `${value} ${unit}`;
+        },
       },
       toUnit: ulInputMemoryUnit,
     });
 
     return {
+      formattedMaxMemory,
+      formattedMaxVDSizes,
       maxCPUCores,
       maxMemory,
       maxVirtualDiskSizes,
@@ -1302,12 +1325,20 @@ const ProvisionServerDialog = ({
   }: { cmValue?: bigint; cmUnit?: DataSizeUnit } = {}) => {
     setMemory(cmValue);
 
-    const { maxMemory } = updateLimits({
+    const { formattedMaxMemory, maxMemory } = updateLimits({
       inputMemoryUnit: cmUnit,
       memory: cmValue,
     });
 
-    testInput({ inputs: { memory: { max: maxMemory, value: cmValue } } });
+    testInput({
+      inputs: {
+        memory: {
+          displayMax: formattedMaxMemory,
+          max: maxMemory,
+          value: cmValue,
+        },
+      },
+    });
   };
 
   const handleInputMemoryValueChange = ({
@@ -1330,7 +1361,7 @@ const ProvisionServerDialog = ({
       unit,
       (convertedMemory) =>
         changeMemory({ cmValue: convertedMemory, cmUnit: unit }),
-      () => changeMemory(),
+      () => changeMemory({ cmUnit: unit }),
     );
   };
 

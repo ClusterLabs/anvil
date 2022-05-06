@@ -48,12 +48,25 @@ const testInput: TestInputFunction = ({
 
   Object.keys(testsToRun).every((id: string) => {
     const {
-      defaults: { max: dMax, min: dMin, onSuccess: dOnSuccess, value: dValue },
+      defaults: {
+        displayMax: dDisplayMax,
+        displayMin: dDisplayMin,
+        max: dMax,
+        min: dMin,
+        onSuccess: dOnSuccess,
+        value: dValue,
+      },
       onFinishBatch,
       optionalTests,
       tests: requiredTests,
     } = tests[id];
-    const { max = dMax, min = dMin, value = dValue } = testsToRun[id];
+    const {
+      displayMax = dDisplayMax ?? String(dMax),
+      displayMin = dDisplayMin ?? String(dMin),
+      max = dMax,
+      min = dMin,
+      value = dValue,
+    } = testsToRun[id];
 
     const { cbFinishBatch } = setBatchCallback({ onFinishBatch });
 
@@ -62,7 +75,7 @@ const testInput: TestInputFunction = ({
       onSuccess = dOnSuccess,
       test,
     }) => {
-      const args = { max, min, value };
+      const args = { displayMax, displayMin, max, min, value };
       const singleResult: boolean = test(args);
 
       const { cbFailure, cbSuccess } = setSingleCallback({

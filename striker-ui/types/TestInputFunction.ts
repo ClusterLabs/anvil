@@ -1,4 +1,6 @@
 export type InputTestArgs = {
+  displayMax?: string;
+  displayMin?: string;
   max: bigint | number;
   min: bigint | number;
   value?: bigint | number | null | string;
