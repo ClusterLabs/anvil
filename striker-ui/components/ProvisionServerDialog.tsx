@@ -6,15 +6,11 @@ import {
   useState,
 } from 'react';
 import { Box, Dialog, DialogProps, InputAdornment } from '@mui/material';
-import {
-  dSize as baseDSize,
-  DataSizeUnit,
-  FormatDataSizeOptions,
-  FormatDataSizeInputValue,
-} from 'format-data-size';
+import { DataSizeUnit } from 'format-data-size';
 
 import Autocomplete from './Autocomplete';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
+import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
 import { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
@@ -78,6 +74,7 @@ type OrganizedStorageGroupMetadataForProvisionServer = Omit<
 type AnvilDetailMetadataForProvisionServer = {
   anvilUUID: string;
   anvilName: string;
+  anvilDescription?: string;
   anvilTotalCPUCores: number;
   anvilTotalMemory: string;
   anvilTotalAllocatedCPUCores: number;
@@ -90,7 +87,9 @@ type AnvilDetailMetadataForProvisionServer = {
   files: Array<FileMetadataForProvisionServer>;
 };
 
-type StorageGroupUUIDMapToFree = { [uuid: string]: bigint };
+type StorageGroupUUIDMapToData = {
+  [uuid: string]: OrganizedStorageGroupMetadataForProvisionServer;
+};
 
 type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
   AnvilDetailMetadataForProvisionServer,
@@ -123,7 +122,7 @@ type OSAutoCompleteOption = { label: string; key: string };
 
 type FilterAnvilsFunction = (
   allAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
-  storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
+  storageGroupUUIDMapToData: StorageGroupUUIDMapToData,
   cpuCores: number,
   memory: bigint,
   vdSizes: bigint[],
@@ -164,7 +163,7 @@ type UpdateLimitsFunction = (options?: {
   includeStorageGroupUUIDs?: string[];
   inputMemoryUnit?: DataSizeUnit;
   memory?: bigint;
-  storageGroupUUIDMapToFree?: StorageGroupUUIDMapToFree;
+  storageGroupUUIDMapToData?: StorageGroupUUIDMapToData;
   virtualDisks?: VirtualDiskStates;
 }) => Pick<
   ReturnType<FilterAnvilsFunction>,
@@ -406,7 +405,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
     fileSelectItems: SelectItem[];
     storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
     storageGroupSelectItems: SelectItem[];
-    storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree;
+    storageGroupUUIDMapToData: StorageGroupUUIDMapToData;
   }>(
     (reduceContainer, anvil) => {
       const {
@@ -433,7 +432,18 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
               anvilName,
               storageGroupSize: BigInt(storageGroup.storageGroupSize),
               storageGroupFree: BigInt(storageGroup.storageGroupFree),
+              humanizedStorageGroupFree: '',
             };
+
+            dsize(storageGroup.storageGroupFree, {
+              fromUnit: 'B',
+              onSuccess: {
+                string: (value, unit) => {
+                  anvilStorageGroup.humanizedStorageGroupFree = `${value} ${unit}`;
+                },
+              },
+              precision: 0,
+            });
 
             reducedStorageGroups.anvilStorageGroupUUIDs.push(
               storageGroup.storageGroupUUID,
@@ -442,12 +452,32 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
 
             reduceContainer.storageGroups.push(anvilStorageGroup);
             reduceContainer.storageGroupSelectItems.push({
-              displayValue: `${anvilName} -- ${storageGroup.storageGroupName}`,
+              displayValue: (
+                <Box
+                  sx={{
+                    alignItems: 'center',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    width: '100%',
+
+                    '& > :first-child': { flexGrow: 1 },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <BodyText inverted text={storageGroup.storageGroupName} />
+                    <BodyText inverted text={anvilName} />
+                  </Box>
+                  <BodyText
+                    inverted
+                    text={`~${anvilStorageGroup.humanizedStorageGroupFree} free`}
+                  />
+                </Box>
+              ),
               value: storageGroup.storageGroupUUID,
             });
-            reduceContainer.storageGroupUUIDMapToFree[
+            reduceContainer.storageGroupUUIDMapToData[
               storageGroup.storageGroupUUID
-            ] = anvilStorageGroup.storageGroupFree;
+            ] = anvilStorageGroup;
 
             return reducedStorageGroups;
           },
@@ -498,7 +528,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
       fileSelectItems: [],
       storageGroups: [],
       storageGroupSelectItems: [],
-      storageGroupUUIDMapToFree: {},
+      storageGroupUUIDMapToData: {},
     },
   );
 
@@ -512,68 +542,10 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
 
   return result;
 };
-const dSize = (
-  valueToFormat: FormatDataSizeInputValue,
-  {
-    fromUnit,
-    onFailure,
-    onSuccess,
-    precision,
-    toUnit,
-  }: FormatDataSizeOptions & {
-    onFailure?: (error?: unknown, value?: string, unit?: DataSizeUnit) => void;
-    onSuccess?: {
-      bigint?: (value: bigint, unit: DataSizeUnit) => void;
-      number?: (value: number, unit: DataSizeUnit) => void;
-      string?: (value: string, unit: DataSizeUnit) => void;
-    };
-  } = {},
-) => {
-  const formatted = baseDSize(valueToFormat, {
-    fromUnit,
-    precision,
-    toUnit,
-  });
-
-  if (formatted) {
-    const { value, unit } = formatted;
-
-    try {
-      onSuccess?.bigint?.call(null, BigInt(value), unit);
-      onSuccess?.number?.call(null, parseFloat(value), unit);
-      onSuccess?.string?.call(null, value, unit);
-    } catch (convertValueToTypeError) {
-      onFailure?.call(null, convertValueToTypeError, value, unit);
-    }
-  } else {
-    onFailure?.call(null);
-  }
-};
-
-const dSizeToBytes = (
-  value: FormatDataSizeInputValue,
-  fromUnit: DataSizeUnit,
-  onSuccess: (newValue: bigint, unit: DataSizeUnit) => void,
-  onFailure?: (
-    error?: unknown,
-    unchangedValue?: string,
-    unit?: DataSizeUnit,
-  ) => void,
-) => {
-  dSize(value, {
-    fromUnit,
-    onFailure,
-    onSuccess: {
-      bigint: onSuccess,
-    },
-    precision: 0,
-    toUnit: 'B',
-  });
-};
 
 const filterAnvils: FilterAnvilsFunction = (
   organizedAnvils: OrganizedAnvilDetailMetadataForProvisionServer[],
-  storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
+  storageGroupUUIDMapToData: StorageGroupUUIDMapToData,
   cpuCores: number,
   memory: bigint,
   vdSizes: bigint[],
@@ -686,7 +658,8 @@ const filterAnvils: FilterAnvilsFunction = (
 
               if (uuid !== '') {
                 hasStorageGroup = anvilStorageGroupUUIDs.includes(uuid);
-                hasEnoughStorage = vdSize <= storageGroupUUIDMapToFree[uuid];
+                hasEnoughStorage =
+                  vdSize <= storageGroupUUIDMapToData[uuid].storageGroupFree;
               }
 
               return hasStorageGroup && hasEnoughStorage;
@@ -697,7 +670,7 @@ const filterAnvils: FilterAnvilsFunction = (
             Object.entries(storageGroupTotals).every(([uuid, total]) =>
               uuid === 'all'
                 ? total <= anvilStorageGroupFreeTotal
-                : total <= storageGroupUUIDMapToFree[uuid],
+                : total <= storageGroupUUIDMapToData[uuid].storageGroupFree,
             ),
           // Does this anvil node pair have access to selected files?
           () =>
@@ -749,7 +722,8 @@ const filterAnvils: FilterAnvilsFunction = (
 
   storageGroupUUIDs.forEach((uuid: string, uuidIndex: number) => {
     if (uuid !== '') {
-      result.maxVirtualDiskSizes[uuidIndex] = storageGroupUUIDMapToFree[uuid];
+      result.maxVirtualDiskSizes[uuidIndex] =
+        storageGroupUUIDMapToData[uuid].storageGroupFree;
     }
   });
 
@@ -766,7 +740,7 @@ const createVirtualDiskForm = (
   storageGroupSelectItems: SelectItem[],
   includeStorageGroupUUIDs: string[],
   updateLimits: UpdateLimitsFunction,
-  storageGroupUUIDMapToFree: StorageGroupUUIDMapToFree,
+  storageGroupUUIDMapToData: StorageGroupUUIDMapToData,
   testInput: TestInputFunction,
 ) => {
   const get = <Key extends keyof VirtualDiskStates>(
@@ -816,7 +790,7 @@ const createVirtualDiskForm = (
       set('inputUnits', unit);
     }
 
-    dSizeToBytes(
+    dsizeToByte(
       value,
       unit,
       (convertedVDSize) => changeVDSize(convertedVDSize),
@@ -895,7 +869,7 @@ const createVirtualDiskForm = (
           disableItem={(value) =>
             !(
               includeStorageGroupUUIDs.includes(value) &&
-              get('sizes') <= storageGroupUUIDMapToFree[value]
+              get('sizes') <= storageGroupUUIDMapToData[value].storageGroupFree
             )
           }
           inputLabelProps={{
@@ -909,8 +883,16 @@ const createVirtualDiskForm = (
 
               handleVDStorageGroupChange(selectedStorageGroupUUID);
             },
-            value: get('inputStorageGroupUUIDs'),
             onClearIndicatorClick: () => handleVDStorageGroupChange(''),
+            renderValue: (value) => {
+              const {
+                anvilName: rvAnvilName = '?',
+                storageGroupName: rvStorageGroupName = 'Unknown',
+              } = storageGroupUUIDMapToData[value as string] ?? {};
+
+              return `${rvStorageGroupName} (${rvAnvilName})`;
+            },
+            value: get('inputStorageGroupUUIDs'),
           }}
         />
       </Box>
@@ -986,8 +968,8 @@ const ProvisionServerDialog = ({
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
-  const [storageGroupUUIDMapToFree, setStorageGroupUUIDMapToFree] =
-    useState<StorageGroupUUIDMapToFree>({});
+  const [storageGroupUUIDMapToData, setStorageGroupUUIDMapToData] =
+    useState<StorageGroupUUIDMapToData>({});
 
   const [anvilSelectItems, setAnvilSelectItems] = useState<SelectItem[]>([]);
   const [fileSelectItems, setFileSelectItems] = useState<SelectItem[]>([]);
@@ -1240,8 +1222,8 @@ const ProvisionServerDialog = ({
     includeStorageGroupUUIDs: ulIncludeStorageGroupUUIDs,
     inputMemoryUnit: ulInputMemoryUnit = inputMemoryUnit,
     memory: ulMemory = memory,
-    storageGroupUUIDMapToFree:
-      ulStorageGroupUUIDMapToFree = storageGroupUUIDMapToFree,
+    storageGroupUUIDMapToData:
+      ulStorageGroupUUIDMapToData = storageGroupUUIDMapToData,
     virtualDisks: ulVirtualDisks = virtualDisks,
   } = {}) => {
     const {
@@ -1253,7 +1235,7 @@ const ProvisionServerDialog = ({
       storageGroupUUIDs,
     } = filterAnvils(
       ulAllAnvils,
-      ulStorageGroupUUIDMapToFree,
+      ulStorageGroupUUIDMapToData,
       ulCPUCores,
       ulMemory,
       ulVirtualDisks.sizes,
@@ -1273,7 +1255,7 @@ const ProvisionServerDialog = ({
 
     ulVirtualDisks.maxes = maxVirtualDiskSizes;
     ulVirtualDisks.maxes.forEach((vdMaxSize, vdIndex) => {
-      dSize(vdMaxSize, {
+      dsize(vdMaxSize, {
         fromUnit: 'B',
         onSuccess: {
           string: (value, unit) => {
@@ -1292,7 +1274,7 @@ const ProvisionServerDialog = ({
 
     let formattedMaxMemory = '';
 
-    dSize(maxMemory, {
+    dsize(maxMemory, {
       fromUnit: 'B',
       onSuccess: {
         string: (value, unit) => {
@@ -1356,7 +1338,7 @@ const ProvisionServerDialog = ({
       setInputMemoryUnit(unit);
     }
 
-    dSizeToBytes(
+    dsizeToByte(
       value,
       unit,
       (convertedMemory) =>
@@ -1399,11 +1381,11 @@ const ProvisionServerDialog = ({
       anvilSelectItems: ueAnvilSelectItems,
       fileSelectItems: ueFileSelectItems,
       storageGroupSelectItems: ueStorageGroupSelectItems,
-      storageGroupUUIDMapToFree: ueStorageGroupUUIDMapToFree,
+      storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
     } = organizeAnvils(data.anvils);
 
     setAllAnvils(ueAllAnvils);
-    setStorageGroupUUIDMapToFree(ueStorageGroupUUIDMapToFree);
+    setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
 
     setAnvilSelectItems(ueAnvilSelectItems);
     setFileSelectItems(ueFileSelectItems);
@@ -1411,7 +1393,7 @@ const ProvisionServerDialog = ({
 
     initLimits({
       allAnvils: ueAllAnvils,
-      storageGroupUUIDMapToFree: ueStorageGroupUUIDMapToFree,
+      storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
     });
 
     setOSAutocompleteOptions(
@@ -1543,7 +1525,7 @@ const ProvisionServerDialog = ({
             storageGroupSelectItems,
             includeStorageGroupUUIDs,
             updateLimits,
-            storageGroupUUIDMapToFree,
+            storageGroupUUIDMapToData,
             testInput,
           ),
         )}
