@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, ReactNode } from 'react';
 import {
   Checkbox as MUICheckbox,
   FormControl as MUIFormControl,
@@ -13,9 +13,12 @@ import OutlinedInputLabel, {
 } from './OutlinedInputLabel';
 import Select, { SelectProps } from './Select';
 
-type SelectItem<SelectItemValueType = string> = {
-  displayValue?: SelectItemValueType;
-  value: SelectItemValueType;
+type SelectItem<
+  ValueType = string,
+  DisplayValueType = ValueType | ReactNode,
+> = {
+  displayValue?: DisplayValueType;
+  value: ValueType;
 };
 
 type SelectWithLabelOptionalProps = {
