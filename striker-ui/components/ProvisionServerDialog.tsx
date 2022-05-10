@@ -1,5 +1,6 @@
 import {
   Dispatch,
+  ReactNode,
   SetStateAction,
   useCallback,
   useEffect,
@@ -182,6 +183,7 @@ const MOCK_DATA = {
     {
       anvilUUID: 'ad590bcb-24e1-4592-8cd1-9cd6229b7bf2',
       anvilName: 'yan-anvil-03',
+      anvilDescription: "Yan's test Anvil specialized for breaking things.",
       anvilTotalCPUCores: 4,
       anvilTotalMemory: '17179869184',
       anvilTotalAllocatedCPUCores: 1,
@@ -234,6 +236,7 @@ const MOCK_DATA = {
     {
       anvilUUID: '85e0fd96-ea38-403d-992f-441d20cad679',
       anvilName: 'mock-anvil-01',
+      anvilDescription: 'Randomly generated mock Anvil #1.',
       anvilTotalCPUCores: 8,
       anvilTotalMemory: '34359738368',
       anvilTotalAllocatedCPUCores: 0,
@@ -285,6 +288,7 @@ const MOCK_DATA = {
     {
       anvilUUID: '68470d36-e46b-44a5-b2cd-d57b2e7b5ddb',
       anvilName: 'mock-anvil-02',
+      anvilDescription: 'Randomly generated mock Anvil #2.',
       anvilTotalCPUCores: 16,
       anvilTotalMemory: '1234567890',
       anvilTotalAllocatedCPUCores: 7,
@@ -353,10 +357,6 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
   { value: 'MiB' },
   { value: 'GiB' },
   { value: 'TiB' },
-  { value: 'kB' },
-  { value: 'MB' },
-  { value: 'GB' },
-  { value: 'TB' },
 ];
 
 const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
@@ -398,6 +398,33 @@ const createMaxValueButton = (
       }}
     >{`Max: ${maxValue}`}</ContainedButton>
   </InputAdornment>
+);
+
+const createSelectItemDisplay = ({
+  endAdornment,
+  mainLabel,
+  subLabel,
+}: {
+  endAdornment?: ReactNode;
+  mainLabel?: string;
+  subLabel?: string;
+} = {}) => (
+  <Box
+    sx={{
+      alignItems: 'center',
+      display: 'flex',
+      flexDirection: 'row',
+      width: '100%',
+
+      '& > :first-child': { flexGrow: 1 },
+    }}
+  >
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      {mainLabel && <BodyText inverted text={mainLabel} />}
+      {subLabel && <BodyText inverted text={subLabel} />}
+    </Box>
+    {endAdornment}
+  </Box>
 );
 
 const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
@@ -448,6 +475,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
                 },
               },
               precision: 0,
+              toUnit: 'ibyte',
             });
 
             reducedStorageGroups.anvilStorageGroupUUIDs.push(
@@ -457,27 +485,16 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
 
             reduceContainer.storageGroups.push(resultStorageGroup);
             reduceContainer.storageGroupSelectItems.push({
-              displayValue: (
-                <Box
-                  sx={{
-                    alignItems: 'center',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    width: '100%',
-
-                    '& > :first-child': { flexGrow: 1 },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <BodyText inverted text={storageGroup.storageGroupName} />
-                    <BodyText inverted text={anvilName} />
-                  </Box>
+              displayValue: createSelectItemDisplay({
+                endAdornment: (
                   <BodyText
                     inverted
                     text={`~${resultStorageGroup.humanizedStorageGroupFree} free`}
                   />
-                </Box>
-              ),
+                ),
+                mainLabel: storageGroup.storageGroupName,
+                subLabel: anvilName,
+              }),
               value: storageGroup.storageGroupUUID,
             });
             reduceContainer.storageGroupUUIDMapToData[
@@ -507,6 +524,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
         anvilTotalMemory: BigInt(anvilTotalMemory),
         anvilTotalAllocatedMemory: BigInt(anvilTotalAllocatedMemory),
         anvilTotalAvailableMemory: BigInt(anvilTotalAvailableMemory),
+        humanizedAnvilTotalAvailableMemory: '',
         hosts: hosts.map((host) => ({
           ...host,
           hostMemory: BigInt(host.hostMemory),
@@ -520,9 +538,37 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
         fileUUIDs,
       };
 
+      dsize(anvilTotalAvailableMemory, {
+        fromUnit: 'B',
+        onSuccess: {
+          string: (value, unit) => {
+            resultAnvil.humanizedAnvilTotalAvailableMemory = `${value} ${unit}`;
+          },
+        },
+        precision: 0,
+        toUnit: 'ibyte',
+      });
+
       reduceContainer.anvils.push(resultAnvil);
       reduceContainer.anvilSelectItems.push({
-        displayValue: anvilName,
+        displayValue: createSelectItemDisplay({
+          endAdornment: (
+            <Box
+              sx={{ display: 'flex', flexDirection: 'column', width: '8rem' }}
+            >
+              <BodyText
+                inverted
+                text={`CPU: ${resultAnvil.anvilTotalCPUCores} cores`}
+              />
+              <BodyText
+                inverted
+                text={`Memory: ~${resultAnvil.humanizedAnvilTotalAvailableMemory}`}
+              />
+            </Box>
+          ),
+          mainLabel: resultAnvil.anvilName,
+          subLabel: resultAnvil.anvilDescription,
+        }),
         value: anvilUUID,
       });
       reduceContainer.anvilUUIDMapToData[anvilUUID] = resultAnvil;
