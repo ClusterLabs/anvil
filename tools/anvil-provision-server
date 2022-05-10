@@ -521,7 +521,7 @@ sub provision_server
 		progress => 70,
 		message  => "job_0199,!!shell_call!".$shell_call."!!", 
 	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0199", variables => { shell_call => $shell_call }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0199", variables => { shell_call => $shell_call }});
 	
 	# Write the command out to /mnt/shared/provision/
 	my $provision_file = $anvil->data->{path}{directories}{shared}{provision}."/".$server.".sh";
@@ -1109,26 +1109,45 @@ sub create_lv
 	}
 	else
 	{
-		# Make sure we have enough space.
+		# Make sure we have enough space. This checks on the local system as the other node could 
+		# record less free space before we create our LV.
 		my $anvil_uuid         = $anvil->data->{job}{anvil_uuid};
 		my $storage_group_uuid = $anvil->data->{job}{storage_group_uuid};
 		if ($anvil->data->{job}{storage_size} > $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size})
 		{
-			my $say_available_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")";
-			my $say_requested_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{job}{storage_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{job}{storage_size}}).")";
-			my $say_storage_group  = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0194,!!server_name!".$anvil->data->{job}{server_name}."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
-				job_status => "failed", 
-			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0194", variables => { 
-				server_name    => $anvil->data->{job}{server_name}, 
-				available_size => $say_available_size, 
-				requested_size => $say_requested_size, 
-				storage_group  => $say_storage_group, 
+			# How's the local storage?
+			$anvil->System->check_storage({debug => 2});
+			my $host_name  = $anvil->Get->short_host_name();
+			my $host_uuid  = $anvil->Get->host_uuid();
+			my $vg_name    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name};
+			my $free_space = $anvil->data->{lvm}{$host_name}{vg}{$vg_name}{free_space};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_name'         => $host_name,
+				's2:host_uuid'         => $host_uuid, 
+				's3:vg_name'           => $vg_name, 
+				's4:free_space'        => $free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}).")", 
+				's5:job::storage_size' => $anvil->data->{job}{storage_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{job}{storage_size}}).")"
 			}});
-			$anvil->nice_exit({exit_code => 1});
+			
+			if ((not $free_space) or ($free_space =~ /\D/) or ($anvil->data->{job}{storage_size} > $free_space))
+			{
+				# We're out.
+				my $say_available_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")";
+				my $say_requested_size = $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{job}{storage_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{job}{storage_size}}).")";
+				my $say_storage_group  = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0194,!!server_name!".$anvil->data->{job}{server_name}."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
+					job_status => "failed", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0194", variables => { 
+					server_name    => $anvil->data->{job}{server_name}, 
+					available_size => $say_available_size, 
+					requested_size => $say_requested_size, 
+					storage_group  => $say_storage_group, 
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
 		}
 		
 		# Create the LV.
@@ -2576,13 +2595,8 @@ sub interactive_ask_server_confirm
 	
 	if ($anvil->data->{switches}{'ci-test'})
 	{
-		# Show available options;
+		### NOTE: Show available options;
 		# anvil-provision-server --ci-test --options
-		# Minimal Example;
-		# anvil-provision-server --ci-test --name srv01-test \
-		# All options
-		# anvil-provision-server --ci-test --name srv01-test --uuid <server uuid> \
-		
 		check_anvil($anvil);
 		if (not $anvil->data->{new_server}{anvil_uuid})
 		{
@@ -2592,7 +2606,18 @@ sub interactive_ask_server_confirm
 		}
 		
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid, debug => 2});
+		
+		$anvil->data->{new_server}{name}          = "";
+		$anvil->data->{new_server}{uuid}          = "";
+		$anvil->data->{new_server}{os}            = "";
+		$anvil->data->{new_server}{cpu}           = "";
+		$anvil->data->{new_server}{ram}           = "";
+		$anvil->data->{new_server}{storage_group} = "";
+		$anvil->data->{new_server}{storage_size}  = "";
+		$anvil->data->{new_server}{install_media} = "";
+		$anvil->data->{new_server}{driver_disc}   = "";
 		
 		my $problem = 0;
 		if (not $anvil->data->{switches}{name})
@@ -2610,6 +2635,10 @@ sub interactive_ask_server_confirm
 			# Make sure it's valid.
 			my $os_key  = "os_list_".$anvil->data->{switches}{os};
 			my $os_name = $anvil->Words->string({key => $os_key});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				os_key  => $os_key,
+				os_name => $os_name, 
+			}});
 			if ($os_name =~ /#!not_found/)
 			{
 				print "The OS: [".$anvil->data->{switches}{os}."] was not found. If you're sure the OS is valid, please run 'striker-parse-os-list --xml --new' and add the output to 'words.xml'.\n" if not $anvil->data->{switches}{options};
@@ -2672,11 +2701,19 @@ sub interactive_ask_server_confirm
 			{
 				$storage_group_uuid     = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group}{storage_group_uuid};
 				$max_storage_group_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					storage_group_uuid     => $storage_group_uuid, 
+					max_storage_group_size => $max_storage_group_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size}).")", 
+				}});
 			}
 			elsif (exists $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group})
 			{
 				$storage_group_uuid     = $storage_group;
 				$max_storage_group_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					storage_group_uuid     => $storage_group_uuid, 
+					max_storage_group_size => $max_storage_group_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size}).")", 
+				}});
 			}
 			else
 			{
@@ -2721,6 +2758,9 @@ sub interactive_ask_server_confirm
 		if ($anvil->Validate->uuid({uuid => $anvil->data->{switches}{uuid}}))
 		{
 			$anvil->data->{new_server}{uuid} = $anvil->data->{switches}{uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'new_server::uuid' => $anvil->data->{new_server}{uuid}, 
+			}});
 		}
 		if (not $anvil->data->{switches}{'install-media'})
 		{
@@ -2733,8 +2773,9 @@ sub interactive_ask_server_confirm
 			my $found = 0;
 			foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
 			{
-				my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
-				my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				my $file_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
 				if ($file_name eq $anvil->data->{switches}{'install-media'})
 				{
 					# Found it.
@@ -2742,7 +2783,10 @@ sub interactive_ask_server_confirm
 					if ($file_type eq "iso")
 					{
 						# We're good
-						$anvil->data->{new_server}{install_media} = $anvil->data->{switches}{'install-media'};
+						$anvil->data->{new_server}{install_media} = $file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							'new_server::install_media' => $anvil->data->{new_server}{install_media}, 
+						}});
 					}
 					else
 					{
@@ -2766,8 +2810,9 @@ sub interactive_ask_server_confirm
 			my $found = 0;
 			foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
 			{
-				my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
-				my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				my $file_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
 				if ($file_name eq $anvil->data->{switches}{'driver-disc'})
 				{
 					# Found it.
@@ -2775,7 +2820,10 @@ sub interactive_ask_server_confirm
 					if ($file_type eq "iso")
 					{
 						# We're good
-						$anvil->data->{new_server}{install_media} = $anvil->data->{switches}{'driver-disc'};
+						$anvil->data->{new_server}{driver_disc} = $file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							'new_server::driver_disc' => $anvil->data->{new_server}{driver_disc}, 
+						}});
 					}
 					else
 					{
@@ -2810,8 +2858,15 @@ sub interactive_ask_server_confirm
 					my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
 					my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
 					my $file_size = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:file_name' => $file_name, 
+						's2:file_uuid' => $file_uuid, 
+						's3:file_type' => $file_type, 
+						's4:file_size' => $file_size, 
+					}});
 					next if $file_type ne "iso";
 					my $say_size = $anvil->Convert->bytes_to_human_readable({"bytes" => $file_size});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_size => $say_size }});
 					print "iso_file:name=".$file_name.",uuid=".$file_uuid.",size=".$say_size."\n";
 				}
 			}
@@ -2858,8 +2913,17 @@ sub interactive_ask_server_confirm
 		$anvil->data->{new_server}{ram}           = $anvil->data->{switches}{ram};
 		$anvil->data->{new_server}{storage_group} = $storage_group_uuid;
 		$anvil->data->{new_server}{storage_size}  = $anvil->data->{switches}{'storage-size'};
-		$anvil->data->{new_server}{install_media} = $anvil->data->{switches}{'install-media'};
-		$anvil->data->{new_server}{driver_disc}   = $anvil->data->{switches}{'driver-disc'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:new_server::name'          => $anvil->data->{new_server}{name},
+			's1:new_server::uuid'          => $anvil->data->{new_server}{uuid},
+			's2:new_server::os'            => $anvil->data->{new_server}{os},
+			's3:new_server::cpu'           => $anvil->data->{new_server}{cpu},
+			's4:new_server::ram'           => $anvil->data->{new_server}{ram},
+			's5:new_server::storage_group' => $anvil->data->{new_server}{storage_group},
+			's6:new_server::storage_size'  => $anvil->data->{new_server}{storage_size}." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size}).")",
+			's7:new_server::install_media' => $anvil->data->{new_server}{install_media},
+			's8:new_server::driver_disc'   => $anvil->data->{new_server}{driver_disc},
+		}});
 	}
 	
 	my $anvil_uuid      = $anvil->data->{new_server}{anvil_uuid};
