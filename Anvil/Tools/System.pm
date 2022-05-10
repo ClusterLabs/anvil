@@ -4955,7 +4955,7 @@ sub test_ipmi
 			next if $test_password eq "";
 			
 			# Build the shell call.
-			$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan ".$lanplus_switch." --ip ".$ipmi_target." --username ".$ipmi_user." --password ".$test_password." --action status";
+			$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan ".$lanplus_switch." --ip ".$ipmi_target." --username ".$ipmi_user." --password \"".$test_password."\" --action status";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { shell_call => $shell_call }});
 	
 			my $output      = "";
@@ -4967,7 +4967,7 @@ sub test_ipmi
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 30,
+					timeout     => 2,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
@@ -4984,6 +4984,7 @@ sub test_ipmi
 				($output, $return_code) = $anvil->System->call({
 					debug       => $debug, 
 					secure      => 1,
+					timeout     => 2,
 					shell_call  => $shell_call, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

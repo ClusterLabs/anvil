@@ -11,6 +11,10 @@
 # 1 = Startup failure (not running as root, no DB, bad file read, etc)
 # 2 = libvirtd is not running.
 # 
+# BUG:
+# - Check that an update on disk is not overwritten by the old config still being in memory for a still-
+#   running VM (specifically, RAM updates)
+# 
 # TODO: 
 # - Move location constraints to the host node if the server is not on the preferred host (this happens after
 #   recovering from a node loss).

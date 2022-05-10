@@ -2711,11 +2711,15 @@ WHERE
 			next if not $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			
 			my $file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
+			my $file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				file_uuid => $file_uuid,
+				file_name => $file_name, 
+			}});
 			
 			# If the file was deleted, this won't exist
 			next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}      = $file_name;
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory} = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
@@ -2726,6 +2730,12 @@ WHERE
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}, 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}, 
+			}});
+			
+			# Make it so that we can list the files by name.
+			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid} = $file_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
 			}});
 		}
 	}
