@@ -1,4 +1,4 @@
-import { MouseEventHandler } from 'react';
+import { MouseEventHandler, ReactNode } from 'react';
 import { Box, ButtonProps, Dialog, DialogProps } from '@mui/material';
 
 import ContainedButton from './ContainedButton';
@@ -8,7 +8,7 @@ import { BodyText, HeaderText } from './Text';
 type ConfirmDialogProps = {
   actionCancelText?: string;
   actionProceedText: string;
-  contentText: string;
+  content: ReactNode | string;
   dialogProps: DialogProps;
   onCancel: MouseEventHandler<HTMLButtonElement>;
   onProceed: MouseEventHandler<HTMLButtonElement>;
@@ -25,7 +25,7 @@ const ConfirmDialog = (
   {
     actionCancelText,
     actionProceedText,
-    contentText,
+    content,
     dialogProps: { open },
     onCancel,
     onProceed,
@@ -41,7 +41,9 @@ const ConfirmDialog = (
       <PanelHeader>
         <HeaderText text={titleText} />
       </PanelHeader>
-      <BodyText sx={{ marginBottom: '1em' }} text={contentText} />
+      <Box sx={{ marginBottom: '1em' }}>
+        {typeof content === 'string' ? <BodyText text={content} /> : content}
+      </Box>
       <Box
         sx={{
           display: 'flex',
