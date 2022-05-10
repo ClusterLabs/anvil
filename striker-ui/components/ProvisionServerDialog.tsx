@@ -873,11 +873,6 @@ const createVirtualDiskForm = (
         },
       }}
     >
-      <BodyText
-        text={`Index: ${vdIndex}, Virtual disk size: ${get(
-          'sizes',
-        ).toString()}, Max: ${get('maxes').toString()}`}
-      />
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <OutlinedLabeledInputWithSelect
           id={`ps-virtual-disk-size-${vdIndex}`}
@@ -1536,9 +1531,6 @@ const ProvisionServerDialog = ({
             min: inputCPUCoresMin,
           },
         })}
-        <BodyText
-          text={`Memory: ${memory.toString()}, Max: ${memoryMax.toString()}`}
-        />
         <OutlinedLabeledInputWithSelect
           id="ps-memory"
           label="Memory"
