@@ -325,7 +325,7 @@ const FileEditForm = (
           </Box>
           <ConfirmDialog
             actionProceedText="Purge"
-            contentText={`${selectedFilesCount} files will be removed from the system. You cannot undo this purge.`}
+            content={`${selectedFilesCount} files will be removed from the system. You cannot undo this purge.`}
             dialogProps={{ open: isOpenPurgeConfirmDialog }}
             onCancel={cancelPurge}
             onProceed={purgeFiles}
