@@ -87,10 +87,6 @@ type AnvilDetailMetadataForProvisionServer = {
   files: Array<FileMetadataForProvisionServer>;
 };
 
-type StorageGroupUUIDMapToData = {
-  [uuid: string]: OrganizedStorageGroupMetadataForProvisionServer;
-};
-
 type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
   AnvilDetailMetadataForProvisionServer,
   | 'anvilTotalMemory'
@@ -116,6 +112,14 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
   storageGroupUUIDs: string[];
   storageGroups: Array<OrganizedStorageGroupMetadataForProvisionServer>;
   fileUUIDs: string[];
+};
+
+type AnvilUUIDMapToData = {
+  [uuid: string]: OrganizedAnvilDetailMetadataForProvisionServer;
+};
+
+type StorageGroupUUIDMapToData = {
+  [uuid: string]: OrganizedStorageGroupMetadataForProvisionServer;
 };
 
 type OSAutoCompleteOption = { label: string; key: string };
@@ -401,6 +405,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
   const result = data.reduce<{
     anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
     anvilSelectItems: SelectItem[];
+    anvilUUIDMapToData: AnvilUUIDMapToData;
     files: FileMetadataForProvisionServer[];
     fileSelectItems: SelectItem[];
     storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
@@ -426,7 +431,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
           anvilStorageGroupUUIDs: string[];
         }>(
           (reducedStorageGroups, storageGroup) => {
-            const anvilStorageGroup = {
+            const resultStorageGroup = {
               ...storageGroup,
               anvilUUID,
               anvilName,
@@ -439,7 +444,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
               fromUnit: 'B',
               onSuccess: {
                 string: (value, unit) => {
-                  anvilStorageGroup.humanizedStorageGroupFree = `${value} ${unit}`;
+                  resultStorageGroup.humanizedStorageGroupFree = `${value} ${unit}`;
                 },
               },
               precision: 0,
@@ -448,9 +453,9 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
             reducedStorageGroups.anvilStorageGroupUUIDs.push(
               storageGroup.storageGroupUUID,
             );
-            reducedStorageGroups.anvilStorageGroups.push(anvilStorageGroup);
+            reducedStorageGroups.anvilStorageGroups.push(resultStorageGroup);
 
-            reduceContainer.storageGroups.push(anvilStorageGroup);
+            reduceContainer.storageGroups.push(resultStorageGroup);
             reduceContainer.storageGroupSelectItems.push({
               displayValue: (
                 <Box
@@ -469,7 +474,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
                   </Box>
                   <BodyText
                     inverted
-                    text={`~${anvilStorageGroup.humanizedStorageGroupFree} free`}
+                    text={`~${resultStorageGroup.humanizedStorageGroupFree} free`}
                   />
                 </Box>
               ),
@@ -477,7 +482,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
             });
             reduceContainer.storageGroupUUIDMapToData[
               storageGroup.storageGroupUUID
-            ] = anvilStorageGroup;
+            ] = resultStorageGroup;
 
             return reducedStorageGroups;
           },
@@ -497,7 +502,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
         anvilFiles[fileUUID] = file;
       });
 
-      reduceContainer.anvils.push({
+      const resultAnvil = {
         ...anvil,
         anvilTotalMemory: BigInt(anvilTotalMemory),
         anvilTotalAllocatedMemory: BigInt(anvilTotalAllocatedMemory),
@@ -513,17 +518,21 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
         storageGroupUUIDs: anvilStorageGroupUUIDs,
         storageGroups: anvilStorageGroups,
         fileUUIDs,
-      });
+      };
+
+      reduceContainer.anvils.push(resultAnvil);
       reduceContainer.anvilSelectItems.push({
         displayValue: anvilName,
         value: anvilUUID,
       });
+      reduceContainer.anvilUUIDMapToData[anvilUUID] = resultAnvil;
 
       return reduceContainer;
     },
     {
       anvils: [],
       anvilSelectItems: [],
+      anvilUUIDMapToData: {},
       files: [],
       fileSelectItems: [],
       storageGroups: [],
@@ -887,7 +896,7 @@ const createVirtualDiskForm = (
             renderValue: (value) => {
               const {
                 anvilName: rvAnvilName = '?',
-                storageGroupName: rvStorageGroupName = 'Unknown',
+                storageGroupName: rvStorageGroupName = `Unknown (${value})`,
               } = storageGroupUUIDMapToData[value as string] ?? {};
 
               return `${rvStorageGroupName} (${rvAnvilName})`;
@@ -968,6 +977,8 @@ const ProvisionServerDialog = ({
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
+  const [anvilUUIDMapToData, setAnvilUUIDMapToData] =
+    useState<AnvilUUIDMapToData>({});
   const [storageGroupUUIDMapToData, setStorageGroupUUIDMapToData] =
     useState<StorageGroupUUIDMapToData>({});
 
@@ -1379,12 +1390,14 @@ const ProvisionServerDialog = ({
     const {
       anvils: ueAllAnvils,
       anvilSelectItems: ueAnvilSelectItems,
+      anvilUUIDMapToData: ueAnvilUUIDMapToData,
       fileSelectItems: ueFileSelectItems,
       storageGroupSelectItems: ueStorageGroupSelectItems,
       storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
     } = organizeAnvils(data.anvils);
 
     setAllAnvils(ueAllAnvils);
+    setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
     setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
 
     setAnvilSelectItems(ueAnvilSelectItems);
@@ -1583,6 +1596,12 @@ const ProvisionServerDialog = ({
               handleInputAnvilValueChange(newAnvilUUID);
             },
             onClearIndicatorClick: () => handleInputAnvilValueChange(''),
+            renderValue: (value) => {
+              const { anvilName: rvAnvilName = `Unknown ${value}` } =
+                anvilUUIDMapToData[value as string] ?? {};
+
+              return rvAnvilName;
+            },
             value: inputAnvilValue,
           }}
         />
