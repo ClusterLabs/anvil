@@ -1,6 +1,7 @@
 type AnvilDetailForProvisionServer = {
   anvilUUID: string;
   anvilName: string;
+  anvilDescription: string;
   hosts: Array<{
     hostUUID: string;
     hostName: string;

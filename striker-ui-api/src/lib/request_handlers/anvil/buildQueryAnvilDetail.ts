@@ -142,6 +142,7 @@ const buildQueryAnvilDetail = ({
     SELECT
       anv.anvil_uuid,
       anv.anvil_name,
+      anv.anvil_description,
       host_list.host_uuid,
       host_list.host_name,
       host_list.scan_hardware_cpu_cores,
@@ -205,6 +206,7 @@ const buildQueryAnvilDetail = ({
             [
               anvilUUID,
               anvilName,
+              anvilDescription,
               hostUUID,
               hostName,
               hostCPUCores,
@@ -231,6 +233,7 @@ const buildQueryAnvilDetail = ({
               rowStage = {
                 anvilUUID,
                 anvilName,
+                anvilDescription,
                 anvilTotalCPUCores: parseInt(anvilTotalCPUCores),
                 anvilTotalMemory: String(anvilTotalMemory),
                 anvilTotalAllocatedCPUCores: parseInt(
