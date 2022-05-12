@@ -37,7 +37,11 @@ const ConfirmDialog = (
     proceedButtonProps ?? CONFIRM_DIALOG_DEFAULT_PROPS.proceedButtonProps;
 
   return (
-    <Dialog {...{ open }} PaperComponent={Panel}>
+    <Dialog
+      {...{ open }}
+      PaperComponent={Panel}
+      PaperProps={{ sx: { overflow: 'visible' } }}
+    >
       <PanelHeader>
         <HeaderText text={titleText} />
       </PanelHeader>
