@@ -5,6 +5,7 @@ EXTRA_DIST		= \
 			  watch_drbd
 
 dist_sbin_SCRIPTS	= \
+			  anvil-access-module \
 			  anvil-boot-server \
 			  anvil-change-password \
 			  anvil-check-memory \

@@ -41,22 +41,23 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-my $db_uuid       = $anvil->data->{switches}{'uuid'};
-my $db_sub_name   = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
-my $db_sub_params = defined $anvil->data->{switches}{'sub-params'} ? $anvil->data->{switches}{'sub-params'} : "{}";
-my $sql_query     = $anvil->data->{switches}{'query'};
-my $access_mode   = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
+my $db_uuid         = $anvil->data->{switches}{'uuid'};
+my $sub_name        = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
+my $sub_module_name = defined $anvil->data->{switches}{'sub-module'} ? $anvil->data->{switches}{'sub-module'} : "Database";
+my $sub_params      = defined $anvil->data->{switches}{'sub-params'} ? $anvil->data->{switches}{'sub-params'} : "{}";
+my $sql_query       = $anvil->data->{switches}{'query'};
+my $access_mode     = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
 
 if ($sql_query)
 {
 	my $results = db_access({ db_uuid => $db_uuid, sql_query => $sql_query, access_mode => $access_mode });
 	print JSON->new->utf8->encode($results)."\n";
 }
-elsif ($anvil->Database->can($db_sub_name))
+elsif ($anvil->${sub_module_name}->can($sub_name))
 {
-    my $decoded_db_sub_params;
+    my $decoded_sub_params;
     my $is_decode_json_success = eval {
-        $decoded_db_sub_params = decode_json($db_sub_params);
+        $decoded_sub_params = decode_json($sub_params);
     };
 
     if (not $is_decode_json_success)
@@ -65,7 +66,7 @@ elsif ($anvil->Database->can($db_sub_name))
         $anvil->nice_exit({ exit_code => 1 });
     }
 
-    my $results = $anvil->Database->${db_sub_name}($decoded_db_sub_params);
+    my $results = $anvil->${sub_module_name}->${sub_name}($decoded_sub_params);
     print JSON->new->utf8->encode({ sub_results => $results })."\n";
 }
 else
