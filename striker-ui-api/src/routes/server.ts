@@ -1,9 +1,9 @@
 import express from 'express';
 
-import getServer from '../lib/request_handlers/server/getServer';
+import { createServer, getServer } from '../lib/request_handlers/server';
 
 const router = express.Router();
 
-router.get('/', getServer);
+router.get('/', getServer).post('/', createServer);
 
 export default router;

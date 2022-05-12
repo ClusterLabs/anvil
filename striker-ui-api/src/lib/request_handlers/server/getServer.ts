@@ -1,7 +1,7 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import join from '../../join';
 
-const getServer = buildGetRequestHandler((request) => {
+export const getServer = buildGetRequestHandler((request) => {
   const { anvilsUUID } = request.body;
 
   const condAnvilsUUID = join(anvilsUUID, {
@@ -23,5 +23,3 @@ const getServer = buildGetRequestHandler((request) => {
     WHERE server_state != 'DELETED'
       ${condAnvilsUUID};`;
 });
-
-export default getServer;
