@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-import { dbQuery } from '../accessDB';
+import { dbQuery } from '../accessModule';
 import call from '../call';
 
 const buildGetRequestHandler =

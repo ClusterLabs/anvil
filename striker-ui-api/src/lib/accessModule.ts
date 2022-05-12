@@ -2,7 +2,7 @@ import { spawnSync, SpawnSyncOptions } from 'child_process';
 
 import SERVER_PATHS from './consts/SERVER_PATHS';
 
-const execStrikerAccessDatabase = (
+const execAnvilAccessModule = (
   args: string[],
   options: SpawnSyncOptions = {
     timeout: 10000,
@@ -10,7 +10,7 @@ const execStrikerAccessDatabase = (
   },
 ) => {
   const { error, stdout, stderr } = spawnSync(
-    SERVER_PATHS.usr.sbin['striker-access-database'].self,
+    SERVER_PATHS.usr.sbin['anvil-access-module'].self,
     args,
     options,
   );
@@ -31,7 +31,7 @@ const execStrikerAccessDatabase = (
     output = stdout;
 
     console.warn(
-      `Failed to parse striker-access-database output [${output}]; error: [${stdoutParseError}]`,
+      `Failed to parse anvil-access-module output [${output}]; error: [${stdoutParseError}]`,
     );
   }
 
@@ -40,18 +40,30 @@ const execStrikerAccessDatabase = (
   };
 };
 
-const execDatabaseModuleSubroutine = (
+const execModuleSubroutine = (
   subName: string,
-  subParams?: Record<string, unknown>,
-  options?: SpawnSyncOptions,
+  {
+    spawnSyncOptions,
+    subModuleName,
+    subParams,
+  }: {
+    spawnSyncOptions?: SpawnSyncOptions;
+    subModuleName?: string;
+    subParams?: Record<string, unknown>;
+  } = {},
 ) => {
   const args = ['--sub', subName];
+
+  // Defaults to "Database" in anvil-access-module.
+  if (subModuleName) {
+    args.push('--sub-module', subModuleName);
+  }
 
   if (subParams) {
     args.push('--sub-params', JSON.stringify(subParams));
   }
 
-  const { stdout } = execStrikerAccessDatabase(args, options);
+  const { stdout } = execAnvilAccessModule(args, spawnSyncOptions);
 
   return {
     stdout: stdout['sub_results'],
@@ -92,23 +104,22 @@ const dbJobAnvilSyncShared = (
 
   console.log(JSON.stringify(subParams, null, 2));
 
-  return execDatabaseModuleSubroutine('insert_or_update_jobs', subParams)
-    .stdout;
+  return execModuleSubroutine('insert_or_update_jobs', { subParams }).stdout;
 };
 
 const dbQuery = (query: string, options?: SpawnSyncOptions) =>
-  execStrikerAccessDatabase(['--query', query], options);
+  execAnvilAccessModule(['--query', query], options);
 
 const dbSubRefreshTimestamp = () =>
-  execDatabaseModuleSubroutine('refresh_timestamp').stdout;
+  execModuleSubroutine('refresh_timestamp').stdout;
 
 const dbWrite = (query: string, options?: SpawnSyncOptions) =>
-  execStrikerAccessDatabase(['--query', query, '--mode', 'write'], options);
+  execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
 
 export {
   dbJobAnvilSyncShared,
   dbQuery,
-  execDatabaseModuleSubroutine as dbSub,
+  execModuleSubroutine as sub,
   dbSubRefreshTimestamp,
   dbWrite,
 };
