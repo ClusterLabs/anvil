@@ -5,7 +5,7 @@ import {
   dbQuery,
   dbSubRefreshTimestamp,
   dbWrite,
-} from '../lib/accessDB';
+} from '../lib/accessModule';
 import getFile from '../lib/request_handlers/file/getFile';
 import getFileDetail from '../lib/request_handlers/file/getFileDetail';
 import uploadSharedFiles from '../middlewares/uploadSharedFiles';
