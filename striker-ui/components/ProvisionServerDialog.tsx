@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Box, Dialog, DialogProps, InputAdornment } from '@mui/material';
 import { DataSizeUnit } from 'format-data-size';
+import { v4 as uuidv4 } from 'uuid';
 
 import Autocomplete from './Autocomplete';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
@@ -29,6 +30,7 @@ import {
 } from '../types/TestInputFunction';
 import { BodyText, HeaderText } from './Text';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
+import ConfirmDialog from './ConfirmDialog';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -119,6 +121,10 @@ type AnvilUUIDMapToData = {
   [uuid: string]: OrganizedAnvilDetailMetadataForProvisionServer;
 };
 
+type FileUUIDMapToData = {
+  [uuid: string]: FileMetadataForProvisionServer;
+};
+
 type StorageGroupUUIDMapToData = {
   [uuid: string]: OrganizedStorageGroupMetadataForProvisionServer;
 };
@@ -149,13 +155,14 @@ type FilterAnvilsFunction = (
 };
 
 type VirtualDiskStates = {
-  maxes: bigint[];
+  stateIds: string[];
   inputMaxes: string[];
   inputSizeMessages: Array<InputMessage | undefined>;
   inputSizes: string[];
   inputStorageGroupUUIDMessages: Array<InputMessage | undefined>;
   inputStorageGroupUUIDs: string[];
   inputUnits: DataSizeUnit[];
+  maxes: bigint[];
   sizes: bigint[];
 };
 
@@ -428,13 +435,14 @@ const createSelectItemDisplay = ({
 );
 
 const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
-  const anvilFiles: Record<string, FileMetadataForProvisionServer> = {};
+  const allFiles: Record<string, FileMetadataForProvisionServer> = {};
   const result = data.reduce<{
     anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
     anvilSelectItems: SelectItem[];
     anvilUUIDMapToData: AnvilUUIDMapToData;
     files: FileMetadataForProvisionServer[];
     fileSelectItems: SelectItem[];
+    fileUUIDMapToData: FileUUIDMapToData;
     storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
     storageGroupSelectItems: SelectItem[];
     storageGroupUUIDMapToData: StorageGroupUUIDMapToData;
@@ -516,7 +524,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
 
         fileUUIDs.push(fileUUID);
 
-        anvilFiles[fileUUID] = file;
+        allFiles[fileUUID] = file;
       });
 
       const resultAnvil = {
@@ -581,18 +589,20 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
       anvilUUIDMapToData: {},
       files: [],
       fileSelectItems: [],
+      fileUUIDMapToData: {},
       storageGroups: [],
       storageGroupSelectItems: [],
       storageGroupUUIDMapToData: {},
     },
   );
 
-  Object.values(anvilFiles).forEach((distinctFile) => {
+  Object.values(allFiles).forEach((distinctFile) => {
     result.files.push(distinctFile);
     result.fileSelectItems.push({
       displayValue: distinctFile.fileName,
       value: distinctFile.fileUUID,
     });
+    result.fileUUIDMapToData[distinctFile.fileUUID] = distinctFile;
   });
 
   return result;
@@ -863,7 +873,7 @@ const createVirtualDiskForm = (
 
   return (
     <Box
-      key={`ps-virtual-disk-${vdIndex}`}
+      key={`ps-virtual-disk-${get('stateIds')}`}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -952,54 +962,59 @@ const createVirtualDiskForm = (
 
 const addVirtualDisk = ({
   existingVirtualDisks: virtualDisks = {
-    maxes: [],
+    stateIds: [],
     inputMaxes: [],
     inputSizeMessages: [],
     inputSizes: [],
     inputStorageGroupUUIDMessages: [],
     inputStorageGroupUUIDs: [],
     inputUnits: [],
+    maxes: [],
     sizes: [],
   },
-  max = BIGINT_ZERO,
+  stateId = uuidv4(),
   inputMax = '0',
   inputSize = '',
   inputSizeMessage = undefined,
   inputStorageGroupUUID = '',
   inputStorageGroupUUIDMessage = undefined,
   inputUnit = INITIAL_DATA_SIZE_UNIT,
+  max = BIGINT_ZERO,
   setVirtualDisks,
   size = BIGINT_ZERO,
 }: {
   existingVirtualDisks?: VirtualDiskStates;
-  max?: bigint;
+  stateId?: string;
   inputMax?: string;
   inputSize?: string;
   inputSizeMessage?: InputMessage | undefined;
   inputStorageGroupUUID?: string;
   inputStorageGroupUUIDMessage?: InputMessage | undefined;
   inputUnit?: DataSizeUnit;
+  max?: bigint;
   setVirtualDisks?: Dispatch<SetStateAction<VirtualDiskStates>>;
   size?: bigint;
 } = {}) => {
   const {
-    maxes,
+    stateIds,
     inputMaxes,
     inputSizeMessages,
     inputSizes,
     inputStorageGroupUUIDMessages,
     inputStorageGroupUUIDs,
     inputUnits,
+    maxes,
     sizes,
   } = virtualDisks;
 
-  maxes.push(max);
+  stateIds.push(stateId);
   inputMaxes.push(inputMax);
   inputSizeMessages.push(inputSizeMessage);
   inputSizes.push(inputSize);
   inputStorageGroupUUIDMessages.push(inputStorageGroupUUIDMessage);
   inputStorageGroupUUIDs.push(inputStorageGroupUUID);
   inputUnits.push(inputUnit);
+  maxes.push(max);
   sizes.push(size);
 
   setVirtualDisks?.call(null, { ...virtualDisks });
@@ -1020,6 +1035,9 @@ const ProvisionServerDialog = ({
   >([]);
   const [anvilUUIDMapToData, setAnvilUUIDMapToData] =
     useState<AnvilUUIDMapToData>({});
+  const [fileUUIDMapToData, setFileUUIDMapToData] = useState<FileUUIDMapToData>(
+    {},
+  );
   const [storageGroupUUIDMapToData, setStorageGroupUUIDMapToData] =
     useState<StorageGroupUUIDMapToData>({});
 
@@ -1083,6 +1101,9 @@ const ProvisionServerDialog = ({
   const [includeStorageGroupUUIDs, setIncludeStorageGroupUUIDs] = useState<
     string[]
   >([]);
+
+  const [isOpenProvisionConfirmDialog, setIsOpenProvisionConfirmDialog] =
+    useState<boolean>(false);
 
   const inputTests: InputTestBatches = {
     serverName: {
@@ -1433,12 +1454,14 @@ const ProvisionServerDialog = ({
       anvilSelectItems: ueAnvilSelectItems,
       anvilUUIDMapToData: ueAnvilUUIDMapToData,
       fileSelectItems: ueFileSelectItems,
+      fileUUIDMapToData: ueFileUUIDMapToData,
       storageGroupSelectItems: ueStorageGroupSelectItems,
       storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
     } = organizeAnvils(data.anvils);
 
     setAllAnvils(ueAllAnvils);
     setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
+    setFileUUIDMapToData(ueFileUUIDMapToData);
     setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
 
     setAnvilSelectItems(ueAnvilSelectItems);
@@ -1463,216 +1486,295 @@ const ProvisionServerDialog = ({
   }, [initLimits]);
 
   return (
-    <Dialog
-      {...{
-        fullWidth: true,
-        maxWidth: 'sm',
-        open,
-        PaperComponent: Panel,
-        PaperProps: { sx: { overflow: 'visible' } },
-      }}
-    >
-      <PanelHeader>
-        <HeaderText text="Provision a Server" />
-      </PanelHeader>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '50vh',
-          overflowY: 'scroll',
-          paddingBottom: '.6em',
-          paddingTop: '.6em',
-
-          '& > :not(:first-child)': {
-            marginTop: '1em',
-          },
+    <>
+      <Dialog
+        {...{
+          fullWidth: true,
+          maxWidth: 'sm',
+          open,
+          PaperComponent: Panel,
+          PaperProps: { sx: { overflow: 'visible' } },
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <OutlinedInputWithLabel
-            id="ps-server-name"
-            label="Server name"
-            inputProps={{
-              onChange: ({ target: { value } }) => {
-                setInputServerNameValue(value);
+        <PanelHeader>
+          <HeaderText text="Provision a Server" />
+        </PanelHeader>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '50vh',
+            overflowY: 'scroll',
+            paddingBottom: '.6em',
+            paddingTop: '.6em',
 
-                testInput({ inputs: { serverName: { value } } });
+            '& > :not(:first-child)': {
+              marginTop: '1em',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <OutlinedInputWithLabel
+              id="ps-server-name"
+              label="Server name"
+              inputProps={{
+                onChange: ({ target: { value } }) => {
+                  setInputServerNameValue(value);
+
+                  testInput({ inputs: { serverName: { value } } });
+                },
+                value: inputServerNameValue,
+              }}
+              inputLabelProps={{
+                isNotifyRequired: inputServerNameValue.length === 0,
+              }}
+              messageBoxProps={inputServerNameMessage}
+            />
+          </Box>
+          {createOutlinedSlider(
+            'ps-cpu-cores',
+            'CPU cores',
+            inputCPUCoresValue,
+            {
+              messageBoxProps: inputCPUCoresMessage,
+              sliderProps: {
+                onChange: (value) => {
+                  const newCPUCoresValue = value as number;
+
+                  if (newCPUCoresValue !== inputCPUCoresValue) {
+                    setInputCPUCoresValue(newCPUCoresValue);
+
+                    const { maxCPUCores: newCPUCoresMax } = updateLimits({
+                      cpuCores: newCPUCoresValue,
+                    });
+
+                    testInput({
+                      inputs: {
+                        cpuCores: {
+                          max: newCPUCoresMax,
+                          value: newCPUCoresValue,
+                        },
+                      },
+                    });
+                  }
+                },
+                max: inputCPUCoresMax,
+                min: inputCPUCoresMin,
               },
-              value: inputServerNameValue,
+            },
+          )}
+          <OutlinedLabeledInputWithSelect
+            id="ps-memory"
+            label="Memory"
+            messageBoxProps={inputMemoryMessage}
+            inputWithLabelProps={{
+              inputProps: {
+                endAdornment: createMaxValueButton(
+                  `${inputMemoryMax} ${inputMemoryUnit}`,
+                  {
+                    onButtonClick: () => {
+                      setInputMemoryValue(inputMemoryMax);
+                      changeMemory({ cmValue: memoryMax });
+                    },
+                  },
+                ),
+                onChange: ({ target: { value } }) => {
+                  handleInputMemoryValueChange({ value });
+                },
+                type: 'number',
+                value: inputMemoryValue,
+              },
+              inputLabelProps: {
+                isNotifyRequired: memory === BIGINT_ZERO,
+              },
             }}
+            selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
+            selectWithLabelProps={{
+              selectProps: {
+                onChange: ({ target: { value } }) => {
+                  const selectedUnit = value as DataSizeUnit;
+
+                  handleInputMemoryValueChange({ unit: selectedUnit });
+                },
+                value: inputMemoryUnit,
+              },
+            }}
+          />
+          {virtualDisks.stateIds.map((vdStateId, vdIndex) =>
+            createVirtualDiskForm(
+              virtualDisks,
+              vdIndex,
+              setVirtualDisks,
+              storageGroupSelectItems,
+              includeStorageGroupUUIDs,
+              updateLimits,
+              storageGroupUUIDMapToData,
+              testInput,
+            ),
+          )}
+          <SelectWithLabel
+            disableItem={(value) => value === inputDriverISOFileUUID}
+            hideItem={(value) => !includeFileUUIDs.includes(value)}
+            id="ps-install-image"
             inputLabelProps={{
-              isNotifyRequired: inputServerNameValue.length === 0,
+              isNotifyRequired: inputInstallISOFileUUID.length === 0,
             }}
-            messageBoxProps={inputServerNameMessage}
+            label="Install ISO"
+            messageBoxProps={inputInstallISOMessage}
+            selectItems={fileSelectItems}
+            selectProps={{
+              onChange: ({ target: { value } }) => {
+                const newInstallISOFileUUID = value as string;
+
+                handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
+              },
+              onClearIndicatorClick: () =>
+                handleInputInstallISOFileUUIDChange(''),
+              value: inputInstallISOFileUUID,
+            }}
+          />
+          <SelectWithLabel
+            disableItem={(value) => value === inputInstallISOFileUUID}
+            hideItem={(value) => !includeFileUUIDs.includes(value)}
+            id="ps-driver-image"
+            label="Driver ISO"
+            messageBoxProps={inputDriverISOMessage}
+            selectItems={fileSelectItems}
+            selectProps={{
+              onChange: ({ target: { value } }) => {
+                const newDriverISOFileUUID = value as string;
+
+                handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
+              },
+              onClearIndicatorClick: () =>
+                handleInputDriverISOFileUUIDChange(''),
+              value: inputDriverISOFileUUID,
+            }}
+          />
+          <SelectWithLabel
+            disableItem={(value) => !includeAnvilUUIDs.includes(value)}
+            id="ps-anvil"
+            inputLabelProps={{
+              isNotifyRequired: inputAnvilValue.length === 0,
+            }}
+            label="Anvil node pair"
+            messageBoxProps={inputAnvilMessage}
+            selectItems={anvilSelectItems}
+            selectProps={{
+              onChange: ({ target: { value } }) => {
+                const newAnvilUUID: string = value as string;
+
+                handleInputAnvilValueChange(newAnvilUUID);
+              },
+              onClearIndicatorClick: () => handleInputAnvilValueChange(''),
+              renderValue: (value) => {
+                const { anvilName: rvAnvilName = `Unknown ${value}` } =
+                  anvilUUIDMapToData[value as string] ?? {};
+
+                return rvAnvilName;
+              },
+              value: inputAnvilValue,
+            }}
+          />
+          <Autocomplete
+            id="ps-optimize-for-os"
+            extendRenderInput={({ inputLabelProps = {} }) => {
+              inputLabelProps.isNotifyRequired =
+                inputOptimizeForOSValue === null;
+            }}
+            isOptionEqualToValue={(option, value) => option.key === value.key}
+            label="Optimize for OS"
+            messageBoxProps={inputOptimizeForOSMessage}
+            noOptionsText="No matching OS"
+            onChange={(event, value) => {
+              setInputOptimizeForOSValue(value);
+            }}
+            openOnFocus
+            options={osAutocompleteOptions}
+            value={inputOptimizeForOSValue}
           />
         </Box>
-        {createOutlinedSlider('ps-cpu-cores', 'CPU cores', inputCPUCoresValue, {
-          messageBoxProps: inputCPUCoresMessage,
-          sliderProps: {
-            onChange: (value) => {
-              const newCPUCoresValue = value as number;
-
-              if (newCPUCoresValue !== inputCPUCoresValue) {
-                setInputCPUCoresValue(newCPUCoresValue);
-
-                const { maxCPUCores: newCPUCoresMax } = updateLimits({
-                  cpuCores: newCPUCoresValue,
-                });
-
-                testInput({
-                  inputs: {
-                    cpuCores: { max: newCPUCoresMax, value: newCPUCoresValue },
-                  },
-                });
-              }
-            },
-            max: inputCPUCoresMax,
-            min: inputCPUCoresMin,
-          },
-        })}
-        <OutlinedLabeledInputWithSelect
-          id="ps-memory"
-          label="Memory"
-          messageBoxProps={inputMemoryMessage}
-          inputWithLabelProps={{
-            inputProps: {
-              endAdornment: createMaxValueButton(
-                `${inputMemoryMax} ${inputMemoryUnit}`,
-                {
-                  onButtonClick: () => {
-                    setInputMemoryValue(inputMemoryMax);
-                    changeMemory({ cmValue: memoryMax });
-                  },
-                },
-              ),
-              onChange: ({ target: { value } }) => {
-                handleInputMemoryValueChange({ value });
-              },
-              type: 'number',
-              value: inputMemoryValue,
-            },
-            inputLabelProps: {
-              isNotifyRequired: memory === BIGINT_ZERO,
-            },
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            marginTop: '1em',
+            width: '100%',
           }}
-          selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
-          selectWithLabelProps={{
-            selectProps: {
-              onChange: ({ target: { value } }) => {
-                const selectedUnit = value as DataSizeUnit;
-
-                handleInputMemoryValueChange({ unit: selectedUnit });
-              },
-              value: inputMemoryUnit,
-            },
+        >
+          <ContainedButton
+            disabled={!testInput({ isIgnoreOnCallbacks: true })}
+            onClick={() => {
+              setIsOpenProvisionConfirmDialog(true);
+            }}
+          >
+            Provision
+          </ContainedButton>
+        </Box>
+      </Dialog>
+      {isOpenProvisionConfirmDialog && (
+        <ConfirmDialog
+          actionProceedText="Provision"
+          content={
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <BodyText
+                text={`Server ${inputServerNameValue} will be created on anvil node pair ${anvilUUIDMapToData[inputAnvilValue].anvilName} with the following properties:`}
+              />
+              <BodyText text={`CPU: ${inputCPUCoresValue} core(s)`} />
+              <BodyText
+                text={`Memory: ${inputMemoryValue} ${inputMemoryUnit}`}
+              />
+              {virtualDisks.stateIds.map((vdStateId, vdIndex) => (
+                <BodyText
+                  key={`ps-virtual-disk-${vdStateId}-summary`}
+                  text={`Virtual disk ${vdIndex}: ${
+                    virtualDisks.inputSizes[vdIndex]
+                  } ${virtualDisks.inputUnits[vdIndex]} on ${
+                    storageGroupUUIDMapToData[
+                      virtualDisks.inputStorageGroupUUIDs[vdIndex]
+                    ].storageGroupName
+                  }`}
+                />
+              ))}
+              <BodyText
+                text={`Install ISO: ${fileUUIDMapToData[inputInstallISOFileUUID].fileName}`}
+              />
+              <BodyText
+                text={`Driver ISO: ${
+                  fileUUIDMapToData[inputDriverISOFileUUID]?.fileName ?? 'none'
+                }`}
+              />
+              <BodyText
+                text={`Optimize for OS: ${inputOptimizeForOSValue?.label}`}
+              />
+            </Box>
+          }
+          dialogProps={{ open: isOpenProvisionConfirmDialog }}
+          onCancel={() => {
+            setIsOpenProvisionConfirmDialog(false);
           }}
+          onProceed={() => {
+            // const requestBody = {
+            //   serverName: inputServerNameValue,
+            //   cpuCores: inputCPUCoresValue,
+            //   memory,
+            //   virtualDisks: virtualDisks.stateIds.map((vdStateId, vdIndex) => ({
+            //     size: virtualDisks.sizes[vdIndex],
+            //     storageGroupUUID: virtualDisks.inputStorageGroupUUIDs[vdIndex],
+            //   })),
+            //   installISOFileUUID: inputInstallISOFileUUID,
+            //   driverISOFileUUID: inputDriverISOFileUUID,
+            //   anvilUUID: inputAnvilValue,
+            //   optimizeForOS: inputOptimizeForOSValue?.key,
+            // };
+
+            setIsOpenProvisionConfirmDialog(false);
+          }}
+          titleText={`Provision ${inputServerNameValue}?`}
         />
-        {virtualDisks.maxes.map((max, vdIndex) =>
-          createVirtualDiskForm(
-            virtualDisks,
-            vdIndex,
-            setVirtualDisks,
-            storageGroupSelectItems,
-            includeStorageGroupUUIDs,
-            updateLimits,
-            storageGroupUUIDMapToData,
-            testInput,
-          ),
-        )}
-        <SelectWithLabel
-          disableItem={(value) => value === inputDriverISOFileUUID}
-          hideItem={(value) => !includeFileUUIDs.includes(value)}
-          id="ps-install-image"
-          inputLabelProps={{
-            isNotifyRequired: inputInstallISOFileUUID.length === 0,
-          }}
-          label="Install ISO"
-          messageBoxProps={inputInstallISOMessage}
-          selectItems={fileSelectItems}
-          selectProps={{
-            onChange: ({ target: { value } }) => {
-              const newInstallISOFileUUID = value as string;
-
-              handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
-            },
-            onClearIndicatorClick: () =>
-              handleInputInstallISOFileUUIDChange(''),
-            value: inputInstallISOFileUUID,
-          }}
-        />
-        <SelectWithLabel
-          disableItem={(value) => value === inputInstallISOFileUUID}
-          hideItem={(value) => !includeFileUUIDs.includes(value)}
-          id="ps-driver-image"
-          label="Driver ISO"
-          messageBoxProps={inputDriverISOMessage}
-          selectItems={fileSelectItems}
-          selectProps={{
-            onChange: ({ target: { value } }) => {
-              const newDriverISOFileUUID = value as string;
-
-              handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
-            },
-            onClearIndicatorClick: () => handleInputDriverISOFileUUIDChange(''),
-            value: inputDriverISOFileUUID,
-          }}
-        />
-        <SelectWithLabel
-          disableItem={(value) => !includeAnvilUUIDs.includes(value)}
-          id="ps-anvil"
-          inputLabelProps={{
-            isNotifyRequired: inputAnvilValue.length === 0,
-          }}
-          label="Anvil node pair"
-          messageBoxProps={inputAnvilMessage}
-          selectItems={anvilSelectItems}
-          selectProps={{
-            onChange: ({ target: { value } }) => {
-              const newAnvilUUID: string = value as string;
-
-              handleInputAnvilValueChange(newAnvilUUID);
-            },
-            onClearIndicatorClick: () => handleInputAnvilValueChange(''),
-            renderValue: (value) => {
-              const { anvilName: rvAnvilName = `Unknown ${value}` } =
-                anvilUUIDMapToData[value as string] ?? {};
-
-              return rvAnvilName;
-            },
-            value: inputAnvilValue,
-          }}
-        />
-        <Autocomplete
-          id="ps-optimize-for-os"
-          extendRenderInput={({ inputLabelProps = {} }) => {
-            inputLabelProps.isNotifyRequired = inputOptimizeForOSValue === null;
-          }}
-          label="Optimize for OS"
-          messageBoxProps={inputOptimizeForOSMessage}
-          noOptionsText="No matching OS"
-          onChange={(event, value) => {
-            setInputOptimizeForOSValue(value);
-          }}
-          openOnFocus
-          options={osAutocompleteOptions}
-          value={inputOptimizeForOSValue}
-        />
-      </Box>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'flex-end',
-          marginTop: '1em',
-          width: '100%',
-        }}
-      >
-        <ContainedButton disabled={!testInput({ isIgnoreOnCallbacks: true })}>
-          Provision
-        </ContainedButton>
-      </Box>
-    </Dialog>
+      )}
+    </>
   );
 };
 
