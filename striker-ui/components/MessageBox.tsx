@@ -1,5 +1,7 @@
-import { Box, BoxProps } from '@mui/material';
+import { FC, useState } from 'react';
+import { Box, BoxProps, IconButton } from '@mui/material';
 import {
+  Close as CloseIcon,
   Error as ErrorIcon,
   Info as InfoIcon,
   Warning as WarningIcon,
@@ -19,6 +21,7 @@ import { BodyText } from './Text';
 type MessageBoxType = 'error' | 'info' | 'warning';
 
 type MessageBoxOptionalProps = {
+  isAllowClose?: boolean;
   type?: MessageBoxType;
 };
 
@@ -42,15 +45,19 @@ const MESSAGE_BOX_TYPE_MAP_TO_ICON = {
 };
 
 const MESSAGE_BOX_DEFAULT_PROPS: Required<MessageBoxOptionalProps> = {
+  isAllowClose: false,
   type: 'info',
 };
 
-const MessageBox = ({
+const MessageBox: FC<MessageBoxProps> = ({
+  isAllowClose,
   type = MESSAGE_BOX_DEFAULT_PROPS.type,
   text,
   ...boxProps
-}: MessageBoxProps): JSX.Element => {
+}) => {
   const { sx: boxSx } = boxProps;
+
+  const [isShow, setIsShow] = useState<boolean>(true);
 
   const buildMessageBoxClasses = (messageBoxType: MessageBoxType) =>
     MESSAGE_BOX_CLASSES[messageBoxType];
@@ -79,6 +86,10 @@ const MessageBox = ({
       marginRight: '.3em',
     },
 
+    '& > :nth-child(2)': {
+      flexGrow: 1,
+    },
+
     [`&.${MESSAGE_BOX_CLASSES.error}`]: {
       backgroundColor: RED,
     },
@@ -86,7 +97,7 @@ const MessageBox = ({
     [`&.${MESSAGE_BOX_CLASSES.info}`]: {
       backgroundColor: GREY,
 
-      '& > :first-child': {
+      '& > *': {
         color: `${BLACK}`,
       },
     },
@@ -98,7 +109,7 @@ const MessageBox = ({
     ...boxSx,
   };
 
-  return (
+  return isShow ? (
     <Box
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
@@ -109,7 +120,18 @@ const MessageBox = ({
     >
       {buildMessageIcon(type)}
       {buildMessage(text, type)}
+      {isAllowClose && (
+        <IconButton
+          onClick={() => {
+            setIsShow(false);
+          }}
+        >
+          <CloseIcon sx={{ fontSize: '1.25rem' }} />
+        </IconButton>
+      )}
     </Box>
+  ) : (
+    <></>
   );
 };
 
