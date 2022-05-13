@@ -11,8 +11,9 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       sed: {},
     },
     sbin: {
-      'anvil-sync-shared': {},
       'anvil-access-module': {},
+      'anvil-provision-server': {},
+      'anvil-sync-shared': {},
       'striker-parse-os-list': {},
     },
   },
