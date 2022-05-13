@@ -1,8 +1,11 @@
+import { RequestHandler } from 'express';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryFileDetail from './buildQueryFileDetail';
+import { sanitizeQS } from '../../sanitizeQS';
 
-const getFile = buildGetRequestHandler((request) => {
-  const { filesUUID } = request.body;
+const getFile: RequestHandler = buildGetRequestHandler((request) => {
+  const { fileUUIDs } = request.query;
 
   let query = `
     SELECT
@@ -14,8 +17,10 @@ const getFile = buildGetRequestHandler((request) => {
     FROM files
     WHERE file_type != 'DELETED';`;
 
-  if (filesUUID) {
-    query = buildQueryFileDetail({ filesUUID });
+  if (fileUUIDs) {
+    query = buildQueryFileDetail({
+      fileUUIDs: sanitizeQS(fileUUIDs, { returnType: 'string[]' }),
+    });
   }
 
   return query;

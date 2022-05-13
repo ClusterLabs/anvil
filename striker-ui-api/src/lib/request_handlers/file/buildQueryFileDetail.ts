@@ -1,18 +1,18 @@
 import join from '../../join';
 
 const buildQueryFileDetail = ({
-  filesUUID,
+  fileUUIDs,
 }: {
-  filesUUID?: string[] | '*';
+  fileUUIDs?: string[] | '*';
 }) => {
-  const condFilesUUID = join(filesUUID, {
+  const condFileUUIDs = join(fileUUIDs, {
     beforeReturn: (toReturn) =>
       toReturn ? `AND fil.file_uuid IN (${toReturn})` : '',
     elementWrapper: "'",
     separator: ', ',
   });
 
-  console.log(`condFilesUUID=[${condFilesUUID}]`);
+  console.log(`condFilesUUID=[${condFileUUIDs}]`);
 
   return `
     SELECT
@@ -32,7 +32,7 @@ const buildQueryFileDetail = ({
     JOIN anvils AS anv
       ON fil_loc.file_location_anvil_uuid = anv.anvil_uuid
     WHERE fil.file_type != 'DELETED'
-      ${condFilesUUID};`;
+      ${condFileUUIDs};`;
 };
 
 export default buildQueryFileDetail;
