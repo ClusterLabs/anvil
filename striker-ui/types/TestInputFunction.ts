@@ -1,15 +1,19 @@
 export type InputTestArgs = {
   displayMax?: string;
   displayMin?: string;
-  max: bigint | number;
-  min: bigint | number;
+  max?: bigint | number;
+  min?: bigint | number;
   value?: bigint | number | null | string;
 };
+
+export type MinimalInputTestArgs = Required<
+  Omit<InputTestArgs, 'displayMax' | 'displayMin'>
+>;
 
 export type InputTest = {
   onFailure?: (args: InputTestArgs) => void;
   onSuccess?: () => void;
-  test: (args: InputTestArgs) => boolean;
+  test: (args: MinimalInputTestArgs) => boolean;
 };
 
 export type InputTestBatches = {
