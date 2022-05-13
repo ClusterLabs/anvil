@@ -10,14 +10,20 @@ import { Box, Dialog, DialogProps, InputAdornment } from '@mui/material';
 import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
 
+import { BLUE, TEXT } from '../lib/consts/DEFAULT_THEME';
+
 import Autocomplete from './Autocomplete';
+import ConfirmDialog from './ConfirmDialog';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
-import { MessageBoxProps } from './MessageBox';
+import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
+import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
+import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 import { Panel, PanelHeader } from './Panels';
 import SelectWithLabel, { SelectItem } from './SelectWithLabel';
 import Slider, { SliderProps } from './Slider';
+import Spinner from './Spinner';
 import {
   testInput as baseTestInput,
   testMax,
@@ -29,8 +35,6 @@ import {
   TestInputFunction,
 } from '../types/TestInputFunction';
 import { BodyText, HeaderText } from './Text';
-import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
-import ConfirmDialog from './ConfirmDialog';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -367,6 +371,15 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
 ];
 
 const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
+
+const PROVISION_BUTTON_STYLES = {
+  backgroundColor: BLUE,
+  color: TEXT,
+
+  '&:hover': {
+    backgroundColor: BLUE,
+  },
+};
 
 const createOutlinedSlider = (
   id: string,
@@ -1104,6 +1117,11 @@ const ProvisionServerDialog = ({
 
   const [isOpenProvisionConfirmDialog, setIsOpenProvisionConfirmDialog] =
     useState<boolean>(false);
+  const [isProvisionRequestInProgress, setIsProvisionRequestInProgress] =
+    useState<boolean>(false);
+
+  const [successfulProvisionCount, setSuccessfulProvisionCount] =
+    useState<number>(0);
 
   const inputTests: InputTestBatches = {
     serverName: {
@@ -1505,7 +1523,6 @@ const ProvisionServerDialog = ({
             flexDirection: 'column',
             maxHeight: '50vh',
             overflowY: 'scroll',
-            paddingBottom: '.6em',
             paddingTop: '.6em',
 
             '& > :not(:first-child)': {
@@ -1697,20 +1714,42 @@ const ProvisionServerDialog = ({
         <Box
           sx={{
             display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'flex-end',
+            flexDirection: 'column',
             marginTop: '1em',
-            width: '100%',
+
+            '& > :not(:first-child)': {
+              marginTop: '1em',
+            },
           }}
         >
-          <ContainedButton
-            disabled={!testInput({ isIgnoreOnCallbacks: true })}
-            onClick={() => {
-              setIsOpenProvisionConfirmDialog(true);
-            }}
-          >
-            Provision
-          </ContainedButton>
+          {successfulProvisionCount > 0 && (
+            <MessageBox
+              isAllowClose
+              text="Provision server job registered. You can provision another server, or exit; it won't affect the registered job."
+            />
+          )}
+          {isProvisionRequestInProgress ? (
+            <Spinner sx={{ marginTop: 0 }} />
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'flex-end',
+                width: '100%',
+              }}
+            >
+              <ContainedButton
+                disabled={!testInput({ isIgnoreOnCallbacks: true })}
+                onClick={() => {
+                  setIsOpenProvisionConfirmDialog(true);
+                }}
+                sx={PROVISION_BUTTON_STYLES}
+              >
+                Provision
+              </ContainedButton>
+            </Box>
+          )}
         </Box>
       </Dialog>
       {isOpenProvisionConfirmDialog && (
@@ -1755,22 +1794,34 @@ const ProvisionServerDialog = ({
             setIsOpenProvisionConfirmDialog(false);
           }}
           onProceed={() => {
-            // const requestBody = {
-            //   serverName: inputServerNameValue,
-            //   cpuCores: inputCPUCoresValue,
-            //   memory,
-            //   virtualDisks: virtualDisks.stateIds.map((vdStateId, vdIndex) => ({
-            //     size: virtualDisks.sizes[vdIndex],
-            //     storageGroupUUID: virtualDisks.inputStorageGroupUUIDs[vdIndex],
-            //   })),
-            //   installISOFileUUID: inputInstallISOFileUUID,
-            //   driverISOFileUUID: inputDriverISOFileUUID,
-            //   anvilUUID: inputAnvilValue,
-            //   optimizeForOS: inputOptimizeForOSValue?.key,
-            // };
+            const requestBody = JSON.stringify({
+              serverName: inputServerNameValue,
+              cpuCores: inputCPUCoresValue,
+              memory: memory.toString(),
+              virtualDisks: virtualDisks.stateIds.map((vdStateId, vdIndex) => ({
+                storageSize: virtualDisks.sizes[vdIndex].toString(),
+                storageGroupUUID: virtualDisks.inputStorageGroupUUIDs[vdIndex],
+              })),
+              installISOFileUUID: inputInstallISOFileUUID,
+              driverISOFileUUID: inputDriverISOFileUUID,
+              anvilUUID: inputAnvilValue,
+              optimizeForOS: inputOptimizeForOSValue?.key,
+            });
+
+            setIsProvisionRequestInProgress(true);
+
+            mainAxiosInstance
+              .post('/server', requestBody, {
+                headers: { 'Content-Type': 'application/json' },
+              })
+              .then(() => {
+                setIsProvisionRequestInProgress(false);
+                setSuccessfulProvisionCount(successfulProvisionCount + 1);
+              });
 
             setIsOpenProvisionConfirmDialog(false);
           }}
+          proceedButtonProps={{ sx: PROVISION_BUTTON_STYLES }}
           titleText={`Provision ${inputServerNameValue}?`}
         />
       )}
