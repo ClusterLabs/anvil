@@ -4,20 +4,25 @@ import NODE_AND_DR_RESERVED_MEMORY_SIZE from '../../consts/NODE_AND_DR_RESERVED_
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import join from '../../join';
+import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 
 const buildQueryAnvilDetail = ({
-  anvilUUIDs,
+  anvilUUIDs = ['*'],
   isForProvisionServer,
 }: {
   anvilUUIDs?: string[] | '*';
   isForProvisionServer?: boolean;
 }) => {
-  const condAnvilsUUID = join(anvilUUIDs, {
-    beforeReturn: (toReturn) =>
-      toReturn ? `WHERE anv.anvil_uuid IN (${toReturn})` : '',
-    elementWrapper: "'",
-    separator: ', ',
-  });
+  const condAnvilsUUID = ['all', '*'].includes(anvilUUIDs[0])
+    ? ''
+    : join(anvilUUIDs, {
+        beforeReturn: (toReturn) =>
+          toReturn
+            ? `WHERE anv.anvil_uuid IN (${sanitizeSQLParam(toReturn)})`
+            : '',
+        elementWrapper: "'",
+        separator: ', ',
+      });
 
   console.log(`condAnvilsUUID=[${condAnvilsUUID}]`);
 

@@ -19,10 +19,8 @@ const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
       : String(qs).split(/[,;]/),
 };
 
-const sanitizeQS = <ReturnTypeName extends keyof MapToReturnType>(
+export const sanitizeQS = <ReturnTypeName extends keyof MapToReturnType>(
   qs: unknown,
   { returnType = 'string' }: { returnType?: ReturnTypeName | 'string' } = {},
 ): MapToReturnType[ReturnTypeName] =>
   MAP_TO_RETURN_FUNCTION[returnType](qs) as MapToReturnType[ReturnTypeName];
-
-export { sanitizeQS };
