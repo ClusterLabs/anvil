@@ -6,13 +6,13 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 import join from '../../join';
 
 const buildQueryAnvilDetail = ({
-  anvilsUUID,
+  anvilUUIDs,
   isForProvisionServer,
 }: {
-  anvilsUUID?: string[] | '*';
+  anvilUUIDs?: string[] | '*';
   isForProvisionServer?: boolean;
 }) => {
-  const condAnvilsUUID = join(anvilsUUID, {
+  const condAnvilsUUID = join(anvilUUIDs, {
     beforeReturn: (toReturn) =>
       toReturn ? `WHERE anv.anvil_uuid IN (${toReturn})` : '',
     elementWrapper: "'",
