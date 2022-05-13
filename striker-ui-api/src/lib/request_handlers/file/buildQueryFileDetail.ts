@@ -1,16 +1,21 @@
 import join from '../../join';
+import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 
 const buildQueryFileDetail = ({
-  fileUUIDs,
+  fileUUIDs = ['*'],
 }: {
   fileUUIDs?: string[] | '*';
 }) => {
-  const condFileUUIDs = join(fileUUIDs, {
-    beforeReturn: (toReturn) =>
-      toReturn ? `AND fil.file_uuid IN (${toReturn})` : '',
-    elementWrapper: "'",
-    separator: ', ',
-  });
+  const condFileUUIDs = ['all', '*'].includes(fileUUIDs[0])
+    ? ''
+    : join(fileUUIDs, {
+        beforeReturn: (toReturn) =>
+          toReturn
+            ? `AND fil.file_uuid IN (${sanitizeSQLParam(toReturn)})`
+            : '',
+        elementWrapper: "'",
+        separator: ', ',
+      });
 
   console.log(`condFilesUUID=[${condFileUUIDs}]`);
 
