@@ -7,15 +7,17 @@ import {
   useState,
 } from 'react';
 import { Box, Dialog, DialogProps, InputAdornment } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BLUE, TEXT } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 import Autocomplete from './Autocomplete';
 import ConfirmDialog from './ConfirmDialog';
 import ContainedButton, { ContainedButtonProps } from './ContainedButton';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
+import IconButton, { IconButtonProps } from './IconButton';
 import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
 import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
@@ -40,6 +42,7 @@ type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
 type ProvisionServerDialogProps = {
   dialogProps: DialogProps;
+  onClose: IconButtonProps['onClick'];
 };
 
 type HostMetadataForProvisionServerHost = {
@@ -200,6 +203,12 @@ const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
 ];
 
 const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
+
+const CPU_CORES_MIN = 1;
+// Unit: bytes; 64 KiB
+const MEMORY_MIN = BigInt(65536);
+// Unit: bytes; 100 MiB
+const VIRTUAL_DISK_SIZE_MIN = BigInt(104857600);
 
 const PROVISION_BUTTON_STYLES = {
   backgroundColor: BLUE,
@@ -866,11 +875,37 @@ const addVirtualDisk = ({
 const filterBlanks: (array: string[]) => string[] = (array: string[]) =>
   array.filter((value) => value !== '');
 
+const getDisplayDsizeOptions = (
+  onSuccessString: (value: string, unit: DataSizeUnit) => void,
+): Parameters<typeof dsize>[1] => ({
+  fromUnit: 'B',
+  onSuccess: {
+    string: onSuccessString,
+  },
+  precision: 0,
+  toUnit: 'ibyte',
+});
+let displayMemoryMin: string;
+let displayVirtualDiskSizeMin: string;
+
+dsize(
+  MEMORY_MIN,
+  getDisplayDsizeOptions((value, unit) => {
+    displayMemoryMin = `${value} ${unit}`;
+  }),
+);
+
+dsize(
+  VIRTUAL_DISK_SIZE_MIN,
+  getDisplayDsizeOptions((value, unit) => {
+    displayVirtualDiskSizeMin = `${value} ${unit}`;
+  }),
+);
+
 const ProvisionServerDialog = ({
   dialogProps: { open },
+  onClose: onCloseProvisionServerDialog,
 }: ProvisionServerDialogProps): JSX.Element => {
-  const inputCPUCoresMin = 1;
-
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
@@ -954,8 +989,6 @@ const ProvisionServerDialog = ({
   const inputTests: InputTestBatches = {
     serverName: {
       defaults: {
-        max: 0,
-        min: 0,
         onSuccess: () => {
           setInputServerNameMessage(undefined);
         },
@@ -989,7 +1022,7 @@ const ProvisionServerDialog = ({
     cpuCores: {
       defaults: {
         max: inputCPUCoresMax,
-        min: inputCPUCoresMin,
+        min: CPU_CORES_MIN,
         onSuccess: () => {
           setInputCPUCoresMessage(undefined);
         },
@@ -1019,9 +1052,9 @@ const ProvisionServerDialog = ({
     memory: {
       defaults: {
         displayMax: `${inputMemoryMax} ${inputMemoryUnit}`,
-        displayMin: '1 B',
+        displayMin: displayMemoryMin,
         max: memoryMax,
-        min: 1,
+        min: MEMORY_MIN,
         onSuccess: () => {
           setInputMemoryMessage(undefined);
         },
@@ -1047,8 +1080,6 @@ const ProvisionServerDialog = ({
     },
     installISO: {
       defaults: {
-        max: 0,
-        min: 0,
         onSuccess: () => {
           setInputInstallISOMessage(undefined);
         },
@@ -1058,8 +1089,6 @@ const ProvisionServerDialog = ({
     },
     anvil: {
       defaults: {
-        max: 0,
-        min: 0,
         onSuccess: () => {
           setInputAnvilMessage(undefined);
         },
@@ -1069,8 +1098,6 @@ const ProvisionServerDialog = ({
     },
     optimizeForOS: {
       defaults: {
-        max: 0,
-        min: 0,
         onSuccess: () => {
           setInputOptimizeForOSMessage(undefined);
         },
@@ -1083,9 +1110,9 @@ const ProvisionServerDialog = ({
     inputTests[`vd${vdIndex}Size`] = {
       defaults: {
         displayMax: `${virtualDisks.inputMaxes[vdIndex]} ${virtualDisks.inputUnits[vdIndex]}`,
-        displayMin: '1 B',
+        displayMin: displayVirtualDiskSizeMin,
         max: virtualDisks.maxes[vdIndex],
-        min: 1,
+        min: VIRTUAL_DISK_SIZE_MIN,
         onSuccess: () => {
           virtualDisks.inputSizeMessages[vdIndex] = undefined;
         },
@@ -1118,8 +1145,6 @@ const ProvisionServerDialog = ({
 
     inputTests[`vd${vdIndex}StorageGroup`] = {
       defaults: {
-        max: 0,
-        min: 0,
         onSuccess: () => {
           virtualDisks.inputStorageGroupUUIDMessages[vdIndex] = undefined;
         },
@@ -1353,6 +1378,17 @@ const ProvisionServerDialog = ({
       >
         <PanelHeader>
           <HeaderText text="Provision a Server" />
+          <IconButton
+            onClick={onCloseProvisionServerDialog}
+            sx={{
+              backgroundColor: RED,
+              color: TEXT,
+
+              '&:hover': { backgroundColor: RED },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </PanelHeader>
         <Box
           sx={{
@@ -1413,7 +1449,7 @@ const ProvisionServerDialog = ({
                   }
                 },
                 max: inputCPUCoresMax,
-                min: inputCPUCoresMin,
+                min: CPU_CORES_MIN,
               },
             },
           )}
