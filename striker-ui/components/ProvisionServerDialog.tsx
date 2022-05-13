@@ -388,7 +388,6 @@ const createOutlinedSlider = (
   sliderProps?: Partial<SliderProps>,
 ): JSX.Element => (
   <Slider
-    // eslint-disable-next-line react/jsx-props-no-spreading
     {...{
       isAllowTextInput: true,
       label,

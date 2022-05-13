@@ -25,7 +25,6 @@ const ContainedButton = (
 
   return (
     <MUIButton
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         variant: 'contained',
         ...containedButtonProps,

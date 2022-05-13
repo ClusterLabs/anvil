@@ -63,13 +63,11 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
 }) => (
   <MUIFormControl>
     {label && (
-      // eslint-disable-next-line react/jsx-props-no-spreading
       <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
         {label}
       </OutlinedInputLabel>
     )}
     <Select
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         id,
         input: <OutlinedInput {...{ label }} />,
@@ -92,7 +90,6 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
         </MenuItem>
       ))}
     </Select>
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
     <InputMessageBox {...messageBoxProps} />
   </MUIFormControl>
 );

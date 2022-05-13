@@ -70,7 +70,6 @@ const OutlinedLabeledInputWithSelect: FC<
       }}
     >
       <OutlinedInputWithLabel
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
           id,
           label,
@@ -78,7 +77,6 @@ const OutlinedLabeledInputWithSelect: FC<
         }}
       />
       <SelectWithLabel
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
           id: `${id}-nested-select`,
           selectItems,
@@ -86,7 +84,6 @@ const OutlinedLabeledInputWithSelect: FC<
         }}
       />
     </Box>
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
     <InputMessageBox {...messageBoxProps} />
   </Box>
 );

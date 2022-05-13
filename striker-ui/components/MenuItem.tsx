@@ -38,7 +38,6 @@ const MenuItem = (menuItemProps: MUIMenuItemProps): JSX.Element => {
 
   return (
     <MUIMenuItem
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         ...menuItemProps,
         sx: combinedSx,

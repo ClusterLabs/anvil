@@ -41,7 +41,6 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
 
   return (
     <MUIOutlinedInput
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         label,
         ...outlinedInputRestProps,
