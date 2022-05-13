@@ -310,7 +310,7 @@ const buildQueryAnvilDetail = ({
         );
 
         const osList = execSync(
-          `${SERVER_PATHS.usr.sbin['striker-parse-os-list'].self} | ${SERVER_PATHS.usr.bin['sed'].self} -E 's/^.*name="([^"]+).*CDATA[[]([^]]+).*$/\\1,\\2/'`,
+          `${SERVER_PATHS.usr.sbin['striker-parse-os-list'].self} | ${SERVER_PATHS.usr.bin['sed'].self} -E 's/^.*name="os_list_([^"]+).*CDATA[[]([^]]+).*$/\\1,\\2/'`,
           { encoding: 'utf-8', timeout: 10000 },
         ).split('\n');
 
