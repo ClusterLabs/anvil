@@ -51,10 +51,10 @@ const testInput: TestInputFunction = ({
       defaults: {
         displayMax: dDisplayMax,
         displayMin: dDisplayMin,
-        max: dMax,
-        min: dMin,
+        max: dMax = 0,
+        min: dMin = 0,
         onSuccess: dOnSuccess,
-        value: dValue,
+        value: dValue = null,
       },
       onFinishBatch,
       optionalTests,
@@ -75,8 +75,7 @@ const testInput: TestInputFunction = ({
       onSuccess = dOnSuccess,
       test,
     }) => {
-      const args = { displayMax, displayMin, max, min, value };
-      const singleResult: boolean = test(args);
+      const singleResult: boolean = test({ max, min, value });
 
       const { cbFailure, cbSuccess } = setSingleCallback({
         onFailure,
@@ -88,7 +87,7 @@ const testInput: TestInputFunction = ({
       } else {
         allResult = singleResult;
 
-        cbFailure?.call(null, args);
+        cbFailure?.call(null, { displayMax, displayMin, max, min, value });
       }
 
       return singleResult;

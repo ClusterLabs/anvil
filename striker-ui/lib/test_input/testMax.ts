@@ -1,5 +1,6 @@
-import { InputTestArgs } from '../../types/TestInputFunction';
+import { MinimalInputTestArgs } from '../../types/TestInputFunction';
 
-const testMax: (args: InputTestArgs) => boolean = ({ max, min }) => max >= min;
+const testMax: (args: MinimalInputTestArgs) => boolean = ({ max, min }) =>
+  max >= min;
 
 export default testMax;
