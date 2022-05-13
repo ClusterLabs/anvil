@@ -7,7 +7,6 @@ import {
   List,
   ListItem,
   Menu,
-  MenuItem,
   styled,
   Typography,
 } from '@mui/material';
@@ -33,14 +32,15 @@ import serverState from '../lib/consts/SERVERS';
 import { AnvilContext } from './AnvilContext';
 import Decorator, { Colours } from './Decorator';
 import IconButton from './IconButton';
+import MenuItem from './MenuItem';
 import { Panel, PanelHeader } from './Panels';
+import ProvisionServerDialog from './ProvisionServerDialog';
 import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
 
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import putFetch from '../lib/fetchers/putFetch';
-import ProvisionServerDialog from './ProvisionServerDialog';
 
 const PREFIX = 'Servers';
 
@@ -148,14 +148,6 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const ServerActionButtonMenuItem = styled(MenuItem)({
-  backgroundColor: GREY,
-  paddingRight: '3em',
-  '&:hover': {
-    backgroundColor: GREY,
-  },
-});
-
 const ServerActionButtonMenuItemLabel = styled(Typography)({
   [`&.${classes.on}`]: {
     color: BLUE,
@@ -180,9 +172,10 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const buttonLabels = useRef<ButtonLabels[]>([]);
 
-  const { data, isLoading } = periodicFetch<AnvilServers>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
-  );
+  const { data: { servers = [] } = {}, isLoading } =
+    periodicFetch<AnvilServers>(
+      `${process.env.NEXT_PUBLIC_API_URL}/get_servers?anvil_uuid=${uuid}`,
+    );
 
   const setButtons = (filtered: AnvilServer[]) => {
     buttonLabels.current = [];
@@ -221,7 +214,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     if (index === -1) selected.push(server_uuid);
     else selected.splice(index, 1);
 
-    const filtered = data.servers.filter(
+    const filtered = servers.filter(
       (server: AnvilServer) => selected.indexOf(server.server_uuid) !== -1,
     );
     setButtons(filtered);
@@ -269,17 +262,14 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     onClose={() => setAnchorEl(null)}
                   >
                     {buttonLabels.current.map((label: ButtonLabels) => (
-                      <ServerActionButtonMenuItem
-                        onClick={() => handlePower(label)}
-                        key={label}
-                      >
+                      <MenuItem onClick={() => handlePower(label)} key={label}>
                         <ServerActionButtonMenuItemLabel
                           className={classes[label]}
                           variant="subtitle1"
                         >
                           {label.replace(/^[a-z]/, (c) => c.toUpperCase())}
                         </ServerActionButtonMenuItemLabel>
-                      </ServerActionButtonMenuItem>
+                      </MenuItem>
                     ))}
                   </Menu>
                 </Box>
@@ -292,9 +282,9 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     checked={allSelected}
                     onChange={() => {
                       if (!allSelected) {
-                        setButtons(data.servers);
+                        setButtons(servers);
                         setSelected(
-                          data.servers.map(
+                          servers.map(
                             (server: AnvilServer) => server.server_uuid,
                           ),
                         );
@@ -316,7 +306,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
           {!isLoading ? (
             <Box className={classes.root}>
               <List component="nav">
-                {data?.servers.map((server: AnvilServer) => (
+                {servers.map((server: AnvilServer) => (
                   <>
                     <ListItem
                       button
@@ -400,6 +390,9 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
       </Panel>
       <ProvisionServerDialog
         dialogProps={{ open: isOpenProvisionServerDialog }}
+        onClose={() => {
+          setIsOpenProvisionServerDialog(false);
+        }}
       />
     </>
   );
