@@ -39,14 +39,11 @@ const OutlinedInputWithLabel = ({
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
 }: OutlinedInputWithLabelProps): JSX.Element => (
-  // eslint-disable-next-line react/jsx-props-no-spreading
   <MUIFormControl {...formControlProps}>
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
     <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
       {label}
     </OutlinedInputLabel>
     <OutlinedInput
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         fullWidth: formControlProps.fullWidth,
         id,
@@ -54,7 +51,6 @@ const OutlinedInputWithLabel = ({
         ...inputProps,
       }}
     />
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
     <InputMessageBox {...messageBoxProps} />
   </MUIFormControl>
 );

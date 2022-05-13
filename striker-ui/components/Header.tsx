@@ -82,7 +82,6 @@ const Header = (): JSX.Element => {
                   alt=""
                   key="icon"
                   src={icon.image}
-                  // eslint-disable-next-line react/jsx-props-no-spreading
                   {...ICON_SIZE}
                   className={classes.icons}
                 />

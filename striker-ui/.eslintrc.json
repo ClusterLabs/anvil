@@ -54,6 +54,7 @@
     // Importing React is not required in Next.js
     "react/react-in-jsx-scope": "off",
     "react/jsx-curly-newline": "off",
+    "react/jsx-props-no-spreading": "off",
     "@next/next/no-img-element": "off",
     "@typescript-eslint/camelcase": "off"
   },

@@ -10,7 +10,6 @@ const InputMessageBox: FC<Partial<MessageBoxProps>> = ({
   <>
     {text && (
       <MessageBox
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...{ ...restProps, sx: { marginTop: '.4em', ...sx }, text }}
       />
     )}

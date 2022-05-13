@@ -133,7 +133,6 @@ const createOutlinedInput = ({
   isFocused?: boolean;
 }) => (
   <OutlinedInput
-    // eslint-disable-next-line react/jsx-props-no-spreading
     {...{
       key,
       className: isFocused ? muiOutlinedInputClasses.focused : '',
@@ -222,7 +221,6 @@ const Slider = ({
       }}
     >
       <OutlinedInputLabel
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
           className: isFocused ? muiInputLabelClasses.focused : '',
           id: labelId,
@@ -288,7 +286,6 @@ const Slider = ({
           }),
         )}
       </Box>
-      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <InputMessageBox {...messageBoxProps} />
     </FormControl>
   );

@@ -45,7 +45,6 @@ const OutlinedInputLabel = (
 
   return (
     <MUIInputLabel
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         // 1. Specify default props.
         variant,

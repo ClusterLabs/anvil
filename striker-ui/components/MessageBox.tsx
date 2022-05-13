@@ -111,7 +111,6 @@ const MessageBox: FC<MessageBoxProps> = ({
 
   return isShow ? (
     <Box
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         ...boxProps,
         className: buildMessageBoxClasses(type),

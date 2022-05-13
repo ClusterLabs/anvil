@@ -45,7 +45,6 @@ type AutocompleteProps<
 
 const GrowPaper = (paperProps: MUIPaperProps): JSX.Element => (
   <MUIGrow in>
-    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
     <MUIPaper {...paperProps} />
   </MUIGrow>
 );
@@ -103,7 +102,6 @@ const Autocomplete = <
 
       extendRenderInput?.call(null, inputWithLabelProps, renderInputParams);
 
-      // eslint-disable-next-line react/jsx-props-no-spreading
       return <OutlinedInputWithLabel {...inputWithLabelProps} />;
     });
   const combinedSx = {
@@ -122,7 +120,6 @@ const Autocomplete = <
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <MUIAutocomplete
-        // eslint-disable-next-line react/jsx-props-no-spreading
         {...{
           PaperComponent: GrowPaper,
           ...autocompleteRestProps,
@@ -131,7 +128,6 @@ const Autocomplete = <
           sx: combinedSx,
         }}
       />
-      {/* eslint-disable-next-line react/jsx-props-no-spreading */}
       <InputMessageBox {...messageBoxProps} />
     </Box>
   );

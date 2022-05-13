@@ -64,7 +64,6 @@ const Select: FC<SelectProps> = (selectProps) => {
 
   return (
     <MUISelect
-      // eslint-disable-next-line react/jsx-props-no-spreading
       {...{
         endAdornment: clearIndicator,
         ...muiSelectProps,
