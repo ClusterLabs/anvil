@@ -1,4 +1,5 @@
-import HeaderText from './HeaderText';
 import BodyText from './BodyText';
+import HeaderText from './HeaderText';
+import Monospace from './Monospace';
 
-export { HeaderText, BodyText };
+export { BodyText, HeaderText, Monospace };
