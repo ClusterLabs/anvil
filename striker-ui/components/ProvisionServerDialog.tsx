@@ -6,7 +6,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Box, Dialog, DialogProps, InputAdornment } from '@mui/material';
+import { Box, Dialog, DialogProps, Grid, InputAdornment } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,7 +36,7 @@ import {
   InputTestBatches,
   TestInputFunction,
 } from '../types/TestInputFunction';
-import { BodyText, HeaderText } from './Text';
+import { BodyText, HeaderText, Monospace } from './Text';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -1317,6 +1317,124 @@ const ProvisionServerDialog = ({
     });
   };
 
+  const createConfirmDialogContent = () => {
+    const gridColumns = 8;
+    const c1 = 2;
+    const c2 = 3;
+    const c3 = 3;
+    const c2n3 = c2 + c3;
+
+    return (
+      <Grid container columns={gridColumns} direction="column">
+        <Grid direction="row" item xs={gridColumns}>
+          <BodyText>
+            Server <Monospace text={inputServerNameValue} /> will be created on
+            anvil node pair{' '}
+            <Monospace text={anvilUUIDMapToData[inputAnvilValue].anvilName} />{' '}
+            with the following properties:
+          </BodyText>
+        </Grid>
+        <Grid container direction="row" item xs={gridColumns}>
+          <Grid item xs={c1}>
+            <BodyText text="CPU" />
+          </Grid>
+          <Grid item xs={c2}>
+            <BodyText>
+              <Monospace text={inputCPUCoresValue} /> core(s)
+            </BodyText>
+          </Grid>
+          <Grid item xs={c3}>
+            <BodyText>
+              <Monospace text={inputCPUCoresMax} /> core(s) available
+            </BodyText>
+          </Grid>
+        </Grid>
+        <Grid container direction="row" item xs={gridColumns}>
+          <Grid item xs={c1}>
+            <BodyText text="Memory" />
+          </Grid>
+          <Grid item xs={c2}>
+            <Monospace text={`${inputMemoryValue} ${inputMemoryUnit}`} />
+          </Grid>
+          <Grid item xs={c3}>
+            <BodyText>
+              <Monospace text={`${inputMemoryMax} ${inputMemoryUnit}`} />{' '}
+              available
+            </BodyText>
+          </Grid>
+        </Grid>
+        {virtualDisks.stateIds.map((vdStateId, vdIndex) => {
+          const vdInputMax = virtualDisks.inputMaxes[vdIndex];
+          const vdInputSize = virtualDisks.inputSizes[vdIndex];
+          const vdInputUnit = virtualDisks.inputUnits[vdIndex];
+          const vdStorageGroupName =
+            storageGroupUUIDMapToData[
+              virtualDisks.inputStorageGroupUUIDs[vdIndex]
+            ].storageGroupName;
+
+          return (
+            <Grid
+              container
+              direction="row"
+              key={`ps-virtual-disk-${vdStateId}-summary`}
+              item
+              xs={gridColumns}
+            >
+              <Grid item xs={c1}>
+                <BodyText>
+                  Virtual disk <Monospace text={vdIndex} />
+                </BodyText>
+              </Grid>
+              <Grid item xs={c2}>
+                <BodyText>
+                  <Monospace text={`${vdInputSize} ${vdInputUnit}`} /> on{' '}
+                  {vdStorageGroupName}
+                </BodyText>
+              </Grid>
+              <Grid item xs={c3}>
+                <BodyText>
+                  <Monospace text={`${vdInputMax} ${vdInputUnit}`} /> available
+                </BodyText>
+              </Grid>
+            </Grid>
+          );
+        })}
+        <Grid container direction="row" item xs={gridColumns}>
+          <Grid item xs={c1}>
+            <BodyText text="Install ISO" />
+          </Grid>
+          <Grid item xs={c2n3}>
+            <Monospace
+              text={fileUUIDMapToData[inputInstallISOFileUUID].fileName}
+            />
+          </Grid>
+        </Grid>
+        <Grid container direction="row" item xs={gridColumns}>
+          <Grid item xs={c1}>
+            <BodyText text="Driver ISO" />
+          </Grid>
+          <Grid item xs={c2n3}>
+            {fileUUIDMapToData[inputDriverISOFileUUID] ? (
+              <Monospace
+                text={fileUUIDMapToData[inputDriverISOFileUUID].fileName}
+              />
+            ) : (
+              <BodyText text="none" />
+            )}
+          </Grid>
+        </Grid>
+        <Grid container direction="row" item xs={gridColumns}>
+          <Grid item xs={c1}>
+            <BodyText text="Optimize for OS" />
+          </Grid>
+          <Grid item xs={c2n3}>
+            <BodyText text={`${inputOptimizeForOSValue?.label}`} />
+          </Grid>
+        </Grid>
+      </Grid>
+    );
+  };
+
   useEffect(() => {
     mainAxiosInstance
       .get('/anvil', {
@@ -1628,40 +1746,7 @@ const ProvisionServerDialog = ({
       {isOpenProvisionConfirmDialog && (
         <ConfirmDialog
           actionProceedText="Provision"
-          content={
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <BodyText
-                text={`Server ${inputServerNameValue} will be created on anvil node pair ${anvilUUIDMapToData[inputAnvilValue].anvilName} with the following properties:`}
-              />
-              <BodyText text={`CPU: ${inputCPUCoresValue} core(s)`} />
-              <BodyText
-                text={`Memory: ${inputMemoryValue} ${inputMemoryUnit}`}
-              />
-              {virtualDisks.stateIds.map((vdStateId, vdIndex) => (
-                <BodyText
-                  key={`ps-virtual-disk-${vdStateId}-summary`}
-                  text={`Virtual disk ${vdIndex}: ${
-                    virtualDisks.inputSizes[vdIndex]
-                  } ${virtualDisks.inputUnits[vdIndex]} on ${
-                    storageGroupUUIDMapToData[
-                      virtualDisks.inputStorageGroupUUIDs[vdIndex]
-                    ].storageGroupName
-                  }`}
-                />
-              ))}
-              <BodyText
-                text={`Install ISO: ${fileUUIDMapToData[inputInstallISOFileUUID].fileName}`}
-              />
-              <BodyText
-                text={`Driver ISO: ${
-                  fileUUIDMapToData[inputDriverISOFileUUID]?.fileName ?? 'none'
-                }`}
-              />
-              <BodyText
-                text={`Optimize for OS: ${inputOptimizeForOSValue?.label}`}
-              />
-            </Box>
-          }
+          content={createConfirmDialogContent()}
           dialogProps={{ open: isOpenProvisionConfirmDialog }}
           onCancel={() => {
             setIsOpenProvisionConfirmDialog(false);
