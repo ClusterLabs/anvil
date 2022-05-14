@@ -1,7 +1,5 @@
-import { execSync } from 'child_process';
-
 import NODE_AND_DR_RESERVED_MEMORY_SIZE from '../../consts/NODE_AND_DR_RESERVED_MEMORY_SIZE';
-import SERVER_PATHS from '../../consts/SERVER_PATHS';
+import { OS_LIST } from '../../consts/OS_LIST';
 
 import join from '../../join';
 import { sanitizeSQLParam } from '../../sanitizeSQLParam';
@@ -309,16 +307,9 @@ const buildQueryAnvilDetail = ({
           [],
         );
 
-        const osList = execSync(
-          `${SERVER_PATHS.usr.sbin['striker-parse-os-list'].self} | ${SERVER_PATHS.usr.bin['sed'].self} -E 's/^.*name="os_list_([^"]+).*CDATA[[]([^]]+).*$/\\1,\\2/'`,
-          { encoding: 'utf-8', timeout: 10000 },
-        ).split('\n');
-
-        osList.pop();
-
         results = {
           anvils,
-          osList,
+          osList: OS_LIST,
         };
       }
 
