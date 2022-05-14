@@ -34,30 +34,40 @@ driver_iso=${driverISOFileUUID}`;
 
     console.log(`provisionServerJobData: [${provisionServerJobData}]`);
 
-    let provisionServerJobHostUUID: string;
+    const [[provisionServerJobHostUUID]] = dbQuery(
+      `SELECT
+          CASE
+            WHEN pri_hos.primary_host_uuid IS NULL
+              THEN nod_1.node1_host_uuid
+            ELSE pri_hos.primary_host_uuid
+          END AS host_uuid
+        FROM (
+          SELECT
+            1 AS phl,
+            sca_clu_nod.scan_cluster_node_host_uuid AS primary_host_uuid
+          FROM anvils AS anv
+          JOIN scan_cluster_nodes AS sca_clu_nod
+            ON sca_clu_nod.scan_cluster_node_host_uuid = anv.anvil_node1_host_uuid
+              OR sca_clu_nod.scan_cluster_node_host_uuid = anv.anvil_node2_host_uuid
+          WHERE sca_clu_nod.scan_cluster_node_in_ccm
+            AND sca_clu_nod.scan_cluster_node_crmd_member
+            AND sca_clu_nod.scan_cluster_node_cluster_member
+            AND (NOT sca_clu_nod.scan_cluster_node_maintenance_mode)
+            AND anv.anvil_uuid = '${anvilUUID}'
+          ORDER BY sca_clu_nod.scan_cluster_node_name
+          LIMIT 1
+        ) AS pri_hos
+        RIGHT JOIN (
+          SELECT
+            1 AS phr,
+            anv.anvil_node1_host_uuid AS node1_host_uuid
+          FROM anvils AS anv
+          WHERE anv.anvil_uuid = '${anvilUUID}'
+        ) AS nod_1
+          ON pri_hos.phl = nod_1.phr;`,
+    ).stdout;
 
-    ({ stdout: provisionServerJobHostUUID } = sub('get_primary_host_uuid', {
-      subModuleName: 'Cluster',
-      subParams: {
-        anvil_uuid: anvilUUID,
-        test_access_user: 'admin',
-      },
-    }));
-
-    console.log(
-      `provisionServerJobHostUUID from Cluster->get_primary_host_uuid(): [${provisionServerJobHostUUID}]`,
-    );
-
-    if (provisionServerJobHostUUID === '') {
-      [[provisionServerJobHostUUID]] = dbQuery(`
-        SELECT anvil_node1_host_uuid
-        FROM anvils
-        WHERE anvil_uuid = '${anvilUUID}'`).stdout;
-    }
-
-    console.log(
-      `provisionServerJobHostUUID from DB: [${provisionServerJobHostUUID}]`,
-    );
+    console.log(`provisionServerJobHostUUID: [${provisionServerJobHostUUID}]`);
 
     sub('insert_or_update_jobs', {
       subParams: {
