@@ -1,5 +1,7 @@
+import assert from 'assert';
 import { RequestHandler } from 'express';
 
+import { OS_LIST_MAP } from '../../consts/OS_LIST';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { dbQuery, sub } from '../../accessModule';
@@ -16,21 +18,94 @@ export const createServer: RequestHandler = ({ body }, response) => {
         { storageSize = undefined, storageGroupUUID = undefined } = {},
       ] = [],
       installISOFileUUID,
-      driverISOFileUUID = 'none',
+      driverISOFileUUID,
       anvilUUID,
       optimizeForOS,
     } = body;
 
     console.dir(body, { depth: null });
 
-    const provisionServerJobData = `server_name=${serverName}
-os=${optimizeForOS}
-cpu_cores=${cpuCores}
-ram=${memory}
-storage_group_uuid=${storageGroupUUID}
-storage_size=${storageSize}
-install_iso=${installISOFileUUID}
-driver_iso=${driverISOFileUUID}`;
+    const rgHex = '[0-9a-f]';
+    const patternInteger = /^\d+$/;
+    const patterUUID = new RegExp(
+      `^${rgHex}{8}-${rgHex}{4}-[1-5]${rgHex}{3}-[89ab]${rgHex}{3}-${rgHex}{12}$`,
+      'i',
+    );
+
+    const dataServerName = String(serverName);
+    const dataOS = String(optimizeForOS);
+    const dataCPUCores = String(cpuCores);
+    const dataRAM = String(memory);
+    const dataStorageGroupUUID = String(storageGroupUUID);
+    const dataStorageSize = String(storageSize);
+    const dataInstallISO = String(installISOFileUUID);
+    const dataDriverISO = String(driverISOFileUUID) || 'none';
+    const dataAnvilUUID = String(anvilUUID);
+
+    try {
+      assert(
+        /^[0-9a-z_-]+$/i.test(dataServerName),
+        `Data server name can only contain alphanumeric, underscore, and hyphen characters; got [${dataServerName}].`,
+      );
+
+      const [[serverNameCount]] = dbQuery(
+        `SELECT COUNT(server_uuid) FROM servers WHERE server_name = '${dataServerName}'`,
+      ).stdout;
+
+      assert(
+        serverNameCount === 0,
+        `Data server name already exists; got [${dataServerName}]`,
+      );
+      assert(
+        OS_LIST_MAP[dataOS] !== undefined,
+        `Data OS not recognized; got [${dataOS}].`,
+      );
+      assert(
+        patternInteger.test(dataCPUCores),
+        `Data CPU cores can only contain digits; got [${dataCPUCores}].`,
+      );
+      assert(
+        patternInteger.test(dataRAM),
+        `Data RAM can only contain digits; got [${dataRAM}].`,
+      );
+      assert(
+        patterUUID.test(dataStorageGroupUUID),
+        `Data storage group UUID must be a valid UUID; got [${dataStorageGroupUUID}].`,
+      );
+      assert(
+        patternInteger.test(dataStorageSize),
+        `Data storage size can only contain digits; got [${dataStorageSize}].`,
+      );
+      assert(
+        patterUUID.test(dataInstallISO),
+        `Data install ISO must be a valid UUID; got [${dataInstallISO}].`,
+      );
+      assert(
+        dataDriverISO === 'none' || patterUUID.test(dataDriverISO),
+        `Data driver ISO must be a valid UUID when provided; got [${dataDriverISO}].`,
+      );
+      assert(
+        patterUUID.test(dataAnvilUUID),
+        `Data anvil UUID must be a valid UUID; got [${dataAnvilUUID}].`,
+      );
+    } catch (assertError) {
+      console.log(
+        `Failed to assert value when trying to provision a server; CAUSE: ${assertError}.`,
+      );
+
+      response.status(500).send();
+
+      return;
+    }
+
+    const provisionServerJobData = `server_name=${dataServerName}
+os=${dataOS}
+cpu_cores=${dataCPUCores}
+ram=${dataRAM}
+storage_group_uuid=${dataStorageGroupUUID}
+storage_size=${dataStorageSize}
+install_iso=${dataInstallISO}
+driver_iso=${dataDriverISO}`;
 
     console.log(`provisionServerJobData: [${provisionServerJobData}]`);
 
@@ -53,7 +128,7 @@ driver_iso=${driverISOFileUUID}`;
             AND sca_clu_nod.scan_cluster_node_crmd_member
             AND sca_clu_nod.scan_cluster_node_cluster_member
             AND (NOT sca_clu_nod.scan_cluster_node_maintenance_mode)
-            AND anv.anvil_uuid = '${anvilUUID}'
+            AND anv.anvil_uuid = '${dataAnvilUUID}'
           ORDER BY sca_clu_nod.scan_cluster_node_name
           LIMIT 1
         ) AS pri_hos
@@ -62,7 +137,7 @@ driver_iso=${driverISOFileUUID}`;
             1 AS phr,
             anv.anvil_node1_host_uuid AS node1_host_uuid
           FROM anvils AS anv
-          WHERE anv.anvil_uuid = '${anvilUUID}'
+          WHERE anv.anvil_uuid = '${dataAnvilUUID}'
         ) AS nod_1
           ON pri_hos.phl = nod_1.phr;`,
     ).stdout;
