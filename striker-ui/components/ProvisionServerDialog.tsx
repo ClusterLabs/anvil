@@ -996,6 +996,8 @@ const ProvisionServerDialog = ({
     string[]
   >([]);
 
+  const [isProvisionServerDataReady, setIsProvisionServerDataReady] =
+    useState<boolean>(false);
   const [isOpenProvisionConfirmDialog, setIsOpenProvisionConfirmDialog] =
     useState<boolean>(false);
   const [isProvisionRequestInProgress, setIsProvisionRequestInProgress] =
@@ -1510,6 +1512,8 @@ const ProvisionServerDialog = ({
             };
           }),
         );
+
+        setIsProvisionServerDataReady(true);
       });
   }, [initLimits]);
 
@@ -1538,200 +1542,205 @@ const ProvisionServerDialog = ({
             <CloseIcon />
           </IconButton>
         </PanelHeader>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            maxHeight: '50vh',
-            overflowY: 'scroll',
-            paddingTop: '.6em',
+        {isProvisionServerDataReady ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '50vh',
+              overflowY: 'scroll',
+              paddingTop: '.6em',
 
-            '& > :not(:first-child)': {
-              marginTop: '1em',
-            },
-          }}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <OutlinedInputWithLabel
-              id="ps-server-name"
-              label="Server name"
-              inputProps={{
-                onChange: ({ target: { value } }) => {
-                  setInputServerNameValue(value);
+              '& > :not(:first-child)': {
+                marginTop: '1em',
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <OutlinedInputWithLabel
+                id="ps-server-name"
+                label="Server name"
+                inputProps={{
+                  onChange: ({ target: { value } }) => {
+                    setInputServerNameValue(value);
 
-                  testInput({ inputs: { serverName: { value } } });
+                    testInput({ inputs: { serverName: { value } } });
+                  },
+                  value: inputServerNameValue,
+                }}
+                inputLabelProps={{
+                  isNotifyRequired: inputServerNameValue.length === 0,
+                }}
+                messageBoxProps={inputServerNameMessage}
+              />
+            </Box>
+            {createOutlinedSlider(
+              'ps-cpu-cores',
+              'CPU cores',
+              inputCPUCoresValue,
+              {
+                messageBoxProps: inputCPUCoresMessage,
+                sliderProps: {
+                  onChange: (value) => {
+                    const newCPUCoresValue = value as number;
+
+                    if (newCPUCoresValue !== inputCPUCoresValue) {
+                      setInputCPUCoresValue(newCPUCoresValue);
+
+                      const { maxCPUCores: newCPUCoresMax } = updateLimits({
+                        cpuCores: newCPUCoresValue,
+                      });
+
+                      testInput({
+                        inputs: {
+                          cpuCores: {
+                            max: newCPUCoresMax,
+                            value: newCPUCoresValue,
+                          },
+                        },
+                      });
+                    }
+                  },
+                  max: inputCPUCoresMax,
+                  min: CPU_CORES_MIN,
                 },
-                value: inputServerNameValue,
+              },
+            )}
+            <OutlinedLabeledInputWithSelect
+              id="ps-memory"
+              label="Memory"
+              messageBoxProps={inputMemoryMessage}
+              inputWithLabelProps={{
+                inputProps: {
+                  endAdornment: createMaxValueButton(
+                    `${inputMemoryMax} ${inputMemoryUnit}`,
+                    {
+                      onButtonClick: () => {
+                        setInputMemoryValue(inputMemoryMax);
+                        changeMemory({ cmValue: memoryMax });
+                      },
+                    },
+                  ),
+                  onChange: ({ target: { value } }) => {
+                    handleInputMemoryValueChange({ value });
+                  },
+                  type: 'number',
+                  value: inputMemoryValue,
+                },
+                inputLabelProps: {
+                  isNotifyRequired: memory === BIGINT_ZERO,
+                },
               }}
+              selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
+              selectWithLabelProps={{
+                selectProps: {
+                  onChange: ({ target: { value } }) => {
+                    const selectedUnit = value as DataSizeUnit;
+
+                    handleInputMemoryValueChange({ unit: selectedUnit });
+                  },
+                  value: inputMemoryUnit,
+                },
+              }}
+            />
+            {virtualDisks.stateIds.map((vdStateId, vdIndex) =>
+              createVirtualDiskForm(
+                virtualDisks,
+                vdIndex,
+                setVirtualDisks,
+                storageGroupSelectItems,
+                includeStorageGroupUUIDs,
+                updateLimits,
+                storageGroupUUIDMapToData,
+                testInput,
+              ),
+            )}
+            <SelectWithLabel
+              disableItem={(value) => value === inputDriverISOFileUUID}
+              hideItem={(value) => !includeFileUUIDs.includes(value)}
+              id="ps-install-image"
               inputLabelProps={{
-                isNotifyRequired: inputServerNameValue.length === 0,
+                isNotifyRequired: inputInstallISOFileUUID.length === 0,
               }}
-              messageBoxProps={inputServerNameMessage}
+              label="Install ISO"
+              messageBoxProps={inputInstallISOMessage}
+              selectItems={fileSelectItems}
+              selectProps={{
+                onChange: ({ target: { value } }) => {
+                  const newInstallISOFileUUID = value as string;
+
+                  handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
+                },
+                onClearIndicatorClick: () =>
+                  handleInputInstallISOFileUUIDChange(''),
+                value: inputInstallISOFileUUID,
+              }}
+            />
+            <SelectWithLabel
+              disableItem={(value) => value === inputInstallISOFileUUID}
+              hideItem={(value) => !includeFileUUIDs.includes(value)}
+              id="ps-driver-image"
+              label="Driver ISO"
+              messageBoxProps={inputDriverISOMessage}
+              selectItems={fileSelectItems}
+              selectProps={{
+                onChange: ({ target: { value } }) => {
+                  const newDriverISOFileUUID = value as string;
+
+                  handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
+                },
+                onClearIndicatorClick: () =>
+                  handleInputDriverISOFileUUIDChange(''),
+                value: inputDriverISOFileUUID,
+              }}
+            />
+            <SelectWithLabel
+              disableItem={(value) => !includeAnvilUUIDs.includes(value)}
+              id="ps-anvil"
+              inputLabelProps={{
+                isNotifyRequired: inputAnvilValue.length === 0,
+              }}
+              label="Anvil node pair"
+              messageBoxProps={inputAnvilMessage}
+              selectItems={anvilSelectItems}
+              selectProps={{
+                onChange: ({ target: { value } }) => {
+                  const newAnvilUUID: string = value as string;
+
+                  handleInputAnvilValueChange(newAnvilUUID);
+                },
+                onClearIndicatorClick: () => handleInputAnvilValueChange(''),
+                renderValue: (value) => {
+                  const { anvilName: rvAnvilName = `Unknown ${value}` } =
+                    anvilUUIDMapToData[value as string] ?? {};
+
+                  return rvAnvilName;
+                },
+                value: inputAnvilValue,
+              }}
+            />
+            <Autocomplete
+              id="ps-optimize-for-os"
+              extendRenderInput={({ inputLabelProps = {} }) => {
+                inputLabelProps.isNotifyRequired =
+                  inputOptimizeForOSValue === null;
+              }}
+              isOptionEqualToValue={(option, value) => option.key === value.key}
+              label="Optimize for OS"
+              messageBoxProps={inputOptimizeForOSMessage}
+              noOptionsText="No matching OS"
+              onChange={(event, value) => {
+                setInputOptimizeForOSValue(value);
+              }}
+              openOnFocus
+              options={osAutocompleteOptions}
+              value={inputOptimizeForOSValue}
             />
           </Box>
-          {createOutlinedSlider(
-            'ps-cpu-cores',
-            'CPU cores',
-            inputCPUCoresValue,
-            {
-              messageBoxProps: inputCPUCoresMessage,
-              sliderProps: {
-                onChange: (value) => {
-                  const newCPUCoresValue = value as number;
+        ) : (
+          <Spinner />
+        )}
 
-                  if (newCPUCoresValue !== inputCPUCoresValue) {
-                    setInputCPUCoresValue(newCPUCoresValue);
-
-                    const { maxCPUCores: newCPUCoresMax } = updateLimits({
-                      cpuCores: newCPUCoresValue,
-                    });
-
-                    testInput({
-                      inputs: {
-                        cpuCores: {
-                          max: newCPUCoresMax,
-                          value: newCPUCoresValue,
-                        },
-                      },
-                    });
-                  }
-                },
-                max: inputCPUCoresMax,
-                min: CPU_CORES_MIN,
-              },
-            },
-          )}
-          <OutlinedLabeledInputWithSelect
-            id="ps-memory"
-            label="Memory"
-            messageBoxProps={inputMemoryMessage}
-            inputWithLabelProps={{
-              inputProps: {
-                endAdornment: createMaxValueButton(
-                  `${inputMemoryMax} ${inputMemoryUnit}`,
-                  {
-                    onButtonClick: () => {
-                      setInputMemoryValue(inputMemoryMax);
-                      changeMemory({ cmValue: memoryMax });
-                    },
-                  },
-                ),
-                onChange: ({ target: { value } }) => {
-                  handleInputMemoryValueChange({ value });
-                },
-                type: 'number',
-                value: inputMemoryValue,
-              },
-              inputLabelProps: {
-                isNotifyRequired: memory === BIGINT_ZERO,
-              },
-            }}
-            selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
-            selectWithLabelProps={{
-              selectProps: {
-                onChange: ({ target: { value } }) => {
-                  const selectedUnit = value as DataSizeUnit;
-
-                  handleInputMemoryValueChange({ unit: selectedUnit });
-                },
-                value: inputMemoryUnit,
-              },
-            }}
-          />
-          {virtualDisks.stateIds.map((vdStateId, vdIndex) =>
-            createVirtualDiskForm(
-              virtualDisks,
-              vdIndex,
-              setVirtualDisks,
-              storageGroupSelectItems,
-              includeStorageGroupUUIDs,
-              updateLimits,
-              storageGroupUUIDMapToData,
-              testInput,
-            ),
-          )}
-          <SelectWithLabel
-            disableItem={(value) => value === inputDriverISOFileUUID}
-            hideItem={(value) => !includeFileUUIDs.includes(value)}
-            id="ps-install-image"
-            inputLabelProps={{
-              isNotifyRequired: inputInstallISOFileUUID.length === 0,
-            }}
-            label="Install ISO"
-            messageBoxProps={inputInstallISOMessage}
-            selectItems={fileSelectItems}
-            selectProps={{
-              onChange: ({ target: { value } }) => {
-                const newInstallISOFileUUID = value as string;
-
-                handleInputInstallISOFileUUIDChange(newInstallISOFileUUID);
-              },
-              onClearIndicatorClick: () =>
-                handleInputInstallISOFileUUIDChange(''),
-              value: inputInstallISOFileUUID,
-            }}
-          />
-          <SelectWithLabel
-            disableItem={(value) => value === inputInstallISOFileUUID}
-            hideItem={(value) => !includeFileUUIDs.includes(value)}
-            id="ps-driver-image"
-            label="Driver ISO"
-            messageBoxProps={inputDriverISOMessage}
-            selectItems={fileSelectItems}
-            selectProps={{
-              onChange: ({ target: { value } }) => {
-                const newDriverISOFileUUID = value as string;
-
-                handleInputDriverISOFileUUIDChange(newDriverISOFileUUID);
-              },
-              onClearIndicatorClick: () =>
-                handleInputDriverISOFileUUIDChange(''),
-              value: inputDriverISOFileUUID,
-            }}
-          />
-          <SelectWithLabel
-            disableItem={(value) => !includeAnvilUUIDs.includes(value)}
-            id="ps-anvil"
-            inputLabelProps={{
-              isNotifyRequired: inputAnvilValue.length === 0,
-            }}
-            label="Anvil node pair"
-            messageBoxProps={inputAnvilMessage}
-            selectItems={anvilSelectItems}
-            selectProps={{
-              onChange: ({ target: { value } }) => {
-                const newAnvilUUID: string = value as string;
-
-                handleInputAnvilValueChange(newAnvilUUID);
-              },
-              onClearIndicatorClick: () => handleInputAnvilValueChange(''),
-              renderValue: (value) => {
-                const { anvilName: rvAnvilName = `Unknown ${value}` } =
-                  anvilUUIDMapToData[value as string] ?? {};
-
-                return rvAnvilName;
-              },
-              value: inputAnvilValue,
-            }}
-          />
-          <Autocomplete
-            id="ps-optimize-for-os"
-            extendRenderInput={({ inputLabelProps = {} }) => {
-              inputLabelProps.isNotifyRequired =
-                inputOptimizeForOSValue === null;
-            }}
-            isOptionEqualToValue={(option, value) => option.key === value.key}
-            label="Optimize for OS"
-            messageBoxProps={inputOptimizeForOSMessage}
-            noOptionsText="No matching OS"
-            onChange={(event, value) => {
-              setInputOptimizeForOSValue(value);
-            }}
-            openOnFocus
-            options={osAutocompleteOptions}
-            value={inputOptimizeForOSValue}
-          />
-        </Box>
         <Box
           sx={{
             display: 'flex',
