@@ -71,6 +71,13 @@ type FileMetadataForProvisionServer = {
   fileName: string;
 };
 
+type OrganizedServerMetadataForProvisionServer = Omit<
+  ServerMetadataForProvisionServer,
+  'serverMemory'
+> & {
+  serverMemory: bigint;
+};
+
 type OrganizedStorageGroupMetadataForProvisionServer = Omit<
   StorageGroupMetadataForProvisionServer,
   'storageGroupSize' | 'storageGroupFree'
@@ -114,11 +121,7 @@ type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
       hostMemory: bigint;
     }
   >;
-  servers: Array<
-    Omit<ServerMetadataForProvisionServer, 'serverMemory'> & {
-      serverMemory: bigint;
-    }
-  >;
+  servers: Array<OrganizedServerMetadataForProvisionServer>;
   storageGroupUUIDs: string[];
   storageGroups: Array<OrganizedStorageGroupMetadataForProvisionServer>;
   fileUUIDs: string[];
@@ -130,6 +133,10 @@ type AnvilUUIDMapToData = {
 
 type FileUUIDMapToData = {
   [uuid: string]: FileMetadataForProvisionServer;
+};
+
+type ServerNameMapToData = {
+  [name: string]: OrganizedServerMetadataForProvisionServer;
 };
 
 type StorageGroupUUIDMapToData = {
@@ -293,6 +300,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
     files: FileMetadataForProvisionServer[];
     fileSelectItems: SelectItem[];
     fileUUIDMapToData: FileUUIDMapToData;
+    serverNameMapToData: ServerNameMapToData;
     storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
     storageGroupSelectItems: SelectItem[];
     storageGroupUUIDMapToData: StorageGroupUUIDMapToData;
@@ -387,10 +395,17 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
           ...host,
           hostMemory: BigInt(host.hostMemory),
         })),
-        servers: servers.map((server) => ({
-          ...server,
-          serverMemory: BigInt(server.serverMemory),
-        })),
+        servers: servers.map(({ serverMemory, serverName, ...serverRest }) => {
+          const resultServer = {
+            ...serverRest,
+            serverMemory: BigInt(serverMemory),
+            serverName,
+          };
+
+          reduceContainer.serverNameMapToData[serverName] = resultServer;
+
+          return resultServer;
+        }),
         storageGroupUUIDs: anvilStorageGroupUUIDs,
         storageGroups: anvilStorageGroups,
         fileUUIDs,
@@ -440,6 +455,7 @@ const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
       files: [],
       fileSelectItems: [],
       fileUUIDMapToData: {},
+      serverNameMapToData: {},
       storageGroups: [],
       storageGroupSelectItems: [],
       storageGroupUUIDMapToData: {},
@@ -914,6 +930,8 @@ const ProvisionServerDialog = ({
   const [fileUUIDMapToData, setFileUUIDMapToData] = useState<FileUUIDMapToData>(
     {},
   );
+  const [serverNameMapToData, setServerNameMapToData] =
+    useState<ServerNameMapToData>({});
   const [storageGroupUUIDMapToData, setStorageGroupUUIDMapToData] =
     useState<StorageGroupUUIDMapToData>({});
 
@@ -1016,6 +1034,16 @@ const ProvisionServerDialog = ({
             });
           },
           test: ({ value }) => /^[a-zA-Z0-9_-]+$/.test(value as string),
+        },
+        {
+          onFailure: () => {
+            setInputServerNameMessage({
+              text: `This server name already exists, please choose another name.`,
+              type: 'warning',
+            });
+          },
+          test: ({ value }) =>
+            serverNameMapToData[value as string] === undefined,
         },
       ],
     },
@@ -1452,6 +1480,7 @@ const ProvisionServerDialog = ({
           anvilUUIDMapToData: ueAnvilUUIDMapToData,
           fileSelectItems: ueFileSelectItems,
           fileUUIDMapToData: ueFileUUIDMapToData,
+          serverNameMapToData: ueServerNameMapToData,
           storageGroupSelectItems: ueStorageGroupSelectItems,
           storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
         } = organizeAnvils(data.anvils);
@@ -1459,6 +1488,7 @@ const ProvisionServerDialog = ({
         setAllAnvils(ueAllAnvils);
         setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
         setFileUUIDMapToData(ueFileUUIDMapToData);
+        setServerNameMapToData(ueServerNameMapToData);
         setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
 
         setAnvilSelectItems(ueAnvilSelectItems);
