@@ -1,78 +1,108 @@
-import { styled, Typography, TypographyProps } from '@mui/material';
+import { FC, ReactNode } from 'react';
+import {
+  Typography as MUITypography,
+  TypographyProps as MUITypographyProps,
+} from '@mui/material';
 
 import { BLACK, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
-const PREFIX = 'BodyText';
-
-const classes = {
-  inverted: `${PREFIX}-inverted`,
-  selected: `${PREFIX}-selected`,
-  unselected: `${PREFIX}-unselected`,
-};
-
-const StyledTypography = styled(Typography)(() => ({
-  [`&.${classes.inverted}`]: {
-    color: BLACK,
-  },
-
-  [`&.${classes.selected}`]: {
-    color: TEXT,
-  },
-
-  [`&.${classes.unselected}`]: {
-    color: UNSELECTED,
-  },
-}));
-
-type BodyTextProps = TypographyProps & {
+type BodyTextOptionalProps = {
   inverted?: boolean;
+  monospaced?: boolean;
   selected?: boolean;
-  text: string;
+  text?: null | ReactNode | string;
 };
 
-const BodyText = ({
-  inverted,
-  selected,
-  sx,
-  text,
-}: BodyTextProps): JSX.Element => {
-  const buildBodyTextClasses = ({
-    isInvert,
-    isSelect,
-  }: {
-    isInvert?: boolean;
-    isSelect?: boolean;
-  }) => {
-    let bodyTextClasses = '';
+type BodyTextProps = MUITypographyProps & BodyTextOptionalProps;
 
-    if (isInvert) {
-      bodyTextClasses += classes.inverted;
-    } else if (isSelect) {
-      bodyTextClasses += classes.selected;
-    } else {
-      bodyTextClasses += classes.unselected;
-    }
+const BODY_TEXT_CLASS_PREFIX = 'BodyText';
 
-    return bodyTextClasses;
-  };
-
-  return (
-    <StyledTypography
-      {...{ sx }}
-      className={buildBodyTextClasses({
-        isInvert: inverted,
-        isSelect: selected,
-      })}
-      variant="subtitle1"
-    >
-      {text}
-    </StyledTypography>
-  );
-};
-
-BodyText.defaultProps = {
+const BODY_TEXT_DEFAULT_PROPS: Required<BodyTextOptionalProps> = {
   inverted: false,
+  monospaced: false,
   selected: true,
+  text: null,
 };
+
+const BODY_TEXT_CLASSES = {
+  inverted: `${BODY_TEXT_CLASS_PREFIX}-inverted`,
+  monospaced: `${BODY_TEXT_CLASS_PREFIX}-monospaced`,
+  selected: `${BODY_TEXT_CLASS_PREFIX}-selected`,
+  unselected: `${BODY_TEXT_CLASS_PREFIX}-unselected`,
+};
+
+const buildBodyTextClasses = ({
+  isInvert,
+  isMonospace,
+  isSelect,
+}: {
+  isInvert?: boolean;
+  isMonospace?: boolean;
+  isSelect?: boolean;
+}) => {
+  const bodyTextClasses: string[] = [];
+
+  if (isInvert) {
+    bodyTextClasses.push(BODY_TEXT_CLASSES.inverted);
+  } else if (isSelect) {
+    bodyTextClasses.push(BODY_TEXT_CLASSES.selected);
+  } else {
+    bodyTextClasses.push(BODY_TEXT_CLASSES.unselected);
+  }
+
+  if (isMonospace) {
+    bodyTextClasses.push(BODY_TEXT_CLASSES.monospaced);
+  }
+
+  return bodyTextClasses.join(' ');
+};
+
+const BodyText: FC<BodyTextProps> = ({
+  children,
+  inverted = BODY_TEXT_DEFAULT_PROPS.inverted,
+  monospaced = BODY_TEXT_DEFAULT_PROPS.monospaced,
+  selected = BODY_TEXT_DEFAULT_PROPS.selected,
+  sx,
+  text = BODY_TEXT_DEFAULT_PROPS.text,
+  ...muiTypographyRestProps
+}) => (
+  <MUITypography
+    {...{
+      className: buildBodyTextClasses({
+        isInvert: inverted,
+        isMonospace: monospaced,
+        isSelect: selected,
+      }),
+      variant: 'subtitle1',
+      ...muiTypographyRestProps,
+      sx: {
+        [`&.${BODY_TEXT_CLASSES.inverted}`]: {
+          color: BLACK,
+        },
+
+        [`&.${BODY_TEXT_CLASSES.monospaced}`]: {
+          fontFamily: 'Source Code Pro',
+          fontWeight: 400,
+        },
+
+        [`&.${BODY_TEXT_CLASSES.selected}`]: {
+          color: TEXT,
+        },
+
+        [`&.${BODY_TEXT_CLASSES.unselected}`]: {
+          color: UNSELECTED,
+        },
+
+        ...sx,
+      },
+    }}
+  >
+    {text ?? children}
+  </MUITypography>
+);
+
+BodyText.defaultProps = BODY_TEXT_DEFAULT_PROPS;
+
+export type { BodyTextProps };
 
 export default BodyText;
