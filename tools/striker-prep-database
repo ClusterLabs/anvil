@@ -195,7 +195,7 @@ if ($local_uuid)
 			foreach my $line (split/\n/, $pg_hba_conf)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				if ($line =~ /^host\s+all\s+all\s+\all\s+md5$/)
+				if ($line =~ /^host\s+all\s+all\s+all\s+md5$/)
 				{
 					# No need to update.
 					$update_file = 0;

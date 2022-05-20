@@ -2865,15 +2865,15 @@ sub generate_state_json
 			}
 			else
 			{
-				my $speed           = $anvil->data->{network}{$host}{interface}{$interface}{speed};
+				my $speed           = $anvil->data->{network}{$host}{interface}{$interface}{speed}       ? $anvil->data->{network}{$host}{interface}{$interface}{speed}       : 0;
 				my $say_speed       = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{speed}})." ".$anvil->Words->string({key => "suffix_0050"});
-				my $link_state      = $anvil->data->{network}{$host}{interface}{$interface}{link_state};
-				my $operational     = $anvil->data->{network}{$host}{interface}{$interface}{operational};
-				my $duplex          = $anvil->data->{network}{$host}{interface}{$interface}{duplex};
-				my $medium          = $anvil->data->{network}{$host}{interface}{$interface}{medium};
-				my $bond_uuid       = $anvil->data->{network}{$host}{interface}{$interface}{bond_uuid};
+				my $link_state      = $anvil->data->{network}{$host}{interface}{$interface}{link_state}  ? $anvil->data->{network}{$host}{interface}{$interface}{link_state}  : "";
+				my $operational     = $anvil->data->{network}{$host}{interface}{$interface}{operational} ? $anvil->data->{network}{$host}{interface}{$interface}{operational} : "";
+				my $duplex          = $anvil->data->{network}{$host}{interface}{$interface}{duplex}      ? $anvil->data->{network}{$host}{interface}{$interface}{duplex}      : "unknown";
+				my $medium          = $anvil->data->{network}{$host}{interface}{$interface}{medium}      ? $anvil->data->{network}{$host}{interface}{$interface}{medium}      : "unknown";
+				my $bond_uuid       = $anvil->data->{network}{$host}{interface}{$interface}{bond_uuid}   ? $anvil->data->{network}{$host}{interface}{$interface}{bond_uuid}   : "";
 				my $bond_name       = $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   ? $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   : $anvil->Words->string({key => "unit_0005"});
-				my $bridge_uuid     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_uuid};
+				my $bridge_uuid     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_uuid} ? $anvil->data->{network}{$host}{interface}{$interface}{bridge_uuid} : "";
 				my $bridge_name     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} ? $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} : $anvil->Words->string({key => "unit_0005"});
 				my $changed_order   = $anvil->data->{network}{$host}{interface}{$interface}{changed_order};
 				my $say_link_state  = $link_state;
@@ -4955,7 +4955,7 @@ sub test_ipmi
 			next if $test_password eq "";
 			
 			# Build the shell call.
-			$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan ".$lanplus_switch." --ip ".$ipmi_target." --username ".$ipmi_user." --password ".$test_password." --action status";
+			$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan ".$lanplus_switch." --ip ".$ipmi_target." --username ".$ipmi_user." --password \"".$test_password."\" --action status";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { shell_call => $shell_call }});
 	
 			my $output      = "";
@@ -4967,7 +4967,7 @@ sub test_ipmi
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 30,
+					timeout     => 2,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
@@ -4984,6 +4984,7 @@ sub test_ipmi
 				($output, $return_code) = $anvil->System->call({
 					debug       => $debug, 
 					secure      => 1,
+					timeout     => 2,
 					shell_call  => $shell_call, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

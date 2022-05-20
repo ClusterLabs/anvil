@@ -397,13 +397,22 @@ sub call_scan_agents
 			$shell_call .= " ".$anvil->data->{sys}{'log'}{level};
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		if ($anvil->data->{switches}{purge})
+		{
+			$shell_call .= " --purge";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		# Tell the user this agent is about to run...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0252", variables => {
-			agent_name => $agent_name,
-			timeout    => $timeout,
-		}});
-		my ($output, $return_code) = $anvil->System->call({timeout => $timeout, shell_call => $shell_call});
+# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0252", variables => {
+# 			agent_name => $agent_name,
+# 			timeout    => $timeout,
+# 		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0701", variables => { agent_name => $agent_name }});
+		### TODO: Timeout, when called / set here, was hanging virsh calls. Unknown why yet, but temp
+		###       fix is to just not use timeouts for calls.
+		#my ($output, $return_code) = $anvil->System->call({timeout => $timeout, shell_call => $shell_call});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{

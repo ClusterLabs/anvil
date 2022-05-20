@@ -321,9 +321,42 @@ sub collect_data
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if (($host_type eq "node") or ($host_type eq "dr"))
 	{
+		my $default_network = "/etc/libvirt/qemu/networks/default.xml";
+		if (-e $default_network)
+		{
+			my $shell_call = $anvil->data->{path}{exe}{virsh}." net-destroy default";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			
+			$shell_call = $anvil->data->{path}{exe}{virsh}." net-undefine default";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			
+			# Register an alert
+			my $variables = {
+				bridge => "default",
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0001", variables => $variables});
+			$anvil->Alert->register({
+				alert_level => "notice", 
+				message     => "scan_network_alert_0001",
+				variables   => $variables,
+				set_by      => $THIS_FILE,
+			});
+		}
+=cut
 		my $shell_call = $anvil->data->{path}{exe}{virsh}." net-list --all --name";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
+		# This often hangs.
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
@@ -371,6 +404,7 @@ sub collect_data
 				});
 			}
 		}
+=cut
 	}
 	
 	# Walk through the sysfs files.

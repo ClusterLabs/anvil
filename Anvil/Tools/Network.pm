@@ -1077,12 +1077,20 @@ sub find_matches
 	}
 	elsif (ref($anvil->data->{network}{$first}) ne "HASH")
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
-			key    => "first -> network::".$first,
-			source => $source, 
-			line   => $line,
-		}});
-		return("");
+		$anvil->Network->load_ips({
+			debug => $debug, 
+			host  => $first,
+		});
+		if (ref($anvil->data->{network}{$first}) ne "HASH")
+		{
+			# Well, we tried.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
+				key    => "first -> network::".$first,
+				source => $source, 
+				line   => $line,
+			}});
+			return("");
+		}
 	}
 	if (not $second)
 	{
@@ -1091,12 +1099,21 @@ sub find_matches
 	}
 	elsif (ref($anvil->data->{network}{$second}) ne "HASH")
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
-			key    => "second -> network::".$second,
-			source => $source, 
-			line   => $line,
-		}});
-		return("");
+		$anvil->Network->load_ips({
+			debug => $debug, 
+			host  => $second,
+		});
+		if (ref($anvil->data->{network}{$second}) ne "HASH")
+		{
+			# Well, we tried.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
+				key    => "second -> network::".$second,
+				source => $source, 
+				line   => $line,
+			}});
+			die;
+			return("");
+		}
 	}
 	
 	# Loop through the first, and on each interface with an IP/subnet mask, look for a match in the second.
@@ -1683,6 +1700,7 @@ sub load_ips
 	if (($clear) && (exists $anvil->data->{network}{$host}))
 	{
 		delete $anvil->data->{network}{$host};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0700", variables => { hash => "network::${host}" }});
 	}
 	
 	# Read in all IPs, so that we know which to remove.
@@ -1734,8 +1752,17 @@ AND
 		{
 			my $query = "
 SELECT 
+    network_interface_uuid, 
     network_interface_name, 
-    network_interface_mac_address 
+    network_interface_mac_address, 
+    network_interface_speed, 
+    network_interface_mtu, 
+    network_interface_link_state, 
+    network_interface_operational, 
+    network_interface_duplex, 
+    network_interface_medium, 
+    network_interface_bond_uuid, 
+    network_interface_bridge_uuid 
 FROM 
     network_interfaces 
 WHERE 
@@ -1752,28 +1779,46 @@ AND
 			}});
 			next if not $count;
 			
-			$interface_name = $results->[0]->[0];
-			$interface_mac  = $results->[0]->[1];
+			$interface_name = $results->[0]->[1];
+			$interface_mac  = $results->[0]->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				interface_name => $interface_name, 
 				interface_mac  => $interface_mac, 
 			}});
 			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} = $results->[0]->[0];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}            = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}        = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   = $ip_address_on_type;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  = $results->[0]->[3];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    = $results->[0]->[4];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             = $results->[0]->[5];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            = $results->[0]->[6];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 = $results->[0]->[7];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 = $results->[0]->[8];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = $results->[0]->[9];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = $results->[0]->[10];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
-				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
-				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
-				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
-				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
-				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
+				"network::${host}::interface::${interface_name}::network_interface_uuid" => $anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid}, 
+				"network::${host}::interface::${interface_name}::mac_address"            => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
+				"network::${host}::interface::${interface_name}::ip"                     => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"            => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
+				"network::${host}::interface::${interface_name}::default_gateway"        => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"                => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"                    => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"                   => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
+				"network::${host}::interface::${interface_name}::speed"                  => $anvil->data->{network}{$host}{interface}{$interface_name}{speed}, 
+				"network::${host}::interface::${interface_name}::mtu"                    => $anvil->data->{network}{$host}{interface}{$interface_name}{mtu}, 
+				"network::${host}::interface::${interface_name}::link_state"             => $anvil->data->{network}{$host}{interface}{$interface_name}{link_state}, 
+				"network::${host}::interface::${interface_name}::operational"            => $anvil->data->{network}{$host}{interface}{$interface_name}{operational}, 
+				"network::${host}::interface::${interface_name}::duplex"                 => $anvil->data->{network}{$host}{interface}{$interface_name}{duplex}, 
+				"network::${host}::interface::${interface_name}::medium"                 => $anvil->data->{network}{$host}{interface}{$interface_name}{medium}, 
+				"network::${host}::interface::${interface_name}::bond_uuid"              => $anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}, 
+				"network::${host}::interface::${interface_name}::bridge_uuid"            => $anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}, 
 			}});
 		}
 		elsif ($ip_address_on_type eq "bond")
