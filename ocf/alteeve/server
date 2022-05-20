@@ -357,8 +357,9 @@ sub check_daemons
 	if ($task eq "start")
 	{
 		### It doesn't look like we need to start drbd. Up'ing the first resource works without it.
-		#foreach my $daemon ("libvirtd.service", "drbd.service")
-		foreach my $daemon ("libvirtd.service")
+		### libvirtd also starts on-demand.
+=cut
+		foreach my $daemon ("libvirtd.service", "drbd.service")
 		{
 			my $running_local = 0;
 			my $running_peer  = 0;
@@ -503,149 +504,8 @@ sub check_daemons
 				}
 			}
 		}
-	}
-=cut	# It's simpler (and thus safer) to not stop daemons.
-	if ($task eq "stop")
-	{
-		print "Stopping daemons\n";
-		my $stop = 0;
-		
-		# Check both nodes if a server is running on either node.
-		my $local_vm_count  = 0;
-		my $remote_vm_count = 0;
-		
-		# Call virsh list --all
-		my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			local_output      => $local_output, 
-			local_return_code => $local_return_code,
-		}});
-		if (not $local_return_code)
-		{
-			# Parse output
-			foreach my $line (split/\n/, $local_output)
-			{
-				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				
-				if ($line =~ /(\d+)\s+(.*?)\s+running/)
-				{
-					$local_vm_count++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_vm_count => $local_vm_count }});
-				}
-			}
-		}
-		
-		my ($remote_output, $remote_error, $remote_return_code) = $anvil->Remote->call({
-			target     => $peer_name,
-			shell_call => $anvil->data->{path}{exe}{virsh}." list --all",
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			remote_output      => $remote_output, 
-			remote_error       => $remote_error, 
-			remote_return_code => $remote_return_code,
-		}});
-		if (not $remote_return_code)
-		{
-			# Parse output
-			foreach my $line (split/\n/, $remote_output)
-			{
-				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				
-				if ($line =~ /(\d+)\s+(.*?)\s+running/)
-				{
-					$remote_vm_count++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { remote_vm_count => $remote_vm_count }});
-				}
-			}
-		}
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			local_vm_count  => $local_vm_count, 
-			remote_vm_count => $remote_vm_count,
-		}});
-		if ((not $local_vm_count) && (not $remote_vm_count))
-		{
-			if ($peer_ready)
-			{
-				# No servers running on either node.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0490"});
-			}
-			else
-			{
-				# No servers running here and the peer is not in the cluster.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0491"});
-			}
-			foreach my $daemon ("libvirtd.service", "drbd.service")
-			{
-				my $running_local = 0;
-				my $running_peer  = 0;
-				
-				my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					local_output      => $local_output, 
-					local_return_code => $local_return_code,
-				}});
-				if ($local_return_code eq "3")
-				{
-					# Already stopped.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0492", variables => { daemon => $daemon }});
-				}
-				elsif ($local_return_code eq "0")
-				{
-					# Running, stop it.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0493", variables => { daemon => $daemon }});
-					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output, 
-						return_code => $return_code,
-					}});
-				}
-				
-				my ($remote_output, $remote_error, $remote_return_code) = $anvil->Remote->call({
-					target     => $peer_name,
-					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					remote_output      => $remote_output, 
-					remote_error       => $remote_error, 
-					remote_return_code => $remote_return_code,
-				}});
-				if ($remote_return_code eq "3")
-				{
-					# Already stopped.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0494", variables => { 
-						daemon => $daemon,
-						host   => $peer_name,
-					}});
-				}
-				elsif ($remote_return_code eq "0")
-				{
-					# Running, stop it.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0495", variables => { 
-						daemon => $daemon,
-						host   => $peer_name,
-					}});
-					my ($output, $error, $return_code) = $anvil->Remote->call({
-						target     => $peer_name, 
-						shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output, 
-						error       => $error, 
-						return_code => $return_code,
-					}});
-				}
-			}
-		}
-		else
-		{
-			# Servers are still running, don't stop the daemons.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0496"});
-		}
-	}
 =cut
+	}
 	
 	return(0);
 }

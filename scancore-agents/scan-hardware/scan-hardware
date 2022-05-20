@@ -1433,7 +1433,7 @@ FROM
 WHERE 
     scan_hardware_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -1441,6 +1441,21 @@ WHERE
 		results => $results, 
 		count   => $count, 
 	}});
+	
+	# If there are 2, then we've hit a bug where, somehow, we got listed twice. 
+	if ($count > 1)
+	{
+		# Delete all and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "scan_hardware_log_0002", variables => { count => $count }});
+		my $queries = [];
+		push @{$queries}, "DELETE FROM history.scan_hardware_ram_modules WHERE scan_hardware_ram_module_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		push @{$queries}, "DELETE FROM scan_hardware_ram_modules WHERE scan_hardware_ram_module_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		push @{$queries}, "DELETE FROM history.scan_hardware WHERE scan_hardware_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		push @{$queries}, "DELETE FROM scan_hardware WHERE scan_hardware_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+		$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	}
+	
 	foreach my $row (@{$results})
 	{
 		# We've got an entry in the 'scan_hardware' table, so now we'll look for data in the node and 
@@ -1460,7 +1475,7 @@ WHERE
 		my $scan_hardware_led_css       = $row->[12]; 
 		my $scan_hardware_led_error     = $row->[13];  
 		my $scan_hardware_modified_date = $row->[14];  
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"scan_hardware_uuid"          => $scan_hardware_uuid,
 			"scan_hardware_cpu_model"     => $scan_hardware_cpu_model,
 			"scan_hardware_cpu_cores"     => $scan_hardware_cpu_cores,

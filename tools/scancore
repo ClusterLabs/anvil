@@ -68,9 +68,20 @@ $anvil->data->{scancore} = {
 $anvil->Storage->read_config();
 
 # Read switches
+$anvil->data->{switches}{purge}      = "";
 $anvil->data->{switches}{'run-once'} = "";
 $anvil->Get->switches;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# If purging, also set 'run-once'.
+if ($anvil->data->{switches}{purge})
+{
+	$anvil->data->{switches}{'run-once'} = 1;
+}
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::purge"    => $anvil->data->{switches}{purge}, 
+	"switches::run-once" => $anvil->data->{switches}{'run-once'}, 
+}});
 
 # Calculate my sum so that we can exit if it changes later.
 $anvil->Storage->record_md5sums();

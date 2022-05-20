@@ -1,3 +1,12 @@
+
+When pairing Striker, make sure new config goes to all known nodes!
+Immediately set drbdadm to 'secondary' after 'primary --force'
+
+dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-striker --allowerasing
+dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-node --allowerasing
+dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-dr --allowerasing
+
+
 # Configure APC PDUs and UPSes
 tcpip -i 10.201.2.3 -s 255.255.0.0 -g 10.201.255.254
 web -h enable

@@ -136,7 +136,10 @@ sub check_vnc
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
 			foreach my $line (split/\n/, $output)
 			{
 				if ($line =~ /\d.*?:(\d+)$/)
@@ -286,8 +289,14 @@ sub collect_data
 		}
 	}
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." list --all";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	foreach my $line (split/\n/, $output)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
@@ -449,16 +458,28 @@ DELETED   - Marks a server as no longer existing
 					# The definition was likely changed by the user while it was running. We 
 					# should have already picked up the changes, but just to be safe, check for
 					# differences.
-					my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name, source => $THIS_FILE, line => __LINE__});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $virsh_definition, return_code => $return_code }});
+					my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $virsh_definition, 
+						return_code => $return_code,
+					}});
 					
 					# The definition may have certainly changed, so update it in case 
 					# needed.
 					update_definitions_from_virsh($anvil, $server_name, $server_uuid, $virsh_definition);
 					
 					# Now undefine the server
-					(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." undefine ".$server_name, source => $THIS_FILE, line => __LINE__});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+					$shell_call = $anvil->data->{path}{exe}{virsh}." undefine ".$server_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					(my $output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
 				}
 				
 				# Set the boot time back to zero.
@@ -594,8 +615,11 @@ DELETED   - Marks a server as no longer existing
 			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0003", variables => $variables, set_by => $THIS_FILE});
 		}
 		
-		my ($virsh_live_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server_name, source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $virsh_definition, return_code => $return_code }});
+		my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($virsh_live_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
 		$anvil->Server->parse_definition({
 			server     => $server_name,
 			source     => "from_live_virsh", 
@@ -913,12 +937,15 @@ DELETED   - Marks a server as no longer existing
 	if ($peer_access)
 	{
 		# Get a list of servers running on our peer. 
+		my $shell_call = $anvil->data->{path}{exe}{virsh}." list --all";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			target      => $peer_name,
 			password    => $password,
-			shell_call  => $anvil->data->{path}{exe}{virsh}." list --all",
+			shell_call  => $shell_call,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			error       => $error,
 			output      => $output,
 			return_code => $return_code, 
@@ -1043,8 +1070,14 @@ sub get_and_parse_virsh_definition
 	my ($anvil, $server_name) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_name => $server_name }});
 
-	my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $virsh_definition, 
+		return_code => $return_code,
+	}});
 	
 	$anvil->Server->parse_definition({
 		server     => $server_name,
@@ -1066,12 +1099,24 @@ sub redefine_server_from_disk
 	
 	# Push the new definition into virsh (it won't take effect until a reboot likely, but it will update
 	# the 'inactive' definition immediately.
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." defined ".$xml_file, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." defined ".$xml_file;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	
 	# Now undefine the server again so it disappears when stopped. 
-	($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." undefine ".$server_name, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	$shell_call = $anvil->data->{path}{exe}{virsh}." undefine ".$server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	
 	# Re-read and parse the new (inactive) definition
 	my $virsh_definition = get_and_parse_virsh_definition($anvil, $server_name);

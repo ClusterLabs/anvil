@@ -1455,7 +1455,7 @@ sub keep_running
 		# Write out state information for all known Anvil! systems and the information from 
 		# unconfigured nods and DR hosts, using just database data (hence, fast enough to run 
 		# constantly).
-		$anvil->System->generate_state_json({debug => 3});
+		$anvil->System->generate_state_json({debug => 2});
 	}
 	else
 	{
