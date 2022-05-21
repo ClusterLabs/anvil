@@ -3613,9 +3613,9 @@ SELECT
 FROM 
     bridges 
 WHERE 
-    bridge_host_uuid = ".$anvil->Database->quote($host_uuid)."
+    bridge_host_uuid =  ".$anvil->Database->quote($host_uuid)."
 AND 
-    bridge_id != 'DELETED'
+    bridge_id        != 'DELETED'
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3687,7 +3687,7 @@ SELECT
 FROM 
     network_interfaces 
 WHERE 
-    network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+    network_interface_host_uuid   =  ".$anvil->Database->quote($host_uuid)." 
 AND 
     network_interface_operational != 'DELETED'
 ;";
@@ -3779,7 +3779,15 @@ AND
 			{
 				# This isn't a network we should know about (ie: it might be a stray 'virbrX'
 				# birdge), delete this IP.
-				my $query = "UPDATE ip_addresses SET ip_address_note = 'DELETED' WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+				my $query = "
+UPDATE 
+    ip_addresses 
+SET 
+    ip_address_note = 'DELETED', 
+    modified_date   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid)."
+;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 				next;

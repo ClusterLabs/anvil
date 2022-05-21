@@ -5051,7 +5051,7 @@ sub update_hosts
 	$anvil->Database->get_ip_addresses({debug => $debug});
 	
 	# Load the IPs we manage. If we find any entries for these that we don't expect, we'll remove them.
-	$anvil->Database->get_ip_addresses({debug => $debug});
+	$anvil->Network->load_ips({debug => $debug});
 	
 	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 	{

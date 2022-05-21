@@ -1456,9 +1456,14 @@ ORDER BY
 						uuid => $ip_address_uuid,
 					}});
 					
-					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					push @{$queries}, "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					foreach my $query (@{$queries})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					}
+					$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
@@ -1476,9 +1481,14 @@ ORDER BY
 						uuid => $ip_address_uuid,
 					}});
 					
-					my $query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					push @{$queries}, "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					foreach my $query (@{$queries})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					}
+					$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
