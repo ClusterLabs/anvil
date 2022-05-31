@@ -1,72 +1,37 @@
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { Box, IconButton, styled } from '@mui/material';
+import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
+import { Box, IconButton as MUIIconButton } from '@mui/material';
 import {
   DesktopWindows as DesktopWindowsIcon,
   PowerOffOutlined as PowerOffOutlinedIcon,
 } from '@mui/icons-material';
 
-import { BLACK, GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
-import { Panel } from '../Panels';
+import IconButton from '../IconButton';
+import { Panel, PanelHeader } from '../Panels';
 import { HeaderText } from '../Text';
 
-const PREFIX = 'Preview';
-
-const classes = {
-  displayBox: `${PREFIX}-displayBox`,
-  fullScreenButton: `${PREFIX}-fullScreenButton`,
-  fullScreenBox: `${PREFIX}-fullScreenBox`,
-  imageButton: `${PREFIX}-imageButton`,
-  powerOffIcon: `${PREFIX}-powerOffIcon`,
-  previewImage: `${PREFIX}-previewImage`,
+type PreviewOptionalProps = {
+  isShowControls?: boolean;
+  setMode?: Dispatch<SetStateAction<boolean>> | null;
 };
 
-const StyledDiv = styled('div')(() => ({
-  [`& .${classes.displayBox}`]: {
-    padding: 0,
-    paddingTop: '.7em',
-    width: '100%',
-  },
-
-  [`& .${classes.fullScreenButton}`]: {
-    borderRadius: 8,
-    backgroundColor: TEXT,
-    '&:hover': {
-      backgroundColor: TEXT,
-    },
-  },
-
-  [`& .${classes.fullScreenBox}`]: {
-    paddingLeft: '1em',
-    padding: 0,
-  },
-
-  [`& .${classes.imageButton}`]: {
-    padding: 0,
-    color: TEXT,
-  },
-
-  [`& .${classes.powerOffIcon}`]: {
-    borderRadius: 8,
-    padding: 0,
-    color: GREY,
-    width: '100%',
-    height: '100%',
-  },
-
-  [`& .${classes.previewImage}`]: {
-    width: '100%',
-    height: '100%',
-  },
-}));
-
-interface PreviewProps {
-  setMode: Dispatch<SetStateAction<boolean>>;
+type PreviewProps = PreviewOptionalProps & {
   uuid: string;
   serverName: string | string[] | undefined;
-}
+};
 
-const Preview = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
+const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
+  isShowControls: true,
+  setMode: null,
+};
+
+const Preview: FC<PreviewProps> = ({
+  isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
+  serverName,
+  setMode,
+  uuid,
+}) => {
   const [preview, setPreview] = useState<string>();
 
   useEffect(() => {
@@ -91,44 +56,61 @@ const Preview = ({ setMode, uuid, serverName }: PreviewProps): JSX.Element => {
 
   return (
     <Panel>
-      <StyledDiv>
-        <Box flexGrow={1}>
-          <HeaderText text={`Server: ${serverName}`} />
+      <PanelHeader>
+        <HeaderText text={`Server: ${serverName}`} />
+      </PanelHeader>
+      <Box
+        sx={{
+          display: 'flex',
+          width: '100%',
+
+          '& > :not(:last-child)': {
+            marginRight: '1em',
+          },
+        }}
+      >
+        <Box>
+          <MUIIconButton
+            component="span"
+            onClick={() => setMode?.call(null, false)}
+            sx={{
+              color: GREY,
+              padding: 0,
+            }}
+          >
+            {preview ? (
+              <Box
+                alt=""
+                component="img"
+                src={`data:image/png;base64,${preview}`}
+                sx={{
+                  height: '100%',
+                  width: '100%',
+                }}
+              />
+            ) : (
+              <PowerOffOutlinedIcon
+                sx={{
+                  height: '100%',
+                  padding: 0,
+                  width: '100%',
+                }}
+              />
+            )}
+          </MUIIconButton>
         </Box>
-        <Box display="flex" className={classes.displayBox}>
+        {isShowControls && (
           <Box>
-            <IconButton
-              className={classes.imageButton}
-              style={{ color: BLACK }}
-              component="span"
-              onClick={() => setMode(false)}
-            >
-              {!preview ? (
-                <PowerOffOutlinedIcon className={classes.powerOffIcon} />
-              ) : (
-                <img
-                  alt=""
-                  key="preview"
-                  src={`data:image/png;base64,${preview}`}
-                  className={classes.previewImage}
-                />
-              )}
-            </IconButton>
-          </Box>
-          <Box className={classes.fullScreenBox}>
-            <IconButton
-              className={classes.fullScreenButton}
-              style={{ color: BLACK }}
-              component="span"
-              onClick={() => setMode(false)}
-            >
+            <IconButton onClick={() => setMode?.call(null, false)}>
               <DesktopWindowsIcon />
             </IconButton>
           </Box>
-        </Box>
-      </StyledDiv>
+        )}
+      </Box>
     </Panel>
   );
 };
+
+Preview.defaultProps = PREVIEW_DEFAULT_PROPS;
 
 export default Preview;
