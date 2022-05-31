@@ -5,14 +5,15 @@ import {
   PowerOffOutlined as PowerOffOutlinedIcon,
 } from '@mui/icons-material';
 
-import { GREY } from '../../lib/consts/DEFAULT_THEME';
+import { BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
 import IconButton from '../IconButton';
-import { Panel, PanelHeader } from '../Panels';
-import { HeaderText } from '../Text';
+import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
+import { BodyText, HeaderText } from '../Text';
 
 type PreviewOptionalProps = {
   isShowControls?: boolean;
+  isUseInnerPanel?: boolean;
   setMode?: Dispatch<SetStateAction<boolean>> | null;
 };
 
@@ -23,11 +24,40 @@ type PreviewProps = PreviewOptionalProps & {
 
 const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
   isShowControls: true,
+  isUseInnerPanel: false,
   setMode: null,
 };
 
+const PreviewPanel: FC<{ isUseInnerPanel: boolean }> = ({
+  children,
+  isUseInnerPanel,
+}) =>
+  isUseInnerPanel ? (
+    <InnerPanel>{children}</InnerPanel>
+  ) : (
+    <Panel>{children}</Panel>
+  );
+
+const PreviewPanelHeader: FC<{ isUseInnerPanel: boolean; text: string }> = ({
+  children,
+  isUseInnerPanel,
+  text,
+}) =>
+  isUseInnerPanel ? (
+    <InnerPanelHeader>
+      <BodyText text={text} />
+      {children}
+    </InnerPanelHeader>
+  ) : (
+    <PanelHeader>
+      <HeaderText text={text} />
+      {children}
+    </PanelHeader>
+  );
+
 const Preview: FC<PreviewProps> = ({
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
+  isUseInnerPanel = PREVIEW_DEFAULT_PROPS.isUseInnerPanel,
   serverName,
   setMode,
   uuid,
@@ -55,10 +85,11 @@ const Preview: FC<PreviewProps> = ({
   }, [uuid]);
 
   return (
-    <Panel>
-      <PanelHeader>
-        <HeaderText text={`Server: ${serverName}`} />
-      </PanelHeader>
+    <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
+      <PreviewPanelHeader
+        isUseInnerPanel={isUseInnerPanel}
+        text={`Server: ${serverName}`}
+      />
       <Box
         sx={{
           display: 'flex',
@@ -74,6 +105,7 @@ const Preview: FC<PreviewProps> = ({
             component="span"
             onClick={() => setMode?.call(null, false)}
             sx={{
+              borderRadius: BORDER_RADIUS,
               color: GREY,
               padding: 0,
             }}
@@ -92,7 +124,6 @@ const Preview: FC<PreviewProps> = ({
               <PowerOffOutlinedIcon
                 sx={{
                   height: '100%',
-                  padding: 0,
                   width: '100%',
                 }}
               />
@@ -107,7 +138,7 @@ const Preview: FC<PreviewProps> = ({
           </Box>
         )}
       </Box>
-    </Panel>
+    </PreviewPanel>
   );
 };
 
