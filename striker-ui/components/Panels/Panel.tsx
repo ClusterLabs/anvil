@@ -26,7 +26,7 @@ const StyledBox = styled(Box)(() => ({
     padding: '2.1em',
     position: 'relative',
     width: '100%',
-    zIndex: 999,
+    zIndex: 10,
   },
 
   [`& .${classes.square}`]: {
