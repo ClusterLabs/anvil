@@ -29,7 +29,14 @@ const InnerPanelHeader: FC = ({ children }) => (
     >
       {children}
     </Box>
-    <Box sx={{ paddingBottom: '.4em', width: '100%', visibility: 'hidden' }}>
+    <Box
+      sx={{
+        paddingBottom: '.4em',
+        paddingRight: '1.7em',
+        width: '100%',
+        visibility: 'hidden',
+      }}
+    >
       {children instanceof Array ? children[0] : children}
     </Box>
   </Box>
