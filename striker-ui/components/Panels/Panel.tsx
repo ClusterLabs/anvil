@@ -20,9 +20,12 @@ const StyledBox = styled(Box)(() => ({
   position: 'relative',
 
   [`& .${classes.paper}`]: {
-    padding: '2.1em',
     backgroundColor: PANEL_BACKGROUND,
+    height: '100%',
     opacity: 0.8,
+    padding: '2.1em',
+    position: 'relative',
+    width: '100%',
     zIndex: 999,
   },
 
