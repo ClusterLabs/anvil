@@ -1,110 +1,131 @@
 import Head from 'next/head';
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { FC, useState } from 'react';
+import { Box, Divider } from '@mui/material';
 
-import Anvils from '../components/Anvils';
-import Hosts from '../components/Hosts';
-import CPU from '../components/CPU';
-import SharedStorage from '../components/SharedStorage';
-import Memory from '../components/Memory';
-import Network from '../components/Network';
-import periodicFetch from '../lib/fetchers/periodicFetch';
-import Servers from '../components/Servers';
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
+
+import { Preview } from '../components/Display';
 import Header from '../components/Header';
-import AnvilProvider from '../components/AnvilContext';
-import { LARGE_MOBILE_BREAKPOINT } from '../lib/consts/DEFAULT_THEME';
-import useWindowDimensions from '../hooks/useWindowDimenions';
+import OutlinedInput from '../components/OutlinedInput';
+import { Panel, PanelHeader } from '../components/Panels';
+import periodicFetch from '../lib/fetchers/periodicFetch';
+import Spinner from '../components/Spinner';
 
-const PREFIX = 'Dashboard';
+const createServerPreviewContainer = (servers: ServerOverviewMetadata[]) => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
 
-const classes = {
-  child: `${PREFIX}-child`,
-  server: `${PREFIX}-server`,
-  container: `${PREFIX}-container`,
-};
+      '& > *': {
+        width: { xs: '20em', md: '30em' },
+      },
+    }}
+  >
+    {servers.map(({ serverName, serverUUID }) => (
+      <Preview
+        key={`server-preview-${serverUUID}`}
+        isShowControls={false}
+        isUseInnerPanel
+        serverName={serverName}
+        uuid={serverUUID}
+      />
+    ))}
+  </Box>
+);
 
-const StyledDiv = styled('div')(({ theme }) => ({
-  [`& .${classes.child}`]: {
-    width: '22%',
-    height: '100%',
-    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
-      width: '50%',
+const filterServers = (
+  allServers: ServerOverviewMetadata[],
+  searchTerm: string,
+) =>
+  searchTerm === ''
+    ? {
+        exclude: allServers,
+        include: [],
+      }
+    : allServers.reduce<{
+        exclude: ServerOverviewMetadata[];
+        include: ServerOverviewMetadata[];
+      }>(
+        (reduceContainer, server) => {
+          const { serverName } = server;
+
+          if (serverName.includes(searchTerm)) {
+            reduceContainer.include.push(server);
+          } else {
+            reduceContainer.exclude.push(server);
+          }
+
+          return reduceContainer;
+        },
+        { exclude: [], include: [] },
+      );
+
+const Dashboard: FC = () => {
+  const [allServers, setAllServers] = useState<ServerOverviewMetadata[]>([]);
+  const [excludeServers, setExcludeServers] = useState<
+    ServerOverviewMetadata[]
+  >([]);
+  const [includeServers, setIncludeServers] = useState<
+    ServerOverviewMetadata[]
+  >([]);
+
+  const [inputSearchTerm, setInputSearchTerm] = useState<string>('');
+
+  const updateServerList = (
+    ...filterArgs: Parameters<typeof filterServers>
+  ) => {
+    const { exclude, include } = filterServers(...filterArgs);
+
+    setExcludeServers(exclude);
+    setIncludeServers(include);
+  };
+
+  const { isLoading } = periodicFetch<ServerOverviewMetadata[]>(
+    `${API_BASE_URL}/server`,
+    {
+      onSuccess: (data = []) => {
+        setAllServers(data);
+
+        updateServerList(data, inputSearchTerm);
+      },
+      refreshInterval: 60000,
     },
-    [theme.breakpoints.down('md')]: {
-      width: '100%',
-    },
-  },
-
-  [`& .${classes.server}`]: {
-    width: '35%',
-    height: '100%',
-    [theme.breakpoints.down('md')]: {
-      width: '100%',
-    },
-  },
-
-  [`& .${classes.container}`]: {
-    display: 'flex',
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    [theme.breakpoints.down('md')]: {
-      display: 'block',
-    },
-  },
-}));
-
-const Dashboard = (): JSX.Element => {
-  const width = useWindowDimensions();
-
-  const { data } = periodicFetch<AnvilList>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
   );
 
   return (
-    <StyledDiv>
+    <Box>
       <Head>
         <title>Dashboard</title>
       </Head>
-      <AnvilProvider>
-        <Header />
-        {data?.anvils &&
-          width &&
-          (width > LARGE_MOBILE_BREAKPOINT ? (
-            <Box className={classes.container}>
-              <Box className={classes.child}>
-                <Anvils list={data} />
-                <Hosts anvil={data.anvils} />
-              </Box>
-              <Box className={classes.server}>
-                <Servers anvil={data.anvils} />
-              </Box>
-              <Box className={classes.child}>
-                <SharedStorage />
-              </Box>
-              <Box className={classes.child}>
-                <Network />
-                <CPU />
-                <Memory />
-              </Box>
-            </Box>
-          ) : (
-            <Box className={classes.container}>
-              <Box className={classes.child}>
-                <Servers anvil={data.anvils} />
-                <Anvils list={data} />
-                <Hosts anvil={data.anvils} />
-              </Box>
-              <Box className={classes.child}>
-                <Network />
-                <SharedStorage />
-                <CPU />
-                <Memory />
-              </Box>
-            </Box>
-          ))}
-      </AnvilProvider>
-    </StyledDiv>
+      <Header />
+      <Panel>
+        {isLoading ? (
+          <Spinner />
+        ) : (
+          <>
+            <PanelHeader>
+              <OutlinedInput
+                placeholder="Search by server name"
+                onChange={({ target: { value } }) => {
+                  setInputSearchTerm(value);
+
+                  updateServerList(allServers, value);
+                }}
+                value={inputSearchTerm}
+              />
+            </PanelHeader>
+            {createServerPreviewContainer(includeServers)}
+            {includeServers.length > 0 && (
+              <Divider sx={{ backgroundColor: DIVIDER }} />
+            )}
+            {createServerPreviewContainer(excludeServers)}
+          </>
+        )}
+      </Panel>
+    </Box>
   );
 };
 
