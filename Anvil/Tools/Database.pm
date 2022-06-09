@@ -15960,6 +15960,11 @@ sub resync_databases
 	{
 		# We don't sync 'states' as it's transient and sometimes per-DB.
 		next if $table eq "states";
+		
+		# Don't sync any table that doesn't have a history schema
+		next if $table eq "alert_sent";
+		next if $table eq "states";
+		next if $table eq "update";
 		next if $table eq "oui";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
 		
@@ -17899,7 +17904,9 @@ ORDER BY
 	foreach my $table (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}})
 	{
 		# We don't sync 'states' as it's transient and sometimes per-DB.
+		next if $table eq "alert_sent";
 		next if $table eq "states";
+		next if $table eq "update";
 		next if $table eq "oui";
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

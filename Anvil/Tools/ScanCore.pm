@@ -1602,7 +1602,7 @@ sub post_scan_analysis_node
 	
 	# If we're still here, at least one issue exists. Any kind of load-shed or preventative live 
 	# migration decision now depends on our peer's state. So see if we're both in the cluster or not.
-	my $problem = $anvil->Cluster->parse_cib({debug => 2});
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if (not $problem)
 	{

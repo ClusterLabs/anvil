@@ -120,9 +120,6 @@ sub do_exit
 	my ($conf, $log, $exit_status) = @_;
 	$exit_status = 9 if not defined $exit_status;
 	
-	# Close the log file handle, if it exists.
-	$log->close() if $log;
-	
 	record($conf, $log, "system::do_chown: [".$conf->{'system'}{do_chown}."].\n", 2);
 	if ($conf->{'system'}{do_chown})
 	{
@@ -132,6 +129,9 @@ sub do_exit
 		record($conf, $log, "chown'ing: [".$conf->{'system'}{do_chown}."].\n", 2);
 		chown $uid, $gid, $conf->{'system'}{'log'};
 	}
+	
+	# Close the log file handle, if it exists.
+	$log->close() if $log;
 	
 	exit ($exit_status);
 }
@@ -213,8 +213,8 @@ sub metadata
 </resource-agent>
 `;
 	
-	# Done, exit.
-	do_exit($conf, $log, 0);
+	# Done
+	return(0);
 }
 
 # This handles the actual actions.
