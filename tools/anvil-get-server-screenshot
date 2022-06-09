@@ -56,10 +56,9 @@ sub get_server_screenshot
 	if ($resize_x =~ /^\d+$/ && $resize_y =~ /^\d+$/)
 	{
 		$shell_call .= " | pamscale -quiet -xyfit ".$resize_x." ".$resize_y;
-		$shell_call .= " | pamtopng -quiet";
 	}
 
-	$shell_call .= " | base64 --wrap 0";
+	$shell_call .= " | pamtopng -quiet | base64 --wrap 0";
 
 	my ($shell_output, $shell_return_code) = system_call({ shell_call => $shell_call });
 
