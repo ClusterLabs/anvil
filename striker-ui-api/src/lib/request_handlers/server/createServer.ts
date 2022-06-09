@@ -2,6 +2,7 @@ import assert from 'assert';
 import { RequestHandler } from 'express';
 
 import { OS_LIST_MAP } from '../../consts/OS_LIST';
+import { REP_INTEGER, REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { dbQuery, sub } from '../../accessModule';
@@ -24,13 +25,6 @@ export const createServer: RequestHandler = ({ body }, response) => {
     } = body;
 
     console.dir(body, { depth: null });
-
-    const rgHex = '[0-9a-f]';
-    const patternInteger = /^\d+$/;
-    const patterUUID = new RegExp(
-      `^${rgHex}{8}-${rgHex}{4}-[1-5]${rgHex}{3}-[89ab]${rgHex}{3}-${rgHex}{12}$`,
-      'i',
-    );
 
     const dataServerName = String(serverName);
     const dataOS = String(optimizeForOS);
@@ -61,31 +55,31 @@ export const createServer: RequestHandler = ({ body }, response) => {
         `Data OS not recognized; got [${dataOS}].`,
       );
       assert(
-        patternInteger.test(dataCPUCores),
+        REP_INTEGER.test(dataCPUCores),
         `Data CPU cores can only contain digits; got [${dataCPUCores}].`,
       );
       assert(
-        patternInteger.test(dataRAM),
+        REP_INTEGER.test(dataRAM),
         `Data RAM can only contain digits; got [${dataRAM}].`,
       );
       assert(
-        patterUUID.test(dataStorageGroupUUID),
+        REP_UUID.test(dataStorageGroupUUID),
         `Data storage group UUID must be a valid UUID; got [${dataStorageGroupUUID}].`,
       );
       assert(
-        patternInteger.test(dataStorageSize),
+        REP_INTEGER.test(dataStorageSize),
         `Data storage size can only contain digits; got [${dataStorageSize}].`,
       );
       assert(
-        patterUUID.test(dataInstallISO),
+        REP_UUID.test(dataInstallISO),
         `Data install ISO must be a valid UUID; got [${dataInstallISO}].`,
       );
       assert(
-        dataDriverISO === 'none' || patterUUID.test(dataDriverISO),
+        dataDriverISO === 'none' || REP_UUID.test(dataDriverISO),
         `Data driver ISO must be a valid UUID when provided; got [${dataDriverISO}].`,
       );
       assert(
-        patterUUID.test(dataAnvilUUID),
+        REP_UUID.test(dataAnvilUUID),
         `Data anvil UUID must be a valid UUID; got [${dataAnvilUUID}].`,
       );
     } catch (assertError) {
