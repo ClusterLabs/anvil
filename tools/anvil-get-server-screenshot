@@ -132,7 +132,8 @@ if ($anvil->data->{switches}{'job-uuid'})
 
 my $server_uuid = $anvil->data->{switches}{'server-uuid'};
 my $resize_args = $anvil->data->{switches}{'resize'};
-my $is_stdout   = $anvil->data->{switches}{'stdout'};
+# Restrict output to stdout and keep the DB insert logic hidden for now.
+my $is_stdout   = 1;
 my $job_uuid    = $anvil->data->{switches}{'job-uuid'};
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
