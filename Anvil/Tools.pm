@@ -1117,6 +1117,7 @@ sub _set_paths
 				syslinux			=>	"/usr/share/syslinux",
 				tftpboot			=>	"/var/lib/tftpboot",
 				temp				=>	"/tmp/anvil",
+				tmp				=>	"/tmp",
 				tools				=>	"/usr/sbin",
 				units				=>	"/usr/lib/systemd/system",
 			},
