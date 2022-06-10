@@ -51,16 +51,16 @@ sub get_server_screenshot
 	my $server_uuid = $parameters->{server_uuid};
 	my $resize_args = defined $parameters->{resize_args} ? $parameters->{resize_args} : '';
 
-	my $shell_call = "virsh --quiet screenshot --domain ".$server_uuid." --file /dev/stdout";
+	my $shell_call = $anvil->data->{path}{exe}{virsh}" --quiet screenshot --domain ".$server_uuid." --file ".$anvil->data->{path}{devices}{stdout};
 
 	if ($resize_args =~ /^\d+x\d+$/)
 	{
 		my ($resize_x, $resize_y) = split(/x/ , $resize_args);
 
-		$shell_call .= " | pamscale -quiet -xyfit ".$resize_x." ".$resize_y;
+		$shell_call .= " | ".$anvil->data->{path}{exe}{pamscale}." -quiet -xyfit ".$resize_x." ".$resize_y;
 	}
 
-	$shell_call .= " | pamtopng -quiet | base64 --wrap 0";
+	$shell_call .= " | ".$anvil->data->{path}{exe}{pamtopng}." -quiet | ".$anvil->data->{path}{exe}{base64}." --wrap 0";
 
 	my ($shell_output, $shell_return_code) = system_call({ shell_call => $shell_call });
 

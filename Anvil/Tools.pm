@@ -1100,6 +1100,9 @@ sub _set_paths
 				'redhat-release'		=>	"/etc/redhat-release",
 				fences_unified_metadata		=>	"/var/www/html/fences_unified_metadata.xml",
 			},
+			devices			=>	{
+				stdout				=>	"/dev/stdout",
+			},
 			directories		=>	{
 				alert_emails			=>	"/var/spool/anvil",
 				anvil				=>	"/etc/anvil",
@@ -1165,6 +1168,7 @@ sub _set_paths
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
 				augtool				=>	"/usr/bin/augtool",
+				base64				=>	"/usr/bin/base64",
 				blockdev			=>	"/usr/sbin/blockdev",
 				bridge				=>	"/usr/sbin/bridge",
 				bzip2				=>	"/usr/bin/bzip2",
@@ -1241,6 +1245,8 @@ sub _set_paths
 				ocf_alteeve			=>	"/usr/lib/ocf/resource.d/alteeve/server",
 				openssl				=>	"/usr/bin/openssl", 
 				'osinfo-query'			=>	"/usr/bin/osinfo-query",
+				pamscale			=>	"/usr/bin/pamscale",
+				pamtopng			=>	"/usr/bin/pamtopng",
 				passwd				=>	"/usr/bin/passwd",
 				pcs				=>	"/usr/sbin/pcs",
 				perccli64			=>	"/opt/MegaRAID/perccli/perccli64",
