@@ -12,11 +12,24 @@ type MapToReturnFunction = {
 
 const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
   boolean: (qs) => qs !== undefined,
-  string: (qs) => String(qs),
-  'string[]': (qs) =>
-    qs instanceof Array
-      ? qs.map((element) => String(element))
-      : String(qs).split(/[,;]/),
+  string: (qs) => (qs ? String(qs) : ''),
+  'string[]': (qs) => {
+    let result: string[] = [];
+
+    if (qs instanceof Array) {
+      result = qs.reduce<string[]>((reduceContainer, element) => {
+        if (element) {
+          reduceContainer.push(String(element));
+        }
+
+        return reduceContainer;
+      }, []);
+    } else if (qs) {
+      result = String(qs).split(/[,;]/);
+    }
+
+    return result;
+  },
 };
 
 export const sanitizeQS = <ReturnTypeName extends keyof MapToReturnType>(
