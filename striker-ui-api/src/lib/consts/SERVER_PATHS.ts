@@ -6,12 +6,15 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       incoming: {},
     },
   },
+  tmp: {},
   usr: {
     bin: {
+      mkfifo: {},
       sed: {},
     },
     sbin: {
       'anvil-access-module': {},
+      'anvil-get-server-screenshot': {},
       'anvil-provision-server': {},
       'anvil-sync-shared': {},
       'striker-parse-os-list': {},

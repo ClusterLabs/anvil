@@ -5,8 +5,8 @@ import SERVER_PATHS from './consts/SERVER_PATHS';
 const execAnvilAccessModule = (
   args: string[],
   options: SpawnSyncOptions = {
-    timeout: 10000,
     encoding: 'utf-8',
+    timeout: 10000,
   },
 ) => {
   const { error, stdout, stderr } = spawnSync(
@@ -31,7 +31,7 @@ const execAnvilAccessModule = (
     output = stdout;
 
     console.warn(
-      `Failed to parse anvil-access-module output [${output}]; error: [${stdoutParseError}]`,
+      `Failed to parse anvil-access-module output [${output}]; CAUSE: [${stdoutParseError}]`,
     );
   }
 
@@ -62,6 +62,14 @@ const execModuleSubroutine = (
   if (subParams) {
     args.push('--sub-params', JSON.stringify(subParams));
   }
+
+  console.log(
+    `...${subModuleName}->${subName} with params: ${JSON.stringify(
+      subParams,
+      null,
+      2,
+    )}`,
+  );
 
   const { stdout } = execAnvilAccessModule(args, spawnSyncOptions);
 
@@ -101,8 +109,6 @@ const dbJobAnvilSyncShared = (
   if (jobHostUUID) {
     subParams.job_host_uuid = jobHostUUID;
   }
-
-  console.log(JSON.stringify(subParams, null, 2));
 
   return execModuleSubroutine('insert_or_update_jobs', { subParams }).stdout;
 };
