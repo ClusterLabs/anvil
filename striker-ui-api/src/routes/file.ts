@@ -174,7 +174,7 @@ router
     try {
       ({ stdout: queryStdout } = dbWrite(query));
     } catch (queryError) {
-      console.log(`Query error: ${queryError}`);
+      console.log(`Failed to execute query; CAUSE: ${queryError}`);
 
       response.status(500).send();
     }
