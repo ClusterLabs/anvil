@@ -1524,7 +1524,7 @@ FROM
 WHERE 
     network_interface_operational != 'DELETED' 
 AND 
-    network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+    network_interface_host_uuid   =  ".$anvil->Database->quote($host_uuid)." 
 ORDER BY 
     modified_date DESC 
 ;";

@@ -861,7 +861,15 @@ AND
 		if ((not exists $anvil->data->{seen}{bond}{$bond_name}) or (not $anvil->data->{seen}{bond}{$bond_name}))
 		{
 			# Mark it as deleted.
-			my $query = "UPDATE bonds SET bond_mode = 'DELETED' WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+			my $query = "
+UPDATE 
+    bonds 
+SET 
+    bond_mode     = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    bond_uuid     = ".$anvil->Database->quote($bond_uuid)."
+;";
 			$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 			
 			# Remove it from the hash so we don't add it to the .json and .xml files.
@@ -918,7 +926,14 @@ AND
 		if ((not exists $anvil->data->{seen}{bridge}{$bridge_name}) or (not $anvil->data->{seen}{bridge}{$bridge_name}))
 		{
 			# Mark it as deleted.
-			my $query = "UPDATE bridges SET bridge_id = 'DELETED' WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+			my $query = "
+UPDATE 
+    bridges 
+SET 
+    bridge_id     = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    bridge_uuid   = ".$anvil->Database->quote($bridge_uuid).";";
 			$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 			
 			# Remove it from the hash so we don't add it to the .json and .xml files.
@@ -997,8 +1012,16 @@ ORDER BY
 			if ($anvil->data->{network_interfaces}{$network_interface_uuid}{network_interface_operational} ne "DELETED")
 			{
 				# Mark it as deleted.
-				my $query = "UPDATE network_interfaces SET network_interface_operational = 'DELETED' WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+				my $query = "
+UPDATE 
+    network_interfaces 
+SET 
+    network_interface_operational = 'DELETED', 
+    modified_date                 = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
+;";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0124", variables => { query => $query }});
 				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 			}
 			

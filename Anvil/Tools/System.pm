@@ -5015,7 +5015,15 @@ sub test_ipmi
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { shell_call => $shell_call }});
 		
 		# Update it.
-		my $query = "UPDATE hosts SET host_ipmi = ".$anvil->Database->quote($shell_call)."  WHERE host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		my $query = "
+UPDATE 
+    hosts 
+SET 
+    host_ipmi     = ".$anvil->Database->quote($shell_call).", 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    host_uuid     = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+;";
 		$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	

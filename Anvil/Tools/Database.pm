@@ -809,8 +809,8 @@ sub configure_pgsql
 	# If we didn't get the $local_uuid, then there is no entry for this system in anvil.conf yet, so we'll add it.
 	if (not $local_uuid)
 	{
-		$local_uuid = $anvil->Database->_add_to_local_config({debug => 2});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+		$local_uuid = $anvil->Database->_add_to_local_config({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 		
 		if ($local_uuid eq "!!error!!")
 		{
@@ -1730,7 +1730,7 @@ sub connect
 						if ($anvil->data->{sys}{database}{read_uuid} eq $uuid)
 						{
 							$anvil->data->{sys}{database}{read_uuid} = "";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 						}
 						next;
 					}
@@ -3210,6 +3210,7 @@ sub get_host_from_uuid
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
 	
 	my $host_name       = "";
+	my $short_host_name = "";
 	my $host_uuid       = defined $parameter->{host_uuid}       ? $parameter->{host_uuid}       : "";
 	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
 	my $short           = defined $parameter->{short}           ? $parameter->{short}           : 0;
@@ -3224,6 +3225,19 @@ sub get_host_from_uuid
 		# Throw an error and exit.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_host_from_uuid()", parameter => "host_uuid" }});
 		return($host_name);
+	}
+	
+	# If we queried this before, return the cached value.
+	if (exists $anvil->data->{host_from_uuid}{$host_uuid})
+	{
+		if ($short)
+		{
+			return($anvil->data->{host_from_uuid}{$host_uuid}{short});
+		}
+		else
+		{
+			return($anvil->data->{host_from_uuid}{$host_uuid}{full});
+		}
 	}
 	
 	my $query = "
@@ -3251,17 +3265,29 @@ AND
 	}});
 	if ($count)
 	{
-		$host_name = $results->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+		$host_name       = $results->[0]->[0];
+		$short_host_name = ($host_name =~ /^(.*?)\..*$/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_name       => $host_name,
+			short_host_name => $short_host_name, 
+		}});
 		
-		if ($short)
-		{
-			$host_name =~ s/\..*$//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
-		}
+		$anvil->data->{host_from_uuid}{$host_uuid}{full}  = $host_name;
+		$anvil->data->{host_from_uuid}{$host_uuid}{short} = $short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"host_from_uuid::${host_uuid}::full"  => $anvil->data->{host_from_uuid}{$host_uuid}{full},
+			"host_from_uuid::${host_uuid}::short" => $anvil->data->{host_from_uuid}{$host_uuid}{short},
+		}});
 	}
 	
-	return($host_name);
+	if ($short)
+	{
+		return($anvil->data->{host_from_uuid}{$host_uuid}{short});
+	}
+	else
+	{
+		return($anvil->data->{host_from_uuid}{$host_uuid}{full});
+	}
 }
 
 
@@ -5120,8 +5146,12 @@ WHERE
 						anvil_name         => $anvil_name, 
 					}});
 					
-					my $query = "DELETE FROM storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+					my $query = "DELETE FROM history.storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					$query = "DELETE FROM storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 				}
 			}
@@ -5243,7 +5273,7 @@ INSERT INTO
     ".$anvil->Database->quote($closest_scan_lvm_vg_uuid).", 
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 						$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 						
 						# Reload 
@@ -9859,6 +9889,7 @@ SET
 WHERE 
     network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
 ;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($network_interface_uuid);
@@ -14706,7 +14737,7 @@ sub locking
 		}});
 		
 		# Log that we've renewed the lock.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0044", variables => { host => $anvil->Get->host_name }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0044", variables => { host => $anvil->Get->short_host_name }});
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 		return($set);
@@ -14803,7 +14834,7 @@ sub locking
 			}});
 			
 			# Log that we've got the lock.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $anvil->Get->host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $anvil->Get->short_host_name }});
 		}
 	}
 	
@@ -15966,16 +15997,12 @@ sub resync_databases
 		next if $table eq "states";
 		next if $table eq "update";
 		next if $table eq "oui";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
 		
-		# If the 'schema' is 'public', there is no table in the history schema. If there is a host 
-		# column, the resync will be restricted to entries from this host uuid.
-		my $schema      = $anvil->data->{sys}{database}{table}{$table}{schema}      ? $anvil->data->{sys}{database}{table}{$table}{schema}      : "public";
-		my $host_column = $anvil->data->{sys}{database}{table}{$table}{host_column} ? $anvil->data->{sys}{database}{table}{$table}{host_column} : "";
+		# If the 'schema' is 'public', there is no table in the history schema.
+		my $schema = $anvil->data->{sys}{database}{table}{$table}{schema} ? $anvil->data->{sys}{database}{table}{$table}{schema} : "public";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			table       => $table, 
-			schema      => $schema, 
-			host_column => $host_column, 
+			table  => $table, 
+			schema => $schema, 
 		}});
 		
 		# If there is a column name that is '<table>_uuid', or the same with the table's name minus 
@@ -16061,16 +16088,24 @@ sub resync_databases
 			$anvil->data->{db_resync}{$uuid}{public}{sql}  = [];
 			$anvil->data->{db_resync}{$uuid}{history}{sql} = [];
 			
-			# Read in the data, modified_date first as we'll need that for all entries we record.
-			my $query        = "SELECT DISTINCT modified_date AT time zone 'UTC' AS utc_modified_date, $uuid_column, ";
+			### NOTE: The history_id is used to insure that the first duplicate entry is the one
+			###       we want to save, and any others are deleted. 
+			# Read in the data, history_id and modified_date first as we'll need that for all entries we record.
+			my $query        = "SELECT modified_date AT time zone 'UTC' AS utc_modified_date, $uuid_column, ";
 			my $read_columns = [];
+			if ($schema eq "history")
+			{
+				# Most tables are reading from history, but some aren't.
+				$query = "SELECT history_id, modified_date AT time zone 'UTC' AS utc_modified_date, $uuid_column, ";
+				push @{$read_columns}, "history_id";
+			}
 			push @{$read_columns}, "modified_date";
 			push @{$read_columns}, $uuid_column;
 			foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}{$table}{column}})
 			{
 				# We'll skip the host column as we'll use it in the conditional.
+				next if $column_name eq "history_id";
 				next if $column_name eq "modified_date";
-				next if $column_name eq $host_column;
 				next if $column_name eq $uuid_column;
 				$query .= $column_name.", ";
 				
@@ -16080,15 +16115,18 @@ sub resync_databases
 			# Strip the last comma and the add the schema.table name.
 			$query =~ s/, $/ /;
 			$query .= "FROM ".$schema.".".$table;
-			
-			### NOTE: No longer restricting to the host, given only the strikers can do resyncs now.
-# 			# Restrict to this host if a host column was found.
-# 			if ($host_column)
-# 			{
-# 				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
-# 			}
-			$query .= " ORDER BY utc_modified_date DESC;";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
+			if ($schema eq "history")
+			{
+				$query .= " ORDER BY utc_modified_date DESC, history_id DESC;";
+			}
+			else
+			{
+				$query .= " ORDER BY utc_modified_date DESC;";
+			}
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { 
+				uuid  => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}), 
+				query => $query,
+			}});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
@@ -16104,10 +16142,13 @@ sub resync_databases
 			}});
 			next if not $count;
 			
-			my $row_number = 0;
+			# In some cases, a single 'modified_date::uuid_column' can exist multiple times
+			my $last_record = "";
+			my $row_number  = 0;
 			foreach my $row (@{$results})
 			{
 				   $row_number++;
+				my $history_id    = "";
 				my $modified_date = "";
 				my $row_uuid      = "";
 				for (my $column_number = 0; $column_number < @{$read_columns}; $column_number++)
@@ -16131,7 +16172,14 @@ sub resync_databases
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_value => $column_value }});
 					}
 					
-					# The modified_date should be the first row.
+					# The history_id should be the first row.
+					if ($column_name eq "history_id")
+					{
+						$history_id = $column_value;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_id => $history_id }});
+						next;
+					}
+					# The modified_date should be the second row.
 					if ($column_name eq "modified_date")
 					{
 						$modified_date = $column_value;
@@ -16144,6 +16192,33 @@ sub resync_databases
 					{
 						$row_uuid = $column_value;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
+						
+						# We should have the modified_date already, is this a 
+						# duplicate?
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							last_record               => $last_record,
+							"modified_date::row_uuid" => "${modified_date}::${row_uuid}",
+						}});
+						if (($last_record) && ($schema eq "history") && ($last_record eq "${modified_date}::${row_uuid}"))
+						{
+							# Duplicate! 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0363", variables => { 
+								table => $table, 
+								key   => $last_record, 
+								query => $query,
+								host  => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}), 
+							}});
+							
+							# Delete this entry.
+							my $query = "DELETE FROM history.".$table." WHERE history_id = ".$history_id.";";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+							
+							#$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+							next;
+						}
+						
+						$last_record = $modified_date."::".$row_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_record => $last_record }});
 						
 						# This is used to determine if a given entry needs to be 
 						# updated or inserted into the public schema
@@ -16279,12 +16354,7 @@ sub resync_databases
 								'values' => $values, 
 							}});
 							
-							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
-							if ($host_column)
-							{
-								# Add the host column.
-								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
-							}
+							my $query = "INSERT INTO public.".$table." (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							### NOTE: After an archive operationg, a record can 
@@ -16359,11 +16429,6 @@ sub resync_databases
 							}});
 							
 							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
-							if ($host_column)
-							{
-								# Add the host column.
-								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
-							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							# Now record the query in the array
@@ -16871,7 +16936,7 @@ sub write
 			if (($anvil->data->{sys}{database}{log_transactions}) or ($debug <= $anvil->Log->level))
 			{
 				$anvil->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0083", variables => { 
-					uuid  => $uuid, 
+					uuid  => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}), 
 					query => $query, 
 				}});
 			}
@@ -17268,7 +17333,7 @@ sub _age_out_data
 					if ($commits)
 					{
 						# Commit the DELETEs.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0622", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0622", variables => { 
 							age      => $age,
 							table    => $child_table,
 							database => $anvil->Get->host_name_from_uuid({host_uuid => $uuid, debug => $debug}),
@@ -17734,7 +17799,7 @@ sub _find_behind_databases
 		}});
 	}
 	
-	# Look at all the databases and find the most recent time stamp (and the ID of the DB). Do this by 
+	# Look at all the databases and find the most recent time stamp (and the UUID of the DB). Do this by
 	# table then by database to keep the counts close together and reduce the chance of tables changing 
 	# between counts.
 	my $source_updated_time = 0;
@@ -17752,45 +17817,6 @@ sub _find_behind_databases
 		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 		next if not $count;
-		
-		### Get the host_uuid column (we can get this from whatever DB we're reading from.
-		# Some tables, like 'servers', has a host_uuid column, but it's not used to restrict data to 
-		# a host, but instead show which host a movable resource is on. This prevents us from using 
-		# the column by accident.
-		my $host_column = "";
-		if (($table ne "servers") && 
-		    ($table ne "jobs"))
-		{
-			# Does this table have a '*_host_uuid' column?
-			my $test_columns = [$table."_host_uuid"];
-			if ($table =~ /^(.*)s$/)
-			{
-				push @{$test_columns}, $1."_host_uuid";
-			}
-			if ($table =~ /^(.*)es$/)
-			{
-				push @{$test_columns}, $1."_host_uuid";
-			}
-			
-			foreach my $test_column (@{$test_columns})
-			{
-				my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = ".$anvil->Database->quote($test_column)." AND table_name = ".$anvil->Database->quote($table).";";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				
-				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
-				# it later to restrict resync activity to these columns with the local 
-				# 'sys::host_uuid'.
-				my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-				
-				if ($count)
-				{
-					$host_column = $test_column;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
-					last;
-				}
-			}
-		}
 		
 		# Does this table have a history schema version?
 		$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
@@ -17817,14 +17843,7 @@ sub _find_behind_databases
 SELECT DISTINCT 
     round(extract(epoch from modified_date)) AS unix_modified_date 
 FROM 
-    ".$schema.".".$table." ";
-# 				if ($host_column)
-# 				{
-# 					$query .= "
-# WHERE 
-#     ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}) ;
-# 				}
-				$query .= "
+    ".$schema.".".$table." 
 ORDER BY 
     unix_modified_date DESC
 ;";
@@ -17850,13 +17869,11 @@ ORDER BY
 			$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} = $last_updated;
 			$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}    = $row_count;
 			$anvil->data->{sys}{database}{table}{$table}{schema}                    = $schema;
-			$anvil->data->{sys}{database}{table}{$table}{host_column}               = $host_column;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 				"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated},
 				"sys::database::table::${table}::schema"                      => $anvil->data->{sys}{database}{table}{$table}{schema},
-				"sys::database::table::${table}::host_column"                 => $anvil->data->{sys}{database}{table}{$table}{host_column},
 			}});
 			
 			if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count} > $anvil->data->{sys}{database}{table}{$table}{row_count})

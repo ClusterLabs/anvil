@@ -103,23 +103,78 @@ sub clear_old_interfaces
 	
 	# Read in all interfaces and for each, delete historical records over the age-out time.
 	my $age = $anvil->data->{scancore}{database}{age_out};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { age => $age }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
 	
 	if ($age =~ /\D/)
 	{
 		# Age is not valid, set it to defaults.
 		$age = 24;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { age => $age }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
 	}
 	
 	my $query         = "SELECT now() - '".$age."h'::interval;";
 	my $old_timestamp = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		query         => $query, 
 		old_timestamp => $old_timestamp, 
 	}});
 	
-	$query = "
+	# It is possible that a record exists on one DB, but not the other. Unsure how this happens, but this
+	# cleans it up.
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			uuid => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid})." (".$uuid.")", 
+		}});
+		my $query = "
+SELECT 
+    ip_address_uuid, 
+    ip_address_address 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    ip_address_note      = 'DELETED' 
+AND 
+    modified_date        < '".$old_timestamp."' 
+ORDER BY 
+    ip_address_address ASC
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $ip_address_uuid    = $row->[0];
+			my $ip_address_address = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:ip_address_uuid'    => $ip_address_uuid, 
+				's2:ip_address_address' => $ip_address_address, 
+			}});
+		
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0005", variables => { 
+				age => $age, 
+				ip  => $ip_address_address,
+			}});
+			
+			my $queries = [];
+			push @{$queries}, "DELETE FROM history.ip_addresses WHERE ip_address_uuid = '".$ip_address_uuid."';";
+			push @{$queries}, "DELETE FROM ip_addresses WHERE ip_address_uuid = '".$ip_address_uuid."';";
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			}
+			# Write to both DBs.
+			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+		
+		# Remove interfaces
+		$query = "
 SELECT 
     network_interface_uuid, 
     network_interface_mac_address, 
@@ -127,45 +182,144 @@ SELECT
 FROM 
     network_interfaces 
 WHERE 
-    network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+    network_interface_host_uuid   = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 AND 
     network_interface_operational = 'DELETED' 
-AND 
-    modified_date < '".$old_timestamp."' 
+AND  
+    modified_date                 < '".$old_timestamp."' 
 ORDER BY 
-    network_interface_name ASC;
+    network_interface_name ASC
 ;";
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	foreach my $row (@{$results})
-	{
-		my $network_interface_uuid        = $row->[0];
-		my $network_interface_mac_address = $row->[1];
-		my $network_interface_name        = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:network_interface_uuid'        => $network_interface_uuid, 
-			's2:network_interface_mac_address' => $network_interface_mac_address, 
-			's3:network_interface_name'        => $network_interface_name,
+			results => $results, 
+			count   => $count,
 		}});
-	
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0002", variables => { 
-			age  => $age, 
-			mac  => $network_interface_mac_address,
-			name => $network_interface_name,
-		}});
-		
-		my $queries = [];
-		push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_uuid = '".$network_interface_uuid."';";
-		push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_uuid = '".$network_interface_uuid."';";
-		foreach my $query (@{$queries})
+		foreach my $row (@{$results})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			my $network_interface_uuid        = $row->[0];
+			my $network_interface_mac_address = $row->[1];
+			my $network_interface_name        = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:network_interface_uuid'        => $network_interface_uuid, 
+				's2:network_interface_mac_address' => $network_interface_mac_address, 
+				's3:network_interface_name'        => $network_interface_name,
+			}});
+		
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0002", variables => { 
+				age  => $age, 
+				mac  => $network_interface_mac_address,
+				name => $network_interface_name,
+			}});
+			
+			my $queries = [];
+			push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_uuid = '".$network_interface_uuid."';";
+			push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_uuid = '".$network_interface_uuid."';";
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			}
+			# Write to both DBs.
+			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
-		$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+		
+		# Delete old bonds
+		$query = "
+SELECT 
+    bond_uuid, 
+    bond_name 
+FROM 
+    bonds 
+WHERE 
+    bond_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    bond_mode      = 'DELETED' 
+AND 
+    modified_date  < '".$old_timestamp."' 
+ORDER BY 
+    bond_name ASC
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $bond_uuid = $row->[0];
+			my $bond_name = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:bond_uuid' => $bond_uuid, 
+				's2:bond_name' => $bond_name,
+			}});
+		
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0003", variables => { 
+				age  => $age, 
+				name => $bond_name,
+			}});
+			
+			my $queries = [];
+			push @{$queries}, "DELETE FROM history.bonds WHERE bond_uuid = '".$bond_uuid."';";
+			push @{$queries}, "DELETE FROM bonds WHERE bond_uuid = '".$bond_uuid."';";
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			}
+			# Write to both DBs.
+			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+		
+		# Delete old bridges
+		$query = "
+SELECT 
+    bridge_uuid, 
+    bridge_name 
+FROM 
+    bridges 
+WHERE 
+    bridge_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    bridge_id        = 'DELETED' 
+AND 
+    modified_date    < '".$old_timestamp."' 
+ORDER BY 
+    bridge_name ASC
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $bridge_uuid = $row->[0];
+			my $bridge_name = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:bridge_uuid' => $bridge_uuid, 
+				's2:bridge_name' => $bridge_name,
+			}});
+		
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_log_0004", variables => { 
+				age  => $age, 
+				name => $bridge_name,
+			}});
+			
+			my $queries = [];
+			push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = '".$bridge_uuid."';";
+			push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = '".$bridge_uuid."';";
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			}
+			# Write to both DBs.
+			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
 	}
 	
 	return(0);
@@ -1274,7 +1428,8 @@ FROM
 WHERE 
     network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ORDER BY 
-    network_interface_name ASC;";
+    network_interface_name ASC
+;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
@@ -1353,9 +1508,14 @@ ORDER BY
 						uuid => $network_interface_uuid,
 					}});
 					
-					my $query = "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					foreach my $query (@{$queries})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					}
+					$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
@@ -1372,9 +1532,14 @@ ORDER BY
 						uuid => $network_interface_uuid,
 					}});
 					
-					my $query = "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $queries = [];
+					push @{$queries}, "DELETE FROM history.network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					push @{$queries}, "DELETE FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					foreach my $query (@{$queries})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					}
+					$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 					
 					$count--;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
