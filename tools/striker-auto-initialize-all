@@ -618,7 +618,8 @@ sub initialize_machines
 						if ($network !~ /^sn/)
 						{
 							push @{$machine_ips}, $ip_address;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_count => @{$machine_ips} }});
+							my $ip_count = @{$machine_ips};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_count => $ip_count }});
 						}
 						
 						if (not $machine_host_uuid)
