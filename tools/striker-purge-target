@@ -226,7 +226,7 @@ else
 }
 
 # List all database tables in reverse order with X_host_uuid tables
-$anvil->Database->find_host_uuid_columns({search_column => "host_uuid", main_table => "hosts"});
+$anvil->Database->find_host_uuid_columns({debug => 3, search_column => "host_uuid", main_table => "hosts"});
 
 # For each host
 foreach my $host_uuid (@{$anvil->data->{purge}{hosts}})
