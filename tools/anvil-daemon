@@ -682,6 +682,11 @@ sub handle_periodic_tasks
 			}
 		}
 		
+		# Reap old db_in_use states over 6 hours old.
+		my $query = "DELETE FROM states WHERE state_name LIKE 'db_in_use%' AND modified_date < (SELECT now() - interval '6 hour');\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+		$anvil->Database->write({debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
+		
 		# Update the next check time.
 		$anvil->data->{timing}{next_ten_minute_check} = $now_time + $anvil->data->{timing}{ten_minute_checks};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -719,7 +724,7 @@ sub handle_periodic_tasks
 				job_description => "job_0017", 
 				job_progress    => 0,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { job_uuid => $job_uuid }});
 			
 			# Update the OUI data.
 			($job_uuid) = $anvil->Database->insert_or_update_jobs({
@@ -767,9 +772,7 @@ sub check_db_in_use_states
 	
 	# We only reap db_in_use entries for us.
 	$anvil->System->pids();
-	my $host_uuid =  $anvil->Database->quote($anvil->Get->host_uuid);
-	   $host_uuid =~ s/^'(.*)'$/$1/;
-	my $query     =  "
+	my $query =  "
 SELECT 
     state_uuid, 
     state_name, 
@@ -777,7 +780,7 @@ SELECT
 FROM 
     states 
 WHERE 
-    state_name LIKE 'db_in_use::".$host_uuid."::%'
+    state_name LIKE 'db_in_use::%'
 AND 
     state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
@@ -795,18 +798,25 @@ AND
 			my $state_uuid = $row->[0];
 			my $state_name = $row->[1];
 			my $state_note = $row->[2];
-			my $state_pid  = ($state_name =~ /db_in_use::.*?::(.*)$/)[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:state_uuid' => $state_uuid, 
 				's2:state_name' => $state_name, 
 				's3:state_note' => $state_note, 
-				's4:state_pid'  => $state_pid, 
+			}});
+			
+			my ($db_uuid, $state_pid) = ($state_name =~ /db_in_use::(.*?)::(\d+)$/);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:db_uuid'   => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")", 
+				's4:state_pid' => $state_pid, 
 			}});
 			
 			if (not exists $anvil->data->{pids}{$state_pid})
 			{
 				# Reap the 'db_is_use'.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0140", variables => { pid => $state_pid }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0140", variables => { 
+					db  => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")",
+					pid => $state_pid,
+				}});
 				
 				my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
@@ -1347,6 +1357,21 @@ sub handle_special_cases
 		
 		# Make sure DRBD compiled after a kernel upgrade.
 		$anvil->DRBD->_initialize_kmod({debug => 2});
+	}
+	
+	### TODO: Remove these later. This is here to clean up how we used to handle db_in_use and lock_request flags.
+	if (1)
+	{
+		# Broadly clear all states that are '0' now.
+		my $queries = [];
+		push @{$queries}, "DELETE FROM states WHERE state_name LIKE 'db_in_use::%' AND state_note != '1';";
+		push @{$queries}, "DELETE FROM history.variables WHERE variable_name = 'lock_request';";
+		push @{$queries}, "DELETE FROM variables WHERE variable_name = 'lock_request';";
+		foreach my $query (@{$queries})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+		}
+		$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
 	}
 	
 	return(0);
