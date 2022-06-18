@@ -509,6 +509,7 @@ The output, if any, was;
 		<key name="error_0361">Unable to find the DRBD config from either node in the Anvil! with the Anvil! UUID: [#!variable!anvil_uuid!#]. Has scan_drbd (as part of scancore) run on either nodes?</key>
 		<key name="error_0362"><![CDATA[The level: [#!variable!level!#] is invalid. Please use '--level <critical,warning,notice,info>' to specify the alert level of the test message.]]></key>
 		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the dupplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
+		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
