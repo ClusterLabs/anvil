@@ -206,6 +206,25 @@ su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvi
 Reload the DB;
 su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out" && su - postgres -c "psql anvil"
 
+### Load client data
+## Workstation setup
+dnf -y install postgresql postgresql-server postgresql-plperl
+postgresql-setup --initdb --unit postgresql
+vim /var/lib/pgsql/data/postgresql.conf 
+# Add around line 60: listen_addresses = '*'
+vim /var/lib/pgsql/data/pg_hba.conf 
+# Add around like 84: host  all   all   all     md5
+systemctl start postgresql.service 
+su - postgres -c "createuser --no-superuser --createdb --no-createrole admin"
+su - postgres -c "psql template1 -c \"ALTER ROLE postgres WITH PASSWORD 'Initial1';\""
+su - postgres -c "psql template1 -c \"ALTER ROLE admin WITH PASSWORD 'Initial1';\""
+
+# If there was a previous DB
+su - postgres -c "dropdb client"
+
+# Copy and load
+cp /path/to/client_anvil.out /tmp/anvil.out
+su - postgres -c "createdb --owner admin client" && su - postgres -c "psql client < /tmp/anvil.out" && su - postgres -c "psql client"
 
 
 Changes made using tools such as nmcli do not require a reload but do require the associated interface to be put down and then up again. That can be done by using commands in the following format:

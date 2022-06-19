@@ -5015,7 +5015,15 @@ sub test_ipmi
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { shell_call => $shell_call }});
 		
 		# Update it.
-		my $query = "UPDATE hosts SET host_ipmi = ".$anvil->Database->quote($shell_call)."  WHERE host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		my $query = "
+UPDATE 
+    hosts 
+SET 
+    host_ipmi     = ".$anvil->Database->quote($shell_call).", 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    host_uuid     = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+;";
 		$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
@@ -5051,7 +5059,7 @@ sub update_hosts
 	$anvil->Database->get_ip_addresses({debug => $debug});
 	
 	# Load the IPs we manage. If we find any entries for these that we don't expect, we'll remove them.
-	$anvil->Database->get_ip_addresses({debug => $debug});
+	$anvil->Network->load_ips({debug => $debug});
 	
 	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 	{

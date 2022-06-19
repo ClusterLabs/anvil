@@ -669,7 +669,15 @@ Reply-To: ".$reply_to."
 		next if $alert_processed;
 		next if $alert_host_uuid ne $host_uuid;
 		
-		my $query = "UPDATE alerts SET alert_processed = 1 WHERE alert_uuid = ".$anvil->Database->quote($alert_uuid).";";
+		my $query = "
+UPDATE 
+    alerts 
+SET 
+    alert_processed = 1,
+    modified_date   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    alert_uuid      = ".$anvil->Database->quote($alert_uuid)."
+;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}

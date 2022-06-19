@@ -508,6 +508,8 @@ The output, if any, was;
 		<key name="error_0360">Unable to find the Anvil! information for the Anvil! UUID: [#!variable!anvil_uuid!#].</key>
 		<key name="error_0361">Unable to find the DRBD config from either node in the Anvil! with the Anvil! UUID: [#!variable!anvil_uuid!#]. Has scan_drbd (as part of scancore) run on either nodes?</key>
 		<key name="error_0362"><![CDATA[The level: [#!variable!level!#] is invalid. Please use '--level <critical,warning,notice,info>' to specify the alert level of the test message.]]></key>
+		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the dupplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
+		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2120,6 +2122,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0699">[ Note ] - The Striker database host: [#!variable!host!#] is inactive, skipping it.</key>
 		<key name="log_0700">[ Note ] - Deleting the contents of the hash: [#!variable!hash!#].</key>
 		<key name="log_0701">Running the scan agent: [#!variable!agent_name!#]...</key>
+		<key name="log_0702">I was asked to update the timestamp, but the returned timestamp matches the last one. Will loop until a new timestamp is returned.</key>
+		<key name="log_0703">The timestamp has been updated from: [#!variable!old_time!#] to: [#!variable!new_time!#].</key>
+		<key name="log_0704"><![CDATA[[ Error ] - The method Database->read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.]]></key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2540,6 +2545,7 @@ Available options;
 		<key name="message_0288">#!variable!total_cores!#c (#!variable!sockets!#s, #!variable!cores!#c, #!variable!threads!#t), #!variable!model!#, #!variable!mode!#</key>
 		<key name="message_0289">#!variable!cores!#c (#!variable!threads!#t)</key>
 		<key name="message_0290">-=] Server Usage and Anvil! Node Resource Availability</key>
+		<key name="message_0291">This program is currently disabled, please see NOTE in the header for more information.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -3211,7 +3217,7 @@ We will sleep a bit and try again.
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
 		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, which might be why the RAM is high. NOT exiting while this program is running.</key>
-		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] had marked our database as "in_use", but the PID is gone now. Reaping the flag.</key>
+		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] had marked the database: [#!variable!db!#] as "in_use", but the PID is gone now. Reaping the flag.</key>
 		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
 		<key name="warning_0143">[ Warning ] - While evaluating database shutdown, the host UUID: [#!variable!host_uuid!#] was not yet found in the database on host: [#!variable!db_uuid!#]. DB shutdown will not happen until all hosts are in all DBs.</key>

@@ -226,7 +226,7 @@ else
 }
 
 # List all database tables in reverse order with X_host_uuid tables
-$anvil->Database->find_host_uuid_columns({search_column => "host_uuid", main_table => "hosts"});
+$anvil->Database->find_host_uuid_columns({debug => 3, search_column => "host_uuid", main_table => "hosts"});
 
 # For each host
 foreach my $host_uuid (@{$anvil->data->{purge}{hosts}})
@@ -295,7 +295,13 @@ WHERE
 	}
 	
 	# Commit.
-	$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	my $problem = $anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0364"});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	$vacuum = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vacuum => $vacuum }});
@@ -363,7 +369,13 @@ if ($anvil->data->{purge}{anvil_uuid})
 	}
 	
 	# Commit.
-	$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	my $problem = $anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0364"});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	$vacuum = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vacuum => $vacuum }});

@@ -43,6 +43,7 @@
 # --status     - This checks to see if dhcpd is running or not, then exits (effectively checking if the
 #                "Install Target" feature is running).
 # 
+# NOTE: This is currently broken. Re-enable when a solution to anvil-striker-extra is found.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -185,6 +186,11 @@ if (not $configured)
 	update_progress($anvil, 100, "log_0240,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	$anvil->nice_exit({exit_code => 9});
 }
+
+### TODO: Remove this when re-enabled.
+print $anvil->Words->string({key => "message_0291"})."\n";
+update_progress($anvil, 100, "message_0291");
+$anvil->nice_exit({exit_code => 0});
 
 # Figure out what this machine is.
 load_os_info($anvil);
