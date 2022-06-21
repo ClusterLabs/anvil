@@ -16139,7 +16139,6 @@ sub resync_databases
 		next if $table eq "alert_sent";
 		next if $table eq "states";
 		next if $table eq "update";
-		next if $table eq "oui";
 		
 		# If the 'schema' is 'public', there is no table in the history schema.
 		my $schema = $anvil->data->{sys}{database}{table}{$table}{schema} ? $anvil->data->{sys}{database}{table}{$table}{schema} : "public";
@@ -18034,7 +18033,6 @@ sub _find_behind_databases
 	{
 		# We don't sync 'states' or 'oui' as it's transient and sometimes per-DB.
 		next if $table eq "states";
-		next if $table eq "oui";
 		
 		# Does this table exist yet?
 		my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
@@ -18150,7 +18148,6 @@ ORDER BY
 		next if $table eq "alert_sent";
 		next if $table eq "states";
 		next if $table eq "update";
-		next if $table eq "oui";
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
