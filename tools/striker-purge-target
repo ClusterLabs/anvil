@@ -354,12 +354,6 @@ WHERE
 	}
 	
 	# Commit.
-	print "===================\n";
-	foreach my $query (@{$queries})
-	{
-		print $query."\n";
-	}
-	print "===================\n";
 	my $problem = $anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)

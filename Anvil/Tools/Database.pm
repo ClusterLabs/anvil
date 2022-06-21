@@ -17448,6 +17448,12 @@ sub _age_out_data
 	# scan_storcli
 	$to_clean->{table}{scan_storcli_variables}{child_table}{scan_storcli_variables}{uuid_column} = "scan_storcli_variable_uuid";
 	
+	# Network stuff
+	$to_clean->{table}{network_interfaces}{child_table}{network_interfaces}{uuid_column} = "network_interface_uuid";
+	$to_clean->{table}{bridges}{child_table}{bridges}{uuid_column}                       = "bridge_uuid";
+	$to_clean->{table}{bonds}{child_table}{bonds}{uuid_column}                           = "bond_uuid";
+	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column}             = "ip_address_uuid";
+	
 	my $vacuum = 0;
 	foreach my $table (sort {$a cmp $b} keys %{$to_clean->{table}})
 	{
