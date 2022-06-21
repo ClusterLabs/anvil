@@ -280,7 +280,66 @@ WHERE
 				push @{$queries}, $query;
 			}
 		}
-
+		
+		# If deleting an Anvil!, we need to clear any Anvil! references from file_locations and storage groups.
+		if (($table eq "anvils") && ($anvil->data->{purge}{anvil_uuid}))
+		{
+			# 
+			my $query = "DELETE FROM history.file_locations WHERE file_location_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid}).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			push @{$queries}, $query;
+			
+			$query = "DELETE FROM file_locations WHERE file_location_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid}).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			push @{$queries}, $query;
+			
+			# Storage groups
+			$query = "
+SELECT 
+    storage_group_member_uuid 
+FROM 
+    storage_group_members 
+WHERE 
+    storage_group_member_storage_group_uuid = 
+    (
+        SELECT 
+            storage_group_uuid 
+        FROM 
+            storage_groups 
+        WHERE 
+            storage_group_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid})."
+    )
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				my $storage_group_member_uuid = $row->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_member_uuid => $storage_group_member_uuid }});
+				
+				my $query = "DELETE FROM history.storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$queries}, $query;
+				
+				$query = "DELETE FROM storage_group_members WHERE storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$queries}, $query;
+			}
+		
+			$query = "DELETE FROM history.storage_groups WHERE storage_group_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid}).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			push @{$queries}, $query;
+			
+			$query = "DELETE FROM storage_groups WHERE storage_group_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid}).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			push @{$queries}, $query;
+		}
+		
 		# Just delete the record normally.
 		if ($anvil->data->{sys}{database}{history_table}{$table})
 		{
@@ -295,6 +354,12 @@ WHERE
 	}
 	
 	# Commit.
+	print "===================\n";
+	foreach my $query (@{$queries})
+	{
+		print $query."\n";
+	}
+	print "===================\n";
 	my $problem = $anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)
