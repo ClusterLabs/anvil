@@ -1325,17 +1325,50 @@ WHERE
 		my $scan_drbd_peer_uuid                  = $row->[0]; 
 		my $scan_drbd_peer_scan_drbd_volume_uuid = $row->[1]; 
 		my $scan_drbd_peer_host_name             = $row->[2];
+		my $scan_drbd_peer_connection_state      = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			scan_drbd_peer_uuid                  => $scan_drbd_peer_uuid,
 			scan_drbd_peer_scan_drbd_volume_uuid => $scan_drbd_peer_scan_drbd_volume_uuid,
 			scan_drbd_peer_host_name             => $scan_drbd_peer_host_name, 
+			scan_drbd_peer_connection_state      => $scan_drbd_peer_connection_state, 
 		}});
+		
+		# It's possible that a DELETED resource no longer has corresponding LVM data. If so, we'll 
+		# purge this record.
+		if (($scan_drbd_peer_connection_state eq "DELETED") && (not exists $anvil->data->{volume_to_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}))
+		{
+			# Purge it.
+			my $resource_uuid = $anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{scan_drbd_volume_scan_drbd_resource_uuid};
+			my $volume_number = $anvil->data->{old}{scan_drbd_volume}{scan_drbd_volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{scan_drbd_volume_number};
+			my $resource_name = $anvil->data->{old}{scan_drbd_resource}{scan_drbd_resource_uuid}{$resource_uuid}{scan_drbd_resource_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				resource_uuid => $resource_uuid, 
+				volume_number => $volume_number, 
+				resource_name => $resource_name, 
+			}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0035", variables => {
+				peer_name     => $scan_drbd_peer_host_name, 
+				resource_name => $resource_name, 
+				volume_number => $volume_number, 
+			}});
+			
+			my $queries = [];
+			push @{$queries}, "DELETE FROM history.scan_drbd_peers WHERE scan_drbd_peer_uuid = '".$scan_drbd_peer_uuid."';";
+			push @{$queries}, "DELETE FROM scan_drbd_peers WHERE scan_drbd_peer_uuid = '".$scan_drbd_peer_uuid."';";
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			}
+			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+			
+			next;
+		}
 		
 		# Store the old data now.
 		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{processed}                             = 0;
 		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_scan_drbd_volume_uuid}  = $scan_drbd_peer_scan_drbd_volume_uuid;
 		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_host_name}              = $scan_drbd_peer_host_name;
-		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_connection_state}       = $row->[3];
+		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_connection_state}       = $scan_drbd_peer_connection_state;
 		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_local_disk_state}       = $row->[4];
 		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_disk_state}             = $row->[5];
 		$anvil->data->{old}{scan_drbd_peer}{scan_drbd_peer_uuid}{$scan_drbd_peer_uuid}{scan_drbd_peer_local_role}             = $row->[6];

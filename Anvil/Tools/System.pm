@@ -2587,6 +2587,10 @@ Parameters;
 
 This is the name of the daemon to disable. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
+=head3 now (optional, default '0')
+
+If set to C<< 1 >>, the daemon will be stopped as well as disabled
+
 =cut
 sub disable_daemon
 {
@@ -2597,9 +2601,19 @@ sub disable_daemon
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->disable_daemon()" }});
 	
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
+	my $now    = defined $parameter->{now}    ? $parameter->{now}    : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		daemon => $daemon,
+		now    => $now, 
+	}});
 	
-	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." disable ".$daemon});
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." disable ".$daemon;
+	if ($now)
+	{
+		$shell_call = $anvil->data->{path}{exe}{systemctl}." disable --now ".$daemon;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -3033,6 +3047,10 @@ Parameters;
 
 This is the name of the daemon to enable. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
+=head3 now (optional, default '0'
+
+If set to c<< 1 >>, the daemon will be started now.
+
 =cut
 sub enable_daemon
 {
@@ -3043,9 +3061,19 @@ sub enable_daemon
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->enable_daemon()" }});
 	
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
+	my $now    = defined $parameter->{now}    ? $parameter->{now}    : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		daemon => $daemon,
+		now    => $now, 
+	}});
 	
-	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." enable ".$daemon." 2>&1"});
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." enable ".$daemon." 2>&1";
+	if ($now)
+	{
+		$shell_call = $anvil->data->{path}{exe}{systemctl}." enable --now ".$daemon." 2>&1";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
