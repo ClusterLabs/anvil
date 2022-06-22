@@ -5,6 +5,7 @@ import {
   PowerOffOutlined as PowerOffOutlinedIcon,
 } from '@mui/icons-material';
 
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
 import IconButton from '../IconButton';
@@ -12,6 +13,8 @@ import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
 import { BodyText, HeaderText } from '../Text';
 
 type PreviewOptionalProps = {
+  externalPreview?: string;
+  isFetchScreenshot?: boolean;
   isShowControls?: boolean;
   isUseInnerPanel?: boolean;
   setMode?: Dispatch<SetStateAction<boolean>> | null;
@@ -23,6 +26,8 @@ type PreviewProps = PreviewOptionalProps & {
 };
 
 const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
+  externalPreview: '',
+  isFetchScreenshot: true,
   isShowControls: true,
   isUseInnerPanel: false,
   setMode: null,
@@ -56,33 +61,37 @@ const PreviewPanelHeader: FC<{ isUseInnerPanel: boolean; text: string }> = ({
   );
 
 const Preview: FC<PreviewProps> = ({
+  externalPreview = PREVIEW_DEFAULT_PROPS.externalPreview,
+  isFetchScreenshot = PREVIEW_DEFAULT_PROPS.isFetchScreenshot,
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
   isUseInnerPanel = PREVIEW_DEFAULT_PROPS.isUseInnerPanel,
   serverName,
   setMode,
   uuid,
 }) => {
-  const [preview, setPreview] = useState<string>();
+  const [preview, setPreview] = useState<string>('');
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/get_server_screenshot?server_uuid=${uuid}`,
-          {
+    if (isFetchScreenshot) {
+      (async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/server/${uuid}?ss`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
             },
-          },
-        );
-        const { screenshot } = await res.json();
-        setPreview(screenshot);
-      } catch {
-        setPreview('');
-      }
-    })();
-  }, [uuid]);
+          });
+          const { screenshot: fetchedScreenshot } = await response.json();
+
+          setPreview(fetchedScreenshot);
+        } catch {
+          setPreview('');
+        }
+      })();
+    } else if (externalPreview) {
+      setPreview(externalPreview);
+    }
+  }, [externalPreview, isFetchScreenshot, uuid]);
 
   return (
     <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
