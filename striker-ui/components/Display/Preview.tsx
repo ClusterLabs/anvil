@@ -14,20 +14,22 @@ import { BodyText, HeaderText } from '../Text';
 
 type PreviewOptionalProps = {
   externalPreview?: string;
-  isFetchScreenshot?: boolean;
+  isExternalPreviewStale?: boolean;
+  isFetchPreview?: boolean;
   isShowControls?: boolean;
   isUseInnerPanel?: boolean;
   setMode?: Dispatch<SetStateAction<boolean>> | null;
 };
 
 type PreviewProps = PreviewOptionalProps & {
-  uuid: string;
   serverName: string | string[] | undefined;
+  serverUUID: string;
 };
 
 const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
   externalPreview: '',
-  isFetchScreenshot: true,
+  isExternalPreviewStale: false,
+  isFetchPreview: true,
   isShowControls: true,
   isUseInnerPanel: false,
   setMode: null,
@@ -62,36 +64,43 @@ const PreviewPanelHeader: FC<{ isUseInnerPanel: boolean; text: string }> = ({
 
 const Preview: FC<PreviewProps> = ({
   externalPreview = PREVIEW_DEFAULT_PROPS.externalPreview,
-  isFetchScreenshot = PREVIEW_DEFAULT_PROPS.isFetchScreenshot,
+  isExternalPreviewStale = PREVIEW_DEFAULT_PROPS.isExternalPreviewStale,
+  isFetchPreview = PREVIEW_DEFAULT_PROPS.isFetchPreview,
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
   isUseInnerPanel = PREVIEW_DEFAULT_PROPS.isUseInnerPanel,
   serverName,
+  serverUUID,
   setMode,
-  uuid,
 }) => {
+  const [isPreviewStale, setIsPreviewStale] = useState<boolean>(false);
   const [preview, setPreview] = useState<string>('');
 
   useEffect(() => {
-    if (isFetchScreenshot) {
+    if (isFetchPreview) {
       (async () => {
         try {
-          const response = await fetch(`${API_BASE_URL}/server/${uuid}?ss`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
+          const response = await fetch(
+            `${API_BASE_URL}/server/${serverUUID}?ss`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
             },
-          });
+          );
           const { screenshot: fetchedScreenshot } = await response.json();
 
           setPreview(fetchedScreenshot);
+          setIsPreviewStale(false);
         } catch {
-          setPreview('');
+          setIsPreviewStale(true);
         }
       })();
     } else if (externalPreview) {
       setPreview(externalPreview);
+      setIsPreviewStale(isExternalPreviewStale);
     }
-  }, [externalPreview, isFetchScreenshot, uuid]);
+  }, [externalPreview, isExternalPreviewStale, isFetchPreview, serverUUID]);
 
   return (
     <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
@@ -126,6 +135,7 @@ const Preview: FC<PreviewProps> = ({
                 src={`data:image/png;base64,${preview}`}
                 sx={{
                   height: '100%',
+                  opacity: isPreviewStale ? '0.4' : '1',
                   width: '100%',
                 }}
               />

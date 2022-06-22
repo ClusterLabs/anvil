@@ -34,17 +34,20 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
       },
     }}
   >
-    {servers.map(({ screenshot, serverName, serverUUID }) => (
-      <Preview
-        key={`server-preview-${serverUUID}`}
-        isFetchScreenshot={false}
-        isShowControls={false}
-        isUseInnerPanel
-        externalPreview={screenshot}
-        serverName={serverName}
-        uuid={serverUUID}
-      />
-    ))}
+    {servers.map(
+      ({ isScreenshotStale, screenshot, serverName, serverUUID }) => (
+        <Preview
+          key={`server-preview-${serverUUID}`}
+          isExternalPreviewStale={isScreenshotStale}
+          isFetchPreview={false}
+          isShowControls={false}
+          isUseInnerPanel
+          externalPreview={screenshot}
+          serverName={serverName}
+          serverUUID={serverUUID}
+        />
+      ),
+    )}
   </Box>
 );
 
@@ -109,6 +112,7 @@ const Dashboard: FC = () => {
           )
             .then(({ screenshot }) => {
               item.screenshot = screenshot;
+              item.isScreenshotStale = false;
 
               const allServersWithScreenshots = [...serverListItems];
 
