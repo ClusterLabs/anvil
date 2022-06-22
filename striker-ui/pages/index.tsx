@@ -11,8 +11,14 @@ import OutlinedInput from '../components/OutlinedInput';
 import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import Spinner from '../components/Spinner';
+import fetchJSON from '../lib/fetchers/fetchJSON';
 
-const createServerPreviewContainer = (servers: ServerOverviewMetadata[]) => (
+type ServerListItem = ServerOverviewMetadata & {
+  isScreenshotStale?: boolean;
+  screenshot: string;
+};
+
+const createServerPreviewContainer = (servers: ServerListItem[]) => (
   <Box
     sx={{
       display: 'flex',
@@ -22,13 +28,19 @@ const createServerPreviewContainer = (servers: ServerOverviewMetadata[]) => (
       '& > *': {
         width: { xs: '20em', md: '30em' },
       },
+
+      '& > :not(:last-child)': {
+        marginRight: '2em',
+      },
     }}
   >
-    {servers.map(({ serverName, serverUUID }) => (
+    {servers.map(({ screenshot, serverName, serverUUID }) => (
       <Preview
         key={`server-preview-${serverUUID}`}
+        isFetchScreenshot={false}
         isShowControls={false}
         isUseInnerPanel
+        externalPreview={screenshot}
         serverName={serverName}
         uuid={serverUUID}
       />
@@ -36,18 +48,15 @@ const createServerPreviewContainer = (servers: ServerOverviewMetadata[]) => (
   </Box>
 );
 
-const filterServers = (
-  allServers: ServerOverviewMetadata[],
-  searchTerm: string,
-) =>
+const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
   searchTerm === ''
     ? {
         exclude: allServers,
         include: [],
       }
     : allServers.reduce<{
-        exclude: ServerOverviewMetadata[];
-        include: ServerOverviewMetadata[];
+        exclude: ServerListItem[];
+        include: ServerListItem[];
       }>(
         (reduceContainer, server) => {
           const { serverName } = server;
@@ -64,13 +73,9 @@ const filterServers = (
       );
 
 const Dashboard: FC = () => {
-  const [allServers, setAllServers] = useState<ServerOverviewMetadata[]>([]);
-  const [excludeServers, setExcludeServers] = useState<
-    ServerOverviewMetadata[]
-  >([]);
-  const [includeServers, setIncludeServers] = useState<
-    ServerOverviewMetadata[]
-  >([]);
+  const [allServers, setAllServers] = useState<ServerListItem[]>([]);
+  const [excludeServers, setExcludeServers] = useState<ServerListItem[]>([]);
+  const [includeServers, setIncludeServers] = useState<ServerListItem[]>([]);
 
   const [inputSearchTerm, setInputSearchTerm] = useState<string>('');
 
@@ -83,13 +88,42 @@ const Dashboard: FC = () => {
     setIncludeServers(include);
   };
 
-  const { isLoading } = periodicFetch<ServerOverviewMetadata[]>(
+  const { isLoading } = periodicFetch<ServerListItem[]>(
     `${API_BASE_URL}/server`,
     {
       onSuccess: (data = []) => {
-        setAllServers(data);
+        const serverListItems: ServerListItem[] = (
+          data as ServerOverviewMetadata[]
+        ).map((serverOverview) => {
+          const { serverUUID } = serverOverview;
+          const previousScreenshot: string =
+            allServers.find(({ serverUUID: uuid }) => uuid === serverUUID)
+              ?.screenshot || '';
+          const item: ServerListItem = {
+            ...serverOverview,
+            screenshot: previousScreenshot,
+          };
 
-        updateServerList(data, inputSearchTerm);
+          fetchJSON<{ screenshot: string }>(
+            `${API_BASE_URL}/server/${serverUUID}?ss`,
+          )
+            .then(({ screenshot }) => {
+              item.screenshot = screenshot;
+
+              const allServersWithScreenshots = [...serverListItems];
+
+              setAllServers(allServersWithScreenshots);
+              updateServerList(allServersWithScreenshots, inputSearchTerm);
+            })
+            .catch(() => {
+              item.isScreenshotStale = true;
+            });
+
+          return item;
+        });
+
+        setAllServers(serverListItems);
+        updateServerList(serverListItems, inputSearchTerm);
       },
       refreshInterval: 60000,
     },
@@ -111,7 +145,6 @@ const Dashboard: FC = () => {
                 placeholder="Search by server name"
                 onChange={({ target: { value } }) => {
                   setInputSearchTerm(value);
-
                   updateServerList(allServers, value);
                 }}
                 value={inputSearchTerm}
