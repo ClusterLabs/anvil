@@ -10,6 +10,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
   usr: {
     bin: {
       mkfifo: {},
+      rm: {},
       sed: {},
     },
     sbin: {

@@ -1,24 +1,27 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
-import { createReadStream, existsSync, rmSync, statSync } from 'fs';
+import { createReadStream } from 'fs';
 import path from 'path';
 
 import { REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { dbQuery, sub } from '../../accessModule';
-import { mkfifo } from '../../mkfifo';
 import { sanitizeQS } from '../../sanitizeQS';
+import { mkfifo, rm } from '../../shell';
 
 export const getServerDetail: RequestHandler = (request, response) => {
   const { serverUUID } = request.params;
   const { ss, resize } = request.query;
 
+  const epoch = Date.now();
   const isScreenshot = sanitizeQS(ss, {
     returnType: 'boolean',
   });
 
-  console.log(`serverUUID=[${serverUUID}],isScreenshot=[${isScreenshot}]`);
+  console.log(
+    `serverUUID=[${serverUUID}],epoch=[${epoch}],isScreenshot=[${isScreenshot}]`,
+  );
 
   try {
     assert(
@@ -67,27 +70,47 @@ export const getServerDetail: RequestHandler = (request, response) => {
 
     console.log(`serverHostUUID=[${serverHostUUID}]`);
 
-    const imageFileName = `${serverUUID}_screenshot`;
+    const imageFileName = `${serverUUID}_screenshot_${epoch}`;
     const imageFilePath = path.join(SERVER_PATHS.tmp.self, imageFileName);
 
     try {
-      if (existsSync(imageFilePath)) {
-        if (!statSync(imageFilePath).isFIFO()) {
-          rmSync(imageFilePath);
-          mkfifo(imageFilePath);
-        }
-      } else {
-        mkfifo(imageFilePath);
-      }
+      mkfifo(imageFilePath);
 
       const namedPipeReadStream = createReadStream(imageFilePath, {
+        autoClose: true,
         encoding: 'utf-8',
       });
 
-      namedPipeReadStream.once('data', (data) => {
-        response.status(200).send({ screenshot: data.toString().trim() });
+      let imageData = '';
 
-        namedPipeReadStream.close();
+      namedPipeReadStream.once('close', () => {
+        console.log(`On close; removing named pipe at ${imageFilePath}.`);
+
+        try {
+          rm(imageFilePath);
+        } catch (cleanPipeError) {
+          console.log(
+            `Failed to clean up named pipe; CAUSE: ${cleanPipeError}`,
+          );
+        }
+      });
+
+      namedPipeReadStream.once('end', () => {
+        response.status(200).send({ screenshot: imageData });
+      });
+
+      namedPipeReadStream.on('data', (data) => {
+        const imageChunk = data.toString().trim();
+        const chunkLogLength = 10;
+
+        console.log(
+          `${serverUUID} image chunk: ${imageChunk.substring(
+            0,
+            chunkLogLength,
+          )}...${imageChunk.substring(imageChunk.length - chunkLogLength - 1)}`,
+        );
+
+        imageData += imageChunk;
       });
     } catch (prepPipeError) {
       console.log(`Failed to prepare named pipe; CAUSE: ${prepPipeError}`);
@@ -114,8 +137,9 @@ export const getServerDetail: RequestHandler = (request, response) => {
             SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self,
           job_data: `server-uuid=${serverUUID}
 request-host-uuid=${requestHostUUID}
-resize=${resizeArgs}`,
-          job_name: `get_server_screenshot::${serverUUID}`,
+resize=${resizeArgs}
+out-file-id=${epoch}`,
+          job_name: `get_server_screenshot::${serverUUID}::${epoch}`,
           job_title: 'job_0356',
           job_description: 'job_0357',
           job_progress: 0,
