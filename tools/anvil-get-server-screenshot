@@ -147,6 +147,11 @@ if ($anvil->data->{switches}{'job-uuid'})
 		{
 			$anvil->data->{switches}{'request-host-uuid'} = $1;
 		}
+
+		if ($line =~ /out-file-id=(.*?)$/)
+		{
+			$anvil->data->{switches}{'out-file-id'} = $1;
+		}
 	}
 }
 
@@ -154,6 +159,7 @@ my $server_uuid       = $anvil->data->{switches}{'server-uuid'};
 my $resize_args       = $anvil->data->{switches}{resize};
 my $request_host_uuid = $anvil->data->{switches}{'request-host-uuid'};
 my $job_uuid          = $anvil->data->{switches}{'job-uuid'};
+my $out_file_id       = defined $anvil->data->{switches}{'out-file-id'} ? $anvil->data->{switches}{'out-file-id'} : "0";
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 	debug             => $debug,
@@ -172,7 +178,7 @@ if ($server_uuid)
 		if (defined $encoded_image)
 		{
 			my $request_host_ip_address = get_remote_call_requirements({ debug => $debug, host_uuid => $request_host_uuid });
-			my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' >".$anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot";
+			my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' >".$anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot_".$out_file_id;
 
 			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { request_host_ip_address => $request_host_ip_address } });
 
