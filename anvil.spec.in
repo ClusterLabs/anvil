@@ -121,7 +121,6 @@ Requires:       anvil-core == %{version}-%{release}
 Requires:       augeas
 Requires:       bpg-dejavu-sans-fonts
 Requires:       createrepo
-Requires:       dejavu-fonts-common
 Requires:       dejavu-sans-fonts
 Requires:       dejavu-sans-mono-fonts
 Requires:       dejavu-serif-fonts
