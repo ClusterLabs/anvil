@@ -16139,7 +16139,6 @@ sub resync_databases
 		next if $table eq "alert_sent";
 		next if $table eq "states";
 		next if $table eq "update";
-		next if $table eq "oui";
 		
 		# If the 'schema' is 'public', there is no table in the history schema.
 		my $schema = $anvil->data->{sys}{database}{table}{$table}{schema} ? $anvil->data->{sys}{database}{table}{$table}{schema} : "public";
@@ -16224,10 +16223,59 @@ sub resync_databases
 			}});
 		}
 		
+		### TODO: This can be removed later.
+		# Look through the bridges, bonds, and network interfaces tables. Look for records in the 
+		# history schema that don't exist in the public schema and purge them.
+		if ($schema eq "history")
+		{
+			foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+
+				my $query = "SELECT DISTINCT ".$uuid_column." FROM history.".$table.";";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+				
+				my $results = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count,
+				}});
+				foreach my $row (@{$results})
+				{
+					my $column_uuid = $row->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_uuid => $column_uuid }});
+					
+					my $query = "SELECT COUNT(*) FROM ".$table." WHERE ".$uuid_column." = '".$column_uuid."';";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+					
+					my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+					
+					if (not $count)
+					{
+						# Purge it from everywhere.
+						my $queries = [];
+						push @{$queries}, "DELETE FROM history.".$table." WHERE ".$uuid_column." = '".$column_uuid."';";
+						push @{$queries}, "DELETE FROM ".$table." WHERE ".$uuid_column." = '".$column_uuid."';";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0365", variables => { 
+							table       => $table, 
+							uuid_column => $uuid_column, 
+							column_uuid => $column_uuid, 
+						}});
+						# Delete across all DBs.
+						$anvil->Database->write({debug => $debug, query => $queries, source => $THIS_FILE, line => __LINE__});
+					}
+				}
+			}
+		}
+		
 		# Now read in the data from the different databases.
 		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			
+			# This will store queries.
 			$anvil->data->{db_resync}{$uuid}{public}{sql}  = [];
 			$anvil->data->{db_resync}{$uuid}{history}{sql} = [];
 			
@@ -16266,7 +16314,7 @@ sub resync_databases
 			{
 				$query .= " ORDER BY utc_modified_date DESC;";
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { 
 				uuid  => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}), 
 				query => $query,
 			}});
@@ -16345,7 +16393,7 @@ sub resync_databases
 						if (($last_record) && ($schema eq "history") && ($last_record eq "${modified_date}::${row_uuid}"))
 						{
 							# Duplicate! 
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0363", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0363", variables => { 
 								table => $table, 
 								key   => $last_record, 
 								query => $query,
@@ -16354,7 +16402,7 @@ sub resync_databases
 							
 							# Delete this entry.
 							my $query = "DELETE FROM history.".$table." WHERE history_id = ".$history_id.";";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 							
 							$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 							next;
@@ -17399,6 +17447,12 @@ sub _age_out_data
 	# scan_storcli
 	$to_clean->{table}{scan_storcli_variables}{child_table}{scan_storcli_variables}{uuid_column} = "scan_storcli_variable_uuid";
 	
+	# Network stuff
+	$to_clean->{table}{network_interfaces}{child_table}{network_interfaces}{uuid_column} = "network_interface_uuid";
+	$to_clean->{table}{bridges}{child_table}{bridges}{uuid_column}                       = "bridge_uuid";
+	$to_clean->{table}{bonds}{child_table}{bonds}{uuid_column}                           = "bond_uuid";
+	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column}             = "ip_address_uuid";
+	
 	my $vacuum = 0;
 	foreach my $table (sort {$a cmp $b} keys %{$to_clean->{table}})
 	{
@@ -17979,7 +18033,6 @@ sub _find_behind_databases
 	{
 		# We don't sync 'states' or 'oui' as it's transient and sometimes per-DB.
 		next if $table eq "states";
-		next if $table eq "oui";
 		
 		# Does this table exist yet?
 		my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
@@ -18066,7 +18119,6 @@ ORDER BY
 		}
 	}
 	
-	
 	# Are being asked to trigger a resync?
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
@@ -18096,7 +18148,6 @@ ORDER BY
 		next if $table eq "alert_sent";
 		next if $table eq "states";
 		next if $table eq "update";
-		next if $table eq "oui";
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
@@ -18152,6 +18203,20 @@ ORDER BY
 			}
 		}
 		last if $anvil->data->{sys}{database}{resync_needed};
+	}
+	
+	# Force resync if requested by command line switch.
+	$anvil->data->{switches}{'resync-db'} = "" if not defined $anvil->data->{switches}{'resync-db'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"switches::resync-db" => $anvil->data->{switches}{'resync-db'},
+	}});
+	if ($anvil->data->{switches}{'resync-db'})
+	{
+		$anvil->data->{sys}{database}{resync_needed} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed},
+		}});
+		return(0);
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});

@@ -510,6 +510,7 @@ The output, if any, was;
 		<key name="error_0362"><![CDATA[The level: [#!variable!level!#] is invalid. Please use '--level <critical,warning,notice,info>' to specify the alert level of the test message.]]></key>
 		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the dupplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
+		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2125,6 +2126,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0702">I was asked to update the timestamp, but the returned timestamp matches the last one. Will loop until a new timestamp is returned.</key>
 		<key name="log_0703">The timestamp has been updated from: [#!variable!old_time!#] to: [#!variable!new_time!#].</key>
 		<key name="log_0704"><![CDATA[[ Error ] - The method Database->read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.]]></key>
+		<key name="log_0705">Forcing the dailing resync and checking to clear records in the history schema no longer in public schema.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3222,6 +3224,7 @@ We will sleep a bit and try again.
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
 		<key name="warning_0143">[ Warning ] - While evaluating database shutdown, the host UUID: [#!variable!host_uuid!#] was not yet found in the database on host: [#!variable!db_uuid!#]. DB shutdown will not happen until all hosts are in all DBs.</key>
 		<key name="warning_0144">[ Warning ] - While preparing to record the state: [#!variable!state_info!#], the host UUID: [#!variable!host_uuid!#] was not yet found in the database on host: [#!variable!db_uuid!#]. NOT recording the state!</key>
+		<key name="warning_0145">[ Warning ] - The daemon: [#!variable!daemon!#] was found running. It shouldn't be, and will now be stopped and disabled.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

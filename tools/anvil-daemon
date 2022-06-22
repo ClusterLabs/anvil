@@ -251,7 +251,7 @@ while(1)
 	check_ram($anvil);
 	
 	# Disconnect from the database(s) and sleep now.
-	$anvil->Database->disconnect({debug => 2});
+	$anvil->Database->disconnect();
 	sleep(2);
 }
 
@@ -698,6 +698,24 @@ sub handle_periodic_tasks
 	# Now check to see if it's time to run daily tasks.
 	if ($now_time >= $anvil->data->{timing}{next_daily_check})
 	{
+		# Make sure ksm and ksmtuned are disabled.
+		foreach my $daemon ("ksm.service", "ksmtuned.service")
+		{
+			my $status = $anvil->System->check_daemon({daemon => $daemon});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				daemon => $daemon,
+				status => $status, 
+			}});
+			if ($status eq "1")
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0145", variables => { daemon => $daemon }});
+				$anvil->System->disable_daemon({
+					now    => 1,
+					daemon => $daemon,
+				});
+			}
+		}
+		
 		### NOTE: We call it once/day, but this will also trigger on restart of anvil-daemon. As such, we
 		###       don't use '--force' and let striker-manage-install-target skip the repo update if it happened
 		###       recently enough.
