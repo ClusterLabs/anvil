@@ -48,8 +48,8 @@ const Server = (): JSX.Element => {
           <Box className={classes.preview}>
             <Preview
               setMode={setPreviewMode}
-              uuid={uuid}
               serverName={server_name}
+              serverUUID={uuid}
             />
           </Box>
         ) : (
