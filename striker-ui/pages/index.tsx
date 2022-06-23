@@ -117,7 +117,10 @@ const Dashboard: FC = () => {
               const allServersWithScreenshots = [...serverListItems];
 
               setAllServers(allServersWithScreenshots);
-              updateServerList(allServersWithScreenshots, inputSearchTerm);
+              // Don't update servers to include or exclude here to avoid
+              // updating using an outdated input search term. Remember this
+              // block is async and takes a lot longer to complete compared to
+              // the overview fetch.
             })
             .catch(() => {
               item.isScreenshotStale = true;
