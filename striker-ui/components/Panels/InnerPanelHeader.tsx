@@ -7,6 +7,7 @@ const InnerPanelHeader: FC = ({ children }) => (
   <Box sx={{ position: 'relative', whiteSpace: 'pre-wrap' }}>
     <Box
       sx={{
+        alignItems: 'center',
         borderColor: DIVIDER,
         borderRadius: BORDER_RADIUS,
         borderStyle: 'solid',
@@ -31,13 +32,13 @@ const InnerPanelHeader: FC = ({ children }) => (
     </Box>
     <Box
       sx={{
+        display: 'flex',
         paddingBottom: '.4em',
         paddingRight: '1.7em',
-        width: '100%',
         visibility: 'hidden',
       }}
     >
-      {children instanceof Array ? children[0] : children}
+      {children}
     </Box>
   </Box>
 );
