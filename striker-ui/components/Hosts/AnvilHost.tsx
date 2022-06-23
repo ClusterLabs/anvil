@@ -31,7 +31,7 @@ const StyledBox = styled(Box)(({ theme }) => ({
   [`& .${classes.state}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
-    paddingTop: '1em',
+    paddingTop: '2.2em',
   },
 
   [`& .${classes.bar}`]: {
@@ -44,6 +44,7 @@ const StyledBox = styled(Box)(({ theme }) => ({
   },
 
   [`& .${classes.decoratorBox}`]: {
+    alignSelf: 'stretch',
     paddingRight: '.3em',
   },
 }));
