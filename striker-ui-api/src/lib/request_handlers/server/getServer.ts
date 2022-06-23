@@ -10,7 +10,7 @@ export const getServer = buildGetRequestHandler(
       sanitizeQS(anvilUUIDs, { returnType: 'string[]' }),
       {
         beforeReturn: (toReturn) =>
-          toReturn ? `AND server_anvil_uuid IN (${toReturn})` : '',
+          toReturn ? `AND ser.server_anvil_uuid IN (${toReturn})` : '',
         elementWrapper: "'",
         separator: ', ',
       },
@@ -24,11 +24,20 @@ export const getServer = buildGetRequestHandler(
 
         if (queryStdout instanceof Array) {
           result = queryStdout.map<ServerOverview>(
-            ([serverUUID, serverName, serverState, serverHostUUID]) => ({
+            ([
+              serverUUID,
+              serverName,
+              serverState,
+              serverHostUUID,
+              anvilUUID,
+              anvilName,
+            ]) => ({
               serverHostUUID,
               serverName,
               serverState,
               serverUUID,
+              anvilUUID,
+              anvilName,
             }),
           );
         }
@@ -39,12 +48,16 @@ export const getServer = buildGetRequestHandler(
 
     return `
       SELECT
-        server_uuid,
-        server_name,
-        server_state,
-        server_host_uuid
-      FROM servers
-      WHERE server_state != 'DELETED'
+        ser.server_uuid,
+        ser.server_name,
+        ser.server_state,
+        ser.server_host_uuid,
+        anv.anvil_uuid,
+        anv.anvil_name
+      FROM servers AS ser
+      JOIN anvils AS anv
+        ON ser.server_anvil_uuid = anv.anvil_uuid
+      WHERE ser.server_state != 'DELETED'
         ${condAnvilUUIDs};`;
   },
 );
