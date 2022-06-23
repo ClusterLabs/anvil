@@ -1,5 +1,6 @@
 import Head from 'next/head';
-import { FC, useState } from 'react';
+import { NextRouter, useRouter } from 'next/router';
+import { FC, useEffect, useRef, useState } from 'react';
 import { Box, Divider } from '@mui/material';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
@@ -18,7 +19,10 @@ type ServerListItem = ServerOverviewMetadata & {
   screenshot: string;
 };
 
-const createServerPreviewContainer = (servers: ServerListItem[]) => (
+const createServerPreviewContainer = (
+  servers: ServerListItem[],
+  router: NextRouter,
+) => (
   <Box
     sx={{
       display: 'flex',
@@ -45,6 +49,9 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
           externalPreview={screenshot}
           serverName={serverName}
           serverUUID={serverUUID}
+          setMode={() => {
+            router.push(`/server?uuid=${serverUUID}&server_name=${serverName}`);
+          }}
         />
       ),
     )}
@@ -76,6 +83,9 @@ const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
       );
 
 const Dashboard: FC = () => {
+  const componentMountedRef = useRef(true);
+  const router = useRouter();
+
   const [allServers, setAllServers] = useState<ServerListItem[]>([]);
   const [excludeServers, setExcludeServers] = useState<ServerListItem[]>([]);
   const [includeServers, setIncludeServers] = useState<ServerListItem[]>([]);
@@ -86,6 +96,10 @@ const Dashboard: FC = () => {
     ...filterArgs: Parameters<typeof filterServers>
   ) => {
     const { exclude, include } = filterServers(...filterArgs);
+
+    if (!componentMountedRef.current) {
+      return;
+    }
 
     setExcludeServers(exclude);
     setIncludeServers(include);
@@ -116,6 +130,10 @@ const Dashboard: FC = () => {
 
               const allServersWithScreenshots = [...serverListItems];
 
+              if (!componentMountedRef.current) {
+                return;
+              }
+
               setAllServers(allServersWithScreenshots);
               // Don't update servers to include or exclude here to avoid
               // updating using an outdated input search term. Remember this
@@ -134,6 +152,13 @@ const Dashboard: FC = () => {
       },
       refreshInterval: 60000,
     },
+  );
+
+  useEffect(
+    () => () => {
+      componentMountedRef.current = false;
+    },
+    [],
   );
 
   return (
@@ -157,11 +182,11 @@ const Dashboard: FC = () => {
                 value={inputSearchTerm}
               />
             </PanelHeader>
-            {createServerPreviewContainer(includeServers)}
+            {createServerPreviewContainer(includeServers, router)}
             {includeServers.length > 0 && (
               <Divider sx={{ backgroundColor: DIVIDER }} />
             )}
-            {createServerPreviewContainer(excludeServers)}
+            {createServerPreviewContainer(excludeServers, router)}
           </>
         )}
       </Panel>
