@@ -8,6 +8,7 @@ import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
 import { Preview } from '../components/Display';
 import Header from '../components/Header';
+import Link from '../components/Link';
 import OutlinedInput from '../components/OutlinedInput';
 import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
@@ -30,7 +31,7 @@ const createServerPreviewContainer = (
       flexWrap: 'wrap',
 
       '& > *': {
-        width: { xs: '20em', md: '30em' },
+        width: { xs: '20em', md: '24em' },
       },
 
       '& > :not(:last-child)': {
@@ -39,14 +40,30 @@ const createServerPreviewContainer = (
     }}
   >
     {servers.map(
-      ({ isScreenshotStale, screenshot, serverName, serverUUID }) => (
+      ({
+        anvilName,
+        isScreenshotStale,
+        screenshot,
+        serverName,
+        serverUUID,
+      }) => (
         <Preview
-          key={`server-preview-${serverUUID}`}
+          externalPreview={screenshot}
+          headerEndAdornment={
+            <Link
+              href="/anvil"
+              sx={{
+                opacity: 0.7,
+              }}
+            >
+              {anvilName}
+            </Link>
+          }
           isExternalPreviewStale={isScreenshotStale}
           isFetchPreview={false}
           isShowControls={false}
           isUseInnerPanel
-          externalPreview={screenshot}
+          key={`server-preview-${serverUUID}`}
           serverName={serverName}
           serverUUID={serverUUID}
           setMode={() => {
