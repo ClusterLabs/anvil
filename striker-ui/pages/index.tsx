@@ -53,22 +53,28 @@ const createServerPreviewContainer = (
       }) => (
         <Preview
           externalPreview={screenshot}
-          headerEndAdornment={
+          headerEndAdornment={[
+            <Link
+              href={`/server?uuid=${serverUUID}&server_name=${serverName}`}
+              key={`server_list_to_server_${serverUUID}`}
+            >
+              {serverName}
+            </Link>,
             <Link
               href={`/anvil?anvil_uuid=${anvilUUID}`}
+              key={`server_list_server_${serverUUID}_to_anvil_${anvilUUID}`}
               sx={{
                 opacity: 0.7,
               }}
             >
               {anvilName}
-            </Link>
-          }
+            </Link>,
+          ]}
           isExternalPreviewStale={isScreenshotStale}
           isFetchPreview={false}
           isShowControls={false}
           isUseInnerPanel
           key={`server-preview-${serverUUID}`}
-          serverName={serverName}
           serverUUID={serverUUID}
           setMode={() => {
             router.push(`/server?uuid=${serverUUID}&server_name=${serverName}`);

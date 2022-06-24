@@ -94,7 +94,7 @@ const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
 interface FullSizeProps {
   setMode: Dispatch<SetStateAction<boolean>>;
-  uuid: string;
+  serverUUID: string;
   serverName: string | string[] | undefined;
 }
 
@@ -105,7 +105,7 @@ interface VncConnectionProps {
 
 const FullSize = ({
   setMode,
-  uuid,
+  serverUUID,
   serverName,
 }: FullSizeProps): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -127,7 +127,7 @@ const FullSize = ({
           const res = await putFetchWithTimeout(
             `${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`,
             {
-              server_uuid: uuid,
+              server_uuid: serverUUID,
               is_open: true,
             },
             120000,
@@ -137,7 +137,7 @@ const FullSize = ({
           setIsError(true);
         }
       })();
-  }, [uuid, vncConnection, isError]);
+  }, [serverUUID, vncConnection, isError]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
@@ -145,7 +145,7 @@ const FullSize = ({
 
   const handleClickClose = async () => {
     await putFetch(`${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`, {
-      server_uuid: uuid,
+      server_uuid: serverUUID,
       is_open: false,
     });
   };

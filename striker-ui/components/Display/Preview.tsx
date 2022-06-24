@@ -26,11 +26,11 @@ type PreviewOptionalProps = {
   isFetchPreview?: boolean;
   isShowControls?: boolean;
   isUseInnerPanel?: boolean;
+  serverName?: string;
   setMode?: Dispatch<SetStateAction<boolean>> | null;
 };
 
 type PreviewProps = PreviewOptionalProps & {
-  serverName: string | string[] | undefined;
   serverUUID: string;
 };
 
@@ -41,6 +41,7 @@ const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
   isFetchPreview: true,
   isShowControls: true,
   isUseInnerPanel: false,
+  serverName: '',
   setMode: null,
 };
 
@@ -54,19 +55,18 @@ const PreviewPanel: FC<{ isUseInnerPanel: boolean }> = ({
     <Panel>{children}</Panel>
   );
 
-const PreviewPanelHeader: FC<{ isUseInnerPanel: boolean; text: string }> = ({
-  children,
-  isUseInnerPanel,
-  text,
-}) =>
+const PreviewPanelHeader: FC<{
+  isUseInnerPanel: boolean;
+  text: string | undefined;
+}> = ({ children, isUseInnerPanel, text }) =>
   isUseInnerPanel ? (
     <InnerPanelHeader>
-      <BodyText text={text} />
+      {text ? <BodyText text={text} /> : <></>}
       {children}
     </InnerPanelHeader>
   ) : (
     <PanelHeader>
-      <HeaderText text={text} />
+      {text ? <HeaderText text={text} /> : <></>}
       {children}
     </PanelHeader>
   );
@@ -114,10 +114,7 @@ const Preview: FC<PreviewProps> = ({
 
   return (
     <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
-      <PreviewPanelHeader
-        isUseInnerPanel={isUseInnerPanel}
-        text={`${serverName}`}
-      >
+      <PreviewPanelHeader isUseInnerPanel={isUseInnerPanel} text={serverName}>
         {headerEndAdornment}
       </PreviewPanelHeader>
       <Box
