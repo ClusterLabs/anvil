@@ -15,6 +15,13 @@ snmp -S enable -c1 private -a1 writeplus
 snmp -S enable -c2 public -a2 writeplus
 
 
+/root/ci-tools/ci-destroy-anvil-bm-vm
+/root/ci-tools/ci-setup-anvil-bm-vm rhel-8 ci ci
+
+watch 'echo "striker 1"; ssh root@an-striker01 "grep ^database /etc/anvil/anvil.conf | grep host";  echo "striker 2"; ssh root@an-striker02 "grep ^database /etc/anvil/anvil.conf | grep host"; echo "node 1"; ssh root@an-a01n01 "grep ^database /etc/anvil/anvil.conf | grep host"; echo "node 2"; ssh root@an-a01n02 "grep ^database /etc/anvil/anvil.conf | grep host"; echo "dr 1"; ssh root@an-a01dr01 "grep ^database /etc/anvil/anvil.conf | grep host";'
+
+
+
 Anvil! to Anvil! live migration;
 1. Create LVs 
 2. Make sure /etc/hosts is populated
@@ -66,18 +73,6 @@ export python=python3
 
 ============
 
-DISABLE KSM! 
-- https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/virtualization_tuning_and_optimization_guide/chap-ksm
-
-NEXT; - 
-
-RHEL 8 package changes:
-chrony   replaces ntp
-cockpit  replaces virt-manager (deprecated)
-e1000e   replaces e1000 driver
-tmux     replaces screen
-iproute2 replaces bridge-utils (See "ip link" and man bridge.)
-
 
 ==] UEFI Setup [======================================================================
 ignoredisk --only-use=vdb,vda
@@ -120,6 +115,9 @@ x = Network;
     -  SN = 100 + network
             ie: SN1 = 10.101.y.z
                 SN2 = 10.102.y.z
+    -  MN = 199 (only 1, always back-to-back between nodes 1 and 2)
+            ie: MN1 = 10.199.y.z
+            
 
 y = Device Type.
     Foudation Pack;
@@ -149,14 +147,29 @@ RHEL 8 Firewall
 
 =============================
 
+### Nodes
+* BCN Ports
+TCP	22		sshd 		
+TCP	2224		pcsd 		It is crucial to open port 2224 in such a way that pcs from any node can talk to all nodes in the cluster, including itself.
+UDP	5404		corosync	Required on corosync nodes if corosync is configured for multicast UDP
+UDP	5405		corosync	Required on all corosync nodes (needed by corosync)
+TCP	5900+		vnc		
+TCP	49152-49215	virsh		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
+
+* SN Ports (Pull ports from DRBD resource config)
+TCP	7788+		drbd		1 port per resource
+
+* IFN Ports
+TCP	22		sshd 		
+
+
+MN Ports
+TCP	49152-49215	virsh		mn		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
+
+
 Ports we care about
 
 Porto	Number		Used by		Nets		Description
-TCP	2224		pcsd 		bcn		It is crucial to open port 2224 in such a way that pcs from any node can talk to all nodes in the cluster, including itself.
-UDP	5404		corosync	bcn		Required on corosync nodes if corosync is configured for multicast UDP
-UDP	5405		corosync	bcn		Required on all corosync nodes (needed by corosync)
-TCP	7788+		drbd		sn		1 port per resource
-TCP	49152-49215	virsh		bcn		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
 
 NOTE: DHCP listens to raw sockets and ignores firewalld rules. We need to stop dhcpd directly - https://kb.isc.org/docs/aa-00378
 

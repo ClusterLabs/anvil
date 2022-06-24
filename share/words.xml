@@ -2127,6 +2127,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0703">The timestamp has been updated from: [#!variable!old_time!#] to: [#!variable!new_time!#].</key>
 		<key name="log_0704"><![CDATA[[ Error ] - The method Database->read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.]]></key>
 		<key name="log_0705">Forcing the dailing resync and checking to clear records in the history schema no longer in public schema.</key>
+		<key name="log_0706">Updating the OUI list will happen after the system has been up for at least an hour. You can force an update now by running 'striker-parse-oui --force' at the command line.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

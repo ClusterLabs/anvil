@@ -698,8 +698,8 @@ sub handle_periodic_tasks
 	# Now check to see if it's time to run daily tasks.
 	if ($now_time >= $anvil->data->{timing}{next_daily_check})
 	{
-		# Make sure ksm and ksmtuned are disabled.
-		foreach my $daemon ("ksm.service", "ksmtuned.service")
+		# Make sure ksm, ksmtuned and tuned are disabled.
+		foreach my $daemon ("ksm.service", "ksmtuned.service", "tuned.service")
 		{
 			my $status = $anvil->System->check_daemon({daemon => $daemon});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
