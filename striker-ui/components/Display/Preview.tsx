@@ -1,4 +1,11 @@
-import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
+import {
+  Dispatch,
+  FC,
+  ReactNode,
+  SetStateAction,
+  useEffect,
+  useState,
+} from 'react';
 import { Box, IconButton as MUIIconButton } from '@mui/material';
 import {
   DesktopWindows as DesktopWindowsIcon,
@@ -14,6 +21,7 @@ import { BodyText, HeaderText } from '../Text';
 
 type PreviewOptionalProps = {
   externalPreview?: string;
+  headerEndAdornment?: ReactNode;
   isExternalPreviewStale?: boolean;
   isFetchPreview?: boolean;
   isShowControls?: boolean;
@@ -28,6 +36,7 @@ type PreviewProps = PreviewOptionalProps & {
 
 const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
   externalPreview: '',
+  headerEndAdornment: null,
   isExternalPreviewStale: false,
   isFetchPreview: true,
   isShowControls: true,
@@ -64,6 +73,7 @@ const PreviewPanelHeader: FC<{ isUseInnerPanel: boolean; text: string }> = ({
 
 const Preview: FC<PreviewProps> = ({
   externalPreview = PREVIEW_DEFAULT_PROPS.externalPreview,
+  headerEndAdornment,
   isExternalPreviewStale = PREVIEW_DEFAULT_PROPS.isExternalPreviewStale,
   isFetchPreview = PREVIEW_DEFAULT_PROPS.isFetchPreview,
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
@@ -106,8 +116,10 @@ const Preview: FC<PreviewProps> = ({
     <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
       <PreviewPanelHeader
         isUseInnerPanel={isUseInnerPanel}
-        text={`Server: ${serverName}`}
-      />
+        text={`${serverName}`}
+      >
+        {headerEndAdornment}
+      </PreviewPanelHeader>
       <Box
         sx={{
           display: 'flex',
