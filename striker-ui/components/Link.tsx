@@ -1,24 +1,39 @@
 import { FC } from 'react';
-import { Link as MUILink, LinkProps as MUILinkProps } from '@mui/material';
+import {
+  Box as MUIBox,
+  Link as MUILink,
+  LinkProps as MUILinkProps,
+} from '@mui/material';
+import { Link as LinkIcon } from '@mui/icons-material';
 
-import { GREY } from '../lib/consts/DEFAULT_THEME';
+import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 export type LinkProps = MUILinkProps;
 
 const Link: FC<LinkProps> = ({ children, sx, ...restLinkProps }) => (
   <MUILink
     {...{
-      underline: 'always',
+      underline: 'hover',
       variant: 'subtitle1',
       ...restLinkProps,
       sx: {
-        color: GREY,
+        color: TEXT,
         textDecorationColor: GREY,
+
         ...sx,
       },
     }}
   >
-    {children}
+    <MUIBox
+      sx={{
+        alignItems: 'center',
+        display: 'flex',
+        flexDirection: 'row',
+      }}
+    >
+      {children}
+      <LinkIcon sx={{ marginLeft: '.3em' }} />
+    </MUIBox>
   </MUILink>
 );
 
