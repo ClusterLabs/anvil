@@ -36,31 +36,32 @@ const Server = (): JSX.Element => {
 
   const router = useRouter();
   const { uuid, server_name } = router.query;
+  const serverUUID: string = uuid?.toString() || '';
+  const serverName: string = server_name?.toString() || '';
 
   return (
     <StyledDiv>
       <Head>
-        <title>{server_name}</title>
+        <title>{serverName}</title>
       </Head>
       <Header />
-      {typeof uuid === 'string' &&
-        (previewMode ? (
-          <Box className={classes.preview}>
-            <Preview
-              setMode={setPreviewMode}
-              serverName={server_name}
-              serverUUID={uuid}
-            />
-          </Box>
-        ) : (
-          <Box className={classes.fullView}>
-            <FullSize
-              setMode={setPreviewMode}
-              uuid={uuid}
-              serverName={server_name}
-            />
-          </Box>
-        ))}
+      {previewMode ? (
+        <Box className={classes.preview}>
+          <Preview
+            setMode={setPreviewMode}
+            serverName={serverName}
+            serverUUID={serverUUID}
+          />
+        </Box>
+      ) : (
+        <Box className={classes.fullView}>
+          <FullSize
+            setMode={setPreviewMode}
+            serverUUID={serverUUID}
+            serverName={serverName}
+          />
+        </Box>
+      )}
     </StyledDiv>
   );
 };
