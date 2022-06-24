@@ -1,4 +1,6 @@
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { useContext, useEffect } from 'react';
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
@@ -11,7 +13,7 @@ import Network from '../../components/Network';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Servers from '../../components/Servers';
 import Header from '../../components/Header';
-import AnvilProvider from '../../components/AnvilContext';
+import AnvilProvider, { AnvilContext } from '../../components/AnvilContext';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 import useWindowDimensions from '../../hooks/useWindowDimenions';
 
@@ -55,11 +57,20 @@ const StyledDiv = styled('div')(({ theme }) => ({
 }));
 
 const Anvil = (): JSX.Element => {
+  const router = useRouter();
   const width = useWindowDimensions();
 
+  const { anvil_uuid: queryAnvilUUID } = router.query;
+  const { uuid: contextAnvilUUID, setAnvilUuid } = useContext(AnvilContext);
   const { data } = periodicFetch<AnvilList>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
   );
+
+  useEffect(() => {
+    if (contextAnvilUUID === '') {
+      setAnvilUuid(queryAnvilUUID?.toString() || '');
+    }
+  }, [contextAnvilUUID, queryAnvilUUID, setAnvilUuid]);
 
   return (
     <StyledDiv>

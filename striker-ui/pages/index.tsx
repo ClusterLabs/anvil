@@ -45,6 +45,7 @@ const createServerPreviewContainer = (
     {servers.map(
       ({
         anvilName,
+        anvilUUID,
         isScreenshotStale,
         screenshot,
         serverName,
@@ -54,7 +55,7 @@ const createServerPreviewContainer = (
           externalPreview={screenshot}
           headerEndAdornment={
             <Link
-              href="/anvil"
+              href={`/anvil?anvil_uuid=${anvilUUID}`}
               sx={{
                 opacity: 0.7,
               }}
