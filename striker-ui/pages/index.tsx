@@ -2,18 +2,21 @@ import Head from 'next/head';
 import { NextRouter, useRouter } from 'next/router';
 import { FC, useEffect, useRef, useState } from 'react';
 import { Box, Divider } from '@mui/material';
+import { Add as AddIcon } from '@mui/icons-material';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
 import { Preview } from '../components/Display';
+import fetchJSON from '../lib/fetchers/fetchJSON';
 import Header from '../components/Header';
+import IconButton from '../components/IconButton';
 import Link from '../components/Link';
 import OutlinedInput from '../components/OutlinedInput';
 import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
+import ProvisionServerDialog from '../components/ProvisionServerDialog';
 import Spinner from '../components/Spinner';
-import fetchJSON from '../lib/fetchers/fetchJSON';
 
 type ServerListItem = ServerOverviewMetadata & {
   isScreenshotStale?: boolean;
@@ -109,6 +112,9 @@ const Dashboard: FC = () => {
 
   const [inputSearchTerm, setInputSearchTerm] = useState<string>('');
 
+  const [isOpenProvisionServerDialog, setIsOpenProvisionServerDialog] =
+    useState<boolean>(false);
+
   const updateServerList = (
     ...filterArgs: Parameters<typeof filterServers>
   ) => {
@@ -196,8 +202,12 @@ const Dashboard: FC = () => {
                   setInputSearchTerm(value);
                   updateServerList(allServers, value);
                 }}
+                sx={{ marginRight: '.6em' }}
                 value={inputSearchTerm}
               />
+              <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
+                <AddIcon />
+              </IconButton>
             </PanelHeader>
             {createServerPreviewContainer(includeServers, router)}
             {includeServers.length > 0 && (
@@ -207,6 +217,12 @@ const Dashboard: FC = () => {
           </>
         )}
       </Panel>
+      <ProvisionServerDialog
+        dialogProps={{ open: isOpenProvisionServerDialog }}
+        onClose={() => {
+          setIsOpenProvisionServerDialog(false);
+        }}
+      />
     </Box>
   );
 };
