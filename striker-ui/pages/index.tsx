@@ -75,10 +75,12 @@ const createServerPreviewContainer = (
           isShowControls={false}
           isUseInnerPanel
           key={`server-preview-${serverUUID}`}
-          serverUUID={serverUUID}
-          setMode={() => {
-            router.push(`/server?uuid=${serverUUID}&server_name=${serverName}`);
+          onClickPreview={() => {
+            router.push(
+              `/server?uuid=${serverUUID}&server_name=${serverName}&vnc=1`,
+            );
           }}
+          serverUUID={serverUUID}
         />
       ),
     )}

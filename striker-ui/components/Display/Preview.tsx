@@ -1,12 +1,9 @@
+import { FC, ReactNode, useEffect, useState } from 'react';
 import {
-  Dispatch,
-  FC,
-  ReactNode,
-  SetStateAction,
-  useEffect,
-  useState,
-} from 'react';
-import { Box, IconButton as MUIIconButton } from '@mui/material';
+  Box,
+  IconButton as MUIIconButton,
+  IconButtonProps as MUIIconButtonProps,
+} from '@mui/material';
 import {
   DesktopWindows as DesktopWindowsIcon,
   PowerOffOutlined as PowerOffOutlinedIcon,
@@ -15,7 +12,7 @@ import {
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
-import IconButton from '../IconButton';
+import IconButton, { IconButtonProps } from '../IconButton';
 import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
 import { BodyText, HeaderText } from '../Text';
 
@@ -26,23 +23,28 @@ type PreviewOptionalProps = {
   isFetchPreview?: boolean;
   isShowControls?: boolean;
   isUseInnerPanel?: boolean;
+  onClickConnectButton?: IconButtonProps['onClick'];
+  onClickPreview?: MUIIconButtonProps['onClick'];
   serverName?: string;
-  setMode?: Dispatch<SetStateAction<boolean>> | null;
 };
 
 type PreviewProps = PreviewOptionalProps & {
   serverUUID: string;
 };
 
-const PREVIEW_DEFAULT_PROPS: Required<PreviewOptionalProps> = {
+const PREVIEW_DEFAULT_PROPS: Required<
+  Omit<PreviewOptionalProps, 'onClickConnectButton' | 'onClickPreview'>
+> &
+  Pick<PreviewOptionalProps, 'onClickConnectButton' | 'onClickPreview'> = {
   externalPreview: '',
   headerEndAdornment: null,
   isExternalPreviewStale: false,
   isFetchPreview: true,
   isShowControls: true,
   isUseInnerPanel: false,
+  onClickConnectButton: undefined,
+  onClickPreview: undefined,
   serverName: '',
-  setMode: null,
 };
 
 const PreviewPanel: FC<{ isUseInnerPanel: boolean }> = ({
@@ -78,9 +80,10 @@ const Preview: FC<PreviewProps> = ({
   isFetchPreview = PREVIEW_DEFAULT_PROPS.isFetchPreview,
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
   isUseInnerPanel = PREVIEW_DEFAULT_PROPS.isUseInnerPanel,
+  onClickPreview: previewClickHandler,
   serverName,
   serverUUID,
-  setMode,
+  onClickConnectButton: connectButtonClickHandle = previewClickHandler,
 }) => {
   const [isPreviewStale, setIsPreviewStale] = useState<boolean>(false);
   const [preview, setPreview] = useState<string>('');
@@ -130,7 +133,7 @@ const Preview: FC<PreviewProps> = ({
         <Box>
           <MUIIconButton
             component="span"
-            onClick={() => setMode?.call(null, false)}
+            onClick={previewClickHandler}
             sx={{
               borderRadius: BORDER_RADIUS,
               color: GREY,
@@ -161,7 +164,7 @@ const Preview: FC<PreviewProps> = ({
         </Box>
         {isShowControls && (
           <Box>
-            <IconButton onClick={() => setMode?.call(null, false)}>
+            <IconButton onClick={connectButtonClickHandle}>
               <DesktopWindowsIcon />
             </IconButton>
           </Box>

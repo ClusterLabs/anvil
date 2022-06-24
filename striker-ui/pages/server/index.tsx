@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { Box } from '@mui/material';
@@ -35,9 +35,16 @@ const Server = (): JSX.Element => {
   const [previewMode, setPreviewMode] = useState<boolean>(true);
 
   const router = useRouter();
-  const { uuid, server_name } = router.query;
+  const { server_name, uuid, vnc } = router.query;
+  const isConnectVNC: boolean = (vnc?.toString() || '').length > 0;
   const serverUUID: string = uuid?.toString() || '';
   const serverName: string = server_name?.toString() || '';
+
+  useEffect(() => {
+    if (isConnectVNC) {
+      setPreviewMode(false);
+    }
+  }, [isConnectVNC]);
 
   return (
     <StyledDiv>
@@ -48,7 +55,9 @@ const Server = (): JSX.Element => {
       {previewMode ? (
         <Box className={classes.preview}>
           <Preview
-            setMode={setPreviewMode}
+            onClickPreview={() => {
+              setPreviewMode(false);
+            }}
             serverName={serverName}
             serverUUID={serverUUID}
           />
@@ -56,7 +65,9 @@ const Server = (): JSX.Element => {
       ) : (
         <Box className={classes.fullView}>
           <FullSize
-            setMode={setPreviewMode}
+            onClickCloseButton={() => {
+              setPreviewMode(true);
+            }}
             serverUUID={serverUUID}
             serverName={serverName}
           />
