@@ -7,6 +7,24 @@ dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release
 dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-dr --allowerasing
 
 
+### Currently set default zone;
+# Doesn't seem to matter - /etc/firewalld/firewalld.conf:6:DefaultZone=public
+
+firewall-cmd --get-default-zone 
+# public
+firewall-cmd --permanent --set-default-zone=IFN1
+
+
+firewall-cmd --permanent --new-zone="IFN1" 
+firewall-cmd --permanent --zone=IFN1 --set-description="Internet-Facing Network 1"
+firewall-cmd --permanent --zone=IFN1 --set-short="IFN1"
+firewall-cmd --permanent --zone=IFN1 --add-interface=ifn1_bond1 
+firewall-cmd --permanent --zone=IFN1 --add-service=ssh
+firewall-cmd --permanent --zone=IFN1 --add-service=postgresql 
+firewall-cmd --permanent --zone=IFN1 --add-port=22869/tcp
+firewall-cmd --reload
+
+
 # Configure APC PDUs and UPSes
 tcpip -i 10.201.2.3 -s 255.255.0.0 -g 10.201.255.254
 web -h enable

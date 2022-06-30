@@ -14,22 +14,25 @@ my $THIS_FILE = "Network.pm";
 
 ### Methods;
 # bridge_info
-# check_internet
+# check_firewall
 # check_network
+# check_internet
 # download
 # find_matches
 # find_target_ip
 # get_company_from_mac
-# get_ips
 # get_ip_from_mac
+# get_ips
 # get_network
 # is_local
 # is_our_interface
+# is_ip_in_network
 # load_interfces
 # load_ips
-# is_ip_in_network
+# manage_firewall
 # ping
 # read_nmcli
+# _check_firewalld_conf
 
 =pod
 
@@ -224,7 +227,68 @@ sub bridge_info
 }
 
 
+=head2 check_firewall
+
+This checks to see if the firewall is running. If it is not, and if C<< sys::daemons::restart_firewalld >> is not set to C<< 0 >>, it will start the firewall. 
+
+It returns C<< 1 >>, the firewall is running. If it returns C<< 0 >>, it is not.
+
+This method takes no parameters.
+
+=cut
+sub check_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_firewall()" }});
+	
+	my $running = 0;
+	
+	# Make sure firewalld is running.
+	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
+	if ($firewalld_running)
+	{
+		$running = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
+	}
+	else
+	{
+		if ($anvil->data->{sys}{daemons}{restart_firewalld})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0127"});
+			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+			if ($return_code)
+			{
+				# non-0 means something went wrong.
+				return("!!error!!");
+			}
+			else
+			{
+				# Started
+				$running = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
+			}
+		}
+		else
+		{
+			# We've been asked to leave it off.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0128"});
+			return(0);
+		}
+	}
+	
+	
+	return($running);
+}
+
+
 =head2 check_network
+
+B<< NOTE >>: This method is not yet implemented.
 
 This method checks to see if bridges and the links in bonds are up. It can simply report the bridge, bond and link states, or it can try to bring up interfaces that are down.
 
@@ -544,7 +608,7 @@ sub check_network
 	
 	foreach my $bond (sort {$a cmp $b} keys %{$anvil->data->{bond_health}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:bond_health::${bond}::name"             => $anvil->data->{bond_health}{$bond}{name},
 			"s2:bond_health::${bond}::up"               => $anvil->data->{bond_health}{$bond}{up},
 			"s3:bond_health::${bond}::configured_links" => $anvil->data->{bond_health}{$bond}{configured_links},
@@ -553,7 +617,7 @@ sub check_network
 		}});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:bond_health::${bond}::interface::${interface}::name"    => $anvil->data->{bond_health}{$bond}{interface}{$interface}{name},
 				"s2:bond_health::${bond}::interface::${interface}::in_bond" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond},
 				"s3:bond_health::${bond}::interface::${interface}::up"      => $anvil->data->{bond_health}{$bond}{interface}{$interface}{up},
@@ -1270,653 +1334,6 @@ sub find_target_ip
 	return($target_ip);
 }
 
-
-=head2 load_interfces
-
-This loads all network information for the given host UUID.
-
-The main difference from C<< ->load_ips() >> is that this method loads information about all interfaces, regardless of if they have an IP, as well as their link state and link information.
-
-The loaded data will be stored as:
-
-* C<< machine::<target>::interface::<iface_name>::
-
-Parameters;
-
-=head3 clear (optional, default '1')
-
-When set, any previously known information is cleared. Specifically, the C<< network::<target>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
-
-=head3 host (optional, default is 'host_uuid' value)
-
-This is the optional C<< target >> string to use in the hash where the data is stored.
-
-=head3 host_uuid (optional, default 'sys::host_uuid')
-
-This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
-
-=cut
-sub load_interfces
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_interfces()" }});
-	
-	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
-	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		clear     => $clear, 
-		host      => $host, 
-		host_uuid => $host_uuid,
-	}});
-	
-	if (not $host_uuid)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_interfces()", parameter => "host_uuid" }});
-		return("");
-	}
-	
-	if (not $host)
-	{
-		$host = $host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
-	}
-	
-	if (($clear) && (exists $anvil->data->{network}{$host}))
-	{
-		delete $anvil->data->{network}{$host};
-	}
-	
-	# Now load bridge info
-	my $query = "
-SELECT 
-    bridge_uuid, 
-    bridge_name, 
-    bridge_id, 
-    bridge_mac_address, 
-    bridge_mtu, 
-    bridge_stp_enabled 
-FROM 
-    bridges 
-WHERE 
-    bridge_id != 'DELETED' 
-AND 
-    bridge_host_uuid = ".$anvil->Database->quote($host_uuid)." 
-;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	foreach my $row (@{$results})
-	{
-		my $bridge_uuid        = defined $row->[0] ? $row->[0] : "";
-		my $bridge_name        = defined $row->[1] ? $row->[1] : ""; 
-		my $bridge_id          = defined $row->[2] ? $row->[2] : ""; 
-		my $bridge_mac_address = defined $row->[3] ? $row->[3] : ""; 
-		my $bridge_mtu         = defined $row->[4] ? $row->[4] : ""; 
-		my $bridge_stp_enabled = defined $row->[5] ? $row->[5] : ""; 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			bridge_uuid        => $bridge_uuid, 
-			bridge_name        => $bridge_name, 
-			bridge_id          => $bridge_id, 
-			bridge_mac_address => $bridge_mac_address, 
-			bridge_mtu         => $bridge_mtu, 
-			bridge_stp_enabled => $bridge_stp_enabled, 
-		}});
-		
-		# Record the bridge_uuid -> name
-		$anvil->data->{network}{$host}{bridge_uuid}{$bridge_uuid}{name} = $bridge_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::bridge_uuid::${bridge_uuid}::name" => $anvil->data->{network}{$host}{bridge_uuid}{$bridge_uuid}{name}, 
-		}});
-		
-		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{uuid}        = $bridge_uuid; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{id}          = $bridge_id; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{mac_address} = $bridge_mac_address; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}         = $bridge_mtu; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled} = $bridge_stp_enabled; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{type}        = "bridge";
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}  = [];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::interface::${bridge_name}::uuid"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{uuid}, 
-			"network::${host}::interface::${bridge_name}::id"          => $anvil->data->{network}{$host}{interface}{$bridge_name}{id}, 
-			"network::${host}::interface::${bridge_name}::mac_address" => $anvil->data->{network}{$host}{interface}{$bridge_name}{mac_address}, 
-			"network::${host}::interface::${bridge_name}::mtu"         => $anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}, 
-			"network::${host}::interface::${bridge_name}::stp_enabled" => $anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled}, 
-			"network::${host}::interface::${bridge_name}::type"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{type}, 
-		}});
-	}
-	
-	# Now load bond info
-	$query = "
-SELECT 
-    bond_uuid, 
-    bond_name, 
-    bond_mode, 
-    bond_mtu, 
-    bond_primary_interface, 
-    bond_primary_reselect, 
-    bond_active_interface, 
-    bond_mii_polling_interval, 
-    bond_up_delay, 
-    bond_down_delay, 
-    bond_mac_address, 
-    bond_operational, 
-    bond_bridge_uuid 
-FROM 
-    bonds WHERE bond_mode != 'DELETED' 
-AND 
-    bond_host_uuid = ".$anvil->Database->quote($host_uuid)." 
-;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	foreach my $row (@{$results})
-	{
-		my $bond_uuid                 = defined $row->[0]  ? $row->[0]  : "";
-		my $bond_name                 = defined $row->[1]  ? $row->[1]  : ""; 
-		my $bond_mode                 = defined $row->[2]  ? $row->[2]  : ""; 
-		my $bond_mtu                  = defined $row->[3]  ? $row->[3]  : ""; 
-		my $bond_primary_interface    = defined $row->[4]  ? $row->[4]  : ""; 
-		my $bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : ""; 
-		my $bond_active_interface     = defined $row->[6]  ? $row->[6]  : ""; 
-		my $bond_mii_polling_interval = defined $row->[7]  ? $row->[7]  : ""; 
-		my $bond_up_delay             = defined $row->[8]  ? $row->[8]  : ""; 
-		my $bond_down_delay           = defined $row->[9]  ? $row->[9]  : ""; 
-		my $bond_mac_address          = defined $row->[10] ? $row->[10] : ""; 
-		my $bond_operational          = defined $row->[11] ? $row->[11] : ""; 
-		my $bond_bridge_uuid          = defined $row->[12] ? $row->[12] : ""; 
-		my $bridge_name               = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			bond_uuid                 => $bond_uuid,
-			bond_name                 => $bond_name,
-			bond_mode                 => $bond_mode,
-			bond_mtu                  => $bond_mtu,
-			bond_primary_interface    => $bond_primary_interface,
-			bond_primary_reselect     => $bond_primary_reselect,
-			bond_active_interface     => $bond_active_interface,
-			bond_mii_polling_interval => $bond_mii_polling_interval,
-			bond_up_delay             => $bond_up_delay,
-			bond_down_delay           => $bond_down_delay,
-			bond_mac_address          => $bond_mac_address,
-			bond_operational          => $bond_operational,
-			bond_bridge_uuid          => $bond_bridge_uuid, 
-		}});
-		
-		# If this bond is connected to a bridge, get the bridge name.
-		if (($bond_bridge_uuid) && (defined $anvil->data->{network}{$host}{bridge_uuid}{$bond_bridge_uuid}{name}))
-		{
-			$bridge_name = $anvil->data->{network}{$host}{bridge_uuid}{$bond_bridge_uuid}{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				bond_bridge_uuid => $bond_bridge_uuid, 
-				bridge_name     => $bridge_name,
-			}});
-			push @{$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}}, $bond_name;
-		}
-		
-		# Record the bond_uuid -> name
-		$anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name} = $bond_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::bond_uuid::${bond_uuid}::name" => $anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name}, 
-		}});
-		
-		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{uuid}                 = $bond_uuid; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mode}                 = $bond_mode; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mtu}                  = $bond_mtu; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}    = $bond_primary_interface; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}     = $bond_primary_reselect; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}     = $bond_active_interface; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval} = $bond_mii_polling_interval; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}             = $bond_up_delay; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}           = $bond_down_delay; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}          = $bond_mac_address; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{operational}          = $bond_operational; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{bridge_uuid}          = $bond_bridge_uuid;
-		$anvil->data->{network}{$host}{interface}{$bond_name}{type}                 = "bond";
-		$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}           = [];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::interface::${bond_name}::uuid"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{uuid}, 
-			"network::${host}::interface::${bond_name}::mode"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{mode}, 
-			"network::${host}::interface::${bond_name}::mtu"                  => $anvil->data->{network}{$host}{interface}{$bond_name}{mtu}, 
-			"network::${host}::interface::${bond_name}::primary_interface"    => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}, 
-			"network::${host}::interface::${bond_name}::primary_reselect"     => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}, 
-			"network::${host}::interface::${bond_name}::active_interface"     => $anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}, 
-			"network::${host}::interface::${bond_name}::mii_polling_interval" => $anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval}, 
-			"network::${host}::interface::${bond_name}::up_delay"             => $anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}, 
-			"network::${host}::interface::${bond_name}::down_delay"           => $anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}, 
-			"network::${host}::interface::${bond_name}::mac_address"          => $anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}, 
-			"network::${host}::interface::${bond_name}::operational"          => $anvil->data->{network}{$host}{interface}{$bond_name}{operational}, 
-			"network::${host}::interface::${bond_name}::bridge_uuid"          => $anvil->data->{network}{$host}{interface}{$bond_name}{bridge}, 
-			"network::${host}::interface::${bond_name}::type"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{type}, 
-		}});
-	}
-	
-	# The order will allow us to show the order in which the interfaces were changed, which the user can 
-	# use to track interfaces as they unplug and plug cables back in.
-	my $order = 1;
-	   $query = "
-SELECT 
-    network_interface_uuid, 
-    network_interface_mac_address, 
-    network_interface_name, 
-    network_interface_speed, 
-    network_interface_mtu, 
-    network_interface_link_state, 
-    network_interface_operational, 
-    network_interface_duplex, 
-    network_interface_medium, 
-    network_interface_bond_uuid, 
-    network_interface_bridge_uuid 
-FROM 
-    network_interfaces 
-WHERE 
-    network_interface_operational != 'DELETED' 
-AND 
-    network_interface_host_uuid   =  ".$anvil->Database->quote($host_uuid)." 
-ORDER BY 
-    modified_date DESC 
-;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	my $changed_order = 1;
-	foreach my $row (@{$results})
-	{
-		my $network_interface_uuid        = defined $row->[0]  ? $row->[0]  : "";
-		my $network_interface_mac_address = defined $row->[1]  ? $row->[1]  : ""; 
-		my $network_interface_name        = defined $row->[2]  ? $row->[2]  : ""; 
-		my $network_interface_speed       = defined $row->[3]  ? $row->[3]  : ""; 
-		my $network_interface_mtu         = defined $row->[4]  ? $row->[4]  : ""; 
-		my $network_interface_link_state  = defined $row->[5]  ? $row->[5]  : ""; 
-		my $network_interface_operational = defined $row->[6]  ? $row->[6]  : ""; 
-		my $network_interface_duplex      = defined $row->[7]  ? $row->[7]  : ""; 
-		my $network_interface_medium      = defined $row->[8]  ? $row->[8]  : ""; 
-		my $network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : ""; 
-		my $network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : ""; 
-		my $bond_name                     = "";
-		my $bridge_name                   = "";
-		my $this_change_orger             = 0;
-		if (($network_interface_name =~ /^virbr/) or ($network_interface_name =~ /^vnet/))
-		{
-			# This isn't a physical NIC, so it doesn't get a changed order
-		}
-		else
-		{
-			$this_change_orger = $changed_order++;
-		}
-		if (($network_interface_bond_uuid) && (defined $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name}))
-		{
-			$bond_name = $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				network_interface_name => $network_interface_name, 
-				bond_name              => $bond_name,
-			}});
-			push @{$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}}, $network_interface_name;
-		}
-		if (($network_interface_bridge_uuid) && (defined $anvil->data->{network}{$host}{bridge_uuid}{$network_interface_bridge_uuid}{name}))
-		{
-			$bridge_name = $anvil->data->{network}{$host}{bridge_uuid}{$network_interface_bridge_uuid}{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				network_interface_name => $network_interface_name, 
-				bridge_name            => $bridge_name,
-			}});
-			push @{$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}}, $network_interface_name;
-		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			network_interface_uuid        => $network_interface_uuid, 
-			network_interface_mac_address => $network_interface_mac_address, 
-			network_interface_name        => $network_interface_name, 
-			network_interface_speed       => $network_interface_speed, 
-			network_interface_mtu         => $network_interface_mtu, 
-			network_interface_link_state  => $network_interface_link_state, 
-			network_interface_operational => $network_interface_operational, 
-			network_interface_duplex      => $network_interface_duplex, 
-			network_interface_medium      => $network_interface_medium, 
-			network_interface_bond_uuid   => $network_interface_bond_uuid, 
-			network_interface_bridge_uuid => $network_interface_bridge_uuid, 
-			bond_name                     => $bond_name, 
-			changed_order                 => $this_change_orger,
-		}});
-		
-		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}          = $network_interface_uuid; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}   = $network_interface_mac_address; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}         = $network_interface_speed; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}           = $network_interface_mtu; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}    = $network_interface_link_state; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}   = $network_interface_operational; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}        = $network_interface_duplex; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}        = $network_interface_medium; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}     = $network_interface_bond_uuid; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}     = $bond_name; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}   = $network_interface_bridge_uuid; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}   = $bridge_name; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{type}          = "interface";
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order} = $this_change_orger;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::interface::${network_interface_name}::uuid"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}, 
-			"network::${host}::interface::${network_interface_name}::mac_address"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}, 
-			"network::${host}::interface::${network_interface_name}::speed"         => $anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}, 
-			"network::${host}::interface::${network_interface_name}::mtu"           => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}, 
-			"network::${host}::interface::${network_interface_name}::link_state"    => $anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}, 
-			"network::${host}::interface::${network_interface_name}::operational"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}, 
-			"network::${host}::interface::${network_interface_name}::duplex"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}, 
-			"network::${host}::interface::${network_interface_name}::medium"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}, 
-			"network::${host}::interface::${network_interface_name}::bond_uuid"     => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}, 
-			"network::${host}::interface::${network_interface_name}::bond_name"     => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}, 
-			"network::${host}::interface::${network_interface_name}::bridge_uuid"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}, 
-			"network::${host}::interface::${network_interface_name}::bridge_name"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}, 
-			"network::${host}::interface::${network_interface_name}::type"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{type}, 
-			"network::${host}::interface::${network_interface_name}::changed_order" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order}, 
-		}});
-	}
-	
-	# Load the IPs
-	$anvil->Network->load_ips({
-		debug     => $debug,
-		host_uuid => $host_uuid,
-		host      => $host, 
-		clear     => 0,
-	});
-	
-	return(0);
-}
-
-=head2 load_ips
-
-This method loads and stores the same data as the C<< get_ips >> method, but does so by loading data from the database, instead of collecting it directly from the host. As such, it can also be used by C<< find_matches >>.
-
-C<< Note >>: IP addresses that have been deleted will be marked so by C<< ip >> being set to C<< DELETED >>.
-
-The loaded data will be stored as:
-
-* C<< network::<host>::interface::<iface_name>::ip >>              - If an IP address is set
-* C<< network::<host>::interface::<iface_name>::subnet_mask >>     - If an IP is set
-* C<< network::<host>::interface::<iface_name>::mac >>             - Always set.
-* C<< network::<host>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
-* C<< network::<host>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
-* C<< network::<host>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
-
-Parameters;
-
-=head3 clear (optional, default '1')
-
-When set, any previously known information is cleared. Specifically, the C<< network::<host>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
-
-=head3 host (optional, default is 'host_uuid' value)
-
-This is the optional C<< host >> string to use in the hash where the data is stored.
-
-=head3 host_uuid (optional, default 'sys::host_uuid')
-
-This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
-
-=cut
-sub load_ips
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_ips()" }});
-	
-	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
-	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		clear     => $clear, 
-		host      => $host, 
-		host_uuid => $host_uuid,
-	}});
-	
-	if (not $host_uuid)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_ips()", parameter => "ip" }});
-		return("");
-	}
-	
-	if (not $host)
-	{
-		$host = $host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
-	}
-	
-	if (($clear) && (exists $anvil->data->{network}{$host}))
-	{
-		delete $anvil->data->{network}{$host};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0700", variables => { hash => "network::${host}" }});
-	}
-	
-	# Read in all IPs, so that we know which to remove.
-	my $query = "
-SELECT 
-    ip_address_address, 
-    ip_address_subnet_mask, 
-    ip_address_gateway, 
-    ip_address_default_gateway, 
-    ip_address_dns, 
-    ip_address_on_type, 
-    ip_address_on_uuid 
-FROM 
-    ip_addresses 
-WHERE 
-    ip_address_host_uuid =  ".$anvil->Database->quote($host_uuid)." 
-AND 
-    ip_address_note      != 'DELETED'
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
-	{
-		my $ip_address_address         = $row->[0]; 
-		my $ip_address_subnet_mask     = $row->[1]; 
-		my $ip_address_gateway         = $row->[2]; 
-		my $ip_address_default_gateway = $row->[3]; 
-		my $ip_address_dns             = $row->[4]; 
-		my $ip_address_on_type         = $row->[5]; 
-		my $ip_address_on_uuid         = $row->[6];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			ip_address_address         => $ip_address_address,
-			ip_address_subnet_mask     => $ip_address_subnet_mask,
-			ip_address_gateway         => $ip_address_gateway,
-			ip_address_default_gateway => $ip_address_default_gateway,
-			ip_address_dns             => $ip_address_dns,
-			ip_address_on_type         => $ip_address_on_type,
-			ip_address_on_uuid         => $ip_address_on_uuid,
-		}});
-		
-		my $interface_name = "";
-		my $interface_mac  = "";
-		if ($ip_address_on_type eq "interface")
-		{
-			my $query = "
-SELECT 
-    network_interface_uuid, 
-    network_interface_name, 
-    network_interface_mac_address, 
-    network_interface_speed, 
-    network_interface_mtu, 
-    network_interface_link_state, 
-    network_interface_operational, 
-    network_interface_duplex, 
-    network_interface_medium, 
-    network_interface_bond_uuid, 
-    network_interface_bridge_uuid 
-FROM 
-    network_interfaces 
-WHERE 
-    network_interface_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
-AND 
-    network_interface_operational != 'DELETED'
-;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			next if not $count;
-			
-			$interface_name = $results->[0]->[1];
-			$interface_mac  = $results->[0]->[2];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				interface_name => $interface_name, 
-				interface_mac  => $interface_mac, 
-			}});
-			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} = $results->[0]->[0];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            = $interface_mac;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}            = $ip_address_subnet_mask;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}        = $ip_address_default_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                = $ip_address_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    = $ip_address_dns;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   = $ip_address_on_type;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  = $results->[0]->[3];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    = $results->[0]->[4];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             = $results->[0]->[5];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            = $results->[0]->[6];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 = $results->[0]->[7];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 = $results->[0]->[8];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = $results->[0]->[9];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = $results->[0]->[10];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::network_interface_uuid" => $anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid}, 
-				"network::${host}::interface::${interface_name}::mac_address"            => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
-				"network::${host}::interface::${interface_name}::ip"                     => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet_mask"            => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
-				"network::${host}::interface::${interface_name}::default_gateway"        => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
-				"network::${host}::interface::${interface_name}::gateway"                => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
-				"network::${host}::interface::${interface_name}::dns"                    => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
-				"network::${host}::interface::${interface_name}::type"                   => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
-				"network::${host}::interface::${interface_name}::speed"                  => $anvil->data->{network}{$host}{interface}{$interface_name}{speed}, 
-				"network::${host}::interface::${interface_name}::mtu"                    => $anvil->data->{network}{$host}{interface}{$interface_name}{mtu}, 
-				"network::${host}::interface::${interface_name}::link_state"             => $anvil->data->{network}{$host}{interface}{$interface_name}{link_state}, 
-				"network::${host}::interface::${interface_name}::operational"            => $anvil->data->{network}{$host}{interface}{$interface_name}{operational}, 
-				"network::${host}::interface::${interface_name}::duplex"                 => $anvil->data->{network}{$host}{interface}{$interface_name}{duplex}, 
-				"network::${host}::interface::${interface_name}::medium"                 => $anvil->data->{network}{$host}{interface}{$interface_name}{medium}, 
-				"network::${host}::interface::${interface_name}::bond_uuid"              => $anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}, 
-				"network::${host}::interface::${interface_name}::bridge_uuid"            => $anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}, 
-			}});
-		}
-		elsif ($ip_address_on_type eq "bond")
-		{
-			my $query = "
-SELECT 
-    bond_name, 
-    bond_mac_address 
-FROM 
-    bonds 
-WHERE 
-    bond_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
-AND 
-    bond_operational != 'DELETED'
-;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			next if not $count;
-			
-			$interface_name = $results->[0]->[0];
-			$interface_mac  = $results->[0]->[1];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				interface_name => $interface_name, 
-				interface_mac  => $interface_mac, 
-			}});
-			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
-				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
-				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
-				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
-				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
-				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
-			}});
-		}
-		elsif ($ip_address_on_type eq "bridge")
-		{
-			my $query = "
-SELECT 
-    bridge_name, 
-    bridge_mac_address 
-FROM 
-    bridges 
-WHERE 
-    bridge_uuid =  ".$anvil->Database->quote($ip_address_on_uuid)."
-AND 
-    bridge_id   != 'DELETED'
-;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			next if not $count;
-			
-			$interface_name = $results->[0]->[0];
-			$interface_mac  = $results->[0]->[1];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				interface_name => $interface_name, 
-				interface_mac  => $interface_mac, 
-			}});
-			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
-				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
-				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
-				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
-				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
-				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
-			}});
-		}
-	}
-	
-	return(0);
-}
 
 =head2 get_company_from_mac
 
@@ -2837,6 +2254,1170 @@ sub is_ip_in_network
 	return($match);
 }
 
+
+=head2 load_interfces
+
+This loads all network information for the given host UUID.
+
+The main difference from C<< ->load_ips() >> is that this method loads information about all interfaces, regardless of if they have an IP, as well as their link state and link information.
+
+The loaded data will be stored as:
+
+* C<< machine::<target>::interface::<iface_name>::
+
+Parameters;
+
+=head3 clear (optional, default '1')
+
+When set, any previously known information is cleared. Specifically, the C<< network::<target>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
+
+=head3 host (optional, default is 'host_uuid' value)
+
+This is the optional C<< target >> string to use in the hash where the data is stored.
+
+=head3 host_uuid (optional, default 'sys::host_uuid')
+
+This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
+
+=cut
+sub load_interfces
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_interfces()" }});
+	
+	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
+	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		clear     => $clear, 
+		host      => $host, 
+		host_uuid => $host_uuid,
+	}});
+	
+	if (not $host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_interfces()", parameter => "host_uuid" }});
+		return("");
+	}
+	
+	if (not $host)
+	{
+		$host = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	}
+	
+	if (($clear) && (exists $anvil->data->{network}{$host}))
+	{
+		delete $anvil->data->{network}{$host};
+	}
+	
+	# Now load bridge info
+	my $query = "
+SELECT 
+    bridge_uuid, 
+    bridge_name, 
+    bridge_id, 
+    bridge_mac_address, 
+    bridge_mtu, 
+    bridge_stp_enabled 
+FROM 
+    bridges 
+WHERE 
+    bridge_id != 'DELETED' 
+AND 
+    bridge_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $bridge_uuid        = defined $row->[0] ? $row->[0] : "";
+		my $bridge_name        = defined $row->[1] ? $row->[1] : ""; 
+		my $bridge_id          = defined $row->[2] ? $row->[2] : ""; 
+		my $bridge_mac_address = defined $row->[3] ? $row->[3] : ""; 
+		my $bridge_mtu         = defined $row->[4] ? $row->[4] : ""; 
+		my $bridge_stp_enabled = defined $row->[5] ? $row->[5] : ""; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			bridge_uuid        => $bridge_uuid, 
+			bridge_name        => $bridge_name, 
+			bridge_id          => $bridge_id, 
+			bridge_mac_address => $bridge_mac_address, 
+			bridge_mtu         => $bridge_mtu, 
+			bridge_stp_enabled => $bridge_stp_enabled, 
+		}});
+		
+		# Record the bridge_uuid -> name
+		$anvil->data->{network}{$host}{bridge_uuid}{$bridge_uuid}{name} = $bridge_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::bridge_uuid::${bridge_uuid}::name" => $anvil->data->{network}{$host}{bridge_uuid}{$bridge_uuid}{name}, 
+		}});
+		
+		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{uuid}        = $bridge_uuid; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{id}          = $bridge_id; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{mac_address} = $bridge_mac_address; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}         = $bridge_mtu; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled} = $bridge_stp_enabled; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{type}        = "bridge";
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}  = [];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::interface::${bridge_name}::uuid"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{uuid}, 
+			"network::${host}::interface::${bridge_name}::id"          => $anvil->data->{network}{$host}{interface}{$bridge_name}{id}, 
+			"network::${host}::interface::${bridge_name}::mac_address" => $anvil->data->{network}{$host}{interface}{$bridge_name}{mac_address}, 
+			"network::${host}::interface::${bridge_name}::mtu"         => $anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}, 
+			"network::${host}::interface::${bridge_name}::stp_enabled" => $anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled}, 
+			"network::${host}::interface::${bridge_name}::type"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{type}, 
+		}});
+	}
+	
+	# Now load bond info
+	$query = "
+SELECT 
+    bond_uuid, 
+    bond_name, 
+    bond_mode, 
+    bond_mtu, 
+    bond_primary_interface, 
+    bond_primary_reselect, 
+    bond_active_interface, 
+    bond_mii_polling_interval, 
+    bond_up_delay, 
+    bond_down_delay, 
+    bond_mac_address, 
+    bond_operational, 
+    bond_bridge_uuid 
+FROM 
+    bonds WHERE bond_mode != 'DELETED' 
+AND 
+    bond_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $bond_uuid                 = defined $row->[0]  ? $row->[0]  : "";
+		my $bond_name                 = defined $row->[1]  ? $row->[1]  : ""; 
+		my $bond_mode                 = defined $row->[2]  ? $row->[2]  : ""; 
+		my $bond_mtu                  = defined $row->[3]  ? $row->[3]  : ""; 
+		my $bond_primary_interface    = defined $row->[4]  ? $row->[4]  : ""; 
+		my $bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : ""; 
+		my $bond_active_interface     = defined $row->[6]  ? $row->[6]  : ""; 
+		my $bond_mii_polling_interval = defined $row->[7]  ? $row->[7]  : ""; 
+		my $bond_up_delay             = defined $row->[8]  ? $row->[8]  : ""; 
+		my $bond_down_delay           = defined $row->[9]  ? $row->[9]  : ""; 
+		my $bond_mac_address          = defined $row->[10] ? $row->[10] : ""; 
+		my $bond_operational          = defined $row->[11] ? $row->[11] : ""; 
+		my $bond_bridge_uuid          = defined $row->[12] ? $row->[12] : ""; 
+		my $bridge_name               = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			bond_uuid                 => $bond_uuid,
+			bond_name                 => $bond_name,
+			bond_mode                 => $bond_mode,
+			bond_mtu                  => $bond_mtu,
+			bond_primary_interface    => $bond_primary_interface,
+			bond_primary_reselect     => $bond_primary_reselect,
+			bond_active_interface     => $bond_active_interface,
+			bond_mii_polling_interval => $bond_mii_polling_interval,
+			bond_up_delay             => $bond_up_delay,
+			bond_down_delay           => $bond_down_delay,
+			bond_mac_address          => $bond_mac_address,
+			bond_operational          => $bond_operational,
+			bond_bridge_uuid          => $bond_bridge_uuid, 
+		}});
+		
+		# If this bond is connected to a bridge, get the bridge name.
+		if (($bond_bridge_uuid) && (defined $anvil->data->{network}{$host}{bridge_uuid}{$bond_bridge_uuid}{name}))
+		{
+			$bridge_name = $anvil->data->{network}{$host}{bridge_uuid}{$bond_bridge_uuid}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bond_bridge_uuid => $bond_bridge_uuid, 
+				bridge_name     => $bridge_name,
+			}});
+			push @{$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}}, $bond_name;
+		}
+		
+		# Record the bond_uuid -> name
+		$anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name} = $bond_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::bond_uuid::${bond_uuid}::name" => $anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name}, 
+		}});
+		
+		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{uuid}                 = $bond_uuid; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mode}                 = $bond_mode; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mtu}                  = $bond_mtu; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}    = $bond_primary_interface; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}     = $bond_primary_reselect; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}     = $bond_active_interface; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval} = $bond_mii_polling_interval; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}             = $bond_up_delay; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}           = $bond_down_delay; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}          = $bond_mac_address; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{operational}          = $bond_operational; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{bridge_uuid}          = $bond_bridge_uuid;
+		$anvil->data->{network}{$host}{interface}{$bond_name}{type}                 = "bond";
+		$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}           = [];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::interface::${bond_name}::uuid"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{uuid}, 
+			"network::${host}::interface::${bond_name}::mode"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{mode}, 
+			"network::${host}::interface::${bond_name}::mtu"                  => $anvil->data->{network}{$host}{interface}{$bond_name}{mtu}, 
+			"network::${host}::interface::${bond_name}::primary_interface"    => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}, 
+			"network::${host}::interface::${bond_name}::primary_reselect"     => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}, 
+			"network::${host}::interface::${bond_name}::active_interface"     => $anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}, 
+			"network::${host}::interface::${bond_name}::mii_polling_interval" => $anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval}, 
+			"network::${host}::interface::${bond_name}::up_delay"             => $anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}, 
+			"network::${host}::interface::${bond_name}::down_delay"           => $anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}, 
+			"network::${host}::interface::${bond_name}::mac_address"          => $anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}, 
+			"network::${host}::interface::${bond_name}::operational"          => $anvil->data->{network}{$host}{interface}{$bond_name}{operational}, 
+			"network::${host}::interface::${bond_name}::bridge_uuid"          => $anvil->data->{network}{$host}{interface}{$bond_name}{bridge}, 
+			"network::${host}::interface::${bond_name}::type"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{type}, 
+		}});
+	}
+	
+	# The order will allow us to show the order in which the interfaces were changed, which the user can 
+	# use to track interfaces as they unplug and plug cables back in.
+	my $order = 1;
+	   $query = "
+SELECT 
+    network_interface_uuid, 
+    network_interface_mac_address, 
+    network_interface_name, 
+    network_interface_speed, 
+    network_interface_mtu, 
+    network_interface_link_state, 
+    network_interface_operational, 
+    network_interface_duplex, 
+    network_interface_medium, 
+    network_interface_bond_uuid, 
+    network_interface_bridge_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_operational != 'DELETED' 
+AND 
+    network_interface_host_uuid   =  ".$anvil->Database->quote($host_uuid)." 
+ORDER BY 
+    modified_date DESC 
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	my $changed_order = 1;
+	foreach my $row (@{$results})
+	{
+		my $network_interface_uuid        = defined $row->[0]  ? $row->[0]  : "";
+		my $network_interface_mac_address = defined $row->[1]  ? $row->[1]  : ""; 
+		my $network_interface_name        = defined $row->[2]  ? $row->[2]  : ""; 
+		my $network_interface_speed       = defined $row->[3]  ? $row->[3]  : ""; 
+		my $network_interface_mtu         = defined $row->[4]  ? $row->[4]  : ""; 
+		my $network_interface_link_state  = defined $row->[5]  ? $row->[5]  : ""; 
+		my $network_interface_operational = defined $row->[6]  ? $row->[6]  : ""; 
+		my $network_interface_duplex      = defined $row->[7]  ? $row->[7]  : ""; 
+		my $network_interface_medium      = defined $row->[8]  ? $row->[8]  : ""; 
+		my $network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : ""; 
+		my $network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : ""; 
+		my $bond_name                     = "";
+		my $bridge_name                   = "";
+		my $this_change_orger             = 0;
+		if (($network_interface_name =~ /^virbr/) or ($network_interface_name =~ /^vnet/))
+		{
+			# This isn't a physical NIC, so it doesn't get a changed order
+		}
+		else
+		{
+			$this_change_orger = $changed_order++;
+		}
+		if (($network_interface_bond_uuid) && (defined $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name}))
+		{
+			$bond_name = $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				network_interface_name => $network_interface_name, 
+				bond_name              => $bond_name,
+			}});
+			push @{$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}}, $network_interface_name;
+		}
+		if (($network_interface_bridge_uuid) && (defined $anvil->data->{network}{$host}{bridge_uuid}{$network_interface_bridge_uuid}{name}))
+		{
+			$bridge_name = $anvil->data->{network}{$host}{bridge_uuid}{$network_interface_bridge_uuid}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				network_interface_name => $network_interface_name, 
+				bridge_name            => $bridge_name,
+			}});
+			push @{$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}}, $network_interface_name;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			network_interface_uuid        => $network_interface_uuid, 
+			network_interface_mac_address => $network_interface_mac_address, 
+			network_interface_name        => $network_interface_name, 
+			network_interface_speed       => $network_interface_speed, 
+			network_interface_mtu         => $network_interface_mtu, 
+			network_interface_link_state  => $network_interface_link_state, 
+			network_interface_operational => $network_interface_operational, 
+			network_interface_duplex      => $network_interface_duplex, 
+			network_interface_medium      => $network_interface_medium, 
+			network_interface_bond_uuid   => $network_interface_bond_uuid, 
+			network_interface_bridge_uuid => $network_interface_bridge_uuid, 
+			bond_name                     => $bond_name, 
+			changed_order                 => $this_change_orger,
+		}});
+		
+		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}          = $network_interface_uuid; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}   = $network_interface_mac_address; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}         = $network_interface_speed; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}           = $network_interface_mtu; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}    = $network_interface_link_state; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}   = $network_interface_operational; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}        = $network_interface_duplex; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}        = $network_interface_medium; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}     = $network_interface_bond_uuid; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}     = $bond_name; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}   = $network_interface_bridge_uuid; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}   = $bridge_name; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{type}          = "interface";
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order} = $this_change_orger;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::interface::${network_interface_name}::uuid"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}, 
+			"network::${host}::interface::${network_interface_name}::mac_address"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}, 
+			"network::${host}::interface::${network_interface_name}::speed"         => $anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}, 
+			"network::${host}::interface::${network_interface_name}::mtu"           => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}, 
+			"network::${host}::interface::${network_interface_name}::link_state"    => $anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}, 
+			"network::${host}::interface::${network_interface_name}::operational"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}, 
+			"network::${host}::interface::${network_interface_name}::duplex"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}, 
+			"network::${host}::interface::${network_interface_name}::medium"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}, 
+			"network::${host}::interface::${network_interface_name}::bond_uuid"     => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}, 
+			"network::${host}::interface::${network_interface_name}::bond_name"     => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}, 
+			"network::${host}::interface::${network_interface_name}::bridge_uuid"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}, 
+			"network::${host}::interface::${network_interface_name}::bridge_name"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}, 
+			"network::${host}::interface::${network_interface_name}::type"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{type}, 
+			"network::${host}::interface::${network_interface_name}::changed_order" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order}, 
+		}});
+	}
+	
+	# Load the IPs
+	$anvil->Network->load_ips({
+		debug     => $debug,
+		host_uuid => $host_uuid,
+		host      => $host, 
+		clear     => 0,
+	});
+	
+	return(0);
+}
+
+
+=head2 load_ips
+
+This method loads and stores the same data as the C<< get_ips >> method, but does so by loading data from the database, instead of collecting it directly from the host. As such, it can also be used by C<< find_matches >>.
+
+C<< Note >>: IP addresses that have been deleted will be marked so by C<< ip >> being set to C<< DELETED >>.
+
+The loaded data will be stored as:
+
+* C<< network::<host>::interface::<iface_name>::ip >>              - If an IP address is set
+* C<< network::<host>::interface::<iface_name>::subnet_mask >>     - If an IP is set
+* C<< network::<host>::interface::<iface_name>::mac >>             - Always set.
+* C<< network::<host>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
+* C<< network::<host>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
+* C<< network::<host>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
+
+Parameters;
+
+=head3 clear (optional, default '1')
+
+When set, any previously known information is cleared. Specifically, the C<< network::<host>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
+
+=head3 host (optional, default is 'host_uuid' value)
+
+This is the optional C<< host >> string to use in the hash where the data is stored.
+
+=head3 host_uuid (optional, default 'sys::host_uuid')
+
+This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
+
+=cut
+sub load_ips
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_ips()" }});
+	
+	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		clear     => $clear, 
+		host      => $host, 
+		host_uuid => $host_uuid,
+	}});
+	
+	if (not $host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_ips()", parameter => "ip" }});
+		return("");
+	}
+	
+	if (not $host)
+	{
+		$host = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	}
+	
+	if (($clear) && (exists $anvil->data->{network}{$host}))
+	{
+		delete $anvil->data->{network}{$host};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0700", variables => { hash => "network::${host}" }});
+	}
+	
+	# Read in all IPs, so that we know which to remove.
+	my $query = "
+SELECT 
+    ip_address_address, 
+    ip_address_subnet_mask, 
+    ip_address_gateway, 
+    ip_address_default_gateway, 
+    ip_address_dns, 
+    ip_address_on_type, 
+    ip_address_on_uuid 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_host_uuid =  ".$anvil->Database->quote($host_uuid)." 
+AND 
+    ip_address_note      != 'DELETED'
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $ip_address_address         = $row->[0]; 
+		my $ip_address_subnet_mask     = $row->[1]; 
+		my $ip_address_gateway         = $row->[2]; 
+		my $ip_address_default_gateway = $row->[3]; 
+		my $ip_address_dns             = $row->[4]; 
+		my $ip_address_on_type         = $row->[5]; 
+		my $ip_address_on_uuid         = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ip_address_address         => $ip_address_address,
+			ip_address_subnet_mask     => $ip_address_subnet_mask,
+			ip_address_gateway         => $ip_address_gateway,
+			ip_address_default_gateway => $ip_address_default_gateway,
+			ip_address_dns             => $ip_address_dns,
+			ip_address_on_type         => $ip_address_on_type,
+			ip_address_on_uuid         => $ip_address_on_uuid,
+		}});
+		
+		my $interface_name = "";
+		my $interface_mac  = "";
+		if ($ip_address_on_type eq "interface")
+		{
+			my $query = "
+SELECT 
+    network_interface_uuid, 
+    network_interface_name, 
+    network_interface_mac_address, 
+    network_interface_speed, 
+    network_interface_mtu, 
+    network_interface_link_state, 
+    network_interface_operational, 
+    network_interface_duplex, 
+    network_interface_medium, 
+    network_interface_bond_uuid, 
+    network_interface_bridge_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
+AND 
+    network_interface_operational != 'DELETED'
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			next if not $count;
+			
+			$interface_name = $results->[0]->[1];
+			$interface_mac  = $results->[0]->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name => $interface_name, 
+				interface_mac  => $interface_mac, 
+			}});
+			
+			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} = $results->[0]->[0];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}            = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}        = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   = $ip_address_on_type;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  = $results->[0]->[3];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    = $results->[0]->[4];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             = $results->[0]->[5];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            = $results->[0]->[6];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 = $results->[0]->[7];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 = $results->[0]->[8];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = $results->[0]->[9];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = $results->[0]->[10];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${interface_name}::network_interface_uuid" => $anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid}, 
+				"network::${host}::interface::${interface_name}::mac_address"            => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
+				"network::${host}::interface::${interface_name}::ip"                     => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"            => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
+				"network::${host}::interface::${interface_name}::default_gateway"        => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"                => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"                    => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"                   => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
+				"network::${host}::interface::${interface_name}::speed"                  => $anvil->data->{network}{$host}{interface}{$interface_name}{speed}, 
+				"network::${host}::interface::${interface_name}::mtu"                    => $anvil->data->{network}{$host}{interface}{$interface_name}{mtu}, 
+				"network::${host}::interface::${interface_name}::link_state"             => $anvil->data->{network}{$host}{interface}{$interface_name}{link_state}, 
+				"network::${host}::interface::${interface_name}::operational"            => $anvil->data->{network}{$host}{interface}{$interface_name}{operational}, 
+				"network::${host}::interface::${interface_name}::duplex"                 => $anvil->data->{network}{$host}{interface}{$interface_name}{duplex}, 
+				"network::${host}::interface::${interface_name}::medium"                 => $anvil->data->{network}{$host}{interface}{$interface_name}{medium}, 
+				"network::${host}::interface::${interface_name}::bond_uuid"              => $anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}, 
+				"network::${host}::interface::${interface_name}::bridge_uuid"            => $anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}, 
+			}});
+		}
+		elsif ($ip_address_on_type eq "bond")
+		{
+			my $query = "
+SELECT 
+    bond_name, 
+    bond_mac_address 
+FROM 
+    bonds 
+WHERE 
+    bond_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
+AND 
+    bond_operational != 'DELETED'
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			next if not $count;
+			
+			$interface_name = $results->[0]->[0];
+			$interface_mac  = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name => $interface_name, 
+				interface_mac  => $interface_mac, 
+			}});
+			
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
+				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
+				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
+			}});
+		}
+		elsif ($ip_address_on_type eq "bridge")
+		{
+			my $query = "
+SELECT 
+    bridge_name, 
+    bridge_mac_address 
+FROM 
+    bridges 
+WHERE 
+    bridge_uuid =  ".$anvil->Database->quote($ip_address_on_uuid)."
+AND 
+    bridge_id   != 'DELETED'
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			next if not $count;
+			
+			$interface_name = $results->[0]->[0];
+			$interface_mac  = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name => $interface_name, 
+				interface_mac  => $interface_mac, 
+			}});
+			
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
+				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
+				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+
+
+=head2 manage_firewall
+
+This method manages a C<< firewalld >> firewall.
+
+If no parameters are passed, it works by determining what should be open, making sure those things are open, and closing anything open that shouldn't be. 
+
+If the firewall is off, C<< 1 >> is returned. Otherwise C<< 0 >> is returned, unless there was an error in which case C<< !!error!! >> is returned.
+
+When called with C<< task = check >>, and if a port is specified, then C<< 1 >> will be returned if the port is open and C<< 0 >> if it is closed.
+
+Parameters;
+
+=head3 task (optional, default 'check')
+
+If set to C<< open >>, it will open the corresponding C<< port >>. If set to C<< close >>, it will close the corresponding C<< port >>. If set to c<< check >>, then it depends on is a port is given. If not, the full configuration is checked, and updated to the firewall are made as needed. If a port (and optionally zone and/or protocol) is specified, that specific request is checked. 
+
+The default is C<< all >>, which checks the entire configuration, updating the active configuration as needed.
+
+=head3 port_number (required)
+
+This is the port number to work on.
+
+If not specified, C<< service >> is required.
+
+=head3 protocol (optional)
+
+This can be c<< tcp >> or C<< upd >> and is used to specify what protocol to use with the C<< port >>, when specified. The default is C<< tcp >>. Multiple protocols can be defined using comma-separated list. Example, C<< tcp,udp >>.
+
+=head3 zone (optional)
+
+If set to a zone name, the check/change is performed against the specific zone. Multiple zones can be specified using comma-separated list. Example, C<< BCN1 >>, or C<< BCN1,IFN1 >>.
+
+=cut
+sub manage_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->manage_firewall()" }});
+	
+	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "check";
+	my $port_number = defined $parameter->{port_number} ? $parameter->{port_number} : "";
+	my $protocol    = defined $parameter->{protocol}    ? $parameter->{protocol}    : "tcp";
+	my $zone        = defined $parameter->{zone}        ? $parameter->{zone}        : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		task        => $task,
+		port_number => $port_number,
+		protocol    => $protocol, 
+		zone        => $zone
+	}});
+	
+	# Before we do anything, is the firewall even running?
+	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { firewalld_running => $firewalld_running }});
+	if (not $firewalld_running)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
+		return(1);
+	}
+	
+	# What we do next depends on what we're doing. 
+	my $host_type = $anvil->Get->host_type;
+	my $host_name = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_type => $host_type,
+		host_name => $host_name, 
+	}});
+	if (($task eq "check") && ($port_number eq ""))
+	{
+		### Check everything.
+		my $reload = 0;
+		
+		# Check the base firewalld config.
+		my $changes = $anvil->Network->_check_firewalld_conf({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		if ($changes)
+		{
+			$reload = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+		}
+		
+		# What zones do we need, and what zones do we have?
+		$anvil->Network->get_ips({target => $host_name});
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_name}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface}});
+			next if not $anvil->data->{network}{$host_name}{interface}{$interface}{ip};
+			my $ip_address      = $anvil->data->{network}{$host_name}{interface}{$interface}{ip};
+			my $subnet_mask     = $anvil->data->{network}{$host_name}{interface}{$interface}{subnet_mask};
+			my $default_gateway = $anvil->data->{network}{$host_name}{interface}{$interface}{default_gateway};
+			my $zone            = uc(($interface =~ /^(.*?)_/)[0]);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				ip_address      => $ip_address,
+				subnet_mask     => $subnet_mask, 
+				default_gateway => $default_gateway, 
+				zone            => $zone,
+			}});
+			
+			$anvil->data->{firewalld}{zones}{$zone}{needed}            = 1;
+			$anvil->data->{firewalld}{zones}{$zone}{have}              = 0;
+			$anvil->data->{firewalld}{zones}{$zone}{short_description} = "";
+			$anvil->data->{firewalld}{zones}{$zone}{long_description}  = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewalld::zones::${zone}::needed" => $anvil->data->{firewalld}{zones}{$zone}{needed},
+			}});
+		}
+		
+		# What zones do we have?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"path::directories::firewalld_zones_etc" => $anvil->data->{path}{directories}{firewalld_zones_etc},
+		}});
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $anvil->data->{path}{directories}{firewalld_zones_etc});
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file !~ /\.xml$/;
+			my $full_path =  $anvil->data->{path}{directories}{firewalld_zones_etc}."/".$file;
+			   $full_path =~ s/\/\//\//g; 
+			my $zone      =  ($file =~ /(.*)\.xml$/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file      => $file, 
+				full_path => $full_path,
+				zone      => $zone,
+			}});
+			
+			if (not exists $anvil->data->{firewalld}{zones}{$zone})
+			{
+				$anvil->data->{firewalld}{zones}{$zone}{needed} = 0;
+			}
+			$anvil->data->{firewalld}{zones}{$zone}{have} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewalld::zones::${zone}::have"   => $anvil->data->{firewalld}{zones}{$zone}{have},
+				"firewalld::zones::${zone}::needed" => $anvil->data->{firewalld}{zones}{$zone}{needed},
+			}});
+			
+			my $file_body = $anvil->Storage->read_file({
+				debug      => $debug, 
+				file       => $full_path,
+				force_read => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
+			local $@;
+			my $dom = eval { XML::LibXML->load_xml(string => $file_body); };
+			if ($@)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0146", variables => { 
+					file  => $full_path, 
+					body  => $file_body,
+					error => $@,
+				}});
+			}
+			else
+			{
+				foreach my $element ($dom->findnodes('/zone'))
+				{
+					$anvil->data->{firewalld}{zones}{$zone}{short_description} = $element->findvalue('./short')       ? $element->findvalue('./short')       : "--";
+					$anvil->data->{firewalld}{zones}{$zone}{long_description}  = $element->findvalue('./description') ? $element->findvalue('./description') : "--";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"firewalld::zones::${zone}::short_description" => $anvil->data->{firewalld}{zones}{$zone}{short_description},
+						"firewalld::zones::${zone}::long_description"  => $anvil->data->{firewalld}{zones}{$zone}{long_description},
+					}});
+				}
+				foreach my $service ($dom->findnodes('/zone/service'))
+ 				{
+ 					my $service_name = $service->{name};
+					$anvil->data->{firewalld}{zones}{$zone}{service}{$service_name}{opened} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"firewalld::zones::${zone}::service::${service_name}::opened" => $anvil->data->{firewalld}{zones}{$zone}{service}{$service_name}{opened},
+					}});
+				}
+				foreach my $port ($dom->findnodes('/zone/port'))
+ 				{
+ 					my $port_number   = $port->{port};
+ 					my $port_protocol = $port->{protocol};
+					$anvil->data->{firewalld}{zones}{$zone}{port}{$port_number}{protocol}{$port_protocol}{opened} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewalld::zones::${zone}::port::${port_number}::protocol::${port_protocol}::opened" => $anvil->data->{firewalld}{zones}{$zone}{port}{$port_number}{protocol}{$port_protocol}{opened}, 
+					}});
+				}
+			}
+		}
+		closedir(DIRECTORY);
+		
+		# Check if any zones need to be added.
+		foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewalld}{zones}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"firewalld::zones::${zone}::have"   => $anvil->data->{firewalld}{zones}{$zone}{have},
+				"firewalld::zones::${zone}::needed" => $anvil->data->{firewalld}{zones}{$zone}{needed},
+			}});
+			
+			# If this isn't a zone I need, ignore it completely. It might be something the user 
+			# is doing.
+			next if not $anvil->data->{firewalld}{zones}{$zone}{needed};
+			
+			# If the zone doesn't exist, create it. 
+			if (not $anvil->data->{firewalld}{zones}{$zone}{have})
+			{
+				# Create the zone.
+				$reload = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --new-zone=\"".$zone."\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+			
+			# Does the short description need to be updated?
+			if ($anvil->data->{firewalld}{zones}{$zone}{short_description} ne $zone)
+			{
+				# Update the short description
+				my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=\"".$zone."\" --set-short=\"".$zone."\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+			
+			# Does the long description need to be updated?
+			my $description = "";
+			if ($zone =~ /^(.*?)(\d+)$/)
+			{
+				my $network  = $1;
+				my $sequence = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					network  => $network,
+					sequence => $sequence, 
+				}});
+				
+				if ($network eq "BCN")
+				{
+					$description = $anvil->Words->string({key => 'message_0160'})." ".$sequence;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { description => $description }});
+				}
+				elsif ($network eq "SN")
+				{
+					$description = $anvil->Words->string({key => 'message_0161'})." ".$sequence;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { description => $description }});
+				}
+				elsif ($network eq "IFN")
+				{
+					$description = $anvil->Words->string({key => 'message_0162'})." ".$sequence;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { description => $description }});
+				}
+				elsif ($network eq "MN")
+				{
+					$description = $anvil->Words->string({key => 'message_0293'})." ".$sequence;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { description => $description }});
+				}
+			}
+			
+			if (($description) && ($anvil->data->{firewalld}{zones}{$zone}{long_description} ne $description))
+			{
+				my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=\"".$zone."\" --set-description=\"".$description."\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+			
+			# Now we need to decide what should be opened for each network. 
+		}
+	}
+	
+	
+	
+	
+	
+	# Don't do anything below here yet.
+	return(2);
+	
+	
+	# This will be set if the port is found to be open.
+	my $open = 0;
+	
+	# Checking the iptables rules in memory is very fast, relative to firewall-cmd. So we'll do an 
+	# initial check there to see if the port in question is listed.
+	my $shell_call = $anvil->data->{path}{exe}{'iptables-save'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($iptables, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	foreach my $line (split/\n/, $iptables)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if (($line =~ /-m $protocol /) && ($line =~ /--dport $port_number /) && ($line =~ /ACCEPT/))
+		{
+			$open = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
+			last;
+		}
+	}
+	
+	# If the port is open and the task is 'check' or 'open', we're done and can return now and save a lot
+	# of time.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'task' => $task, 'open' => $open }});
+	if ((($task eq "check") or ($task eq "open")) && ($open))
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
+		return($open);
+	}
+	
+	
+	
+	# Before we do anything, what zone is active?
+	my $active_zone = "";
+	if (not $active_zone)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line !~ /\s/)
+			{
+				$active_zone = $line;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_zone => $active_zone }});
+			}
+			last;
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_zone  => $active_zone }});
+	
+	# If I still don't know what the active zone is, we're done.
+	if (not $active_zone)
+	{
+		return("!!error!!");
+	}
+	
+	# If we have an active zone, see if the requested port is open.
+	my $zone_file = $anvil->data->{path}{directories}{firewalld_zones}."/".$active_zone.".xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone_file => $zone_file }});
+	if (not -e $zone_file)
+	{
+		#...
+		return($open);
+	}
+	
+	# Read the XML to see what services are opened already and translate those into port numbers and 
+	# protocols.
+	local $@;
+	my $open_services = [];
+	my $xml           = XML::Simple->new();
+	my $body          = "";
+	my $test          = eval { $body = $xml->XMLin($zone_file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'service' ]) };
+	if (not $test)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem reading: [$zone_file]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+		
+		# Clear the error so it doesn't propogate out to a future 'die' and confuse things.
+		$@ = '';
+	}
+	else
+	{
+		# Parse the already-opened services
+		foreach my $hash_ref (@{$body->{service}})
+		{
+			# Load the details of this service.
+			my $service = $hash_ref->{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			$anvil->System->_load_specific_firewalld_zone({service => $hash_ref->{name}});
+			push @{$open_services}, $service;
+		}
+		
+		# Now loop through the open services, protocols and ports looking for the one passed in by 
+		# the caller. If found, the port is already open.
+		foreach my $service (sort {$a cmp $b} @{$open_services})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			foreach my $this_protocol ("tcp", "udp")
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_protocol => $this_protocol }});
+				foreach my $this_port (sort {$a cmp $b} @{$anvil->data->{firewalld}{zones}{by_name}{$service}{tcp}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_port => $this_port }});
+					if (($port_number eq $this_port) && ($this_protocol eq $protocol))
+					{
+						# Opened already (as the recorded service).
+						$open = $service;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
+						last if $open;
+					}
+					last if $open;
+				}
+				last if $open;
+			}
+			last if $open;
+		}
+	}
+	
+	# We're done if we were just checking. However, if we've been asked to open a currently closed port,
+	# or vice versa, make the change before returning.
+	my $changed = 0;
+	if (($task eq "open") && (not $open))
+	{
+		# Map the port to a service, if possible.
+		my $service = $anvil->System->_match_port_to_service({port => $port_number});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+		
+		# Open the port
+		if ($service)
+		{
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --add-service ".$service;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+			if ($output eq "success")
+			{
+				$open    = 1;
+				$changed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
+			}
+			else
+			{
+				# Something went wrong...
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --add-port ".$port_number."/".$protocol;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+			if ($output eq "success")
+			{
+				$open    = 1;
+				$changed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
+			}
+			else
+			{
+				# Something went wrong...
+				return("!!error!!");
+			}
+		}
+	}
+	elsif (($task eq "close") && ($open))
+	{
+		# Map the port to a service, if possible.
+		my $service = $anvil->System->_match_port_to_service({port => $port_number});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+		
+		# Close the port
+		if ($service)
+		{
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-service ".$service;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+			if ($output eq "success")
+			{
+				$open    = 0;
+				$changed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
+			}
+			else
+			{
+				# Something went wrong...
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-port ".$port_number."/".$protocol;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+			if ($output eq "success")
+			{
+				$open    = 0;
+				$changed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
+			}
+			else
+			{
+				# Something went wrong...
+				return("!!error!!");
+			}
+		}
+	}
+	
+	# If we made a change, reload.
+	if ($changed)
+	{
+		$anvil->System->reload_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
+	return($open);
+}
+
+
 =head2 ping
 
 This method will attempt to ping a target, by host name or IP, and returns C<< 1 >> if successful, and C<< 0 >> if not.
@@ -3271,5 +3852,80 @@ sub read_nmcli
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+# Return '1' if changed, '0' if not changed.
+sub _check_firewalld_conf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_check_firewalld_conf()" }});
+	
+	# Read in the firewalld.conf file.
+	my $changes            = 0;
+	my $new_firewalld_conf = "";
+	my $old_firewalld_conf = $anvil->Storage->read_file({
+		debug      => $debug, 
+		file       => $anvil->data->{path}{configs}{'firewalld.conf'},
+		force_read => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_firewalld_conf => $old_firewalld_conf }});
+	
+	# For now, the only thing we want to change is to disable 'AllowZoneDrifting'
+	# * firewalld[458395]: WARNING: AllowZoneDrifting is enabled. This is considered an insecure configuration option. It will be removed in a future release. Please consider disabling it now.
+	# Possible values; "yes", "no". Defaults to "yes".
+	my $allowzonedrifting_seen = 0;
+	foreach my $line (split/\n/, $old_firewalld_conf)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^AllowZoneDrifting=(.*)$/)
+		{
+			my $old_value              = $1;
+			   $allowzonedrifting_seen = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_value              => $old_value,
+				allowzonedrifting_seen => $allowzonedrifting_seen, 
+			}});
+			if ($old_value ne "no")
+			{
+				# Change needed.
+				$changes            =  1;
+				$new_firewalld_conf .= "AllowZoneDrifting=no\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					changes            => $changes,
+					new_firewalld_conf => $new_firewalld_conf, 
+				}});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0707"});
+				next;
+			}
+		}
+		$new_firewalld_conf .= $line."\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_firewalld_conf => $new_firewalld_conf }});
+	}
+	if (not $allowzonedrifting_seen)
+	{
+		$new_firewalld_conf .= $anvil->Words->string({key => 'message_0292'})."\n";
+		$new_firewalld_conf .= "AllowZoneDrifting=no\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0707"});
+	}
+	
+	if ($changes)
+	{
+		# Write the file out
+		$anvil->Storage->write_file({
+			debug     => $debug, 
+			backup    => 1,
+			overwrite => 1, 
+			body      => $new_firewalld_conf, 
+			file      => $anvil->data->{path}{configs}{'firewalld.conf'},
+			user      => "root",
+			group     => "root", 
+			mode      => "0644",
+		});
+	}
+	
+	return($changes);
+}
 
 1;

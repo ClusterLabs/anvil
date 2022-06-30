@@ -1169,7 +1169,7 @@ sub _set_paths
 				ip				=>	"/usr/sbin/ip",
 				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",
 				ipmitool			=>	"/usr/bin/ipmitool",
-				### NOTE: When System->manage_firewall() is done, search for and replace all
+				### NOTE: When Network->manage_firewall() is done, search for and replace all
 				###       instances where iptables is called and replace with firewall-cmd
 				###       calls
 				iptables			=>	"/usr/sbin/iptables",

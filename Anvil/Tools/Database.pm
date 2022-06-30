@@ -1154,12 +1154,7 @@ sub configure_pgsql
 	}
 	
 	# Make sure the psql TCP port is open.
-	$anvil->data->{database}{$uuid}{port} = 5432 if not $anvil->data->{database}{$uuid}{port};
-	my $port_status = $anvil->System->manage_firewall({
-		task        => "open",
-		port_number => $anvil->data->{database}{$uuid}{port},
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port_status => $port_status }});
+	$anvil->Network->manage_firewall({debug => $debug});
 	
 	return(0);
 }
@@ -14322,8 +14317,9 @@ sub load_database
 	my $start_time = time;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { start_time => $start_time }});
 	
-	### TODO: Replace this with System->manage_firewall().
 	# Throw up the firewall. Have the open call ready in case we hit an error.
+	$anvil->Network->manage_firewall({debug => $debug});
+	### TODO: Delete this when done with manage_firewall().
 	my $block_call = $anvil->data->{path}{exe}{iptables}." -I INPUT -p tcp --dport 5432 -j REJECT";
 	my $open_call  = $anvil->data->{path}{exe}{iptables}." -D INPUT -p tcp --dport 5432 -j REJECT";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { block_call => $block_call }});

@@ -66,6 +66,11 @@ dist_lvm_DATA			= \
 dist_lvm_SCRIPTS		= \
 				  scan-lvm/scan-lvm
 
+networkdir			= ${targetdir}/scan-network
+dist_network_DATA		= \
+				  scan-network/scan-network.sql \
+				  scan-network/scan-network.xml
+
 serverdir			= ${targetdir}/scan-server
 dist_server_DATA		= \
 				  scan-server/scan-server.sql \

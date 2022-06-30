@@ -3607,7 +3607,7 @@ This is the name of the file to read. When reading from a remote machine, it mus
 
 =head3 force_read (optional, default '1')
 
-This is an otpional parameter that, if set to C<< 0 >>, will allow an existing cached copy of the file to be used instead of actually reading the file from disk (again).
+This is an optional parameter that, if set to C<< 0 >>, will allow an existing cached copy of the file to be used instead of actually reading the file from disk (again).
 
 =head3 password (optional)
 

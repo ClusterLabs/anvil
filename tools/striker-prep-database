@@ -613,7 +613,7 @@ sub configure_firewall
 		# Is postgres open?
 		if ((not exists $anvil->data->{firewall}{zone}{$in_zone}{service}{postgresql}) or (not $anvil->data->{firewall}{zone}{$in_zone}{service}{postgresql}))
 		{
-			### TODO: Switch this to System->manage_firewall().
+			### TODO: Switch this to Network->manage_firewall().
 			# Enable it.
 			my $service = "postgresql";
 			   $reload  = 1;

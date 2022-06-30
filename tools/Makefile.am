@@ -17,8 +17,10 @@ dist_sbin_SCRIPTS	= \
 			  anvil-get-server-screenshot \
 			  anvil-join-anvil \
 			  anvil-maintenance-mode \
+			  anvil-manage-dr \
 			  anvil-manage-files \
 			  anvil-manage-firewall \
+			  anvil-manage-host \
 			  anvil-manage-keys \
 			  anvil-manage-power \
 			  anvil-manage-server \
@@ -26,16 +28,25 @@ dist_sbin_SCRIPTS	= \
 			  anvil-parse-fence-agents \
 			  anvil-provision-server \
 			  anvil-rename-server \
+			  anvil-report-usage \
 			  anvil-safe-start \
+			  anvil-safe-stop \
 			  anvil-scan-network \
+			  anvil-show-local-ips \
 			  anvil-shutdown-server \
 			  anvil-sync-shared \
+			  anvil-test-alerts \
+			  anvil-update-definition \
 			  anvil-update-issue \
 			  anvil-update-states \
 			  anvil-update-system \
 			  anvil-watch-bonds \
 			  scancore \
+			  striker-auto-initialize-all \
 			  striker-boot-machine \
+			  striker-db-report \
+			  striker-db-status \
+			  striker-file-manager \
 			  striker-get-peer-data \
 			  striker-initialize-host \
 			  striker-manage-install-target \
@@ -47,10 +58,8 @@ dist_sbin_SCRIPTS	= \
 			  striker-prep-database \
 			  striker-purge-target \
 			  striker-scan-network \
-			  striker-show-db-counts \
-			  striker-auto-initialize-all \
-			  striker-db-status
-
+			  striker-show-db-counts 
+			  
 fencedir		= ${FASEXECPREFIX}/sbin
 
 dist_fence_SCRIPTS	= \

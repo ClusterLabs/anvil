@@ -51,19 +51,23 @@ if (not $anvil->data->{sys}{manage}{firewall})
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->data->{switches}{'y'} = "";
+$anvil->data->{switches}{force} = "";
+$anvil->data->{switches}{'y'}   = "";
 $anvil->Get->switches;
 
-# For now, we just disable the firewall, if it is enabled.
-my $firewall_running = $anvil->System->check_daemon({daemon => "firewalld", debug => 3});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { firewall_running => $firewall_running }});
-if ($firewall_running eq "1")
+# Enable and start the firewall, if needed
+my $firewall_running = $anvil->Network->check_firewall({debug => 2});
+if (not $firewall_running)
 {
-	# Disable it.
-	$anvil->System->stop_daemon({daemon => "firewalld", debug => 2});
-	$anvil->System->disable_daemon({daemon => "firewalld", debug => 2});
+	# It must be disabled, exit
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
+	$anvil->nice_exit({exit_code => 0});
 }
-$anvil->nice_exit({exit_code => 0});
+
+if (not $anvil->data->{switches}{force})
+{
+	$anvil->nice_exit({exit_code => 0});
+}
 
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0134"});
@@ -106,7 +110,7 @@ sub check_initial_setup
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
-		if ($interface =~ /^((bcn|ifn|sn)\d+)_/)
+		if ($interface =~ /^((bcn|ifn|sn|mn)\d+)_/)
 		{
 			# We'll use the start of the string (network type) as the zone, though it should 
 			# always be overridden by the ZONE="" variable in each interface's config.
