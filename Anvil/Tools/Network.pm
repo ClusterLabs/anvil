@@ -244,7 +244,6 @@ sub check_firewall
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_firewall()" }});
 	
-	
 	my $running = 0;
 	
 	# Make sure firewalld is running.
@@ -260,7 +259,7 @@ sub check_firewall
 		#if ($anvil->data->{sys}{daemons}{restart_firewalld})
 		if (0)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0127"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0127"});
 			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 			if ($return_code)
@@ -278,7 +277,7 @@ sub check_firewall
 		else
 		{
 			# We've been asked to leave it off.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "err", key => "log_0128"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "log_0128"});
 			return(0);
 		}
 	}
@@ -2948,7 +2947,7 @@ sub manage_firewall
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->manage_firewall()" }});
 	
-	return(1);
+	return(0);
 	
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "check";
 	my $port_number = defined $parameter->{port_number} ? $parameter->{port_number} : "";
