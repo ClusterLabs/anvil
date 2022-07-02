@@ -3235,7 +3235,7 @@ sub manage_firewall
 			if ($network)
 			{
 				# Load the ports we need to open for servers and DRBD resources.
-				$anvil->Network->_get_server_ports({debug => 1});
+				$anvil->Network->_get_server_ports({debug => $debug});
 				$anvil->Network->_get_drbd_ports({debug => $debug});
 
 				# Log found ports.
@@ -4233,8 +4233,142 @@ sub _manage_dr_firewall
 		zone => $zone, 
 	}});
 	
+	# Set the services we want opened.
+	my $changes      = 0;
+	my @bcn_services = ("audit", "ssh", "zabbix-agent", "zabbix-server");
+	my @ifn_services = ("audit", "ssh", "zabbix-agent", "zabbix-server");
+	my @sn_services  = ("ssh");	# May use as a backup corosync network later
 	
-	return(0);
+	# We need to make sure that the postgresql service is open for all networks.
+	if ($zone =~ /BCN/)
+	{
+		foreach my $service (@bcn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	if ($zone =~ /IFN/)
+	{
+		foreach my $service (@ifn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	
+	# Open VNC/Spice/etc ports for servers/
+	if (($zone =~ /BCN/) or ($zone =~ /IFN/))
+	{
+		foreach my $port (sort {$a cmp $b} keys %{$anvil->data->{firewall}{server}{port}})
+		{
+			# Make sure the port is open.
+			my $chenged = $anvil->Network->_manage_port({
+				debug    => $debug, 
+				port     => $port, 
+				protocol => "tcp", 
+				task     => "open",
+				zone     => $zone,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+		
+		# Open up live migration ports. It's possible that DR could migrate off to a prod Anvil! 
+		# post-incident.
+		my ($migration_minimum, $migration_maximum) = $anvil->Network->_get_live_migration_ports({debug => $debug});
+		my $range = $migration_minimum."-".$migration_maximum;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:migration_minimum" => $migration_minimum,
+			"s2:migration_maximum" => $migration_maximum, 
+			"s3:range"             => $range, 
+			"s4:zone"              => $zone, 
+		}});
+		
+		my $chenged = $anvil->Network->_manage_port({
+			debug    => $debug, 
+			port     => $range, 
+			protocol => "tcp", 
+			task     => "open",
+			zone     => $zone,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+		if ($chenged)
+		{
+			$changes = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		}
+	}
+	
+	if ($zone =~ /SN/)
+	{
+		foreach my $service (@sn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+		
+		# Open all the ports DRBD needs.
+		foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				port => $port,
+				zone => $zone,
+			}});
+			my $chenged = $anvil->Network->_manage_port({
+				debug    => $debug, 
+				port     => $port, 
+				protocol => "tcp", 
+				task     => "open",
+				zone     => $zone,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	
+	return($changes);
 }
 
 sub _manage_node_firewall
