@@ -1043,6 +1043,7 @@ sub _set_paths
 				pxe_grub			=>	"/var/lib/tftpboot/grub.cfg",
 				postfix_main			=>	"/etc/postfix/main.cf",
 				postfix_relay_password		=>	"/etc/postfix/relay_password",
+				'qemu.conf'			=>	"/etc/libvirt/qemu.conf",
 				ssh_config			=>	"/etc/ssh/ssh_config",
 				'type.striker'			=>	"/etc/anvil/type.striker",
 				'type.dr'			=>	"/etc/anvil/type.dr",

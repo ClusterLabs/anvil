@@ -977,6 +977,9 @@ sub run_once
 {
 	my ($anvil) = @_;
 	
+	# Make sure the firewall is configured.
+	$anvil->Network->manage_firewall();
+	
 	# Check that the database is ready.
 	prep_database($anvil);
 	
@@ -985,7 +988,7 @@ sub run_once
 	
 	# Check the ssh stuff. 
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
-	$anvil->System->check_ssh_keys({debug => 2});
+	$anvil->System->check_ssh_keys();
 	
 	# Check setuid wrappers
 	check_setuid_wrappers($anvil);

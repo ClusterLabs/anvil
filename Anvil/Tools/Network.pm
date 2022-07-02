@@ -33,6 +33,15 @@ my $THIS_FILE = "Network.pm";
 # ping
 # read_nmcli
 # _check_firewalld_conf
+# _get_existing_zone_interfaces
+# _get_server_ports
+# _get_drbd_ports
+# _get_live_migration_ports
+# _manage_port
+# _manage_service
+# _manage_dr_firewall
+# _manage_node_firewall
+# _manage_striker_firewall
 
 =pod
 
@@ -256,8 +265,7 @@ sub check_firewall
 	}
 	else
 	{
-		#if ($anvil->data->{sys}{daemons}{restart_firewalld})
-		if (0)
+		if ($anvil->data->{sys}{daemons}{restart_firewalld})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0127"});
 			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
@@ -2908,6 +2916,8 @@ AND
 
 =head2 manage_firewall
 
+B<< NOTE >>: So far, only C<< check >> is implemented.
+
 This method manages a C<< firewalld >> firewall.
 
 If no parameters are passed, it works by determining what should be open, making sure those things are open, and closing anything open that shouldn't be. 
@@ -2930,9 +2940,9 @@ This is the port number to work on.
 
 If not specified, C<< service >> is required.
 
-=head3 protocol (optional)
+=head3 protocol (optional, required if 'port' set)
 
-This can be c<< tcp >> or C<< upd >> and is used to specify what protocol to use with the C<< port >>, when specified. The default is C<< tcp >>. Multiple protocols can be defined using comma-separated list. Example, C<< tcp,udp >>.
+This can be c<< tcp >> or C<< upd >> and is used to specify what protocol to use with the C<< port >>, when specified. Multiple protocols can be defined using comma-separated list. Example, C<< tcp,udp >>.
 
 =head3 zone (optional)
 
@@ -2947,11 +2957,9 @@ sub manage_firewall
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->manage_firewall()" }});
 	
-	return(0);
-	
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "check";
 	my $port_number = defined $parameter->{port_number} ? $parameter->{port_number} : "";
-	my $protocol    = defined $parameter->{protocol}    ? $parameter->{protocol}    : "tcp";
+	my $protocol    = defined $parameter->{protocol}    ? $parameter->{protocol}    : "";
 	my $zone        = defined $parameter->{zone}        ? $parameter->{zone}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		task        => $task,
@@ -2962,7 +2970,7 @@ sub manage_firewall
 	
 	# Before we do anything, is the firewall even running?
 	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { firewalld_running => $firewalld_running }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
 	if (not $firewalld_running)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
@@ -2976,6 +2984,7 @@ sub manage_firewall
 		host_type => $host_type,
 		host_name => $host_name, 
 	}});
+	$anvil->Network->get_ips({target => $host_name});
 	if (($task eq "check") && ($port_number eq ""))
 	{
 		### Check everything.
@@ -2984,14 +2993,16 @@ sub manage_firewall
 		# Check the base firewalld config.
 		my $changes = $anvil->Network->_check_firewalld_conf({debug => $debug});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
-		if ($changes)
+		if ($changes eq "1")
 		{
 			$reload = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
 		}
 		
+		# Get a list of zones and the interfaces already in them.
+		$anvil->Network->_get_existing_zone_interfaces({debug => $debug});
+		
 		# What zones do we need, and what zones do we have?
-		$anvil->Network->get_ips({target => $host_name});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_name}{interface}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface}});
@@ -3028,7 +3039,7 @@ sub manage_firewall
 			my $full_path =  $anvil->data->{path}{directories}{firewalld_zones_etc}."/".$file;
 			   $full_path =~ s/\/\//\//g; 
 			my $zone      =  ($file =~ /(.*)\.xml$/)[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				file      => $file, 
 				full_path => $full_path,
 				zone      => $zone,
@@ -3049,7 +3060,7 @@ sub manage_firewall
 				file       => $full_path,
 				force_read => 1,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
 			local $@;
 			my $dom = eval { XML::LibXML->load_xml(string => $file_body); };
 			if ($@)
@@ -3066,7 +3077,7 @@ sub manage_firewall
 				{
 					$anvil->data->{firewalld}{zones}{$zone}{short_description} = $element->findvalue('./short')       ? $element->findvalue('./short')       : "--";
 					$anvil->data->{firewalld}{zones}{$zone}{long_description}  = $element->findvalue('./description') ? $element->findvalue('./description') : "--";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"firewalld::zones::${zone}::short_description" => $anvil->data->{firewalld}{zones}{$zone}{short_description},
 						"firewalld::zones::${zone}::long_description"  => $anvil->data->{firewalld}{zones}{$zone}{long_description},
 					}});
@@ -3075,7 +3086,7 @@ sub manage_firewall
  				{
  					my $service_name = $service->{name};
 					$anvil->data->{firewalld}{zones}{$zone}{service}{$service_name}{opened} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"firewalld::zones::${zone}::service::${service_name}::opened" => $anvil->data->{firewalld}{zones}{$zone}{service}{$service_name}{opened},
 					}});
 				}
@@ -3092,10 +3103,10 @@ sub manage_firewall
 		}
 		closedir(DIRECTORY);
 		
-		# Check if any zones need to be added.
+		# Check if any zones need to be added or managed.
 		foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewalld}{zones}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"firewalld::zones::${zone}::have"   => $anvil->data->{firewalld}{zones}{$zone}{have},
 				"firewalld::zones::${zone}::needed" => $anvil->data->{firewalld}{zones}{$zone}{needed},
 			}});
@@ -3103,6 +3114,13 @@ sub manage_firewall
 			# If this isn't a zone I need, ignore it completely. It might be something the user 
 			# is doing.
 			next if not $anvil->data->{firewalld}{zones}{$zone}{needed};
+			
+			# Is this zone one of ours?
+			if (($zone !~ /^IFN/) && ($zone !~ /^BCN/) && ($zone !~ /^SN/) && ($zone !~ /^MN/))
+			{
+				# Not a zone we manage
+				next;
+			}
 			
 			# If the zone doesn't exist, create it. 
 			if (not $anvil->data->{firewalld}{zones}{$zone}{have})
@@ -3112,12 +3130,46 @@ sub manage_firewall
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
 				
 				my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --new-zone=\"".$zone."\"";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0708", variables => { zone => $zone }});
+			}
+			
+			# Do any interfaces need to be added to this zone?
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_name}{interface}})
+			{
+				next if not $anvil->data->{network}{$host_name}{interface}{$interface}{ip};
+				my $interface_zone  = uc(($interface =~ /^(.*?)_/)[0]);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					interface      => $interface,
+					interface_zone => $interface_zone, 
+				}});
+				next if $interface_zone ne $zone;
+				
+				if (not exists $anvil->data->{firewall}{zone}{$zone}{interface}{$interface})
+				{
+					# Add it.
+					$reload = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+					
+					my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=\"".$zone."\" --add-interface=\"".$interface."\"";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "log_0709", variables => { 
+						interface => $interface, 
+						zone      => $zone,
+					}});
+				}
 			}
 			
 			# Does the short description need to be updated?
@@ -3125,9 +3177,9 @@ sub manage_firewall
 			{
 				# Update the short description
 				my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=\"".$zone."\" --set-short=\"".$zone."\"";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					output      => $output,
 					return_code => $return_code, 
 				}});
@@ -3135,11 +3187,13 @@ sub manage_firewall
 			
 			# Does the long description need to be updated?
 			my $description = "";
+			my $network     = "";
+			my $sequence    = 0;
 			if ($zone =~ /^(.*?)(\d+)$/)
 			{
-				my $network  = $1;
-				my $sequence = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$network  = $1;
+				$sequence = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					network  => $network,
 					sequence => $sequence, 
 				}});
@@ -3169,255 +3223,82 @@ sub manage_firewall
 			if (($description) && ($anvil->data->{firewalld}{zones}{$zone}{long_description} ne $description))
 			{
 				my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=\"".$zone."\" --set-description=\"".$description."\"";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					output      => $output,
 					return_code => $return_code, 
 				}});
 			}
 			
 			# Now we need to decide what should be opened for each network. 
-		}
-	}
-	
-	
-	
-	
-	
-	# Don't do anything below here yet.
-	return(2);
-	
-	
-	# This will be set if the port is found to be open.
-	my $open = 0;
-	
-	# Checking the iptables rules in memory is very fast, relative to firewall-cmd. So we'll do an 
-	# initial check there to see if the port in question is listed.
-	my $shell_call = $anvil->data->{path}{exe}{'iptables-save'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	
-	my ($iptables, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-	foreach my $line (split/\n/, $iptables)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if (($line =~ /-m $protocol /) && ($line =~ /--dport $port_number /) && ($line =~ /ACCEPT/))
-		{
-			$open = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
-			last;
-		}
-	}
-	
-	# If the port is open and the task is 'check' or 'open', we're done and can return now and save a lot
-	# of time.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'task' => $task, 'open' => $open }});
-	if ((($task eq "check") or ($task eq "open")) && ($open))
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
-		return($open);
-	}
-	
-	
-	
-	# Before we do anything, what zone is active?
-	my $active_zone = "";
-	if (not $active_zone)
-	{
-		my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-		foreach my $line (split/\n/, $output)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-			if ($line !~ /\s/)
+			if ($network)
 			{
-				$active_zone = $line;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_zone => $active_zone }});
-			}
-			last;
-		}
-	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_zone  => $active_zone }});
-	
-	# If I still don't know what the active zone is, we're done.
-	if (not $active_zone)
-	{
-		return("!!error!!");
-	}
-	
-	# If we have an active zone, see if the requested port is open.
-	my $zone_file = $anvil->data->{path}{directories}{firewalld_zones}."/".$active_zone.".xml";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone_file => $zone_file }});
-	if (not -e $zone_file)
-	{
-		#...
-		return($open);
-	}
-	
-	# Read the XML to see what services are opened already and translate those into port numbers and 
-	# protocols.
-	local $@;
-	my $open_services = [];
-	my $xml           = XML::Simple->new();
-	my $body          = "";
-	my $test          = eval { $body = $xml->XMLin($zone_file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'service' ]) };
-	if (not $test)
-	{
-		chomp $@;
-		my $error =  "[ Error ] - The was a problem reading: [$zone_file]. The error was:\n";
-		   $error .= "===========================================================\n";
-		   $error .= $@."\n";
-		   $error .= "===========================================================\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
-		
-		# Clear the error so it doesn't propogate out to a future 'die' and confuse things.
-		$@ = '';
-	}
-	else
-	{
-		# Parse the already-opened services
-		foreach my $hash_ref (@{$body->{service}})
-		{
-			# Load the details of this service.
-			my $service = $hash_ref->{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
-			$anvil->System->_load_specific_firewalld_zone({service => $hash_ref->{name}});
-			push @{$open_services}, $service;
-		}
-		
-		# Now loop through the open services, protocols and ports looking for the one passed in by 
-		# the caller. If found, the port is already open.
-		foreach my $service (sort {$a cmp $b} @{$open_services})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
-			foreach my $this_protocol ("tcp", "udp")
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_protocol => $this_protocol }});
-				foreach my $this_port (sort {$a cmp $b} @{$anvil->data->{firewalld}{zones}{by_name}{$service}{tcp}})
+				# Load the ports we need to open for servers and DRBD resources.
+				$anvil->Network->_get_server_ports({debug => 1});
+				$anvil->Network->_get_drbd_ports({debug => $debug});
+
+				# Log found ports.
+				foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{server}{port}})
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_port => $this_port }});
-					if (($port_number eq $this_port) && ($this_protocol eq $protocol))
-					{
-						# Opened already (as the recorded service).
-						$open = $service;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
-						last if $open;
-					}
-					last if $open;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::server::port::$port" => $anvil->data->{firewall}{server}{port}{$port} }});
 				}
-				last if $open;
+				foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::drbd::port::$port" => $anvil->data->{firewall}{drbd}{port}{$port} }});
+				}
+				
+				# If we're a striker, make sure that postgresql 
+				if ($host_type eq "striker")
+				{
+					my $changes = $anvil->Network->_manage_striker_firewall({debug => $debug, zone => $zone});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+					if ($changes)
+					{
+						$reload = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+					}
+				}
+				elsif ($host_type eq "node")
+				{
+					my $changes = $anvil->Network->_manage_node_firewall({debug => $debug, zone => $zone});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+					if ($changes)
+					{
+						$reload = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+					}
+				}
+				elsif ($host_type eq "dr")
+				{
+					my $changes = $anvil->Network->_manage_dr_firewall({debug => $debug, zone => $zone});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+					if ($changes)
+					{
+						$reload = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+					}
+				}
 			}
-			last if $open;
 		}
-	}
-	
-	# We're done if we were just checking. However, if we've been asked to open a currently closed port,
-	# or vice versa, make the change before returning.
-	my $changed = 0;
-	if (($task eq "open") && (not $open))
-	{
-		# Map the port to a service, if possible.
-		my $service = $anvil->System->_match_port_to_service({port => $port_number});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
 		
-		# Open the port
-		if ($service)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+		if ($reload)
 		{
-			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --add-service ".$service;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			# Reload
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0716"});
 			
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-			if ($output eq "success")
-			{
-				$open    = 1;
-				$changed = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
-			}
-			else
-			{
-				# Something went wrong...
-				return("!!error!!");
-			}
-		}
-		else
-		{
-			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --add-port ".$port_number."/".$protocol;
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --reload";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-			
 			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-			if ($output eq "success")
-			{
-				$open    = 1;
-				$changed = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
-			}
-			else
-			{
-				# Something went wrong...
-				return("!!error!!");
-			}
-		}
-	}
-	elsif (($task eq "close") && ($open))
-	{
-		# Map the port to a service, if possible.
-		my $service = $anvil->System->_match_port_to_service({port => $port_number});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
-		
-		# Close the port
-		if ($service)
-		{
-			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-service ".$service;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-			if ($output eq "success")
-			{
-				$open    = 0;
-				$changed = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
-			}
-			else
-			{
-				# Something went wrong...
-				return("!!error!!");
-			}
-		}
-		else
-		{
-			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-port ".$port_number."/".$protocol;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-			if ($output eq "success")
-			{
-				$open    = 0;
-				$changed = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open, changed => $changed }});
-			}
-			else
-			{
-				# Something went wrong...
-				return("!!error!!");
-			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 		}
 	}
 	
-	# If we made a change, reload.
-	if ($changed)
-	{
-		$anvil->System->reload_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
-	}
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
-	return($open);
+	return(0);
 }
 
 
@@ -3824,7 +3705,7 @@ sub read_nmcli
 			# Make it easy to look up a device's UUID by device or name.
 			$anvil->data->{nmcli}{$host}{name_to_uuid}{$name}     = $uuid;
 			$anvil->data->{nmcli}{$host}{device_to_uuid}{$device} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"nmcli::${host}::name_to_uuid::${name}"     => $anvil->data->{nmcli}{$host}{name_to_uuid}{$name},
 				"nmcli::${host}::device_to_uuid::${device}" => $anvil->data->{nmcli}{$host}{device_to_uuid}{$device}, 
 			}});
@@ -3839,7 +3720,7 @@ sub read_nmcli
 			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'}  = $state;
 			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}     = $type;
 			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename} = $filename;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"nmcli::${host}::uuid::${uuid}::name"     => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{name},
 				"nmcli::${host}::uuid::${uuid}::device"   => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{device},
 				"nmcli::${host}::uuid::${uuid}::state"    => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'},
@@ -3926,6 +3807,663 @@ sub _check_firewalld_conf
 			group     => "root", 
 			mode      => "0644",
 		});
+	}
+	
+	return($changes);
+}
+
+sub _get_existing_zone_interfaces
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_get_existing_zone_interfaces()" }});
+	
+	my $this_zone  = "";
+	my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /interfaces: (.*)$/)
+		{
+			my $interfaces = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interfaces => $interfaces }});
+			next if not $this_zone;
+			
+			foreach my $interface (split/\s+/, $interfaces)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
+				
+				$anvil->data->{firewall}{zone}{$this_zone}{interface}{$interface} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"firewall::zone::${this_zone}::interface::${interface}" => $anvil->data->{firewall}{zone}{$this_zone}{interface}{$interface},
+				}});
+			}
+		}
+		else
+		{
+			$this_zone = $line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_zone => $this_zone }});
+		}
+	}
+	
+	return(0);
+}
+
+# This looks for all servers running here and stores their ports in a hash.
+sub _get_server_ports
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_get_server_ports()" }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." list --name";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:output'      => $output,
+		's2:return_code' => $return_code, 
+	}});
+	
+	my $servers = [];
+	foreach my $server (split/\n/, $output)
+	{
+		$server = $anvil->Words->clean_spaces({string => $server});
+		next if not $server;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server => $server }});
+		
+		push @{$servers}, $server;
+	}
+	
+	foreach my $server (sort {$a cmp $b} @{$servers})
+	{
+		my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if (($line =~ /<graphics/) && ($line =~ /port='(\d+)'/))
+			{
+				my $port = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port => $port }});
+				
+				$anvil->data->{firewall}{server}{port}{$port} = $server;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"firewall::server::port::$port" => $anvil->data->{firewall}{server}{port}{$port},
+				}});
+				last;
+			}
+		}
+	}
+	
+	return(0);
+}
+
+# This looks for all drbd resources configured here and stores their ports in a hash.
+sub _get_drbd_ports
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_get_drbd_ports()" }});
+	
+	my $directory = $anvil->data->{path}{directories}{drbd_resources};
+	if (not -d $directory)
+	{
+		# DRBD isn't installed.
+		return(0);
+	}
+		
+	local(*DIRECTORY);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file !~ /\.res$/;
+		my $full_path =  $directory."/".$file;
+		   $full_path =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		
+		my $file_body = $anvil->Storage->read_file({debug => ($debug+1), file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+		
+		foreach my $line (split/\n/, $file_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			
+			if ($line =~ /host\s+.*?address.*?\s(\d.*?):(\d+);/)
+			{
+				my $ip   = $1;
+				my $port = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:ip"   => $ip,
+					"s2:port" => $port, 
+				}});
+				
+				$anvil->data->{firewall}{drbd}{port}{$port} = $ip;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"firewall::drbd::port::$port" => $anvil->data->{firewall}{drbd}{port}{$port},
+				}});
+			}
+		}
+	}
+	closedir(DIRECTORY);
+	
+	return(0);
+}
+
+# This looks in qemu.conf for the minimum and maximum TCP ports 
+sub _get_live_migration_ports
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_get_live_migration_ports()" }});
+	
+	my $default_minimum = 49152;
+	my $default_maximum = 49215;
+	my $set_minimum     = 0;
+	my $set_maximum     = 0;
+	
+	my $file_body = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{configs}{'qemu.conf'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+	foreach my $line (split/\n/, $file_body)
+	{
+		if (($line =~ /^#/) && ($line =~ /migration_port_min.*?=.*?(\d+)$/))
+		{
+			$default_minimum = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { default_minimum => $default_minimum }});
+		}
+		elsif (($line =~ /^#/) && ($line =~ /migration_port_max.*?=.*?(\d+)$/))
+		{
+			$default_maximum = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { default_maximum => $default_maximum }});
+		}
+		elsif ($line =~ /migration_port_min.*?=.*?(\d+)$/)
+		{
+			$set_minimum = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_minimum => $set_minimum }});
+		}
+		elsif ($line =~ /migration_port_max.*?=.*?(\d+)$/)
+		{
+			$set_maximum = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_maximum => $set_maximum }});
+		}
+	}
+	
+	if (not $set_minimum)
+	{
+		$set_minimum = $default_minimum;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_minimum => $set_minimum }});
+	}
+	if (not $set_maximum)
+	{
+		$set_maximum = $default_maximum;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_maximum => $set_maximum }});
+	}
+	
+	return($set_minimum, $set_maximum);
+}
+
+sub _manage_port
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_manage_port()" }});
+	
+	my $port     = defined $parameter->{port}     ? $parameter->{port}     : "";
+	my $protocol = defined $parameter->{protocol} ? $parameter->{protocol} : "";
+	my $task     = defined $parameter->{task}     ? $parameter->{task}     : "";
+	my $zone     = defined $parameter->{zone}     ? $parameter->{zone}     : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		port     => $port, 
+		protocol => $protocol, 
+		task     => $task, 
+		zone     => $zone, 
+	}});
+	
+	if ((not $port) or (not $protocol) or (not $task) or (not $zone))
+	{
+		return("!!error!!");
+	}
+	if (($task ne "close") && ($task ne "open"))
+	{
+		return("!!error!!");
+	}
+	if (($protocol ne "tcp") && ($protocol ne "udp"))
+	{
+		return("!!error!!");
+	}
+	if ($port =~ /^(\d+)-(\d+)$/)
+	{
+		my $minimum_port = $1;
+		my $maximum_port = $2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:minimum_port" => $minimum_port, 
+			"s2:maximum_port" => $maximum_port, 
+		}});
+		
+		if (($minimum_port < 1) or ($minimum_port > 66635) or 
+		    ($maximum_port < 1) or ($maximum_port > 66635))
+		{
+			return("!!error!!");
+		}
+	}
+	elsif (($port =~ /\D/) or ($port < 1) or ($port > 65535))
+	{
+		return("!!error!!");
+	}
+	
+	# Do we need to actually do this?
+	if ($task eq "close")
+	{
+		# Is it open?
+		if ((not exists $anvil->data->{firewalld}{zones}{$zone}{port}{$port}{protocol}{$protocol}) or 
+		    (not $anvil->data->{firewalld}{zones}{$zone}{port}{$port}{protocol}{$protocol}{opened}))
+		{
+			# Already closed.
+			return(0);
+		}
+	}
+	elsif ($anvil->data->{firewalld}{zones}{$zone}{port}{$port}{protocol}{$protocol}{opened})
+	{
+		# Already opened.
+		return(0);
+	}
+	
+	my $shell_call = "";
+	if ($task eq "close")
+	{
+		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=".$zone." --remove-port=".$port."/".$protocol;
+		if ($port =~ /-/)
+		{
+			# Range
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0715", variables => { 
+				port     => $port, 
+				protocol => $protocol, 
+				zone     => $zone, 
+			}});
+		}
+		else
+		{
+			# Single port
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0714", variables => { 
+				port     => $port, 
+				protocol => $protocol, 
+				zone     => $zone, 
+			}});
+		}
+	}
+	else
+	{
+		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=".$zone." --add-port=".$port."/".$protocol;
+		if ($port =~ /-/)
+		{
+			# Range
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0713", variables => { 
+				port     => $port, 
+				protocol => $protocol, 
+				zone     => $zone, 
+			}});
+		}
+		else
+		{
+			# Single port
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0712", variables => { 
+				port     => $port, 
+				protocol => $protocol, 
+				zone     => $zone, 
+			}});
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'output'      => $output,
+		'return_code' => $return_code, 
+	}});
+	
+	return(1);
+}
+
+# Returns '0' if nothing was done, '1' otherwise.
+sub _manage_service
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_manage_service()" }});
+	
+	my $service = defined $parameter->{service} ? $parameter->{service} : "";
+	my $task    = defined $parameter->{task}    ? $parameter->{task}    : "";
+	my $zone    = defined $parameter->{zone}    ? $parameter->{zone}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		service => $service, 
+		task    => $task, 
+		zone    => $zone, 
+	}});
+	
+	if ((not $service) or (not $task) or (not $zone))
+	{
+		return("!!error!!");
+	}
+	if (($task ne "close") && ($task ne "open"))
+	{
+		return("!!error!!");
+	}
+	
+	# Do we actually need to do something?
+	if ($task eq "close")
+	{
+		# Is it open?
+		if ((not exists $anvil->data->{firewalld}{zones}{$zone}{service}{$service}) or 
+		    (not $anvil->data->{firewalld}{zones}{$zone}{service}{$service}{opened}))
+		{
+			# Already closed.
+			return(0);
+		}
+	}
+	elsif ($anvil->data->{firewalld}{zones}{$zone}{service}{$service}{opened})
+	{
+		# Already opened.
+		return(0);
+	}
+	
+	
+	my $shell_call = "";
+	if ($task eq "close")
+	{
+		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=".$zone." --remove-service=".$service;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0711", variables => { 
+			service => $service, 
+			zone    => $zone, 
+		}});
+	}
+	else
+	{
+		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=".$zone." --add-service=".$service;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0710", variables => { 
+			service => $service, 
+			zone    => $zone, 
+		}});
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'output'      => $output,
+		'return_code' => $return_code, 
+	}});
+	
+	return(1);
+}
+
+sub _manage_dr_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_manage_dr_firewall()" }});
+	
+	my $zone = defined $parameter->{zone} ? $parameter->{zone} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		zone => $zone, 
+	}});
+	
+	
+	return(0);
+}
+
+sub _manage_node_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_manage_node_firewall()" }});
+	
+	my $zone = defined $parameter->{zone} ? $parameter->{zone} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		zone => $zone, 
+	}});
+	
+	# We open dhcp, tftp, and dns on the BCN for the install target feature. DNS is not currently 
+	# provided, but it should be added later.
+	my $changes      = 0;
+	my @bcn_services = ("audit", "high-availability", "ssh", "zabbix-agent", "zabbix-server");
+	my @ifn_services = ("audit", "ssh", "zabbix-agent", "zabbix-server");
+	my @sn_services  = ("high-availability", "ssh");	# May use as a backup corosync network later
+	my @mn_services  = ("high-availability", "ssh");	# May use as a backup corosync network later
+	
+	# We need to make sure that the postgresql service is open for all networks.
+	if ($zone =~ /BCN/)
+	{
+		foreach my $service (@bcn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	if ($zone =~ /IFN/)
+	{
+		foreach my $service (@ifn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	
+	# Open VNC/Spice/etc ports for servers/
+	if (($zone =~ /BCN/) or ($zone =~ /IFN/))
+	{
+		foreach my $port (sort {$a cmp $b} keys %{$anvil->data->{firewall}{server}{port}})
+		{
+			# Make sure the port is open.
+			my $chenged = $anvil->Network->_manage_port({
+				debug    => $debug, 
+				port     => $port, 
+				protocol => "tcp", 
+				task     => "open",
+				zone     => $zone,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	
+	if ($zone =~ /SN/)
+	{
+		foreach my $service (@sn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+		
+		# Open all the ports DRBD needs.
+		foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				port => $port,
+				zone => $zone,
+			}});
+			my $chenged = $anvil->Network->_manage_port({
+				debug    => $debug, 
+				port     => $port, 
+				protocol => "tcp", 
+				task     => "open",
+				zone     => $zone,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	
+	if ($zone =~ /MN/)
+	{
+		foreach my $service (@mn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			my $chenged = $anvil->Network->_manage_service({
+				debug   => $debug, 
+				service => $service, 
+				zone    => $zone, 
+				task    => "open",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+			if ($chenged)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+			}
+		}
+	}
+	
+	if (($zone =~ /BCN/) or ($zone =~ /MN/))
+	{
+		### TODO: Find any old instances with a different port range and remove it if needed.
+		# Open up live migration ports
+		my ($migration_minimum, $migration_maximum) = $anvil->Network->_get_live_migration_ports({debug => $debug});
+		my $range = $migration_minimum."-".$migration_maximum;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:migration_minimum" => $migration_minimum,
+			"s2:migration_maximum" => $migration_maximum, 
+			"s3:range"             => $range, 
+			"s4:zone"              => $zone, 
+		}});
+		
+		my $chenged = $anvil->Network->_manage_port({
+			debug    => $debug, 
+			port     => $range, 
+			protocol => "tcp", 
+			task     => "open",
+			zone     => $zone,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+		if ($chenged)
+		{
+			$changes = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		}
+		
+	}
+	
+	return($changes);
+}
+
+sub _manage_striker_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_manage_striker_firewall()" }});
+	
+	my $zone = defined $parameter->{zone} ? $parameter->{zone} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		zone => $zone, 
+	}});
+	
+	if (($zone !~ /^BCN/) && ($zone !~ /^IFN/))
+	{
+		# Not a zone used by striker.
+		return(0);
+	}
+	
+	# We open dhcp, tftp, and dns on the BCN for the install target feature. DNS is not currently 
+	# provided, but it should be added later.
+	my $changes      = 0;
+	my @services     = ("audit", "http", "https", "postgresql", "ssh", "vnc-server", "zabbix-agent", "zabbix-server");
+	my @bcn_services = ("dhcp", "dns", "tftp");
+	my @ifn_services = ();
+	
+	# We need to make sure that the postgresql service is open for all networks.
+	if ($zone =~ /BCN/)
+	{
+		foreach my $service (@bcn_services)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+			push @services, $service;
+		}
+	}
+	foreach my $service (@services)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
+		my $chenged = $anvil->Network->_manage_service({
+			debug   => $debug, 
+			service => $service, 
+			zone    => $zone, 
+			task    => "open",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+		if ($chenged)
+		{
+			$changes = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		}
 	}
 	
 	return($changes);

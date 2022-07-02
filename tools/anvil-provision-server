@@ -308,6 +308,9 @@ sub run_jobs
 	# Create the DRBD resource file
 	create_resource_file($anvil);
 	
+	# Make sure the DRBD ports are open.
+	$anvil->Network->manage_firewall();
+	
 	# Create the DRBD metadata, if needed.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::initialize_drbd' => $anvil->data->{job}{initialize_drbd} }});
 	create_md($anvil) if $anvil->data->{job}{initialize_drbd};
@@ -327,6 +330,9 @@ sub run_jobs
 	{
 		provision_server($anvil);
 	}
+	
+	# Make sure the VNC port is open.
+	$anvil->Network->manage_firewall();
 	
 	# Add the server to the cluster.
 	add_server_to_cluster($anvil);
