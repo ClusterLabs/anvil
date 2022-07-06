@@ -23,6 +23,7 @@
     "@mui/icons-material": "^5.2.4",
     "@mui/material": "^5.2.4",
     "@mui/styles": "^5.2.3",
+    "@mui/x-data-grid": "^5.12.3",
     "@novnc/novnc": "^1.2.0",
     "axios": "^0.24.0",
     "format-data-size": "file:../../format-data-size",
