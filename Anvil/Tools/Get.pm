@@ -769,7 +769,9 @@ sub bridges
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->bridges()" }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{bridge}." -json -details link show"});
+	my $shell_call = $anvil->data->{path}{exe}{bridge}." -json -details link show";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
@@ -899,13 +901,19 @@ sub bridges
 			my $type          = "interface";
 			my $interface     = $hash_ref->{ifname};
 			my $master_bridge = $hash_ref->{master};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface     => $interface, 
+				master_bridge => $master_bridge, 
+			}});
+			
+			$anvil->data->{$host}{network}{bridges}{bridge}{$master_bridge}{found} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"${host}::network::bridges::bridge::${master_bridge}::found" => $anvil->data->{$host}{network}{bridges}{bridge}{$master_bridge}{found}, 
+			}});
 			if ($interface eq $master_bridge)
 			{
 				$type = "bridge";
-				$anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found} = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"${host}::network::bridges::bridge::${interface}::found" => $anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found}, 
-				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
 			}
 			else
 			{

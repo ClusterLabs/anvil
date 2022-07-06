@@ -2023,7 +2023,7 @@ sub manage_resource
 		}
 	}
 	
-	# If we 'adjust'ed abovem this will likely complain that the backing disk already exists, and that's 
+	# If we 'adjust'ed above, this will likely complain that the backing disk already exists, and that's 
 	# fine.
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";

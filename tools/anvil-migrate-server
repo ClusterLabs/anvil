@@ -7,6 +7,10 @@
 # 0 = Normal exit.
 # 1 = Any problem that causes an early exit.
 # 
+# NOTE: as per qemu.conf defaults, a maximum of 63 live migrations can happen at the same time. We need to
+#       to count how many servers there are and, if the number is over 63, update qemu.conf. The current 
+#       range of ports available for live migration can be found here: 
+#       - my ($migration_minimum, $migration_maximum) = $anvil->Network->_get_live_migration_ports();
 
 use strict;
 use warnings;

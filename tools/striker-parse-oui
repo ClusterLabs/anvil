@@ -152,11 +152,24 @@ sub check_if_time
 	my ($anvil) = @_;
 	
 	# NOTE: We only scan once a day, unless 'force' is used.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::force" => $anvil->data->{switches}{force} }});
 	if ($anvil->data->{switches}{force})
 	{
 		return(0);
 	}
-	elsif (not $anvil->data->{switches}{'job-uuid'})
+	
+	# What's the uptime? If the uptime is less than an hour, don't run.
+	my $uptime = $anvil->Get->uptime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+	if ($uptime < 3600)
+	{
+		# Don't run. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0706"});
+		update_progress($anvil, 100, "log_0706");
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if (not $anvil->data->{switches}{'job-uuid'})
 	{
 		# No job_uuid, so a manual call.
 		return(0);

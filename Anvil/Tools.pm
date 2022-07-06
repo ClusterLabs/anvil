@@ -1043,6 +1043,7 @@ sub _set_paths
 				pxe_grub			=>	"/var/lib/tftpboot/grub.cfg",
 				postfix_main			=>	"/etc/postfix/main.cf",
 				postfix_relay_password		=>	"/etc/postfix/relay_password",
+				'qemu.conf'			=>	"/etc/libvirt/qemu.conf",
 				ssh_config			=>	"/etc/ssh/ssh_config",
 				'type.striker'			=>	"/etc/anvil/type.striker",
 				'type.dr'			=>	"/etc/anvil/type.dr",
@@ -1169,7 +1170,7 @@ sub _set_paths
 				ip				=>	"/usr/sbin/ip",
 				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",
 				ipmitool			=>	"/usr/bin/ipmitool",
-				### NOTE: When System->manage_firewall() is done, search for and replace all
+				### NOTE: When Network->manage_firewall() is done, search for and replace all
 				###       instances where iptables is called and replace with firewall-cmd
 				###       calls
 				iptables			=>	"/usr/sbin/iptables",

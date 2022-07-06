@@ -311,7 +311,7 @@ sub collect_data
 * Server states;
 running     - The domain is currently running on a CPU
 idle        - The domain is idle, and not running or runnable.  This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
-paused      - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+paused      - The domain has been paused. This can happen when a server is migrating to this host, or through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
 in shutdown - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
 shut off    - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
 crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
@@ -418,6 +418,9 @@ DELETED   - Marks a server as no longer existing
 					server_definition_server_uuid => $server_uuid, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_definition_uuid => $server_definition_uuid }});
+				
+				# Make sure the firewall is updated.
+				$anvil->Network->manage_firewall();
 				
 				# Reload the servers.
 				$anvil->Database->get_servers();
@@ -700,6 +703,14 @@ DELETED   - Marks a server as no longer existing
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					server_boot_time => $server_boot_time." (".$anvil->Get->date_and_time({use_time => $server_boot_time}).")",
 				}});
+			}
+			
+			# If the server was migrated or booted, update the firewall. With luck, this happened
+			# already, so this is a back-stop mainly.
+			if (($old_server_state eq "migrating") or ($old_server_state eq "shut off"))
+			{
+				# Make sure the firewall is updated.
+				$anvil->Network->manage_firewall();
 			}
 		}
 		if ($server_boot_time ne $old_server_boot_time)

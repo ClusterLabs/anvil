@@ -200,6 +200,9 @@ sub boot_virsh
 				host   => $anvil->data->{server}{location}{$server}{host_name},
 			}});
 			
+			# Make sure the VNC port is open.
+			$anvil->Network->manage_firewall({debug => $debug});
+			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 			if ($anvil->data->{sys}{database}{connections})
 			{
@@ -1101,6 +1104,34 @@ WHERE
 		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { migration_command => $migration_command }});
+	
+	# Register a job for the peer so it can update its firewall once the target is created.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections}
+	}});
+	if ($anvil->data->{sys}{database}{connections})
+	{
+		my $target_host_uuid = $anvil->Get->host_uuid_from_name({
+			debug     => $debug, 
+			host_name => $target,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_host_uuid => $target_host_uuid }});
+		if ($target_host_uuid)
+		{
+			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				file            => $THIS_FILE, 
+				line            => __LINE__, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches, 
+				job_data        => "server=".$server, 
+				job_name        => "manage::firewall", 
+				job_title       => "job_0399", 
+				job_description => "job_0400", 
+				job_progress    => 0,
+				job_host_uuid   => $target_host_uuid,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+		}
+	}
 	
 	# Call the migration now
 	my ($output, $return_code) = $anvil->System->call({shell_call => $migration_command});
