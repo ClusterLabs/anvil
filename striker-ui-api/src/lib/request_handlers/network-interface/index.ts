@@ -1,0 +1,1 @@
+export { getNetworkInterface } from './getNetworkInterface';
