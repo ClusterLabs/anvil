@@ -511,6 +511,7 @@ The output, if any, was;
 		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the dupplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
+		<key name="error_0366">[ Error ] - Failed to reconnect to the database, and now no connections remain.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1554,7 +1555,7 @@ The database connection error was:
 		<key name="log_0193">Switching the default database handle to use the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0194">Switching the default database to read from to the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0195">Ready to try to reconnect to: [#!variable!server!#], but delaying for: [#!variable!delay!#] seconds to give the database a chance to come back online in case this is a transient issue.</key>
-		<key name="log_0196">Failed to reconnect to the database, and now no connections remail. Exiting.</key>
+		<key name="log_0196">The reboot flag was set. Rebooting NOW!</key>
 		<key name="log_0197"><![CDATA[System->maintenance_mode() was passed an invalid 'set' value: [#!variable!set!#]. No action taken.]]></key>
 		<key name="log_0198">The user: [#!variable!user!#] logged out successfully.</key>
 		<key name="log_0199">A system reboot has been requested via the Striker UI.</key>
@@ -2143,6 +2144,13 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0714">Closing the firewall port: [#!variable!port!#/#!variable!protocol!#] for the zone: [#!variable!zone!#]!</key>
 		<key name="log_0715">Closing the firewall port range: [#!variable!port!#/#!variable!protocol!#] for the zone: [#!variable!zone!#]!</key>
 		<key name="log_0716">Changes were made to the firewall, reloading now.</key>
+		<key name="log_0717">This server will boot: [#!variable!delay!#] after the server: [#!variable!server!#]. Checking if it's time to boot it or not.</key>
+		<key name="log_0718">The server: [#!variable!boot_after_server!#] hasn't booted yet, holding off booting: [#!variable!this_server!#].</key>
+		<key name="log_0719">Evaluating the booting of the server: [#!variable!server!#].</key>
+		<key name="log_0720">The server: [#!variable!boot_after_server!#] has booted, but we need to wait: [#!variable!time_to_wait!#] seconds before we can start this server: [#!variable!this_server!#].</key>
+		<key name="log_0721">The server: [#!variable!server!#] is ready to boot.</key>
+		<key name="log_0722">The server: [#!variable!server!#] was found to be running already, but it wasn't marked as booted. Marking it as if it just booted to handle any dependent servers.</key>
+		<key name="log_0723">The server: [#!variable!server!#] is configured to stay off, ignoring it.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

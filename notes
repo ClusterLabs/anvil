@@ -25,6 +25,7 @@ firewall-cmd --permanent --zone=IFN1 --add-port=22869/tcp
 firewall-cmd --reload
 
 
+
 # Configure APC PDUs and UPSes
 tcpip -i 10.201.2.3 -s 255.255.0.0 -g 10.201.255.254
 web -h enable

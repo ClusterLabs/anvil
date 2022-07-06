@@ -4662,7 +4662,7 @@ WHERE
 
 =head2 get_servers
 
-This loads all known servers from the database.
+This loads all known servers from the database, including the corresponding C<< server_definition_xml >> from the C<< server_definitions >> table. 
 
  servers::server_uuid::<server_uuid>::server_name
  servers::server_uuid::<server_uuid>::server_anvil_uuid
@@ -4680,6 +4680,8 @@ This loads all known servers from the database.
  servers::server_uuid::<server_uuid>::server_configured_ram
  servers::server_uuid::<server_uuid>::server_updated_by_user
  servers::server_uuid::<server_uuid>::server_boot_time
+ servers::server_uuid::<server_uuid>::server_definition_uuid
+ servers::server_uuid::<server_uuid>::server_definition_xml
  
 To simplify lookup of server UUIDs by server names, this hash is also set;
 
@@ -4703,25 +4705,30 @@ sub get_servers
 	
 	my $query = "
 SELECT 
-    server_uuid, 
-    server_name, 
-    server_anvil_uuid, 
-    server_user_stop, 
-    server_start_after_server_uuid, 
-    server_start_delay, 
-    server_host_uuid, 
-    server_state, 
-    server_live_migration, 
-    server_pre_migration_file_uuid, 
-    server_pre_migration_arguments, 
-    server_post_migration_file_uuid, 
-    server_post_migration_arguments, 
-    server_ram_in_use, 
-    server_configured_ram, 
-    server_updated_by_user, 
-    server_boot_time 
+    a.server_uuid, 
+    a.server_name, 
+    a.server_anvil_uuid, 
+    a.server_user_stop, 
+    a.server_start_after_server_uuid, 
+    a.server_start_delay, 
+    a.server_host_uuid, 
+    a.server_state, 
+    a.server_live_migration, 
+    a.server_pre_migration_file_uuid, 
+    a.server_pre_migration_arguments, 
+    a.server_post_migration_file_uuid, 
+    a.server_post_migration_arguments, 
+    a.server_ram_in_use, 
+    a.server_configured_ram, 
+    a.server_updated_by_user, 
+    a.server_boot_time, 
+    b.server_definition_uuid, 
+    b.server_definition_xml 
 FROM 
-    servers 
+    servers a,
+    server_definitions b 
+WHERE 
+    a.server_uuid = b.server_definition_server_uuid
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -4750,24 +4757,28 @@ FROM
 		my $server_configured_ram           =         $row->[14];
 		my $server_updated_by_user          =         $row->[15];
 		my $server_boot_time                =         $row->[16];
+		my $server_definition_uuid          =         $row->[17];
+		my $server_definition_xml           =         $row->[18];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			server_uuid                     => $server_uuid,
-			server_name                     => $server_name, 
-			server_anvil_uuid               => $server_anvil_uuid, 
-			server_user_stop                => $server_user_stop, 
-			server_start_after_server_uuid  => $server_start_after_server_uuid, 
-			server_start_delay              => $server_start_delay, 
-			server_host_uuid                => $server_host_uuid, 
-			server_state                    => $server_state, 
-			server_live_migration           => $server_live_migration, 
-			server_pre_migration_file_uuid  => $server_pre_migration_file_uuid, 
-			server_pre_migration_arguments  => $server_pre_migration_arguments, 
-			server_post_migration_file_uuid => $server_post_migration_file_uuid, 
-			server_post_migration_arguments => $server_post_migration_arguments, 
-			server_ram_in_use               => $server_ram_in_use,
-			server_configured_ram           => $server_configured_ram, 
-			server_updated_by_user          => $server_updated_by_user, 
-			server_boot_time                => $server_boot_time, 
+			's01:server_uuid'                     => $server_uuid,
+			's02:server_name'                     => $server_name, 
+			's03:server_anvil_uuid'               => $server_anvil_uuid, 
+			's04:server_user_stop'                => $server_user_stop, 
+			's05:server_start_after_server_uuid'  => $server_start_after_server_uuid, 
+			's06:server_start_delay'              => $server_start_delay, 
+			's07:server_host_uuid'                => $server_host_uuid, 
+			's08:server_state'                    => $server_state, 
+			's09:server_live_migration'           => $server_live_migration, 
+			's10:server_pre_migration_file_uuid'  => $server_pre_migration_file_uuid, 
+			's11:server_pre_migration_arguments'  => $server_pre_migration_arguments, 
+			's12:server_post_migration_file_uuid' => $server_post_migration_file_uuid, 
+			's13:server_post_migration_arguments' => $server_post_migration_arguments, 
+			's14:server_ram_in_use'               => $server_ram_in_use,
+			's15:server_configured_ram'           => $server_configured_ram, 
+			's16:server_updated_by_user'          => $server_updated_by_user, 
+			's17:server_boot_time'                => $server_boot_time, 
+			's18:server_definition_uuid'          => $server_definition_uuid, 
+			's19:server_definition_xml'           => $server_definition_xml, 
 		}});
 		
 		# Record the data in the hash, too.
@@ -4787,6 +4798,8 @@ FROM
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}           = $server_configured_ram;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}          = $server_updated_by_user;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}                = $server_boot_time;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_uuid}          = $server_definition_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml}           = $server_definition_xml;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_user_stop"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
@@ -4803,6 +4816,8 @@ FROM
 			"servers::server_uuid::${server_uuid}::server_configured_ram"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
 			"servers::server_uuid::${server_uuid}::server_updated_by_user"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}, 
 			"servers::server_uuid::${server_uuid}::server_boot_time"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
+			"servers::server_uuid::${server_uuid}::server_definition_uuid"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_uuid}, 
+			"servers::server_uuid::${server_uuid}::server_definition_xml"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml}, 
 		}});
 		
 		# Store the servers in a hash under each Anvil!, sortable.
@@ -11209,9 +11224,11 @@ This indicates when a server was stopped by a user. If this is set to C<< 1 >>, 
 
 If the user wants to boot this server after another server, this can be set to C<< servers >> -> C<< server_uuid >>. When set, the server referenced will be booted (at least) C<< server_start_delay >> seconds before this server is booted.
 
-=head3 server_start_delay (optional, default '30')
+B<< Note >>: If this is set to C<< 00000000-0000-0000-0000-000000000000 >>, the server will be left off.
 
-If C<< server_start_after_server_uuid >> is set, then this value controls the delay between when the referenced server boots and when this server boots.
+=head3 server_start_delay (optional, default '0')
+
+If C<< server_start_after_server_uuid >> is set, then this value controls the delay between when the referenced server boots and when this server boots. This value is ignored if the server is not set to boot after another server.
 
 B<< Note >>: This is the B<< minimum >> delay! It's possible that the actual delay could be a bit more than this value.
 
@@ -18416,12 +18433,22 @@ sub _test_access
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 		if (not $anvil->data->{sys}{database}{connections})
 		{
-			# No connections are left, die.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0196"});
-			$anvil->nice_exit({exit_code => 1});
+			# No connections are left.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0366"});
 			
-			# In case we're still alive, die.
-			die $THIS_FILE." ".__LINE__."; exiting on DB connection error.\n";
+			# It's possible the network was just reconfigured, and they were trying to updated a 
+			# job in the database. If so, this failure can be hit. To handle this, we'll check 
+			# if 'sys::reboot' is set. If so, we'll reboot now.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::reboot" => $anvil->data->{sys}{reboot} }});
+			if ($anvil->data->{sys}{reboot})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0196"});
+				my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+			}
+			return(1);
 		}
 	}
 	
