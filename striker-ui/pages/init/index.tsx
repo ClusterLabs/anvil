@@ -15,7 +15,8 @@ import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 import { Panel, PanelHeader } from '../../components/Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../../components/Spinner';
-import { HeaderText } from '../../components/Text';
+import { BodyText, BodyTextProps, HeaderText } from '../../components/Text';
+import Decorator from '../../components/Decorator';
 
 const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   {
@@ -52,33 +53,56 @@ const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   },
 ];
 
+const DataGridCellText: FC<BodyTextProps> = ({
+  ...dataGridCellTextRestProps
+}) => (
+  <BodyText
+    {...{
+      variant: 'body2',
+      ...dataGridCellTextRestProps,
+    }}
+  />
+);
+
 const NETWORK_INTERFACE_COLUMNS: MUIDataGridProps['columns'] = [
-  {
-    field: 'networkInterfaceMACAddress',
-    flex: 1,
-    headerName: 'MAC',
-  },
   {
     field: 'networkInterfaceName',
     flex: 1,
     headerName: 'Name',
+    renderCell: ({ row: { networkInterfaceState } = {}, value }) => (
+      <MUIBox
+        sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          '& > :not(:first-child)': { marginLeft: '.5em' },
+        }}
+      >
+        <Decorator
+          colour={networkInterfaceState === 'up' ? 'ok' : 'warning'}
+          sx={{ height: 'auto' }}
+        />
+        <DataGridCellText text={value} />
+      </MUIBox>
+    ),
   },
   {
-    field: 'networkInterfaceState',
+    field: 'networkInterfaceMACAddress',
     flex: 1,
-    headerName: 'State',
+    headerName: 'MAC',
+    renderCell: ({ value }) => <DataGridCellText monospaced text={value} />,
   },
   {
     field: 'networkInterfaceSpeed',
     flex: 1,
     headerName: 'Speed',
-    type: 'number',
+    renderCell: ({ value }) => (
+      <DataGridCellText text={`${parseFloat(value).toLocaleString()} Mbps`} />
+    ),
   },
   {
     field: 'networkInterfaceOrder',
     flex: 1,
     headerName: 'Order',
-    type: 'number',
   },
 ];
 
