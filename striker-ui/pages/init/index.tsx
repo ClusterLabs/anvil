@@ -12,11 +12,12 @@ import {
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 
+import Decorator from '../../components/Decorator';
 import { Panel, PanelHeader } from '../../components/Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../../components/Spinner';
+import sumstring from '../../lib/sumstring';
 import { BodyText, BodyTextProps, HeaderText } from '../../components/Text';
-import Decorator from '../../components/Decorator';
 
 const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   {
@@ -84,12 +85,26 @@ const NETWORK_INTERFACE_COLUMNS: MUIDataGridProps['columns'] = [
         <DataGridCellText text={value} />
       </MUIBox>
     ),
+    sortComparator: (v1, v2) => sumstring(v1) - sumstring(v2),
   },
   {
     field: 'networkInterfaceMACAddress',
     flex: 1,
     headerName: 'MAC',
     renderCell: ({ value }) => <DataGridCellText monospaced text={value} />,
+  },
+  {
+    field: 'networkInterfaceState',
+    headerName: 'State',
+    renderCell: ({ value }) => {
+      const state = String(value);
+
+      return (
+        <DataGridCellText
+          text={`${state.charAt(0).toUpperCase()}${state.substring(1)}`}
+        />
+      );
+    },
   },
   {
     field: 'networkInterfaceSpeed',
