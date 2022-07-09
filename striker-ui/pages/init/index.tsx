@@ -1,8 +1,10 @@
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import {
   Box as MUIBox,
+  BoxProps as MUIBoxProps,
   iconButtonClasses as muiIconButtonClasses,
 } from '@mui/material';
+import { DragHandle as MUIDragHandleIcon } from '@mui/icons-material';
 import {
   DataGrid as MUIDataGrid,
   DataGridProps as MUIDataGridProps,
@@ -10,7 +12,7 @@ import {
 } from '@mui/x-data-grid';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-import { TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
 import Decorator from '../../components/Decorator';
 import { Panel, PanelHeader } from '../../components/Panels';
@@ -65,7 +67,34 @@ const DataGridCellText: FC<BodyTextProps> = ({
   />
 );
 
-const NETWORK_INTERFACE_COLUMNS: MUIDataGridProps['columns'] = [
+const createNetworkInterfaceTableColumns = (
+  onMouseDownDragHandle: (
+    row: NetworkInterfaceOverviewMetadata,
+    ...eventArgs: Parameters<Exclude<MUIBoxProps['onMouseDown'], undefined>>
+  ) => void,
+): MUIDataGridProps['columns'] => [
+  {
+    align: 'center',
+    field: '',
+    renderCell: ({ row }) => (
+      <MUIBox
+        onMouseDown={(...eventArgs) => {
+          onMouseDownDragHandle(row, ...eventArgs);
+        }}
+        sx={{
+          alignItems: 'center',
+          display: 'flex',
+          flexDirection: 'row',
+
+          '&:hover': { cursor: 'grab' },
+        }}
+      >
+        <MUIDragHandleIcon />
+      </MUIBox>
+    ),
+    sortable: false,
+    width: 1,
+  },
   {
     field: 'networkInterfaceName',
     flex: 1,
@@ -122,6 +151,10 @@ const NETWORK_INTERFACE_COLUMNS: MUIDataGridProps['columns'] = [
 ];
 
 const NetworkInterfaceList: FC = () => {
+  const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
+    NetworkInterfaceOverviewMetadata | undefined
+  >();
+
   const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
     NetworkInterfaceOverviewMetadata[]
   >(`${API_BASE_URL}/network-interface`, {
@@ -136,33 +169,68 @@ const NetworkInterfaceList: FC = () => {
       {isLoading ? (
         <Spinner />
       ) : (
-        <MUIDataGrid
-          autoHeight
-          columns={NETWORK_INTERFACE_COLUMNS}
-          disableColumnMenu
-          disableSelectionOnClick
-          getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
-          hideFooter
-          rows={networkInterfaces}
+        <MUIBox
           sx={{
-            color: TEXT,
+            display: 'flex',
+            flexDirection: 'column',
 
-            [`& .${muiIconButtonClasses.root}`]: {
-              color: 'inherit',
-            },
-
-            [`& .${muiGridClasses.cell}:focus`]: {
-              outline: 'none',
+            '& > :not(:first-child)': {
+              marginTop: '1em',
             },
           }}
-        />
+        >
+          <MUIDataGrid
+            autoHeight
+            columns={createNetworkInterfaceTableColumns((row) => {
+              setNetworkInterfaceHeld(row);
+            })}
+            disableColumnMenu
+            disableSelectionOnClick
+            getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
+            hideFooter
+            rows={networkInterfaces}
+            sx={{
+              color: GREY,
+
+              [`& .${muiIconButtonClasses.root}`]: {
+                color: 'inherit',
+              },
+
+              [`& .${muiGridClasses.cell}:focus`]: {
+                outline: 'none',
+              },
+            }}
+          />
+          <BodyText
+            text={`Network interface held: ${
+              networkInterfaceHeld?.networkInterfaceName || 'none'
+            }`}
+          />
+          <MUIBox
+            onMouseUp={() => {
+              setNetworkInterfaceHeld(undefined);
+            }}
+            sx={{
+              borderColor: TEXT,
+              borderStyle: 'dashed',
+              borderWidth: '4px',
+              height: '100px',
+              width: '100px',
+            }}
+          />
+        </MUIBox>
       )}
     </Panel>
   );
 };
 
 const Init: FC = () => (
-  <MUIBox>
+  <MUIBox
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+    }}
+  >
     <NetworkInterfaceList />
   </MUIBox>
 );
