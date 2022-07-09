@@ -254,6 +254,7 @@ sub check_firewall
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_firewall()" }});
 	
 	my $running = 0;
+	return(0);
 	
 	# Make sure firewalld is running.
 	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
@@ -2967,6 +2968,8 @@ sub manage_firewall
 		protocol    => $protocol, 
 		zone        => $zone
 	}});
+	
+	return(0);
 	
 	# Before we do anything, is the firewall even running?
 	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});

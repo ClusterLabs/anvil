@@ -162,7 +162,9 @@ Warning: If the UPS battery is the only high temperature, it could be a sign tha
 		<key name="scan_apc_ups_warning_0024">The input voltage for the UPS: [#!variable!ups_name!#] has risen from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
 		<key name="scan_apc_ups_warning_0025">The input voltage for the UPS: [#!variable!ups_name!#] has dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
 		<key name="scan_apc_ups_warning_0026">The UPS: [#!variable!ups_name!#] has lost input power! The input voltage dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
-		<key name="scan_apc_ups_warning_0027">The input voltage for the UPS: [#!variable!ups_name!#] has dropped below the low-voltage transfer level! The voltage dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The low-voltage transfer voltage is: [#!variable!low_transfer_voltage!#].</key>
+		<key name="scan_apc_ups_warning_0027">
+The input voltage for the UPS: [#!variable!ups_name!#] has dropped below the low-voltage transfer level! The voltage dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The low-voltage transfer voltage is: [#!variable!low_transfer_voltage!#].
+</key>
 		<key name="scan_apc_ups_warning_0028">The input voltage for the UPS: [#!variable!ups_name!#] has dropped back down below the high-voltage transfer level and is operating normally again. The voltage changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The clear high-voltage threshold is: [#!variable!clear_high_transfer!#].</key>
 		<key name="scan_apc_ups_warning_0029">The highest input voltage seen in the last 60 seconds for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
 		<key name="scan_apc_ups_warning_0030">The lowest input voltage seen in the last 60 seconds for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>

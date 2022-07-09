@@ -2707,8 +2707,11 @@ WHERE
 			next if not $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			
 			my $file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
+			
+			next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
+			
 			my $file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid => $file_uuid,
 				file_name => $file_name, 
 			}});
@@ -2720,7 +2723,7 @@ WHERE
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}, 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory}, 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
@@ -2730,7 +2733,7 @@ WHERE
 			
 			# Make it so that we can list the files by name.
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid} = $file_uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
 			}});
 		}
@@ -17399,8 +17402,8 @@ sub _age_out_data
 	}
 	
 	# Now process power and tempoerature, if not disabled.
-	my $age = $anvil->data->{scancore}{database}{age_out};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+	my $age = $anvil->data->{scancore}{database}{age_out} ? $anvil->data->{scancore}{database}{age_out} : 24; 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
 	
 	if ($age =~ /\D/)
 	{

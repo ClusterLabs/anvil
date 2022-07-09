@@ -5212,6 +5212,8 @@ sub _load_firewalld_zones
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_load_firewalld_zones()" }});
 	
+	return(0);
+	
 	my $directory = $anvil->data->{path}{directories}{firewalld_services};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
 	if (not -d $directory)

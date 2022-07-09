@@ -64,12 +64,20 @@ if ($anvil->data->{switches}{'job-uuid'})
 {
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
+# 	$anvil->Job->update_progress({
+# 		progress         => 1,
+# 		job_picked_up_by => $$, 
+# 		job_picked_up_at => time, 
+# 		message          => "message_0134", 
+# 	});
 	$anvil->Job->update_progress({
-		progress         => 1,
+		progress         => 100,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		message          => "message_0134", 
 	});
+	
+	exit(0);
 	
 	if ($anvil->data->{jobs}{job_data} =~ /server=(.*)$/)
 	{
@@ -81,6 +89,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 	}
 
 }
+exit(0);
 
 # This used to do all the work, but that's now moved to the method below. So all we do here now is call it.
 $anvil->Network->manage_firewall();

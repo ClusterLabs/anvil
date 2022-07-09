@@ -937,6 +937,7 @@ WHERE
 					low_transfer_voltage  => $low_transfer_voltage,
 					clear_low_transfer    => $clear_low_transfer, 
 				};
+				#	holdup_time           => $anvil->Convert->time({'time' => $scan_apc_ups_output_estimated_runtime}),
 				
 				my $lost_voltage_key = $scan_apc_ups_uuid."::scan_apc_ups_input_voltage_lost";
 				my $low_voltage_key  = $scan_apc_ups_uuid."::scan_apc_ups_input_voltage_low";

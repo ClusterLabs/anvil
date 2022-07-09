@@ -1365,7 +1365,7 @@ sub time
 	if ($time =~ /\D/)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0294", variables => { 'time' => $time }});
-		return("#!error!#");
+		return($time);
 	}
 	
 	# The suffix used for each unit of time will depend on the requested suffix type.
