@@ -16,6 +16,7 @@ type OutlinedInputWithLabelOptionalProps = {
   inputProps?: Partial<OutlinedInputProps>;
   inputLabelProps?: Partial<OutlinedInputLabelProps>;
   messageBoxProps?: Partial<MessageBoxProps>;
+  value?: OutlinedInputProps['value'];
 };
 
 type OutlinedInputWithLabelProps = {
@@ -29,6 +30,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOp
     inputProps: {},
     inputLabelProps: {},
     messageBoxProps: {},
+    value: '',
   };
 
 const OutlinedInputWithLabel = ({
@@ -38,6 +40,7 @@ const OutlinedInputWithLabel = ({
   inputLabelProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputLabelProps,
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
+  value,
 }: OutlinedInputWithLabelProps): JSX.Element => (
   <MUIFormControl {...formControlProps}>
     <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
@@ -48,6 +51,7 @@ const OutlinedInputWithLabel = ({
         fullWidth: formControlProps.fullWidth,
         id,
         label,
+        value,
         ...inputProps,
       }}
     />
