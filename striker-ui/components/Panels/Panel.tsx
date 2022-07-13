@@ -1,3 +1,4 @@
+import { FC } from 'react';
 import { Box, GlobalStyles, PaperProps, styled } from '@mui/material';
 
 import {
@@ -74,14 +75,20 @@ const styledScrollbars = (
   />
 );
 
-const Panel = ({
+const Panel: FC<PanelProps> = ({
   children,
   classes: rootClasses,
   className: rootClassName,
   sx: rootSx,
-}: PanelProps): JSX.Element => (
+  ...restRootProps
+}) => (
   <StyledBox
-    {...{ classes: rootClasses, className: rootClassName, sx: rootSx }}
+    {...{
+      classes: rootClasses,
+      className: rootClassName,
+      sx: rootSx,
+      ...restRootProps,
+    }}
   >
     {styledScrollbars}
     <div className={`${classes.square} ${classes.topSquare}`} />
