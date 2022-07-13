@@ -90,17 +90,27 @@ const DataGridCellText: FC<BodyTextProps> = ({
   />
 );
 
-const BriefNetworkInterface: FC<{
-  networkInterface: NetworkInterfaceOverviewMetadata;
-}> = ({
+const BriefNetworkInterface: FC<
+  MUIBoxProps & {
+    networkInterface: NetworkInterfaceOverviewMetadata;
+  }
+> = ({
   networkInterface: { networkInterfaceName, networkInterfaceState },
+  sx: rootSx,
+  ...restRootProps
 }) => (
   <MUIBox
-    sx={{
-      display: 'flex',
-      flexDirection: 'row',
+    {...{
+      sx: {
+        display: 'flex',
+        flexDirection: 'row',
 
-      '& > :not(:first-child)': { marginLeft: '.5em' },
+        '& > :not(:first-child)': { marginLeft: '.5em' },
+
+        ...rootSx,
+      },
+
+      ...restRootProps,
     }}
   >
     <Decorator
@@ -112,7 +122,7 @@ const BriefNetworkInterface: FC<{
 );
 
 const createNetworkInterfaceTableColumns = (
-  onMouseDownDragHandler: (
+  handleDragMouseDown: (
     row: NetworkInterfaceOverviewMetadata,
     ...eventArgs: Parameters<Exclude<MUIBoxProps['onMouseDown'], undefined>>
   ) => void,
@@ -126,20 +136,20 @@ const createNetworkInterfaceTableColumns = (
         networkInterfaceInputMap[row.networkInterfaceUUID] || false;
 
       let cursor = 'grab';
-      let handleOnMouseDown: MUIBoxProps['onMouseDown'] = (...eventArgs) => {
-        onMouseDownDragHandler(row, ...eventArgs);
+      let handleMouseDown: MUIBoxProps['onMouseDown'] = (...eventArgs) => {
+        handleDragMouseDown(row, ...eventArgs);
       };
       let icon = <MUIDragHandleIcon />;
 
       if (isApplied) {
         cursor = 'auto';
-        handleOnMouseDown = undefined;
+        handleMouseDown = undefined;
         icon = <MUICheckIcon sx={{ color: BLUE }} />;
       }
 
       return (
         <MUIBox
-          onMouseDown={handleOnMouseDown}
+          onMouseDown={handleMouseDown}
           sx={{
             alignItems: 'center',
             display: 'flex',
@@ -211,6 +221,10 @@ const createNetworkInterfaceTableColumns = (
 ];
 
 const NetworkInterfaceList: FC = () => {
+  const [dragMousePosition, setDragMousePosition] = useState<{
+    x: number;
+    y: number;
+  }>({ x: 0, y: 0 });
   const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
     useState<NetworkInterfaceInputMap>({});
   const [networkInputs] = useState<NetworkInput[]>([
@@ -252,6 +266,46 @@ const NetworkInterfaceList: FC = () => {
     },
   });
 
+  const clearNetworkInterfaceHeld = () => {
+    setNetworkInterfaceHeld(undefined);
+  };
+
+  let createDropMouseUpHandler: (
+    interfaces: NetworkInterfaceOverviewMetadata[],
+  ) => MUIBoxProps['onMouseUp'];
+  let floatingNetworkInterface: JSX.Element = <></>;
+  let handlePanelMouseMove: MUIBoxProps['onMouseMove'];
+
+  if (networkInterfaceHeld) {
+    createDropMouseUpHandler =
+      (interfaces: NetworkInterfaceOverviewMetadata[]) => () => {
+        interfaces.push(networkInterfaceHeld);
+
+        networkInterfaceInputMap[
+          networkInterfaceHeld.networkInterfaceUUID
+        ].isApplied = true;
+      };
+
+    floatingNetworkInterface = (
+      <BriefNetworkInterface
+        networkInterface={networkInterfaceHeld}
+        sx={{
+          left: `calc(${dragMousePosition.x}px - .4em)`,
+          position: 'absolute',
+          top: `calc(${dragMousePosition.y}px - 2em)`,
+          zIndex: 10,
+        }}
+      />
+    );
+
+    handlePanelMouseMove = ({ nativeEvent: { clientX, clientY } }) => {
+      setDragMousePosition({
+        x: clientX,
+        y: clientY,
+      });
+    };
+  }
+
   useEffect(() => {
     const map = networkInterfaces.reduce<NetworkInterfaceInputMap>(
       (reduceContainer, { networkInterfaceUUID }) => {
@@ -271,10 +325,15 @@ const NetworkInterfaceList: FC = () => {
   }, []);
 
   return (
-    <Panel>
+    <Panel
+      onMouseLeave={clearNetworkInterfaceHeld}
+      onMouseMove={handlePanelMouseMove}
+      onMouseUp={clearNetworkInterfaceHeld}
+    >
       <PanelHeader>
         <HeaderText text="Network Interfaces" />
       </PanelHeader>
+      {floatingNetworkInterface}
       {isLoading ? (
         <Spinner />
       ) : (
@@ -290,9 +349,16 @@ const NetworkInterfaceList: FC = () => {
         >
           <MUIDataGrid
             autoHeight
-            columns={createNetworkInterfaceTableColumns((row) => {
-              setNetworkInterfaceHeld(row);
-            }, networkInterfaceInputMap)}
+            columns={createNetworkInterfaceTableColumns(
+              (row, { clientX, clientY }) => {
+                setDragMousePosition({
+                  x: clientX,
+                  y: clientY,
+                });
+                setNetworkInterfaceHeld(row);
+              },
+              networkInterfaceInputMap,
+            )}
             disableColumnMenu
             disableSelectionOnClick
             getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
@@ -333,17 +399,7 @@ const NetworkInterfaceList: FC = () => {
                 }}
               >
                 <MUIBox
-                  onMouseUp={() => {
-                    if (networkInterfaceHeld) {
-                      interfaces.push(networkInterfaceHeld);
-
-                      networkInterfaceInputMap[
-                        networkInterfaceHeld.networkInterfaceUUID
-                      ].isApplied = true;
-                    }
-
-                    setNetworkInterfaceHeld(undefined);
-                  }}
+                  onMouseUp={createDropMouseUpHandler?.call(null, interfaces)}
                   sx={{
                     borderColor: TEXT,
                     borderStyle: 'dashed',
