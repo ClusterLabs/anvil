@@ -2,10 +2,13 @@ import { FC, useEffect, useState } from 'react';
 import {
   Box as MUIBox,
   BoxProps as MUIBoxProps,
+  IconButton as MUIIconButton,
+  IconButtonProps as MUIIconButtonProps,
   iconButtonClasses as muiIconButtonClasses,
 } from '@mui/material';
 import {
   Check as MUICheckIcon,
+  Close as MUICloseIcon,
   DragHandle as MUIDragHandleIcon,
 } from '@mui/icons-material';
 import {
@@ -90,12 +93,25 @@ const DataGridCellText: FC<BodyTextProps> = ({
   />
 );
 
+type BriefNetworkInterfaceOptionalProps = {
+  onClose?: MUIIconButtonProps['onClick'];
+};
+
+const BRIEF_NETWORK_INTERFACE_DEFAULT_PROPS: Required<
+  Omit<BriefNetworkInterfaceOptionalProps, 'onClose'>
+> &
+  Pick<BriefNetworkInterfaceOptionalProps, 'onClose'> = {
+  onClose: undefined,
+};
+
 const BriefNetworkInterface: FC<
-  MUIBoxProps & {
-    networkInterface: NetworkInterfaceOverviewMetadata;
-  }
+  MUIBoxProps &
+    BriefNetworkInterfaceOptionalProps & {
+      networkInterface: NetworkInterfaceOverviewMetadata;
+    }
 > = ({
   networkInterface: { networkInterfaceName, networkInterfaceState },
+  onClose,
   sx: rootSx,
   ...restRootProps
 }) => (
@@ -118,8 +134,15 @@ const BriefNetworkInterface: FC<
       sx={{ height: 'auto' }}
     />
     <BodyText text={networkInterfaceName} />
+    {onClose && (
+      <MUIIconButton onClick={onClose} size="small" sx={{ color: GREY }}>
+        <MUICloseIcon />
+      </MUIIconButton>
+    )}
   </MUIBox>
 );
+
+BriefNetworkInterface.defaultProps = BRIEF_NETWORK_INTERFACE_DEFAULT_PROPS;
 
 const createNetworkInterfaceTableColumns = (
   handleDragMouseDown: (
@@ -376,12 +399,6 @@ const NetworkInterfaceList: FC = () => {
               },
             }}
           />
-          <BodyText
-            text={`Network interface held: ${
-              networkInterfaceHeld?.networkInterfaceName || 'none'
-            }`}
-          />
-
           {networkInputs.map(({ interfaces, ipAddress, name, subnetMask }) => (
             <InnerPanel key={`network-input-${name.toLowerCase()}`}>
               <InnerPanelHeader>
@@ -414,12 +431,29 @@ const NetworkInterfaceList: FC = () => {
                   }}
                 >
                   {interfaces.length > 0 ? (
-                    interfaces.map((networkInterface) => (
-                      <BriefNetworkInterface
-                        key={`brief-network-interface-${networkInterface.networkInterfaceUUID}`}
-                        networkInterface={networkInterface}
-                      />
-                    ))
+                    interfaces.map(
+                      (networkInterface, networkInterfaceIndex) => {
+                        const { networkInterfaceUUID } = networkInterface;
+
+                        return (
+                          <BriefNetworkInterface
+                            key={`brief-network-interface-${networkInterfaceUUID}`}
+                            networkInterface={networkInterface}
+                            onClose={() => {
+                              interfaces.splice(networkInterfaceIndex, 1);
+
+                              networkInterfaceInputMap[
+                                networkInterfaceUUID
+                              ].isApplied = false;
+
+                              setNetworkInterfaceInputMap({
+                                ...networkInterfaceInputMap,
+                              });
+                            }}
+                          />
+                        );
+                      },
+                    )
                   ) : (
                     <BodyText text="Drag interfaces here to add." />
                   )}
