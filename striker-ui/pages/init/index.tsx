@@ -7,6 +7,7 @@ import {
   iconButtonClasses as muiIconButtonClasses,
 } from '@mui/material';
 import {
+  Add as MUIAddIcon,
   Check as MUICheckIcon,
   Close as MUICloseIcon,
   DragHandle as MUIDragHandleIcon,
@@ -297,16 +298,17 @@ const NetworkInterfaceList: FC = () => {
     interfaces: NetworkInterfaceOverviewMetadata[],
   ) => MUIBoxProps['onMouseUp'];
   let floatingNetworkInterface: JSX.Element = <></>;
+  let handleCreateNetworkMouseUp: MUIBoxProps['onMouseUp'];
   let handlePanelMouseMove: MUIBoxProps['onMouseMove'];
 
   if (networkInterfaceHeld) {
+    const { networkInterfaceUUID } = networkInterfaceHeld;
+
     createDropMouseUpHandler =
       (interfaces: NetworkInterfaceOverviewMetadata[]) => () => {
         interfaces.push(networkInterfaceHeld);
 
-        networkInterfaceInputMap[
-          networkInterfaceHeld.networkInterfaceUUID
-        ].isApplied = true;
+        networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
       };
 
     floatingNetworkInterface = (
@@ -320,6 +322,17 @@ const NetworkInterfaceList: FC = () => {
         }}
       />
     );
+
+    handleCreateNetworkMouseUp = () => {
+      networkInputs.push({
+        ipAddress: '',
+        name: '',
+        interfaces: [networkInterfaceHeld],
+        subnetMask: '',
+      });
+
+      networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+    };
 
     handlePanelMouseMove = ({ nativeEvent: { clientX, clientY } }) => {
       setDragMousePosition({
@@ -399,83 +412,126 @@ const NetworkInterfaceList: FC = () => {
               },
             }}
           />
-          {networkInputs.map(({ interfaces, ipAddress, name, subnetMask }) => (
-            <InnerPanel key={`network-input-${name.toLowerCase()}`}>
-              <InnerPanelHeader>
-                <BodyText text={name} />
-              </InnerPanelHeader>
-              <MUIBox
+          <MUIBox
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              overflowX: 'auto',
+
+              '& > *': {
+                marginBottom: '1em',
+                marginTop: '1em',
+              },
+
+              '& > :not(:first-child)': {
+                marginLeft: '1em',
+              },
+            }}
+          >
+            <MUIBox
+              onMouseUp={handleCreateNetworkMouseUp}
+              sx={{
+                alignItems: 'center',
+                borderColor: TEXT,
+                borderStyle: 'dashed',
+                borderWidth: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                padding: '.6em',
+              }}
+            >
+              <MUIAddIcon fontSize="large" sx={{ color: GREY }} />
+              <BodyText
+                text="Drag interfaces here to create a new network."
                 sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', md: 'row' },
-                  margin: '.6em',
-
-                  '& > *': {
-                    flexBasis: '50%',
-                  },
+                  textAlign: 'center',
                 }}
-              >
-                <MUIBox
-                  onMouseUp={createDropMouseUpHandler?.call(null, interfaces)}
-                  sx={{
-                    borderColor: TEXT,
-                    borderStyle: 'dashed',
-                    borderWidth: '4px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '.6em',
+              />
+            </MUIBox>
+            {networkInputs.map(
+              ({ interfaces, ipAddress, name, subnetMask }, networkIndex) => (
+                <InnerPanel key={`network-input-${name.toLowerCase()}`}>
+                  <InnerPanelHeader>
+                    <OutlinedInputWithLabel label="Network name" value={name} />
+                  </InnerPanelHeader>
+                  <MUIBox
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      margin: '.6em',
 
-                    '& > :not(:first-child)': {
-                      marginTop: '.3em',
-                    },
-                  }}
-                >
-                  {interfaces.length > 0 ? (
-                    interfaces.map(
-                      (networkInterface, networkInterfaceIndex) => {
-                        const { networkInterfaceUUID } = networkInterface;
-
-                        return (
-                          <BriefNetworkInterface
-                            key={`brief-network-interface-${networkInterfaceUUID}`}
-                            networkInterface={networkInterface}
-                            onClose={() => {
-                              interfaces.splice(networkInterfaceIndex, 1);
-
-                              networkInterfaceInputMap[
-                                networkInterfaceUUID
-                              ].isApplied = false;
-
-                              setNetworkInterfaceInputMap({
-                                ...networkInterfaceInputMap,
-                              });
-                            }}
-                          />
-                        );
+                      '& > :not(:first-child)': {
+                        marginTop: '1em',
                       },
-                    )
-                  ) : (
-                    <BodyText text="Drag interfaces here to add." />
-                  )}
-                </MUIBox>
-                <MUIBox
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  <OutlinedInputWithLabel
-                    label="IP address"
-                    value={ipAddress}
-                  />
-                  <OutlinedInputWithLabel
-                    label="Subnet mask"
-                    value={subnetMask}
-                  />
-                </MUIBox>
-              </MUIBox>
-            </InnerPanel>
-          ))}
+                    }}
+                  >
+                    <MUIBox
+                      onMouseUp={createDropMouseUpHandler?.call(
+                        null,
+                        interfaces,
+                      )}
+                      sx={{
+                        borderColor: TEXT,
+                        borderStyle: 'dashed',
+                        borderWidth: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '.6em',
+
+                        '& > :not(:first-child)': {
+                          marginTop: '.3em',
+                        },
+                      }}
+                    >
+                      {interfaces.length > 0 ? (
+                        interfaces.map(
+                          (networkInterface, networkInterfaceIndex) => {
+                            const { networkInterfaceUUID } = networkInterface;
+
+                            return (
+                              <BriefNetworkInterface
+                                key={`brief-network-interface-${networkInterfaceUUID}`}
+                                networkInterface={networkInterface}
+                                onClose={() => {
+                                  interfaces.splice(networkInterfaceIndex, 1);
+
+                                  networkInterfaceInputMap[
+                                    networkInterfaceUUID
+                                  ].isApplied = false;
+
+                                  if (
+                                    networkIndex > 1 &&
+                                    interfaces.length === 0
+                                  ) {
+                                    networkInputs.splice(networkIndex, 1);
+                                  }
+
+                                  setNetworkInterfaceInputMap({
+                                    ...networkInterfaceInputMap,
+                                  });
+                                }}
+                              />
+                            );
+                          },
+                        )
+                      ) : (
+                        <BodyText text="Drag interfaces here to add to this network." />
+                      )}
+                    </MUIBox>
+                    <OutlinedInputWithLabel
+                      label="IP address"
+                      value={ipAddress}
+                    />
+                    <OutlinedInputWithLabel
+                      label="Subnet mask"
+                      value={subnetMask}
+                    />
+                  </MUIBox>
+                </InnerPanel>
+              ),
+            )}
+          </MUIBox>
         </MUIBox>
       )}
     </Panel>
