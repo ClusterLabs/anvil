@@ -421,6 +421,8 @@ const NetworkInterfaceList: FC = () => {
               '& > *': {
                 marginBottom: '1em',
                 marginTop: '1em',
+                minWidth: '10em',
+                width: '25%',
               },
 
               '& > :not(:first-child)': {
