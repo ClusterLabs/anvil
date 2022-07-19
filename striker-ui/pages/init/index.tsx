@@ -2,14 +2,11 @@ import { FC, useEffect, useState } from 'react';
 import {
   Box as MUIBox,
   BoxProps as MUIBoxProps,
-  IconButton as MUIIconButton,
-  IconButtonProps as MUIIconButtonProps,
   iconButtonClasses as muiIconButtonClasses,
 } from '@mui/material';
 import {
   Add as MUIAddIcon,
   Check as MUICheckIcon,
-  Close as MUICloseIcon,
   DragHandle as MUIDragHandleIcon,
 } from '@mui/icons-material';
 import {
@@ -22,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BLUE, GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
+import BriefNetworkInterface from '../../components/BriefNetworkInterface';
 import Decorator from '../../components/Decorator';
 import OutlinedInputWithLabel from '../../components/OutlinedInputWithLabel';
 import {
@@ -123,57 +121,6 @@ const DataGridCellText: FC<BodyTextProps> = ({
     }}
   />
 );
-
-type BriefNetworkInterfaceOptionalProps = {
-  onClose?: MUIIconButtonProps['onClick'];
-};
-
-const BRIEF_NETWORK_INTERFACE_DEFAULT_PROPS: Required<
-  Omit<BriefNetworkInterfaceOptionalProps, 'onClose'>
-> &
-  Pick<BriefNetworkInterfaceOptionalProps, 'onClose'> = {
-  onClose: undefined,
-};
-
-const BriefNetworkInterface: FC<
-  MUIBoxProps &
-    BriefNetworkInterfaceOptionalProps & {
-      networkInterface: NetworkInterfaceOverviewMetadata;
-    }
-> = ({
-  networkInterface: { networkInterfaceName, networkInterfaceState },
-  onClose,
-  sx: rootSx,
-  ...restRootProps
-}) => (
-  <MUIBox
-    {...{
-      sx: {
-        display: 'flex',
-        flexDirection: 'row',
-
-        '& > :not(:first-child)': { marginLeft: '.5em' },
-
-        ...rootSx,
-      },
-
-      ...restRootProps,
-    }}
-  >
-    <Decorator
-      colour={networkInterfaceState === 'up' ? 'ok' : 'off'}
-      sx={{ height: 'auto' }}
-    />
-    <BodyText text={networkInterfaceName} />
-    {onClose && (
-      <MUIIconButton onClick={onClose} size="small" sx={{ color: GREY }}>
-        <MUICloseIcon />
-      </MUIIconButton>
-    )}
-  </MUIBox>
-);
-
-BriefNetworkInterface.defaultProps = BRIEF_NETWORK_INTERFACE_DEFAULT_PROPS;
 
 const createNetworkInterfaceTableColumns = (
   handleDragMouseDown: (
