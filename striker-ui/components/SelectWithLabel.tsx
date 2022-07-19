@@ -2,6 +2,7 @@ import { FC, ReactNode } from 'react';
 import {
   Checkbox as MUICheckbox,
   FormControl as MUIFormControl,
+  selectClasses as muiSelectClasses,
 } from '@mui/material';
 
 import InputMessageBox from './InputMessageBox';
@@ -26,6 +27,7 @@ type SelectWithLabelOptionalProps = {
   disableItem?: ((value: string) => boolean) | null;
   hideItem?: ((value: string) => boolean) | null;
   isCheckableItems?: boolean;
+  isReadOnly?: boolean;
   inputLabelProps?: Partial<OutlinedInputLabelProps>;
   label?: string | null;
   messageBoxProps?: Partial<MessageBoxProps>;
@@ -42,6 +44,7 @@ const SELECT_WITH_LABEL_DEFAULT_PROPS: Required<SelectWithLabelOptionalProps> =
     checkItem: null,
     disableItem: null,
     hideItem: null,
+    isReadOnly: false,
     isCheckableItems: false,
     inputLabelProps: {},
     label: null,
@@ -57,6 +60,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   disableItem,
   hideItem,
   inputLabelProps,
+  isReadOnly,
   messageBoxProps,
   selectProps,
   isCheckableItems = selectProps?.multiple,
@@ -71,7 +75,17 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
       {...{
         id,
         input: <OutlinedInput {...{ label }} />,
+        readOnly: isReadOnly,
         ...selectProps,
+        sx: isReadOnly
+          ? {
+              [`& .${muiSelectClasses.icon}`]: {
+                visibility: 'hidden',
+              },
+
+              ...selectProps?.sx,
+            }
+          : selectProps?.sx,
       }}
     >
       {selectItems.map(({ value, displayValue = value }) => (
