@@ -17,11 +17,13 @@ import {
   DataGridProps as MUIDataGridProps,
   gridClasses as muiGridClasses,
 } from '@mui/x-data-grid';
+import { v4 as uuidv4 } from 'uuid';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BLUE, GREY, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
 import Decorator from '../../components/Decorator';
+import OutlinedInputWithLabel from '../../components/OutlinedInputWithLabel';
 import {
   InnerPanel,
   InnerPanelHeader,
@@ -29,16 +31,18 @@ import {
   PanelHeader,
 } from '../../components/Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
+import SelectWithLabel from '../../components/SelectWithLabel';
 import Spinner from '../../components/Spinner';
 import sumstring from '../../lib/sumstring';
 import { BodyText, BodyTextProps, HeaderText } from '../../components/Text';
-import OutlinedInputWithLabel from '../../components/OutlinedInputWithLabel';
 
 type NetworkInput = {
+  inputUUID: string;
   interfaces: NetworkInterfaceOverviewMetadata[];
   ipAddress: string;
   name: string;
   subnetMask: string;
+  type: string;
 };
 
 type NetworkInterfaceInputMap = Record<
@@ -82,6 +86,32 @@ const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
     networkInterfaceOrder: 4,
   },
 ];
+
+const NETWORK_TYPES: Record<string, string> = {
+  bcn: 'Back-Channel Network',
+  ifn: 'Internet-Facing Network',
+};
+
+const REQUIRED_NETWORKS = [
+  {
+    inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
+    interfaces: [],
+    ipAddress: '10.200.1.1',
+    name: `${NETWORK_TYPES.bcn} 01`,
+    subnetMask: '255.255.0.0',
+    type: 'bcn',
+  },
+  {
+    inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
+    interfaces: [],
+    ipAddress: '10.201.1.1',
+    name: `${NETWORK_TYPES.ifn} 01`,
+    subnetMask: '255.255.0.0',
+    type: 'ifn',
+  },
+];
+
+const padNetworkTypeCount = (count: number) => String(count).padStart(2, '0');
 
 const DataGridCellText: FC<BodyTextProps> = ({
   ...dataGridCellTextRestProps
@@ -251,23 +281,13 @@ const NetworkInterfaceList: FC = () => {
   }>({ x: 0, y: 0 });
   const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
     useState<NetworkInterfaceInputMap>({});
-  const [networkInputs] = useState<NetworkInput[]>([
-    {
-      ipAddress: '10.200.1.1',
-      name: 'Back-Channel Network 1',
-      interfaces: [],
-      subnetMask: '255.255.0.0',
-    },
-    {
-      ipAddress: '10.201.1.1',
-      name: 'Internet-Facing Network 1',
-      interfaces: [],
-      subnetMask: '255.255.0.0',
-    },
-  ]);
+  const [networkInputs, setNetworkInputs] =
+    useState<NetworkInput[]>(REQUIRED_NETWORKS);
   const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
     NetworkInterfaceOverviewMetadata | undefined
   >();
+
+  const optionalNetworkInputsLength = networkInputs.length - 2;
 
   const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
     NetworkInterfaceOverviewMetadata[]
@@ -292,6 +312,18 @@ const NetworkInterfaceList: FC = () => {
 
   const clearNetworkInterfaceHeld = () => {
     setNetworkInterfaceHeld(undefined);
+  };
+
+  const getNetworkTypeCount = (targetType: string, lastIndex = 0) => {
+    let count = 0;
+
+    for (let index = networkInputs.length - 1; index >= lastIndex; index -= 1) {
+      if (networkInputs[index].type === targetType) {
+        count += 1;
+      }
+    }
+
+    return count;
   };
 
   let createDropMouseUpHandler: (
@@ -324,11 +356,13 @@ const NetworkInterfaceList: FC = () => {
     );
 
     handleCreateNetworkMouseUp = () => {
-      networkInputs.push({
+      networkInputs.unshift({
+        inputUUID: uuidv4(),
+        interfaces: [networkInterfaceHeld],
         ipAddress: '',
         name: '',
-        interfaces: [networkInterfaceHeld],
         subnetMask: '',
+        type: '',
       });
 
       networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
@@ -451,11 +485,50 @@ const NetworkInterfaceList: FC = () => {
                 }}
               />
             </MUIBox>
-            {networkInputs.map(
-              ({ interfaces, ipAddress, name, subnetMask }, networkIndex) => (
-                <InnerPanel key={`network-input-${name.toLowerCase()}`}>
+            {networkInputs.map((networkInput, networkIndex) => {
+              const { inputUUID, interfaces, ipAddress, subnetMask, type } =
+                networkInput;
+              const isNetworkOptional =
+                networkIndex < optionalNetworkInputsLength;
+
+              return (
+                <InnerPanel key={`network-input-${inputUUID}`}>
                   <InnerPanelHeader>
-                    <OutlinedInputWithLabel label="Network name" value={name} />
+                    <SelectWithLabel
+                      id={`network-input-${inputUUID}-name`}
+                      isReadOnly={!isNetworkOptional}
+                      label="Network name"
+                      selectItems={Object.entries(NETWORK_TYPES).map(
+                        ([networkType, networkTypeName]) => {
+                          let count = getNetworkTypeCount(
+                            networkType,
+                            networkIndex,
+                          );
+
+                          if (networkType !== type) {
+                            count += 1;
+                          }
+
+                          const displayValue = `${networkTypeName} ${padNetworkTypeCount(
+                            count,
+                          )}`;
+
+                          return { value: networkType, displayValue };
+                        },
+                      )}
+                      selectProps={{
+                        onChange: ({ target: { value } }) => {
+                          networkInput.type = String(value);
+
+                          setNetworkInputs([...networkInputs]);
+                        },
+                        renderValue: (value) =>
+                          `${String(value).toUpperCase()}${padNetworkTypeCount(
+                            getNetworkTypeCount(type, networkIndex),
+                          )}`,
+                        value: type,
+                      }}
+                    />
                   </InnerPanelHeader>
                   <MUIBox
                     sx={{
@@ -503,7 +576,7 @@ const NetworkInterfaceList: FC = () => {
                                   ].isApplied = false;
 
                                   if (
-                                    networkIndex > 1 &&
+                                    isNetworkOptional &&
                                     interfaces.length === 0
                                   ) {
                                     networkInputs.splice(networkIndex, 1);
@@ -523,16 +596,26 @@ const NetworkInterfaceList: FC = () => {
                     </MUIBox>
                     <OutlinedInputWithLabel
                       label="IP address"
+                      onChange={({ target: { value } }) => {
+                        networkInput.ipAddress = String(value);
+
+                        setNetworkInputs([...networkInputs]);
+                      }}
                       value={ipAddress}
                     />
                     <OutlinedInputWithLabel
                       label="Subnet mask"
+                      onChange={({ target: { value } }) => {
+                        networkInput.subnetMask = String(value);
+
+                        setNetworkInputs([...networkInputs]);
+                      }}
                       value={subnetMask}
                     />
                   </MUIBox>
                 </InnerPanel>
-              ),
-            )}
+              );
+            })}
           </MUIBox>
         </MUIBox>
       )}
