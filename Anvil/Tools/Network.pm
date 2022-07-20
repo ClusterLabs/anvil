@@ -2969,6 +2969,19 @@ sub manage_firewall
 		zone        => $zone
 	}});
 	
+	### TODO: Remove when fixed.
+	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
+	if ($firewalld_running)
+	{
+		# Disable and stop.
+		$anvil->System->disable_daemon({
+			now    => 1, 
+			daemon => $anvil->data->{sys}{daemon}{firewalld}.
+		});
+	}
+	
+	
 	return(0);
 	
 	# Before we do anything, is the firewall even running?
