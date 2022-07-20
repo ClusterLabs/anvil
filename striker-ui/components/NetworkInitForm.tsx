@@ -21,6 +21,7 @@ import { BLUE, GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
+import DropArea from './DropArea';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import pad from '../lib/pad';
 import { InnerPanel, InnerPanelHeader } from './Panels';
@@ -104,6 +105,12 @@ const REQUIRED_NETWORKS = [
     type: 'ifn',
   },
 ];
+
+const MAX_INTERFACES_PER_NETWORK = 2;
+const NETWORK_INTERFACE_TEMPLATE = Array.from(
+  { length: MAX_INTERFACES_PER_NETWORK },
+  (unused, index) => index + 1,
+);
 
 const createNetworkInterfaceTableColumns = (
   handleDragMouseDown: (
@@ -270,9 +277,11 @@ const NetworkInitForm: FC = () => {
 
     createDropMouseUpHandler =
       (interfaces: NetworkInterfaceOverviewMetadata[]) => () => {
-        interfaces.push(networkInterfaceHeld);
+        if (interfaces.length < MAX_INTERFACES_PER_NETWORK) {
+          interfaces.push(networkInterfaceHeld);
 
-        networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+          networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+        }
       };
 
     floatingNetworkInterface = (
@@ -435,10 +444,10 @@ const NetworkInitForm: FC = () => {
               networkIndex < optionalNetworkInputsLength;
 
             return (
-              <InnerPanel key={`network-input-${inputUUID}`}>
+              <InnerPanel key={`network-${inputUUID}`}>
                 <InnerPanelHeader>
                   <SelectWithLabel
-                    id={`network-input-${inputUUID}-name`}
+                    id={`network-${inputUUID}-name`}
                     isReadOnly={!isNetworkOptional}
                     label="Network name"
                     selectItems={Object.entries(NETWORK_TYPES).map(
@@ -482,29 +491,39 @@ const NetworkInitForm: FC = () => {
                     },
                   }}
                 >
-                  <MUIBox
-                    onMouseUp={createDropMouseUpHandler?.call(null, interfaces)}
-                    sx={{
-                      borderColor: TEXT,
-                      borderStyle: 'dashed',
-                      borderWidth: '4px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      padding: '.6em',
+                  {NETWORK_INTERFACE_TEMPLATE.map((linkNumber) => {
+                    const linkName = `Link ${linkNumber}`;
+                    const networkInterfaceIndex = linkNumber - 1;
+                    const networkInterface = interfaces[networkInterfaceIndex];
+                    const { networkInterfaceUUID } = networkInterface || {};
 
-                      '& > :not(:first-child)': {
-                        marginTop: '.3em',
-                      },
-                    }}
-                  >
-                    {interfaces.length > 0 ? (
-                      interfaces.map(
-                        (networkInterface, networkInterfaceIndex) => {
-                          const { networkInterfaceUUID } = networkInterface;
+                    return (
+                      <MUIBox
+                        key={`network-${inputUUID}-link-${linkNumber}`}
+                        sx={{
+                          alignItems: 'center',
+                          display: 'flex',
+                          flexDirection: 'row',
 
-                          return (
+                          '& > :not(:first-child)': {
+                            marginLeft: '1em',
+                          },
+
+                          '& > :last-child': {
+                            flexGrow: 1,
+                          },
+                        }}
+                      >
+                        <BodyText text={linkName} />
+                        <DropArea
+                          onMouseUp={createDropMouseUpHandler?.call(
+                            null,
+                            interfaces,
+                          )}
+                        >
+                          {networkInterface ? (
                             <BriefNetworkInterface
-                              key={`brief-network-interface-${networkInterfaceUUID}`}
+                              key={`network-interface-${networkInterfaceUUID}`}
                               networkInterface={networkInterface}
                               onClose={() => {
                                 interfaces.splice(networkInterfaceIndex, 1);
@@ -525,13 +544,13 @@ const NetworkInitForm: FC = () => {
                                 });
                               }}
                             />
-                          );
-                        },
-                      )
-                    ) : (
-                      <BodyText text="Drag interfaces here to add to this network." />
-                    )}
-                  </MUIBox>
+                          ) : (
+                            <BodyText text="Drop to add interface." />
+                          )}
+                        </DropArea>
+                      </MUIBox>
+                    );
+                  })}
                   <OutlinedInputWithLabel
                     label="IP address"
                     onChange={({ target: { value } }) => {
