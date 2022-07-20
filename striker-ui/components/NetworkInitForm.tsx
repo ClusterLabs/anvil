@@ -216,7 +216,8 @@ const createNetworkInterfaceTableColumns = (
 
 const NetworkInitForm: FC = () => {
   const theme = useTheme();
-  const bplg = useMediaQuery(theme.breakpoints.up('lg'));
+  const breakpointMedium = useMediaQuery(theme.breakpoints.up('md'));
+  const breakpointLarge = useMediaQuery(theme.breakpoints.up('lg'));
 
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
@@ -446,7 +447,7 @@ const NetworkInitForm: FC = () => {
             '& > *': {
               marginBottom: '1em',
               marginTop: '1em',
-              minWidth: '10em',
+              minWidth: '13em',
               width: '25%',
             },
 
@@ -490,7 +491,7 @@ const NetworkInitForm: FC = () => {
 
                         setNetworkInputs([...networkInputs]);
                       },
-                      renderValue: bplg
+                      renderValue: breakpointLarge
                         ? undefined
                         : (value) =>
                             `${String(
@@ -521,6 +522,17 @@ const NetworkInitForm: FC = () => {
                     const { networkInterfaceUUID = '' } =
                       networkInterface ?? {};
 
+                    const emptyDropAreaContent = breakpointMedium ? (
+                      <BodyText text="Drop to add interface." />
+                    ) : (
+                      <MUIAddIcon
+                        sx={{
+                          alignSelf: 'center',
+                          color: GREY,
+                        }}
+                      />
+                    );
+
                     return (
                       <MUIBox
                         key={`network-${inputUUID}-link-${linkNumber}`}
@@ -538,7 +550,10 @@ const NetworkInitForm: FC = () => {
                           },
                         }}
                       >
-                        <BodyText text={linkName} />
+                        <BodyText
+                          sx={{ whiteSpace: 'nowrap' }}
+                          text={linkName}
+                        />
                         <DropArea
                           onMouseUp={createDropMouseUpHandler?.call(
                             null,
@@ -562,7 +577,7 @@ const NetworkInitForm: FC = () => {
                               }}
                             />
                           ) : (
-                            <BodyText text="Drop to add interface." />
+                            emptyDropAreaContent
                           )}
                         </DropArea>
                       </MUIBox>
