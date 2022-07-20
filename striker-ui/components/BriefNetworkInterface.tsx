@@ -40,7 +40,10 @@ const BriefNetworkInterface: FC<
         display: 'flex',
         flexDirection: 'row',
 
-        '& > :not(:first-child)': { marginLeft: '.5em' },
+        '& > :not(:first-child)': {
+          alignSelf: 'center',
+          marginLeft: '.5em',
+        },
 
         ...rootSx,
       },
