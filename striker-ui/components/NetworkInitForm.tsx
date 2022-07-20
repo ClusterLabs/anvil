@@ -552,17 +552,9 @@ const NetworkInitForm: FC = () => {
                               networkInterface={networkInterface}
                               onClose={() => {
                                 interfaces[networkInterfaceIndex] = undefined;
-
                                 networkInterfaceInputMap[
                                   networkInterfaceUUID
                                 ].isApplied = false;
-
-                                if (
-                                  isNetworkOptional &&
-                                  interfaces.length === 0
-                                ) {
-                                  networkInputs.splice(networkIndex, 1);
-                                }
 
                                 setNetworkInterfaceInputMap({
                                   ...networkInterfaceInputMap,
