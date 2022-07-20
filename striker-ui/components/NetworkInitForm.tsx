@@ -577,6 +577,7 @@ const NetworkInitForm: FC = () => {
                     );
                   })}
                   <OutlinedInputWithLabel
+                    id={`network-${inputUUID}-ip-address`}
                     label="IP address"
                     onChange={({ target: { value } }) => {
                       networkInput.ipAddress = String(value);
@@ -586,6 +587,7 @@ const NetworkInitForm: FC = () => {
                     value={ipAddress}
                   />
                   <OutlinedInputWithLabel
+                    id={`network-${inputUUID}-subnet-mask`}
                     label="Subnet mask"
                     onChange={({ target: { value } }) => {
                       networkInput.subnetMask = String(value);
