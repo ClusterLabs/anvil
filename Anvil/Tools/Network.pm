@@ -2977,21 +2977,20 @@ sub manage_firewall
 		# Disable and stop.
 		$anvil->System->disable_daemon({
 			now    => 1, 
-			daemon => $anvil->data->{sys}{daemon}{firewalld}.
+			daemon => $anvil->data->{sys}{daemon}{firewalld},
 		});
 	}
-	
 	
 	return(0);
 	
 	# Before we do anything, is the firewall even running?
-	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
-	if (not $firewalld_running)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
-		return(1);
-	}
+# 	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
+# 	if (not $firewalld_running)
+# 	{
+# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
+# 		return(1);
+# 	}
 	
 	# What we do next depends on what we're doing. 
 	my $host_type = $anvil->Get->host_type;
