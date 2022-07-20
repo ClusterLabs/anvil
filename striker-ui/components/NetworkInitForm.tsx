@@ -42,7 +42,7 @@ export type NetworkInterfaceInputMap = Record<
 
 export type NetworkInput = {
   inputUUID: string;
-  interfaces: NetworkInterfaceOverviewMetadata[];
+  interfaces: (NetworkInterfaceOverviewMetadata | undefined)[];
   ipAddress: string;
   name: string;
   subnetMask: string;
@@ -126,7 +126,7 @@ const createNetworkInterfaceTableColumns = (
     field: '',
     renderCell: ({ row }) => {
       const { isApplied } =
-        networkInterfaceInputMap[row.networkInterfaceUUID] || false;
+        networkInterfaceInputMap[row.networkInterfaceUUID] ?? false;
 
       let cursor = 'grab';
       let handleMouseDown: MUIBoxProps['onMouseDown'] = (...eventArgs) => {
@@ -241,7 +241,7 @@ const NetworkInitForm: FC = () => {
         const map = data.reduce<NetworkInterfaceInputMap>(
           (reduceContainer, { networkInterfaceUUID }) => {
             reduceContainer[networkInterfaceUUID] =
-              networkInterfaceInputMap[networkInterfaceUUID] || {};
+              networkInterfaceInputMap[networkInterfaceUUID] ?? {};
 
             return reduceContainer;
           },
@@ -283,7 +283,8 @@ const NetworkInitForm: FC = () => {
   };
 
   let createDropMouseUpHandler: (
-    interfaces: NetworkInterfaceOverviewMetadata[],
+    interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+    interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
   let floatingNetworkInterface: JSX.Element = <></>;
   let handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'];
@@ -294,12 +295,24 @@ const NetworkInitForm: FC = () => {
     const { networkInterfaceUUID } = networkInterfaceHeld;
 
     createDropMouseUpHandler =
-      (interfaces: NetworkInterfaceOverviewMetadata[]) => () => {
-        if (interfaces.length < MAX_INTERFACES_PER_NETWORK) {
-          interfaces.push(networkInterfaceHeld);
+      (
+        interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+        interfaceIndex: number,
+      ) =>
+      () => {
+        const { networkInterfaceUUID: previousNetworkInterfaceUUID } =
+          interfaces[interfaceIndex] ?? {};
 
-          networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+        if (
+          previousNetworkInterfaceUUID &&
+          previousNetworkInterfaceUUID !== networkInterfaceUUID
+        ) {
+          networkInterfaceInputMap[previousNetworkInterfaceUUID].isApplied =
+            false;
         }
+
+        interfaces[interfaceIndex] = networkInterfaceHeld;
+        networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
       };
 
     floatingNetworkInterface = (
@@ -339,7 +352,7 @@ const NetworkInitForm: FC = () => {
     const map = networkInterfaces.reduce<NetworkInterfaceInputMap>(
       (reduceContainer, { networkInterfaceUUID }) => {
         reduceContainer[networkInterfaceUUID] =
-          networkInterfaceInputMap[networkInterfaceUUID] || {};
+          networkInterfaceInputMap[networkInterfaceUUID] ?? {};
 
         return reduceContainer;
       },
@@ -505,7 +518,8 @@ const NetworkInitForm: FC = () => {
                     const linkName = `Link ${linkNumber}`;
                     const networkInterfaceIndex = linkNumber - 1;
                     const networkInterface = interfaces[networkInterfaceIndex];
-                    const { networkInterfaceUUID } = networkInterface || {};
+                    const { networkInterfaceUUID = '' } =
+                      networkInterface ?? {};
 
                     return (
                       <MUIBox
@@ -529,6 +543,7 @@ const NetworkInitForm: FC = () => {
                           onMouseUp={createDropMouseUpHandler?.call(
                             null,
                             interfaces,
+                            networkInterfaceIndex,
                           )}
                         >
                           {networkInterface ? (
@@ -536,7 +551,7 @@ const NetworkInitForm: FC = () => {
                               key={`network-interface-${networkInterfaceUUID}`}
                               networkInterface={networkInterface}
                               onClose={() => {
-                                interfaces.splice(networkInterfaceIndex, 1);
+                                interfaces[networkInterfaceIndex] = undefined;
 
                                 networkInterfaceInputMap[
                                   networkInterfaceUUID
