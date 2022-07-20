@@ -19,7 +19,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
-import { BLUE, GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
 
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
@@ -31,6 +31,7 @@ import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
 import { BodyText, DataGridCellText } from './Text';
+import IconButton from './IconButton';
 
 export type NetworkInterfaceInputMap = Record<
   string,
@@ -256,6 +257,19 @@ const NetworkInitForm: FC = () => {
     setNetworkInterfaceHeld(undefined);
   };
 
+  const createNetwork = () => {
+    networkInputs.unshift({
+      inputUUID: uuidv4(),
+      interfaces: [],
+      ipAddress: '',
+      name: '',
+      subnetMask: '',
+      type: '',
+    });
+
+    setNetworkInputs([...networkInputs]);
+  };
+
   const getNetworkTypeCount = (targetType: string, lastIndex = 0) => {
     let count = 0;
 
@@ -272,7 +286,6 @@ const NetworkInitForm: FC = () => {
     interfaces: NetworkInterfaceOverviewMetadata[],
   ) => MUIBoxProps['onMouseUp'];
   let floatingNetworkInterface: JSX.Element = <></>;
-  let handleCreateNetworkMouseUp: MUIBoxProps['onMouseUp'];
   let handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'];
   let handleDragAreaMouseMove: MUIBoxProps['onMouseMove'];
   let handleDragAreaMouseUp: MUIBoxProps['onMouseUp'];
@@ -300,19 +313,6 @@ const NetworkInitForm: FC = () => {
         }}
       />
     );
-
-    handleCreateNetworkMouseUp = () => {
-      networkInputs.unshift({
-        inputUUID: uuidv4(),
-        interfaces: [networkInterfaceHeld],
-        ipAddress: '',
-        name: '',
-        subnetMask: '',
-        type: '',
-      });
-
-      networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
-    };
 
     handleDragAreaMouseLeave = () => {
       clearNetworkInterfaceHeld();
@@ -376,7 +376,7 @@ const NetworkInitForm: FC = () => {
           display: 'flex',
           flexDirection: 'column',
 
-          '& > :not(:first-child, :nth-child(2))': {
+          '& > :not(:first-child, :last-child)': {
             marginTop: '1em',
           },
         }}
@@ -407,7 +407,20 @@ const NetworkInitForm: FC = () => {
           sx={{
             display: 'flex',
             flexDirection: 'row',
+            justifyContent: 'center',
+          }}
+        >
+          <IconButton onClick={createNetwork}>
+            <MUIAddIcon />
+          </IconButton>
+        </MUIBox>
+        <MUIBox
+          sx={{
+            alignItems: 'strech',
+            display: 'flex',
+            flexDirection: 'row',
             overflowX: 'auto',
+            paddingLeft: '.3em',
 
             '& > *': {
               marginBottom: '1em',
@@ -421,27 +434,6 @@ const NetworkInitForm: FC = () => {
             },
           }}
         >
-          <MUIBox
-            onMouseUp={handleCreateNetworkMouseUp}
-            sx={{
-              alignItems: 'center',
-              borderColor: TEXT,
-              borderStyle: 'dashed',
-              borderWidth: '4px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              padding: '.6em',
-            }}
-          >
-            <MUIAddIcon fontSize="large" sx={{ color: GREY }} />
-            <BodyText
-              text="Drag interfaces here to create a new network."
-              sx={{
-                textAlign: 'center',
-              }}
-            />
-          </MUIBox>
           {networkInputs.map((networkInput, networkIndex) => {
             const { inputUUID, interfaces, ipAddress, subnetMask, type } =
               networkInput;
