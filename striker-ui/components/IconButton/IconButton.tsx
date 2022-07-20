@@ -2,11 +2,13 @@ import { FC } from 'react';
 import {
   IconButton as MUIIconButton,
   IconButtonProps as MUIIconButtonProps,
+  inputClasses as muiInputClasses,
 } from '@mui/material';
 
 import {
   BLACK,
   BORDER_RADIUS,
+  DISABLED,
   GREY,
   TEXT,
 } from '../../lib/consts/DEFAULT_THEME';
@@ -28,6 +30,10 @@ const IconButton: FC<IconButtonProps> = ({
 
         '&:hover': {
           backgroundColor: TEXT,
+        },
+
+        [`&.${muiInputClasses.disabled}`]: {
+          backgroundColor: DISABLED,
         },
 
         ...sx,
