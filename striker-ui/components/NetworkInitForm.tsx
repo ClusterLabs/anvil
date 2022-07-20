@@ -287,6 +287,7 @@ const NetworkInitForm: FC = () => {
     interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
+  let dragAreaDraggingSx: MUIBoxProps['sx'] = {};
   let floatingNetworkInterface: JSX.Element = <></>;
   let handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'];
   let handleDragAreaMouseMove: MUIBoxProps['onMouseMove'];
@@ -316,14 +317,17 @@ const NetworkInitForm: FC = () => {
         networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
       };
 
+    dragAreaDraggingSx = { cursor: 'grabbing' };
+
     floatingNetworkInterface = (
       <BriefNetworkInterface
+        isFloating
         networkInterface={networkInterfaceHeld}
         sx={{
           left: `calc(${dragMousePosition.x}px + .4em)`,
           position: 'absolute',
-          top: `calc(${dragMousePosition.y}px - 1em)`,
-          zIndex: 10,
+          top: `calc(${dragMousePosition.y}px - 1.6em)`,
+          zIndex: 20,
         }}
       />
     );
@@ -382,7 +386,7 @@ const NetworkInitForm: FC = () => {
       onMouseLeave={handleDragAreaMouseLeave}
       onMouseMove={handleDragAreaMouseMove}
       onMouseUp={handleDragAreaMouseUp}
-      sx={{ position: 'relative' }}
+      sx={{ position: 'relative', ...dragAreaDraggingSx }}
     >
       {floatingNetworkInterface}
       <MUIBox
