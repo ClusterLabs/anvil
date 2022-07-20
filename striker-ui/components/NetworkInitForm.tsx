@@ -3,6 +3,8 @@ import {
   Box as MUIBox,
   BoxProps as MUIBoxProps,
   iconButtonClasses as muiIconButtonClasses,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Add as MUIAddIcon,
@@ -23,7 +25,6 @@ import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
-import pad from '../lib/pad';
 import { InnerPanel, InnerPanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import SelectWithLabel from './SelectWithLabel';
@@ -212,6 +213,9 @@ const createNetworkInterfaceTableColumns = (
 ];
 
 const NetworkInitForm: FC = () => {
+  const theme = useTheme();
+  const bplg = useMediaQuery(theme.breakpoints.up('lg'));
+
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
     y: number;
@@ -461,7 +465,7 @@ const NetworkInitForm: FC = () => {
                           count += 1;
                         }
 
-                        const displayValue = `${networkTypeName} ${pad(count)}`;
+                        const displayValue = `${networkTypeName} ${count}`;
 
                         return { value: networkType, displayValue };
                       },
@@ -472,10 +476,15 @@ const NetworkInitForm: FC = () => {
 
                         setNetworkInputs([...networkInputs]);
                       },
-                      renderValue: (value) =>
-                        `${String(value).toUpperCase()}${pad(
-                          getNetworkTypeCount(type, networkIndex),
-                        )}`,
+                      renderValue: bplg
+                        ? undefined
+                        : (value) =>
+                            `${String(
+                              value,
+                            ).toUpperCase()} ${getNetworkTypeCount(
+                              type,
+                              networkIndex,
+                            )}`,
                       value: type,
                     }}
                   />
