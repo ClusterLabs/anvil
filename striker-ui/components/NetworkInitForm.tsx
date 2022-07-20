@@ -410,7 +410,15 @@ const NetworkInitForm: FC = () => {
             justifyContent: 'center',
           }}
         >
-          <IconButton onClick={createNetwork}>
+          <IconButton
+            disabled={
+              networkInputs.length >= networkInterfaces.length ||
+              Object.values(networkInterfaceInputMap).every(
+                ({ isApplied }) => isApplied,
+              )
+            }
+            onClick={createNetwork}
+          >
             <MUIAddIcon />
           </IconButton>
         </MUIBox>
