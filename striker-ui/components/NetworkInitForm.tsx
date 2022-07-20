@@ -186,6 +186,7 @@ const createNetworkInterfaceTableColumns = (
   },
   {
     field: 'networkInterfaceState',
+    flex: 1,
     headerName: 'State',
     renderCell: ({ value }) => {
       const state = String(value);
