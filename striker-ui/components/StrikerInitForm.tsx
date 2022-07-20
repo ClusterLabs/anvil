@@ -128,6 +128,7 @@ const StrikerInitGeneralForm: FC = () => {
       }}
     >
       <OutlinedInputWithLabel
+        id="striker-init-general-organization-name"
         inputProps={{
           onBlur: ({ target: { value } }) => {
             const newOrganizationName = String(value);
@@ -142,6 +143,7 @@ const StrikerInitGeneralForm: FC = () => {
         value={organizationNameInput}
       />
       <OutlinedInputWithLabel
+        id="striker-init-general-organization-prefix"
         inputProps={{
           onBlur: ({ target: { value } }) => {
             const newOrganizationPrefix = String(value);
@@ -161,6 +163,7 @@ const StrikerInitGeneralForm: FC = () => {
         value={organizationPrefixInput}
       />
       <OutlinedInputWithLabel
+        id="striker-init-general-domain-name"
         label="Domain name"
         inputProps={{
           onBlur: ({ target: { value } }) => {
@@ -180,6 +183,7 @@ const StrikerInitGeneralForm: FC = () => {
         value={domainNameInput}
       />
       <OutlinedInputWithLabel
+        id="striker-init-general-host-number"
         inputProps={{
           onBlur: ({ target: { value } }) => {
             const newHostNumber = parseInt(value, 10);
@@ -199,6 +203,7 @@ const StrikerInitGeneralForm: FC = () => {
         value={hostNumberInput}
       />
       <OutlinedInputWithLabel
+        id="striker-init-general-host-name"
         label="Host name"
         onChange={handleHostNameInputOnChange}
         value={hostNameInput}
