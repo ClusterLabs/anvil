@@ -1,0 +1,1107 @@
+#!/usr/bin/perl
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use POSIX qw/ceil/;;
+use Data::Dumper;
+use Time::HiRes qw(usleep);
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->data->{switches}{'max-mtu'} = "";
+$anvil->data->{switches}{password}  = "";
+$anvil->data->{switches}{stepping}  = "";
+$anvil->data->{switches}{source}    = "";
+$anvil->data->{switches}{target}    = "";
+$anvil->data->{switches}{tests}     = "";
+$anvil->data->{switches}{y}         = "";
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::max-mtu'  => $anvil->data->{switches}{'max-mtu'},
+	'switches::password' => $anvil->Log->is_secure($anvil->data->{switches}{password}),
+	'switches::stepping' => $anvil->data->{switches}{stepping},
+	'switches::source'   => $anvil->data->{switches}{source},
+	'switches::target'   => $anvil->data->{switches}{target},
+	'switches::tests'    => $anvil->data->{switches}{tests},
+	'switches::y'        => $anvil->data->{switches}{y},
+}});
+
+checks($anvil);
+print "Checks passed, beginning.\n";
+
+if (not $anvil->data->{sys}{max_usable_mtu})
+{
+	find_maximum_usable_mtu($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::highest_good_mtu' => $anvil->data->{sys}{highest_good_mtu},
+	}});
+	if ($anvil->data->{sys}{highest_good_mtu} < 1500)
+	{
+		print "[ Error ] - The detected maximum usable MTU size appears invalid!\n";
+		print "[ Error ] - You may need to restore the default MTU of one or both nodes using:\n";
+		my $remote_shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify \"".$anvil->data->{sys}{target_interface}{name}."\" 802-3-ethernet.mtu 1500 && ".$anvil->data->{path}{exe}{nmcli}." connection up \"".$anvil->data->{sys}{target_interface}{name}."\"";
+		my $local_shell_call  = $anvil->data->{path}{exe}{nmcli}." connection modify \"".$anvil->data->{sys}{source_interface}{name}."\" 802-3-ethernet.mtu 1500 && ".$anvil->data->{path}{exe}{nmcli}." connection up \"".$anvil->data->{sys}{source_interface}{name}."\"";
+		print "          remote: ".$local_shell_call."\n";
+		print "          local:  ".$remote_shell_call."\n\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+}
+else
+{
+	print "\nMaximum MTU for this network statically set to: [".$anvil->data->{sys}{max_usable_mtu}."]\n";
+}
+
+do_tests($anvil);
+
+print "All tests complete!\n\n";
+print "Graphs:\n\n";
+print_graphs($anvil);
+
+
+$anvil->nice_exit({exit_code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub print_graphs
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{sys}{highest_value} = 0;
+	$anvil->data->{sys}{peak_mtu}      = 0;
+	foreach my $mtu (keys %{$anvil->data->{iperf}{mtu}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu => $mtu }});
+		foreach my $key (keys %{$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"iperf::mtu::${mtu}::test::avg::${key}" => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{$key},
+			}});
+			if ($anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{$key} > $anvil->data->{sys}{highest_value})
+			{
+				$anvil->data->{sys}{highest_value} = $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{$key};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::highest_value" => $anvil->data->{sys}{highest_value},
+				}});
+			}
+		}
+	}
+	$anvil->data->{sys}{highest_value} = sprintf("%.1f", $anvil->data->{sys}{highest_value});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::highest_value" => $anvil->data->{sys}{highest_value},
+	}});
+	
+	$anvil->data->{sys}{peak_mtu}     = 0;
+	$anvil->data->{sys}{peak_average} = 0;
+	foreach my $mtu (sort {$a <=> $b} keys %{$anvil->data->{iperf}{mtu}})
+	{
+		if ($anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average} > $anvil->data->{sys}{peak_average})
+		{
+			$anvil->data->{sys}{peak_average} = $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average};
+			$anvil->data->{sys}{peak_mtu}     = $mtu;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::peak_average" => $anvil->data->{sys}{peak_average},
+				"sys::peak_mtu"     => $anvil->data->{sys}{peak_mtu},
+			}});
+		}
+	}
+	
+	my $columns = get_tput_cols($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { columns => $columns }});
+	
+	$anvil->data->{sys}{max_graph_width} = ($columns - 10);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::max_graph_width" => $anvil->data->{sys}{max_graph_width},
+	}});
+	foreach my $mtu (sort {$b cmp $a} keys %{$anvil->data->{iperf}{mtu}})
+	{
+		my $bar_minus = 7;
+		my $say_mtu   = sprintf("%4s", $mtu);
+		if (length($anvil->data->{sys}{max_usable_mtu}) == 5)
+		{
+			$bar_minus = 8;
+			$say_mtu   = sprintf("%5s", $mtu);
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bar_minus => $bar_minus,
+			say_mtu   => $say_mtu, 
+		}});
+		print "[ ".$say_mtu." bytes ]";
+		for (0..($anvil->data->{sys}{max_graph_width} - $bar_minus))
+		{ 
+			print "-";
+		}
+		print "\n";
+		print " Tx: "; print_dots($anvil, $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth});
+		print " Rx: "; print_dots($anvil, $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth});
+		print "Avg: "; print_dots($anvil, $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average});
+	}
+	for (0..($anvil->data->{sys}{max_graph_width} + 8))
+	{ 
+		print "-";
+	}
+	print "\n";
+	print "The peak average bandwidth was: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sys}{peak_average}})."], achieved with the MTU: [".$anvil->data->{sys}{peak_mtu}."]\n\n";
+	
+	return(0);
+}
+
+sub print_dots
+{
+	my ($anvil, $bandwidth) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bandwidth => $bandwidth }});
+	
+	my $say_bandwidth = $anvil->Convert->bytes_to_human_readable({'bytes' => $bandwidth});
+	my $overhead      = 9;
+	my $less_dots     = 4 + $overhead;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		say_bandwidth        => $say_bandwidth,
+		'sys::highest_value' => $anvil->data->{sys}{highest_value}, 
+	}});
+	if (length($anvil->data->{sys}{highest_value}) == 7)
+	{
+		$say_bandwidth = sprintf("%7s", $say_bandwidth);
+		$less_dots     = 6 + $overhead;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			say_bandwidth => $say_bandwidth,
+			less_dots     => $less_dots, 
+		}});
+	}
+	elsif (length($anvil->data->{sys}{highest_value}) == 6)
+	{
+		$say_bandwidth = sprintf("%6s", $say_bandwidth);
+		$less_dots     = 6 + $overhead;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			say_bandwidth => $say_bandwidth,
+			less_dots     => $less_dots, 
+		}});
+	}
+	elsif (length($anvil->data->{sys}{highest_value}) == 5)
+	{
+		$say_bandwidth = sprintf("%5s", $say_bandwidth);
+		$less_dots     = 5 + $overhead;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			say_bandwidth => $say_bandwidth,
+			less_dots     => $less_dots, 
+		}});
+	}
+	else
+	{
+		$say_bandwidth = sprintf("%4s", $say_bandwidth);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_bandwidth => $say_bandwidth }});
+	}
+	my $percent = sprintf("%.0f", (($bandwidth / $anvil->data->{sys}{highest_value}) * 100));
+	my $dots    = $anvil->data->{sys}{max_graph_width} * ($percent / 100);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		percent => $percent,
+		dots    => $dots,
+	}});
+	
+	print " ".$say_bandwidth."/sec |";
+	
+	my $full_dot  = $dots;
+	my $remainder = 0;
+	if ($dots =~ /(\d+)\.(\d)/)
+	{
+		$full_dot  = $1;
+		$remainder = $2;
+	}
+	
+	if ($full_dot > $less_dots)
+	{
+		$full_dot -= $less_dots;
+		for (0..$full_dot)
+		{
+			print "#";
+		}
+		if (($remainder > 3) && ($remainder < 7))
+		{
+			print ">";
+		}
+	}
+	print "\n";
+	
+	return(0);
+}
+
+sub get_tput_cols
+{
+	my ($anvil) = @_;
+	
+	my $columns = 80;
+	
+	# This can't be called through IO::Handle as it always returns 80.
+	my $shell_call = $anvil->data->{path}{exe}{tput}." cols";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	$columns = `$shell_call`;
+	chomp $columns;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { columns => $columns }});
+	
+	return ($columns);
+}
+
+sub do_tests
+{
+	my ($anvil) = @_;
+	print "\n-=] Beginning 'iperf' testing, averaging: [".$anvil->data->{sys}{iperf_test_count}."] tests.\n\n";
+	
+	# Current MTU size to test.
+	my $iperf_mtu = 1500;
+	
+	# Give the user an idea of how long they have to go make coffee.
+	my $skipped_iterations = (($anvil->data->{sys}{min_usable_mtu} / $anvil->data->{sys}{iperf_mtu_stepping}) - 1);
+	my $total_iterations   = ceil($anvil->data->{sys}{highest_good_mtu} / $anvil->data->{sys}{iperf_mtu_stepping});
+	my $actual_iterations  = ($total_iterations - $skipped_iterations);
+	my $per_test_time      = ($anvil->data->{sys}{iperf_test_count} * 20);	# 10sec per half/full duplex.
+	my $total_seconds      = $actual_iterations * $per_test_time;
+	my $total_minutes      = $total_seconds / 60;
+	   $total_minutes      = sprintf("%.1f", $total_minutes);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:skipped_iterations' => $skipped_iterations,
+		's2:total_iterations'   => $total_iterations,
+		's3:actual_iterations'  => $actual_iterations,
+		's4:per_test_time'      => $per_test_time,
+		's5:total_seconds'      => $total_seconds,
+		's6:total_minutes'      => $total_minutes,
+	}});
+	print "Please be patient. I expect this will take roughly: [".$total_minutes." minutes].\n";
+	print " - Time needed to change the MTU will add to this estimated time.\n";
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		iperf_mtu               => $iperf_mtu,
+		"sys::highest_good_mtu" => $anvil->data->{sys}{highest_good_mtu},
+	}});
+	while ($iperf_mtu <= $anvil->data->{sys}{highest_good_mtu})
+	{
+		run_iperf_tests($anvil, $iperf_mtu);
+		
+		# I want to always test the maximum MTU, which this will do.
+		if ($iperf_mtu != $anvil->data->{sys}{highest_good_mtu})
+		{
+			$iperf_mtu += $anvil->data->{sys}{iperf_mtu_stepping};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { iperf_mtu => $iperf_mtu }});
+			if ($iperf_mtu > $anvil->data->{sys}{highest_good_mtu})
+			{
+				$iperf_mtu = $anvil->data->{sys}{highest_good_mtu};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { iperf_mtu => $iperf_mtu }});
+			}
+		}
+		else
+		{
+			# Done.
+			last;
+		}
+	}
+	
+	return(0);
+}
+
+sub run_iperf_tests
+{
+	my ($anvil, $mtu) = @_;
+	
+	print "\nTesting iperf at MTU: [".$mtu." Bytes];\n";
+	my ($new_remote_mtu) = alter_mtu($anvil, "remote", $mtu);
+	if ($mtu ne $new_remote_mtu)
+	{
+		print "[ ERROR ] I was unable change the MTU up to: [".$mtu."] on remote.\n";
+		print "[ ERROR ] Still at an MTU of: [".$mtu."].\n\n";
+		exit 5;
+	}
+	my ($new_local_mtu) = alter_mtu($anvil, "local", $mtu);
+	if ($mtu ne $new_local_mtu)
+	{
+		print "[ ERROR ] I was unable change the MTU up to: [".$mtu."] on local.\n";
+		print "[ ERROR ] Still at an MTU of: [".$mtu."].\n\n";
+		exit 6;
+	}
+	
+	# Beginning Tests:
+	my $iperf_test_count = $anvil->data->{sys}{iperf_test_count};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { iperf_test_count => $iperf_test_count }});
+	foreach my $i (1..$iperf_test_count)
+	{
+		($anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_seconds},
+		 $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_transfer}, 
+		 $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_bandwidth},
+		 $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_seconds}, 
+		 $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_transfer}, 
+		 $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_bandwidth}) = call_iperf($anvil, $i);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:iperf::mtu::${mtu}::test::${i}::tx_seconds"   => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_seconds},
+			"s2:iperf::mtu::${mtu}::test::${i}::tx_transfer"  => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_transfer},
+			"s3:iperf::mtu::${mtu}::test::${i}::tx_bandwidth" => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_bandwidth},
+			"s4:iperf::mtu::${mtu}::test::${i}::rx_seconds"   => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_seconds},
+			"s5:iperf::mtu::${mtu}::test::${i}::rx_transfer"  => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_transfer},
+			"s6:iperf::mtu::${mtu}::test::${i}::rx_bandwidth" => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_bandwidth},
+		}});
+		print " - [".$i."/".$iperf_test_count."]; Transmit: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_bandwidth}})."/sec], Receive: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_bandwidth}})."/sec]\n";
+		
+		# Add to the totals for later averaging.
+		$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth} += $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{tx_bandwidth};
+		$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth} += $anvil->data->{iperf}{mtu}{$mtu}{test}{$i}{rx_bandwidth};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:iperf::mtu::${mtu}::test::avg::tx_bandwidth" => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth},
+			"s2:iperf::mtu::${mtu}::test::avg::rx_bandwidth" => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth},
+		}});
+	}
+	print "Done!\n";
+	
+	# Average sums.
+	$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth}  /= $iperf_test_count;
+	$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}  /= $iperf_test_count;
+	$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average}  = ($anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth} + $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}) / 2;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:iperf::mtu::${mtu}::test::avg::tx_bandwidth"  => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth},
+		"s2:iperf::mtu::${mtu}::test::avg::rx_bandwidth"  => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth},
+		"s3:iperf::mtu::${mtu}::test::avg::total_average" => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average},
+	}});
+	
+	# Round to zero
+	$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth}  = $anvil->Convert->round({number => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth}});
+	$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}  = $anvil->Convert->round({number => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}});
+	$anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average} = $anvil->Convert->round({number => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:iperf::mtu::${mtu}::test::avg::tx_bandwidth"  => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth}." Bytes/Sec (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth}}).")",
+		"s2:iperf::mtu::${mtu}::test::avg::rx_bandwidth"  => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}." Bytes/Sec (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}}).")",
+		"s3:iperf::mtu::${mtu}::test::avg::total_average" => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average}." Bytes/Sec (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average}}).")",
+	}});
+	
+# 	# Report average
+	print " - Average TX: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{tx_bandwidth}})."/sec], RX: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{rx_bandwidth}})."/sec], Total Average: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{iperf}{mtu}{$mtu}{test}{avg}{total_average}})."/sec]\n";
+	
+	return(0);
+}
+
+sub call_iperf
+{
+	my ($anvil, $test)=@_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		test => $test,
+	}});
+	
+	# Start the daemon on the peer.
+	my $shell_call = $anvil->data->{path}{exe}{iperf3}." --server --daemon --one-off";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		target     => $anvil->data->{switches}{target}, 
+		password   => $anvil->data->{switches}{password},
+		shell_call => $shell_call,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		error       => $error, 
+		return_code => $return_code,
+	}});
+	
+	# Sleep for a short time to make sure the server has started and is listening.
+	usleep($anvil->data->{sys}{iperf_micro_sleep});
+	
+	# Now call iperf3 locally. 
+	# Get the output in Kbps, running for 11 seconds, discarding the first 1 second to ignore TCP ramp up
+	   $shell_call             = $anvil->data->{path}{exe}{iperf3}." --client ".$anvil->data->{switches}{target}." --format K --interval 0 --time 11 --omit 1 ";
+	   ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+	}
+	
+=cut
+Connecting to host 192.168.122.251, port 5201
+[  5] local 192.168.122.252 port 41998 connected to 192.168.122.251 port 5201
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  5]   0.00-11.00  sec  78.9 GBytes  7524333 KBytes/sec    0   3.01 MBytes       
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-11.00  sec  78.9 GBytes  7524333 KBytes/sec    0             sender
+[  5]   0.00-11.04  sec  79.2 GBytes  7521387 KBytes/sec                  receiver
+
+iperf Done.
+=cut
+
+	my $tx_seconds   = 0;
+	my $tx_transfer  = 0;
+	my $tx_bandwidth = 0;
+	my $rx_seconds   = 0;
+	my $rx_transfer  = 0;
+	my $rx_bandwidth = 0;
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /0.00-(\d+.*?)\s+sec\s+(\d+.* \wBytes)\s+(\d+)\s+KBytes\/sec/)
+		{
+			my $seconds   = $1;
+			my $transfer  = $2;
+			my $bandwidth = $3;
+			if ($line =~ / sender$/)
+			{
+				$tx_seconds   = $seconds - 1;
+				$tx_transfer  = $transfer;
+				$tx_bandwidth = $bandwidth;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					tx_seconds   => $tx_seconds,
+					tx_transfer  => $tx_transfer, 
+					tx_bandwidth => $tx_bandwidth, 
+				}});
+			}
+			elsif ($line =~ / receiver$/)
+			{
+				$rx_seconds   = $seconds - 1;
+				$rx_transfer  = $transfer;
+				$rx_bandwidth = $bandwidth;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					rx_seconds   => $tx_seconds,
+					rx_transfer  => $tx_transfer, 
+					rx_bandwidth => $tx_bandwidth, 
+				}});
+			}
+		}
+	}
+	
+	# Convert from KBytes to Bytes
+	$tx_bandwidth = $anvil->Convert->human_readable_to_bytes({size => $tx_bandwidth, type => "KiB"});
+	$rx_bandwidth = $anvil->Convert->human_readable_to_bytes({size => $rx_bandwidth, type => "KiB"});
+
+	return ($tx_seconds, $tx_transfer, $tx_bandwidth, $rx_seconds, $rx_transfer, $rx_bandwidth);
+}
+
+sub find_maximum_usable_mtu
+{
+	my ($anvil) = @_;
+	
+	# Test the initial MTU of 1500.
+	print "Initial test with an MTU of '1500' to confirm testing method;\n";
+	
+	# This is the increment, in bytes starting at 1500, that the MTU will be raised to the maximum.
+	$anvil->data->{sys}{iperf_mtu_stepping} = 500;
+	
+	# This sets a maximum MTU to test for. It is useful if setting a too-high MTU will break the network
+	# link.
+	$anvil->data->{sys}{mtu_maximum} = 9000;
+	
+	# If set to 0, the program will roughly detect the maximum MTU. If set, the value becomes the maximum
+	# MTU (and assumes you've already ensured that your interfaces and network infrastructure handle it).
+	$anvil->data->{sys}{max_usable_mtu} = 0;
+	if ($anvil->data->{switches}{'max-mtu'})
+	{
+		if (($anvil->data->{switches}{'max-mtu'} =~ /^\d+$/) && ($anvil->data->{switches}{'max-mtu'} > 1500))
+		{
+			$anvil->data->{sys}{max_usable_mtu} = $anvil->data->{switches}{'max-mtu'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::max_usable_mtu" => $anvil->data->{sys}{max_usable_mtu},
+			}});
+		}
+		else
+		{
+			print "[ Error ] - The '--max-mtu' was set to: [".$anvil->data->{switches}{'max-mtu'}."] which is invalid. It must be a whole number larger than 1500.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# This is the minimum MTU. It should never change from 1500.
+	$anvil->data->{sys}{min_usable_mtu} = 1500;
+	
+	# This is the ICMP overhead to subtract from TCP payload sizes.
+	$anvil->data->{sys}{icmp_overhead}     = 28;
+	$anvil->data->{sys}{icmp_mtu_stepping} = 100;
+	
+	# This is used to re-check pings to avoid early failures caused by stray packets.
+	$anvil->data->{sys}{fail_count} = 0;
+	$anvil->data->{sys}{fail_limit} = 3;
+	
+	# After calling iperf on the remote node, I need to wait a short time listener to be ready. This sets
+	# the delays in millionths of a second.
+	$anvil->data->{sys}{iperf_micro_sleep} = 100000;
+	
+	# This is how many times I run each iperf test. An average of the results is stored.
+	$anvil->data->{sys}{iperf_test_count} = 3;
+	if ($anvil->data->{switches}{tests})
+	{
+		if (($anvil->data->{switches}{tests} =~ /^\d+$/) && ($anvil->data->{switches}{tests} > 1))
+		{
+			$anvil->data->{sys}{iperf_test_count} = $anvil->data->{switches}{tests};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::iperf_test_count" => $anvil->data->{sys}{iperf_test_count},
+			}});
+		}
+		else
+		{
+			print "[ Error ] - The '--tests' was set to: [".$anvil->data->{switches}{tests}."] which is invalid. It must be a whole number larger than 1.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# This will store the top tested good MTU
+	$anvil->data->{sys}{highest_good_mtu} = 1500;
+	
+	# Initial tests.
+	my $test_mtu = 1500;
+	my $ok       = set_mtu_and_ping($anvil, $test_mtu, 0);
+	if (not $ok)
+	{
+		print "[ Error ] - Unable to run ping-based tests! Is the network up?\n";
+		return($anvil->data->{sys}{highest_good_mtu});
+	}
+	$anvil->data->{tested}{$test_mtu} = "";
+	
+	# This will catch an attempt to repeat a test and break the loop.
+	my $difference = $anvil->data->{sys}{mtu_maximum} - $anvil->data->{sys}{min_usable_mtu};
+	   $test_mtu   = $anvil->data->{sys}{mtu_maximum};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		difference => $difference,
+		test_mtu   => $test_mtu,
+	}});
+	foreach my $i (1..1000)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:i'        => $i,
+			's2:test_mtu' => $test_mtu, 
+		}});
+		if ((exists $anvil->data->{tested}{$test_mtu}) && ($anvil->data->{tested}{$test_mtu}))
+		{
+			last;
+		}
+		
+		# Test this MTU.
+		print " - Testing with an MTU of: [".$test_mtu."];\n";
+		my $ok = set_mtu_and_ping($anvil, $test_mtu, 0);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ok => $ok }});
+		
+		if (($i == 1) && ($ok))
+		{
+			# Highest allowable MTU is OK.
+			$anvil->data->{sys}{highest_good_mtu} = $test_mtu;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::highest_good_mtu" => $anvil->data->{sys}{highest_good_mtu},
+			}});
+			last;
+		}
+		
+		if ($ok)
+		{
+			$anvil->data->{tested}{$test_mtu}     = 'ok';
+			$anvil->data->{sys}{highest_good_mtu} = $test_mtu;
+			$test_mtu                             = ($test_mtu + ($difference / 2**$i));
+			$test_mtu                             = round_to_100($anvil, $test_mtu);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"tested::$test_mtu"     => $anvil->data->{tested}{$test_mtu},
+				"sys::highest_good_mtu" => $anvil->data->{sys}{highest_good_mtu}, 
+				test_mtu                => $test_mtu, 
+			}});
+		}
+		else
+		{
+			$anvil->data->{tested}{$test_mtu} = 'fail';
+			$test_mtu                         = ($test_mtu - ($difference / 2**$i));
+			$test_mtu                         = round_to_100($anvil, $test_mtu);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"tested::$test_mtu" => $anvil->data->{tested}{$test_mtu},
+				test_mtu            => $test_mtu, 
+			}});
+		}
+	}
+	print "Found the highest usable MTU, rounded down to an even 100, is: [".$anvil->data->{sys}{highest_good_mtu}."].\n";
+	
+	return ($anvil->data->{sys}{highest_good_mtu});
+}
+
+sub set_mtu_and_ping
+{
+	my ($anvil, $test_mtu, $repeat) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		test_mtu => $test_mtu, 
+		repeat   => $repeat, 
+	}});
+	
+	my $ok = 0;
+	
+	# Change the MTUs, remote first.
+	my $new_remote_mtu = alter_mtu($anvil, "remote", $test_mtu);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_remote_mtu => $new_remote_mtu }});
+
+	print " - Remote: [".$anvil->data->{sys}{target_interface}{device}."] now set with MTU: [".$new_remote_mtu."]\n";
+	if ($test_mtu ne $new_remote_mtu)
+	{
+		print "Too high.\n";
+		print "[ Note ] - I was unable to bump the MTU up to: [".$test_mtu."] on remote.\n";
+		print "[ Note ] - Still at an MTU of: [".$new_remote_mtu."].\n";
+		return($ok);
+	}
+	my $new_local_mtu = alter_mtu($anvil, "local", $test_mtu);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_local_mtu => $new_local_mtu }});
+
+	print " - Local:  [".$anvil->data->{sys}{target_interface}{device}."] now set with MTU: [".$new_local_mtu."]\n";
+	if ($test_mtu ne $new_local_mtu)
+	{
+		print "Too high.\n";
+		print "[ Note ] - I was unable to bump the MTU up to: [".$test_mtu."] on remote.\n";
+		print "[ Note ] - Still at an MTU of: [".$new_remote_mtu."].\n";
+		return($ok);
+	}
+	
+	my $ping_size = $test_mtu - $anvil->data->{sys}{icmp_overhead};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ping_size => $ping_size }});
+	print " - Pinging: [".$anvil->data->{switches}{target}."] with a single packet of: [".$ping_size."] bytes.\n";
+	
+	my $success = ping_remote($anvil, $ping_size);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+	if ($success)
+	{
+		$ok                             = 1;
+		$anvil->data->{sys}{fail_count} = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ok                => $ok,
+			"sys::fail_count" => $anvil->data->{sys}{fail_count},
+		}});
+		print " - ICMP payload delivered in one packet, MTU appears valid!\n";
+		print "OK!\n";
+	}
+	else
+	{
+		$anvil->data->{sys}{fail_count}++;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::fail_count" => $anvil->data->{sys}{fail_count},
+		}});
+		if ($anvil->data->{sys}{fail_count} > $anvil->data->{sys}{fail_limit})
+		{
+			print "Failed!\n";
+			print "[ Warning ] - ICMP payload delivery failed, MTU appears invalid!\n";
+			return($ok);
+		}
+		else
+		{
+			print "Failed! [".$anvil->data->{sys}{fail_count}."/".$anvil->data->{sys}{fail_limit}."]\n";
+			print "[ Warning ] - ICMP payload delivery failed!\n";
+			print "[ Note ]    - Failure count below limit: [".$anvil->data->{sys}{fail_count}."/".$anvil->data->{sys}{fail_limit}."].\n";
+			print "[ Note ]    - Retrying in one second in case of transient network traffic.\n";
+			sleep 1;
+			$ok = set_mtu_and_ping($anvil, $test_mtu, 1);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ok => $ok }});
+		}
+	}
+	
+	return($ok);
+}
+
+sub ping_remote
+{
+	my ($anvil, $size) = @_;
+	
+	# Do a single, non-fragmenting ping.
+	my $success    = 0;
+	my $shell_call = $anvil->data->{path}{exe}{ping}." ".$anvil->data->{switches}{target}." -w 1 -M do -c 1 -s ".$size;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /0% packet loss/)
+		{
+			$success = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+			last;
+		}
+	}
+
+	return ($success);
+}
+
+sub alter_mtu
+{
+	my ($anvil, $where, $mtu) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		where => $where, 
+		mtu   => $mtu, 
+	}});
+	
+	my $hash_key = $where eq "local" ? "source_interface" : "target_interface";
+	my $device   = $anvil->data->{sys}{$hash_key}{device};
+	my $name     = $anvil->data->{sys}{$hash_key}{name} ? $anvil->data->{sys}{$hash_key}{name} : $anvil->data->{sys}{$hash_key}{device};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		hash_key => $hash_key,
+		device   => $device, 
+		name     => $name, 
+	}});
+	
+	my $network = "";
+	if ($device =~ /^(.*?n\d+)_/)
+	{
+		$network = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+	}
+	
+	# Alter the MTU. To handle bonds and bridges, we'll loop through all devices with the target device's prefix (if applicable).
+	my $new_mtu = "";
+	if ($where eq "remote")
+	{
+		# Remove call.
+		if ($network)
+		{
+			# Call once for all interfaces.
+			my $host = $anvil->data->{switches}{target};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+				next if $interface !~ /^${network}_/;
+				
+				my $name       = $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME} ? $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME} : $interface;
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify \"".$name."\" 802-3-ethernet.mtu ".$mtu." && ".$anvil->data->{path}{exe}{nmcli}." connection up \"".$name."\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					target     => $anvil->data->{switches}{target}, 
+					password   => $anvil->data->{switches}{password},
+					shell_call => $shell_call,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					error       => $error, 
+					return_code => $return_code,
+				}});
+			}
+		}
+		else
+		{
+			my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify \"".$name."\" 802-3-ethernet.mtu ".$mtu." && ".$anvil->data->{path}{exe}{nmcli}." connection up \"".$name."\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $error, $return_code) = $anvil->Remote->call({
+				target     => $anvil->data->{switches}{target}, 
+				password   => $anvil->data->{switches}{password},
+				shell_call => $shell_call,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				error       => $error, 
+				return_code => $return_code,
+			}});
+		}
+		
+		# Check that the MTU is now what we want
+		my $shell_call = $anvil->data->{path}{exe}{ip}." addr list ".$device;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $anvil->data->{switches}{target}, 
+			password   => $anvil->data->{switches}{password},
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			error       => $error, 
+			return_code => $return_code,
+		}});
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /mtu (\d+) /)
+			{
+				$new_mtu = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_mtu => $new_mtu }});
+				last;
+			}
+		}
+	}
+	else
+	{
+		# Local call
+		if ($network)
+		{
+			# Call once for all interfaces.
+			my $host = $anvil->Get->short_host_name();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+				next if $interface !~ /^${network}_/;
+				
+				my $name       = $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME} ? $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME} : $interface;
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify \"".$name."\" 802-3-ethernet.mtu ".$mtu." && ".$anvil->data->{path}{exe}{nmcli}." connection up \"".$name."\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+		}
+		else
+		{
+			my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify \"".$name."\" 802-3-ethernet.mtu ".$mtu." && ".$anvil->data->{path}{exe}{nmcli}." connection up \"".$name."\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
+		
+		my $shell_call = $anvil->data->{path}{exe}{ip}." addr list ".$device;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /mtu (\d+) /)
+			{
+				$new_mtu = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_mtu => $new_mtu }});
+				last;
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		new_mtu => $new_mtu,
+		mtu     => $mtu, 
+	}});
+	if ($new_mtu ne $mtu)
+	{
+		# Failed.
+		print "[ Warning ] - Failed to set the ".$where." device: [".$device."] to have an MTU of: [".$mtu."]\n";
+		print "[ Warning ] - Detected current MTU as: [".$new_mtu."]\n";
+	}
+	
+	return ($new_mtu);
+}
+
+sub round_to_100
+{
+	my ($anvil, $number) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	
+	$number = sprintf("%.0f", $number);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	
+	my $diff = ($number % 100);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { diff => $diff }});
+	if ($diff >= 50)
+	{
+		$number += (100 - $diff);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	}
+	else
+	{
+		$number -= $diff;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	}
+	
+	return ($number);
+}
+
+sub checks
+{
+	my ($anvil) = @_;
+	
+	if ((not $anvil->data->{switches}{source}) or (not $anvil->data->{switches}{target}))
+	{
+		print "Usage: ".$THIS_FILE." --source <local ip> --target <peer IP>\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	if (not $anvil->Validate->ip({ip => $anvil->data->{switches}{source}}))
+	{
+		print "The source IP: [".$anvil->data->{switches}{source}."] does not appear to be valid.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if (not $anvil->Validate->ip({ip => $anvil->data->{switches}{target}}))
+	{
+		print "The target IP: [".$anvil->data->{switches}{target}."] does not appear to be valid.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $access = $anvil->Remote->test_access({
+		target   => $anvil->data->{switches}{target}, 
+		password => $anvil->data->{switches}{password},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+	if ($access)
+	{
+		if (not $anvil->data->{switches}{y})
+		{
+			print "[ OK ]      - Access to: [".$anvil->data->{switches}{target}."] confirmed.\n";
+		}
+	}
+	else
+	{
+		if ($anvil->data->{switches}{password})
+		{
+			print "Failed to log into the target: [".$anvil->data->{switches}{target}."]. Was the password correct?\n";
+		}
+		else
+		{
+			print "Failed to log into the target: [".$anvil->data->{switches}{target}."]. If passwordless access is not configured, you can set the password with '--passord <secret>'.\n";
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if (($anvil->data->{switches}{'max-mtu'}) && (($anvil->data->{switches}{'max-mtu'} =~ /\D/) or ($anvil->data->{switches}{'max-mtu'} < 1500)))
+	{
+		print "The maximum MTU size: [".$anvil->data->{switches}{'max-mtu'}."] is invalid. It must be a whole number greater than 1500.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Make sure 'iperf3' is installed on both machines.
+	if (not -e $anvil->data->{path}{exe}{iperf3})
+	{
+		print "It appears that 'iperf3' is not installed on this system.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	my $shell_call = "if [ -e '".$anvil->data->{path}{exe}{iperf3}."' ]; then echo installed; else echo missing; fi";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		target     => $anvil->data->{switches}{target}, 
+		password   => $anvil->data->{switches}{password},
+		shell_call => $shell_call,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		error       => $error, 
+		return_code => $return_code,
+	}});
+	if ($output ne "installed")
+	{
+		print "It appears that 'iperf3' is not installed on this target.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $anvil->data->{switches}{y})
+	{
+		print "[ OK ]      - Both source and target have 'iperf3' installed'\n";
+	}
+	
+	# Get the device name of the interfaces with the IPs.
+	my $host_name = $anvil->Get->short_host_name();
+	my $target_ip = $anvil->data->{switches}{target};
+	$anvil->Network->get_ips({target => $host_name});
+	$anvil->Network->get_ips({
+		target   => $target_ip,
+		password => $anvil->data->{switches}{password}, 
+	});
+	$anvil->data->{sys}{source_interface}{device} = "";
+	$anvil->data->{sys}{source_interface}{name}   = "";
+	$anvil->data->{sys}{target_interface}{device} = "";
+	$anvil->data->{sys}{target_interface}{name}   = "";
+	foreach my $host ($host_name, $target_ip)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
+		{
+			my $this_ip = $anvil->data->{network}{$host}{interface}{$interface}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_ip => $this_ip }});
+			if ($this_ip eq $anvil->data->{switches}{source})
+			{
+				$anvil->data->{sys}{source_interface}{device} = $interface;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::source_interface::device" => $anvil->data->{sys}{source_interface}{device},
+				}});
+				
+				if (exists $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME})
+				{
+					$anvil->data->{sys}{source_interface}{name} = $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"sys::source_interface::name" => $anvil->data->{sys}{source_interface}{name},
+					}});
+				}
+				else
+				{
+					$anvil->data->{sys}{source_interface}{name} = $interface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"sys::source_interface::name" => $anvil->data->{sys}{source_interface}{name},
+					}});
+				}
+			}
+			elsif ($this_ip eq $anvil->data->{switches}{target})
+			{
+				$anvil->data->{sys}{target_interface}{device} = $interface;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::target_interface::device" => $anvil->data->{sys}{target_interface}{device},
+				}});
+				
+				if (exists $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME})
+				{
+					$anvil->data->{sys}{target_interface}{name} = $anvil->data->{network}{$host}{interface}{$interface}{variable}{NAME};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"sys::target_interface::name" => $anvil->data->{sys}{target_interface}{name},
+					}});
+				}
+				else
+				{
+					$anvil->data->{sys}{target_interface}{name} = $interface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"sys::target_interface::name" => $anvil->data->{sys}{target_interface}{name},
+					}});
+				}
+			}
+		}
+	}
+	if (not $anvil->data->{sys}{source_interface}{name})
+	{
+		print "Unable to find the local network interface with the IP: [".$anvil->data->{switches}{source}."].\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $anvil->data->{sys}{target_interface}{name})
+	{
+		print "Unable to find the target's network interface with the IP: [".$anvil->data->{switches}{target}."].\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Ask if we can proceed.
+	if (not $anvil->data->{switches}{y})
+	{
+		print "=============================================================================================================
+[ Warning ] - This test will alter the MTU sizes of the network interfaces. In some cases, this could cause 
+              the network to stop working. Any applications that rely on the network could fail (like a 
+              cluster). Do you have direct access to this machine and the target machine to reset the MTU if
+              needed? This test can take up to half an hour to run!
+=============================================================================================================
+[ Note ]    - You can skip this prompt by using '--y'.
+[ Note ]    - You can set the maximum MTU to test with '--max-mtu <bytes>'.
+            - Are you ready to proceed? [n/Y]
+";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+
+		if ((lc($answer) ne "y") && (lc($answer) ne "yes"))
+		{
+			print "Aborting.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	return(0);
+}

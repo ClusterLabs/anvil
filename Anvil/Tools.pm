@@ -1168,6 +1168,7 @@ sub _set_paths
 				ifdown				=>	"/sbin/ifdown",
 				ifup				=>	"/sbin/ifup",
 				ip				=>	"/usr/sbin/ip",
+				iperf3				=>	"/usr/bin/iperf3", 
 				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",
 				ipmitool			=>	"/usr/bin/ipmitool",
 				### NOTE: When Network->manage_firewall() is done, search for and replace all
@@ -1176,6 +1177,7 @@ sub _set_paths
 				iptables			=>	"/usr/sbin/iptables",
 				'iptables-save'			=>	"/usr/sbin/iptables-save",
 				journalctl			=>	"/usr/bin/journalctl",
+				'kill'				=>	"/usr/bin/kill",
 				logger				=>	"/usr/bin/logger",
 				ls				=>	"/usr/bin/ls",
 				lsblk				=>	"/usr/bin/lsblk",
@@ -1203,6 +1205,7 @@ sub _set_paths
 				passwd				=>	"/usr/bin/passwd",
 				pcs				=>	"/usr/sbin/pcs",
 				perccli64			=>	"/opt/MegaRAID/perccli/perccli64",
+				pidof				=>	"/usr/sbin/pidof",
 				ping				=>	"/usr/bin/ping",
 				pg_dump				=>	"/usr/bin/pg_dump",
 				pgrep				=>	"/usr/bin/pgrep",
