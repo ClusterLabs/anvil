@@ -84,25 +84,33 @@ const buildHostName = (
   organizationPrefix: string,
   hostNumber: number,
   domainName: string,
-  existingHostName = '',
 ) =>
   organizationPrefix.length > 0 && hostNumber > 0 && domainName.length > 0
     ? `${organizationPrefix}-striker${pad(hostNumber)}.${domainName}`
-    : existingHostName;
+    : '';
 
 const StrikerInitGeneralForm: FC = () => {
   const [organizationNameInput, setOrganizationNameInput] =
     useState<string>('');
   const [organizationPrefixInput, setOrganizationPrefixInput] =
     useState<string>('');
+  const [
+    isOrganizationPrefixInputUserChanged,
+    setIsOrganizationPrefixInputUserChanged,
+  ] = useState<boolean>(false);
   const [domainNameInput, setDomainNameInput] = useState<string>('');
   const [hostNumberInput, setHostNumberInput] = useState<number>(0);
   const [hostNameInput, setHostNameInput] = useState<string>('');
+  const [isHostNameInputUserChanged, setIsHostNameInputUserChanged] =
+    useState<boolean>(false);
 
   const handleOrganizationNameInputOnChange = createInputOnChangeHandler({
     set: setOrganizationNameInput,
   });
   const handleOrganizationPrefixInputOnChange = createInputOnChangeHandler({
+    postSet: () => {
+      setIsOrganizationPrefixInputUserChanged(true);
+    },
     set: setOrganizationPrefixInput,
   });
   const handleDomainNameInputOnChange = createInputOnChangeHandler({
@@ -113,8 +121,41 @@ const StrikerInitGeneralForm: FC = () => {
     setType: 'number',
   });
   const handleHostNameInputOnChange = createInputOnChangeHandler({
+    postSet: () => {
+      setIsHostNameInputUserChanged(true);
+    },
     set: setHostNameInput,
   });
+  const populateOrganizationPrefixInput = () => {
+    setOrganizationPrefixInput(buildOrganizationPrefix(organizationNameInput));
+  };
+  const populateHostNameInput = () => {
+    setHostNameInput(
+      buildHostName(organizationPrefixInput, hostNumberInput, domainNameInput),
+    );
+  };
+  const createPopulateOnBlurHandler =
+    (
+      {
+        condition = true,
+        toPopulate = '',
+      }: { condition?: boolean; toPopulate?: string },
+      populate: (...args: unknown[]) => void,
+      ...populateArgs: Parameters<typeof populate>
+    ) =>
+    () => {
+      if (condition && toPopulate.length === 0) {
+        populate(...populateArgs);
+      }
+    };
+  const populateOrganizationPrefixInputOnBlur = createPopulateOnBlurHandler(
+    { condition: !isOrganizationPrefixInputUserChanged },
+    populateOrganizationPrefixInput,
+  );
+  const populateHostNameInputOnBlur = createPopulateOnBlurHandler(
+    { condition: !isHostNameInputUserChanged },
+    populateHostNameInput,
+  );
 
   return (
     <MUIBox
@@ -130,13 +171,7 @@ const StrikerInitGeneralForm: FC = () => {
       <OutlinedInputWithLabel
         id="striker-init-general-organization-name"
         inputProps={{
-          onBlur: ({ target: { value } }) => {
-            const newOrganizationName = String(value);
-
-            setOrganizationPrefixInput(
-              buildOrganizationPrefix(newOrganizationName),
-            );
-          },
+          onBlur: populateOrganizationPrefixInputOnBlur,
         }}
         label="Organization name"
         onChange={handleOrganizationNameInputOnChange}
@@ -145,18 +180,7 @@ const StrikerInitGeneralForm: FC = () => {
       <OutlinedInputWithLabel
         id="striker-init-general-organization-prefix"
         inputProps={{
-          onBlur: ({ target: { value } }) => {
-            const newOrganizationPrefix = String(value);
-
-            setHostNameInput(
-              buildHostName(
-                newOrganizationPrefix,
-                hostNumberInput,
-                domainNameInput,
-                hostNameInput,
-              ),
-            );
-          },
+          onBlur: populateHostNameInputOnBlur,
         }}
         label="Organization prefix"
         onChange={handleOrganizationPrefixInputOnChange}
@@ -166,18 +190,7 @@ const StrikerInitGeneralForm: FC = () => {
         id="striker-init-general-domain-name"
         label="Domain name"
         inputProps={{
-          onBlur: ({ target: { value } }) => {
-            const newDomainName = String(value);
-
-            setHostNameInput(
-              buildHostName(
-                organizationPrefixInput,
-                hostNumberInput,
-                newDomainName,
-                hostNameInput,
-              ),
-            );
-          },
+          onBlur: populateHostNameInputOnBlur,
         }}
         onChange={handleDomainNameInputOnChange}
         value={domainNameInput}
@@ -185,18 +198,7 @@ const StrikerInitGeneralForm: FC = () => {
       <OutlinedInputWithLabel
         id="striker-init-general-host-number"
         inputProps={{
-          onBlur: ({ target: { value } }) => {
-            const newHostNumber = parseInt(value, 10);
-
-            setHostNameInput(
-              buildHostName(
-                organizationPrefixInput,
-                newHostNumber,
-                domainNameInput,
-                hostNameInput,
-              ),
-            );
-          },
+          onBlur: populateHostNameInputOnBlur,
         }}
         label="Host number"
         onChange={handleHostNumberInputOnChange}
