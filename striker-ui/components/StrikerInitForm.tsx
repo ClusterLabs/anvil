@@ -1,15 +1,17 @@
 import { Dispatch, FC, SetStateAction, useState } from 'react';
 import { Box as MUIBox } from '@mui/material';
 
+import FlexBox from './FlexBox';
 import NetworkInitForm from './NetworkInitForm';
 import { OutlinedInputProps } from './OutlinedInput';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
+import pad from '../lib/pad';
 import { Panel, PanelHeader } from './Panels';
 import { HeaderText } from './Text';
-import pad from '../lib/pad';
 
 const MAX_ORGANIZATION_PREFIX_LENGTH = 5;
 const MIN_ORGANIZATION_PREFIX_LENGTH = 2;
+const MAX_HOST_NUMBER_LENGTH = 2;
 
 const MAP_TO_ORGANIZATION_PREFIX_BUILDER: Record<
   number,
@@ -161,55 +163,91 @@ const StrikerInitGeneralForm: FC = () => {
     <MUIBox
       sx={{
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: { xs: 'column', sm: 'row' },
+
+        '& > *': {
+          flexBasis: '50%',
+        },
 
         '& > :not(:first-child)': {
-          marginTop: '1em',
+          marginLeft: { xs: 0, sm: '1em' },
+          marginTop: { xs: '1em', sm: 0 },
         },
       }}
     >
-      <OutlinedInputWithLabel
-        id="striker-init-general-organization-name"
-        inputProps={{
-          onBlur: populateOrganizationPrefixInputOnBlur,
-        }}
-        label="Organization name"
-        onChange={handleOrganizationNameInputOnChange}
-        value={organizationNameInput}
-      />
-      <OutlinedInputWithLabel
-        id="striker-init-general-organization-prefix"
-        inputProps={{
-          onBlur: populateHostNameInputOnBlur,
-        }}
-        label="Organization prefix"
-        onChange={handleOrganizationPrefixInputOnChange}
-        value={organizationPrefixInput}
-      />
-      <OutlinedInputWithLabel
-        id="striker-init-general-domain-name"
-        label="Domain name"
-        inputProps={{
-          onBlur: populateHostNameInputOnBlur,
-        }}
-        onChange={handleDomainNameInputOnChange}
-        value={domainNameInput}
-      />
-      <OutlinedInputWithLabel
-        id="striker-init-general-host-number"
-        inputProps={{
-          onBlur: populateHostNameInputOnBlur,
-        }}
-        label="Host number"
-        onChange={handleHostNumberInputOnChange}
-        value={hostNumberInput}
-      />
-      <OutlinedInputWithLabel
-        id="striker-init-general-host-name"
-        label="Host name"
-        onChange={handleHostNameInputOnChange}
-        value={hostNameInput}
-      />
+      <FlexBox>
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: 'Name of the organization that maintains this Anvil! system. You can enter anything that makes sense to you.',
+          }}
+          id="striker-init-general-organization-name"
+          inputProps={{
+            onBlur: populateOrganizationPrefixInputOnBlur,
+          }}
+          label="Organization name"
+          onChange={handleOrganizationNameInputOnChange}
+          value={organizationNameInput}
+        />
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
+          }}
+          id="striker-init-general-organization-prefix"
+          inputProps={{
+            inputProps: { maxLength: MAX_ORGANIZATION_PREFIX_LENGTH },
+            onBlur: populateHostNameInputOnBlur,
+            sx: {
+              width: '8em',
+            },
+          }}
+          label="Prefix"
+          onChange={handleOrganizationPrefixInputOnChange}
+          value={organizationPrefixInput}
+        />
+      </FlexBox>
+      <FlexBox>
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: "Domain name for this striker. It's also the default domain used when creating new install manifests.",
+          }}
+          id="striker-init-general-domain-name"
+          inputProps={{
+            onBlur: populateHostNameInputOnBlur,
+            sx: {
+              minWidth: { sm: '16em' },
+              width: { xs: '100%', sm: '50%' },
+            },
+          }}
+          label="Domain name"
+          onChange={handleDomainNameInputOnChange}
+          value={domainNameInput}
+        />
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: "Number or count of this striker; this should be '1' for the first striker, '2' for the second striker, and such.",
+          }}
+          id="striker-init-general-host-number"
+          inputProps={{
+            inputProps: { maxLength: MAX_HOST_NUMBER_LENGTH },
+            onBlur: populateHostNameInputOnBlur,
+            sx: {
+              width: '5em',
+            },
+          }}
+          label="Host #"
+          onChange={handleHostNumberInputOnChange}
+          value={hostNumberInput}
+        />
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: "Host name for this striker. It's usually a good idea to use the auto-generated value.",
+          }}
+          id="striker-init-general-host-name"
+          label="Host name"
+          onChange={handleHostNameInputOnChange}
+          value={hostNameInput}
+        />
+      </FlexBox>
     </MUIBox>
   );
 };
@@ -219,17 +257,10 @@ const StrikerInitForm: FC = () => (
     <PanelHeader>
       <HeaderText text="Initialize striker" />
     </PanelHeader>
-    <MUIBox
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-
-        '& > :not(:first-child)': { marginTop: '1em' },
-      }}
-    >
+    <FlexBox>
       <StrikerInitGeneralForm />
       <NetworkInitForm />
-    </MUIBox>
+    </FlexBox>
   </Panel>
 );
 
