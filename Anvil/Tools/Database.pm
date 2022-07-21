@@ -997,7 +997,7 @@ sub configure_pgsql
 		}
 	}
 	
-	# Do user and DB checks only if we're made a change above.
+	# Do user and DB checks only if we've made a change above.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		's1:initialized'            => $initialized,
 		's2:update_postgresql_file' => $update_postgresql_file, 
@@ -1362,7 +1362,7 @@ sub connect
 	# This method just returns if nothing is needed.
 	if (($local_host_type eq "striker") && ($check_if_configured) && ($< == 0) && ($> == 0))
 	{
-		$anvil->Database->configure_pgsql({debug => $debug, uuid => $local_host_uuid});
+		$anvil->Database->configure_pgsql({debug => 2, uuid => $local_host_uuid});
 	}
 	
 	# Now setup or however-many connections

@@ -766,7 +766,7 @@ In this case, C<< $switches >> would contain C<< -vv --log-secure >>.
 
 B<< Note >>: The string returned is padded with a leading space so that this method can be called directly after the executable. Example;
 
- my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}.$anvil->Log->switches();
+ my $shell_call = $anvil->data->{path}{exe}{'anvil-provision-server'}.$anvil->Log->switches();
 
 This method takes no parameters.
 
