@@ -1,7 +1,13 @@
+import { FC, useState } from 'react';
 import {
   FormControl as MUIFormControl,
   FormControlProps as MUIFormControlProps,
+  IconButton as MUIIconButton,
+  InputAdornment as MUIInputAdornment,
 } from '@mui/material';
+import { QuestionMark as MUIQuestionMarkIcon } from '@mui/icons-material';
+
+import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 import InputMessageBox from './InputMessageBox';
 import { MessageBoxProps } from './MessageBox';
@@ -12,6 +18,7 @@ import OutlinedInputLabel, {
 
 type OutlinedInputWithLabelOptionalProps = {
   formControlProps?: Partial<MUIFormControlProps>;
+  helpMessageBoxProps?: Partial<MessageBoxProps>;
   id?: string;
   inputProps?: Partial<OutlinedInputProps>;
   inputLabelProps?: Partial<OutlinedInputLabelProps>;
@@ -29,6 +36,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
 > &
   Pick<OutlinedInputWithLabelOptionalProps, 'onChange'> = {
   formControlProps: {},
+  helpMessageBoxProps: {},
   id: '',
   inputProps: {},
   inputLabelProps: {},
@@ -37,33 +45,82 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
   value: '',
 };
 
-const OutlinedInputWithLabel = ({
+const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   formControlProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.formControlProps,
+  helpMessageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.helpMessageBoxProps,
   id = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.id,
-  inputProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputProps,
+  inputProps: {
+    endAdornment,
+    ...restInputProps
+  } = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputProps,
   inputLabelProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputLabelProps,
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
   onChange,
   value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
-}: OutlinedInputWithLabelProps): JSX.Element => (
-  <MUIFormControl {...formControlProps}>
-    <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
-      {label}
-    </OutlinedInputLabel>
-    <OutlinedInput
-      {...{
-        fullWidth: formControlProps.fullWidth,
-        id,
-        label,
-        onChange,
-        value,
-        ...inputProps,
-      }}
-    />
-    <InputMessageBox {...messageBoxProps} />
-  </MUIFormControl>
-);
+}) => {
+  const { text: helpText } = helpMessageBoxProps;
+
+  const [isShowHelp, setIsShowHelp] = useState<boolean>(false);
+
+  return (
+    <MUIFormControl {...formControlProps}>
+      <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
+        {label}
+      </OutlinedInputLabel>
+      <OutlinedInput
+        {...{
+          endAdornment: (
+            <MUIInputAdornment
+              position="end"
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+
+                '& > :not(:first-child)': {
+                  marginLeft: '.3em',
+                },
+              }}
+            >
+              {endAdornment}
+              {helpText && (
+                <MUIIconButton
+                  onClick={() => {
+                    setIsShowHelp(true);
+                  }}
+                  sx={{
+                    color: GREY,
+                    padding: '.1em',
+                  }}
+                >
+                  <MUIQuestionMarkIcon />
+                </MUIIconButton>
+              )}
+            </MUIInputAdornment>
+          ),
+          fullWidth: formControlProps.fullWidth,
+          id,
+          label,
+          onChange,
+          value,
+          ...restInputProps,
+        }}
+      />
+      {isShowHelp && (
+        <InputMessageBox
+          {...{
+            onClose: () => {
+              setIsShowHelp(false);
+            },
+
+            ...helpMessageBoxProps,
+          }}
+        />
+      )}
+      <InputMessageBox {...messageBoxProps} />
+    </MUIFormControl>
+  );
+};
 
 OutlinedInputWithLabel.defaultProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS;
 

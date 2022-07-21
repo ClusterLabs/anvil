@@ -6,7 +6,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Box, Dialog, DialogProps, Grid, InputAdornment } from '@mui/material';
+import { Box, Dialog, DialogProps, Grid } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
@@ -251,17 +251,14 @@ const createMaxValueButton = (
     onButtonClick?: ContainedButtonProps['onClick'];
   },
 ) => (
-  <InputAdornment position="end">
-    <ContainedButton
-      disabled={onButtonClick === undefined}
-      onClick={onButtonClick}
-      sx={{
-        marginLeft: '14px',
-        minWidth: 'unset',
-        whiteSpace: 'nowrap',
-      }}
-    >{`Max: ${maxValue}`}</ContainedButton>
-  </InputAdornment>
+  <ContainedButton
+    disabled={onButtonClick === undefined}
+    onClick={onButtonClick}
+    sx={{
+      minWidth: 'unset',
+      whiteSpace: 'nowrap',
+    }}
+  >{`Max: ${maxValue}`}</ContainedButton>
 );
 
 const createSelectItemDisplay = ({
