@@ -1,10 +1,15 @@
 import { FC, useState } from 'react';
-import { Box, BoxProps, IconButton } from '@mui/material';
 import {
-  Close as CloseIcon,
-  Error as ErrorIcon,
-  Info as InfoIcon,
-  Warning as WarningIcon,
+  Box as MUIBox,
+  BoxProps as MUIBoxProps,
+  IconButton as MUIIconButton,
+  IconButtonProps as MUIIconButtonProps,
+} from '@mui/material';
+import {
+  Close as MUICloseIcon,
+  Error as MUIErrorIcon,
+  Info as MUIInfoIcon,
+  Warning as MUIWarningIcon,
 } from '@mui/icons-material';
 
 import {
@@ -21,11 +26,14 @@ import { BodyText } from './Text';
 type MessageBoxType = 'error' | 'info' | 'warning';
 
 type MessageBoxOptionalProps = {
+  isShowInitially?: boolean;
   isAllowClose?: boolean;
+  onClose?: MUIIconButtonProps['onClick'];
+  onCloseAppend?: MUIIconButtonProps['onClick'];
   type?: MessageBoxType;
 };
 
-type MessageBoxProps = BoxProps &
+type MessageBoxProps = MUIBoxProps &
   MessageBoxOptionalProps & {
     text: string;
   };
@@ -39,25 +47,36 @@ const MESSAGE_BOX_CLASSES: Record<MessageBoxType, string> = {
 };
 
 const MESSAGE_BOX_TYPE_MAP_TO_ICON = {
-  error: <ErrorIcon />,
-  info: <InfoIcon />,
-  warning: <WarningIcon />,
+  error: <MUIErrorIcon />,
+  info: <MUIInfoIcon />,
+  warning: <MUIWarningIcon />,
 };
 
-const MESSAGE_BOX_DEFAULT_PROPS: Required<MessageBoxOptionalProps> = {
+const MESSAGE_BOX_DEFAULT_PROPS: Required<
+  Omit<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend'>
+> &
+  Pick<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend'> = {
+  isShowInitially: true,
   isAllowClose: false,
+  onClose: undefined,
+  onCloseAppend: undefined,
   type: 'info',
 };
 
 const MessageBox: FC<MessageBoxProps> = ({
   isAllowClose,
+  isShowInitially = MESSAGE_BOX_DEFAULT_PROPS.isShowInitially,
+  onClose,
+  onCloseAppend,
   type = MESSAGE_BOX_DEFAULT_PROPS.type,
   text,
   ...boxProps
 }) => {
   const { sx: boxSx } = boxProps;
 
-  const [isShow, setIsShow] = useState<boolean>(true);
+  const [isShow, setIsShow] = useState<boolean>(isShowInitially);
+
+  const isShowCloseButton = isAllowClose || onClose || onCloseAppend;
 
   const buildMessageBoxClasses = (messageBoxType: MessageBoxType) =>
     MESSAGE_BOX_CLASSES[messageBoxType];
@@ -71,7 +90,7 @@ const MessageBox: FC<MessageBoxProps> = ({
     <BodyText inverted={messageBoxType === 'info'} text={message} />
   );
 
-  const combinedBoxSx: BoxProps['sx'] = {
+  const combinedBoxSx: MUIBoxProps['sx'] = {
     alignItems: 'center',
     borderRadius: BORDER_RADIUS,
     display: 'flex',
@@ -110,7 +129,7 @@ const MessageBox: FC<MessageBoxProps> = ({
   };
 
   return isShow ? (
-    <Box
+    <MUIBox
       {...{
         ...boxProps,
         className: buildMessageBoxClasses(type),
@@ -119,16 +138,20 @@ const MessageBox: FC<MessageBoxProps> = ({
     >
       {buildMessageIcon(type)}
       {buildMessage(text, type)}
-      {isAllowClose && (
-        <IconButton
-          onClick={() => {
-            setIsShow(false);
-          }}
+      {isShowCloseButton && (
+        <MUIIconButton
+          onClick={
+            onClose ??
+            ((...args) => {
+              setIsShow(false);
+              onCloseAppend?.call(null, ...args);
+            })
+          }
         >
-          <CloseIcon sx={{ fontSize: '1.25rem' }} />
-        </IconButton>
+          <MUICloseIcon sx={{ fontSize: '1.25rem' }} />
+        </MUIIconButton>
       )}
-    </Box>
+    </MUIBox>
   ) : (
     <></>
   );
