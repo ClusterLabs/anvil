@@ -92,6 +92,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
                     color: GREY,
                     padding: '.1em',
                   }}
+                  tabIndex={-1}
                 >
                   <MUIQuestionMarkIcon />
                 </MUIIconButton>
