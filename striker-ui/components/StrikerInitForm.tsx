@@ -1,6 +1,7 @@
 import { Dispatch, FC, SetStateAction, useState } from 'react';
 import { Box as MUIBox } from '@mui/material';
 
+import ContainedButton, { ContainedButtonProps } from './ContainedButton';
 import FlexBox from './FlexBox';
 import NetworkInitForm from './NetworkInitForm';
 import { OutlinedInputProps } from './OutlinedInput';
@@ -37,6 +38,10 @@ export type MapToValueConverter = {
   [TypeName in keyof MapToType]: (value: unknown) => MapToType[TypeName];
 };
 
+export type MapToValueIsEmptyFunction = {
+  [TypeName in keyof MapToType]: (value: MapToType[TypeName]) => boolean;
+};
+
 export type InputOnChangeParameters = Parameters<
   Exclude<OutlinedInputProps['onChange'], undefined>
 >;
@@ -44,6 +49,11 @@ export type InputOnChangeParameters = Parameters<
 const MAP_TO_VALUE_CONVERTER: MapToValueConverter = {
   number: (value) => parseInt(String(value), 10) || 0,
   string: (value) => String(value),
+};
+
+const MAP_TO_VALUE_IS_EMPTY_FUNCTION: MapToValueIsEmptyFunction = {
+  number: (value: number) => value === 0,
+  string: (value: string) => value.trim().length === 0,
 };
 
 const createInputOnChangeHandler =
@@ -71,6 +81,36 @@ const createInputOnChangeHandler =
     postSet?.call(null, event);
   };
 
+const isEmpty = <TypeName extends keyof MapToType>(
+  values: Array<MapToType[TypeName]>,
+  { not, fn = 'every' }: { not?: boolean; fn?: 'every' | 'some' },
+) =>
+  values[fn]((value) => {
+    const type = typeof value as TypeName;
+
+    let result = MAP_TO_VALUE_IS_EMPTY_FUNCTION[type](value);
+
+    if (not) {
+      result = !result;
+    }
+
+    return result;
+  });
+
+const createFunction = (
+  {
+    conditionFn = () => true,
+    str = '',
+    condition = conditionFn() && str.length === 0,
+  }: {
+    condition?: boolean;
+    conditionFn?: (...args: unknown[]) => boolean;
+    str?: string;
+  },
+  fn: () => unknown,
+  ...fnArgs: Parameters<typeof fn>
+) => (condition ? fn.bind(null, ...fnArgs) : undefined);
+
 const buildOrganizationPrefix = (organizationName: string) => {
   const words: string[] = organizationName
     .split(/\s/)
@@ -87,9 +127,16 @@ const buildHostName = (
   hostNumber: number,
   domainName: string,
 ) =>
-  organizationPrefix.length > 0 && hostNumber > 0 && domainName.length > 0
+  isEmpty([organizationPrefix, hostNumber, domainName], { not: true })
     ? `${organizationPrefix}-striker${pad(hostNumber)}.${domainName}`
     : '';
+
+const SuggestButton: FC<ContainedButtonProps> = ({ onClick, ...restProps }) =>
+  onClick ? (
+    <ContainedButton {...{ onClick, ...restProps }}>Suggest</ContainedButton>
+  ) : (
+    <></>
+  );
 
 const StrikerInitGeneralForm: FC = () => {
   const [organizationNameInput, setOrganizationNameInput] =
@@ -128,34 +175,56 @@ const StrikerInitGeneralForm: FC = () => {
     },
     set: setHostNameInput,
   });
-  const populateOrganizationPrefixInput = () => {
-    setOrganizationPrefixInput(buildOrganizationPrefix(organizationNameInput));
+  const populateOrganizationPrefixInput = ({
+    organizationName = organizationNameInput,
+  } = {}) => {
+    const organizationPrefix = buildOrganizationPrefix(organizationName);
+
+    setOrganizationPrefixInput(organizationPrefix);
+
+    return organizationPrefix;
   };
-  const populateHostNameInput = () => {
-    setHostNameInput(
-      buildHostName(organizationPrefixInput, hostNumberInput, domainNameInput),
-    );
+  const populateHostNameInput = ({
+    organizationPrefix = organizationPrefixInput,
+    hostNumber = hostNumberInput,
+    domainName = domainNameInput,
+  } = {}) => {
+    const hostName = buildHostName(organizationPrefix, hostNumber, domainName);
+
+    setHostNameInput(hostName);
+
+    return hostName;
   };
-  const createPopulateOnBlurHandler =
-    (
-      {
-        condition = true,
-        toPopulate = '',
-      }: { condition?: boolean; toPopulate?: string },
-      populate: (...args: unknown[]) => void,
-      ...populateArgs: Parameters<typeof populate>
-    ) =>
-    () => {
-      if (condition && toPopulate.length === 0) {
-        populate(...populateArgs);
-      }
-    };
-  const populateOrganizationPrefixInputOnBlur = createPopulateOnBlurHandler(
+  const populateOrganizationPrefixInputOnBlur = createFunction(
     { condition: !isOrganizationPrefixInputUserChanged },
     populateOrganizationPrefixInput,
   );
-  const populateHostNameInputOnBlur = createPopulateOnBlurHandler(
+  const populateHostNameInputOnBlur = createFunction(
     { condition: !isHostNameInputUserChanged },
+    populateHostNameInput,
+  );
+  const handleOrganizationPrefixSuggest = createFunction(
+    {
+      conditionFn: () =>
+        isOrganizationPrefixInputUserChanged &&
+        isEmpty([organizationNameInput], { not: true }),
+    },
+    () => {
+      const organizationPrefix = populateOrganizationPrefixInput();
+
+      if (!isHostNameInputUserChanged) {
+        populateHostNameInput({ organizationPrefix });
+      }
+    },
+  );
+  const handlerHostNameSuggest = createFunction(
+    {
+      conditionFn: () =>
+        isHostNameInputUserChanged &&
+        isEmpty([organizationPrefixInput, hostNumberInput, domainNameInput], {
+          not: true,
+        }),
+    },
     populateHostNameInput,
   );
 
@@ -188,22 +257,25 @@ const StrikerInitGeneralForm: FC = () => {
           onChange={handleOrganizationNameInputOnChange}
           value={organizationNameInput}
         />
-        <OutlinedInputWithLabel
-          helpMessageBoxProps={{
-            text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
-          }}
-          id="striker-init-general-organization-prefix"
-          inputProps={{
-            inputProps: { maxLength: MAX_ORGANIZATION_PREFIX_LENGTH },
-            onBlur: populateHostNameInputOnBlur,
-            sx: {
-              width: '8em',
-            },
-          }}
-          label="Prefix"
-          onChange={handleOrganizationPrefixInputOnChange}
-          value={organizationPrefixInput}
-        />
+        <FlexBox row>
+          <OutlinedInputWithLabel
+            helpMessageBoxProps={{
+              text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
+            }}
+            id="striker-init-general-organization-prefix"
+            inputProps={{
+              inputProps: { maxLength: MAX_ORGANIZATION_PREFIX_LENGTH },
+              onBlur: populateHostNameInputOnBlur,
+              sx: {
+                width: '7em',
+              },
+            }}
+            label="Prefix"
+            onChange={handleOrganizationPrefixInputOnChange}
+            value={organizationPrefixInput}
+          />
+          <SuggestButton onClick={handleOrganizationPrefixSuggest} />
+        </FlexBox>
       </FlexBox>
       <FlexBox>
         <OutlinedInputWithLabel
@@ -238,15 +310,18 @@ const StrikerInitGeneralForm: FC = () => {
           onChange={handleHostNumberInputOnChange}
           value={hostNumberInput}
         />
-        <OutlinedInputWithLabel
-          helpMessageBoxProps={{
-            text: "Host name for this striker. It's usually a good idea to use the auto-generated value.",
-          }}
-          id="striker-init-general-host-name"
-          label="Host name"
-          onChange={handleHostNameInputOnChange}
-          value={hostNameInput}
-        />
+        <FlexBox row sx={{ '& > :first-child': { flexGrow: 1 } }}>
+          <OutlinedInputWithLabel
+            helpMessageBoxProps={{
+              text: "Host name for this striker. It's usually a good idea to use the auto-generated value.",
+            }}
+            id="striker-init-general-host-name"
+            label="Host name"
+            onChange={handleHostNameInputOnChange}
+            value={hostNameInput}
+          />
+          <SuggestButton onClick={handlerHostNameSuggest} />
+        </FlexBox>
       </FlexBox>
     </MUIBox>
   );

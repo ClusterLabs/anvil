@@ -26,6 +26,7 @@ const FlexBox: FC<FlexBoxProps> = ({ row: isRow, sx, ...muiBoxRestProps }) => {
 
   if (isRow) {
     rootSxAppend = {
+      alignItems: 'center',
       flexDirection: 'row',
     };
     notFirstChildSxAppend = {
