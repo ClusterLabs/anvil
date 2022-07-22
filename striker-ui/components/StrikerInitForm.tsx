@@ -133,7 +133,9 @@ const buildHostName = (
 
 const SuggestButton: FC<ContainedButtonProps> = ({ onClick, ...restProps }) =>
   onClick ? (
-    <ContainedButton {...{ onClick, ...restProps }}>Suggest</ContainedButton>
+    <ContainedButton {...{ onClick, tabIndex: -1, ...restProps }}>
+      Suggest
+    </ContainedButton>
   ) : (
     <></>
   );
