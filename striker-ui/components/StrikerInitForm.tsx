@@ -259,25 +259,29 @@ const StrikerInitGeneralForm: FC = () => {
           onChange={handleOrganizationNameInputOnChange}
           value={organizationNameInput}
         />
-        <FlexBox row>
-          <OutlinedInputWithLabel
-            helpMessageBoxProps={{
-              text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
-            }}
-            id="striker-init-general-organization-prefix"
-            inputProps={{
-              inputProps: { maxLength: MAX_ORGANIZATION_PREFIX_LENGTH },
-              onBlur: populateHostNameInputOnBlur,
-              sx: {
-                width: '7em',
-              },
-            }}
-            label="Prefix"
-            onChange={handleOrganizationPrefixInputOnChange}
-            value={organizationPrefixInput}
-          />
-          <SuggestButton onClick={handleOrganizationPrefixSuggest} />
-        </FlexBox>
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
+          }}
+          id="striker-init-general-organization-prefix"
+          inputProps={{
+            endAdornment: (
+              <SuggestButton onClick={handleOrganizationPrefixSuggest} />
+            ),
+            inputProps: {
+              maxLength: MAX_ORGANIZATION_PREFIX_LENGTH,
+              style: { width: '2.5em' },
+            },
+            onBlur: populateHostNameInputOnBlur,
+            sx: {
+              minWidth: 'min-content',
+              width: 'fit-content',
+            },
+          }}
+          label="Prefix"
+          onChange={handleOrganizationPrefixInputOnChange}
+          value={organizationPrefixInput}
+        />
       </FlexBox>
       <FlexBox>
         <OutlinedInputWithLabel
@@ -312,18 +316,26 @@ const StrikerInitGeneralForm: FC = () => {
           onChange={handleHostNumberInputOnChange}
           value={hostNumberInput}
         />
-        <FlexBox row sx={{ '& > :first-child': { flexGrow: 1 } }}>
-          <OutlinedInputWithLabel
-            helpMessageBoxProps={{
-              text: "Host name for this striker. It's usually a good idea to use the auto-generated value.",
-            }}
-            id="striker-init-general-host-name"
-            label="Host name"
-            onChange={handleHostNameInputOnChange}
-            value={hostNameInput}
-          />
-          <SuggestButton onClick={handlerHostNameSuggest} />
-        </FlexBox>
+        <OutlinedInputWithLabel
+          helpMessageBoxProps={{
+            text: "Host name for this striker. It's usually a good idea to use the auto-generated value.",
+          }}
+          id="striker-init-general-host-name"
+          inputProps={{
+            endAdornment: <SuggestButton onClick={handlerHostNameSuggest} />,
+            inputProps: {
+              style: {
+                minWidth: '4em',
+              },
+            },
+            sx: {
+              minWidth: 'min-content',
+            },
+          }}
+          label="Host name"
+          onChange={handleHostNameInputOnChange}
+          value={hostNameInput}
+        />
       </FlexBox>
     </MUIBox>
   );
