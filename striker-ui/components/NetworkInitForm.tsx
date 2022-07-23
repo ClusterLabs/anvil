@@ -1,4 +1,3 @@
-import { FC, useEffect, useState } from 'react';
 import {
   Box as MUIBox,
   BoxProps as MUIBoxProps,
@@ -16,6 +15,7 @@ import {
   DataGridProps as MUIDataGridProps,
   gridClasses as muiGridClasses,
 } from '@mui/x-data-grid';
+import { FC, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
@@ -33,14 +33,7 @@ import sumstring from '../lib/sumstring';
 import { BodyText, DataGridCellText } from './Text';
 import IconButton from './IconButton';
 
-export type NetworkInterfaceInputMap = Record<
-  string,
-  {
-    isApplied?: boolean;
-  }
->;
-
-export type NetworkInput = {
+type NetworkInput = {
   inputUUID: string;
   interfaces: (NetworkInterfaceOverviewMetadata | undefined)[];
   ipAddress: string;
@@ -48,6 +41,13 @@ export type NetworkInput = {
   subnetMask: string;
   type: string;
 };
+
+type NetworkInterfaceInputMap = Record<
+  string,
+  {
+    isApplied?: boolean;
+  }
+>;
 
 const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   {
@@ -616,5 +616,7 @@ const NetworkInitForm: FC = () => {
     </MUIBox>
   );
 };
+
+export type { NetworkInput, NetworkInterfaceInputMap };
 
 export default NetworkInitForm;
