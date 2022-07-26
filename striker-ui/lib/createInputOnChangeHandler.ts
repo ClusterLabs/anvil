@@ -1,22 +1,21 @@
+import { InputProps as MUIInputProps } from '@mui/material';
 import { Dispatch, SetStateAction } from 'react';
 
-import { InputProps as MUIInputProps } from '@mui/material';
+import MAP_TO_VALUE_CONVERTER from './consts/MAP_TO_VALUE_CONVERTER';
 
-export type MapToStateSetter = {
-  [TypeName in keyof MapToType]: Dispatch<SetStateAction<MapToType[TypeName]>>;
-};
-
-export type MapToValueConverter = {
-  [TypeName in keyof MapToType]: (value: unknown) => MapToType[TypeName];
-};
-
-export type InputOnChangeParameters = Parameters<
+type InputOnChangeParameters = Parameters<
   Exclude<MUIInputProps['onChange'], undefined>
 >;
 
-const MAP_TO_VALUE_CONVERTER: MapToValueConverter = {
-  number: (value) => parseInt(String(value), 10) || 0,
-  string: (value) => String(value),
+type MapToStateSetter = {
+  [TypeName in keyof MapToType]: Dispatch<SetStateAction<MapToType[TypeName]>>;
+};
+
+type CreateInputOnChangeHandlerOptions<TypeName extends keyof MapToType> = {
+  postSet?: (...args: InputOnChangeParameters) => void;
+  preSet?: (...args: InputOnChangeParameters) => void;
+  set?: MapToStateSetter[TypeName];
+  setType?: TypeName | 'string';
 };
 
 const createInputOnChangeHandler =
@@ -25,12 +24,7 @@ const createInputOnChangeHandler =
     preSet,
     set,
     setType = 'string',
-  }: {
-    postSet?: (...args: InputOnChangeParameters) => void;
-    preSet?: (...args: InputOnChangeParameters) => void;
-    set?: MapToStateSetter[TypeName];
-    setType?: TypeName | 'string';
-  } = {}): MUIInputProps['onChange'] =>
+  }: CreateInputOnChangeHandlerOptions<TypeName> = {}): MUIInputProps['onChange'] =>
   (event) => {
     const {
       target: { value },
@@ -43,5 +37,11 @@ const createInputOnChangeHandler =
     set?.call(null, postConvertValue);
     postSet?.call(null, event);
   };
+
+export type {
+  CreateInputOnChangeHandlerOptions,
+  InputOnChangeParameters,
+  MapToStateSetter,
+};
 
 export default createInputOnChangeHandler;
