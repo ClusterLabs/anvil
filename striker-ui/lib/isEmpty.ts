@@ -1,14 +1,16 @@
 type MapToValueIsEmptyFunction = {
-  [TypeName in keyof MapToType]: (value: MapToType[TypeName]) => boolean;
+  [TypeName in keyof MapToType]: (
+    value: MapToType[TypeName] | undefined,
+  ) => boolean;
 };
 
 const MAP_TO_VALUE_IS_EMPTY_FUNCTION: MapToValueIsEmptyFunction = {
-  number: (value: number) => value === 0,
-  string: (value: string) => value.trim().length === 0,
+  number: (value = 0) => value === 0,
+  string: (value = '') => value.trim().length === 0,
 };
 
 const isEmpty = <TypeName extends keyof MapToType>(
-  values: Array<MapToType[TypeName]>,
+  values: Array<MapToType[TypeName] | undefined>,
   { not, fn = 'every' }: { not?: boolean; fn?: 'every' | 'some' } = {},
 ): boolean =>
   values[fn]((value) => {
