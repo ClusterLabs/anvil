@@ -1,12 +1,16 @@
-import { ForwardedRef, forwardRef, useImperativeHandle, useState } from 'react';
+import {
+  cloneElement,
+  ForwardedRef,
+  forwardRef,
+  ReactElement,
+  useImperativeHandle,
+  useState,
+} from 'react';
 
 import createInputOnChangeHandler, {
   CreateInputOnChangeHandlerOptions,
   MapToStateSetter,
 } from '../lib/createInputOnChangeHandler';
-import OutlinedInputWithLabel, {
-  OutlinedInputWithLabelProps,
-} from './OutlinedInputWithLabel';
 
 type InputWithRefOptionalProps<TypeName extends keyof MapToType> = {
   createInputOnChangeHandlerOptions?: Omit<
@@ -16,8 +20,12 @@ type InputWithRefOptionalProps<TypeName extends keyof MapToType> = {
   valueType?: TypeName | 'string';
 };
 
-type InputWithRefProps<TypeName extends keyof MapToType> =
-  OutlinedInputWithLabelProps & InputWithRefOptionalProps<TypeName>;
+type InputWithRefProps<
+  TypeName extends keyof MapToType,
+  InputComponent extends ReactElement,
+> = InputWithRefOptionalProps<TypeName> & {
+  input: InputComponent;
+};
 
 type InputForwardedRefContent<TypeName extends keyof MapToType> = {
   isChangedByUser?: boolean;
@@ -38,15 +46,15 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
 };
 
 const InputWithRef = forwardRef(
-  <TypeName extends keyof MapToType>(
+  <TypeName extends keyof MapToType, InputComponent extends ReactElement>(
     {
       createInputOnChangeHandlerOptions: {
         postSet: postSetAppend,
         ...restCreateInputOnChangeHandlerOptions
       } = INPUT_WITH_REF_DEFAULT_PROPS.createInputOnChangeHandlerOptions,
+      input,
       valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType,
-      ...restProps
-    }: InputWithRefProps<TypeName>,
+    }: InputWithRefProps<TypeName, InputComponent>,
     ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
   ) => {
     const [value, setValue] = useState<MapToType[TypeName]>(
@@ -74,7 +82,7 @@ const InputWithRef = forwardRef(
       [isChangedByUser, value],
     );
 
-    return <OutlinedInputWithLabel {...{ onChange, value, ...restProps }} />;
+    return cloneElement(input, { ...input.props, onChange, value });
   },
 );
 
