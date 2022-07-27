@@ -2,7 +2,9 @@ import { FC, useRef, useState } from 'react';
 
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
-import GeneralInitForm from './GeneralInitForm';
+import GeneralInitForm, {
+  GeneralInitFormForwardRefContent,
+} from './GeneralInitForm';
 import NetworkInitForm from './NetworkInitForm';
 import { Panel, PanelHeader } from './Panels';
 import { BodyText, HeaderText } from './Text';
@@ -12,7 +14,7 @@ const StrikerInitForm: FC = () => {
     Record<string, unknown> | undefined
   >();
 
-  const generalInitFormRef = useRef();
+  const generalInitFormRef = useRef<GeneralInitFormForwardRefContent>({});
 
   return (
     <Panel>
@@ -25,7 +27,7 @@ const StrikerInitForm: FC = () => {
         <FlexBox row sx={{ flexDirection: 'row-reverse' }}>
           <ContainedButton
             onClick={() => {
-              setRequestBody(generalInitFormRef.current);
+              setRequestBody(generalInitFormRef.current.get?.call(null));
             }}
           >
             Initialize
