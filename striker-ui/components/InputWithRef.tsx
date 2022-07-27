@@ -36,6 +36,7 @@ type InputForwardedRefContent<TypeName extends keyof MapToType> = {
 const MAP_TO_INITIAL_VALUE: MapToType = {
   number: 0,
   string: '',
+  undefined,
 };
 
 const INPUT_WITH_REF_DEFAULT_PROPS: Required<
