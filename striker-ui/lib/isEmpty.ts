@@ -7,6 +7,7 @@ type MapToValueIsEmptyFunction = {
 const MAP_TO_VALUE_IS_EMPTY_FUNCTION: MapToValueIsEmptyFunction = {
   number: (value = 0) => value === 0,
   string: (value = '') => value.trim().length === 0,
+  undefined: () => true,
 };
 
 const isEmpty = <TypeName extends keyof MapToType>(

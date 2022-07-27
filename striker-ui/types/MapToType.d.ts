@@ -1,6 +1,7 @@
 declare type MapToType = {
   number: number;
   string: string;
+  undefined: undefined;
 };
 
 declare type MapToValueConverter = {
