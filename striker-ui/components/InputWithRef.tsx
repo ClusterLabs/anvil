@@ -28,9 +28,9 @@ type InputWithRefProps<
 };
 
 type InputForwardedRefContent<TypeName extends keyof MapToType> = {
-  isChangedByUser?: boolean;
+  getIsChangedByUser?: () => boolean;
+  getValue?: () => MapToType[TypeName];
   setValue?: MapToStateSetter[TypeName];
-  value?: MapToType[TypeName];
 };
 
 const MAP_TO_INITIAL_VALUE: MapToType = {
@@ -76,9 +76,9 @@ const InputWithRef = forwardRef(
     useImperativeHandle(
       ref,
       () => ({
-        isChangedByUser,
+        getIsChangedByUser: () => isChangedByUser,
+        getValue: () => value,
         setValue,
-        value,
       }),
       [isChangedByUser, value],
     );
