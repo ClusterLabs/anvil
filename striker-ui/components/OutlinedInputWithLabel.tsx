@@ -86,7 +86,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
               {helpText && (
                 <MUIIconButton
                   onClick={() => {
-                    setIsShowHelp(true);
+                    setIsShowHelp(!isShowHelp);
                   }}
                   sx={{
                     color: GREY,
