@@ -15,7 +15,18 @@ import {
   DataGridProps as MUIDataGridProps,
   gridClasses as muiGridClasses,
 } from '@mui/x-data-grid';
-import { FC, useEffect, useState } from 'react';
+import {
+  Dispatch,
+  FC,
+  forwardRef,
+  MutableRefObject,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
@@ -24,6 +35,8 @@ import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
+import IconButton from './IconButton';
+import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
@@ -31,14 +44,15 @@ import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
 import { BodyText, DataGridCellText } from './Text';
-import IconButton from './IconButton';
 
 type NetworkInput = {
   inputUUID: string;
   interfaces: (NetworkInterfaceOverviewMetadata | undefined)[];
   ipAddress: string;
-  name: string;
+  ipAddressInputRef?: MutableRefObject<InputForwardedRefContent<'string'>>;
+  name?: string;
   subnetMask: string;
+  subnetMaskInputRef?: MutableRefObject<InputForwardedRefContent<'string'>>;
   type: string;
 };
 
@@ -48,6 +62,15 @@ type NetworkInterfaceInputMap = Record<
     isApplied?: boolean;
   }
 >;
+
+type NetworkInitFormForwardRefContent = {
+  get?: () => {
+    networks: Omit<
+      NetworkInput,
+      'inputUUID' | 'ipAddressInputRef' | 'subnetMaskInputRef'
+    >[];
+  };
+};
 
 const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   {
@@ -89,12 +112,11 @@ const NETWORK_TYPES: Record<string, string> = {
   ifn: 'Internet-Facing Network',
 };
 
-const REQUIRED_NETWORKS = [
+const REQUIRED_NETWORKS: NetworkInput[] = [
   {
     inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
     interfaces: [],
     ipAddress: '10.200.1.1',
-    name: `${NETWORK_TYPES.bcn} 01`,
     subnetMask: '255.255.0.0',
     type: 'bcn',
   },
@@ -102,7 +124,6 @@ const REQUIRED_NETWORKS = [
     inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
     interfaces: [],
     ipAddress: '10.201.1.1',
-    name: `${NETWORK_TYPES.ifn} 01`,
     subnetMask: '255.255.0.0',
     type: 'ifn',
   },
@@ -214,409 +235,490 @@ const createNetworkInterfaceTableColumns = (
   },
 ];
 
-const NetworkInitForm: FC = () => {
+const NetworkForm: FC<{
+  createDropMouseUpHandler: (
+    interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+    interfaceIndex: number,
+  ) => MUIBoxProps['onMouseUp'];
+  getNetworkTypeCount: (targetType: string, lastIndex?: number) => number;
+  networkIndex: number;
+  networkInput: NetworkInput;
+  networkInputs: NetworkInput[];
+  networkInterfaceInputMap: NetworkInterfaceInputMap;
+  optionalNetworkInputsLength: number;
+  setNetworkInputs: Dispatch<SetStateAction<NetworkInput[]>>;
+  setNetworkInterfaceInputMap: Dispatch<
+    SetStateAction<NetworkInterfaceInputMap>
+  >;
+}> = ({
+  createDropMouseUpHandler,
+  getNetworkTypeCount,
+  networkIndex,
+  networkInput,
+  networkInputs,
+  networkInterfaceInputMap,
+  optionalNetworkInputsLength,
+  setNetworkInputs,
+  setNetworkInterfaceInputMap,
+}) => {
   const theme = useTheme();
   const breakpointMedium = useMediaQuery(theme.breakpoints.up('md'));
   const breakpointLarge = useMediaQuery(theme.breakpoints.up('lg'));
 
-  const [dragMousePosition, setDragMousePosition] = useState<{
-    x: number;
-    y: number;
-  }>({ x: 0, y: 0 });
-  const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
-    useState<NetworkInterfaceInputMap>({});
-  const [networkInputs, setNetworkInputs] =
-    useState<NetworkInput[]>(REQUIRED_NETWORKS);
-  const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
-    NetworkInterfaceOverviewMetadata | undefined
-  >();
+  const ipAddressInputRef = useRef<InputForwardedRefContent<'string'>>({});
+  const subnetMaskInputRef = useRef<InputForwardedRefContent<'string'>>({});
 
-  const optionalNetworkInputsLength = networkInputs.length - 2;
+  const { inputUUID, interfaces, ipAddress, subnetMask, type } = networkInput;
 
-  const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
-    NetworkInterfaceOverviewMetadata[]
-  >(`${API_BASE_URL}/network-interface`, {
-    refreshInterval: 2000,
-    onSuccess: (data) => {
-      if (data instanceof Array) {
-        const map = data.reduce<NetworkInterfaceInputMap>(
-          (reduceContainer, { networkInterfaceUUID }) => {
-            reduceContainer[networkInterfaceUUID] =
-              networkInterfaceInputMap[networkInterfaceUUID] ?? {};
+  const isNetworkOptional = networkIndex < optionalNetworkInputsLength;
 
-            return reduceContainer;
+  networkInput.ipAddressInputRef = ipAddressInputRef;
+  networkInput.subnetMaskInputRef = subnetMaskInputRef;
+
+  return (
+    <InnerPanel>
+      <InnerPanelHeader>
+        <SelectWithLabel
+          id={`network-${inputUUID}-name`}
+          isReadOnly={!isNetworkOptional}
+          label="Network name"
+          selectItems={Object.entries(NETWORK_TYPES).map(
+            ([networkType, networkTypeName]) => {
+              let count = getNetworkTypeCount(networkType, networkIndex);
+
+              if (networkType !== type) {
+                count += 1;
+              }
+
+              const displayValue = `${networkTypeName} ${count}`;
+
+              return { value: networkType, displayValue };
+            },
+          )}
+          selectProps={{
+            onChange: ({ target: { value } }) => {
+              networkInput.type = String(value);
+
+              setNetworkInputs([...networkInputs]);
+            },
+            renderValue: breakpointLarge
+              ? undefined
+              : (value) =>
+                  `${String(value).toUpperCase()} ${getNetworkTypeCount(
+                    type,
+                    networkIndex,
+                  )}`,
+            value: type,
+          }}
+        />
+      </InnerPanelHeader>
+      <MUIBox
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          margin: '.6em',
+
+          '& > :not(:first-child)': {
+            marginTop: '1em',
           },
-          {},
-        );
+        }}
+      >
+        {NETWORK_INTERFACE_TEMPLATE.map((linkNumber) => {
+          const linkName = `Link ${linkNumber}`;
+          const networkInterfaceIndex = linkNumber - 1;
+          const networkInterface = interfaces[networkInterfaceIndex];
+          const { networkInterfaceUUID = '' } = networkInterface ?? {};
 
-        setNetworkInterfaceInputMap(map);
-      }
-    },
-  });
+          const emptyDropAreaContent = breakpointMedium ? (
+            <BodyText text="Drop to add interface." />
+          ) : (
+            <MUIAddIcon
+              sx={{
+                alignSelf: 'center',
+                color: GREY,
+              }}
+            />
+          );
 
-  const clearNetworkInterfaceHeld = () => {
-    setNetworkInterfaceHeld(undefined);
-  };
+          return (
+            <MUIBox
+              key={`network-${inputUUID}-link-${linkNumber}`}
+              sx={{
+                alignItems: 'center',
+                display: 'flex',
+                flexDirection: 'row',
 
-  const createNetwork = () => {
-    networkInputs.unshift({
-      inputUUID: uuidv4(),
-      interfaces: [],
-      ipAddress: '',
-      name: '',
-      subnetMask: '',
-      type: '',
+                '& > :not(:first-child)': {
+                  marginLeft: '1em',
+                },
+
+                '& > :last-child': {
+                  flexGrow: 1,
+                },
+              }}
+            >
+              <BodyText sx={{ whiteSpace: 'nowrap' }} text={linkName} />
+              <DropArea
+                onMouseUp={createDropMouseUpHandler?.call(
+                  null,
+                  interfaces,
+                  networkInterfaceIndex,
+                )}
+              >
+                {networkInterface ? (
+                  <BriefNetworkInterface
+                    key={`network-interface-${networkInterfaceUUID}`}
+                    networkInterface={networkInterface}
+                    onClose={() => {
+                      interfaces[networkInterfaceIndex] = undefined;
+                      networkInterfaceInputMap[networkInterfaceUUID].isApplied =
+                        false;
+
+                      setNetworkInterfaceInputMap({
+                        ...networkInterfaceInputMap,
+                      });
+                    }}
+                  />
+                ) : (
+                  emptyDropAreaContent
+                )}
+              </DropArea>
+            </MUIBox>
+          );
+        })}
+        <InputWithRef
+          input={
+            <OutlinedInputWithLabel
+              id={`network-${inputUUID}-ip-address`}
+              label="IP address"
+              value={ipAddress}
+            />
+          }
+          ref={ipAddressInputRef}
+        />
+        <InputWithRef
+          input={
+            <OutlinedInputWithLabel
+              id={`network-${inputUUID}-subnet-mask`}
+              label="Subnet mask"
+              value={subnetMask}
+            />
+          }
+          ref={subnetMaskInputRef}
+        />
+      </MUIBox>
+    </InnerPanel>
+  );
+};
+
+const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
+  (networkInitFormProps, ref) => {
+    const [dragMousePosition, setDragMousePosition] = useState<{
+      x: number;
+      y: number;
+    }>({ x: 0, y: 0 });
+    const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
+      useState<NetworkInterfaceInputMap>({});
+    const [networkInputs, setNetworkInputs] =
+      useState<NetworkInput[]>(REQUIRED_NETWORKS);
+    const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
+      NetworkInterfaceOverviewMetadata | undefined
+    >();
+
+    const optionalNetworkInputsLength = networkInputs.length - 2;
+
+    const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
+      NetworkInterfaceOverviewMetadata[]
+    >(`${API_BASE_URL}/network-interface`, {
+      refreshInterval: 2000,
+      onSuccess: (data) => {
+        if (data instanceof Array) {
+          const map = data.reduce<NetworkInterfaceInputMap>(
+            (reduceContainer, { networkInterfaceUUID }) => {
+              reduceContainer[networkInterfaceUUID] =
+                networkInterfaceInputMap[networkInterfaceUUID] ?? {};
+
+              return reduceContainer;
+            },
+            {},
+          );
+
+          setNetworkInterfaceInputMap(map);
+        }
+      },
     });
 
-    setNetworkInputs([...networkInputs]);
-  };
+    const clearNetworkInterfaceHeld = useCallback(() => {
+      setNetworkInterfaceHeld(undefined);
+    }, []);
 
-  const getNetworkTypeCount = (targetType: string, lastIndex = 0) => {
-    let count = 0;
+    const createNetwork = useCallback(() => {
+      networkInputs.unshift({
+        inputUUID: uuidv4(),
+        interfaces: [],
+        ipAddress: '',
+        name: '',
+        subnetMask: '',
+        type: '',
+      });
 
-    for (let index = networkInputs.length - 1; index >= lastIndex; index -= 1) {
-      if (networkInputs[index].type === targetType) {
-        count += 1;
-      }
-    }
+      setNetworkInputs([...networkInputs]);
+    }, [networkInputs]);
 
-    return count;
-  };
+    const getNetworkTypeCount = useCallback(
+      (targetType: string, lastIndex = 0) => {
+        let count = 0;
 
-  let createDropMouseUpHandler: (
-    interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
-    interfaceIndex: number,
-  ) => MUIBoxProps['onMouseUp'];
-  let dragAreaDraggingSx: MUIBoxProps['sx'] = {};
-  let floatingNetworkInterface: JSX.Element = <></>;
-  let handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'];
-  let handleDragAreaMouseMove: MUIBoxProps['onMouseMove'];
-  let handleDragAreaMouseUp: MUIBoxProps['onMouseUp'];
-
-  if (networkInterfaceHeld) {
-    const { networkInterfaceUUID } = networkInterfaceHeld;
-
-    createDropMouseUpHandler =
-      (
-        interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
-        interfaceIndex: number,
-      ) =>
-      () => {
-        const { networkInterfaceUUID: previousNetworkInterfaceUUID } =
-          interfaces[interfaceIndex] ?? {};
-
-        if (
-          previousNetworkInterfaceUUID &&
-          previousNetworkInterfaceUUID !== networkInterfaceUUID
+        for (
+          let index = networkInputs.length - 1;
+          index >= lastIndex;
+          index -= 1
         ) {
-          networkInterfaceInputMap[previousNetworkInterfaceUUID].isApplied =
-            false;
+          if (networkInputs[index].type === targetType) {
+            count += 1;
+          }
         }
 
-        interfaces[interfaceIndex] = networkInterfaceHeld;
-        networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+        return count;
+      },
+      [networkInputs],
+    );
+
+    let createDropMouseUpHandler: (
+      interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+      interfaceIndex: number,
+    ) => MUIBoxProps['onMouseUp'];
+    let dragAreaDraggingSx: MUIBoxProps['sx'] = {};
+    let floatingNetworkInterface: JSX.Element = <></>;
+    let handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'];
+    let handleDragAreaMouseMove: MUIBoxProps['onMouseMove'];
+    let handleDragAreaMouseUp: MUIBoxProps['onMouseUp'];
+
+    if (networkInterfaceHeld) {
+      const { networkInterfaceUUID } = networkInterfaceHeld;
+
+      createDropMouseUpHandler =
+        (
+          interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+          interfaceIndex: number,
+        ) =>
+        () => {
+          const { networkInterfaceUUID: previousNetworkInterfaceUUID } =
+            interfaces[interfaceIndex] ?? {};
+
+          if (
+            previousNetworkInterfaceUUID &&
+            previousNetworkInterfaceUUID !== networkInterfaceUUID
+          ) {
+            networkInterfaceInputMap[previousNetworkInterfaceUUID].isApplied =
+              false;
+          }
+
+          interfaces[interfaceIndex] = networkInterfaceHeld;
+          networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+        };
+
+      dragAreaDraggingSx = { cursor: 'grabbing' };
+
+      floatingNetworkInterface = (
+        <BriefNetworkInterface
+          isFloating
+          networkInterface={networkInterfaceHeld}
+          sx={{
+            left: `calc(${dragMousePosition.x}px + .4em)`,
+            position: 'absolute',
+            top: `calc(${dragMousePosition.y}px - 1.6em)`,
+            zIndex: 20,
+          }}
+        />
+      );
+
+      handleDragAreaMouseLeave = () => {
+        clearNetworkInterfaceHeld();
       };
 
-    dragAreaDraggingSx = { cursor: 'grabbing' };
-
-    floatingNetworkInterface = (
-      <BriefNetworkInterface
-        isFloating
-        networkInterface={networkInterfaceHeld}
-        sx={{
-          left: `calc(${dragMousePosition.x}px + .4em)`,
-          position: 'absolute',
-          top: `calc(${dragMousePosition.y}px - 1.6em)`,
-          zIndex: 20,
-        }}
-      />
-    );
-
-    handleDragAreaMouseLeave = () => {
-      clearNetworkInterfaceHeld();
-    };
-
-    handleDragAreaMouseMove = ({
-      currentTarget,
-      nativeEvent: { clientX, clientY },
-    }) => {
-      const { left, top } = currentTarget.getBoundingClientRect();
-
-      setDragMousePosition({
-        x: clientX - left,
-        y: clientY - top,
-      });
-    };
-
-    handleDragAreaMouseUp = () => {
-      clearNetworkInterfaceHeld();
-    };
-  }
-
-  useEffect(() => {
-    const map = networkInterfaces.reduce<NetworkInterfaceInputMap>(
-      (reduceContainer, { networkInterfaceUUID }) => {
-        reduceContainer[networkInterfaceUUID] =
-          networkInterfaceInputMap[networkInterfaceUUID] ?? {};
-
-        return reduceContainer;
-      },
-      {},
-    );
-
-    setNetworkInterfaceInputMap(map);
-
-    // This block inits the input map for the MOCK_NICS.
-    // TODO: remove after testing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return isLoading ? (
-    <Spinner />
-  ) : (
-    <MUIBox
-      onMouseDown={({ clientX, clientY, currentTarget }) => {
+      handleDragAreaMouseMove = ({
+        currentTarget,
+        nativeEvent: { clientX, clientY },
+      }) => {
         const { left, top } = currentTarget.getBoundingClientRect();
 
         setDragMousePosition({
           x: clientX - left,
           y: clientY - top,
         });
-      }}
-      onMouseLeave={handleDragAreaMouseLeave}
-      onMouseMove={handleDragAreaMouseMove}
-      onMouseUp={handleDragAreaMouseUp}
-      sx={{ position: 'relative', ...dragAreaDraggingSx }}
-    >
-      {floatingNetworkInterface}
+      };
+
+      handleDragAreaMouseUp = () => {
+        clearNetworkInterfaceHeld();
+      };
+    }
+
+    useEffect(() => {
+      const map = networkInterfaces.reduce<NetworkInterfaceInputMap>(
+        (reduceContainer, { networkInterfaceUUID }) => {
+          reduceContainer[networkInterfaceUUID] =
+            networkInterfaceInputMap[networkInterfaceUUID] ?? {};
+
+          return reduceContainer;
+        },
+        {},
+      );
+
+      setNetworkInterfaceInputMap(map);
+
+      // This block inits the input map for the MOCK_NICS.
+      // TODO: remove after testing.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        get: () => ({
+          networks: networkInputs.map(
+            (
+              { interfaces, ipAddressInputRef, subnetMaskInputRef, type },
+              networkIndex,
+            ) => ({
+              interfaces,
+              ipAddress: ipAddressInputRef?.current.getValue?.call(null) ?? '',
+              name: `${NETWORK_TYPES[type]} ${getNetworkTypeCount(
+                type,
+                networkIndex,
+              )}`,
+              subnetMask:
+                subnetMaskInputRef?.current.getValue?.call(null) ?? '',
+              type,
+            }),
+          ),
+        }),
+      }),
+      [getNetworkTypeCount, networkInputs],
+    );
+
+    return isLoading ? (
+      <Spinner />
+    ) : (
       <MUIBox
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
+        onMouseDown={({ clientX, clientY, currentTarget }) => {
+          const { left, top } = currentTarget.getBoundingClientRect();
 
-          '& > :not(:first-child, :last-child)': {
-            marginTop: '1em',
-          },
+          setDragMousePosition({
+            x: clientX - left,
+            y: clientY - top,
+          });
         }}
+        onMouseLeave={handleDragAreaMouseLeave}
+        onMouseMove={handleDragAreaMouseMove}
+        onMouseUp={handleDragAreaMouseUp}
+        sx={{ position: 'relative', ...dragAreaDraggingSx }}
       >
-        <MUIDataGrid
-          autoHeight
-          columns={createNetworkInterfaceTableColumns((row) => {
-            setNetworkInterfaceHeld(row);
-          }, networkInterfaceInputMap)}
-          disableColumnMenu
-          disableSelectionOnClick
-          getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
-          hideFooter
-          rows={networkInterfaces}
-          sx={{
-            color: GREY,
-
-            [`& .${muiIconButtonClasses.root}`]: {
-              color: 'inherit',
-            },
-
-            [`& .${muiGridClasses.cell}:focus`]: {
-              outline: 'none',
-            },
-          }}
-        />
+        {floatingNetworkInterface}
         <MUIBox
           sx={{
             display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'center',
-          }}
-        >
-          <IconButton
-            disabled={
-              networkInputs.length >= networkInterfaces.length ||
-              Object.values(networkInterfaceInputMap).every(
-                ({ isApplied }) => isApplied,
-              )
-            }
-            onClick={createNetwork}
-          >
-            <MUIAddIcon />
-          </IconButton>
-        </MUIBox>
-        <MUIBox
-          sx={{
-            alignItems: 'strech',
-            display: 'flex',
-            flexDirection: 'row',
-            overflowX: 'auto',
-            paddingLeft: '.3em',
+            flexDirection: 'column',
 
-            '& > *': {
-              marginBottom: '1em',
+            '& > :not(:first-child, :last-child)': {
               marginTop: '1em',
-              minWidth: '13em',
-              width: '25%',
-            },
-
-            '& > :not(:first-child)': {
-              marginLeft: '1em',
             },
           }}
         >
-          {networkInputs.map((networkInput, networkIndex) => {
-            const { inputUUID, interfaces, ipAddress, subnetMask, type } =
-              networkInput;
-            const isNetworkOptional =
-              networkIndex < optionalNetworkInputsLength;
+          <MUIDataGrid
+            autoHeight
+            columns={createNetworkInterfaceTableColumns((row) => {
+              setNetworkInterfaceHeld(row);
+            }, networkInterfaceInputMap)}
+            disableColumnMenu
+            disableSelectionOnClick
+            getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
+            hideFooter
+            rows={networkInterfaces}
+            sx={{
+              color: GREY,
 
-            return (
-              <InnerPanel key={`network-${inputUUID}`}>
-                <InnerPanelHeader>
-                  <SelectWithLabel
-                    id={`network-${inputUUID}-name`}
-                    isReadOnly={!isNetworkOptional}
-                    label="Network name"
-                    selectItems={Object.entries(NETWORK_TYPES).map(
-                      ([networkType, networkTypeName]) => {
-                        let count = getNetworkTypeCount(
-                          networkType,
-                          networkIndex,
-                        );
+              [`& .${muiIconButtonClasses.root}`]: {
+                color: 'inherit',
+              },
 
-                        if (networkType !== type) {
-                          count += 1;
-                        }
+              [`& .${muiGridClasses.cell}:focus`]: {
+                outline: 'none',
+              },
+            }}
+          />
+          <MUIBox
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}
+          >
+            <IconButton
+              disabled={
+                networkInputs.length >= networkInterfaces.length ||
+                Object.values(networkInterfaceInputMap).every(
+                  ({ isApplied }) => isApplied,
+                )
+              }
+              onClick={createNetwork}
+            >
+              <MUIAddIcon />
+            </IconButton>
+          </MUIBox>
+          <MUIBox
+            sx={{
+              alignItems: 'strech',
+              display: 'flex',
+              flexDirection: 'row',
+              overflowX: 'auto',
+              paddingLeft: '.3em',
 
-                        const displayValue = `${networkTypeName} ${count}`;
+              '& > *': {
+                marginBottom: '1em',
+                marginTop: '1em',
+                minWidth: '13em',
+                width: '25%',
+              },
 
-                        return { value: networkType, displayValue };
-                      },
-                    )}
-                    selectProps={{
-                      onChange: ({ target: { value } }) => {
-                        networkInput.type = String(value);
+              '& > :not(:first-child)': {
+                marginLeft: '1em',
+              },
+            }}
+          >
+            {networkInputs.map((networkInput, networkIndex) => {
+              const { inputUUID } = networkInput;
 
-                        setNetworkInputs([...networkInputs]);
-                      },
-                      renderValue: breakpointLarge
-                        ? undefined
-                        : (value) =>
-                            `${String(
-                              value,
-                            ).toUpperCase()} ${getNetworkTypeCount(
-                              type,
-                              networkIndex,
-                            )}`,
-                      value: type,
-                    }}
-                  />
-                </InnerPanelHeader>
-                <MUIBox
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    margin: '.6em',
-
-                    '& > :not(:first-child)': {
-                      marginTop: '1em',
-                    },
+              return (
+                <NetworkForm
+                  key={`network-${inputUUID}`}
+                  {...{
+                    createDropMouseUpHandler,
+                    getNetworkTypeCount,
+                    networkIndex,
+                    networkInput,
+                    networkInputs,
+                    networkInterfaceInputMap,
+                    optionalNetworkInputsLength,
+                    setNetworkInputs,
+                    setNetworkInterfaceInputMap,
                   }}
-                >
-                  {NETWORK_INTERFACE_TEMPLATE.map((linkNumber) => {
-                    const linkName = `Link ${linkNumber}`;
-                    const networkInterfaceIndex = linkNumber - 1;
-                    const networkInterface = interfaces[networkInterfaceIndex];
-                    const { networkInterfaceUUID = '' } =
-                      networkInterface ?? {};
-
-                    const emptyDropAreaContent = breakpointMedium ? (
-                      <BodyText text="Drop to add interface." />
-                    ) : (
-                      <MUIAddIcon
-                        sx={{
-                          alignSelf: 'center',
-                          color: GREY,
-                        }}
-                      />
-                    );
-
-                    return (
-                      <MUIBox
-                        key={`network-${inputUUID}-link-${linkNumber}`}
-                        sx={{
-                          alignItems: 'center',
-                          display: 'flex',
-                          flexDirection: 'row',
-
-                          '& > :not(:first-child)': {
-                            marginLeft: '1em',
-                          },
-
-                          '& > :last-child': {
-                            flexGrow: 1,
-                          },
-                        }}
-                      >
-                        <BodyText
-                          sx={{ whiteSpace: 'nowrap' }}
-                          text={linkName}
-                        />
-                        <DropArea
-                          onMouseUp={createDropMouseUpHandler?.call(
-                            null,
-                            interfaces,
-                            networkInterfaceIndex,
-                          )}
-                        >
-                          {networkInterface ? (
-                            <BriefNetworkInterface
-                              key={`network-interface-${networkInterfaceUUID}`}
-                              networkInterface={networkInterface}
-                              onClose={() => {
-                                interfaces[networkInterfaceIndex] = undefined;
-                                networkInterfaceInputMap[
-                                  networkInterfaceUUID
-                                ].isApplied = false;
-
-                                setNetworkInterfaceInputMap({
-                                  ...networkInterfaceInputMap,
-                                });
-                              }}
-                            />
-                          ) : (
-                            emptyDropAreaContent
-                          )}
-                        </DropArea>
-                      </MUIBox>
-                    );
-                  })}
-                  <OutlinedInputWithLabel
-                    id={`network-${inputUUID}-ip-address`}
-                    label="IP address"
-                    onChange={({ target: { value } }) => {
-                      networkInput.ipAddress = String(value);
-
-                      setNetworkInputs([...networkInputs]);
-                    }}
-                    value={ipAddress}
-                  />
-                  <OutlinedInputWithLabel
-                    id={`network-${inputUUID}-subnet-mask`}
-                    label="Subnet mask"
-                    onChange={({ target: { value } }) => {
-                      networkInput.subnetMask = String(value);
-
-                      setNetworkInputs([...networkInputs]);
-                    }}
-                    value={subnetMask}
-                  />
-                </MUIBox>
-              </InnerPanel>
-            );
-          })}
+                />
+              );
+            })}
+          </MUIBox>
         </MUIBox>
       </MUIBox>
-    </MUIBox>
-  );
-};
+    );
+  },
+);
 
-export type { NetworkInput, NetworkInterfaceInputMap };
+NetworkInitForm.displayName = 'NetworkInitForm';
+
+export type {
+  NetworkInitFormForwardRefContent,
+  NetworkInput,
+  NetworkInterfaceInputMap,
+};
 
 export default NetworkInitForm;
