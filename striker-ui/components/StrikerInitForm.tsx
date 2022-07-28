@@ -5,7 +5,9 @@ import FlexBox from './FlexBox';
 import GeneralInitForm, {
   GeneralInitFormForwardRefContent,
 } from './GeneralInitForm';
-import NetworkInitForm from './NetworkInitForm';
+import NetworkInitForm, {
+  NetworkInitFormForwardRefContent,
+} from './NetworkInitForm';
 import { Panel, PanelHeader } from './Panels';
 import { BodyText, HeaderText } from './Text';
 
@@ -15,6 +17,7 @@ const StrikerInitForm: FC = () => {
   >();
 
   const generalInitFormRef = useRef<GeneralInitFormForwardRefContent>({});
+  const networkInitFormRef = useRef<NetworkInitFormForwardRefContent>({});
 
   return (
     <Panel>
@@ -23,21 +26,26 @@ const StrikerInitForm: FC = () => {
       </PanelHeader>
       <FlexBox>
         <GeneralInitForm ref={generalInitFormRef} />
-        <NetworkInitForm />
+        <NetworkInitForm ref={networkInitFormRef} />
         <FlexBox row sx={{ flexDirection: 'row-reverse' }}>
           <ContainedButton
             onClick={() => {
-              setRequestBody(generalInitFormRef.current.get?.call(null));
+              setRequestBody({
+                ...(generalInitFormRef.current.get?.call(null) ?? {}),
+                ...(networkInitFormRef.current.get?.call(null) ?? {}),
+              });
             }}
           >
             Initialize
           </ContainedButton>
         </FlexBox>
         {requestBody && (
-          <BodyText
-            sx={{ fontSize: '.8em' }}
-            text={JSON.stringify(requestBody, null, 2)}
-          />
+          <pre>
+            <BodyText
+              sx={{ fontSize: '.8em' }}
+              text={JSON.stringify(requestBody, null, 2)}
+            />
+          </pre>
         )}
       </FlexBox>
     </Panel>
