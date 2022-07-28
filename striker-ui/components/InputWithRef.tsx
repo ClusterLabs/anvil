@@ -59,7 +59,7 @@ const InputWithRef = forwardRef(
     ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
   ) => {
     const [value, setValue] = useState<MapToType[TypeName]>(
-      MAP_TO_INITIAL_VALUE[valueType] as MapToType[TypeName],
+      input.props.value ?? MAP_TO_INITIAL_VALUE[valueType],
     ) as [MapToType[TypeName], MapToStateSetter[TypeName]];
     const [isChangedByUser, setIsChangedByUser] = useState<boolean>(false);
 
