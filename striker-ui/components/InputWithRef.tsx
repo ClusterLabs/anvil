@@ -66,6 +66,7 @@ const InputWithRef = forwardRef(
     const onChange = createInputOnChangeHandler<TypeName>({
       postSet: (...args) => {
         setIsChangedByUser(true);
+        input.props.onChange?.call(null, ...args);
         postSetAppend?.call(null, ...args);
       },
       set: setValue,
