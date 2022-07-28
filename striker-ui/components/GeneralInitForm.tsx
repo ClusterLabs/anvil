@@ -1,11 +1,12 @@
 import { Box as MUIBox } from '@mui/material';
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 
-import createFunction from '../lib/createFunction';
 import FlexBox from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import isEmpty from '../lib/isEmpty';
-import OutlinedInputWithLabel from './OutlinedInputWithLabel';
+import OutlinedInputWithLabel, {
+  OutlinedInputWithLabelProps,
+} from './OutlinedInputWithLabel';
 import pad from '../lib/pad';
 import SuggestButton from './SuggestButton';
 
@@ -18,6 +19,11 @@ type GeneralInitFormForwardRefContent = {
     hostName?: string;
   };
 };
+
+type OutlinedInputWithLabelOnBlur = Exclude<
+  OutlinedInputWithLabelProps['inputProps'],
+  undefined
+>['onBlur'];
 
 const MAX_ORGANIZATION_PREFIX_LENGTH = 5;
 const MIN_ORGANIZATION_PREFIX_LENGTH = 2;
@@ -60,6 +66,13 @@ const buildHostName = ({
 
 const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
   (generalInitFormProps, ref) => {
+    const [
+      isShowOrganizationPrefixSuggest,
+      setIsShowOrganizationPrefixSuggest,
+    ] = useState<boolean>(false);
+    const [isShowHostNameSuggest, setIsShowHostNameSuggest] =
+      useState<boolean>(false);
+
     const organizationNameInputRef = useRef<InputForwardedRefContent<'string'>>(
       {},
     );
@@ -99,51 +112,48 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
 
       return hostName;
     };
-    const populateOrganizationPrefixInputOnBlur = createFunction(
-      {
-        condition:
-          !organizationPrefixInputRef.current.getIsChangedByUser?.call(null),
-      },
-      populateOrganizationPrefixInput,
-    );
-    const populateHostNameInputOnBlur = createFunction(
-      { condition: !hostNameInputRef.current.getIsChangedByUser?.call(null) },
-      populateHostNameInput,
-    );
-    const handleOrganizationPrefixSuggest = createFunction(
-      {
-        conditionFn: () =>
-          organizationPrefixInputRef.current.getIsChangedByUser?.call(null) ===
-            true &&
-          isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
-            not: true,
-          }),
-      },
+    const isOrganizationPrefixPrereqFilled = () =>
+      isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
+        not: true,
+      });
+    const isHostNamePrereqFilled = () =>
+      isEmpty(
+        [
+          organizationPrefixInputRef.current.getValue?.call(null),
+          hostNumberInputRef.current.getValue?.call(null),
+          domainNameInputRef.current.getValue?.call(null),
+        ],
+        {
+          not: true,
+        },
+      );
+    const populateOrganizationPrefixInputOnBlur: OutlinedInputWithLabelOnBlur =
       () => {
-        const organizationPrefix = populateOrganizationPrefixInput();
-
-        if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
-          populateHostNameInput({ organizationPrefix });
+        if (organizationPrefixInputRef.current.getIsChangedByUser?.call(null)) {
+          setIsShowOrganizationPrefixSuggest(
+            isOrganizationPrefixPrereqFilled(),
+          );
+        } else {
+          populateOrganizationPrefixInput();
         }
-      },
-    );
-    const handlerHostNameSuggest = createFunction(
-      {
-        conditionFn: () =>
-          hostNameInputRef.current.getIsChangedByUser?.call(null) === true &&
-          isEmpty(
-            [
-              organizationPrefixInputRef.current.getValue?.call(null),
-              hostNumberInputRef.current.getValue?.call(null),
-              domainNameInputRef.current.getValue?.call(null),
-            ],
-            {
-              not: true,
-            },
-          ),
-      },
-      populateHostNameInput,
-    );
+      };
+    const populateHostNameInputOnBlur: OutlinedInputWithLabelOnBlur = () => {
+      if (hostNameInputRef.current.getIsChangedByUser?.call(null)) {
+        setIsShowHostNameSuggest(isHostNamePrereqFilled());
+      } else {
+        populateHostNameInput();
+      }
+    };
+    const handleOrganizationPrefixSuggest = () => {
+      const organizationPrefix = populateOrganizationPrefixInput();
+
+      if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
+        populateHostNameInput({ organizationPrefix });
+      }
+    };
+    const handlerHostNameSuggest = () => {
+      populateHostNameInput();
+    };
 
     useImperativeHandle(ref, () => ({
       get: () => ({
@@ -188,32 +198,62 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             }
             ref={organizationNameInputRef}
           />
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                helpMessageBoxProps={{
-                  text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
-                }}
-                id="striker-init-general-organization-prefix"
-                inputProps={{
-                  endAdornment: (
-                    <SuggestButton onClick={handleOrganizationPrefixSuggest} />
-                  ),
-                  inputProps: {
-                    maxLength: MAX_ORGANIZATION_PREFIX_LENGTH,
-                    style: { width: '2.5em' },
-                  },
-                  onBlur: populateHostNameInputOnBlur,
-                  sx: {
-                    minWidth: 'min-content',
-                    width: 'fit-content',
-                  },
-                }}
-                label="Prefix"
-              />
-            }
-            ref={organizationPrefixInputRef}
-          />
+          <FlexBox row>
+            <InputWithRef
+              input={
+                <OutlinedInputWithLabel
+                  helpMessageBoxProps={{
+                    text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
+                  }}
+                  id="striker-init-general-organization-prefix"
+                  inputProps={{
+                    endAdornment: (
+                      <SuggestButton
+                        show={isShowOrganizationPrefixSuggest}
+                        onClick={handleOrganizationPrefixSuggest}
+                      />
+                    ),
+                    inputProps: {
+                      maxLength: MAX_ORGANIZATION_PREFIX_LENGTH,
+                      style: { width: '2.5em' },
+                    },
+                    onBlur: populateHostNameInputOnBlur,
+                    sx: {
+                      minWidth: 'min-content',
+                      width: 'fit-content',
+                    },
+                  }}
+                  label="Prefix"
+                  onChange={() => {
+                    setIsShowOrganizationPrefixSuggest(
+                      isOrganizationPrefixPrereqFilled(),
+                    );
+                  }}
+                />
+              }
+              ref={organizationPrefixInputRef}
+            />
+            <InputWithRef
+              input={
+                <OutlinedInputWithLabel
+                  helpMessageBoxProps={{
+                    text: "Number or count of this striker; this should be '1' for the first striker, '2' for the second striker, and such.",
+                  }}
+                  id="striker-init-general-host-number"
+                  inputProps={{
+                    inputProps: { maxLength: MAX_HOST_NUMBER_LENGTH },
+                    onBlur: populateHostNameInputOnBlur,
+                    sx: {
+                      width: '5em',
+                    },
+                  }}
+                  label="Host #"
+                />
+              }
+              ref={hostNumberInputRef}
+              valueType="number"
+            />
+          </FlexBox>
         </FlexBox>
         <FlexBox>
           <InputWithRef
@@ -227,7 +267,6 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   onBlur: populateHostNameInputOnBlur,
                   sx: {
                     minWidth: { sm: '16em' },
-                    width: { xs: '100%', sm: '50%' },
                   },
                 }}
                 label="Domain name"
@@ -235,26 +274,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             }
             ref={domainNameInputRef}
           />
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                helpMessageBoxProps={{
-                  text: "Number or count of this striker; this should be '1' for the first striker, '2' for the second striker, and such.",
-                }}
-                id="striker-init-general-host-number"
-                inputProps={{
-                  inputProps: { maxLength: MAX_HOST_NUMBER_LENGTH },
-                  onBlur: populateHostNameInputOnBlur,
-                  sx: {
-                    width: '5em',
-                  },
-                }}
-                label="Host #"
-              />
-            }
-            ref={hostNumberInputRef}
-            valueType="number"
-          />
+
           <InputWithRef
             input={
               <OutlinedInputWithLabel
@@ -264,7 +284,10 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                 id="striker-init-general-host-name"
                 inputProps={{
                   endAdornment: (
-                    <SuggestButton onClick={handlerHostNameSuggest} />
+                    <SuggestButton
+                      show={isShowHostNameSuggest}
+                      onClick={handlerHostNameSuggest}
+                    />
                   ),
                   inputProps: {
                     style: {
@@ -276,6 +299,9 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   },
                 }}
                 label="Host name"
+                onChange={() => {
+                  setIsShowHostNameSuggest(isHostNamePrereqFilled());
+                }}
               />
             }
             ref={hostNameInputRef}
