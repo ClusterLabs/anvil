@@ -244,7 +244,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                     inputProps: { maxLength: MAX_HOST_NUMBER_LENGTH },
                     onBlur: populateHostNameInputOnBlur,
                     sx: {
-                      width: '5em',
+                      width: '6em',
                     },
                   }}
                   label="Host #"
