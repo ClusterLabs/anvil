@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import {
   Box as MUIBox,
   BoxProps as MUIBoxProps,
@@ -30,13 +30,11 @@ type MessageBoxOptionalProps = {
   isAllowClose?: boolean;
   onClose?: MUIIconButtonProps['onClick'];
   onCloseAppend?: MUIIconButtonProps['onClick'];
+  text?: string;
   type?: MessageBoxType;
 };
 
-type MessageBoxProps = MUIBoxProps &
-  MessageBoxOptionalProps & {
-    text: string;
-  };
+type MessageBoxProps = MUIBoxProps & MessageBoxOptionalProps;
 
 const MESSAGE_BOX_CLASS_PREFIX = 'MessageBox';
 
@@ -53,18 +51,20 @@ const MESSAGE_BOX_TYPE_MAP_TO_ICON = {
 };
 
 const MESSAGE_BOX_DEFAULT_PROPS: Required<
-  Omit<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend'>
+  Omit<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend' | 'text'>
 > &
-  Pick<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend'> = {
+  Pick<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend' | 'text'> = {
   isShowInitially: true,
   isAllowClose: false,
   onClose: undefined,
   onCloseAppend: undefined,
+  text: undefined,
   type: 'info',
 };
 
 const MessageBox: FC<MessageBoxProps> = ({
-  isAllowClose,
+  children,
+  isAllowClose = MESSAGE_BOX_DEFAULT_PROPS.isAllowClose,
   isShowInitially = MESSAGE_BOX_DEFAULT_PROPS.isShowInitially,
   onClose,
   onCloseAppend,
@@ -76,57 +76,69 @@ const MessageBox: FC<MessageBoxProps> = ({
 
   const [isShow, setIsShow] = useState<boolean>(isShowInitially);
 
-  const isShowCloseButton = isAllowClose || onClose || onCloseAppend;
-
-  const buildMessageBoxClasses = (messageBoxType: MessageBoxType) =>
-    MESSAGE_BOX_CLASSES[messageBoxType];
-
-  const buildMessageIcon = (messageBoxType: MessageBoxType) =>
-    MESSAGE_BOX_TYPE_MAP_TO_ICON[messageBoxType] === undefined
-      ? MESSAGE_BOX_TYPE_MAP_TO_ICON.info
-      : MESSAGE_BOX_TYPE_MAP_TO_ICON[messageBoxType];
-
-  const buildMessage = (message: string, messageBoxType: MessageBoxType) => (
-    <BodyText inverted={messageBoxType === 'info'} text={message} />
+  const isShowCloseButton: boolean = useMemo(
+    () => isAllowClose || onClose !== undefined || onCloseAppend !== undefined,
+    [isAllowClose, onClose, onCloseAppend],
   );
 
-  const combinedBoxSx: MUIBoxProps['sx'] = {
-    alignItems: 'center',
-    borderRadius: BORDER_RADIUS,
-    display: 'flex',
-    flexDirection: 'row',
-    padding: '.3em .6em',
+  const buildMessageBoxClasses = useCallback(
+    (messageBoxType: MessageBoxType) => MESSAGE_BOX_CLASSES[messageBoxType],
+    [],
+  );
+  const buildMessageIcon = useCallback(
+    (messageBoxType: MessageBoxType) =>
+      MESSAGE_BOX_TYPE_MAP_TO_ICON[messageBoxType] === undefined
+        ? MESSAGE_BOX_TYPE_MAP_TO_ICON.info
+        : MESSAGE_BOX_TYPE_MAP_TO_ICON[messageBoxType],
+    [],
+  );
+  const buildMessage = useCallback(
+    (messageBoxType: MessageBoxType, message: ReactNode = children) => (
+      <BodyText inverted={messageBoxType === 'info'}>{message}</BodyText>
+    ),
+    [children],
+  );
 
-    '& > *': {
-      color: TEXT,
-    },
-
-    '& > :first-child': {
-      marginRight: '.3em',
-    },
-
-    '& > :nth-child(2)': {
-      flexGrow: 1,
-    },
-
-    [`&.${MESSAGE_BOX_CLASSES.error}`]: {
-      backgroundColor: RED,
-    },
-
-    [`&.${MESSAGE_BOX_CLASSES.info}`]: {
-      backgroundColor: GREY,
+  const combinedBoxSx: MUIBoxProps['sx'] = useMemo(
+    () => ({
+      alignItems: 'center',
+      borderRadius: BORDER_RADIUS,
+      display: 'flex',
+      flexDirection: 'row',
+      padding: '.3em .6em',
 
       '& > *': {
-        color: `${BLACK}`,
+        color: TEXT,
       },
-    },
 
-    [`&.${MESSAGE_BOX_CLASSES.warning}`]: {
-      backgroundColor: PURPLE,
-    },
+      '& > :first-child': {
+        marginRight: '.3em',
+      },
 
-    ...boxSx,
-  };
+      '& > :nth-child(2)': {
+        flexGrow: 1,
+      },
+
+      [`&.${MESSAGE_BOX_CLASSES.error}`]: {
+        backgroundColor: RED,
+      },
+
+      [`&.${MESSAGE_BOX_CLASSES.info}`]: {
+        backgroundColor: GREY,
+
+        '& > *': {
+          color: `${BLACK}`,
+        },
+      },
+
+      [`&.${MESSAGE_BOX_CLASSES.warning}`]: {
+        backgroundColor: PURPLE,
+      },
+
+      ...boxSx,
+    }),
+    [boxSx],
+  );
 
   return isShow ? (
     <MUIBox
@@ -137,7 +149,7 @@ const MessageBox: FC<MessageBoxProps> = ({
       }}
     >
       {buildMessageIcon(type)}
-      {buildMessage(text, type)}
+      {buildMessage(type, text)}
       {isShowCloseButton && (
         <MUIIconButton
           onClick={
