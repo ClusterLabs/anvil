@@ -1,12 +1,13 @@
 import { FC, useCallback, useMemo, useState } from 'react';
+import { QuestionMark as MUIQuestionMarkIcon } from '@mui/icons-material';
 import {
   FormControl as MUIFormControl,
   FormControlProps as MUIFormControlProps,
   IconButton as MUIIconButton,
   IconButtonProps as MUIIconButtonProps,
+  iconButtonClasses as muiIconButtonClasses,
   InputAdornment as MUIInputAdornment,
 } from '@mui/material';
-import { QuestionMark as MUIQuestionMarkIcon } from '@mui/icons-material';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
@@ -113,21 +114,18 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
                 display: 'flex',
                 flexDirection: 'row',
 
-                '& > :not(:first-child)': {
+                [`& > .${muiIconButtonClasses.root}`]: {
+                  color: GREY,
+                },
+
+                [`& > :not(:first-child, .${muiIconButtonClasses.root})`]: {
                   marginLeft: '.3em',
                 },
               }}
             >
               {endAdornment}
               {isShowHelpButton && (
-                <MUIIconButton
-                  onClick={handleHelp}
-                  sx={{
-                    color: GREY,
-                    padding: '.1em',
-                  }}
-                  tabIndex={-1}
-                >
+                <MUIIconButton onClick={handleHelp} tabIndex={-1}>
                   <MUIQuestionMarkIcon />
                 </MUIIconButton>
               )}
