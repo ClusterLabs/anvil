@@ -1,8 +1,9 @@
-import { FC, useState } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import {
   FormControl as MUIFormControl,
   FormControlProps as MUIFormControlProps,
   IconButton as MUIIconButton,
+  IconButtonProps as MUIIconButtonProps,
   InputAdornment as MUIInputAdornment,
 } from '@mui/material';
 import { QuestionMark as MUIQuestionMarkIcon } from '@mui/icons-material';
@@ -24,6 +25,8 @@ type OutlinedInputWithLabelOptionalProps = {
   inputLabelProps?: Partial<OutlinedInputLabelProps>;
   messageBoxProps?: Partial<MessageBoxProps>;
   onChange?: OutlinedInputProps['onChange'];
+  onHelp?: MUIIconButtonProps['onClick'];
+  onHelpAppend?: MUIIconButtonProps['onClick'];
   value?: OutlinedInputProps['value'];
 };
 
@@ -32,9 +35,15 @@ type OutlinedInputWithLabelProps = {
 } & OutlinedInputWithLabelOptionalProps;
 
 const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
-  Omit<OutlinedInputWithLabelOptionalProps, 'onChange'>
+  Omit<
+    OutlinedInputWithLabelOptionalProps,
+    'onChange' | 'onHelp' | 'onHelpAppend'
+  >
 > &
-  Pick<OutlinedInputWithLabelOptionalProps, 'onChange'> = {
+  Pick<
+    OutlinedInputWithLabelOptionalProps,
+    'onChange' | 'onHelp' | 'onHelpAppend'
+  > = {
   formControlProps: {},
   helpMessageBoxProps: {},
   id: '',
@@ -42,6 +51,8 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
   inputLabelProps: {},
   messageBoxProps: {},
   onChange: undefined,
+  onHelp: undefined,
+  onHelpAppend: undefined,
   value: '',
 };
 
@@ -57,11 +68,36 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
   onChange,
+  onHelp,
+  onHelpAppend,
   value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
 }) => {
-  const { text: helpText } = helpMessageBoxProps;
+  const { text: helpText = '' } = helpMessageBoxProps;
 
   const [isShowHelp, setIsShowHelp] = useState<boolean>(false);
+
+  const isShowHelpButton: boolean = useMemo(
+    () => onHelp !== undefined || helpText.length > 0,
+    [helpText, onHelp],
+  );
+
+  const createHelpHandler = useCallback<
+    () => MUIIconButtonProps['onClick']
+  >(() => {
+    let handler: MUIIconButtonProps['onClick'];
+
+    if (onHelp) {
+      handler = onHelp;
+    } else if (helpText.length > 0) {
+      handler = (...args) => {
+        setIsShowHelp((previous) => !previous);
+        onHelpAppend?.call(null, ...args);
+      };
+    }
+
+    return handler;
+  }, [helpText, onHelp, onHelpAppend]);
+  const handleHelp = useMemo(createHelpHandler, [createHelpHandler]);
 
   return (
     <MUIFormControl {...formControlProps}>
@@ -83,11 +119,9 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
               }}
             >
               {endAdornment}
-              {helpText && (
+              {isShowHelpButton && (
                 <MUIIconButton
-                  onClick={() => {
-                    setIsShowHelp(!isShowHelp);
-                  }}
+                  onClick={handleHelp}
                   sx={{
                     color: GREY,
                     padding: '.1em',
