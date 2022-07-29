@@ -1,9 +1,17 @@
-import { Box as MUIBox } from '@mui/material';
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { Grid as MUIGrid } from '@mui/material';
+import {
+  forwardRef,
+  ReactNode,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 
 import FlexBox from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import isEmpty from '../lib/isEmpty';
+import MessageBox from './MessageBox';
 import OutlinedInputWithLabel, {
   OutlinedInputWithLabelProps,
 } from './OutlinedInputWithLabel';
@@ -12,6 +20,7 @@ import SuggestButton from './SuggestButton';
 
 type GeneralInitFormForwardRefContent = {
   get?: () => {
+    adminPassword?: string;
     organizationName?: string;
     organizationPrefix?: string;
     domainName?: string;
@@ -66,6 +75,7 @@ const buildHostName = ({
 
 const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
   (generalInitFormProps, ref) => {
+    const [helpMessage, setHelpText] = useState<ReactNode | undefined>();
     const [
       isShowOrganizationPrefixSuggest,
       setIsShowOrganizationPrefixSuggest,
@@ -73,6 +83,12 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
     const [isShowHostNameSuggest, setIsShowHostNameSuggest] =
       useState<boolean>(false);
 
+    const adminPasswordInputRef = useRef<InputForwardedRefContent<'string'>>(
+      {},
+    );
+    const confirmAdminPasswordInputRef = useRef<
+      InputForwardedRefContent<'string'>
+    >({});
     const organizationNameInputRef = useRef<InputForwardedRefContent<'string'>>(
       {},
     );
@@ -83,52 +99,66 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
     const hostNumberInputRef = useRef<InputForwardedRefContent<'number'>>({});
     const hostNameInputRef = useRef<InputForwardedRefContent<'string'>>({});
 
-    const populateOrganizationPrefixInput = ({
-      organizationName = organizationNameInputRef.current.getValue?.call(null),
-    } = {}) => {
-      const organizationPrefix = buildOrganizationPrefix(organizationName);
+    const populateOrganizationPrefixInput = useCallback(
+      ({
+        organizationName = organizationNameInputRef.current.getValue?.call(
+          null,
+        ),
+      } = {}) => {
+        const organizationPrefix = buildOrganizationPrefix(organizationName);
 
-      organizationPrefixInputRef.current.setValue?.call(
-        null,
-        organizationPrefix,
-      );
+        organizationPrefixInputRef.current.setValue?.call(
+          null,
+          organizationPrefix,
+        );
 
-      return organizationPrefix;
-    };
-    const populateHostNameInput = ({
-      organizationPrefix = organizationPrefixInputRef.current.getValue?.call(
-        null,
-      ),
-      hostNumber = hostNumberInputRef.current.getValue?.call(null),
-      domainName = domainNameInputRef.current.getValue?.call(null),
-    } = {}) => {
-      const hostName = buildHostName({
-        organizationPrefix,
-        hostNumber,
-        domainName,
-      });
+        return organizationPrefix;
+      },
+      [],
+    );
+    const populateHostNameInput = useCallback(
+      ({
+        organizationPrefix = organizationPrefixInputRef.current.getValue?.call(
+          null,
+        ),
+        hostNumber = hostNumberInputRef.current.getValue?.call(null),
+        domainName = domainNameInputRef.current.getValue?.call(null),
+      } = {}) => {
+        const hostName = buildHostName({
+          organizationPrefix,
+          hostNumber,
+          domainName,
+        });
 
-      hostNameInputRef.current.setValue?.call(null, hostName);
+        hostNameInputRef.current.setValue?.call(null, hostName);
 
-      return hostName;
-    };
-    const isOrganizationPrefixPrereqFilled = () =>
-      isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
-        not: true,
-      });
-    const isHostNamePrereqFilled = () =>
-      isEmpty(
-        [
-          organizationPrefixInputRef.current.getValue?.call(null),
-          hostNumberInputRef.current.getValue?.call(null),
-          domainNameInputRef.current.getValue?.call(null),
-        ],
-        {
+        return hostName;
+      },
+      [],
+    );
+    const isOrganizationPrefixPrereqFilled = useCallback(
+      () =>
+        isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
           not: true,
-        },
-      );
+        }),
+      [],
+    );
+    const isHostNamePrereqFilled = useCallback(
+      () =>
+        isEmpty(
+          [
+            organizationPrefixInputRef.current.getValue?.call(null),
+            hostNumberInputRef.current.getValue?.call(null),
+            domainNameInputRef.current.getValue?.call(null),
+          ],
+          {
+            not: true,
+          },
+        ),
+      [],
+    );
     const populateOrganizationPrefixInputOnBlur: OutlinedInputWithLabelOnBlur =
-      () => {
+      useCallback(() => {
         if (organizationPrefixInputRef.current.getIsChangedByUser?.call(null)) {
           setIsShowOrganizationPrefixSuggest(
             isOrganizationPrefixPrereqFilled(),
@@ -136,27 +166,34 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
         } else {
           populateOrganizationPrefixInput();
         }
-      };
-    const populateHostNameInputOnBlur: OutlinedInputWithLabelOnBlur = () => {
-      if (hostNameInputRef.current.getIsChangedByUser?.call(null)) {
-        setIsShowHostNameSuggest(isHostNamePrereqFilled());
-      } else {
-        populateHostNameInput();
-      }
-    };
-    const handleOrganizationPrefixSuggest = () => {
+      }, [isOrganizationPrefixPrereqFilled, populateOrganizationPrefixInput]);
+    const populateHostNameInputOnBlur: OutlinedInputWithLabelOnBlur =
+      useCallback(() => {
+        if (hostNameInputRef.current.getIsChangedByUser?.call(null)) {
+          setIsShowHostNameSuggest(isHostNamePrereqFilled());
+        } else {
+          populateHostNameInput();
+        }
+      }, [isHostNamePrereqFilled, populateHostNameInput]);
+    const handleOrganizationPrefixSuggest = useCallback(() => {
       const organizationPrefix = populateOrganizationPrefixInput();
 
       if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
         populateHostNameInput({ organizationPrefix });
       }
-    };
-    const handlerHostNameSuggest = () => {
+    }, [populateHostNameInput, populateOrganizationPrefixInput]);
+    const handlerHostNameSuggest = useCallback(() => {
       populateHostNameInput();
-    };
+    }, [populateHostNameInput]);
+    const buildHelpMessage = useCallback(
+      (text: string) => (previous?: string) =>
+        previous === text ? undefined : text,
+      [],
+    );
 
     useImperativeHandle(ref, () => ({
       get: () => ({
+        adminPassword: adminPasswordInputRef.current.getValue?.call(null),
         organizationName: organizationNameInputRef.current.getValue?.call(null),
         organizationPrefix:
           organizationPrefixInputRef.current.getValue?.call(null),
@@ -167,147 +204,210 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
     }));
 
     return (
-      <MUIBox
-        sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-
-          '& > *': {
-            flexBasis: '50%',
-          },
-
-          '& > :not(:first-child)': {
-            marginLeft: { xs: 0, sm: '1em' },
-            marginTop: { xs: '1em', sm: 0 },
-          },
-        }}
-      >
-        <FlexBox>
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                helpMessageBoxProps={{
-                  text: 'Name of the organization that maintains this Anvil! system. You can enter anything that makes sense to you.',
-                }}
-                id="striker-init-general-organization-name"
-                inputProps={{
-                  onBlur: populateOrganizationPrefixInputOnBlur,
-                }}
-                label="Organization name"
+      <FlexBox>
+        <MUIGrid columns={{ xs: 1, sm: 2, md: 3 }} container spacing="1em">
+          <MUIGrid item xs={1}>
+            <FlexBox>
+              <InputWithRef
+                input={
+                  <OutlinedInputWithLabel
+                    id="striker-init-general-organization-name"
+                    inputProps={{
+                      onBlur: populateOrganizationPrefixInputOnBlur,
+                    }}
+                    label="Organization name"
+                    onHelp={() => {
+                      setHelpText(
+                        buildHelpMessage(
+                          'Name of the organization that maintains this Anvil! system. You can enter anything that makes sense to you.',
+                        ),
+                      );
+                    }}
+                  />
+                }
+                ref={organizationNameInputRef}
               />
-            }
-            ref={organizationNameInputRef}
-          />
-          <FlexBox row>
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  helpMessageBoxProps={{
-                    text: "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
-                  }}
-                  id="striker-init-general-organization-prefix"
-                  inputProps={{
-                    endAdornment: (
-                      <SuggestButton
-                        show={isShowOrganizationPrefixSuggest}
-                        onClick={handleOrganizationPrefixSuggest}
-                      />
-                    ),
-                    inputProps: {
-                      maxLength: MAX_ORGANIZATION_PREFIX_LENGTH,
-                      style: { width: '2.5em' },
-                    },
-                    onBlur: populateHostNameInputOnBlur,
-                    sx: {
-                      minWidth: 'min-content',
-                      width: 'fit-content',
-                    },
-                  }}
-                  label="Prefix"
-                  onChange={() => {
-                    setIsShowOrganizationPrefixSuggest(
-                      isOrganizationPrefixPrereqFilled(),
-                    );
-                  }}
-                />
-              }
-              ref={organizationPrefixInputRef}
-            />
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  helpMessageBoxProps={{
-                    text: "Number or count of this striker; this should be '1' for the first striker, '2' for the second striker, and such.",
-                  }}
-                  id="striker-init-general-host-number"
-                  inputProps={{
-                    inputProps: { maxLength: MAX_HOST_NUMBER_LENGTH },
-                    onBlur: populateHostNameInputOnBlur,
-                    sx: {
-                      width: '6em',
-                    },
-                  }}
-                  label="Host #"
-                />
-              }
-              ref={hostNumberInputRef}
-              valueType="number"
-            />
-          </FlexBox>
-        </FlexBox>
-        <FlexBox>
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                helpMessageBoxProps={{
-                  text: "Domain name for this striker. It's also the default domain used when creating new install manifests.",
-                }}
-                id="striker-init-general-domain-name"
-                inputProps={{
-                  onBlur: populateHostNameInputOnBlur,
-                  sx: {
-                    minWidth: { sm: '16em' },
+              <FlexBox
+                row
+                sx={{
+                  '& > *': {
+                    flexBasis: '50%',
                   },
                 }}
-                label="Domain name"
-              />
-            }
-            ref={domainNameInputRef}
-          />
-
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                helpMessageBoxProps={{
-                  text: "Host name for this striker. It's usually a good idea to use the auto-generated value.",
-                }}
-                id="striker-init-general-host-name"
-                inputProps={{
-                  endAdornment: (
-                    <SuggestButton
-                      show={isShowHostNameSuggest}
-                      onClick={handlerHostNameSuggest}
+              >
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      id="striker-init-general-organization-prefix"
+                      inputProps={{
+                        endAdornment: (
+                          <SuggestButton
+                            show={isShowOrganizationPrefixSuggest}
+                            onClick={handleOrganizationPrefixSuggest}
+                          />
+                        ),
+                        inputProps: {
+                          maxLength: MAX_ORGANIZATION_PREFIX_LENGTH,
+                        },
+                        onBlur: populateHostNameInputOnBlur,
+                      }}
+                      label="Prefix"
+                      onChange={() => {
+                        setIsShowOrganizationPrefixSuggest(
+                          isOrganizationPrefixPrereqFilled(),
+                        );
+                      }}
+                      onHelp={() => {
+                        setHelpText(
+                          buildHelpMessage(
+                            "Alphanumberic short-form of the organization name. It's used as the prefix for host names.",
+                          ),
+                        );
+                      }}
                     />
-                  ),
-                  inputProps: {
-                    style: {
-                      minWidth: '4em',
-                    },
-                  },
-                  sx: {
-                    minWidth: 'min-content',
-                  },
-                }}
-                label="Host name"
-                onChange={() => {
-                  setIsShowHostNameSuggest(isHostNamePrereqFilled());
-                }}
+                  }
+                  ref={organizationPrefixInputRef}
+                />
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      id="striker-init-general-host-number"
+                      inputProps={{
+                        inputProps: {
+                          maxLength: MAX_HOST_NUMBER_LENGTH,
+                        },
+                        onBlur: populateHostNameInputOnBlur,
+                      }}
+                      label="Host #"
+                      onHelp={() => {
+                        setHelpText(
+                          buildHelpMessage(
+                            "Number or count of this striker; this should be '1' for the first striker, '2' for the second striker, and such.",
+                          ),
+                        );
+                      }}
+                    />
+                  }
+                  ref={hostNumberInputRef}
+                  valueType="number"
+                />
+              </FlexBox>
+            </FlexBox>
+          </MUIGrid>
+          <MUIGrid item xs={1}>
+            <FlexBox>
+              <InputWithRef
+                input={
+                  <OutlinedInputWithLabel
+                    id="striker-init-general-domain-name"
+                    inputProps={{
+                      onBlur: populateHostNameInputOnBlur,
+                    }}
+                    label="Domain name"
+                    onHelp={() => {
+                      setHelpText(
+                        buildHelpMessage(
+                          "Domain name for this striker. It's also the default domain used when creating new install manifests.",
+                        ),
+                      );
+                    }}
+                  />
+                }
+                ref={domainNameInputRef}
               />
-            }
-            ref={hostNameInputRef}
-          />
-        </FlexBox>
-      </MUIBox>
+
+              <InputWithRef
+                input={
+                  <OutlinedInputWithLabel
+                    id="striker-init-general-host-name"
+                    inputProps={{
+                      endAdornment: (
+                        <SuggestButton
+                          show={isShowHostNameSuggest}
+                          onClick={handlerHostNameSuggest}
+                        />
+                      ),
+                    }}
+                    label="Host name"
+                    onChange={() => {
+                      setIsShowHostNameSuggest(isHostNamePrereqFilled());
+                    }}
+                    onHelp={() => {
+                      setHelpText(
+                        buildHelpMessage(
+                          "Host name for this striker. It's usually a good idea to use the auto-generated value.",
+                        ),
+                      );
+                    }}
+                  />
+                }
+                ref={hostNameInputRef}
+              />
+            </FlexBox>
+          </MUIGrid>
+          <MUIGrid item xs={1} sm={2} md={1}>
+            <MUIGrid
+              columns={{ xs: 1, sm: 2, md: 1 }}
+              container
+              spacing="1em"
+              sx={{
+                '& > * > *': {
+                  width: '100%',
+                },
+              }}
+            >
+              <MUIGrid item xs={1}>
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      id="striker-init-general-admin-password"
+                      inputProps={{
+                        inputProps: {
+                          type: 'password',
+                        },
+                      }}
+                      label="Admin password"
+                      onHelp={() => {
+                        setHelpText(
+                          buildHelpMessage(
+                            "Password use to login to this Striker and connect to its database. Don't reuse an existing password here because it'll be stored as plaintext.",
+                          ),
+                        );
+                      }}
+                    />
+                  }
+                  ref={adminPasswordInputRef}
+                />
+              </MUIGrid>
+              <MUIGrid item xs={1}>
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      id="striker-init-general-confirm-admin-password"
+                      inputProps={{
+                        inputProps: {
+                          type: 'password',
+                        },
+                      }}
+                      label="Confirm password"
+                    />
+                  }
+                  ref={confirmAdminPasswordInputRef}
+                />
+              </MUIGrid>
+            </MUIGrid>
+          </MUIGrid>
+        </MUIGrid>
+        {helpMessage && (
+          <MessageBox
+            onClose={() => {
+              setHelpText(undefined);
+            }}
+          >
+            {helpMessage}
+          </MessageBox>
+        )}
+      </FlexBox>
     );
   },
 );
