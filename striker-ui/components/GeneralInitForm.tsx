@@ -230,8 +230,8 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
               <FlexBox
                 row
                 sx={{
-                  '& > *': {
-                    flexBasis: '50%',
+                  '& > :first-child': {
+                    flexGrow: 1,
                   },
                 }}
               >
@@ -248,6 +248,9 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                         ),
                         inputProps: {
                           maxLength: MAX_ORGANIZATION_PREFIX_LENGTH,
+                          sx: {
+                            minWidth: '2.5em',
+                          },
                         },
                         onBlur: populateHostNameInputOnBlur,
                       }}
@@ -275,6 +278,9 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                       inputProps={{
                         inputProps: {
                           maxLength: MAX_HOST_NUMBER_LENGTH,
+                          sx: {
+                            minWidth: '2em',
+                          },
                         },
                         onBlur: populateHostNameInputOnBlur,
                       }}
@@ -370,7 +376,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                       onHelp={() => {
                         setHelpText(
                           buildHelpMessage(
-                            "Password use to login to this Striker and connect to its database. Don't reuse an existing password here because it'll be stored as plaintext.",
+                            "Password use to login to this Striker and connect to its database. Don't provide an used password here because it'll be stored as plaintext.",
                           ),
                         );
                       }}
