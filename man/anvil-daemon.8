@@ -1,8 +1,24 @@
-.TH anvil-daemon
+.\" Manpage for the Anvil! daemon. 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-daemon "8" "July 29 2022" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-daemon - Main systemd daemon for the Anvil! IA platform. Provides all job management, monitoring and Striker back-end functions.
+anvil-daemon \- Main systemd daemon for the M3 Anvil! IA cluster. Provides all job management, monitoring and Striker back-end functions. 
 .SH SYNOPSIS
-.B anvil-daemon
+.B anvil-daemon 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-.B anvil-daemon
-Main daemon for the M3 Anvil! Intelligent Availability\*(Tm platform. Usually managed via 
+anvil-daemon \- Main systemd daemon that can be run manually for testing and debug reasons. No switches needed for normal operation by systemd.
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show a prompt to read this man page.
+.TP
+\fB\-\-refresh-json\fR (derecated)
+Short hand for '--run-once', '--main-loop-only' and '--no-start'. Used to be use to refresh the JSON file used by striker's web interface to know hardware states. 
+\fB\-\-refresh-json\fR (derecated)
+Short hand for '--run-once', '--main-loop-only' and '--no-start'. Used to be use to refresh the JSON file used by striker's web interface to know hardware states. 
+
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

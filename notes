@@ -6,6 +6,9 @@ dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release
 dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-node --allowerasing
 dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-dr --allowerasing
 
+### Get OUI out of the fucking database.
+
+
 
 ### Currently set default zone;
 # Doesn't seem to matter - /etc/firewalld/firewalld.conf:6:DefaultZone=public

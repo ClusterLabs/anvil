@@ -139,13 +139,8 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Read switches
-$anvil->data->{switches}{'refresh-json'}   = "";
-$anvil->data->{switches}{'run-once'}       = 0;
-$anvil->data->{switches}{'main-loop-only'} = 0;
-$anvil->data->{switches}{'no-start'}       = 0;
-$anvil->data->{switches}{'purge'}          = 0;
-$anvil->data->{switches}{'startup-only'}   = 0;
-$anvil->Get->switches;
+$anvil->Get->switches({list => ["?", "help", "h", "refresh-json", "run-once", "main-loop-only", "no-start", "purge", "startup-only"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -154,6 +149,11 @@ if ($anvil->data->{switches}{'refresh-json'})
 	$anvil->data->{switches}{'run-once'}       = 1;
 	$anvil->data->{switches}{'main-loop-only'} = 1;
 	$anvil->data->{switches}{'no-start'}       = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::run-once"       => $anvil->data->{switches}{'run-once'}, 
+		"switches::main-loop-only" => $anvil->data->{switches}{'main-loop-only'}, 
+		"switches::no-start"       => $anvil->data->{switches}{'no-start'}, 
+	}});
 }
 
 # This is used to track initial checkes / repairs of network issues.

@@ -2145,7 +2145,25 @@ Switches in the form 'C<< -x foo >>', 'C<< --x foo >>', 'C<< -x=foo >>' and 'C<<
 
 The switches 'C<< -v >>', 'C<< -vv >>', 'C<< -vvv >>' and 'C<< -vvvv >>' will cause the active log level to automatically change to 1, 2, 3 or 4 respectively. Passing 'C<< -V >>' will set the log level to '0'.
 
+The switch 'C<< --log-secure >>' will enable logging of "secure" data, like passwords.
+
 Anything after 'C<< -- >>' is treated as a raw string and is not processed. 
+
+The switches C<< -h >>, C<< -? >> and C<< --help >> will set the C<< help >> switch to C<< #!set!# >> so that calling program knows to display it's help, if available.
+
+Parameters
+
+=head3 list (optional)
+
+If set to an anonymous array, only switches in the list will be allowed. If a switch is passed that doesn't match an entry in this list, an error message is printed to STDOUT and C<< #!error!# >> is returned.. If this is set but it is not an array reference, C<< #!error!# >> is returned.
+
+B<< NOTE >>: The always-supported switches described above are allowed regardless of the contents of the C<< list >> parameter.
+
+=head3 man (optional)
+
+This is the name of the man page for the calling program. If C<< --help >> and C<< man >> are set, the man page will be displayed to the user, and then exit when the program returns.
+
+B<< NOTE >>: The always-supported switches described above are allowed regardless of the contents of the C<< list >> parameter.
 
 =cut
 ### TODO: This doesn't handle quoted values, System->parse_arguments() does. Switch to using it. Note that 
@@ -2157,13 +2175,39 @@ sub switches
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	my $list = defined $parameter->{list} ? $parameter->{list} : "";
+	my $man  = defined $parameter->{man}  ? $parameter->{man}  : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		list => $list,
+		man  => $man,
+	}});
+	
+	if ($list)
+	{
+		if (ref($list) ne "ARRAY")
+		{
+			# No logging here. 
+			return('#!error!#');
+		}
+		
+		# Set all switches to be empty strings
+		foreach my $switch (@{$list})
+		{
+			$anvil->data->{switches}{$switch} = "";
+		}
+	}
+	
 	my $last_argument = "";
 	foreach my $argument (@ARGV)
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { argument => $argument }});
 		if ($last_argument eq "raw")
 		{
 			# Don't process anything.
 			$anvil->data->{switches}{raw} .= " $argument";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"switches::raw" => $anvil->data->{switches}{raw},
+			}});
 		}
 		elsif ($argument =~ /^-/)
 		{
@@ -2172,33 +2216,53 @@ sub switches
 			{
 				$last_argument                = "raw";
 				$anvil->data->{switches}{raw} = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					last_argument   => $last_argument, 
+					"switches::raw" => $anvil->data->{switches}{raw},
+				}});
 			}
 			else
 			{
 				($last_argument) = ($argument =~ /^-{1,2}(.*)/)[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_argument => $last_argument }});
 				if ($last_argument =~ /=/)
 				{
 					# Break up the variable/value.
-					($last_argument, my $value) = (split /=/, $last_argument, 2);
+					($last_argument, my $value)              = (split /=/, $last_argument, 2);
 					$anvil->data->{switches}{$last_argument} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						value                        => $value, 
+						"switches::${last_argument}" => $anvil->data->{switches}{$last_argument},
+					}});
 				}
 				else
 				{
 					$anvil->data->{switches}{$last_argument} = "#!SET!#";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"switches::${last_argument}" => $anvil->data->{switches}{$last_argument},
+					}});
 				}
 			}
 		}
 		else
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_argument => $last_argument }});
 			if ($last_argument)
 			{
 				$anvil->data->{switches}{$last_argument} = $argument;
 				$last_argument                           = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					last_argument                => $last_argument, 
+					"switches::${last_argument}" => $anvil->data->{switches}{$last_argument},
+				}});
 			}
 			else
 			{
 				# Got a value without an argument, so just record it as '#!SET!#'.
 				$anvil->data->{switches}{$argument} = "#!SET!#";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"switches::${last_argument}" => $anvil->data->{switches}{$last_argument},
+				}});
 			}
 		}
 	}
@@ -2207,10 +2271,72 @@ sub switches
 	if ($anvil->data->{switches}{raw})
 	{
 		$anvil->data->{switches}{raw} =~ s/^ //;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::raw" => $anvil->data->{switches}{raw},
+		}});
 	}
 	
 	# Adjust the log level if requested.
 	$anvil->Log->_adjust_log_level();
+	
+	# Make sure 'help' is set if 'h' or '?' is set.
+	if (($anvil->data->{switches}{'?'}) or ($anvil->data->{switches}{h}))
+	{
+		$anvil->data->{switches}{help} = "#!SET!#";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::help" => $anvil->data->{switches}{help},
+		}});
+	}
+	
+	# Check for any switches not in the list, if used.
+	if ($list)
+	{
+		my $problem = 0;
+		foreach my $set_switch (sort {$a cmp $b} keys %{$anvil->data->{switches}})
+		{
+			next if $set_switch eq "?";
+			next if $set_switch eq "h";
+			next if $set_switch eq "help";
+			next if $set_switch eq "raw";
+			next if $set_switch eq "v";
+			next if $set_switch eq "vv";
+			next if $set_switch eq "vvv";
+			next if $set_switch eq "vvvv";
+			next if $set_switch eq "log-secure";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_switch => $set_switch }});
+			
+			my $found = 0;
+			foreach my $allowed_switch (@{$list})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { allowed_switch => $allowed_switch }});
+				if ($allowed_switch eq $set_switch)
+				{
+					$found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+					last;
+				}
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			if (not $found)
+			{
+				print "Switch '--".$set_switch." not recognized.\n";
+				$problem = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			}
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+		if ($problem)
+		{
+			return('#!error!#');
+		}
+	}
+	
+	if (($anvil->data->{switches}{help}) && ($man))
+	{
+		# Show the man page and then exit.
+		system($anvil->data->{path}{exe}{man}." ".$man);
+		$anvil->nice_exit({exit_code => 0});
+	}
 	
 	return(0);
 }
