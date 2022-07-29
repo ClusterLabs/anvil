@@ -24,6 +24,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -35,6 +36,7 @@ import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
+import FlexBox from './FlexBox';
 import IconButton from './IconButton';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
@@ -425,8 +427,6 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
       NetworkInterfaceOverviewMetadata | undefined
     >();
 
-    const optionalNetworkInputsLength = networkInputs.length - 2;
-
     const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
       NetworkInterfaceOverviewMetadata[]
     >(`${API_BASE_URL}/network-interface`, {
@@ -448,10 +448,22 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
       },
     });
 
+    const optionalNetworkInputsLength: number = useMemo(
+      () => networkInputs.length - 2,
+      [networkInputs],
+    );
+    const isDisableAddNetworkButton: boolean = useMemo(
+      () =>
+        networkInputs.length >= networkInterfaces.length ||
+        Object.values(networkInterfaceInputMap).every(
+          ({ isApplied }) => isApplied,
+        ),
+      [networkInputs, networkInterfaces, networkInterfaceInputMap],
+    );
+
     const clearNetworkInterfaceHeld = useCallback(() => {
       setNetworkInterfaceHeld(undefined);
     }, []);
-
     const createNetwork = useCallback(() => {
       networkInputs.unshift({
         inputUUID: uuidv4(),
@@ -464,7 +476,6 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
 
       setNetworkInputs([...networkInputs]);
     }, [networkInputs]);
-
     const getNetworkTypeCount = useCallback(
       (targetType: string, lastIndex = 0) => {
         let count = 0;
@@ -647,66 +658,67 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
               },
             }}
           />
-          <MUIBox
+          <FlexBox
+            row
             sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'center',
+              '& > :first-child': {
+                alignSelf: 'start',
+                marginTop: '1.1em',
+              },
+
+              '& > :last-child': {
+                flexGrow: 1,
+              },
             }}
           >
             <IconButton
-              disabled={
-                networkInputs.length >= networkInterfaces.length ||
-                Object.values(networkInterfaceInputMap).every(
-                  ({ isApplied }) => isApplied,
-                )
-              }
+              disabled={isDisableAddNetworkButton}
               onClick={createNetwork}
             >
               <MUIAddIcon />
             </IconButton>
-          </MUIBox>
-          <MUIBox
-            sx={{
-              alignItems: 'strech',
-              display: 'flex',
-              flexDirection: 'row',
-              overflowX: 'auto',
-              paddingLeft: '.3em',
+            <MUIBox
+              sx={{
+                alignItems: 'strech',
+                display: 'flex',
+                flexDirection: 'row',
+                overflowX: 'auto',
+                paddingLeft: '.3em',
 
-              '& > *': {
-                marginBottom: '1em',
-                marginTop: '1em',
-                minWidth: '13em',
-                width: '25%',
-              },
+                '& > *': {
+                  marginBottom: '1em',
+                  marginTop: '1em',
+                  minWidth: '13em',
+                  width: '25%',
+                },
 
-              '& > :not(:first-child)': {
-                marginLeft: '1em',
-              },
-            }}
-          >
-            {networkInputs.map((networkInput, networkIndex) => {
-              const { inputUUID } = networkInput;
+                '& > :not(:first-child)': {
+                  marginLeft: '1em',
+                },
+              }}
+            >
+              {networkInputs.map((networkInput, networkIndex) => {
+                const { inputUUID } = networkInput;
 
-              return (
-                <NetworkForm
-                  key={`network-${inputUUID}`}
-                  {...{
-                    createDropMouseUpHandler,
-                    getNetworkTypeCount,
-                    networkIndex,
-                    networkInput,
-                    networkInputs,
-                    networkInterfaceInputMap,
-                    optionalNetworkInputsLength,
-                    setNetworkInputs,
-                    setNetworkInterfaceInputMap,
-                  }}
-                />
-              );
-            })}
-          </MUIBox>
+                return (
+                  <NetworkForm
+                    key={`network-${inputUUID}`}
+                    {...{
+                      createDropMouseUpHandler,
+                      getNetworkTypeCount,
+                      networkIndex,
+                      networkInput,
+                      networkInputs,
+                      networkInterfaceInputMap,
+                      optionalNetworkInputsLength,
+                      setNetworkInputs,
+                      setNetworkInterfaceInputMap,
+                    }}
+                  />
+                );
+              })}
+            </MUIBox>
+          </FlexBox>
         </MUIBox>
       </MUIBox>
     );
