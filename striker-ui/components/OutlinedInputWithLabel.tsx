@@ -116,6 +116,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
 
                 [`& > .${muiIconButtonClasses.root}`]: {
                   color: GREY,
+                  padding: '.2em',
                 },
 
                 [`& > :not(:first-child, .${muiIconButtonClasses.root})`]: {
