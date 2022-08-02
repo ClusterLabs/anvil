@@ -68,9 +68,8 @@ $anvil->data->{scancore} = {
 $anvil->Storage->read_config();
 
 # Read switches
-$anvil->data->{switches}{purge}      = "";
-$anvil->data->{switches}{'run-once'} = "";
-$anvil->Get->switches;
+$anvil->Get->switches({list => ["purge", "run-once"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # If purging, also set 'run-once'.
