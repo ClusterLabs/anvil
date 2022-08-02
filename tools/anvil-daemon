@@ -117,9 +117,8 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Read switches
-$anvil->Get->switches({list => ["?", "help", "h", "refresh-json", "run-once", "main-loop-only", "no-start", "startup-only"], man => $THIS_FILE});
+$anvil->Get->switches({list => ["refresh-json", "run-once", "main-loop-only", "no-start", "startup-only"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
-
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 if ($anvil->data->{switches}{'refresh-json'})
