@@ -561,7 +561,7 @@ B<< Note >>; The method relies on pacemaker to boot the node. As such, if for so
 
 =head3 wait (optional, default '1')
 
-This controls whether the method waits for the server to shut down before returning. By default, it will go into a loop and check every 2 seconds to see if the server is still running. Once it's found to be off, the method returns. If this is set to C<< 0 >>, the method will return as soon as the request to shut down the server is issued.
+This controls whether the method waits for the server to actually boot up before returning. By default, it will go into a loop and check every 2 seconds to see if the server is still running. Once it's found to be running, the method returns. If this is set to C<< 0 >>, the method will return as soon as the request to shut down the server is issued.
 
 =cut
 sub boot_server

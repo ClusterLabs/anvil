@@ -1,0 +1,48 @@
+.\" Manpage for the Anvil! server boot program
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-boot-server "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-boot-server \- Tool used to boot servers (virtual machines) on the Anvil! IA cluster.
+.SH SYNOPSIS
+.B alteeve-repo-setup 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+anvil-boot-server \- This tool allows booting of hosted servers on an Anvil! cluster, or a specific sub-node if desired.
+.TP
+This method, when used with '\fB\-\-server\fR all', will honour server boot priority and delays.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-d, \fB\-\-debug\fR
+This tool does not use the main Anvil::Tools modules, so debugging is limited to messaged shown during the run. This enables those debug messages.
+.SS "Commands:"
+.TP
+\fB\-\-job-uuid\fR <uuid>
+This is set to the job UUID when the request to boot is coming from a database job. When set, the referenced job will be updated and marked as complete / failed when the run completes.
+.TP
+\fB\-\-no-wait\fR
+This controls whether the request to boot the server waits for the server to actually boot up before returning. Normally, the program will check every couple of seconds to see if the server has actually booted before returning. Setting this tells the program to return as soon as the request to boot the server has been passed on to the resource manager.
+.TP
+\fB\-\-server\fR <all|name|uuid>
+This is either 'all', the name, or server UUID (as set in the definition XML) of the server to boot. 
+.TP
+When set to 'all', all servers assigned to the local sub-cluster are booted. Servers on other Anvil! nodes are not started. 
+.TP
+\fB\-\-server-uuid\fR <uuid>
+This is the server UUID of the server to boot. Generally this isn't needed, except when two servers somehow share the same name. This should not be possible, but this option exists in case it happens anyway.
+.TP
+\fB\-\-wait\fR
+When using '\fB\-\-server\fR all', the request to boot each server will normally not wait for the server to boot. When this is set, this behaviour is changed and the boot will wait before moving on to boot the next server.
+.TP
+Be away that when this is used, if a server fails to boot, no further servers will be started.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
