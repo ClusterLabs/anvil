@@ -2,16 +2,12 @@
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
 .TH anvil-check-memory "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-check-memory \- This reports the total memory used by all processes with to passed-in program name.
+anvil-check-memory \- This program configures the host for use in an Anvil! cluster.
 .SH SYNOPSIS
 .B anvil-check-memory 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This reports the total memory used by all processes with to passed-in program name. It can be an Anvil! or Striker program, or any other program running on the system.
-.TP
-This looks in 'ps' and finds pids for the given program name, then parses the '/proc/<pid>/smaps' kernel file to calculate the memory use. This will include shared memory space! Ending the program won't necessarily release the reported amount of RAM.
-.TP
-The output will be in the format: '<program_name> = <number_of_bytes> # <size in human readable format>
+This picks up a job from the database and, using the data from it, configures the host to prepare it for use in an Anvil! cluster.
 .TP
 .SH OPTIONS
 .TP
@@ -25,8 +21,8 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
-\fB\-\-program\fR <name>
-This is the name of the program to report memory usage of. 
+\fB\-\-job-uuid\fR <name>
+The program is normally run as a job, with data on how to configure the host defined in the job. This switch allows the running of a specific job. If this is not set, the program will search for a job that has not yet been picked up by another process. If found, that job UUID is used automatically.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
