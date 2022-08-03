@@ -1,0 +1,34 @@
+.\" Manpage for the Anvil! server boot program
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-check-memory "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-check-memory \- This reports the total memory used by all processes with to passed-in program name.
+.SH SYNOPSIS
+.B alteeve-repo-setup 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+anvil-check-memory \-  This reports the total memory used by all processes with to passed-in program name. It can be an Anvil! or Striker program, or any other program running on the system.
+.TP
+This looks in 'ps' and finds pids for the given program name, then parses the '/proc/<pid>/smaps' kernel file to calculate the memory use. This will include shared memory space! Ending the program won't necessarily release the reported amount of RAM.
+.TP
+The output will be in the format: '<program_name> = <number_of_bytes> # <size in human readable format>
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-program\fR <name>
+This is the name of the program to report memory usage of. 
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
