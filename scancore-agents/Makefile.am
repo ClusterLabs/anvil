@@ -70,8 +70,8 @@ networkdir			= ${targetdir}/scan-network
 dist_network_DATA		= \
 				  scan-network/scan-network.sql \
 				  scan-network/scan-network.xml
-dist_network_SCRIPTS            = \
-                                  scan-network
+dist_network_SCRIPTS		= \
+                                  scan-network/scan-network
 
 serverdir			= ${targetdir}/scan-server
 dist_server_DATA		= \
