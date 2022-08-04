@@ -1567,8 +1567,8 @@ sub get_ips
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line =~ /^\d+: (.*?): <(.*?)>/)
 		{
-			$in_iface = $1;
-			$stateus  = $2;
+			   $in_iface = $1;
+			my $status   = $2;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				in_iface => $in_iface,
 				status   => $status, 
@@ -1583,7 +1583,7 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes};
-			$anvil->data->{network}{$host}{interface}{$in_iface}{status}          = $status
+			$anvil->data->{network}{$host}{interface}{$in_iface}{status}          = $status;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${in_iface}::ip"              => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}, 
 				"network::${host}::interface::${in_iface}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}, 
