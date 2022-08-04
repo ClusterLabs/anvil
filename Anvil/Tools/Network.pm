@@ -1565,10 +1565,14 @@ sub get_ips
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^\d+: (.*?): /)
+		if ($line =~ /^\d+: (.*?): <(.*?)>/)
 		{
 			$in_iface = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
+			$stateus  = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				in_iface => $in_iface,
+				status   => $status, 
+			}});
 			
 			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{ip};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask};
@@ -1579,6 +1583,7 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{status}          = $status
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${in_iface}::ip"              => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}, 
 				"network::${host}::interface::${in_iface}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}, 
@@ -1587,6 +1592,7 @@ sub get_ips
 				"network::${host}::interface::${in_iface}::default_gateway" => $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway}, 
 				"network::${host}::interface::${in_iface}::gateway"         => $anvil->data->{network}{$host}{interface}{$in_iface}{gateway}, 
 				"network::${host}::interface::${in_iface}::dns"             => $anvil->data->{network}{$host}{interface}{$in_iface}{dns}, 
+				"network::${host}::interface::${in_iface}::status"          => $anvil->data->{network}{$host}{interface}{$in_iface}{status}, 
 			}});
 			
 			if ($in_iface ne "lo")
