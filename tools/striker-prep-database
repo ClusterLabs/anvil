@@ -13,6 +13,10 @@
 # 
 # TODO: Much of this logic is duplicated in Database->configure_pgsql(), we should remove this tool entirely 
 #       and use that.
+# NOTE: Now disabled, to be reomved.
+
+
+exit(0);
 
 use strict;
 use warnings;

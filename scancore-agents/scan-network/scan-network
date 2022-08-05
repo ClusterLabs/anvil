@@ -462,6 +462,16 @@ sub collect_data
 	
 	$anvil->Network->get_ips({debug => 2});
 	
+	# Read the data from the ifcfg files, if available. We'll use this to check for bond interfaces that 
+	# didn't start.
+	$anvil->Network->check_network();
+	my $uptime = $anvil->Get->uptime();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+	if ($uptime < 600)
+	{
+		$anvil->Network->read_nmcli({debug => 2})
+	}
+	
 	# The 'local_host' is needed to pull data recorded by Network->get_ips();
 	my $local_host = $anvil->Get->short_host_name();
 	my $directory  = "/sys/class/net";
@@ -1037,6 +1047,46 @@ sub collect_data
 				"new::interface::${interface}::tx_bytes"    => $anvil->data->{new}{interface}{$interface}{tx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{interface}{$interface}{tx_bytes}}).")", 
 				"new::interface::${interface}::rx_bytes"    => $anvil->data->{new}{interface}{$interface}{rx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{interface}{$interface}{rx_bytes}}).")", 
 			}});
+			
+			# On some occassions, an interface that is in a bond won't start. If the host uptime 
+			# is less than ten minutes, and a bond's member interface is down, up it.
+			if ($uptime < 600)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"nmcli::${local_host}::device_to_uuid::${interface}" => $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$interface}, 
+				}});
+				my $uuid = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$interface};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+				
+				if ($uuid)
+				{
+					my $state    = $anvil->data->{nmcli}{$local_host}{uuid}{$uuid}{'state'};
+					my $filename = $anvil->data->{nmcli}{$local_host}{uuid}{$uuid}{filename};
+					my $name     = ($filename =~ /ifcfg-(.*?)$/)[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						filename => $filename, 
+						name     => $name,
+						'state'  => $state,
+					}});
+					
+					if ($state ne "active")
+					{
+						# Try brinding the interface up.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0147", variables => { 
+							interface => $interface, 
+							uptime    => $uptime,
+						}});
+						
+						my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
+					}
+				}
+			}
 		}
 		
 		# Record the IP address info.

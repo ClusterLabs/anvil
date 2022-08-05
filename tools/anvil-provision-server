@@ -857,6 +857,17 @@ sub startup_resource
 					}
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0580", variables => { resource => $anvil->data->{job}{server_name} }});
 					
+					# Make it secondary again. This is needed as it won't auto-demote 
+					# otherwise.
+					$shell_call = $anvil->data->{path}{exe}{drbdadm}." secondary ".$anvil->data->{job}{server_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
+					
 					# set the fencing back
 					$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$anvil->data->{job}{server_name};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});

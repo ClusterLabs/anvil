@@ -1,0 +1,30 @@
+.\" Manpage for the Anvil! host configuration program
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-check-memory "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-check-memory \- This program configures the host for use in an Anvil! cluster.
+.SH SYNOPSIS
+.B anvil-check-memory 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This picks up a job from the database and, using the data from it, configures the host to prepare it for use in an Anvil! cluster.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-job-uuid\fR <name>
+The program is normally run as a job, with data on how to configure the host defined in the job. This switch allows the running of a specific job. If this is not set, the program will search for a job that has not yet been picked up by another process. If found, that job UUID is used automatically.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

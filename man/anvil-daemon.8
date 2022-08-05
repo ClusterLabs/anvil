@@ -1,8 +1,41 @@
-.TH anvil-daemon
+.\" Manpage for the Anvil! daemon. 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-daemon "8" "July 29 2022" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-daemon - Main systemd daemon for the Anvil! IA platform. Provides all job management, monitoring and Striker back-end functions.
+anvil-daemon \- Main systemd daemon for the M3 Anvil! IA cluster. Provides all job management, monitoring and Striker back-end functions. 
 .SH SYNOPSIS
-.B anvil-daemon
+.B anvil-daemon 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-.B anvil-daemon
-Main daemon for the M3 Anvil! Intelligent Availability\*(Tm platform. Usually managed via 
+anvil-daemon \- Main systemd daemon that can be run manually for testing and debug reasons. No switches needed for normal operation by systemd.
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-refresh-json\fR (derecated)
+Short hand for '\fB\-\-run-once\fR', '\fB\-\-main-loop-only\fR' and '\fB\-\-no-start\fR'. Used to be use to refresh the JSON file used by striker's web interface to know hardware states. 
+.TP
+\fB\-\-main-loop-only\fR
+This skips the one-time, start-up tasks and just goes into the main-loop.
+.TP
+\fB\-\-no-start\fR
+This will prevent any pending jobs from being picked up and started in this run. Note that other job checks will still happen.
+.TP
+\fB\-\-run-once\fR
+This will tell the program to exit after running the main loop once.
+.TP
+\fB\-\-startup-only\fR
+This will tell the program to exit after running the start up tasks, so the main loop won't run.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

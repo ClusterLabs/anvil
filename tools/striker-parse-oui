@@ -3,6 +3,9 @@
 # This periodically reads in http://standards-oui.ieee.org/oui/oui.txt, if possible, and parses it to update/
 # populate the oui database table.
 # 
+# NOTE: 
+# - Disabled for now. Move the OUI data to a flat file and change lookup to read the file. Too big for the DB / resync.
+# 
 # TODO: 
 # 
 
@@ -46,6 +49,14 @@ update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-
 $anvil->data->{progress} = 1;
 
 check_if_time($anvil);
+
+### NOTE: Disabled 
+print $anvil->Words->string({key => "message_0291"})."\n";
+update_progress($anvil, 100, "message_0291");
+$anvil->nice_exit({exit_code => 0});
+
+
+
 
 my $oui_file = $anvil->Get->users_home({debug => 3})."/oui.txt";
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});

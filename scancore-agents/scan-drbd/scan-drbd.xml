@@ -233,6 +233,8 @@ The global common configuration file: [#!variable!file!#] needs to be updated. T
 		<key name="scan_drbd_state_attaching_explain">Transient state while reading meta data.</key>
 		<key name="scan_drbd_state_detaching_name">Detaching</key>
 		<key name="scan_drbd_state_detaching_explain">Transient state while detaching and waiting for ongoing IOs to complete.</key>
+		<key name="scan_drbd_state_DELETED_name">Deleted</key>
+		<key name="scan_drbd_state_DELETED_explain">This disk was deleted.</key>
 		<key name="scan_drbd_state_failed_name">Failed</key>
 		<key name="scan_drbd_state_failed_explain">Transient state following an I/O failure report by the local block device. Next state: Diskless. Note: Despite the name, this is rarely an actual issue.</key>
 		<key name="scan_drbd_state_negotiating_name">Negotiating</key>

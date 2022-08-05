@@ -7,4 +7,9 @@ dist_man5_MANS		= \
 			  anvil.conf.5
 
 dist_man8_MANS		= \
-			  anvil-daemon.8
+			  alteeve-repo-setup.8 \
+			  anvil-boot-server.8 \
+			  anvil-check-memory.8 \
+			  anvil-configure-host.8 \
+			  anvil-daemon.8 \
+			  scancore.8

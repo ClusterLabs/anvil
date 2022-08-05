@@ -25,28 +25,6 @@
 # - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
 #   power button. Might be useful in ScanCore down the road.
 # 
-# Switches:
-# 
-# --main-loop-only 
-# 
-#   This skips the one-time, start-up tasks and just goes into the main-loop,
-# 
-# --no-start
-# 
-#   This will prevent any pending jobs from being picked up and started in this run. Note that other job checks will still happen.
-# 
-# --refresh-json 
-#   
-#   This just updates the JSON files used by the web interface. It is the same as '--run-once --main-loop-only --no-start'
-#   
-# --run-once
-# 
-#   This will tell the program to exit after runn the main loop once.
-# 
-# --startup-only
-# 
-#   This will tell the program to exit after running the start up tasks, so the main loop won't run.
-# 
 
 use strict;
 use warnings;
@@ -139,14 +117,8 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Read switches
-$anvil->data->{switches}{'refresh-json'}   = "";
-$anvil->data->{switches}{'run-once'}       = 0;
-$anvil->data->{switches}{'main-loop-only'} = 0;
-$anvil->data->{switches}{'no-start'}       = 0;
-$anvil->data->{switches}{'purge'}          = 0;
-$anvil->data->{switches}{'startup-only'}   = 0;
-$anvil->Get->switches;
-
+$anvil->Get->switches({list => ["refresh-json", "run-once", "main-loop-only", "no-start", "startup-only"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 if ($anvil->data->{switches}{'refresh-json'})
@@ -154,6 +126,11 @@ if ($anvil->data->{switches}{'refresh-json'})
 	$anvil->data->{switches}{'run-once'}       = 1;
 	$anvil->data->{switches}{'main-loop-only'} = 1;
 	$anvil->data->{switches}{'no-start'}       = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::run-once"       => $anvil->data->{switches}{'run-once'}, 
+		"switches::main-loop-only" => $anvil->data->{switches}{'main-loop-only'}, 
+		"switches::no-start"       => $anvil->data->{switches}{'no-start'}, 
+	}});
 }
 
 # This is used to track initial checkes / repairs of network issues.
@@ -1194,6 +1171,8 @@ sub check_firewall
 {
 	my ($anvil) = @_;
 	
+	return(0);
+	
 	# Don't call this if we're not configured yet.
 	my $configured = $anvil->System->check_if_configured({debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
@@ -1430,14 +1409,15 @@ sub prep_database
 		}});
 		if ($prep_database)
 		{
-			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				database_output => $database_output,
-				return_code     => $return_code, 
-			}});
+			$anvil->Database->configure_pgsql({debug => 2})
+# 			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
+# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+# 			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 				database_output => $database_output,
+# 				return_code     => $return_code, 
+# 			}});
 		}
 		elsif (not $anvil->data->{sys}{database}{connections})
 		{

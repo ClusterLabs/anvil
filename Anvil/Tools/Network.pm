@@ -254,6 +254,7 @@ sub check_firewall
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_firewall()" }});
 	
 	my $running = 0;
+	return(0);
 	
 	# Make sure firewalld is running.
 	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
@@ -1564,10 +1565,14 @@ sub get_ips
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^\d+: (.*?): /)
+		if ($line =~ /^\d+: (.*?): <(.*?)>/)
 		{
-			$in_iface = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
+			   $in_iface = $1;
+			my $status   = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				in_iface => $in_iface,
+				status   => $status, 
+			}});
 			
 			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{ip};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask};
@@ -1578,6 +1583,7 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{tx_bytes};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes}        = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{rx_bytes};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{status}          = $status;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${in_iface}::ip"              => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}, 
 				"network::${host}::interface::${in_iface}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}, 
@@ -1586,6 +1592,7 @@ sub get_ips
 				"network::${host}::interface::${in_iface}::default_gateway" => $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway}, 
 				"network::${host}::interface::${in_iface}::gateway"         => $anvil->data->{network}{$host}{interface}{$in_iface}{gateway}, 
 				"network::${host}::interface::${in_iface}::dns"             => $anvil->data->{network}{$host}{interface}{$in_iface}{dns}, 
+				"network::${host}::interface::${in_iface}::status"          => $anvil->data->{network}{$host}{interface}{$in_iface}{status}, 
 			}});
 			
 			if ($in_iface ne "lo")
@@ -2968,14 +2975,28 @@ sub manage_firewall
 		zone        => $zone
 	}});
 	
-	# Before we do anything, is the firewall even running?
-	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
+	### TODO: Remove when fixed.
+	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
-	if (not $firewalld_running)
+	if ($firewalld_running)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
-		return(1);
+		# Disable and stop.
+		$anvil->System->disable_daemon({
+			now    => 1, 
+			daemon => $anvil->data->{sys}{daemon}{firewalld},
+		});
 	}
+	
+	return(0);
+	
+	# Before we do anything, is the firewall even running?
+# 	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
+# 	if (not $firewalld_running)
+# 	{
+# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
+# 		return(1);
+# 	}
 	
 	# What we do next depends on what we're doing. 
 	my $host_type = $anvil->Get->host_type;

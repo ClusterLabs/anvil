@@ -36,11 +36,8 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 # Read switches
-$anvil->Get->switches;
-### TODO: Remove this before final release
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-##########################################
+$anvil->Get->switches({list => ["job-uuid"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -1242,6 +1239,7 @@ sub reconfigure_network
 	{
 		# In an attempt to make network changes more reliable, we'll just reboot. This shouldn't 
 		# actually be hit anymore as any change should have triggered the reboot above.
+		$anvil->data->{sys}{reboot} = 1;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0687", variables => { reason => "#!string!log_0631!#" }});
 		do_reboot($anvil);
 		
