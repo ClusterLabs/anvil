@@ -55,7 +55,7 @@ const testInput: TestInputFunction = ({
         min: dMin = 0,
         onSuccess: dOnSuccess,
         value: dValue = null,
-      },
+      } = {},
       onFinishBatch,
       optionalTests,
       tests: requiredTests,
