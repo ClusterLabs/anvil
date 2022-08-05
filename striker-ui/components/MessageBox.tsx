@@ -36,6 +36,8 @@ type MessageBoxOptionalProps = {
 
 type MessageBoxProps = MUIBoxProps & MessageBoxOptionalProps;
 
+type Message = Pick<MessageBoxProps, 'children' | 'type'>;
+
 const MESSAGE_BOX_CLASS_PREFIX = 'MessageBox';
 
 const MESSAGE_BOX_CLASSES: Record<MessageBoxType, string> = {
@@ -171,6 +173,6 @@ const MessageBox: FC<MessageBoxProps> = ({
 
 MessageBox.defaultProps = MESSAGE_BOX_DEFAULT_PROPS;
 
-export type { MessageBoxProps, MessageBoxType };
+export type { Message, MessageBoxProps, MessageBoxType };
 
 export default MessageBox;
