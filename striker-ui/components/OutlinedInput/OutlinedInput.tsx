@@ -4,6 +4,7 @@ import {
 } from '@mui/icons-material';
 import {
   IconButton as MUIIconButton,
+  IconButtonProps as MUIIconButtonProps,
   OutlinedInput as MUIOutlinedInput,
   outlinedInputClasses as muiOutlinedInputClasses,
   OutlinedInputProps as MUIOutlinedInputProps,
@@ -11,21 +12,29 @@ import {
 import { cloneElement, FC, ReactElement, useMemo, useState } from 'react';
 
 import { GREY, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
+import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
-type OutlinedInputProps = MUIOutlinedInputProps;
+type OutlinedInputOptionalProps = {
+  onPasswordVisibilityAppend?: (
+    inputType: string,
+    ...restArgs: Parameters<Exclude<MUIIconButtonProps['onClick'], undefined>>
+  ) => void;
+};
 
-const INPUT_TYPES: Record<
-  Exclude<MUIOutlinedInputProps['type'], undefined>,
-  string
+type OutlinedInputProps = MUIOutlinedInputProps & OutlinedInputOptionalProps;
+
+const OUTLINED_INPUT_DEFAULT_PROPS: Pick<
+  OutlinedInputOptionalProps,
+  'onPasswordVisibilityAppend'
 > = {
-  password: 'password',
-  text: 'text',
+  onPasswordVisibilityAppend: undefined,
 };
 
 const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
   const {
     endAdornment,
     label,
+    onPasswordVisibilityAppend,
     sx,
     inputProps: { type: baseType, ...inputRestProps } = {},
     ...outlinedInputRestProps
@@ -33,30 +42,29 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
 
   const [type, setType] = useState<string>(baseType);
 
-  const additionalEndAdornment = useMemo(
-    () => (
+  const additionalEndAdornment = useMemo(() => {
+    const isBaseTypePassword = baseType === INPUT_TYPES.password;
+    const isTypePassword = type === INPUT_TYPES.password;
+
+    return (
       <>
-        {baseType === INPUT_TYPES.password && (
+        {isBaseTypePassword && (
           <MUIIconButton
-            onClick={() => {
-              setType((previous) =>
-                previous === INPUT_TYPES.password
-                  ? INPUT_TYPES.text
-                  : INPUT_TYPES.password,
-              );
+            onClick={(...args) => {
+              const newType = isTypePassword
+                ? INPUT_TYPES.text
+                : INPUT_TYPES.password;
+
+              setType(newType);
+              onPasswordVisibilityAppend?.call(null, newType, ...args);
             }}
           >
-            {type === INPUT_TYPES.password ? (
-              <MUIVisibilityIcon />
-            ) : (
-              <MUIVisibilityOffIcon />
-            )}
+            {isTypePassword ? <MUIVisibilityIcon /> : <MUIVisibilityOffIcon />}
           </MUIIconButton>
         )}
       </>
-    ),
-    [baseType, type],
-  );
+    );
+  }, [baseType, onPasswordVisibilityAppend, type]);
   const combinedSx = useMemo(
     () => ({
       color: GREY,
@@ -125,6 +133,8 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
     />
   );
 };
+
+OutlinedInput.defaultProps = OUTLINED_INPUT_DEFAULT_PROPS;
 
 export type { OutlinedInputProps };
 
