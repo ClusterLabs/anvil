@@ -58,15 +58,19 @@ const InputWithRef = forwardRef(
     }: InputWithRefProps<TypeName, InputComponent>,
     ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
   ) => {
+    const {
+      props: { onChange: initOnChange, value: initValue, ...restInitProps },
+    } = input;
+
     const [value, setValue] = useState<MapToType[TypeName]>(
-      input.props.value ?? MAP_TO_INITIAL_VALUE[valueType],
+      initValue ?? MAP_TO_INITIAL_VALUE[valueType],
     ) as [MapToType[TypeName], MapToStateSetter[TypeName]];
     const [isChangedByUser, setIsChangedByUser] = useState<boolean>(false);
 
     const onChange = createInputOnChangeHandler<TypeName>({
       postSet: (...args) => {
         setIsChangedByUser(true);
-        input.props.onChange?.call(null, ...args);
+        initOnChange?.call(null, ...args);
         postSetAppend?.call(null, ...args);
       },
       set: setValue,
@@ -84,7 +88,7 @@ const InputWithRef = forwardRef(
       [isChangedByUser, value],
     );
 
-    return cloneElement(input, { ...input.props, onChange, value });
+    return cloneElement(input, { ...restInitProps, onChange, value });
   },
 );
 
