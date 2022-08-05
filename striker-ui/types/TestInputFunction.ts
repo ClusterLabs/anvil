@@ -18,8 +18,8 @@ export type InputTest = {
 
 export type InputTestBatches = {
   [id: string]: {
-    defaults: InputTestArgs & {
-      onSuccess: () => void;
+    defaults?: InputTestArgs & {
+      onSuccess?: () => void;
     };
     onFinishBatch?: () => void;
     optionalTests?: Array<InputTest>;
