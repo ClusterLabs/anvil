@@ -122,10 +122,16 @@ const dbSubRefreshTimestamp = () =>
 const dbWrite = (query: string, options?: SpawnSyncOptions) =>
   execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
 
+const getLocalHostUUID = () =>
+  execModuleSubroutine('host_uuid', {
+    subModuleName: 'Get',
+  }).stdout;
+
 export {
   dbJobAnvilSyncShared,
   dbQuery,
-  execModuleSubroutine as sub,
   dbSubRefreshTimestamp,
   dbWrite,
+  getLocalHostUUID,
+  execModuleSubroutine as sub,
 };
