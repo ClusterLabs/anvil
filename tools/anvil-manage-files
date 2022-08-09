@@ -456,7 +456,7 @@ sub check_incoming
 	});
 	
 	my $incoming_directory = $anvil->data->{path}{directories}{shared}{incoming};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0264"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0264"});
 	foreach my $full_path (sort {$a cmp $b} keys %{$anvil->data->{scan}{directories}})
 	{
 		# Skip this if it's under '/mnt/shared/temp' (that's used for files being downloaded, etc)

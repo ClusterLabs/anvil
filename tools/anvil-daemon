@@ -799,18 +799,29 @@ AND
 				's3:state_note' => $state_note, 
 			}});
 			
-			my ($db_uuid, $state_pid) = ($state_name =~ /db_in_use::(.*?)::(\d+)$/);
+			my $caller                = "";
+			my ($db_uuid, $state_pid) = ($state_name =~ /db_in_use::(.*?)::(.*)$/);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:db_uuid'   => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")", 
-				's4:state_pid' => $state_pid, 
+				's2:state_pid' => $state_pid, 
 			}});
+			if ($state_pid =~ /(\d+)::(.*)$/)
+			{
+				$state_pid = $1;
+				$caller    = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:state_pid' => $state_pid, 
+					's2:caller'    => $caller,
+				}});
+			}
 			
 			if (not exists $anvil->data->{pids}{$state_pid})
 			{
 				# Reap the 'db_is_use'.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0140", variables => { 
-					db  => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")",
-					pid => $state_pid,
+					db       => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")",
+					pid      => $state_pid,
+					'caller' => $caller, 
 				}});
 				
 				my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";

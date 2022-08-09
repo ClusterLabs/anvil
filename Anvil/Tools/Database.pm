@@ -15382,7 +15382,7 @@ sub mark_active
 	# Record that we're using each available striker DB UUID.
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
-		my $state_name = "db_in_use::".$uuid."::".$$;
+		my $state_name = "db_in_use::".$uuid."::".$$."::".$ENV{_};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			set        => $set,
 			state_name => $state_name,
