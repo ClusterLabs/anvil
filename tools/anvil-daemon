@@ -818,6 +818,7 @@ AND
 			if (not exists $anvil->data->{pids}{$state_pid})
 			{
 				# Reap the 'db_is_use'.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { state_name => $state_name }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0140", variables => { 
 					db       => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")",
 					pid      => $state_pid,
