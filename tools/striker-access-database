@@ -74,3 +74,4 @@ else
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
+$anvil->nice_exit({ exit_code => 0 });

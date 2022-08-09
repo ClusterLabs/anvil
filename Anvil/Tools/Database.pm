@@ -15379,7 +15379,7 @@ sub mark_active
 		return(0);
 	}
 	
-	my $caller = $ENV{_};
+	my $caller = $ENV{_} ? $ENV{_} : "unknown";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'caller' => $caller }});
 	
 	# Record that we're using each available striker DB UUID.

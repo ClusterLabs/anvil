@@ -51,7 +51,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->Get->switches({list => ["delete", "download", "file", "is-script", "job-uuid", "rename", "remove", "add", "to"], man => $THIS_FILE});
+$anvil->Get->switches({list => ["add", "check", "delete", "download", "file", "is-script", "job-uuid", "rename", "remove", "to"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
 # Connect or die
@@ -106,7 +106,7 @@ elsif ($anvil->data->{switches}{'is-script'})
 {
 	handle_script($anvil);
 }
-else
+elsif ($anvil->data->{switches}{check})
 {
 	# Check for files scheduled for deletion.
 	check_for_deletes($anvil);
@@ -117,6 +117,11 @@ else
 	# Check for files we should have but don't yet have.
 	find_missing_files($anvil);
 }
+else
+{
+	# Show the list of all files we know about.
+	show_files($anvil);
+}
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -125,6 +130,16 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# This lists all files.
+sub show_files
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
 
 # This looks to see if there are any entries in 'file_locations' for us that, the pointed to file, doesn't 
 # exist on this machine. For those entries, we will search for the file on other machines. The one exception
