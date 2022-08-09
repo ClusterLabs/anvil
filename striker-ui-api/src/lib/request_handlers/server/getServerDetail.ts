@@ -6,7 +6,7 @@ import path from 'path';
 import { REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { dbQuery, sub } from '../../accessModule';
+import { dbQuery, getLocalHostUUID, sub } from '../../accessModule';
 import { sanitizeQS } from '../../sanitizeQS';
 import { mkfifo, rm } from '../../shell';
 
@@ -42,9 +42,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
     let requestHostUUID: string, serverHostUUID: string;
 
     try {
-      requestHostUUID = sub('host_uuid', {
-        subModuleName: 'Get',
-      }).stdout;
+      requestHostUUID = getLocalHostUUID();
     } catch (subError) {
       console.log(`Failed to get local host UUID; CAUSE: ${subError}`);
 

@@ -1,4 +1,4 @@
-import { sub } from '../../accessModule';
+import { getLocalHostUUID } from '../../accessModule';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 
@@ -7,9 +7,7 @@ export const getNetworkInterface = buildGetRequestHandler(
     let localHostUUID: string;
 
     try {
-      localHostUUID = sub('host_uuid', {
-        subModuleName: 'Get',
-      }).stdout;
+      localHostUUID = getLocalHostUUID();
     } catch (subError) {
       console.log(`Failed to get local host UUID; CAUSE: ${subError}`);
 
