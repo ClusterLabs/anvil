@@ -2297,12 +2297,14 @@ sub switches
 			next if $set_switch eq "?";
 			next if $set_switch eq "h";
 			next if $set_switch eq "help";
+			next if $set_switch eq "log-secure";
+			next if $set_switch eq "log-db-transactions";
 			next if $set_switch eq "raw";
+			next if $set_switch eq "resync-db";
 			next if $set_switch eq "v";
 			next if $set_switch eq "vv";
 			next if $set_switch eq "vvv";
 			next if $set_switch eq "vvvv";
-			next if $set_switch eq "log-secure";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_switch => $set_switch }});
 			
 			my $found = 0;
