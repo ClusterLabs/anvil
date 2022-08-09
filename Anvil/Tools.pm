@@ -1111,6 +1111,7 @@ sub _set_paths
 				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-dr'		=>	"/usr/sbin/anvil-manage-dr",
+				'anvil-manage-files'		=>	"/usr/sbin/anvil-manage-files",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",

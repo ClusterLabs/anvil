@@ -51,9 +51,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-
 $anvil->Get->switches({list => ["delete", "download", "file", "is-script", "job-uuid", "rename", "remove", "add", "to"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
@@ -154,6 +151,8 @@ sub find_missing_files
 	my ($anvil) = @_;
 	
 	# What am I? This will impact how missing files are found.
+	$anvil->Database->get_anvils();
+	
 	my $query = "
 SELECT 
     file_uuid, 
@@ -209,10 +208,67 @@ ORDER BY
 				my ($found) = find_file($anvil, $file_uuid, $full_path, $file_size, $file_md5sum);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
 			}
+			
+			# If we're a Striker, see if any Anvil! systems exist that don't know about this file. 
+			$anvil->Database->check_file_locations({debug => 2});
+		}
+		else
+		{
+			# Check to see if we're supposed to have this file.
+			$anvil->Database->get_file_locations();
+			my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+			
+			# Nothing to do if we're not in an Anvil! yet.
+			next if not $anvil_uuid;
+			
+			# Do we have a file_location_uuid? If not, there will be soon but nothing to do until
+			# then.
+			my $file_location_uuid = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
+			next if not $file_location_uuid;
+			
+			# Should we have it?
+			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_active => $file_location_active }});
+			
+			if ($file_location_active)
+			{
+				# Make sure it exists, and add it if not.
+				if (not -e $full_path)
+				{
+					# Find and copy it.
+					my ($found) = find_file($anvil, $file_uuid, $full_path, $file_size, $file_md5sum);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+				}
+			}
+			else
+			{
+				# If it exists, remove it.
+				if (-e $full_path)
+				{
+					# Delete it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0285", variables => { file => $full_path }});
+					
+					unlink $full_path;
+					
+					# Sleep and verify
+					sleep 1;
+					if (-e $full_path)
+					{
+						# Failed to delete...
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0284", variables => { file => $full_path }});
+						return("");
+					}
+					else
+					{
+						# Deleted successfully.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0283"});
+					}
+				}
+			}
 		}
 	}
-	
-	### TODO: Left off here.
 	
 	return(0);
 }
@@ -400,7 +456,7 @@ sub check_incoming
 	});
 	
 	my $incoming_directory = $anvil->data->{path}{directories}{shared}{incoming};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0264"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0264"});
 	foreach my $full_path (sort {$a cmp $b} keys %{$anvil->data->{scan}{directories}})
 	{
 		# Skip this if it's under '/mnt/shared/temp' (that's used for files being downloaded, etc)
@@ -511,6 +567,9 @@ sub check_incoming
 		}});
 		if ($full_path =~ /^$incoming_directory/)
 		{
+			# Ignore files starting with '.', they're often in-progress rsync's. 
+			next if $file_name =~ /^\./;
+			
 			# If it's a definition file, we'll move it to 
 			# 'path::directories::shared::definitions', otherwise we'll move it to 
 			# 'path::directories::shared::files'.

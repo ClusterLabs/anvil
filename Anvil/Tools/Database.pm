@@ -381,7 +381,7 @@ sub backup_database
 
 =head2 check_file_locations
 
-This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< false >>.
+This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< true >>.
 
 This method takes no parameters.
 
@@ -420,7 +420,7 @@ sub check_file_locations
 					debug                    => $debug, 
 					file_location_file_uuid  => $file_uuid, 
 					file_location_anvil_uuid => $anvil_uuid, 
-					file_location_active     => 0, 
+					file_location_active     => 1, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 			}
