@@ -15,6 +15,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
     },
     sbin: {
       'anvil-access-module': {},
+      'anvil-configure-host': {},
       'anvil-get-server-screenshot': {},
       'anvil-provision-server': {},
       'anvil-sync-shared': {},
