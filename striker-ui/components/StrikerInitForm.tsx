@@ -1,23 +1,54 @@
-import { FC, useRef, useState } from 'react';
+import { FC, useMemo, useRef, useState } from 'react';
 
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
 import GeneralInitForm, {
   GeneralInitFormForwardRefContent,
 } from './GeneralInitForm';
+import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
 import NetworkInitForm, {
   NetworkInitFormForwardRefContent,
 } from './NetworkInitForm';
 import { Panel, PanelHeader } from './Panels';
-import { BodyText, HeaderText } from './Text';
+import Spinner from './Spinner';
+import { HeaderText } from './Text';
 
 const StrikerInitForm: FC = () => {
-  const [requestBody, setRequestBody] = useState<
-    Record<string, unknown> | undefined
-  >();
+  const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
 
   const generalInitFormRef = useRef<GeneralInitFormForwardRefContent>({});
   const networkInitFormRef = useRef<NetworkInitFormForwardRefContent>({});
+
+  const buildSubmitSection = useMemo(
+    () =>
+      isSubmittingForm ? (
+        <Spinner />
+      ) : (
+        <FlexBox row sx={{ flexDirection: 'row-reverse' }}>
+          <ContainedButton
+            onClick={() => {
+              setIsSubmittingForm(true);
+
+              const requestBody: string = JSON.stringify({
+                ...(generalInitFormRef.current.get?.call(null) ?? {}),
+                ...(networkInitFormRef.current.get?.call(null) ?? {}),
+              });
+
+              mainAxiosInstance
+                .put('/command/initialize-striker', requestBody, {
+                  headers: { 'Content-Type': 'application/json' },
+                })
+                .then(() => {
+                  setIsSubmittingForm(false);
+                });
+            }}
+          >
+            Initialize
+          </ContainedButton>
+        </FlexBox>
+      ),
+    [isSubmittingForm],
+  );
 
   return (
     <Panel>
@@ -27,26 +58,7 @@ const StrikerInitForm: FC = () => {
       <FlexBox>
         <GeneralInitForm ref={generalInitFormRef} />
         <NetworkInitForm ref={networkInitFormRef} />
-        <FlexBox row sx={{ flexDirection: 'row-reverse' }}>
-          <ContainedButton
-            onClick={() => {
-              setRequestBody({
-                ...(generalInitFormRef.current.get?.call(null) ?? {}),
-                ...(networkInitFormRef.current.get?.call(null) ?? {}),
-              });
-            }}
-          >
-            Initialize
-          </ContainedButton>
-        </FlexBox>
-        {requestBody && (
-          <pre>
-            <BodyText
-              sx={{ fontSize: '.8em' }}
-              text={JSON.stringify(requestBody, null, 2)}
-            />
-          </pre>
-        )}
+        {buildSubmitSection}
       </FlexBox>
     </Panel>
   );
