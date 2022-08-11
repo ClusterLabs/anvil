@@ -49,6 +49,7 @@ const testInput: TestInputFunction = ({
   Object.keys(testsToRun).every((id: string) => {
     const {
       defaults: {
+        compare: dCompare = null,
         displayMax: dDisplayMax,
         displayMin: dDisplayMin,
         max: dMax = 0,
@@ -61,6 +62,7 @@ const testInput: TestInputFunction = ({
       tests: requiredTests,
     } = tests[id];
     const {
+      compare = dCompare,
       max = dMax,
       min = dMin,
       value = dValue,
@@ -75,7 +77,7 @@ const testInput: TestInputFunction = ({
       onSuccess = dOnSuccess,
       test,
     }) => {
-      const singleResult: boolean = test({ max, min, value });
+      const singleResult: boolean = test({ compare, max, min, value });
 
       const { cbFailure, cbSuccess } = setSingleCallback({
         onFailure,
