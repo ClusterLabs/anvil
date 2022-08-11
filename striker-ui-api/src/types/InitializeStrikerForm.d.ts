@@ -1,5 +1,5 @@
 type InitializeStrikerNetworkForm = {
-  interfaces: NetworkInterfaceOverview[];
+  interfaces: Array<NetworkInterfaceOverview | null | undefined>;
   ipAddress: string;
   name: string;
   subnetMask: string;
