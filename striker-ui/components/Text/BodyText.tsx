@@ -59,6 +59,7 @@ const buildBodyTextClasses = ({
 
 const BodyText: FC<BodyTextProps> = ({
   children,
+  className,
   inverted = BODY_TEXT_DEFAULT_PROPS.inverted,
   monospaced = BODY_TEXT_DEFAULT_PROPS.monospaced,
   selected = BODY_TEXT_DEFAULT_PROPS.selected,
@@ -68,11 +69,11 @@ const BodyText: FC<BodyTextProps> = ({
 }) => (
   <MUITypography
     {...{
-      className: buildBodyTextClasses({
+      className: `${buildBodyTextClasses({
         isInvert: inverted,
         isMonospace: monospaced,
         isSelect: selected,
-      }),
+      })} ${className}`,
       variant: 'subtitle1',
       ...muiTypographyRestProps,
       sx: {
