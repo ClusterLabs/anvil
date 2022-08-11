@@ -238,7 +238,7 @@ const createNetworkInterfaceTableColumns = (
 ];
 
 const NetworkForm: FC<{
-  createDropMouseUpHandler: (
+  createDropMouseUpHandler?: (
     interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
@@ -416,6 +416,8 @@ const NetworkForm: FC<{
   );
 };
 
+NetworkForm.defaultProps = { createDropMouseUpHandler: undefined };
+
 const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
   (networkInitFormProps, ref) => {
     const [dragMousePosition, setDragMousePosition] = useState<{
@@ -498,21 +500,19 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
       [networkInputs],
     );
 
-    let createDropMouseUpHandler: (
-      interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
-      interfaceIndex: number,
-    ) => MUIBoxProps['onMouseUp'];
-    let dragAreaDraggingSx: MUIBoxProps['sx'] = {};
-    let floatingNetworkInterface: JSX.Element = <></>;
-    let handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'];
-    let handleDragAreaMouseMove: MUIBoxProps['onMouseMove'];
-    let handleDragAreaMouseUp: MUIBoxProps['onMouseUp'];
+    const createDropMouseUpHandler:
+      | ((
+          interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+          interfaceIndex: number,
+        ) => MUIBoxProps['onMouseUp'])
+      | undefined = useMemo(() => {
+      if (networkInterfaceHeld === undefined) {
+        return undefined;
+      }
 
-    if (networkInterfaceHeld) {
       const { networkInterfaceUUID } = networkInterfaceHeld;
 
-      createDropMouseUpHandler =
-        (
+      return (
           interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
           interfaceIndex: number,
         ) =>
@@ -531,42 +531,63 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
           interfaces[interfaceIndex] = networkInterfaceHeld;
           networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
         };
+    }, [networkInterfaceHeld, networkInterfaceInputMap]);
+    const dragAreaDraggingSx: MUIBoxProps['sx'] = useMemo(
+      () => (networkInterfaceHeld ? { cursor: 'grabbing' } : {}),
+      [networkInterfaceHeld],
+    );
+    const floatingNetworkInterface: JSX.Element = useMemo(() => {
+      if (networkInterfaceHeld === undefined) {
+        return <></>;
+      }
 
-      dragAreaDraggingSx = { cursor: 'grabbing' };
+      const { x, y } = dragMousePosition;
 
-      floatingNetworkInterface = (
+      return (
         <BriefNetworkInterface
           isFloating
           networkInterface={networkInterfaceHeld}
           sx={{
-            left: `calc(${dragMousePosition.x}px + .4em)`,
+            left: `calc(${x}px + .4em)`,
             position: 'absolute',
-            top: `calc(${dragMousePosition.y}px - 1.6em)`,
+            top: `calc(${y}px - 1.6em)`,
             zIndex: 20,
           }}
         />
       );
+    }, [dragMousePosition, networkInterfaceHeld]);
+    const handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'] = useMemo(
+      () =>
+        networkInterfaceHeld
+          ? () => {
+              clearNetworkInterfaceHeld();
+            }
+          : undefined,
+      [clearNetworkInterfaceHeld, networkInterfaceHeld],
+    );
+    const handleDragAreaMouseMove: MUIBoxProps['onMouseMove'] = useMemo(
+      () =>
+        networkInterfaceHeld
+          ? ({ currentTarget, nativeEvent: { clientX, clientY } }) => {
+              const { left, top } = currentTarget.getBoundingClientRect();
 
-      handleDragAreaMouseLeave = () => {
-        clearNetworkInterfaceHeld();
-      };
-
-      handleDragAreaMouseMove = ({
-        currentTarget,
-        nativeEvent: { clientX, clientY },
-      }) => {
-        const { left, top } = currentTarget.getBoundingClientRect();
-
-        setDragMousePosition({
-          x: clientX - left,
-          y: clientY - top,
-        });
-      };
-
-      handleDragAreaMouseUp = () => {
-        clearNetworkInterfaceHeld();
-      };
-    }
+              setDragMousePosition({
+                x: clientX - left,
+                y: clientY - top,
+              });
+            }
+          : undefined,
+      [networkInterfaceHeld],
+    );
+    const handleDragAreaMouseUp: MUIBoxProps['onMouseUp'] = useMemo(
+      () =>
+        networkInterfaceHeld
+          ? () => {
+              clearNetworkInterfaceHeld();
+            }
+          : undefined,
+      [clearNetworkInterfaceHeld, networkInterfaceHeld],
+    );
 
     useEffect(() => {
       const map = networkInterfaces.reduce<NetworkInterfaceInputMap>(
