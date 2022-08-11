@@ -1,5 +1,6 @@
 import { Grid as MUIGrid } from '@mui/material';
 import {
+  FC,
   forwardRef,
   ReactNode,
   useCallback,
@@ -12,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 
-import FlexBox from './FlexBox';
+import FlexBox, { FlexBoxProps } from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import isEmpty from '../lib/isEmpty';
 import MessageBox, { Message } from './MessageBox';
@@ -23,6 +24,7 @@ import pad from '../lib/pad';
 import SuggestButton from './SuggestButton';
 import { testInput, testLength, testNotBlank } from '../lib/test_input';
 import { InputTestBatches } from '../types/TestInputFunction';
+import { BodyText } from './Text';
 
 type GeneralInitFormForwardRefContent = {
   get?: () => {
@@ -64,6 +66,11 @@ const INPUT_TEST_MESSAGE_KEYS: string[] = Array.from(
   () => uuidv4(),
 );
 
+const INITIAL_INPUT_MESSAGES = Array.from(
+  { length: INPUT_COUNT },
+  () => undefined,
+);
+
 const buildOrganizationPrefix = (organizationName = '') => {
   const words: string[] = organizationName
     .split(/\s/)
@@ -88,12 +95,29 @@ const buildHostName = ({
     ? `${organizationPrefix}-striker${pad(hostNumber)}.${domainName}`
     : '';
 
+const ms = (text: ReactNode) => (
+  <BodyText className="inline-monospace-text" monospaced text={text} />
+);
+
+const MessageChildren: FC<FlexBoxProps> = ({ ...flexBoxProps }) => (
+  <FlexBox
+    {...flexBoxProps}
+    row
+    spacing={0}
+    sx={{
+      '& > .inline-monospace-text': {
+        marginTop: '-.2em',
+      },
+    }}
+  />
+);
+
 const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
   (generalInitFormProps, ref) => {
     const [helpMessage, setHelpMessage] = useState<ReactNode | undefined>();
     const [inputMessages, setInputMessages] = useState<
       Array<Message | undefined>
-    >([]);
+    >(INITIAL_INPUT_MESSAGES);
     const [
       isShowOrganizationPrefixSuggest,
       setIsShowOrganizationPrefixSuggest,
@@ -148,28 +172,6 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
     const setConfirmAdminPasswordInputMessage = useCallback(
       (message?: Message) => setInputMessage(6, message),
       [setInputMessage],
-    );
-    const createInputTestMessages = useCallback(
-      () =>
-        inputMessages.map((message, index) => {
-          let messageElement;
-
-          if (message) {
-            const { children, type = 'warning' } = message;
-
-            messageElement = (
-              <MessageBox
-                key={`input-test-message-${INPUT_TEST_MESSAGE_KEYS[index]}`}
-                type={type}
-              >
-                {children}
-              </MessageBox>
-            );
-          }
-
-          return messageElement;
-        }),
-      [inputMessages],
     );
     const populateOrganizationPrefixInput = useCallback(
       ({
@@ -263,6 +265,28 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
       [],
     );
 
+    const inputMessageElements = useMemo(
+      () =>
+        inputMessages.map((message, index) => {
+          let messageElement;
+
+          if (message) {
+            const { children, type = 'warning' } = message;
+
+            messageElement = (
+              <MessageBox
+                key={`input-test-message-${INPUT_TEST_MESSAGE_KEYS[index]}`}
+                type={type}
+              >
+                {children}
+              </MessageBox>
+            );
+          }
+
+          return messageElement;
+        }),
+      [inputMessages],
+    );
     const inputTests: InputTestBatches = useMemo(
       () => ({
         adminPassword: {
@@ -275,12 +299,19 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             {
               onFailure: () => {
                 setAdminPasswordInputMessage({
-                  children:
-                    'Admin password cannot contain single-quote, double-quote, slash, backslash, angle brackets, and curly brackets.',
+                  children: (
+                    <MessageChildren>
+                      Admin password cannot contain single-quote ({ms("'")}),
+                      double-quote ({ms('"')}), slash ({ms('/')}), backslash (
+                      {ms('\\')}), angle brackets ({ms('<>')}), curly brackets (
+                      {ms('{}')}).
+                    </MessageChildren>
+                  ),
                 });
               },
               test: ({ value }) => !/['"/\\><}{]/g.test(value as string),
             },
+            { test: testNotBlank },
           ],
         },
         confirmAdminPassword: {
@@ -298,6 +329,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
               },
               test: ({ value, compare }) => value === compare,
             },
+            { test: testNotBlank },
           ],
         },
         domainName: {
@@ -310,12 +342,17 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             {
               onFailure: () => {
                 setDomainNameInputMessage({
-                  children:
-                    'Domain name can only contain lowercase alphanumeric, hyphen, and decimal characters.',
+                  children: (
+                    <MessageChildren>
+                      Domain name can only contain lowercase alphanumeric,
+                      hyphen ({ms('-')}), and dot ({ms('.')}) characters.
+                    </MessageChildren>
+                  ),
                 });
               },
               test: ({ value }) => REP_DN_CHAR.test(value as string),
             },
+            { test: testNotBlank },
           ],
         },
         hostName: {
@@ -328,12 +365,17 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             {
               onFailure: () => {
                 setHostNameInputMessage({
-                  children:
-                    'Host name can only contain lowercase alphanumeric, hyphen, and decimal characters.',
+                  children: (
+                    <MessageChildren>
+                      Host name can only contain lowercase alphanumeric, hyphen
+                      ({ms('-')}), and dot ({ms('.')}) characters.
+                    </MessageChildren>
+                  ),
                 });
               },
               test: ({ value }) => REP_DN_CHAR.test(value as string),
             },
+            { test: testNotBlank },
           ],
         },
         hostNumber: {
@@ -351,6 +393,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
               },
               test: ({ value }) => /^\d+$/.test(value as string),
             },
+            { test: testNotBlank },
           ],
         },
         organizationName: {
@@ -380,6 +423,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
               },
               test: ({ value }) => /^[a-z0-9]+$/.test(value as string),
             },
+            { test: testNotBlank },
           ],
         },
       }),
@@ -419,12 +463,6 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Organization name"
-                    onChange={({ target: { value } }) => {
-                      testInput({
-                        inputs: { organizationName: { value } },
-                        tests: inputTests,
-                      });
-                    }}
                     onHelp={() => {
                       setHelpMessage(
                         buildHelpMessage(
@@ -461,22 +499,28 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                             minWidth: '2.5em',
                           },
                         },
-                        onBlur: populateHostNameInputOnBlur,
+                        onBlur: (event) => {
+                          const {
+                            target: { value },
+                          } = event;
+
+                          testInput({
+                            inputs: {
+                              organizationPrefix: {
+                                max: MAX_ORGANIZATION_PREFIX_LENGTH,
+                                min: MIN_ORGANIZATION_PREFIX_LENGTH,
+                                value,
+                              },
+                            },
+                            tests: inputTests,
+                          });
+
+                          populateHostNameInputOnBlur(event);
+                        },
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Prefix"
-                      onChange={({ target: { value } }) => {
-                        testInput({
-                          inputs: {
-                            organizationPrefix: {
-                              max: MAX_ORGANIZATION_PREFIX_LENGTH,
-                              min: MIN_ORGANIZATION_PREFIX_LENGTH,
-                              value,
-                            },
-                          },
-                          tests: inputTests,
-                        });
-
+                      onChange={() => {
                         setIsShowOrganizationPrefixSuggest(
                           isOrganizationPrefixPrereqFilled(),
                         );
@@ -503,16 +547,21 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                             minWidth: '2em',
                           },
                         },
-                        onBlur: populateHostNameInputOnBlur,
+                        onBlur: (event) => {
+                          const {
+                            target: { value },
+                          } = event;
+
+                          testInput({
+                            inputs: { hostNumber: { value } },
+                            tests: inputTests,
+                          });
+
+                          populateHostNameInputOnBlur(event);
+                        },
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Striker #"
-                      onChange={({ target: { value } }) => {
-                        testInput({
-                          inputs: { hostNumber: { value } },
-                          tests: inputTests,
-                        });
-                      }}
                       onHelp={() => {
                         setHelpMessage(
                           buildHelpMessage(
@@ -535,16 +584,21 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   <OutlinedInputWithLabel
                     id="striker-init-general-domain-name"
                     inputProps={{
-                      onBlur: populateHostNameInputOnBlur,
+                      onBlur: (event) => {
+                        const {
+                          target: { value },
+                        } = event;
+
+                        testInput({
+                          inputs: { domainName: { value } },
+                          tests: inputTests,
+                        });
+
+                        populateHostNameInputOnBlur(event);
+                      },
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Domain name"
-                    onChange={({ target: { value } }) => {
-                      testInput({
-                        inputs: { domainName: { value } },
-                        tests: inputTests,
-                      });
-                    }}
                     onHelp={() => {
                       setHelpMessage(
                         buildHelpMessage(
@@ -568,15 +622,17 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                           onClick={handlerHostNameSuggest}
                         />
                       ),
+
+                      onBlur: ({ target: { value } }) => {
+                        testInput({
+                          inputs: { hostName: { value } },
+                          tests: inputTests,
+                        });
+                      },
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Host name"
-                    onChange={({ target: { value } }) => {
-                      testInput({
-                        inputs: { hostName: { value } },
-                        tests: inputTests,
-                      });
-
+                    onChange={() => {
                       setIsShowHostNameSuggest(isHostNamePrereqFilled());
                     }}
                     onHelp={() => {
@@ -612,6 +668,12 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                         inputProps: {
                           type: INPUT_TYPES.password,
                         },
+                        onBlur: ({ target: { value } }) => {
+                          testInput({
+                            inputs: { adminPassword: { value } },
+                            tests: inputTests,
+                          });
+                        },
                         onPasswordVisibilityAppend: (inputType) => {
                           setIsConfirmAdminPassword(
                             inputType === INPUT_TYPES.password,
@@ -620,12 +682,6 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Admin password"
-                      onChange={({ target: { value } }) => {
-                        testInput({
-                          inputs: { adminPassword: { value } },
-                          tests: inputTests,
-                        });
-                      }}
                       onHelp={() => {
                         setHelpMessage(
                           buildHelpMessage(
@@ -648,25 +704,25 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                           inputProps: {
                             type: INPUT_TYPES.password,
                           },
+                          onBlur: ({ target: { value } }) => {
+                            testInput({
+                              inputs: {
+                                confirmAdminPassword: {
+                                  value,
+                                  compare:
+                                    adminPasswordInputRef.current.getValue?.call(
+                                      null,
+                                    ),
+                                },
+                              },
+                              tests: inputTests,
+                            });
+                          },
                         }}
                         inputLabelProps={{
                           isNotifyRequired: isConfirmAdminPassword,
                         }}
                         label="Confirm password"
-                        onChange={({ target: { value } }) => {
-                          testInput({
-                            inputs: {
-                              confirmAdminPassword: {
-                                value,
-                                compare:
-                                  adminPasswordInputRef.current.getValue?.call(
-                                    null,
-                                  ),
-                              },
-                            },
-                            tests: inputTests,
-                          });
-                        }}
                       />
                     }
                     ref={confirmAdminPasswordInputRef}
@@ -676,7 +732,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             </MUIGrid>
           </MUIGrid>
         </MUIGrid>
-        {createInputTestMessages()}
+        {inputMessageElements}
         {helpMessage && (
           <MessageBox
             onClose={() => {
