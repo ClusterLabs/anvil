@@ -9,90 +9,88 @@ import { dbQuery, sub } from '../../accessModule';
 
 export const createServer: RequestHandler = ({ body }, response) => {
   console.log('Creating server.');
+  console.dir(body, { depth: null });
 
-  if (body) {
-    const {
-      serverName,
-      cpuCores,
-      memory,
-      virtualDisks: [
-        { storageSize = undefined, storageGroupUUID = undefined } = {},
-      ] = [],
-      installISOFileUUID,
-      driverISOFileUUID,
-      anvilUUID,
-      optimizeForOS,
-    } = body;
+  const {
+    serverName,
+    cpuCores,
+    memory,
+    virtualDisks: [
+      { storageSize = undefined, storageGroupUUID = undefined } = {},
+    ] = [],
+    installISOFileUUID,
+    driverISOFileUUID,
+    anvilUUID,
+    optimizeForOS,
+  } = body || {};
 
-    console.dir(body, { depth: null });
+  const dataServerName = String(serverName);
+  const dataOS = String(optimizeForOS);
+  const dataCPUCores = String(cpuCores);
+  const dataRAM = String(memory);
+  const dataStorageGroupUUID = String(storageGroupUUID);
+  const dataStorageSize = String(storageSize);
+  const dataInstallISO = String(installISOFileUUID);
+  const dataDriverISO = String(driverISOFileUUID) || 'none';
+  const dataAnvilUUID = String(anvilUUID);
 
-    const dataServerName = String(serverName);
-    const dataOS = String(optimizeForOS);
-    const dataCPUCores = String(cpuCores);
-    const dataRAM = String(memory);
-    const dataStorageGroupUUID = String(storageGroupUUID);
-    const dataStorageSize = String(storageSize);
-    const dataInstallISO = String(installISOFileUUID);
-    const dataDriverISO = String(driverISOFileUUID) || 'none';
-    const dataAnvilUUID = String(anvilUUID);
+  try {
+    assert(
+      /^[0-9a-z_-]+$/i.test(dataServerName),
+      `Data server name can only contain alphanumeric, underscore, and hyphen characters; got [${dataServerName}].`,
+    );
 
-    try {
-      assert(
-        /^[0-9a-z_-]+$/i.test(dataServerName),
-        `Data server name can only contain alphanumeric, underscore, and hyphen characters; got [${dataServerName}].`,
-      );
+    const [[serverNameCount]] = dbQuery(
+      `SELECT COUNT(server_uuid) FROM servers WHERE server_name = '${dataServerName}'`,
+    ).stdout;
 
-      const [[serverNameCount]] = dbQuery(
-        `SELECT COUNT(server_uuid) FROM servers WHERE server_name = '${dataServerName}'`,
-      ).stdout;
+    assert(
+      serverNameCount === 0,
+      `Data server name already exists; got [${dataServerName}]`,
+    );
+    assert(
+      OS_LIST_MAP[dataOS] !== undefined,
+      `Data OS not recognized; got [${dataOS}].`,
+    );
+    assert(
+      REP_INTEGER.test(dataCPUCores),
+      `Data CPU cores can only contain digits; got [${dataCPUCores}].`,
+    );
+    assert(
+      REP_INTEGER.test(dataRAM),
+      `Data RAM can only contain digits; got [${dataRAM}].`,
+    );
+    assert(
+      REP_UUID.test(dataStorageGroupUUID),
+      `Data storage group UUID must be a valid UUID; got [${dataStorageGroupUUID}].`,
+    );
+    assert(
+      REP_INTEGER.test(dataStorageSize),
+      `Data storage size can only contain digits; got [${dataStorageSize}].`,
+    );
+    assert(
+      REP_UUID.test(dataInstallISO),
+      `Data install ISO must be a valid UUID; got [${dataInstallISO}].`,
+    );
+    assert(
+      dataDriverISO === 'none' || REP_UUID.test(dataDriverISO),
+      `Data driver ISO must be a valid UUID when provided; got [${dataDriverISO}].`,
+    );
+    assert(
+      REP_UUID.test(dataAnvilUUID),
+      `Data anvil UUID must be a valid UUID; got [${dataAnvilUUID}].`,
+    );
+  } catch (assertError) {
+    console.log(
+      `Failed to assert value when trying to provision a server; CAUSE: ${assertError}.`,
+    );
 
-      assert(
-        serverNameCount === 0,
-        `Data server name already exists; got [${dataServerName}]`,
-      );
-      assert(
-        OS_LIST_MAP[dataOS] !== undefined,
-        `Data OS not recognized; got [${dataOS}].`,
-      );
-      assert(
-        REP_INTEGER.test(dataCPUCores),
-        `Data CPU cores can only contain digits; got [${dataCPUCores}].`,
-      );
-      assert(
-        REP_INTEGER.test(dataRAM),
-        `Data RAM can only contain digits; got [${dataRAM}].`,
-      );
-      assert(
-        REP_UUID.test(dataStorageGroupUUID),
-        `Data storage group UUID must be a valid UUID; got [${dataStorageGroupUUID}].`,
-      );
-      assert(
-        REP_INTEGER.test(dataStorageSize),
-        `Data storage size can only contain digits; got [${dataStorageSize}].`,
-      );
-      assert(
-        REP_UUID.test(dataInstallISO),
-        `Data install ISO must be a valid UUID; got [${dataInstallISO}].`,
-      );
-      assert(
-        dataDriverISO === 'none' || REP_UUID.test(dataDriverISO),
-        `Data driver ISO must be a valid UUID when provided; got [${dataDriverISO}].`,
-      );
-      assert(
-        REP_UUID.test(dataAnvilUUID),
-        `Data anvil UUID must be a valid UUID; got [${dataAnvilUUID}].`,
-      );
-    } catch (assertError) {
-      console.log(
-        `Failed to assert value when trying to provision a server; CAUSE: ${assertError}.`,
-      );
+    response.status(400).send();
 
-      response.status(500).send();
+    return;
+  }
 
-      return;
-    }
-
-    const provisionServerJobData = `server_name=${dataServerName}
+  const provisionServerJobData = `server_name=${dataServerName}
 os=${dataOS}
 cpu_cores=${dataCPUCores}
 ram=${dataRAM}
@@ -101,10 +99,10 @@ storage_size=${dataStorageSize}
 install_iso=${dataInstallISO}
 driver_iso=${dataDriverISO}`;
 
-    console.log(`provisionServerJobData: [${provisionServerJobData}]`);
+  console.log(`provisionServerJobData: [${provisionServerJobData}]`);
 
-    const [[provisionServerJobHostUUID]] = dbQuery(
-      `SELECT
+  const [[provisionServerJobHostUUID]] = dbQuery(
+    `SELECT
           CASE
             WHEN pri_hos.primary_host_uuid IS NULL
               THEN nod_1.node1_host_uuid
@@ -134,24 +132,23 @@ driver_iso=${dataDriverISO}`;
           WHERE anv.anvil_uuid = '${dataAnvilUUID}'
         ) AS nod_1
           ON pri_hos.phl = nod_1.phr;`,
-    ).stdout;
+  ).stdout;
 
-    console.log(`provisionServerJobHostUUID: [${provisionServerJobHostUUID}]`);
+  console.log(`provisionServerJobHostUUID: [${provisionServerJobHostUUID}]`);
 
-    sub('insert_or_update_jobs', {
-      subParams: {
-        file: __filename,
-        line: 0,
-        job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
-        job_data: provisionServerJobData,
-        job_name: 'server:provision',
-        job_title: 'job_0147',
-        job_description: 'job_0148',
-        job_progress: 0,
-        job_host_uuid: provisionServerJobHostUUID,
-      },
-    });
-  }
+  sub('insert_or_update_jobs', {
+    subParams: {
+      file: __filename,
+      line: 0,
+      job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
+      job_data: provisionServerJobData,
+      job_name: 'server:provision',
+      job_title: 'job_0147',
+      job_description: 'job_0148',
+      job_progress: 0,
+      job_host_uuid: provisionServerJobHostUUID,
+    },
+  });
 
   response.status(202).send();
 };
