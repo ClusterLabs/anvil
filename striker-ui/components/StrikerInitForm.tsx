@@ -6,6 +6,7 @@ import GeneralInitForm, {
   GeneralInitFormForwardRefContent,
 } from './GeneralInitForm';
 import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
+import MessageBox, { Message } from './MessageBox';
 import NetworkInitForm, {
   NetworkInitFormForwardRefContent,
 } from './NetworkInitForm';
@@ -14,6 +15,7 @@ import Spinner from './Spinner';
 import { HeaderText } from './Text';
 
 const StrikerInitForm: FC = () => {
+  const [submitMessage, setSubmitMessage] = useState<Message | undefined>();
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
 
   const generalInitFormRef = useRef<GeneralInitFormForwardRefContent>({});
@@ -40,6 +42,14 @@ const StrikerInitForm: FC = () => {
                 })
                 .then(() => {
                   setIsSubmittingForm(false);
+                })
+                .catch((reason) => {
+                  setSubmitMessage({
+                    children: `Failed to submit; ${reason}`,
+                    type: 'error',
+                  });
+
+                  setIsSubmittingForm(false);
                 });
             }}
           >
@@ -58,6 +68,12 @@ const StrikerInitForm: FC = () => {
       <FlexBox>
         <GeneralInitForm ref={generalInitFormRef} />
         <NetworkInitForm ref={networkInitFormRef} />
+        {submitMessage && (
+          <MessageBox
+            {...submitMessage}
+            onClose={() => setSubmitMessage(undefined)}
+          />
+        )}
         {buildSubmitSection}
       </FlexBox>
     </Panel>
