@@ -283,6 +283,7 @@ const NetworkForm: FC<{
         <SelectWithLabel
           id={`network-${inputUUID}-name`}
           isReadOnly={!isNetworkOptional}
+          inputLabelProps={{ isNotifyRequired: true }}
           label="Network name"
           selectItems={Object.entries(NETWORK_TYPES).map(
             ([networkType, networkTypeName]) => {
@@ -392,6 +393,7 @@ const NetworkForm: FC<{
           input={
             <OutlinedInputWithLabel
               id={`network-${inputUUID}-ip-address`}
+              inputLabelProps={{ isNotifyRequired: true }}
               label="IP address"
               value={ipAddress}
             />
@@ -402,6 +404,7 @@ const NetworkForm: FC<{
           input={
             <OutlinedInputWithLabel
               id={`network-${inputUUID}-subnet-mask`}
+              inputLabelProps={{ isNotifyRequired: true }}
               label="Subnet mask"
               value={subnetMask}
             />
