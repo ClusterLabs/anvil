@@ -1,4 +1,5 @@
 export type InputTestArgs = {
+  compare?: InputTestArgs['value'];
   displayMax?: string;
   displayMin?: string;
   max?: bigint | number;
