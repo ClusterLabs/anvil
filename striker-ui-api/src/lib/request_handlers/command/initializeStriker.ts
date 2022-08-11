@@ -1,5 +1,12 @@
+import assert from 'assert';
 import { RequestHandler } from 'express';
 
+import {
+  REP_DOMAIN,
+  REP_INTEGER,
+  REP_IPV4,
+  REP_IPV4_CSV,
+} from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { sub } from '../../accessModule';
@@ -10,39 +17,102 @@ const fvar = (configStepCount: number, fieldName: string) =>
 const buildNetworkLinks = (
   configStepCount: number,
   networkShortName: string,
-  interfaces: NetworkInterfaceOverview[],
+  interfaces: InitializeStrikerNetworkForm['interfaces'],
 ) =>
-  interfaces.reduce<string>(
-    (reduceContainer, { networkInterfaceMACAddress }, index) =>
-      `${reduceContainer}
+  interfaces.reduce<string>((reduceContainer, iface, index) => {
+    let result = reduceContainer;
+
+    if (iface) {
+      const { networkInterfaceMACAddress } = iface;
+
+      result += `
 ${fvar(
   configStepCount,
   `${networkShortName}_link${index + 1}_mac_to_set`,
-)}=${networkInterfaceMACAddress}`,
-    '',
-  );
+)}=${networkInterfaceMACAddress}`;
+    }
+
+    return result;
+  }, '');
 
 export const initializeStriker: RequestHandler<
   unknown,
   undefined,
   InitializeStrikerForm
-> = (request, response) => {
+> = ({ body }, response) => {
   console.log('Begin initialize Striker.');
-  console.dir(request.body);
+  console.dir(body, { depth: null });
 
   const {
-    body: {
-      adminPassword,
-      domainName,
-      hostName,
-      hostNumber,
-      networkDNS,
-      networkGateway,
-      networks,
-      organizationName,
-      organizationPrefix,
-    },
-  } = request;
+    adminPassword = '',
+    domainName = '',
+    hostName = '',
+    hostNumber = 0,
+    networkDNS = '',
+    networkGateway = '',
+    networks = [],
+    organizationName = '',
+    organizationPrefix = '',
+  } = body || {};
+
+  const dataAdminPassword = String(adminPassword);
+  const dataDomainName = String(domainName);
+  const dataHostName = String(hostName);
+  const dataHostNumber = String(hostNumber);
+  const dataNetworkDNS = String(networkDNS);
+  const dataNetworkGateway = String(networkGateway);
+  const dataOrganizationName = String(organizationName);
+  const dataOrganizationPrefix = String(organizationPrefix);
+
+  try {
+    assert(
+      !/['"/\\><}{]/g.test(dataAdminPassword),
+      `Data admin password cannot contain single-quote, double-quote, slash, backslash, angle brackets, and curly brackets; got [${dataAdminPassword}]`,
+    );
+
+    assert(
+      REP_DOMAIN.test(dataDomainName),
+      `Data domain name can only contain alphanumeric, hyphen, and dot characters; got [${dataDomainName}]`,
+    );
+
+    assert(
+      REP_DOMAIN.test(dataHostName),
+      `Data host name can only contain alphanumeric, hyphen, and dot characters; got [${dataHostName}]`,
+    );
+
+    assert(
+      REP_INTEGER.test(dataHostNumber) && hostNumber > 0,
+      `Data host number can only contain digits; got [${dataHostNumber}]`,
+    );
+
+    assert(
+      REP_IPV4_CSV.test(dataNetworkDNS),
+      `Data network DNS must be a comma separated list of valid IPv4 addresses; got [${dataNetworkDNS}]`,
+    );
+
+    assert(
+      REP_IPV4.test(dataNetworkGateway),
+      `Data network gateway must be a valid IPv4 address; got [${dataNetworkGateway}]`,
+    );
+
+    assert(
+      dataOrganizationName.length > 0,
+      `Data organization name cannot be empty; got [${dataOrganizationName}]`,
+    );
+
+    assert(
+      /^[a-z0-9]{1,5}$/.test(dataOrganizationPrefix),
+      `Data organization prefix can only contain 1 to 5 lowercase alphanumeric characters; got [${dataOrganizationPrefix}]`,
+    );
+  } catch (assertError) {
+    console.log(
+      `Failed to assert value when trying to initialize striker; CAUSE: ${assertError}.`,
+    );
+
+    response.status(400).send();
+
+    return;
+  }
 
   try {
     sub('insert_or_update_jobs', {
@@ -87,9 +157,7 @@ ${buildNetworkLinks(2, networkShortName, interfaces)}`;
       },
     }).stdout;
   } catch (subError) {
-    console.log(
-      `Failed to queue fetch server screenshot job; CAUSE: ${subError}`,
-    );
+    console.log(`Failed to queue striker initialization; CAUSE: ${subError}`);
 
     response.status(500).send();
 
