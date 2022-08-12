@@ -52,6 +52,8 @@ const testInput: TestInputFunction = ({
         compare: dCompare = null,
         displayMax: dDisplayMax,
         displayMin: dDisplayMin,
+        getCompare: dGetCompare,
+        getValue: dGetValue,
         max: dMax = 0,
         min: dMin = 0,
         onSuccess: dOnSuccess,
@@ -62,10 +64,12 @@ const testInput: TestInputFunction = ({
       tests: requiredTests,
     } = tests[id];
     const {
-      compare = dCompare,
+      getCompare = dGetCompare,
+      getValue = dGetValue,
       max = dMax,
       min = dMin,
-      value = dValue,
+      compare = getCompare?.call(null) ?? dCompare,
+      value = getValue?.call(null) ?? dValue,
       displayMax = dDisplayMax || String(max),
       displayMin = dDisplayMin || String(min),
     } = testsToRun[id];
@@ -77,7 +81,12 @@ const testInput: TestInputFunction = ({
       onSuccess = dOnSuccess,
       test,
     }) => {
-      const singleResult: boolean = test({ compare, max, min, value });
+      const singleResult: boolean = test({
+        compare,
+        max,
+        min,
+        value,
+      });
 
       const { cbFailure, cbSuccess } = setSingleCallback({
         onFailure,
@@ -89,7 +98,14 @@ const testInput: TestInputFunction = ({
       } else {
         allResult = singleResult;
 
-        cbFailure?.call(null, { displayMax, displayMin, max, min, value });
+        cbFailure?.call(null, {
+          compare,
+          displayMax,
+          displayMin,
+          max,
+          min,
+          value,
+        });
       }
 
       return singleResult;

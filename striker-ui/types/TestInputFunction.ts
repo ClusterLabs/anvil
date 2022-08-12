@@ -1,14 +1,18 @@
+export type InputTestValue = bigint | number | null | string | undefined;
+
 export type InputTestArgs = {
-  compare?: InputTestArgs['value'];
+  compare?: InputTestValue;
   displayMax?: string;
   displayMin?: string;
+  getCompare?: () => InputTestValue;
+  getValue?: () => InputTestValue;
   max?: bigint | number;
   min?: bigint | number;
-  value?: bigint | number | null | string;
+  value?: InputTestValue;
 };
 
 export type MinimalInputTestArgs = Required<
-  Omit<InputTestArgs, 'displayMax' | 'displayMin'>
+  Omit<InputTestArgs, 'displayMax' | 'displayMin' | 'getCompare' | 'getValue'>
 >;
 
 export type InputTest = {
