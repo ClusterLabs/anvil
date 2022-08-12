@@ -10,4 +10,4 @@ export const REP_DOMAIN = new RegExp(
 
 export const REP_IPV4 = new RegExp(`^${ipv4}$`);
 
-export const REP_IPV4_CSV = new RegExp(`(?:${ipv4},)*${ipv4}`);
+export const REP_IPV4_CSV = new RegExp(`^(?:${ipv4}\\s*,\\s*)*${ipv4}$`);
