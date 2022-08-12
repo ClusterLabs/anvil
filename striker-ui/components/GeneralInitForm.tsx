@@ -12,6 +12,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
+import { REP_DOMAIN } from '../lib/consts/REG_EXP_PATTERNS';
 
 import FlexBox, { FlexBoxProps } from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
@@ -46,7 +47,6 @@ const MAX_ORGANIZATION_PREFIX_LENGTH = 5;
 const MIN_ORGANIZATION_PREFIX_LENGTH = 1;
 const MAX_HOST_NUMBER_LENGTH = 2;
 const INPUT_COUNT = 7;
-const REP_DN_CHAR = /^[a-z0-9-.]+$/;
 
 const MAP_TO_ORGANIZATION_PREFIX_BUILDER: Record<
   number,
@@ -350,7 +350,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   ),
                 });
               },
-              test: ({ value }) => REP_DN_CHAR.test(value as string),
+              test: ({ value }) => REP_DOMAIN.test(value as string),
             },
             { test: testNotBlank },
           ],
@@ -373,7 +373,7 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   ),
                 });
               },
-              test: ({ value }) => REP_DN_CHAR.test(value as string),
+              test: ({ value }) => REP_DOMAIN.test(value as string),
             },
             { test: testNotBlank },
           ],
