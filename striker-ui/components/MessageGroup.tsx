@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -36,23 +37,7 @@ const MessageGroup = forwardRef<
     },
     ref,
   ) => {
-    const { keys: messageKeys } = useMemo(
-      () =>
-        Array.from({ length: count }).reduce<{
-          keys: string[];
-        }>(
-          (previous) => {
-            const { keys } = previous;
-
-            keys.push(uuidv4());
-
-            return previous;
-          },
-          { keys: [] },
-        ),
-      [count],
-    );
-
+    const [messageKeys, setMessageKeys] = useState<string[]>([]);
     const [messages, setMessages] = useState<Array<Message | undefined>>([]);
 
     const setMessage = useCallback((index: number, message?: Message) => {
@@ -93,6 +78,19 @@ const MessageGroup = forwardRef<
         }),
       [defaultMessageType, messages, messageKeys],
     );
+
+    useEffect(() => {
+      setMessageKeys((previous) => {
+        const result = [...previous];
+        const diff = count - result.length;
+
+        if (diff > 0) {
+          result.push(...Array.from({ length: diff }, () => uuidv4()));
+        }
+
+        return result;
+      });
+    }, [count]);
 
     useImperativeHandle(ref, () => ({ setMessage }), [setMessage]);
 
