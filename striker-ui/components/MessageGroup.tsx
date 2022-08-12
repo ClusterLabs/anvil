@@ -36,33 +36,37 @@ const MessageGroup = forwardRef<
     },
     ref,
   ) => {
-    const { keys: messageKeys, init: initialMessages } = useMemo(
+    const { keys: messageKeys } = useMemo(
       () =>
         Array.from({ length: count }).reduce<{
           keys: string[];
-          init: undefined[];
         }>(
           (previous) => {
-            const { keys, init } = previous;
+            const { keys } = previous;
 
             keys.push(uuidv4());
-            init.push(undefined);
 
             return previous;
           },
-          { keys: [], init: [] },
+          { keys: [] },
         ),
       [count],
     );
 
-    const [messages, setMessages] =
-      useState<Array<Message | undefined>>(initialMessages);
+    const [messages, setMessages] = useState<Array<Message | undefined>>([]);
 
     const setMessage = useCallback((index: number, message?: Message) => {
       setMessages((previous) => {
-        previous.splice(index, 1, message);
+        const result = [...previous];
+        const diff = index + 1 - result.length;
 
-        return [...previous];
+        if (diff > 0) {
+          result.push(...Array.from({ length: diff }, () => undefined));
+        }
+
+        result.splice(index, 1, message);
+
+        return result;
       });
     }, []);
 
