@@ -21,6 +21,10 @@ export type InputTest = {
   test: (args: MinimalInputTestArgs) => boolean;
 };
 
+export type InputTestInputs = {
+  [id: string]: Partial<InputTestArgs>;
+};
+
 export type InputTestBatches = {
   [id: string]: {
     defaults?: InputTestArgs & {
@@ -33,9 +37,8 @@ export type InputTestBatches = {
 };
 
 export type TestInputFunctionOptions = {
-  inputs?: {
-    [id: string]: Partial<InputTestArgs>;
-  };
+  excludeTestIds?: string[];
+  inputs?: InputTestInputs;
   isContinueOnFailure?: boolean;
   isIgnoreOnCallbacks?: boolean;
   tests?: InputTestBatches;
