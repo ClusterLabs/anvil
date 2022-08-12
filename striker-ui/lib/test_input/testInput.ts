@@ -1,35 +1,27 @@
 import {
   InputTest,
+  InputTestBatches,
+  InputTestInputs,
   TestInputFunction,
-  TestInputFunctionOptions,
 } from '../../types/TestInputFunction';
 
 const testInput: TestInputFunction = ({
+  excludeTestIds = [],
   inputs,
   isContinueOnFailure,
   isIgnoreOnCallbacks,
   tests = {},
 } = {}): boolean => {
-  const testsToRun =
+  let testsToRun: Readonly<InputTestInputs> =
     inputs ??
-    Object.keys(tests).reduce<
-      Exclude<TestInputFunctionOptions['inputs'], undefined>
-    >((reduceContainer, id: string) => {
-      reduceContainer[id] = {};
-      return reduceContainer;
+    Object.keys(tests).reduce<InputTestInputs>((previous, id: string) => {
+      previous[id] = {};
+      return previous;
     }, {});
-
   let allResult = true;
 
-  let setBatchCallback: (
-    batch?: Partial<
-      Exclude<TestInputFunctionOptions['tests'], undefined>[string]
-    >,
-  ) => {
-    cbFinishBatch: Exclude<
-      TestInputFunctionOptions['tests'],
-      undefined
-    >[string]['onFinishBatch'];
+  let setBatchCallback: (batch?: Partial<InputTestBatches[string]>) => {
+    cbFinishBatch: InputTestBatches[string]['onFinishBatch'];
   } = () => ({ cbFinishBatch: undefined });
   let setSingleCallback: (test?: Partial<InputTest>) => {
     cbFailure: InputTest['onFailure'];
@@ -45,6 +37,14 @@ const testInput: TestInputFunction = ({
       cbSuccess: onSuccess,
     });
   }
+
+  testsToRun = excludeTestIds.reduce<InputTestInputs>(
+    (previous, id: string) => {
+      delete previous[id];
+      return previous;
+    },
+    { ...testsToRun },
+  );
 
   Object.keys(testsToRun).every((id: string) => {
     const {
