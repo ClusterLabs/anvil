@@ -219,5 +219,7 @@ This mode is NOT supported by the Anvil! Intelligent Availability™ platform!
 		<key name="scan_network_log_0003">The old bond: [#!variable!name!#] was marked as deleted more than: [#!variable!age!#] hours ago. Purging it from the database.</key>
 		<key name="scan_network_log_0004">The old bridge: [#!variable!name!#] was marked as deleted more than: [#!variable!age!#] hours ago. Purging it from the database.</key>
 		<key name="scan_network_log_0005">The old IP address: [#!variable!ip!#] was marked as deleted more than: [#!variable!age!#] hours ago. Purging it from the database.</key>
+		
+		<key name="scan_network_warning_0001">There was an empty bridge_uuid in the hash 'old::bridges::bridge_uuid' hash. This is a program error.</key>
 	</language>
 </words>

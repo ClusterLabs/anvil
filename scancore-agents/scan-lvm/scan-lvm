@@ -1088,14 +1088,27 @@ sub collect_pvs_data
 {
 	my ($anvil) = @_;
 	
-	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{pvscan}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my $shell_call = $anvil->data->{path}{exe}{pvscan};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
-	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{pvs}." --noheadings --units b --reportformat json -o pv_uuid,pv_name,vg_name,pv_attr,pv_size,pv_free"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	
-	my $json     = JSON->new->allow_nonref;
-	my $pvs_data = $json->decode($output);
+	$shell_call = $anvil->data->{path}{exe}{pvs}." --noheadings --units b --reportformat json -o pv_uuid,pv_name,vg_name,pv_attr,pv_size,pv_free";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	my $json                = JSON->new->allow_nonref;
+	my $pvs_data            = $json->decode($output);
+	my $default_sector_size = 512;
 	foreach my $hash_ref (@{$pvs_data->{report}->[0]->{pv}})
 	{
 		my $scan_lvm_pv_internal_uuid                                                             = $hash_ref->{pv_uuid};
@@ -1125,15 +1138,19 @@ sub collect_pvs_data
 		my $sector_size = 0;
 		until ($sector_size)
 		{
-			chop $partition;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { partition => $partition }});
 			
 			if (not $partition)
 			{
 				# Weird... Default to 512.
-				$sector_size = 512;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size => $sector_size }});
-				die;
+				   $sector_size        = $default_sector_size;
+				my $original_partition = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{name};
+				my $sector_path        = $directory."/".$original_partition."/queue/hw_sector_size";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_warning_0001", variables => { 
+					device      => $original_partition, 
+					sector_path => $sector_path, 
+					sector_size => $sector_size, 
+				}});
 			}
 			
 			my $sector_size_file = $directory."/".$partition."/queue/hw_sector_size";
@@ -1147,11 +1164,19 @@ sub collect_pvs_data
 				if ((not $sector_size) or ($sector_size =~ /\D/))
 				{
 					# Something went wrong, default to 512.
-					$sector_size = 512;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size => $sector_size }});
-					die;
+				   $sector_size        = $default_sector_size;
+				my $original_partition = $anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{name};
+				my $sector_path        = $directory."/".$original_partition."/queue/hw_sector_size";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_warning_0001", variables => { 
+					device      => $original_partition, 
+					sector_path => $sector_path, 
+					sector_size => $sector_size, 
+				}});
 				}
 			}
+			
+			# Take a number off and try again.
+			chop $partition;
 		}
 		$anvil->data->{lvm}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{sector_size} = $sector_size;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1166,11 +1191,23 @@ sub collect_vgs_data
 {
 	my ($anvil) = @_;
 	
-	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{vgscan}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my $shell_call = $anvil->data->{path}{exe}{vgscan};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
-	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{vgs}." --noheadings --units b --reportformat json -o vg_uuid,vg_name,vg_attr,vg_extent_size,vg_size,vg_free"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	$shell_call = $anvil->data->{path}{exe}{vgs}." --noheadings --units b --reportformat json -o vg_uuid,vg_name,vg_attr,vg_extent_size,vg_size,vg_free";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	
 	my $json     = JSON->new->allow_nonref;
 	my $vgs_data = $json->decode($output);
@@ -1198,11 +1235,23 @@ sub collect_lvs_data
 {
 	my ($anvil) = @_;
 	
-	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{lvscan}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my $shell_call = $anvil->data->{path}{exe}{lvscan};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
-	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{lvs}." --noheadings --units b --reportformat json -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	$shell_call = $anvil->data->{path}{exe}{lvs}." --noheadings --units b --reportformat json -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	
 	my $json     = JSON->new->allow_nonref;
 	my $lvs_data = $json->decode($output);

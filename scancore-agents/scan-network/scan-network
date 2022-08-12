@@ -931,22 +931,7 @@ sub collect_data
 	closedir(DIRECTORY);
 	
 	# Find what interfaces are connected to which bridges
-	$anvil->Network->bridge_info({debug => 3});
-	delete $anvil->data->{interface_to_bridge} if exists $anvil->data->{interface_to_bridge};
-	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{$local_host}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_name => $bridge_name }});
-		foreach my $interface_name (sort {$a cmp $b} @{$anvil->data->{bridge}{$local_host}{$bridge_name}{interfaces}})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_name => $interface_name }});
-			
-			$anvil->data->{interface_to_bridge}{$interface_name} = $bridge_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"interface_to_bridge::${interface_name}" => $anvil->data->{interface_to_bridge}{$interface_name},
-			}});
-		}
-	}
-	
+	$anvil->Network->bridge_info({debug => 2});
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		my $ip_address = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
@@ -4060,7 +4045,11 @@ sub check_bridges
 	foreach my $bridge_uuid (keys %{$anvil->data->{old}{bridges}{bridge_uuid}})
 	{
 		# Skip if already deleted.
-		die if not $bridge_uuid;
+		if (not $bridge_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_warning_0001"});
+			$anvil->nice_exit({exit_code => 1});
+		}
 		
 		my $bridge_name = $anvil->data->{old}{bridges}{bridge_uuid}{$bridge_uuid}{bridge_name};
 		my $bridge_id   = $anvil->data->{old}{bridges}{bridge_uuid}{$bridge_uuid}{bridge_id};

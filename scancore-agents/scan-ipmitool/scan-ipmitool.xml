@@ -116,5 +116,8 @@ The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!var
 		<key name="scan_ipmitool_log_0004">The sensor named: [#!variable!sensor_name!#] appears to have vanished, but this is the first scan that it vanished. This is generally harmless and just a sensor read issue.</key>
 		<key name="scan_ipmitool_log_0005">The sensor named: [#!variable!sensor_name!#] has returned.</key>
 		
+		<!-- Warning entries -->
+		<key name="scan_ipmitool_warn_0001">[ Warning ] - No IPMI units for sensor: [#!variable!sensor!#].</key>
+		
 	</language>
 </words>

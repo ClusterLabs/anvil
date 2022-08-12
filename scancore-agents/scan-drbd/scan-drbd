@@ -336,7 +336,11 @@ sub process_resource
 			"s5:new_scan_drbd_resource_xml"  => $new_scan_drbd_resource_xml, 
 		}});
 		
-		die if not defined $old_scan_drbd_resource_xml;
+		if (not defined $old_scan_drbd_resource_xml)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_warning_0001"});
+			$anvil->nice_exit({exit_code => 1});
+		}
 		
 		my $update = 0;
 		if ($scan_drbd_resource_name ne $old_scan_drbd_resource_name)
@@ -759,7 +763,11 @@ WHERE
 					scan_drbd_peer_scan_drbd_volume_uuid => $scan_drbd_peer_scan_drbd_volume_uuid, 
 				}});
 				
-				die if not $scan_drbd_peer_scan_drbd_volume_uuid;
+				if (not $scan_drbd_peer_scan_drbd_volume_uuid)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_warning_0002"});
+					$anvil->nice_exit({exit_code => 1});
+				}
 				
 				my $query = "
 INSERT INTO 

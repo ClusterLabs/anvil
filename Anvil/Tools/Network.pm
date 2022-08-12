@@ -159,8 +159,80 @@ sub bridge_info
 		target      => $target, 
 	}});
 	
-	my $shell_call = $anvil->data->{path}{exe}{bridge}." -json -pretty link show";
-	my $output     = "";
+	my $host = $target ? $target : $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	
+	# First get the list of bridges.
+	my $shell_call = $anvil->data->{path}{exe}{ip}." link show type bridge";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my $output = "";
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	else
+	{
+		# Remote call
+		($output, my $error, my $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call,
+			target      => $target,
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:error'       => $error,
+			's3:return_code' => $return_code, 
+		}});
+	}
+	
+	# Find the bridge interfaces
+	my $bridge = "";
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^\d+:\s+(.*?):/)
+		{
+			$bridge = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge => $bridge }});
+			
+			$anvil->data->{bridge}{$host}{$bridge}{found} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge::${host}::${bridge}::found" => $anvil->data->{bridge}{$host}{$bridge}{found},
+			}});
+		}
+		next if not $bridge;
+		
+		if ($line =~ /mtu (\d+) /)
+		{
+			$anvil->data->{bridge}{$host}{$bridge}{mtu} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge::${host}::${bridge}::mtu" => $anvil->data->{bridge}{$host}{$bridge}{mtu},
+			}});
+		}
+		if ($line =~ /link\/ether (\w\w:\w\w:\w\w:\w\w:\w\w:\w\w) /)
+		{
+			$anvil->data->{bridge}{$host}{$bridge}{mac} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge::${host}::${bridge}::mac" => $anvil->data->{bridge}{$host}{$bridge}{mac},
+			}});
+		}
+	}
+	
+	# Now use bridge to find the interfaces connected to the bridges.
+	$shell_call = $anvil->data->{path}{exe}{bridge}." -json -pretty link show";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	$output = "";
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local call.
@@ -201,33 +273,46 @@ sub bridge_info
 	foreach my $hash_ref (@{$bridge_data})
 	{
 		next if not defined $hash_ref->{master};
-		my $bridge    = $hash_ref->{master};
+		my $master    = $hash_ref->{master};	# This can be the bond name for bond members.
 		my $interface = $hash_ref->{ifname};
-		my $host      = $target ? $target : $anvil->Get->short_host_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:bridge'    => $bridge,
+			's1:master'    => $master,
 			's2:interface' => $interface, 
-			's3:host'      => $host,
 		}});
-		if ((not exists $anvil->data->{bridge}{$host}{$bridge}) or (ref($anvil->data->{bridge}{$host}{$bridge}{interfaces}) ne "ARRAY"))
-		{
-			$anvil->data->{bridge}{$host}{$bridge}{interfaces} = [];
-			$anvil->data->{bridge}{$host}{$bridge}{found}      = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"bridge::${host}::${bridge}::interfaces" => $anvil->data->{bridge}{$host}{$bridge}{interfaces}, 
-				"bridge::${host}::${bridge}::found"      => $anvil->data->{bridge}{$host}{$bridge}{found}, 
-			}});
-		}
-		push @{$anvil->data->{bridge}{$host}{$bridge}{interfaces}}, $interface;
+		
+		# If the 'master' wasn't found in the call above, the 'master' is not a bridge.
+		next if not exists $anvil->data->{bridge}{$host}{$master};
+		
+		# Record this interface as being connected to this bridge.
+		$anvil->data->{bridge}{$host}{$master}{interface}{$interface}{found} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"bridge::${host}::${master}::interface::${interface}::found" => $anvil->data->{bridge}{$host}{$master}{interface}{$interface}{found}, 
+		}});
 		
 		# Now store the rest of the data.
 		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
 		{
 			next if $key eq "master";
 			next if $key eq "ifname";
-			$anvil->data->{bridge}{$host}{$bridge}{$interface}{$key} = $hash_ref->{$key};
+			$anvil->data->{bridge}{$host}{$master}{interface}{$interface}{$key} = $hash_ref->{$key};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"bridge::${host}::${bridge}::${interface}::${key}" => $anvil->data->{bridge}{$host}{$bridge}{$interface}{$key}, 
+				"bridge::${host}::${master}::interface::${interface}::${key}" => $anvil->data->{bridge}{$host}{$master}{interface}{$interface}{$key}, 
+			}});
+		}
+	}
+	
+	# Make it easy to find the bridge an interface is in.
+	delete $anvil->data->{interface_to_bridge} if exists $anvil->data->{interface_to_bridge};
+	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{$host}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_name => $bridge_name }});
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{$host}{$bridge_name}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			
+			$anvil->data->{interface_to_bridge}{$interface_name} = $bridge_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"interface_to_bridge::${interface_name}" => $anvil->data->{interface_to_bridge}{$interface_name},
 			}});
 		}
 	}
@@ -1185,7 +1270,7 @@ sub find_matches
 				source => $source, 
 				line   => $line,
 			}});
-			die;
+			$anvil->nice_exit({exit_code => 1});
 			return("");
 		}
 	}

@@ -579,7 +579,7 @@ sub parse_banged_string
 					}
 					print $THIS_FILE." ".__LINE__."; Failed to parse the pair from: [".$variable_string."]\n";
 					print $THIS_FILE." ".__LINE__."; Was parsing message: [".$message."] from key string: [".$key_string."]\n";
-					die;
+					$anvil->nice_exit({exit_code => 1});
 				}
 				my ($variable, $value) = ($pair =~ /^!!(.*?)!(.*?)!!$/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -958,6 +958,7 @@ sub string
 		# We've got a string and variables from the caller, so inject them as needed.
 		my $loops = 0;
 		my $limit = $anvil->data->{defaults}{limits}{string_loops} =~ /^\d+$/ ? $anvil->data->{defaults}{limits}{string_loops} : 1000;
+		print $THIS_FILE." ".__LINE__."; limit: [".$limit."]\n" if $test;
 		
 		# If the user didn't pass in any variables, then we're in trouble.
 		if (($string =~ /#!variable!(.+?)!#/s) && ((not $variables) or (ref($variables) ne "HASH")))
@@ -966,17 +967,21 @@ sub string
 			while ($string =~ /#!variable!(.+?)!#/s)
 			{
 				$string =~ s/#!variable!(.*?)!#/!!variable!$1!!/s;
+				print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 				
 				# Die if I've looped too many times.
 				$loops++;
+				print $THIS_FILE." ".__LINE__."; loops: [".$loops."]\n" if $test;
 				if ($loops > $limit)
 				{
 					# If we're in a web environment, print the HTML header.
+					print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 					if ($anvil->environment eq "html")
 					{
 						print "Content-type: text/html; charset=utf-8\n\n";
 					}
-					die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 			}
 			my $error = "[ Error ] - The method Words->string() was asked to process the string: [".$string."] which has insertion variables, but nothing was passed to the 'variables' parameter.";
@@ -994,24 +999,29 @@ sub string
 			# restore them once we're out of this loop.
 			foreach my $check ($string =~ /#!([^\s]+?)!#/)
 			{
+				print $THIS_FILE." ".__LINE__."; check: [".$check."]\n" if $test;
 				if (($check !~ /^data/)    &&
 				    ($check !~ /^string/)  &&
 				    ($check !~ /^variable/))
 				{
 					# Simply invert the '#!...!#' to '!#...#!'.
 					$string =~ s/#!($check)!#/!#$1#!/g;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 				}
 				
 				# Die if I've looped too many times.
 				$loops++;
+				print $THIS_FILE." ".__LINE__."; loops: [".$loops."], limit: [".$limit."]\n" if $test;
 				if ($loops > $limit)
 				{
 					# If we're in a web environment, print the HTML header.
+					print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 					if ($anvil->environment eq "html")
 					{
 						print "Content-type: text/html; charset=utf-8\n\n";
 					}
-					die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language]. Is there a bad '#!<variable>!<value>!# replacement key? Exiting.\n";
+					print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language]. Is there a bad '#!<variable>!<value>!# replacement key? Exiting.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 			}
 			
@@ -1024,26 +1034,32 @@ sub string
 					language => $language,
 					file     => $file,
 				});
+				print $THIS_FILE." ".__LINE__."; string: [".$string."], key: [".$key."], this_string: [".$this_string."]\n" if $test;
 				if ($this_string eq "#!not_found!#")
 				{
 					# The key was bad...
 					$string =~ s/#!string!$key!#/!!e[$key]!!/;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 				}
 				else
 				{
 					$string =~ s/#!string!$key!#/$this_string/;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 				}
 				
 				# Die if I've looped too many times.
 				$loops++;
+				print $THIS_FILE." ".__LINE__."; loops: [".$loops."], limit: [".$limit."]\n" if $test;
 				if ($loops > $limit)
 				{
 					# If we're in a web environment, print the HTML header.
+					print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 					if ($anvil->environment eq "html")
 					{
 						print "Content-type: text/html; charset=utf-8\n\n";
 					}
-					die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 			}
 			
@@ -1051,17 +1067,20 @@ sub string
 			while ($string =~ /#!variable!(.+?)!#/s)
 			{
 				my $variable = $1;
+				print $THIS_FILE." ".__LINE__."; string: [".$string."], variable: [".$variable."]\n" if $test;
 				
 				# Sometimes, #!variable!*!# is used in explaining things to users. So we need
 				# to escape it. It will be restored later in '_restore_protected()'.
 				if ($variable eq "*")
 				{
 					$string =~ s/#!variable!\*!#/!#variable!*#!/;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 					next;
 				}
 				if ($variable eq "")
 				{
 					$string =~ s/#!variable!\*!#/!#variable!#!/;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 					next;
 				}
 				
@@ -1070,24 +1089,29 @@ sub string
 					# I can't expect there to always be a defined value in the variables
 					# array at any given position so if it is blank qw blank the key.
 					$string =~ s/#!variable!$variable!#//;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 				}
 				else
 				{
 					my $value = $variables->{$variable};
 					chomp $value;
 					$string =~ s/#!variable!$variable!#/$value/;
+					print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 				}
 				
 				# Die if I've looped too many times.
 				$loops++;
+				print $THIS_FILE." ".__LINE__."; loops: [".$loops."], limit: [".$limit."]\n" if $test;
 				if ($loops > $limit)
 				{
 					# If we're in a web environment, print the HTML header.
+					print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 					if ($anvil->environment eq "html")
 					{
 						print "Content-type: text/html; charset=utf-8\n\n";
 					}
-					die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 			}
 			
@@ -1095,61 +1119,77 @@ sub string
 			while ($string =~ /#!data!(.+?)!#/)
 			{
 				my $id = $1;
+				print $THIS_FILE." ".__LINE__."; string: [".$string."], id: [".$id."]\n" if $test;
 				if ($id =~ /::/)
 				{
 					# Multi-dimensional hash.
+					print $THIS_FILE." ".__LINE__."; multi-dimensional\n" if $test;
 					my $value = $anvil->_get_hash_reference({ key => $id });
+					print $THIS_FILE." ".__LINE__."; value: [".$value."]\n" if $test;
 					if (not defined $value)
 					{
 						$string =~ s/#!data!$id!#/!!a[$id]!!/;
+						print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 					}
 					else
 					{
 						$string =~ s/#!data!$id!#/$value/;
+						print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 					}
 				}
 				else
 				{
 					# One dimension
+					print $THIS_FILE." ".__LINE__."; one dimension\n" if $test;
 					if (not defined $anvil->data->{$id})
 					{
 						$string =~ s/#!data!$id!#/!!b[$id]!!/;
+						print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 					}
 					else
 					{
 						my $value  =  $anvil->data->{$id};
 						   $string =~ s/#!data!$id!#/$value/;
+						print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 					}
 				}
 				
 				# Die if I've looped too many times.
 				$loops++;
+				print $THIS_FILE." ".__LINE__."; loops: [".$loops."], limit: [".$limit."]\n" if $test;
 				if ($loops > $limit)
 				{
 					# If we're in a web environment, print the HTML header.
+					print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 					if ($anvil->environment eq "html")
 					{
 						print "Content-type: text/html; charset=utf-8\n\n";
 					}
-					die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 			}
 			
 			$loops++;
+			print $THIS_FILE." ".__LINE__."; loops: [".$loops."], limit: [".$limit."]\n" if $test;
 			if ($loops > $limit)
 			{
 				# If we're in a web environment, print the HTML header.
+				print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 				if ($anvil->environment eq "html")
 				{
 					print "Content-type: text/html; charset=utf-8\n\n";
 				}
-				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+				print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+				$anvil->nice_exit({exit_code => 1});
 			}
 			
 			# If there are no replacement keys left, exit the loop.
+			print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 			if ($string !~ /#!([^\s]+?)!#/)
 			{
 				$loop = 0;
+				print $THIS_FILE." ".__LINE__."; loop: [".$loop."]\n" if $test;
 			}
 		}
 		
@@ -1159,27 +1199,34 @@ sub string
 		while ($loop)
 		{
 			$string =~ s/!#([^\s]+?)#!/#!$1!#/g;
+			print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 			
 			$loops++;
+			print $THIS_FILE." ".__LINE__."; loops: [".$loops."], limit: [".$limit."]\n" if $test;
 			if ($loops > $limit)
 			{
 				# If we're in a web environment, print the HTML header.
+				print $THIS_FILE." ".__LINE__."; environment: [".$anvil->environment."]\n" if $test;
 				if ($anvil->environment eq "html")
 				{
 					print "Content-type: text/html; charset=utf-8\n\n";
 				}
-				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+				print "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n";
+				$anvil->nice_exit({exit_code => 1});
 			}
 			
+			print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 			if ($string !~ /!#[^\s]+?#!/)
 			{
 				$loop = 0;
+				print $THIS_FILE." ".__LINE__."; loop: [".$loop."]\n" if $test;
 			}
 		}
 	}
 	
 	# In some multi-line strings, the last line will be '\t\t</key>'. We clean this up.
 	$string =~ s/\t\t$//;
+	print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	
 	#print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n";
 	return($string);

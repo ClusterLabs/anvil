@@ -223,6 +223,9 @@ The attribute bits are:
 
 		<!-- Log entries -->
 		<key name="scan_lvm_log_0001">Starting: [#!variable!program!#].</key>
+                
+                <!-- Warning entries -->
+		<key name="scan_lvm_warning_0001">[ Warning ] - Failed to find the sector size for: [#!variable!device!#] This should be in the path: [#!variable!sector_path!#]. Assuming the sector size of: [#!variable!sector_size!#], but this could be incorrect.</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->
 		<key name="scan_lvm_message_0001"></key>

@@ -811,9 +811,16 @@ INSERT INTO
 					next;
 				}
 				
-				### TODO: Make this ia log entry
-				die "No IPMI units for sensor: [".$scan_ipmitool_sensor_name."]."            if not $new_scan_ipmitool_sensor_units;
-				die "No IPMI value for sensor: [".$new_scan_ipmitool_value_sensor_value."]." if not $new_scan_ipmitool_value_sensor_value;
+				if (not $new_scan_ipmitool_sensor_units)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_warn_0001", variables => { sensor => $scan_ipmitool_sensor_name }});
+					next;
+				}
+				if (not $new_scan_ipmitool_value_sensor_value)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_warn_0001", variables => { sensor => $new_scan_ipmitool_value_sensor_value }});
+					next;
+				}
 				
 				# If the value is "" and it's a digit-based value, switch it to '0'
 				if ((($new_scan_ipmitool_sensor_units eq "C") or ($new_scan_ipmitool_sensor_units eq "F") or ($new_scan_ipmitool_sensor_units eq "RPM")) && ($new_scan_ipmitool_value_sensor_value eq ""))
