@@ -32,6 +32,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
+import { REP_IPV4, REP_IPV4_CSV } from '../lib/consts/REG_EXP_PATTERNS';
 
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
@@ -39,12 +40,16 @@ import DropArea from './DropArea';
 import FlexBox from './FlexBox';
 import IconButton from './IconButton';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
+import { Message } from './MessageBox';
+import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
+import { testInput, testNotBlank } from '../lib/test_input';
+import { InputTestBatches } from '../types/TestInputFunction';
 import { BodyText, DataGridCellText } from './Text';
 
 type NetworkInput = {
@@ -67,6 +72,8 @@ type NetworkInterfaceInputMap = Record<
 
 type NetworkInitFormForwardRefContent = {
   get?: () => {
+    domainNameServerCSV?: string;
+    gateway?: string;
     networks: Omit<
       NetworkInput,
       'inputUUID' | 'ipAddressInputRef' | 'subnetMaskInputRef'
@@ -119,6 +126,7 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
     inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
     interfaces: [],
     ipAddress: '10.200.1.1',
+    name: `${NETWORK_TYPES.bcn} 1`,
     subnetMask: '255.255.0.0',
     type: 'bcn',
   },
@@ -126,12 +134,16 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
     inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
     interfaces: [],
     ipAddress: '10.201.1.1',
+    name: `${NETWORK_TYPES.ifn} 1`,
     subnetMask: '255.255.0.0',
     type: 'ifn',
   },
 ];
 
+const BASE_INPUT_COUNT = 2;
 const MAX_INTERFACES_PER_NETWORK = 2;
+const PER_NETWORK_INPUT_COUNT = 3;
+
 const NETWORK_INTERFACE_TEMPLATE = Array.from(
   { length: MAX_INTERFACES_PER_NETWORK },
   (unused, index) => index + 1,
@@ -243,6 +255,7 @@ const NetworkForm: FC<{
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
   getNetworkTypeCount: (targetType: string, lastIndex?: number) => number;
+  inputTests: InputTestBatches;
   networkIndex: number;
   networkInput: NetworkInput;
   networkInputs: NetworkInput[];
@@ -255,6 +268,7 @@ const NetworkForm: FC<{
 }> = ({
   createDropMouseUpHandler,
   getNetworkTypeCount,
+  inputTests,
   networkIndex,
   networkInput,
   networkInputs,
@@ -271,6 +285,8 @@ const NetworkForm: FC<{
   const subnetMaskInputRef = useRef<InputForwardedRefContent<'string'>>({});
 
   const { inputUUID, interfaces, ipAddress, subnetMask, type } = networkInput;
+
+  const inputTestPrefix = `network${networkIndex}`;
 
   const isNetworkOptional = networkIndex < optionalNetworkInputsLength;
 
@@ -300,7 +316,12 @@ const NetworkForm: FC<{
           )}
           selectProps={{
             onChange: ({ target: { value } }) => {
-              networkInput.type = String(value);
+              const networkType = String(value);
+
+              networkInput.type = networkType;
+              networkInput.name = `${
+                NETWORK_TYPES[networkType]
+              } ${getNetworkTypeCount(networkType, networkIndex)}`;
 
               setNetworkInputs([...networkInputs]);
             },
@@ -395,6 +416,12 @@ const NetworkForm: FC<{
               id={`network-${inputUUID}-ip-address`}
               inputLabelProps={{ isNotifyRequired: true }}
               label="IP address"
+              onChange={({ target: { value } }) => {
+                testInput({
+                  inputs: { [`${inputTestPrefix}IPAddress`]: { value } },
+                  tests: inputTests,
+                });
+              }}
               value={ipAddress}
             />
           }
@@ -406,6 +433,12 @@ const NetworkForm: FC<{
               id={`network-${inputUUID}-subnet-mask`}
               inputLabelProps={{ isNotifyRequired: true }}
               label="Subnet mask"
+              onChange={({ target: { value } }) => {
+                testInput({
+                  inputs: { [`${inputTestPrefix}SubnetMask`]: { value } },
+                  tests: inputTests,
+                });
+              }}
               value={subnetMask}
             />
           }
@@ -431,6 +464,10 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
     const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
       NetworkInterfaceOverviewMetadata | undefined
     >();
+
+    const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
+    const dnsCSVInputRef = useRef<InputForwardedRefContent<'string'>>({});
+    const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
     const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
       NetworkInterfaceOverviewMetadata[]
@@ -466,6 +503,136 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
       [networkInputs, networkInterfaces, networkInterfaceInputMap],
     );
 
+    const setGatewayInputMessage = useCallback(
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 0, message),
+      [],
+    );
+    const setDomainNameServerCSVInputMessage = useCallback(
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 1, message),
+      [],
+    );
+    const getNetworkInputMessageIndex = useCallback(
+      (networkIndex: number, inputIndex: number) =>
+        BASE_INPUT_COUNT +
+        (networkInputs.length - 1 - networkIndex) * PER_NETWORK_INPUT_COUNT +
+        inputIndex,
+      [networkInputs],
+    );
+    const setNetworkIPAddressInputMessage = useCallback(
+      (networkIndex: number, message?: Message) =>
+        messageGroupRef.current.setMessage?.call(
+          null,
+          getNetworkInputMessageIndex(networkIndex, 1),
+          message,
+        ),
+      [getNetworkInputMessageIndex],
+    );
+    const setNetworkSubnetMaskInputMessage = useCallback(
+      (networkIndex: number, message?: Message) =>
+        messageGroupRef.current.setMessage?.call(
+          null,
+          getNetworkInputMessageIndex(networkIndex, 2),
+          message,
+        ),
+      [getNetworkInputMessageIndex],
+    );
+
+    const inputTests: InputTestBatches = useMemo(() => {
+      const tests: InputTestBatches = {
+        domainNameServerCSV: {
+          defaults: {
+            onSuccess: () => {
+              setDomainNameServerCSVInputMessage(undefined);
+            },
+          },
+          tests: [
+            {
+              onFailure: () => {
+                setDomainNameServerCSVInputMessage({
+                  children:
+                    'Domain name servers should be a comma-separated list of IPv4 addresses.',
+                });
+              },
+              test: ({ value }) => REP_IPV4_CSV.test(value as string),
+            },
+            { test: testNotBlank },
+          ],
+        },
+        gateway: {
+          defaults: {
+            onSuccess: () => {
+              setGatewayInputMessage(undefined);
+            },
+          },
+          tests: [
+            {
+              onFailure: () => {
+                setGatewayInputMessage({
+                  children: 'Gateway should be a valid IPv4 address.',
+                });
+              },
+              test: ({ value }) => REP_IPV4.test(value as string),
+            },
+            { test: testNotBlank },
+          ],
+        },
+      };
+
+      networkInputs.forEach(({ name }, networkIndex) => {
+        const inputTestPrefix = `network${networkIndex}`;
+
+        tests[`${inputTestPrefix}Name`] = {
+          tests: [{ test: testNotBlank }],
+        };
+        tests[`${inputTestPrefix}IPAddress`] = {
+          defaults: {
+            onSuccess: () => {
+              setNetworkIPAddressInputMessage(networkIndex, undefined);
+            },
+          },
+          tests: [
+            {
+              onFailure: () => {
+                setNetworkIPAddressInputMessage(networkIndex, {
+                  children: `IP address in ${name} must be a valid IPv4 address.`,
+                });
+              },
+              test: ({ value }) => REP_IPV4.test(value as string),
+            },
+            { test: testNotBlank },
+          ],
+        };
+        tests[`${inputTestPrefix}SubnetMask`] = {
+          defaults: {
+            onSuccess: () => {
+              setNetworkSubnetMaskInputMessage(networkIndex, undefined);
+            },
+          },
+          tests: [
+            {
+              onFailure: () => {
+                setNetworkSubnetMaskInputMessage(networkIndex, {
+                  children: `Subnet mask in ${name} must be a valid IPv4 address.`,
+                });
+              },
+              test: ({ value }) => REP_IPV4.test(value as string),
+            },
+            { test: testNotBlank },
+          ],
+        };
+      });
+
+      return tests;
+    }, [
+      networkInputs,
+      setDomainNameServerCSVInputMessage,
+      setGatewayInputMessage,
+      setNetworkIPAddressInputMessage,
+      setNetworkSubnetMaskInputMessage,
+    ]);
+
     const clearNetworkInterfaceHeld = useCallback(() => {
       setNetworkInterfaceHeld(undefined);
     }, []);
@@ -474,7 +641,7 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
         inputUUID: uuidv4(),
         interfaces: [],
         ipAddress: '',
-        name: '',
+        name: 'Unknown Network',
         subnetMask: '',
         type: '',
       });
@@ -611,6 +778,8 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
       ref,
       () => ({
         get: () => ({
+          domainNameServerCSV: dnsCSVInputRef.current.getValue?.call(null),
+          gateway: gatewayInputRef.current.getValue?.call(null),
           networks: networkInputs.map(
             (
               { interfaces, ipAddressInputRef, subnetMaskInputRef, type },
@@ -655,7 +824,7 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
             display: 'flex',
             flexDirection: 'column',
 
-            '& > :not(:first-child, :last-child)': {
+            '& > :not(:first-child, :nth-child(3))': {
               marginTop: '1em',
             },
           }}
@@ -687,7 +856,7 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
             sx={{
               '& > :first-child': {
                 alignSelf: 'start',
-                marginTop: '1.1em',
+                marginTop: '.7em',
               },
 
               '& > :last-child': {
@@ -709,9 +878,9 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
                 overflowX: 'auto',
                 paddingLeft: '.3em',
 
-                '& > *': {
-                  marginBottom: '1em',
-                  marginTop: '1em',
+                '& > div': {
+                  marginBottom: '.8em',
+                  marginTop: '.4em',
                   minWidth: '13em',
                   width: '25%',
                 },
@@ -730,6 +899,7 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
                     {...{
                       createDropMouseUpHandler,
                       getNetworkTypeCount,
+                      inputTests,
                       networkIndex,
                       networkInput,
                       networkInputs,
@@ -743,6 +913,50 @@ const NetworkInitForm = forwardRef<NetworkInitFormForwardRefContent>(
               })}
             </MUIBox>
           </FlexBox>
+          <FlexBox
+            sm="row"
+            sx={{ marginTop: '.2em', '& > :last-child': { flexGrow: 1 } }}
+          >
+            <InputWithRef
+              input={
+                <OutlinedInputWithLabel
+                  id="network-init-gateway"
+                  inputLabelProps={{ isNotifyRequired: true }}
+                  onChange={({ target: { value } }) => {
+                    testInput({
+                      inputs: { gateway: { value } },
+                      tests: inputTests,
+                    });
+                  }}
+                  label="Gateway"
+                />
+              }
+              ref={gatewayInputRef}
+            />
+            <InputWithRef
+              input={
+                <OutlinedInputWithLabel
+                  id="network-init-dns-csv"
+                  inputLabelProps={{ isNotifyRequired: true }}
+                  onChange={({ target: { value } }) => {
+                    testInput({
+                      inputs: { domainNameServerCSV: { value } },
+                      tests: inputTests,
+                    });
+                  }}
+                  label="Domain name server(s)"
+                />
+              }
+              ref={dnsCSVInputRef}
+            />
+          </FlexBox>
+          <MessageGroup
+            count={
+              BASE_INPUT_COUNT + networkInputs.length * PER_NETWORK_INPUT_COUNT
+            }
+            defaultMessageType="warning"
+            ref={messageGroupRef}
+          />
         </MUIBox>
       </MUIBox>
     );
