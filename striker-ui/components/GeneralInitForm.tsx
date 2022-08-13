@@ -24,7 +24,7 @@ import OutlinedInputWithLabel, {
 import pad from '../lib/pad';
 import SuggestButton from './SuggestButton';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
-import { InputTestBatches } from '../types/TestInputFunction';
+import { InputTestBatches, InputTestInputs } from '../types/TestInputFunction';
 import { BodyText } from './Text';
 
 type GeneralInitFormForwardRefContent = {
@@ -198,7 +198,9 @@ const GeneralInitForm = forwardRef<
       [INPUT_TEST_IDS.confirmAdminPassword]: {
         defaults: {
           getValue: () =>
-            confirmAdminPasswordInputRef.current.getValue?.call(null),
+            isConfirmAdminPassword
+              ? confirmAdminPasswordInputRef.current.getValue?.call(null)
+              : adminPasswordInputRef.current.getValue?.call(null),
           onSuccess: () => {
             setConfirmAdminPasswordInputMessage(undefined);
           },
@@ -313,6 +315,7 @@ const GeneralInitForm = forwardRef<
       },
     }),
     [
+      isConfirmAdminPassword,
       setAdminPasswordInputMessage,
       setConfirmAdminPasswordInputMessage,
       setDomainNameInputMessage,
@@ -321,15 +324,24 @@ const GeneralInitForm = forwardRef<
       setOrganizationPrefixInputMessage,
     ],
   );
-
   const testInput = useMemo(
     () => createTestInputFunction(inputTests),
     [inputTests],
   );
+
   const testAllInputs = useCallback(
     (...excludeTestIds: string[]) =>
       testInput({ excludeTestIds, isIgnoreOnCallbacks: true }),
     [testInput],
+  );
+  const testInputSeparate = useCallback(
+    (id: string, input: InputTestInputs[string]) => {
+      const isLocalValid = testInput({
+        inputs: { [id]: input },
+      });
+      toggleSubmitDisabled?.call(null, isLocalValid && testAllInputs(id));
+    },
+    [testInput, testAllInputs, toggleSubmitDisabled],
   );
   const populateOrganizationPrefixInput = useCallback(
     ({
@@ -489,19 +501,13 @@ const GeneralInitForm = forwardRef<
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Prefix"
                     onChange={({ target: { value } }) => {
-                      testInput({
-                        inputs: {
-                          [INPUT_TEST_IDS.organizationPrefix]: {
-                            max: MAX_ORGANIZATION_PREFIX_LENGTH,
-                            min: MIN_ORGANIZATION_PREFIX_LENGTH,
-                            value,
-                          },
+                      testInputSeparate(INPUT_TEST_IDS.organizationPrefix, {
+                        [INPUT_TEST_IDS.organizationPrefix]: {
+                          max: MAX_ORGANIZATION_PREFIX_LENGTH,
+                          min: MIN_ORGANIZATION_PREFIX_LENGTH,
+                          value,
                         },
                       });
-                      toggleSubmitDisabled?.call(
-                        null,
-                        testAllInputs(INPUT_TEST_IDS.organizationPrefix),
-                      );
                       setIsShowOrganizationPrefixSuggest(
                         isOrganizationPrefixPrereqFilled(),
                       );
@@ -533,13 +539,7 @@ const GeneralInitForm = forwardRef<
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Striker #"
                     onChange={({ target: { value } }) => {
-                      testInput({
-                        inputs: { [INPUT_TEST_IDS.hostNumber]: { value } },
-                      });
-                      toggleSubmitDisabled?.call(
-                        null,
-                        testAllInputs(INPUT_TEST_IDS.hostNumber),
-                      );
+                      testInputSeparate(INPUT_TEST_IDS.hostNumber, { value });
                     }}
                     onHelp={() => {
                       setHelpMessage(
@@ -568,13 +568,7 @@ const GeneralInitForm = forwardRef<
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Domain name"
                   onChange={({ target: { value } }) => {
-                    testInput({
-                      inputs: { [INPUT_TEST_IDS.domainName]: { value } },
-                    });
-                    toggleSubmitDisabled?.call(
-                      null,
-                      testAllInputs(INPUT_TEST_IDS.domainName),
-                    );
+                    testInputSeparate(INPUT_TEST_IDS.domainName, { value });
                   }}
                   onHelp={() => {
                     setHelpMessage(
@@ -603,13 +597,7 @@ const GeneralInitForm = forwardRef<
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Host name"
                   onChange={({ target: { value } }) => {
-                    testInput({
-                      inputs: { [INPUT_TEST_IDS.hostName]: { value } },
-                    });
-                    toggleSubmitDisabled?.call(
-                      null,
-                      testAllInputs(INPUT_TEST_IDS.hostName),
-                    );
+                    testInputSeparate(INPUT_TEST_IDS.hostName, { value });
                     setIsShowHostNameSuggest(isHostNamePrereqFilled());
                   }}
                   onHelp={() => {
@@ -654,13 +642,9 @@ const GeneralInitForm = forwardRef<
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Admin password"
                     onChange={({ target: { value } }) => {
-                      testInput({
-                        inputs: { [INPUT_TEST_IDS.adminPassword]: { value } },
+                      testInputSeparate(INPUT_TEST_IDS.adminPassword, {
+                        value,
                       });
-                      toggleSubmitDisabled?.call(
-                        null,
-                        testAllInputs(INPUT_TEST_IDS.adminPassword),
-                      );
                     }}
                     onHelp={() => {
                       setHelpMessage(
@@ -690,15 +674,9 @@ const GeneralInitForm = forwardRef<
                       }}
                       label="Confirm password"
                       onChange={({ target: { value } }) => {
-                        testInput({
-                          inputs: {
-                            [INPUT_TEST_IDS.confirmAdminPassword]: { value },
-                          },
+                        testInputSeparate(INPUT_TEST_IDS.confirmAdminPassword, {
+                          value,
                         });
-                        toggleSubmitDisabled?.call(
-                          null,
-                          testAllInputs(INPUT_TEST_IDS.confirmAdminPassword),
-                        );
                       }}
                     />
                   }
