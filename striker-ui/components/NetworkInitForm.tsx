@@ -49,8 +49,8 @@ import periodicFetch from '../lib/fetchers/periodicFetch';
 import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
-import { testInput, testNotBlank } from '../lib/test_input';
-import { InputTestBatches } from '../types/TestInputFunction';
+import { createTestInputFunction, testNotBlank } from '../lib/test_input';
+import { InputTestBatches, InputTestInputs } from '../types/TestInputFunction';
 import { BodyText, DataGridCellText } from './Text';
 
 type NetworkInput = {
@@ -264,7 +264,6 @@ const NetworkForm: FC<{
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
   getNetworkTypeCount: (targetType: string, lastIndex?: number) => number;
-  inputTests: InputTestBatches;
   networkIndex: number;
   networkInput: NetworkInput;
   networkInputs: NetworkInput[];
@@ -274,12 +273,10 @@ const NetworkForm: FC<{
   setNetworkInterfaceInputMap: Dispatch<
     SetStateAction<NetworkInterfaceInputMap>
   >;
-  testAllInputs: (...excludeTestIds: string[]) => boolean;
-  toggleSubmitDisabled?: ToggleSubmitDisabledFunction;
+  testInputSeparate: (id: string, input: InputTestInputs[string]) => void;
 }> = ({
   createDropMouseUpHandler,
   getNetworkTypeCount,
-  inputTests,
   networkIndex,
   networkInput,
   networkInputs,
@@ -287,8 +284,7 @@ const NetworkForm: FC<{
   optionalNetworkInputsLength,
   setNetworkInputs,
   setNetworkInterfaceInputMap,
-  testAllInputs,
-  toggleSubmitDisabled,
+  testInputSeparate,
 }) => {
   const theme = useTheme();
   const breakpointMedium = useMediaQuery(theme.breakpoints.up('md'));
@@ -418,19 +414,9 @@ const NetworkForm: FC<{
                     ?.call(null, interfaces, networkInterfaceIndex)
                     ?.call(null, ...args);
 
-                  const isLocalValid = testInput({
-                    inputs: {
-                      [interfacesInputTestId]: {
-                        value: getFilled(interfaces).length,
-                      },
-                    },
-                    tests: inputTests,
+                  testInputSeparate(interfacesInputTestId, {
+                    value: getFilled(interfaces).length,
                   });
-
-                  toggleSubmitDisabled?.call(
-                    null,
-                    isLocalValid && testAllInputs(interfacesInputTestId),
-                  );
                 }}
               >
                 {networkInterface ? (
@@ -445,20 +431,9 @@ const NetworkForm: FC<{
                       setNetworkInterfaceInputMap({
                         ...networkInterfaceInputMap,
                       });
-
-                      const isLocalValid = testInput({
-                        inputs: {
-                          [interfacesInputTestId]: {
-                            value: getFilled(interfaces).length,
-                          },
-                        },
-                        tests: inputTests,
+                      testInputSeparate(interfacesInputTestId, {
+                        value: getFilled(interfaces).length,
                       });
-
-                      toggleSubmitDisabled?.call(
-                        null,
-                        isLocalValid && testAllInputs(interfacesInputTestId),
-                      );
                     }}
                   />
                 ) : (
@@ -475,19 +450,7 @@ const NetworkForm: FC<{
               inputLabelProps={{ isNotifyRequired: true }}
               label="IP address"
               onChange={({ target: { value } }) => {
-                const isLocalValid = testInput({
-                  inputs: {
-                    [ipAddressInputTestId]: {
-                      value,
-                    },
-                  },
-                  tests: inputTests,
-                });
-
-                toggleSubmitDisabled?.call(
-                  null,
-                  isLocalValid && testAllInputs(ipAddressInputTestId),
-                );
+                testInputSeparate(ipAddressInputTestId, { value });
               }}
               value={ipAddress}
             />
@@ -501,17 +464,7 @@ const NetworkForm: FC<{
               inputLabelProps={{ isNotifyRequired: true }}
               label="Subnet mask"
               onChange={({ target: { value } }) => {
-                const isLocalValid = testInput({
-                  inputs: {
-                    [subnetMaskInputTestId]: { value },
-                  },
-                  tests: inputTests,
-                });
-
-                toggleSubmitDisabled?.call(
-                  null,
-                  isLocalValid && testAllInputs(subnetMaskInputTestId),
-                );
+                testInputSeparate(subnetMaskInputTestId, { value });
               }}
               value={subnetMask}
             />
@@ -525,7 +478,6 @@ const NetworkForm: FC<{
 
 NetworkForm.defaultProps = {
   createDropMouseUpHandler: undefined,
-  toggleSubmitDisabled: undefined,
 };
 
 const NetworkInitForm = forwardRef<
@@ -722,15 +674,24 @@ const NetworkInitForm = forwardRef<
     setNetworkIPAddressInputMessage,
     setNetworkSubnetMaskInputMessage,
   ]);
+  const testInput = useMemo(
+    () => createTestInputFunction(inputTests),
+    [inputTests],
+  );
 
   const testAllInputs = useCallback(
     (...excludeTestIds: string[]) =>
-      testInput({
-        excludeTestIds,
-        isIgnoreOnCallbacks: true,
-        tests: inputTests,
-      }),
-    [inputTests],
+      testInput({ excludeTestIds, isIgnoreOnCallbacks: true }),
+    [testInput],
+  );
+  const testInputSeparate = useCallback(
+    (id: string, input: InputTestInputs[string]) => {
+      const isLocalValid = testInput({
+        inputs: { [id]: input },
+      });
+      toggleSubmitDisabled?.call(null, isLocalValid && testAllInputs(id));
+    },
+    [testInput, testAllInputs, toggleSubmitDisabled],
   );
   const clearNetworkInterfaceHeld = useCallback(() => {
     setNetworkInterfaceHeld(undefined);
@@ -997,7 +958,6 @@ const NetworkInitForm = forwardRef<
                   {...{
                     createDropMouseUpHandler,
                     getNetworkTypeCount,
-                    inputTests,
                     networkIndex,
                     networkInput,
                     networkInputs,
@@ -1005,8 +965,7 @@ const NetworkInitForm = forwardRef<
                     optionalNetworkInputsLength,
                     setNetworkInputs,
                     setNetworkInterfaceInputMap,
-                    testAllInputs,
-                    toggleSubmitDisabled,
+                    testInputSeparate,
                   }}
                 />
               );
@@ -1023,15 +982,7 @@ const NetworkInitForm = forwardRef<
                 id="network-init-gateway"
                 inputLabelProps={{ isNotifyRequired: true }}
                 onChange={({ target: { value } }) => {
-                  const isLocalValid = testInput({
-                    inputs: { [INPUT_TEST_IDS.gateway]: { value } },
-                    tests: inputTests,
-                  });
-
-                  toggleSubmitDisabled?.call(
-                    null,
-                    isLocalValid && testAllInputs(INPUT_TEST_IDS.gateway),
-                  );
+                  testInputSeparate(INPUT_TEST_IDS.gateway, { value });
                 }}
                 label="Gateway"
               />
@@ -1044,15 +995,7 @@ const NetworkInitForm = forwardRef<
                 id="network-init-dns-csv"
                 inputLabelProps={{ isNotifyRequired: true }}
                 onChange={({ target: { value } }) => {
-                  const isLocalValid = testInput({
-                    inputs: { [INPUT_TEST_IDS.dnsCSV]: { value } },
-                    tests: inputTests,
-                  });
-
-                  toggleSubmitDisabled?.call(
-                    null,
-                    isLocalValid && testAllInputs(INPUT_TEST_IDS.dnsCSV),
-                  );
+                  testInputSeparate(INPUT_TEST_IDS.dnsCSV, { value });
                 }}
                 label="Domain name server(s)"
               />
