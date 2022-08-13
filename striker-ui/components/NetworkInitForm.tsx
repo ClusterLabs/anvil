@@ -38,6 +38,7 @@ import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
 import FlexBox from './FlexBox';
+import getFilled from '../lib/getFilled';
 import IconButton from './IconButton';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import { Message } from './MessageBox';
@@ -146,8 +147,9 @@ const PER_NETWORK_INPUT_COUNT = 3;
 const INPUT_TEST_IDS = {
   dnsCSV: 'domainNameServerCSV',
   gateway: 'gateway',
-  networkName: (prefix: string) => `${prefix}Name`,
+  networkInterfaces: (prefix: string) => `${prefix}Interface`,
   networkIPAddress: (prefix: string) => `${prefix}IPAddress`,
+  networkName: (prefix: string) => `${prefix}Name`,
   networkSubnet: (prefix: string) => `${prefix}SubnetMask`,
 };
 
@@ -301,6 +303,10 @@ const NetworkForm: FC<{
     () => `network${networkIndex}`,
     [networkIndex],
   );
+  const interfacesInputTestId = useMemo(
+    () => INPUT_TEST_IDS.networkInterfaces(inputTestPrefix),
+    [inputTestPrefix],
+  );
   const ipAddressInputTestId = useMemo(
     () => INPUT_TEST_IDS.networkIPAddress(inputTestPrefix),
     [inputTestPrefix],
@@ -309,7 +315,6 @@ const NetworkForm: FC<{
     () => INPUT_TEST_IDS.networkSubnet(inputTestPrefix),
     [inputTestPrefix],
   );
-
   const isNetworkOptional = useMemo(
     () => networkIndex < optionalNetworkInputsLength,
     [networkIndex, optionalNetworkInputsLength],
@@ -408,11 +413,25 @@ const NetworkForm: FC<{
             >
               <BodyText sx={{ whiteSpace: 'nowrap' }} text={linkName} />
               <DropArea
-                onMouseUp={createDropMouseUpHandler?.call(
-                  null,
-                  interfaces,
-                  networkInterfaceIndex,
-                )}
+                onMouseUp={(...args) => {
+                  createDropMouseUpHandler
+                    ?.call(null, interfaces, networkInterfaceIndex)
+                    ?.call(null, ...args);
+
+                  const isLocalValid = testInput({
+                    inputs: {
+                      [interfacesInputTestId]: {
+                        value: getFilled(interfaces).length,
+                      },
+                    },
+                    tests: inputTests,
+                  });
+
+                  toggleSubmitDisabled?.call(
+                    null,
+                    isLocalValid && testAllInputs(interfacesInputTestId),
+                  );
+                }}
               >
                 {networkInterface ? (
                   <BriefNetworkInterface
@@ -426,6 +445,20 @@ const NetworkForm: FC<{
                       setNetworkInterfaceInputMap({
                         ...networkInterfaceInputMap,
                       });
+
+                      const isLocalValid = testInput({
+                        inputs: {
+                          [interfacesInputTestId]: {
+                            value: getFilled(interfaces).length,
+                          },
+                        },
+                        tests: inputTests,
+                      });
+
+                      toggleSubmitDisabled?.call(
+                        null,
+                        isLocalValid && testAllInputs(interfacesInputTestId),
+                      );
                     }}
                   />
                 ) : (
@@ -628,52 +661,58 @@ const NetworkInitForm = forwardRef<
       },
     };
 
-    networkInputs.forEach(({ ipAddress, name, subnetMask }, networkIndex) => {
-      const inputTestPrefix = `network${networkIndex}`;
+    networkInputs.forEach(
+      ({ interfaces, ipAddress, name, subnetMask }, networkIndex) => {
+        const inputTestPrefix = `network${networkIndex}`;
 
-      tests[INPUT_TEST_IDS.networkName(inputTestPrefix)] = {
-        defaults: { value: name },
-        tests: [{ test: testNotBlank }],
-      };
-      tests[INPUT_TEST_IDS.networkIPAddress(inputTestPrefix)] = {
-        defaults: {
-          onSuccess: () => {
-            setNetworkIPAddressInputMessage(networkIndex, undefined);
-          },
-          value: ipAddress,
-        },
-        tests: [
-          {
-            onFailure: () => {
-              setNetworkIPAddressInputMessage(networkIndex, {
-                children: `IP address in ${name} must be a valid IPv4 address.`,
-              });
+        tests[INPUT_TEST_IDS.networkInterfaces(inputTestPrefix)] = {
+          defaults: { value: getFilled(interfaces).length },
+          tests: [{ test: ({ value }) => (value as number) > 0 }],
+        };
+        tests[INPUT_TEST_IDS.networkIPAddress(inputTestPrefix)] = {
+          defaults: {
+            onSuccess: () => {
+              setNetworkIPAddressInputMessage(networkIndex, undefined);
             },
-            test: ({ value }) => REP_IPV4.test(value as string),
+            value: ipAddress,
           },
-          { test: testNotBlank },
-        ],
-      };
-      tests[INPUT_TEST_IDS.networkSubnet(inputTestPrefix)] = {
-        defaults: {
-          onSuccess: () => {
-            setNetworkSubnetMaskInputMessage(networkIndex, undefined);
-          },
-          value: subnetMask,
-        },
-        tests: [
-          {
-            onFailure: () => {
-              setNetworkSubnetMaskInputMessage(networkIndex, {
-                children: `Subnet mask in ${name} must be a valid IPv4 address.`,
-              });
+          tests: [
+            {
+              onFailure: () => {
+                setNetworkIPAddressInputMessage(networkIndex, {
+                  children: `IP address in ${name} must be a valid IPv4 address.`,
+                });
+              },
+              test: ({ value }) => REP_IPV4.test(value as string),
             },
-            test: ({ value }) => REP_IPV4.test(value as string),
+            { test: testNotBlank },
+          ],
+        };
+        tests[INPUT_TEST_IDS.networkName(inputTestPrefix)] = {
+          defaults: { value: name },
+          tests: [{ test: testNotBlank }],
+        };
+        tests[INPUT_TEST_IDS.networkSubnet(inputTestPrefix)] = {
+          defaults: {
+            onSuccess: () => {
+              setNetworkSubnetMaskInputMessage(networkIndex, undefined);
+            },
+            value: subnetMask,
           },
-          { test: testNotBlank },
-        ],
-      };
-    });
+          tests: [
+            {
+              onFailure: () => {
+                setNetworkSubnetMaskInputMessage(networkIndex, {
+                  children: `Subnet mask in ${name} must be a valid IPv4 address.`,
+                });
+              },
+              test: ({ value }) => REP_IPV4.test(value as string),
+            },
+            { test: testNotBlank },
+          ],
+        };
+      },
+    );
 
     return tests;
   }, [
