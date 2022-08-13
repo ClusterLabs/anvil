@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
 import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 import { REP_DOMAIN } from '../lib/consts/REG_EXP_PATTERNS';
@@ -18,12 +17,17 @@ import FlexBox, { FlexBoxProps } from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import isEmpty from '../lib/isEmpty';
 import MessageBox, { Message } from './MessageBox';
+import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel, {
   OutlinedInputWithLabelProps,
 } from './OutlinedInputWithLabel';
 import pad from '../lib/pad';
 import SuggestButton from './SuggestButton';
-import { testInput, testLength, testNotBlank } from '../lib/test_input';
+import {
+  createTestInputFunction,
+  testLength,
+  testNotBlank,
+} from '../lib/test_input';
 import { InputTestBatches } from '../types/TestInputFunction';
 import { BodyText } from './Text';
 
@@ -58,18 +62,6 @@ const MAP_TO_ORGANIZATION_PREFIX_BUILDER: Record<
   2: (words) =>
     words.map((word) => word.substring(0, 1).toLocaleLowerCase()).join(''),
 };
-
-const INPUT_TEST_MESSAGE_KEYS: string[] = Array.from(
-  {
-    length: INPUT_COUNT,
-  },
-  () => uuidv4(),
-);
-
-const INITIAL_INPUT_MESSAGES = Array.from(
-  { length: INPUT_COUNT },
-  () => undefined,
-);
 
 const buildOrganizationPrefix = (organizationName = '') => {
   const words: string[] = organizationName
@@ -115,9 +107,6 @@ const MessageChildren: FC<FlexBoxProps> = ({ ...flexBoxProps }) => (
 const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
   (generalInitFormProps, ref) => {
     const [helpMessage, setHelpMessage] = useState<ReactNode | undefined>();
-    const [inputMessages, setInputMessages] = useState<
-      Array<Message | undefined>
-    >(INITIAL_INPUT_MESSAGES);
     const [
       isShowOrganizationPrefixSuggest,
       setIsShowOrganizationPrefixSuggest,
@@ -142,151 +131,39 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
     const domainNameInputRef = useRef<InputForwardedRefContent<'string'>>({});
     const hostNumberInputRef = useRef<InputForwardedRefContent<'number'>>({});
     const hostNameInputRef = useRef<InputForwardedRefContent<'string'>>({});
+    const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-    const setInputMessage = useCallback((index: number, message?: Message) => {
-      setInputMessages((previous) => {
-        previous.splice(index, 1, message);
-        return [...previous];
-      });
-    }, []);
     const setOrganizationPrefixInputMessage = useCallback(
-      (message?: Message) => setInputMessage(1, message),
-      [setInputMessage],
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 1, message),
+      [],
     );
     const setHostNumberInputMessage = useCallback(
-      (message?: Message) => setInputMessage(2, message),
-      [setInputMessage],
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 2, message),
+      [],
     );
     const setDomainNameInputMessage = useCallback(
-      (message?: Message) => setInputMessage(3, message),
-      [setInputMessage],
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 3, message),
+      [],
     );
     const setHostNameInputMessage = useCallback(
-      (message?: Message) => setInputMessage(4, message),
-      [setInputMessage],
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 4, message),
+      [],
     );
     const setAdminPasswordInputMessage = useCallback(
-      (message?: Message) => setInputMessage(5, message),
-      [setInputMessage],
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 5, message),
+      [],
     );
     const setConfirmAdminPasswordInputMessage = useCallback(
-      (message?: Message) => setInputMessage(6, message),
-      [setInputMessage],
-    );
-    const populateOrganizationPrefixInput = useCallback(
-      ({
-        organizationName = organizationNameInputRef.current.getValue?.call(
-          null,
-        ),
-      } = {}) => {
-        const organizationPrefix = buildOrganizationPrefix(organizationName);
-
-        organizationPrefixInputRef.current.setValue?.call(
-          null,
-          organizationPrefix,
-        );
-
-        return organizationPrefix;
-      },
-      [],
-    );
-    const populateHostNameInput = useCallback(
-      ({
-        organizationPrefix = organizationPrefixInputRef.current.getValue?.call(
-          null,
-        ),
-        hostNumber = hostNumberInputRef.current.getValue?.call(null),
-        domainName = domainNameInputRef.current.getValue?.call(null),
-      } = {}) => {
-        const hostName = buildHostName({
-          organizationPrefix,
-          hostNumber,
-          domainName,
-        });
-
-        hostNameInputRef.current.setValue?.call(null, hostName);
-
-        return hostName;
-      },
-      [],
-    );
-    const isOrganizationPrefixPrereqFilled = useCallback(
-      () =>
-        isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
-          not: true,
-        }),
-      [],
-    );
-    const isHostNamePrereqFilled = useCallback(
-      () =>
-        isEmpty(
-          [
-            organizationPrefixInputRef.current.getValue?.call(null),
-            hostNumberInputRef.current.getValue?.call(null),
-            domainNameInputRef.current.getValue?.call(null),
-          ],
-          {
-            not: true,
-          },
-        ),
-      [],
-    );
-    const populateOrganizationPrefixInputOnBlur: OutlinedInputWithLabelOnBlur =
-      useCallback(() => {
-        if (organizationPrefixInputRef.current.getIsChangedByUser?.call(null)) {
-          setIsShowOrganizationPrefixSuggest(
-            isOrganizationPrefixPrereqFilled(),
-          );
-        } else {
-          populateOrganizationPrefixInput();
-        }
-      }, [isOrganizationPrefixPrereqFilled, populateOrganizationPrefixInput]);
-    const populateHostNameInputOnBlur: OutlinedInputWithLabelOnBlur =
-      useCallback(() => {
-        if (hostNameInputRef.current.getIsChangedByUser?.call(null)) {
-          setIsShowHostNameSuggest(isHostNamePrereqFilled());
-        } else {
-          populateHostNameInput();
-        }
-      }, [isHostNamePrereqFilled, populateHostNameInput]);
-    const handleOrganizationPrefixSuggest = useCallback(() => {
-      const organizationPrefix = populateOrganizationPrefixInput();
-
-      if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
-        populateHostNameInput({ organizationPrefix });
-      }
-    }, [populateHostNameInput, populateOrganizationPrefixInput]);
-    const handlerHostNameSuggest = useCallback(() => {
-      populateHostNameInput();
-    }, [populateHostNameInput]);
-    const buildHelpMessage = useCallback(
-      (text: string) => (previous?: string) =>
-        previous === text ? undefined : text,
+      (message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, 6, message),
       [],
     );
 
-    const inputMessageElements = useMemo(
-      () =>
-        inputMessages.map((message, index) => {
-          let messageElement;
-
-          if (message) {
-            const { children, type = 'warning' } = message;
-
-            messageElement = (
-              <MessageBox
-                key={`input-test-message-${INPUT_TEST_MESSAGE_KEYS[index]}`}
-                type={type}
-              >
-                {children}
-              </MessageBox>
-            );
-          }
-
-          return messageElement;
-        }),
-      [inputMessages],
-    );
     const inputTests: InputTestBatches = useMemo(
       () => ({
         adminPassword: {
@@ -327,7 +204,8 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   children: 'Admin password confirmation failed.',
                 });
               },
-              test: ({ value, compare }) => value === compare,
+              test: ({ value }) =>
+                value === adminPasswordInputRef.current.getValue?.call(null),
             },
             { test: testNotBlank },
           ],
@@ -437,6 +315,102 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
       ],
     );
 
+    const testInput = useMemo(
+      () => createTestInputFunction(inputTests),
+      [inputTests],
+    );
+    const populateOrganizationPrefixInput = useCallback(
+      ({
+        organizationName = organizationNameInputRef.current.getValue?.call(
+          null,
+        ),
+      } = {}) => {
+        const organizationPrefix = buildOrganizationPrefix(organizationName);
+
+        organizationPrefixInputRef.current.setValue?.call(
+          null,
+          organizationPrefix,
+        );
+
+        return organizationPrefix;
+      },
+      [],
+    );
+    const populateHostNameInput = useCallback(
+      ({
+        organizationPrefix = organizationPrefixInputRef.current.getValue?.call(
+          null,
+        ),
+        hostNumber = hostNumberInputRef.current.getValue?.call(null),
+        domainName = domainNameInputRef.current.getValue?.call(null),
+      } = {}) => {
+        const hostName = buildHostName({
+          organizationPrefix,
+          hostNumber,
+          domainName,
+        });
+
+        hostNameInputRef.current.setValue?.call(null, hostName);
+
+        return hostName;
+      },
+      [],
+    );
+    const isOrganizationPrefixPrereqFilled = useCallback(
+      () =>
+        isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
+          not: true,
+        }),
+      [],
+    );
+    const isHostNamePrereqFilled = useCallback(
+      () =>
+        isEmpty(
+          [
+            organizationPrefixInputRef.current.getValue?.call(null),
+            hostNumberInputRef.current.getValue?.call(null),
+            domainNameInputRef.current.getValue?.call(null),
+          ],
+          {
+            not: true,
+          },
+        ),
+      [],
+    );
+    const populateOrganizationPrefixInputOnBlur: OutlinedInputWithLabelOnBlur =
+      useCallback(() => {
+        if (organizationPrefixInputRef.current.getIsChangedByUser?.call(null)) {
+          setIsShowOrganizationPrefixSuggest(
+            isOrganizationPrefixPrereqFilled(),
+          );
+        } else {
+          populateOrganizationPrefixInput();
+        }
+      }, [isOrganizationPrefixPrereqFilled, populateOrganizationPrefixInput]);
+    const populateHostNameInputOnBlur: OutlinedInputWithLabelOnBlur =
+      useCallback(() => {
+        if (hostNameInputRef.current.getIsChangedByUser?.call(null)) {
+          setIsShowHostNameSuggest(isHostNamePrereqFilled());
+        } else {
+          populateHostNameInput();
+        }
+      }, [isHostNamePrereqFilled, populateHostNameInput]);
+    const handleOrganizationPrefixSuggest = useCallback(() => {
+      const organizationPrefix = populateOrganizationPrefixInput();
+
+      if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
+        populateHostNameInput({ organizationPrefix });
+      }
+    }, [populateHostNameInput, populateOrganizationPrefixInput]);
+    const handlerHostNameSuggest = useCallback(() => {
+      populateHostNameInput();
+    }, [populateHostNameInput]);
+    const buildHelpMessage = useCallback(
+      (text: string) => (previous?: string) =>
+        previous === text ? undefined : text,
+      [],
+    );
+
     useImperativeHandle(ref, () => ({
       get: () => ({
         adminPassword: adminPasswordInputRef.current.getValue?.call(null),
@@ -499,28 +473,20 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                             minWidth: '2.5em',
                           },
                         },
-                        onBlur: (event) => {
-                          const {
-                            target: { value },
-                          } = event;
-
-                          testInput({
-                            inputs: {
-                              organizationPrefix: {
-                                max: MAX_ORGANIZATION_PREFIX_LENGTH,
-                                min: MIN_ORGANIZATION_PREFIX_LENGTH,
-                                value,
-                              },
-                            },
-                            tests: inputTests,
-                          });
-
-                          populateHostNameInputOnBlur(event);
-                        },
+                        onBlur: populateHostNameInputOnBlur,
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Prefix"
-                      onChange={() => {
+                      onChange={({ target: { value } }) => {
+                        testInput({
+                          inputs: {
+                            organizationPrefix: {
+                              max: MAX_ORGANIZATION_PREFIX_LENGTH,
+                              min: MIN_ORGANIZATION_PREFIX_LENGTH,
+                              value,
+                            },
+                          },
+                        });
                         setIsShowOrganizationPrefixSuggest(
                           isOrganizationPrefixPrereqFilled(),
                         );
@@ -547,21 +513,13 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                             minWidth: '2em',
                           },
                         },
-                        onBlur: (event) => {
-                          const {
-                            target: { value },
-                          } = event;
-
-                          testInput({
-                            inputs: { hostNumber: { value } },
-                            tests: inputTests,
-                          });
-
-                          populateHostNameInputOnBlur(event);
-                        },
+                        onBlur: populateHostNameInputOnBlur,
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Striker #"
+                      onChange={({ target: { value } }) => {
+                        testInput({ inputs: { hostNumber: { value } } });
+                      }}
                       onHelp={() => {
                         setHelpMessage(
                           buildHelpMessage(
@@ -584,21 +542,13 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                   <OutlinedInputWithLabel
                     id="striker-init-general-domain-name"
                     inputProps={{
-                      onBlur: (event) => {
-                        const {
-                          target: { value },
-                        } = event;
-
-                        testInput({
-                          inputs: { domainName: { value } },
-                          tests: inputTests,
-                        });
-
-                        populateHostNameInputOnBlur(event);
-                      },
+                      onBlur: populateHostNameInputOnBlur,
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Domain name"
+                    onChange={({ target: { value } }) => {
+                      testInput({ inputs: { domainName: { value } } });
+                    }}
                     onHelp={() => {
                       setHelpMessage(
                         buildHelpMessage(
@@ -622,17 +572,11 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                           onClick={handlerHostNameSuggest}
                         />
                       ),
-
-                      onBlur: ({ target: { value } }) => {
-                        testInput({
-                          inputs: { hostName: { value } },
-                          tests: inputTests,
-                        });
-                      },
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Host name"
-                    onChange={() => {
+                    onChange={({ target: { value } }) => {
+                      testInput({ inputs: { hostName: { value } } });
                       setIsShowHostNameSuggest(isHostNamePrereqFilled());
                     }}
                     onHelp={() => {
@@ -668,12 +612,6 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                         inputProps: {
                           type: INPUT_TYPES.password,
                         },
-                        onBlur: ({ target: { value } }) => {
-                          testInput({
-                            inputs: { adminPassword: { value } },
-                            tests: inputTests,
-                          });
-                        },
                         onPasswordVisibilityAppend: (inputType) => {
                           setIsConfirmAdminPassword(
                             inputType === INPUT_TYPES.password,
@@ -682,6 +620,9 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Admin password"
+                      onChange={({ target: { value } }) => {
+                        testInput({ inputs: { adminPassword: { value } } });
+                      }}
                       onHelp={() => {
                         setHelpMessage(
                           buildHelpMessage(
@@ -704,25 +645,16 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
                           inputProps: {
                             type: INPUT_TYPES.password,
                           },
-                          onBlur: ({ target: { value } }) => {
-                            testInput({
-                              inputs: {
-                                confirmAdminPassword: {
-                                  value,
-                                  compare:
-                                    adminPasswordInputRef.current.getValue?.call(
-                                      null,
-                                    ),
-                                },
-                              },
-                              tests: inputTests,
-                            });
-                          },
                         }}
                         inputLabelProps={{
                           isNotifyRequired: isConfirmAdminPassword,
                         }}
                         label="Confirm password"
+                        onChange={({ target: { value } }) => {
+                          testInput({
+                            inputs: { confirmAdminPassword: { value } },
+                          });
+                        }}
                       />
                     }
                     ref={confirmAdminPasswordInputRef}
@@ -732,7 +664,11 @@ const GeneralInitForm = forwardRef<GeneralInitFormForwardRefContent>(
             </MUIGrid>
           </MUIGrid>
         </MUIGrid>
-        {inputMessageElements}
+        <MessageGroup
+          count={INPUT_COUNT}
+          defaultMessageType="warning"
+          ref={messageGroupRef}
+        />
         {helpMessage && (
           <MessageBox
             onClose={() => {
