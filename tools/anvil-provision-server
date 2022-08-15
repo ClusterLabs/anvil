@@ -11,7 +11,7 @@
 # TODO: Support cloning; Example
 #       - virt-clone --original-xml /mnt/shared/definitions/<source>.xml --name <new_server> --file <new_server's_drbd_path> --check path_exists=off
 #       - Make VNC default
-# 
+#       - Don't provision until in the cluster!
 
 use strict;
 use warnings;
@@ -168,12 +168,26 @@ sub run_jobs
 		}
 		else
 		{
-			$waiting = 0;
-			$anvil->Job->update_progress({
-				progress   => 8,
-				message    => "job_0276", 
-			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0276"});
+			# Make sure we're actually in the cluster now.
+			if ($anvil->data->{cib}{parsed}{'local'}{ready})
+			{
+				# We're ready!
+				$waiting = 0;
+				$anvil->Job->update_progress({
+					progress   => 8,
+					message    => "job_0276", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0276"});
+			}
+			else
+			{
+				# Cluster is coming up, but it's not up yet.
+				$anvil->Job->update_progress({
+					progress   => 6,
+					message    => "job_0278", 
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0278"});
+			}
 		}
 	}
 	
