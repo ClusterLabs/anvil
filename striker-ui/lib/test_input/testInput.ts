@@ -2,6 +2,7 @@ import {
   InputTest,
   InputTestBatches,
   InputTestInputs,
+  CallbackAppendArgs,
   TestInputFunction,
 } from '../../types/TestInputFunction';
 
@@ -49,7 +50,7 @@ const testInput: TestInputFunction = ({
   Object.keys(testsToRun).every((id: string) => {
     const {
       defaults: {
-        compare: dCompare = null,
+        compare: dCompare = [],
         displayMax: dDisplayMax,
         displayMin: dDisplayMin,
         getCompare: dGetCompare,
@@ -81,7 +82,9 @@ const testInput: TestInputFunction = ({
       onSuccess = dOnSuccess,
       test,
     }) => {
+      const append: CallbackAppendArgs['append'] = {};
       const singleResult: boolean = test({
+        append,
         compare,
         max,
         min,
@@ -99,6 +102,7 @@ const testInput: TestInputFunction = ({
         allResult = singleResult;
 
         cbFailure?.call(null, {
+          append,
           compare,
           displayMax,
           displayMin,
@@ -115,6 +119,12 @@ const testInput: TestInputFunction = ({
     optionalTests?.forEach(runTest);
 
     const requiredTestsResult = requiredTests.every(runTest);
+
+    // console.log(
+    //   `[${requiredTestsResult ? 'PASS' : 'FAILED'}]id=${id},getValue=${
+    //     getValue !== undefined
+    //   },value=${value}`,
+    // );
 
     cbFinishBatch?.call(null);
 
