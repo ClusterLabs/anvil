@@ -15,6 +15,7 @@ import {
   DataGridProps as MUIDataGridProps,
   gridClasses as muiGridClasses,
 } from '@mui/x-data-grid';
+import { Netmask } from 'netmask';
 import {
   Dispatch,
   FC,
@@ -141,10 +142,11 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
   },
 ];
 
-const BASE_INPUT_COUNT = 2;
 const MAX_INTERFACES_PER_NETWORK = 2;
-const PER_NETWORK_INPUT_COUNT = 3;
-const INPUT_TEST_IDS = {
+const IT_APPEND_KEYS = {
+  conflictNetworkName: 'conflictNetworkName',
+};
+const IT_IDS = {
   dnsCSV: 'domainNameServerCSV',
   gateway: 'gateway',
   networkInterfaces: (prefix: string) => `${prefix}Interface`,
@@ -266,7 +268,6 @@ const NetworkForm: FC<{
   getNetworkTypeCount: (targetType: string, lastIndex?: number) => number;
   networkIndex: number;
   networkInput: NetworkInput;
-  networkInputs: NetworkInput[];
   networkInterfaceInputMap: NetworkInterfaceInputMap;
   optionalNetworkInputsLength: number;
   setNetworkInputs: Dispatch<SetStateAction<NetworkInput[]>>;
@@ -279,7 +280,6 @@ const NetworkForm: FC<{
   getNetworkTypeCount,
   networkIndex,
   networkInput,
-  networkInputs,
   networkInterfaceInputMap,
   optionalNetworkInputsLength,
   setNetworkInputs,
@@ -300,15 +300,15 @@ const NetworkForm: FC<{
     [networkIndex],
   );
   const interfacesInputTestId = useMemo(
-    () => INPUT_TEST_IDS.networkInterfaces(inputTestPrefix),
+    () => IT_IDS.networkInterfaces(inputTestPrefix),
     [inputTestPrefix],
   );
   const ipAddressInputTestId = useMemo(
-    () => INPUT_TEST_IDS.networkIPAddress(inputTestPrefix),
+    () => IT_IDS.networkIPAddress(inputTestPrefix),
     [inputTestPrefix],
   );
   const subnetMaskInputTestId = useMemo(
-    () => INPUT_TEST_IDS.networkSubnet(inputTestPrefix),
+    () => IT_IDS.networkSubnet(inputTestPrefix),
     [inputTestPrefix],
   );
   const isNetworkOptional = useMemo(
@@ -316,8 +316,17 @@ const NetworkForm: FC<{
     [networkIndex, optionalNetworkInputsLength],
   );
 
-  networkInput.ipAddressInputRef = ipAddressInputRef;
-  networkInput.subnetMaskInputRef = subnetMaskInputRef;
+  useEffect(() => {
+    const { ipAddressInputRef: ipRef, subnetMaskInputRef: maskRef } =
+      networkInput;
+
+    if (ipRef !== ipAddressInputRef || maskRef !== subnetMaskInputRef) {
+      networkInput.ipAddressInputRef = ipAddressInputRef;
+      networkInput.subnetMaskInputRef = subnetMaskInputRef;
+
+      setNetworkInputs((previous) => [...previous]);
+    }
+  }, [networkInput, setNetworkInputs]);
 
   return (
     <InnerPanel>
@@ -349,7 +358,7 @@ const NetworkForm: FC<{
                 NETWORK_TYPES[networkType]
               } ${getNetworkTypeCount(networkType, networkIndex)}`;
 
-              setNetworkInputs([...networkInputs]);
+              setNetworkInputs((previous) => [...previous]);
             },
             renderValue: breakpointLarge
               ? undefined
@@ -428,9 +437,9 @@ const NetworkForm: FC<{
                       networkInterfaceInputMap[networkInterfaceUUID].isApplied =
                         false;
 
-                      setNetworkInterfaceInputMap({
-                        ...networkInterfaceInputMap,
-                      });
+                      setNetworkInterfaceInputMap((previous) => ({
+                        ...previous,
+                      }));
                       testInputSeparate(interfacesInputTestId, {
                         value: getFilled(interfaces).length,
                       });
@@ -534,49 +543,94 @@ const NetworkInitForm = forwardRef<
     [networkInputs, networkInterfaces, networkInterfaceInputMap],
   );
 
-  const setGatewayInputMessage = useCallback(
-    (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 0, message),
+  const setMessage = useCallback(
+    (key: string, message?: Message) =>
+      messageGroupRef.current.setMessage?.call(null, key, message),
     [],
   );
   const setDomainNameServerCSVInputMessage = useCallback(
-    (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 1, message),
-    [],
+    (message?: Message) => setMessage(IT_IDS.dnsCSV, message),
+    [setMessage],
   );
-  const getNetworkInputMessageIndex = useCallback(
-    (networkIndex: number, inputIndex: number) =>
-      BASE_INPUT_COUNT +
-      (networkInputs.length - 1 - networkIndex) * PER_NETWORK_INPUT_COUNT +
-      inputIndex,
+  const setGatewayInputMessage = useCallback(
+    (message?: Message) => setMessage(IT_IDS.gateway, message),
+    [setMessage],
+  );
+  const testSubnetConflict = useCallback(
+    (
+      changedIP = '',
+      changedMask = '',
+      {
+        onConflict,
+        onNoConflict,
+        skipUUID,
+      }: {
+        onConflict?: (input: Partial<NetworkInput>, index: number) => void;
+        onNoConflict?: (index: number) => void;
+        skipUUID?: string;
+      },
+    ) => {
+      let changedSubnet: Netmask | undefined;
+
+      try {
+        changedSubnet = new Netmask(`${changedIP}/${changedMask}`);
+        // eslint-disable-next-line no-empty
+      } catch (netmaskError) {}
+
+      return networkInputs.every(
+        (
+          { inputUUID, ipAddressInputRef, name, subnetMaskInputRef },
+          networkIndex,
+        ) => {
+          if (inputUUID === skipUUID) {
+            return true;
+          }
+
+          const otherIP = ipAddressInputRef?.current.getValue?.call(null);
+          const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
+
+          // console.log(
+          //   `local=${otherIP}/${otherMask},current=${changedIP}/${changedMask}`,
+          // );
+
+          let isConflict = false;
+
+          try {
+            const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
+
+            isConflict = otherSubnet.contains(changedIP);
+
+            // eslint-disable-next-line no-empty
+          } catch (netmaskError) {}
+
+          // console.log(`isConflict=${isConflict}`);
+
+          if (changedSubnet) {
+            isConflict = isConflict || changedSubnet.contains(String(otherIP));
+          }
+
+          // console.log(`isReverseConflict=${isConflict}`);
+
+          if (isConflict) {
+            onConflict?.call(null, { name }, networkIndex);
+          } else {
+            onNoConflict?.call(null, networkIndex);
+          }
+
+          return !isConflict;
+        },
+      );
+    },
     [networkInputs],
-  );
-  const setNetworkIPAddressInputMessage = useCallback(
-    (networkIndex: number, message?: Message) =>
-      messageGroupRef.current.setMessage?.call(
-        null,
-        getNetworkInputMessageIndex(networkIndex, 1),
-        message,
-      ),
-    [getNetworkInputMessageIndex],
-  );
-  const setNetworkSubnetMaskInputMessage = useCallback(
-    (networkIndex: number, message?: Message) =>
-      messageGroupRef.current.setMessage?.call(
-        null,
-        getNetworkInputMessageIndex(networkIndex, 2),
-        message,
-      ),
-    [getNetworkInputMessageIndex],
   );
 
   const inputTests: InputTestBatches = useMemo(() => {
     const tests: InputTestBatches = {
-      [INPUT_TEST_IDS.dnsCSV]: {
+      [IT_IDS.dnsCSV]: {
         defaults: {
           getValue: () => dnsCSVInputRef.current.getValue?.call(null),
           onSuccess: () => {
-            setDomainNameServerCSVInputMessage(undefined);
+            setDomainNameServerCSVInputMessage();
           },
         },
         tests: [
@@ -592,11 +646,11 @@ const NetworkInitForm = forwardRef<
           { test: testNotBlank },
         ],
       },
-      [INPUT_TEST_IDS.gateway]: {
+      [IT_IDS.gateway]: {
         defaults: {
           getValue: () => gatewayInputRef.current.getValue?.call(null),
           onSuccess: () => {
-            setGatewayInputMessage(undefined);
+            setGatewayInputMessage();
           },
         },
         tests: [
@@ -614,51 +668,103 @@ const NetworkInitForm = forwardRef<
     };
 
     networkInputs.forEach(
-      ({ interfaces, ipAddress, name, subnetMask }, networkIndex) => {
+      (
+        { inputUUID, interfaces, ipAddressInputRef, name, subnetMaskInputRef },
+        networkIndex,
+      ) => {
         const inputTestPrefix = `network${networkIndex}`;
+        const inputTestIDIPAddress = IT_IDS.networkIPAddress(inputTestPrefix);
+        const inputTestIDSubnetMask = IT_IDS.networkSubnet(inputTestPrefix);
 
-        tests[INPUT_TEST_IDS.networkInterfaces(inputTestPrefix)] = {
-          defaults: { value: getFilled(interfaces).length },
+        const setNetworkIPAddressInputMessage = (message?: Message) =>
+          setMessage(inputTestIDIPAddress, message);
+        const setNetworkSubnetMaskInputMessage = (message?: Message) =>
+          setMessage(inputTestIDSubnetMask, message);
+
+        tests[IT_IDS.networkInterfaces(inputTestPrefix)] = {
+          defaults: { getValue: () => getFilled(interfaces).length },
           tests: [{ test: ({ value }) => (value as number) > 0 }],
         };
-        tests[INPUT_TEST_IDS.networkIPAddress(inputTestPrefix)] = {
+        tests[inputTestIDIPAddress] = {
           defaults: {
+            getValue: () => ipAddressInputRef?.current.getValue?.call(null),
             onSuccess: () => {
-              setNetworkIPAddressInputMessage(networkIndex, undefined);
+              setNetworkIPAddressInputMessage();
             },
-            value: ipAddress,
           },
           tests: [
             {
               onFailure: () => {
-                setNetworkIPAddressInputMessage(networkIndex, {
+                setNetworkIPAddressInputMessage({
                   children: `IP address in ${name} must be a valid IPv4 address.`,
                 });
               },
               test: ({ value }) => REP_IPV4.test(value as string),
             },
+            {
+              onFailure: ({ append }) => {
+                setNetworkIPAddressInputMessage({
+                  children: `"${name}" and "${
+                    append[IT_APPEND_KEYS.conflictNetworkName]
+                  }" cannot be in the same subnet.`,
+                });
+              },
+              test: ({ append, value }) => {
+                const changedIP = value as string;
+                const changedMask =
+                  subnetMaskInputRef?.current.getValue?.call(null);
+
+                return testSubnetConflict(changedIP, changedMask, {
+                  onConflict: ({ name: networkName }) => {
+                    append[IT_APPEND_KEYS.conflictNetworkName] = networkName;
+                  },
+                  skipUUID: inputUUID,
+                });
+              },
+            },
             { test: testNotBlank },
           ],
         };
-        tests[INPUT_TEST_IDS.networkName(inputTestPrefix)] = {
+        tests[IT_IDS.networkName(inputTestPrefix)] = {
           defaults: { value: name },
           tests: [{ test: testNotBlank }],
         };
-        tests[INPUT_TEST_IDS.networkSubnet(inputTestPrefix)] = {
+        tests[IT_IDS.networkSubnet(inputTestPrefix)] = {
           defaults: {
+            getValue: () => subnetMaskInputRef?.current.getValue?.call(null),
             onSuccess: () => {
-              setNetworkSubnetMaskInputMessage(networkIndex, undefined);
+              setNetworkSubnetMaskInputMessage();
             },
-            value: subnetMask,
           },
           tests: [
             {
               onFailure: () => {
-                setNetworkSubnetMaskInputMessage(networkIndex, {
+                setNetworkSubnetMaskInputMessage({
                   children: `Subnet mask in ${name} must be a valid IPv4 address.`,
                 });
               },
               test: ({ value }) => REP_IPV4.test(value as string),
+            },
+            {
+              onFailure: ({ append }) => {
+                setNetworkSubnetMaskInputMessage({
+                  children: `IP address in ${name} conflicts with ${
+                    append[IT_APPEND_KEYS.conflictNetworkName]
+                  }.`,
+                });
+              },
+              test: ({ append, value }) => {
+                const changedIP =
+                  ipAddressInputRef?.current.getValue?.call(null);
+                const changedMask = value as string;
+
+                return testSubnetConflict(changedIP, changedMask, {
+                  onConflict: ({ name: networkName }) => {
+                    append[IT_APPEND_KEYS.conflictNetworkName] = networkName;
+                  },
+                  skipUUID: inputUUID,
+                });
+              },
             },
             { test: testNotBlank },
           ],
@@ -671,8 +777,8 @@ const NetworkInitForm = forwardRef<
     networkInputs,
     setDomainNameServerCSVInputMessage,
     setGatewayInputMessage,
-    setNetworkIPAddressInputMessage,
-    setNetworkSubnetMaskInputMessage,
+    setMessage,
+    testSubnetConflict,
   ]);
   const testInput = useMemo(
     () => createTestInputFunction(inputTests),
@@ -960,7 +1066,6 @@ const NetworkInitForm = forwardRef<
                     getNetworkTypeCount,
                     networkIndex,
                     networkInput,
-                    networkInputs,
                     networkInterfaceInputMap,
                     optionalNetworkInputsLength,
                     setNetworkInputs,
@@ -982,7 +1087,7 @@ const NetworkInitForm = forwardRef<
                 id="network-init-gateway"
                 inputLabelProps={{ isNotifyRequired: true }}
                 onChange={({ target: { value } }) => {
-                  testInputSeparate(INPUT_TEST_IDS.gateway, { value });
+                  testInputSeparate(IT_IDS.gateway, { value });
                 }}
                 label="Gateway"
               />
@@ -995,7 +1100,7 @@ const NetworkInitForm = forwardRef<
                 id="network-init-dns-csv"
                 inputLabelProps={{ isNotifyRequired: true }}
                 onChange={({ target: { value } }) => {
-                  testInputSeparate(INPUT_TEST_IDS.dnsCSV, { value });
+                  testInputSeparate(IT_IDS.dnsCSV, { value });
                 }}
                 label="Domain name server(s)"
               />
@@ -1003,13 +1108,7 @@ const NetworkInitForm = forwardRef<
             ref={dnsCSVInputRef}
           />
         </FlexBox>
-        <MessageGroup
-          count={
-            BASE_INPUT_COUNT + networkInputs.length * PER_NETWORK_INPUT_COUNT
-          }
-          defaultMessageType="warning"
-          ref={messageGroupRef}
-        />
+        <MessageGroup defaultMessageType="warning" ref={messageGroupRef} />
       </MUIBox>
     </MUIBox>
   );
