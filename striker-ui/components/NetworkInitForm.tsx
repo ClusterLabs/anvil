@@ -63,6 +63,7 @@ type NetworkInput = {
   subnetMask: string;
   subnetMaskInputRef?: MutableRefObject<InputForwardedRefContent<'string'>>;
   type: string;
+  typeCount: number;
 };
 
 type NetworkInterfaceInputMap = Record<
@@ -76,12 +77,21 @@ type NetworkInitFormForwardRefContent = {
   get?: () => {
     domainNameServerCSV?: string;
     gateway?: string;
+    gatewayInterface?: string;
     networks: Omit<
       NetworkInput,
       'inputUUID' | 'ipAddressInputRef' | 'subnetMaskInputRef'
     >[];
   };
 };
+
+type GetNetworkTypeCountFunction = (
+  targetType: string,
+  options?: {
+    inputs?: NetworkInput[] | undefined;
+    lastIndex?: number | undefined;
+  },
+) => number;
 
 const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   {
@@ -131,6 +141,7 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
     name: `${NETWORK_TYPES.bcn} 1`,
     subnetMask: '255.255.0.0',
     type: 'bcn',
+    typeCount: 1,
   },
   {
     inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
@@ -139,6 +150,7 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
     name: `${NETWORK_TYPES.ifn} 1`,
     subnetMask: '255.255.0.0',
     type: 'ifn',
+    typeCount: 1,
   },
 ];
 
@@ -265,7 +277,7 @@ const NetworkForm: FC<{
     interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
-  getNetworkTypeCount: (targetType: string, lastIndex?: number) => number;
+  getNetworkTypeCount: GetNetworkTypeCountFunction;
   networkIndex: number;
   networkInput: NetworkInput;
   networkInterfaceInputMap: NetworkInterfaceInputMap;
@@ -293,7 +305,8 @@ const NetworkForm: FC<{
   const ipAddressInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const subnetMaskInputRef = useRef<InputForwardedRefContent<'string'>>({});
 
-  const { inputUUID, interfaces, ipAddress, subnetMask, type } = networkInput;
+  const { inputUUID, interfaces, ipAddress, subnetMask, type, typeCount } =
+    networkInput;
 
   const inputTestPrefix = useMemo(
     () => createInputTestPrefix(inputUUID),
@@ -338,7 +351,9 @@ const NetworkForm: FC<{
           label="Network name"
           selectItems={Object.entries(NETWORK_TYPES).map(
             ([networkType, networkTypeName]) => {
-              let count = getNetworkTypeCount(networkType, networkIndex);
+              let count = getNetworkTypeCount(networkType, {
+                lastIndex: networkIndex,
+              });
 
               if (networkType !== type) {
                 count += 1;
@@ -354,19 +369,19 @@ const NetworkForm: FC<{
               const networkType = String(value);
 
               networkInput.type = networkType;
-              networkInput.name = `${
-                NETWORK_TYPES[networkType]
-              } ${getNetworkTypeCount(networkType, networkIndex)}`;
+
+              const networkTypeCount = getNetworkTypeCount(networkType, {
+                lastIndex: networkIndex,
+              });
+
+              networkInput.typeCount = networkTypeCount;
+              networkInput.name = `${NETWORK_TYPES[networkType]} ${networkTypeCount}`;
 
               setNetworkInputs((previous) => [...previous]);
             },
             renderValue: breakpointLarge
               ? undefined
-              : (value) =>
-                  `${String(value).toUpperCase()} ${getNetworkTypeCount(
-                    type,
-                    networkIndex,
-                  )}`,
+              : (value) => `${String(value).toUpperCase()} ${typeCount}`,
             value: type,
           }}
         />
@@ -504,6 +519,7 @@ const NetworkInitForm = forwardRef<
   const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
     NetworkInterfaceOverviewMetadata | undefined
   >();
+  const [gatewayInterface, setGatewayInterface] = useState<string>('');
 
   const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const dnsCSVInputRef = useRef<InputForwardedRefContent<'string'>>({});
@@ -556,58 +572,75 @@ const NetworkInitForm = forwardRef<
     (message?: Message) => setMessage(IT_IDS.gateway, message),
     [setMessage],
   );
-  const testSubnetConflict = useCallback(
-    (
-      changedIP = '',
-      changedMask = '',
-      {
-        onConflict,
-        onNoConflict,
-        skipUUID,
-      }: {
-        onConflict?: (
-          otherInput: Pick<NetworkInput, 'inputUUID' | 'name'>,
-        ) => void;
-        onNoConflict?: (otherInput: Pick<NetworkInput, 'inputUUID'>) => void;
-        skipUUID?: string;
-      },
-    ) => {
-      let changedSubnet: Netmask | undefined;
+  const subnetContains = useCallback(
+    ({
+      fn = 'every',
+      ip = '',
+      mask = '',
+      negateMatch = fn === 'every',
+      onMatch,
+      onMiss,
+      skipUUID,
+    }: {
+      fn?: Extract<keyof Array<NetworkInput>, 'every' | 'some'>;
+      ip?: string;
+      mask?: string;
+      negateMatch?: boolean;
+      onMatch?: (
+        otherInput: Pick<
+          NetworkInput,
+          'inputUUID' | 'name' | 'type' | 'typeCount'
+        >,
+      ) => void;
+      onMiss?: (otherInput: Pick<NetworkInput, 'inputUUID'>) => void;
+      skipUUID?: string;
+    }) => {
+      const skipReturn = fn === 'every';
+      const match = (
+        a: Netmask,
+        { b, bIP = '' }: { aIP?: string; b?: Netmask; bIP?: string },
+      ) => a.contains(b ?? bIP) || (b !== undefined && b.contains(a));
+
+      let subnet: Netmask | undefined;
 
       try {
-        changedSubnet = new Netmask(`${changedIP}/${changedMask}`);
+        subnet = new Netmask(`${ip}/${mask}`);
         // eslint-disable-next-line no-empty
       } catch (netmaskError) {}
 
-      return networkInputs.every(
-        ({ inputUUID, ipAddressInputRef, name, subnetMaskInputRef }) => {
+      return networkInputs[fn](
+        ({
+          inputUUID,
+          ipAddressInputRef,
+          name,
+          subnetMaskInputRef,
+          type,
+          typeCount,
+        }) => {
           if (inputUUID === skipUUID) {
-            return true;
+            return skipReturn;
           }
 
           const otherIP = ipAddressInputRef?.current.getValue?.call(null);
           const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
 
-          let isConflict = false;
+          let isMatch = false;
 
           try {
             const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
 
-            isConflict =
-              otherSubnet.contains(changedIP) ||
-              (changedSubnet !== undefined &&
-                changedSubnet.contains(String(otherIP)));
+            isMatch = match(otherSubnet, { b: subnet, bIP: ip });
 
             // eslint-disable-next-line no-empty
           } catch (netmaskError) {}
 
-          if (isConflict) {
-            onConflict?.call(null, { inputUUID, name });
+          if (isMatch) {
+            onMatch?.call(null, { inputUUID, name, type, typeCount });
           } else {
-            onNoConflict?.call(null, { inputUUID });
+            onMiss?.call(null, { inputUUID });
           }
 
-          return !isConflict;
+          return negateMatch ? !isMatch : isMatch;
         },
       );
     },
@@ -651,6 +684,21 @@ const NetworkInitForm = forwardRef<
               });
             },
             test: ({ value }) => REP_IPV4.test(value as string),
+          },
+          {
+            onFailure: () => {
+              setGatewayInputMessage({
+                children: "Gateway must be in one network's subnet.",
+              });
+            },
+            test: ({ value }) =>
+              subnetContains({
+                fn: 'some',
+                ip: value as string,
+                onMatch: ({ type, typeCount }) => {
+                  setGatewayInterface(`${type}${typeCount}`);
+                },
+              }),
           },
           { test: testNotBlank },
         ],
@@ -699,13 +747,15 @@ const NetworkInitForm = forwardRef<
           ip?: string;
           mask?: string;
         }) =>
-          testSubnetConflict(ip, mask, {
-            onConflict: ({ inputUUID: otherUUID, name: otherName }) => {
+          subnetContains({
+            ip,
+            mask,
+            onMatch: ({ inputUUID: otherUUID, name: otherName }) => {
               setNetworkSubnetConflict(inputUUID, otherUUID, {
                 children: `"${name}" and "${otherName}" cannot be in the same subnet.`,
               });
             },
-            onNoConflict: ({ inputUUID: otherUUID }) => {
+            onMiss: ({ inputUUID: otherUUID }) => {
               setNetworkSubnetConflict(inputUUID, otherUUID);
             },
             skipUUID: inputUUID,
@@ -776,7 +826,7 @@ const NetworkInitForm = forwardRef<
     setDomainNameServerCSVInputMessage,
     setGatewayInputMessage,
     setMessage,
-    testSubnetConflict,
+    subnetContains,
   ]);
   const testInput = useMemo(
     () => createTestInputFunction(inputTests),
@@ -808,20 +858,26 @@ const NetworkInitForm = forwardRef<
       name: 'Unknown Network',
       subnetMask: '',
       type: '',
+      typeCount: 0,
     });
 
     setNetworkInputs([...networkInputs]);
   }, [networkInputs]);
-  const getNetworkTypeCount = useCallback(
-    (targetType: string, lastIndex = 0) => {
+  const getNetworkTypeCount: GetNetworkTypeCountFunction = useCallback(
+    (
+      targetType: string,
+      {
+        inputs = networkInputs,
+        lastIndex = 0,
+      }: {
+        inputs?: NetworkInput[];
+        lastIndex?: number;
+      } = {},
+    ) => {
       let count = 0;
 
-      for (
-        let index = networkInputs.length - 1;
-        index >= lastIndex;
-        index -= 1
-      ) {
-        if (networkInputs[index].type === targetType) {
+      for (let index = inputs.length - 1; index >= lastIndex; index -= 1) {
+        if (inputs[index].type === targetType) {
           count += 1;
         }
       }
@@ -944,24 +1000,27 @@ const NetworkInitForm = forwardRef<
       get: () => ({
         domainNameServerCSV: dnsCSVInputRef.current.getValue?.call(null),
         gateway: gatewayInputRef.current.getValue?.call(null),
+        gatewayInterface,
         networks: networkInputs.map(
-          (
-            { interfaces, ipAddressInputRef, subnetMaskInputRef, type },
-            networkIndex,
-          ) => ({
+          ({
+            interfaces,
+            ipAddressInputRef,
+            name,
+            subnetMaskInputRef,
+            type,
+            typeCount,
+          }) => ({
             interfaces,
             ipAddress: ipAddressInputRef?.current.getValue?.call(null) ?? '',
-            name: `${NETWORK_TYPES[type]} ${getNetworkTypeCount(
-              type,
-              networkIndex,
-            )}`,
+            name,
             subnetMask: subnetMaskInputRef?.current.getValue?.call(null) ?? '',
             type,
+            typeCount,
           }),
         ),
       }),
     }),
-    [getNetworkTypeCount, networkInputs],
+    [gatewayInterface, networkInputs],
   );
 
   return isLoading ? (
