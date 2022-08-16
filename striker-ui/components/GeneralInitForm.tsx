@@ -46,8 +46,7 @@ type OutlinedInputWithLabelOnBlur = Exclude<
 const MAX_ORGANIZATION_PREFIX_LENGTH = 5;
 const MIN_ORGANIZATION_PREFIX_LENGTH = 1;
 const MAX_HOST_NUMBER_LENGTH = 2;
-const INPUT_COUNT = 7;
-const INPUT_TEST_IDS = {
+const IT_IDS = {
   adminPassword: 'adminPassword',
   confirmAdminPassword: 'confirmAdminPassword',
   domainName: 'domainName',
@@ -138,38 +137,58 @@ const GeneralInitForm = forwardRef<
 
   const setOrganizationPrefixInputMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 1, message),
+      messageGroupRef.current.setMessage?.call(
+        null,
+        IT_IDS.organizationPrefix,
+        message,
+      ),
     [],
   );
   const setHostNumberInputMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 2, message),
+      messageGroupRef.current.setMessage?.call(
+        null,
+        IT_IDS.hostNumber,
+        message,
+      ),
     [],
   );
   const setDomainNameInputMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 3, message),
+      messageGroupRef.current.setMessage?.call(
+        null,
+        IT_IDS.domainName,
+        message,
+      ),
     [],
   );
   const setHostNameInputMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 4, message),
+      messageGroupRef.current.setMessage?.call(null, IT_IDS.hostName, message),
     [],
   );
   const setAdminPasswordInputMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 5, message),
+      messageGroupRef.current.setMessage?.call(
+        null,
+        IT_IDS.adminPassword,
+        message,
+      ),
     [],
   );
   const setConfirmAdminPasswordInputMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 6, message),
+      messageGroupRef.current.setMessage?.call(
+        null,
+        IT_IDS.confirmAdminPassword,
+        message,
+      ),
     [],
   );
 
   const inputTests: InputTestBatches = useMemo(
     () => ({
-      [INPUT_TEST_IDS.adminPassword]: {
+      [IT_IDS.adminPassword]: {
         defaults: {
           getValue: () => adminPasswordInputRef.current.getValue?.call(null),
           onSuccess: () => {
@@ -195,7 +214,7 @@ const GeneralInitForm = forwardRef<
           { test: testNotBlank },
         ],
       },
-      [INPUT_TEST_IDS.confirmAdminPassword]: {
+      [IT_IDS.confirmAdminPassword]: {
         defaults: {
           getValue: () =>
             isConfirmAdminPassword
@@ -218,7 +237,7 @@ const GeneralInitForm = forwardRef<
           { test: testNotBlank },
         ],
       },
-      [INPUT_TEST_IDS.domainName]: {
+      [IT_IDS.domainName]: {
         defaults: {
           getValue: () => domainNameInputRef.current.getValue?.call(null),
           onSuccess: () => {
@@ -242,7 +261,7 @@ const GeneralInitForm = forwardRef<
           { test: testNotBlank },
         ],
       },
-      [INPUT_TEST_IDS.hostName]: {
+      [IT_IDS.hostName]: {
         defaults: {
           getValue: () => hostNameInputRef.current.getValue?.call(null),
           onSuccess: () => {
@@ -266,7 +285,7 @@ const GeneralInitForm = forwardRef<
           { test: testNotBlank },
         ],
       },
-      [INPUT_TEST_IDS.hostNumber]: {
+      [IT_IDS.hostNumber]: {
         defaults: {
           getValue: () => hostNumberInputRef.current.getValue?.call(null),
           onSuccess: () => {
@@ -285,13 +304,13 @@ const GeneralInitForm = forwardRef<
           { test: testNotBlank },
         ],
       },
-      [INPUT_TEST_IDS.organizationName]: {
+      [IT_IDS.organizationName]: {
         defaults: {
           getValue: () => organizationNameInputRef.current.getValue?.call(null),
         },
         tests: [{ test: testNotBlank }],
       },
-      [INPUT_TEST_IDS.organizationPrefix]: {
+      [IT_IDS.organizationPrefix]: {
         defaults: {
           getValue: () =>
             organizationPrefixInputRef.current.getValue?.call(null),
@@ -501,8 +520,8 @@ const GeneralInitForm = forwardRef<
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Prefix"
                     onChange={({ target: { value } }) => {
-                      testInputSeparate(INPUT_TEST_IDS.organizationPrefix, {
-                        [INPUT_TEST_IDS.organizationPrefix]: {
+                      testInputSeparate(IT_IDS.organizationPrefix, {
+                        [IT_IDS.organizationPrefix]: {
                           max: MAX_ORGANIZATION_PREFIX_LENGTH,
                           min: MIN_ORGANIZATION_PREFIX_LENGTH,
                           value,
@@ -539,7 +558,7 @@ const GeneralInitForm = forwardRef<
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Striker #"
                     onChange={({ target: { value } }) => {
-                      testInputSeparate(INPUT_TEST_IDS.hostNumber, { value });
+                      testInputSeparate(IT_IDS.hostNumber, { value });
                     }}
                     onHelp={() => {
                       setHelpMessage(
@@ -568,7 +587,7 @@ const GeneralInitForm = forwardRef<
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Domain name"
                   onChange={({ target: { value } }) => {
-                    testInputSeparate(INPUT_TEST_IDS.domainName, { value });
+                    testInputSeparate(IT_IDS.domainName, { value });
                   }}
                   onHelp={() => {
                     setHelpMessage(
@@ -597,7 +616,7 @@ const GeneralInitForm = forwardRef<
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Host name"
                   onChange={({ target: { value } }) => {
-                    testInputSeparate(INPUT_TEST_IDS.hostName, { value });
+                    testInputSeparate(IT_IDS.hostName, { value });
                     setIsShowHostNameSuggest(isHostNamePrereqFilled());
                   }}
                   onHelp={() => {
@@ -642,7 +661,7 @@ const GeneralInitForm = forwardRef<
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Admin password"
                     onChange={({ target: { value } }) => {
-                      testInputSeparate(INPUT_TEST_IDS.adminPassword, {
+                      testInputSeparate(IT_IDS.adminPassword, {
                         value,
                       });
                     }}
@@ -674,7 +693,7 @@ const GeneralInitForm = forwardRef<
                       }}
                       label="Confirm password"
                       onChange={({ target: { value } }) => {
-                        testInputSeparate(INPUT_TEST_IDS.confirmAdminPassword, {
+                        testInputSeparate(IT_IDS.confirmAdminPassword, {
                           value,
                         });
                       }}
@@ -687,11 +706,7 @@ const GeneralInitForm = forwardRef<
           </MUIGrid>
         </MUIGrid>
       </MUIGrid>
-      <MessageGroup
-        count={INPUT_COUNT}
-        defaultMessageType="warning"
-        ref={messageGroupRef}
-      />
+      <MessageGroup defaultMessageType="warning" ref={messageGroupRef} />
       {helpMessage && (
         <MessageBox
           onClose={() => {
