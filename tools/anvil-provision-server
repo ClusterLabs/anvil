@@ -11,7 +11,7 @@
 # TODO: Support cloning; Example
 #       - virt-clone --original-xml /mnt/shared/definitions/<source>.xml --name <new_server> --file <new_server's_drbd_path> --check path_exists=off
 #       - Make VNC default
-#       - Don't provision until in the cluster!
+#       
 
 use strict;
 use warnings;

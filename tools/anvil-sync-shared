@@ -77,12 +77,6 @@ if ($anvil->data->{switches}{'job-uuid'})
 		process_file_mode($anvil);
 	}
 }
-else
-{
-	# This checks to see if there are any files that need to be pulled, renamed, removed, or mode 
-	# updated.
-	#run_checks($anvil);
-}
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -90,72 +84,6 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
-
-### TODO: Left off here. Run periodic checks for files that need to be pulled/removed, mode changed,
-###       etc. For 3.0, we'll ignore files people add manually though later we'll probably want to 
-###       auto-sync them.
-### NOTE: When finding new files, check the size, sleep for 30 seconds, and check again. If a file's 
-###       size changed, skip it, it's likely still being updated.
-### NOTE: This isn't finished, and likely won't be for a while.
-sub run_checks
-{
-	my ($anvil) = @_;
-	
-	# First, get a list of files we're expected to have.
-	$anvil->Database->get_files({debug => 3, include_deleted => 1});
-	$anvil->Database->get_file_locations({debug => 3});
-	
-	if ($anvil->Get->host_type eq "striker")
-	{
-		# Look for files to add
-	}
-	else
-	{
-		# Are we an Anvil! member?
-		my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-		
-		if (not $anvil_uuid)
-		{
-			# Nothing to do.
-			$anvil->nice_exit({exit_code => 0});
-		}
-		
-		# What files should we have?
-		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
-		{
-			# TODO: Once per day, calculate the md5sums and compare against the DB.
-			my $file_uuid            = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
-			my $file_directory       = $anvil->data->{files}{file_name}{$file_name}{file_directory};
-			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
-			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
-			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
-			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				file_uuid            => $file_uuid, 
-				file_name            => $file_name,
-				file_directory       => $file_directory, 
-				file_size            => $file_size." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}).")",
-				file_type            => $file_type, 
-				file_path            => $file_path, 
-				file_location_uuid   => $file_location_uuid, 
-				file_location_active => $file_location_active, 
-			}});
-			
-			if (-e $file_path)
-			{
-				# File exists, should it?
-			}
-			else
-			{
-				# File doesn't exist, should it?
-			}
-		}
-	}
-	
-	return(0);
-}
 
 sub process_file_mode
 {
