@@ -1,10 +1,10 @@
 export type InputTestValue = bigint | number | null | string | undefined;
 
 export type InputTestArgs = {
-  compare?: InputTestValue;
+  compare?: InputTestValue[];
   displayMax?: string;
   displayMin?: string;
-  getCompare?: () => InputTestValue;
+  getCompare?: () => InputTestValue[];
   getValue?: () => InputTestValue;
   max?: bigint | number;
   min?: bigint | number;
@@ -15,10 +15,18 @@ export type MinimalInputTestArgs = Required<
   Omit<InputTestArgs, 'displayMax' | 'displayMin' | 'getCompare' | 'getValue'>
 >;
 
+export type CallbackAppendArgs = {
+  append: {
+    [arg: string]: InputTestValue;
+  };
+};
+
+export type InputTestSuccessCallback = () => void;
+
 export type InputTest = {
-  onFailure?: (args: InputTestArgs) => void;
-  onSuccess?: () => void;
-  test: (args: MinimalInputTestArgs) => boolean;
+  onFailure?: (args: InputTestArgs & CallbackAppendArgs) => void;
+  onSuccess?: InputTestSuccessCallback;
+  test: (args: MinimalInputTestArgs & CallbackAppendArgs) => boolean;
 };
 
 export type InputTestInputs = {
@@ -28,7 +36,7 @@ export type InputTestInputs = {
 export type InputTestBatches = {
   [id: string]: {
     defaults?: InputTestArgs & {
-      onSuccess?: () => void;
+      onSuccess?: InputTestSuccessCallback;
     };
     onFinishBatch?: () => void;
     optionalTests?: Array<InputTest>;
