@@ -143,22 +143,22 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
 ];
 
 const MAX_INTERFACES_PER_NETWORK = 2;
-const IT_APPEND_KEYS = {
-  conflictNetworkName: 'conflictNetworkName',
-};
 const IT_IDS = {
   dnsCSV: 'domainNameServerCSV',
   gateway: 'gateway',
   networkInterfaces: (prefix: string) => `${prefix}Interface`,
   networkIPAddress: (prefix: string) => `${prefix}IPAddress`,
   networkName: (prefix: string) => `${prefix}Name`,
-  networkSubnet: (prefix: string) => `${prefix}SubnetMask`,
+  networkSubnetMask: (prefix: string) => `${prefix}SubnetMask`,
+  networkSubnetConflict: (prefix: string) => `${prefix}NetworkSubnetConflict`,
 };
 
 const NETWORK_INTERFACE_TEMPLATE = Array.from(
   { length: MAX_INTERFACES_PER_NETWORK },
   (unused, index) => index + 1,
 );
+
+const createInputTestPrefix = (uuid: string) => `network${uuid}`;
 
 const createNetworkInterfaceTableColumns = (
   handleDragMouseDown: (
@@ -296,8 +296,8 @@ const NetworkForm: FC<{
   const { inputUUID, interfaces, ipAddress, subnetMask, type } = networkInput;
 
   const inputTestPrefix = useMemo(
-    () => `network${networkIndex}`,
-    [networkIndex],
+    () => createInputTestPrefix(inputUUID),
+    [inputUUID],
   );
   const interfacesInputTestId = useMemo(
     () => IT_IDS.networkInterfaces(inputTestPrefix),
@@ -308,7 +308,7 @@ const NetworkForm: FC<{
     [inputTestPrefix],
   );
   const subnetMaskInputTestId = useMemo(
-    () => IT_IDS.networkSubnet(inputTestPrefix),
+    () => IT_IDS.networkSubnetMask(inputTestPrefix),
     [inputTestPrefix],
   );
   const isNetworkOptional = useMemo(
@@ -565,8 +565,10 @@ const NetworkInitForm = forwardRef<
         onNoConflict,
         skipUUID,
       }: {
-        onConflict?: (input: Partial<NetworkInput>, index: number) => void;
-        onNoConflict?: (index: number) => void;
+        onConflict?: (
+          otherInput: Pick<NetworkInput, 'inputUUID' | 'name'>,
+        ) => void;
+        onNoConflict?: (otherInput: Pick<NetworkInput, 'inputUUID'>) => void;
         skipUUID?: string;
       },
     ) => {
@@ -578,10 +580,7 @@ const NetworkInitForm = forwardRef<
       } catch (netmaskError) {}
 
       return networkInputs.every(
-        (
-          { inputUUID, ipAddressInputRef, name, subnetMaskInputRef },
-          networkIndex,
-        ) => {
+        ({ inputUUID, ipAddressInputRef, name, subnetMaskInputRef }) => {
           if (inputUUID === skipUUID) {
             return true;
           }
@@ -589,32 +588,23 @@ const NetworkInitForm = forwardRef<
           const otherIP = ipAddressInputRef?.current.getValue?.call(null);
           const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
 
-          // console.log(
-          //   `local=${otherIP}/${otherMask},current=${changedIP}/${changedMask}`,
-          // );
-
           let isConflict = false;
 
           try {
             const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
 
-            isConflict = otherSubnet.contains(changedIP);
+            isConflict =
+              otherSubnet.contains(changedIP) ||
+              (changedSubnet !== undefined &&
+                changedSubnet.contains(String(otherIP)));
 
             // eslint-disable-next-line no-empty
           } catch (netmaskError) {}
 
-          // console.log(`isConflict=${isConflict}`);
-
-          if (changedSubnet) {
-            isConflict = isConflict || changedSubnet.contains(String(otherIP));
-          }
-
-          // console.log(`isReverseConflict=${isConflict}`);
-
           if (isConflict) {
-            onConflict?.call(null, { name }, networkIndex);
+            onConflict?.call(null, { inputUUID, name });
           } else {
-            onNoConflict?.call(null, networkIndex);
+            onNoConflict?.call(null, { inputUUID });
           }
 
           return !isConflict;
@@ -668,18 +658,58 @@ const NetworkInitForm = forwardRef<
     };
 
     networkInputs.forEach(
-      (
-        { inputUUID, interfaces, ipAddressInputRef, name, subnetMaskInputRef },
-        networkIndex,
-      ) => {
-        const inputTestPrefix = `network${networkIndex}`;
+      ({
+        inputUUID,
+        interfaces,
+        ipAddressInputRef,
+        name,
+        subnetMaskInputRef,
+      }) => {
+        const inputTestPrefix = createInputTestPrefix(inputUUID);
         const inputTestIDIPAddress = IT_IDS.networkIPAddress(inputTestPrefix);
-        const inputTestIDSubnetMask = IT_IDS.networkSubnet(inputTestPrefix);
+        const inputTestIDSubnetMask = IT_IDS.networkSubnetMask(inputTestPrefix);
 
         const setNetworkIPAddressInputMessage = (message?: Message) =>
           setMessage(inputTestIDIPAddress, message);
         const setNetworkSubnetMaskInputMessage = (message?: Message) =>
           setMessage(inputTestIDSubnetMask, message);
+        const setNetworkSubnetConflict = (
+          uuid: string,
+          otherUUID: string,
+          message?: Message,
+        ) => {
+          const id = `${IT_IDS.networkSubnetConflict(
+            inputTestPrefix,
+          )}-${otherUUID}`;
+          const reverseID = `${IT_IDS.networkSubnetConflict(
+            createInputTestPrefix(otherUUID),
+          )}-${uuid}`;
+
+          setMessage(
+            messageGroupRef.current.exists?.call(null, reverseID)
+              ? reverseID
+              : id,
+            message,
+          );
+        };
+        const testNetworkSubnetConflictWithDefaults = ({
+          ip = ipAddressInputRef?.current.getValue?.call(null),
+          mask = subnetMaskInputRef?.current.getValue?.call(null),
+        }: {
+          ip?: string;
+          mask?: string;
+        }) =>
+          testSubnetConflict(ip, mask, {
+            onConflict: ({ inputUUID: otherUUID, name: otherName }) => {
+              setNetworkSubnetConflict(inputUUID, otherUUID, {
+                children: `"${name}" and "${otherName}" cannot be in the same subnet.`,
+              });
+            },
+            onNoConflict: ({ inputUUID: otherUUID }) => {
+              setNetworkSubnetConflict(inputUUID, otherUUID);
+            },
+            skipUUID: inputUUID,
+          });
 
         tests[IT_IDS.networkInterfaces(inputTestPrefix)] = {
           defaults: { getValue: () => getFilled(interfaces).length },
@@ -702,25 +732,8 @@ const NetworkInitForm = forwardRef<
               test: ({ value }) => REP_IPV4.test(value as string),
             },
             {
-              onFailure: ({ append }) => {
-                setNetworkIPAddressInputMessage({
-                  children: `"${name}" and "${
-                    append[IT_APPEND_KEYS.conflictNetworkName]
-                  }" cannot be in the same subnet.`,
-                });
-              },
-              test: ({ append, value }) => {
-                const changedIP = value as string;
-                const changedMask =
-                  subnetMaskInputRef?.current.getValue?.call(null);
-
-                return testSubnetConflict(changedIP, changedMask, {
-                  onConflict: ({ name: networkName }) => {
-                    append[IT_APPEND_KEYS.conflictNetworkName] = networkName;
-                  },
-                  skipUUID: inputUUID,
-                });
-              },
+              test: ({ value }) =>
+                testNetworkSubnetConflictWithDefaults({ ip: value as string }),
             },
             { test: testNotBlank },
           ],
@@ -729,7 +742,7 @@ const NetworkInitForm = forwardRef<
           defaults: { value: name },
           tests: [{ test: testNotBlank }],
         };
-        tests[IT_IDS.networkSubnet(inputTestPrefix)] = {
+        tests[IT_IDS.networkSubnetMask(inputTestPrefix)] = {
           defaults: {
             getValue: () => subnetMaskInputRef?.current.getValue?.call(null),
             onSuccess: () => {
@@ -746,25 +759,10 @@ const NetworkInitForm = forwardRef<
               test: ({ value }) => REP_IPV4.test(value as string),
             },
             {
-              onFailure: ({ append }) => {
-                setNetworkSubnetMaskInputMessage({
-                  children: `IP address in ${name} conflicts with ${
-                    append[IT_APPEND_KEYS.conflictNetworkName]
-                  }.`,
-                });
-              },
-              test: ({ append, value }) => {
-                const changedIP =
-                  ipAddressInputRef?.current.getValue?.call(null);
-                const changedMask = value as string;
-
-                return testSubnetConflict(changedIP, changedMask, {
-                  onConflict: ({ name: networkName }) => {
-                    append[IT_APPEND_KEYS.conflictNetworkName] = networkName;
-                  },
-                  skipUUID: inputUUID,
-                });
-              },
+              test: ({ value }) =>
+                testNetworkSubnetConflictWithDefaults({
+                  mask: value as string,
+                }),
             },
             { test: testNotBlank },
           ],
