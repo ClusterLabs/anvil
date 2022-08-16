@@ -19,6 +19,7 @@ type MessageGroupOptionalProps = {
 type MessageGroupProps = MessageGroupOptionalProps;
 
 type MessageGroupForwardedRefContent = {
+  exists?: (key: string) => boolean;
   setMessage?: (key: string, message?: Message) => void;
 };
 
@@ -36,6 +37,10 @@ const MessageGroup = forwardRef<
   ) => {
     const [messages, setMessages] = useState<Messages>({});
 
+    const exists = useCallback(
+      (key: string) => messages[key] !== undefined,
+      [messages],
+    );
     const setMessage = useCallback((key: string, message?: Message) => {
       setMessages((previous) => {
         const result = { ...previous };
@@ -67,7 +72,10 @@ const MessageGroup = forwardRef<
       [defaultMessageType, messages],
     );
 
-    useImperativeHandle(ref, () => ({ setMessage }), [setMessage]);
+    useImperativeHandle(ref, () => ({ exists, setMessage }), [
+      exists,
+      setMessage,
+    ]);
 
     return <>{messageElements}</>;
   },
