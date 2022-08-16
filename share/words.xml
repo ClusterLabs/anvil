@@ -512,6 +512,13 @@ The output, if any, was;
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
 		<key name="error_0366">[ Error ] - Failed to reconnect to the database, and now no connections remain.</key>
+		<key name="error_0367"><![CDATA[[ Error ] - I was asked to parse the server definition XML, but it looks like I was passed in the output of a 'virsh dumpxml <server>' for a server that was not running.
+
+The definition data passed in was:
+====
+#!variable!definition!#
+====
+]]></key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
