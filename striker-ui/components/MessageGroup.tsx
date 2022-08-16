@@ -1,25 +1,25 @@
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
 import MessageBox, { Message, MessageBoxProps } from './MessageBox';
+
+type Messages = {
+  [messageKey: string]: Message | undefined;
+};
 
 type MessageGroupOptionalProps = {
   defaultMessageType?: MessageBoxProps['type'];
 };
 
-type MessageGroupProps = MessageGroupOptionalProps & {
-  count: number;
-};
+type MessageGroupProps = MessageGroupOptionalProps;
 
 type MessageGroupForwardedRefContent = {
-  setMessage?: (index: number, message?: Message) => void;
+  setMessage?: (key: string, message?: Message) => void;
 };
 
 const MESSAGE_GROUP_DEFAULT_PROPS: Required<MessageGroupOptionalProps> = {
@@ -31,25 +31,16 @@ const MessageGroup = forwardRef<
   MessageGroupProps
 >(
   (
-    {
-      count,
-      defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType,
-    },
+    { defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType },
     ref,
   ) => {
-    const [messageKeys, setMessageKeys] = useState<string[]>([]);
-    const [messages, setMessages] = useState<Array<Message | undefined>>([]);
+    const [messages, setMessages] = useState<Messages>({});
 
-    const setMessage = useCallback((index: number, message?: Message) => {
+    const setMessage = useCallback((key: string, message?: Message) => {
       setMessages((previous) => {
-        const result = [...previous];
-        const diff = index + 1 - result.length;
+        const result = { ...previous };
 
-        if (diff > 0) {
-          result.push(...Array.from({ length: diff }, () => undefined));
-        }
-
-        result.splice(index, 1, message);
+        result[key] = message;
 
         return result;
       });
@@ -57,7 +48,7 @@ const MessageGroup = forwardRef<
 
     const messageElements = useMemo(
       () =>
-        messages.map((message, messageIndex) => {
+        Object.entries(messages).map(([messageKey, message]) => {
           let messageElement;
 
           if (message) {
@@ -65,10 +56,7 @@ const MessageGroup = forwardRef<
               message;
 
             messageElement = (
-              <MessageBox
-                key={`message-${messageKeys[messageIndex]}`}
-                type={type}
-              >
+              <MessageBox key={`message-${messageKey}`} type={type}>
                 {messageChildren}
               </MessageBox>
             );
@@ -76,21 +64,8 @@ const MessageGroup = forwardRef<
 
           return messageElement;
         }),
-      [defaultMessageType, messages, messageKeys],
+      [defaultMessageType, messages],
     );
-
-    useEffect(() => {
-      setMessageKeys((previous) => {
-        const result = [...previous];
-        const diff = count - result.length;
-
-        if (diff > 0) {
-          result.push(...Array.from({ length: diff }, () => uuidv4()));
-        }
-
-        return result;
-      });
-    }, [count]);
 
     useImperativeHandle(ref, () => ({ setMessage }), [setMessage]);
 
