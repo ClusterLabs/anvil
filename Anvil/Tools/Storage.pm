@@ -46,6 +46,7 @@ my $THIS_FILE = "Storage.pm";
 # update_file
 # write_file
 # _create_rsync_wrapper
+# _wait_if_changing
 
 =pod
 
@@ -5151,6 +5152,7 @@ fi";
 # Private functions                                                                                         #
 #############################################################################################################
 
+
 =head2
 
 This does the actual work of creating the C<< expect >> wrapper script and returns the path to that wrapper for C<< rsync >> calls.
@@ -5225,6 +5227,106 @@ expect eof
 	}
 	
 	return($wrapper_script);
+}
+
+
+=head3 _wait_if_changing
+
+This takes a full path to a file, and watches it for at specified number of seconds to see if the size is changing. If it is, this method waits until the file size stops changing. 
+
+Parameters;
+
+=head3 file (required)
+
+This is the full path to the file. If the file is not found, C<< !!error!! >> is returned.
+
+=head3 delay (optional, default '2')
+
+This is how long to wait before checking to see if the file has changed.
+
+=head3 last_size (optional)
+
+If this is set, it's the first size we compare against. If not passed, the size will be checked.
+
+=cut
+sub _wait_if_changing
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->_create_rsync_wrapper()" }});
+	
+	# Check my parameters.
+	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $delay     = defined $parameter->{delay}     ? $parameter->{delay}     : "";
+	my $last_size = defined $parameter->{last_size} ? $parameter->{last_size} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file      => $file, 
+		delay     => $delay, 
+		last_size => $last_size, 
+	}});
+	
+	if (not $delay)
+	{
+		$delay = 2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+	}
+	elsif (($delay =~ /\D/) or ($delay == 0))
+	{
+		$delay = 2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
+	}
+	
+	if (not -e $file)
+	{
+		return("!!error!!");
+	}
+	
+	if (not $last_size)
+	{
+		$last_size = (stat($file))[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			last_size => $last_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $last_size}).")", 
+		}});
+	}
+	
+	my $waiting = 1;
+	while ($waiting)
+	{
+		sleep $delay;
+		my $new_size = (stat($file))[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file      => $file,
+			last_size => $last_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $last_size}).")", 
+		}});
+		if ($new_size == $last_size)
+		{
+			# Size seems stable
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+		else
+		{
+			# Might still be updating, wait.
+			my $difference = $new_size - $last_size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0724", variables => { 
+				file             => $file,
+				old_size_bytes   => $anvil->Convert->add_commas({number => $last_size}),
+				old_size_hr      => $anvil->Convert->bytes_to_human_readable({'bytes' => $last_size}),
+				new_size_bytes   => $anvil->Convert->add_commas({number => $new_size}),
+				new_size_hr      => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}),
+				difference_bytes => $anvil->Convert->add_commas({number => $difference}),
+				difference_hr    => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference}),
+			}});
+			
+			$last_size = $new_size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { last_size => $last_size }});
+		}
+	}
+	
+	return(0);
 }
 
 1;

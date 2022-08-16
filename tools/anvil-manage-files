@@ -13,10 +13,9 @@
 #      - If not found anywhere, remove it from 'file_locations' and send an alert.
 #      - If found, check the size. If it differs, recalculate the md5sum.
 # - 3. If called with '--rename --file <filename> --to <newname>', rename the file and update 'files'.
-# - 4. If called with '--delete', remove from 'file_locations' and then remove from the local storage. If 
-#      also used with '--everywhere', then all copies on all systems we know about will be deleted. This is 
-#      done by registering a job against all known hosts. As such, if this is called and the target file 
-#      doesn't exist, it just clears the job and then exits.
+# - 4. If called with '--delete', remove from 'file_locations' and all copies on all systems. This is done by 
+#      registering a job against all known hosts. As such, if this is called and the target file  doesn't exist, 
+#      it just clears the job and then exits.
 # - 5. If called with '--is-script=[0|1]', mark as 'script' in the 'files' table and set/remove the executable bit.
 #
 # Exit codes;
@@ -32,7 +31,7 @@
 # - 
 # 
 # NOTE:
-# - 
+# - remove unsyncs, add syncs.
 # 
 
 use strict;
@@ -52,25 +51,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->data->{switches}{'delete'}    = "";
-$anvil->data->{switches}{download}    = "";
-$anvil->data->{switches}{everywhere}  = "";
-$anvil->data->{switches}{file}        = "";
-$anvil->data->{switches}{'is-script'} = "";
-$anvil->data->{switches}{'job-uuid'}  = "";
-$anvil->data->{switches}{'rename'}    = "";
-$anvil->data->{switches}{to}          = "";
-$anvil->Get->switches;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-	"switches::delete"     => $anvil->data->{switches}{'delete'},
-	"switches::download"   => $anvil->data->{switches}{download},
-	"switches::everywhere" => $anvil->data->{switches}{everywhere},
-	"switches::file"       => $anvil->data->{switches}{file},
-	"switches::is-script"  => $anvil->data->{switches}{'is-script'},
-	"switches::job-uuid"   => $anvil->data->{switches}{'job-uuid'},
-	"switches::rename"     => $anvil->data->{switches}{'rename'},
-	"switches::to"         => $anvil->data->{switches}{to},
-}});
+$anvil->Get->switches({list => ["add", "check", "delete", "download", "file", "is-script", "job-uuid", "rename", "remove", "to"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
 # Connect or die
 $anvil->Database->connect;
@@ -124,7 +106,7 @@ elsif ($anvil->data->{switches}{'is-script'})
 {
 	handle_script($anvil);
 }
-else
+elsif ($anvil->data->{switches}{check})
 {
 	# Check for files scheduled for deletion.
 	check_for_deletes($anvil);
@@ -135,6 +117,11 @@ else
 	# Check for files we should have but don't yet have.
 	find_missing_files($anvil);
 }
+else
+{
+	# Show the list of all files we know about.
+	show_files($anvil);
+}
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -143,6 +130,16 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# This lists all files.
+sub show_files
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
 
 # This looks to see if there are any entries in 'file_locations' for us that, the pointed to file, doesn't 
 # exist on this machine. For those entries, we will search for the file on other machines. The one exception
@@ -169,401 +166,323 @@ sub find_missing_files
 	my ($anvil) = @_;
 	
 	# What am I? This will impact how missing files are found.
+	$anvil->Database->get_anvils();
+	
 	my $query = "
 SELECT 
-    a.file_uuid, 
-    a.file_directory, 
-    a.file_name, 
-    a.file_size, 
-    a.file_md5sum  
+    file_uuid, 
+    file_directory, 
+    file_name, 
+    file_size, 
+    file_md5sum  
 FROM 
-    files a, 
-    hosts b, 
-    file_locations c 
+    files 
 WHERE 
-    b.host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})." 
-AND 
-    a.file_uuid = c.file_location_file_uuid 
-AND 
-    b.host_uuid = c.file_location_host_uuid 
+    file_type != 'DELETED' 
 ORDER BY 
-    a.file_directory ASC, 
-    a.file_name ASC, 
-    b.host_name ASC
+    file_directory ASC, 
+    file_name ASC 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
 	foreach my $row (@{$results})
 	{
-		my $file_uuid      = $row->[0];
-		my $file_directory = $row->[1];
-		my $file_name      = $row->[2];
-		my $file_size      = $row->[3];
-		my $file_md5sum    = $row->[4];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		my $file_uuid      =  $row->[0];
+		my $file_directory =  $row->[1];
+		my $file_name      =  $row->[2];
+		my $file_size      =  $row->[3];
+		my $file_md5sum    =  $row->[4];
+		my $full_path      =  $file_directory."/".$file_name;
+		   $full_path      =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:file_uuid'      => $file_uuid, 
 			's2:file_directory' => $file_directory, 
 			's3:file_name'      => $file_name, 
+			's4:file_size'      => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+			's5:file_md5sum'    => $file_md5sum, 
+			's6:full_path'      => $full_path,
 		}});
 		
-		my $test_file =  $file_directory."/".$file_name;
-		   $test_file =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { test_file => $test_file }});
-		
-		if (not -e $test_file)
+		# If we're a striker, we want all files.
+		my $host_type = $anvil->Get->host_type();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		if ($host_type eq "striker")
 		{
-			# Missing file!
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0269", variables => { file => $test_file }});
+			if (not -e $full_path)
+			{
+				# Missing file!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0269", variables => { file => $full_path }});
+				
+				# Find what target, if any, we'll the file from.
+				my ($found) = find_file($anvil, $file_uuid, $full_path, $file_size, $file_md5sum);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+			}
 			
-			# Find what target, if any, we'll the file from.
-			my ($found) = find_file($anvil, $file_uuid, $test_file, $file_size, $file_md5sum);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+			# If we're a Striker, see if any Anvil! systems exist that don't know about this file. 
+			$anvil->Database->check_file_locations({debug => 2});
+		}
+		else
+		{
+			# Check to see if we're supposed to have this file.
+			$anvil->Database->get_file_locations();
+			my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+			
+			# Nothing to do if we're not in an Anvil! yet.
+			next if not $anvil_uuid;
+			
+			# Do we have a file_location_uuid? If not, there will be soon but nothing to do until
+			# then.
+			my $file_location_uuid = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
+			next if not $file_location_uuid;
+			
+			# Should we have it?
+			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_active => $file_location_active }});
+			
+			if ($file_location_active)
+			{
+				# Make sure it exists, and add it if not.
+				if (not -e $full_path)
+				{
+					# Find and copy it.
+					my ($found) = find_file($anvil, $file_uuid, $full_path, $file_size, $file_md5sum);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+				}
+			}
+			else
+			{
+				# If it exists, remove it.
+				if (-e $full_path)
+				{
+					# Delete it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0285", variables => { file => $full_path }});
+					
+					unlink $full_path;
+					
+					# Sleep and verify
+					sleep 1;
+					if (-e $full_path)
+					{
+						# Failed to delete...
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0284", variables => { file => $full_path }});
+						return("");
+					}
+					else
+					{
+						# Deleted successfully.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0283"});
+					}
+				}
+			}
 		}
 	}
-	
-	### TODO: Left off here.
 	
 	return(0);
 }
 
-### TODO: Add sorting by preferred target
 # This looks for a file on another system. The exact order of search depends on what kind of machine we are.
 sub find_file
 {
 	my ($anvil, $file_uuid, $full_path, $file_size, $file_md5sum) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:file_uuid'   => $file_uuid,
+		's2:full_path'   => $full_path, 
+		's3:file_size'   => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")",
+		's4:file_md5sum' => $file_md5sum, 
+	}});
 	
-	my $found = 0;
+	# Before we do anything, see if the file is shown as being in a directory other than 'files' in the 
+	# database, but actually in files on disk. If so, update the database.
+	my $host_type       = $anvil->Get->host_type();
+	my $file_directory  =  $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+	my $file_name       =  $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+	my $files_full_path =  $anvil->data->{path}{directories}{shared}{files}."/".$file_name;
+	   $files_full_path =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:file_directory'  => $file_directory,
+		's2:file_name'       => $file_name, 
+		's3:files_full_path' => $files_full_path, 
+	}});
 	
-	# What are my IPs?
-	my $local_host = $anvil->Get->short_host_name();
-	$anvil->Network->get_ips();
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
+	if (($full_path ne $files_full_path) && (-e $files_full_path) && ($host_type eq "striker"))
 	{
-		next if not $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
-		next if not $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
-		my $ip          = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
-		my $subnet_mask = $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
-		my $network     = $anvil->Network->get_network({ip => $ip, subnet_mask => $subnet_mask});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			's1:interface'   => $interface, 
-			's2:ip'          => $ip, 
-			's3:subnet_mask' => $subnet_mask, 
-			's4:network'     => $network,
+		### TODO: Add checks to see if anything other than the directory needs updating.
+		# It's in 'files' now, update the database.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0725", variables => {
+			file      => $full_path, 
+			directory => $anvil->data->{path}{directories}{shared}{files}, 
 		}});
+		$anvil->Database->insert_or_update_files({
+			debug          => 2,
+			file_uuid      => $file_uuid, 
+			file_name      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_name}, 
+			file_directory => $anvil->data->{path}{directories}{shared}{files}, 
+			file_size      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_size}, 
+			file_md5sum    => $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum}, 
+			file_mtime     => $anvil->data->{files}{file_uuid}{$file_uuid}{file_mtime}, 
+			file_type      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_type}, 
+		});
 		
-		my $type = "other";
-		my $sort = $interface;
-		if ($interface =~ /^((?:bc|s|if)n)(\d+)/)
-		{
-			$type = $1;
-			$sort = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				's1:type' => $type, 
-				's2:sort' => $sort, 
-			}});
-		}
-		$anvil->data->{local_ip}{by_network}{$network}{type}        = $type;
-		$anvil->data->{local_ip}{by_network}{$network}{'sort'}      = $sort;
-		$anvil->data->{local_ip}{by_network}{$network}{interface}   = $interface;
-		$anvil->data->{local_ip}{by_network}{$network}{ip}          = $ip;
-		$anvil->data->{local_ip}{by_network}{$network}{subnet_mask} = $subnet_mask;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			"s1:local_ip::by_network::${network}::type"        => $anvil->data->{local_ip}{by_network}{$network}{type}, 
-			"s1:local_ip::by_network::${network}::sort"        => $anvil->data->{local_ip}{by_network}{$network}{'sort'}, 
-			"s2:local_ip::by_network::${network}::interface"   => $anvil->data->{local_ip}{by_network}{$network}{interface}, 
-			"s3:local_ip::by_network::${network}::ip"          => $anvil->data->{local_ip}{by_network}{$network}{ip}, 
-			"s4:local_ip::by_network::${network}::subnet_mask" => $anvil->data->{local_ip}{by_network}{$network}{subnet_mask}, 
-		}});
+		return(1);
 	}
 	
-	# Create a hash we can sort through that are on the same subnet_mask as us.
-	my $query = "
-SELECT 
-    a.host_uuid, 
-    a.host_name, 
-    a.host_type, 
-    b.file_directory, 
-    b.file_name, 
-    b.file_size, 
-    b.file_md5sum 
-FROM 
-    hosts a, 
-    files b, 
-    file_locations c 
-WHERE 
-    a.host_uuid =  c.file_location_host_uuid 
-AND 
-    b.file_uuid =  c.file_location_file_uuid 
-AND 
-    b.file_uuid =  ".$anvil->Database->quote($file_uuid)." 
-AND 
-    a.host_uuid != ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})." 
-ORDER BY 
-    file_mtime DESC;
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
+	# We want to search Striker's first, DR hosts second and nodes third.
+	$anvil->Database->get_hosts;
+	my $host_order = [];
+	foreach my $type ("striker", "dr", "node")
 	{
-		my $host_uuid      =  $row->[0];
-		my $host_name      =  $row->[1];
-		my $host_type      =  $row->[2];
-		my $file_directory =  $row->[3];
-		my $file_name      =  $row->[4];
-		my $file_size      =  $row->[5];
-		my $file_md5sum    =  $row->[6];
-		my $test_file      =  $file_directory."/".$file_name;
-		   $test_file      =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			host_uuid      => $host_uuid, 
-			host_name      => $host_name, 
-			host_type      => $host_type, 
-			file_directory => $file_directory, 
-			file_name      => $file_name, 
-			file_size      => $file_size, 
-			file_md5sum    => $file_md5sum,
-			test_file      => $test_file, 
-		}});
-		
-		# What IP addresses are on this machine?
-		my $query = "
-SELECT 
-    ip_address_address, 
-    ip_address_subnet_mask 
-FROM 
-    ip_addresses 
-WHERE 
-    ip_address_note      != 'DELETED' 
-AND 
-    ip_address_host_uuid =  ".$anvil->Database->quote($host_uuid)."
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		foreach my $row (@{$results})
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
-			my $ip_address_address     = $row->[0];
-			my $ip_address_subnet_mask = $row->[1];
-			my $network                = $anvil->Network->get_network({ip => $ip_address_address, subnet_mask => $ip_address_subnet_mask});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				ip_address_address     => $ip_address_address, 
-				ip_address_subnet_mask => $ip_address_subnet_mask, 
-				network                => $network, 
+			my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_name' => $host_name, 
+				's2:host_type' => $host_type, 
+				's3:host_uuid' => $host_uuid,
 			}});
 			
-			# Are we on the same subnet?
-			if (exists $anvil->data->{local_ip}{by_network}{$network})
+			next if $host_type ne $type;
+			next if $host_uuid eq $anvil->Get->host_uuid;
+			
+			push @{$host_order}, $host_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+		}
+	}
+	
+	# Now search.
+	my $found_on_host = 0;	# Found the file on a target
+	my $file_found    = 0;	# Actually have the file locally.
+	foreach my $search_host_uuid (@{$host_order})
+	{
+		last if $file_found;
+		my $target_host = $anvil->data->{hosts}{host_uuid}{$search_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:target_host'      => $target_host, 
+			's2:search_host_uuid' => $search_host_uuid,
+		}});
+		
+		my $target_ip = $anvil->Network->find_target_ip({host_uuid => $search_host_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+		next if not $target_ip;
+		
+		# See if the file is on the target and, if so, if it matches.
+		### NOTE: If we want to use md5sum again, use '--with-md5sum'
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path.$anvil->Log->switches;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		# Test access
+		my $access = $anvil->Remote->test_access({target => $target_ip});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+		next if not $access;
+		
+		my $remote_size                    = 0;
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			shell_call => $shell_call, 
+			target     => $target_ip, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /^size: \[(\d+)\]$/)
 			{
-				# We're on the same subnet!
-				my $type = $anvil->data->{local_ip}{by_network}{$network}{type};
-				my $sort = $anvil->data->{local_ip}{by_network}{$network}{'sort'};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					"s1:type" => $type, 
-					"s2:sort" => $sort, 
-				}});
-				
-				# Record.
-				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip}        = $ip_address_address;
-				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name}      = $host_name;
-				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{host_uuid} = $host_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					"s1:peer_ip::${host_type}::${type}::${sort}::name"      => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name}, 
-					"s2:peer_ip::${host_type}::${type}::${sort}::ip"        => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip}, 
-					"s3:peer_ip::${host_type}::${type}::${sort}::host_uuid" => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{host_uuid}, 
+				$remote_size   = $1;
+				$found_on_host = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					remote_size   => $remote_size,
+					found_on_host => $found_on_host,
 				}});
 			}
 		}
-	}
-	
-	### TODO: Do this according to what we are.
-	# Sort through what we've found.
-	my $file_found     = 0;
-	my $searched_hosts = {};
-	foreach my $host_type (sort {$a cmp $b} keys %{$anvil->data->{peer_ip}})
-	{
-		last if $file_found; 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
-		foreach my $type (sort {$a cmp $b} keys %{$anvil->data->{peer_ip}{$host_type}})
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:found_on_host' => $found_on_host,
+			's2:remote_size'   => $remote_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $remote_size}).")",
+			's3:file_size'     => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")",
+		}});
+		next if not $found_on_host;
+		
+		if ($remote_size eq $file_size)
 		{
-			last if $file_found; 
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
-			foreach my $sort (sort {$a cmp $b} keys %{$anvil->data->{peer_ip}{$host_type}{$type}})
+			# Pull it over!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0276", variables => {
+				file      => $full_path, 
+				host_name => $target_host, 
+				ip        => $target_ip, 
+			}});
+			my $failed = $anvil->Storage->rsync({
+				debug       => 2, 
+				destination => $full_path,
+				source      => "root\@".$target_ip.":".$full_path,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			
+			if (-f $full_path)
 			{
-				last if $file_found; 
-				my $ip          = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip};
-				my $name        = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name};
-				my $host_uuid   = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{host_uuid};
-				my $remote_user = "admin";
-				my $password    = "";
+				# Got it!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0277", variables => { file => $full_path }});
+				
+				# Verify the md5sum.
+				my $local_md5sum = $anvil->Get->md5sum({file => $full_path});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:host_type'   => $host_type,
-					's2:type'        => $type, 
-					's3:sort'        => $sort,
-					's4:name'        => $name,
-					's5:ip'          => $ip,
-					's6:host_uuid'   => $host_uuid,
-					's7:remote_user' => $remote_user, 
-					's8:password'    => $password, 
+					local_md5sum => $local_md5sum, 
+					file_md5sum  => $file_md5sum, 
 				}});
-				
-				if ((exists $searched_hosts->{$name}) && ($searched_hosts->{$name}))
+				if ($local_md5sum eq $file_md5sum)
 				{
-					# Already searched this host, this is just a different IP. Skip it.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0282", variables => {
-						host_name => $name, 
-						ip        => $ip, 
-					}});
-					next;
-				}
-				$searched_hosts->{$name} = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { "searched_hosts->{$name}" => $searched_hosts->{$name} }});
-				
-				### NOTE: There's a bug in Net::SSH2 on RHEL8 where passwordless SSH doesn't 
-				###       work. So for now, we'll manually pull in passwords from the 
-				###       anvil.conf using 'hosts::<host_name>::password' or 
-				###       'hosts::<host_uuid>::password'. This will be removed when the bug 
-				###       is fixed.
-				if ((exists $anvil->data->{hosts}{$host_uuid}{password}{$remote_user}) && ($anvil->data->{hosts}{$host_uuid}{password}{$remote_user}))
-				{
-					$password = $anvil->data->{hosts}{$host_uuid}{password}{$remote_user};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
-				}
-				elsif ((exists $anvil->data->{hosts}{$name}{password}{$remote_user}) && ($anvil->data->{hosts}{$name}{password}{$remote_user}))
-				{
-					$password = $anvil->data->{hosts}{$host_uuid}{password};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
-				}
-				
-				### NOTE: This might take a while for the call to return if we're md5sum'ing
-				###       a large file like an ISO.
-				### TODO: Should we ask for the size, then follow up with the md5sum for 
-				###       files that are over a certain size? Or will this get called rarely
-				###       enough in practice that it doesn't really matter?
-				# If the file is found, we'll parse these out.
-				my $remote_size                    = 0;
-				my $remote_md5sum                  = "";
-				my ($output, $error, $return_code) = $anvil->Remote->call({
-					shell_call  => $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path." --with-md5sum".$anvil->Log->switches, 
-					remote_user => $remote_user, 
-					password    => $password,
-					target      => $ip, 
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					error       => $error,
-					output      => $output,
-					return_code => $return_code, 
-				}});
-				foreach my $line (split/\n/, $output)
-				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-					if ($line =~ /^size: \[(\d+)\]$/)
-					{
-						$remote_size = $1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { remote_size => $remote_size }});
-					}
-					if ($line =~ /^md5sum: \[(.*)\]$/)
-					{
-						$remote_md5sum = $1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { remote_md5sum => $remote_md5sum }});
-					}
-				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:remote_size'   => $remote_size,
-					's2:file_size'     => $file_size,
-					's3:remote_md5sum' => $remote_md5sum, 
-					's4:file_md5sum'   => $file_md5sum,
-				}});
-				
-				### Do I really need to match sizes if the md5sum is the same?
-				if (($remote_size eq $file_size) && ($remote_md5sum eq $file_md5sum))
-				{
-					# Pull it over!
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0276", variables => {
-						file      => $full_path, 
-						host_name => $name, 
-						ip        => $ip, 
-					}});
-					my $failed = $anvil->Storage->rsync({
-						debug       => 2, 
-						destination => $full_path,
-						password    => $password, 
-						source      => $remote_user."\@".$ip.":".$full_path,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+					# Success!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0278", variables => { file => $full_path }});
 					
-					if (-f $full_path)
-					{
-						# Got it!
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0277", variables => { file => $full_path }});
-						
-						# Verify the md5sum.
-						my $local_md5sum = $anvil->Get->md5sum({file => $full_path});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							local_md5sum => $local_md5sum, 
-							file_md5sum  => $file_md5sum, 
-						}});
-						if ($local_md5sum eq $file_md5sum)
-						{
-							# Success!
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0278", variables => { file => $full_path }});
-							
-							$file_found = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_found => $file_found }});
-							last;
-						}
-						else
-						{
-							# Failed. :(
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0279", variables => { file => $full_path }});
-							unlink $full_path;
-						}
-					}
-					else
-					{
-						# Failed to rsync.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0280", variables => { 
-							file      => $full_path, 
-							host_name => $name, 
-							ip        => $ip, 
-						}});
-					}
+					$file_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_found => $file_found }});
+					last;
 				}
 				else
 				{
-					# Doesn't match what we're looking for.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0281", variables => { 
-						file            => $full_path, 
-						host_name       => $name, 
-						ip              => $ip, 
-						remote_md5sum   => $remote_md5sum, 
-						file_md5sum     => $file_md5sum,
-						file_size       => $file_size,
-						say_file_size   => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}),
-						remote_size     => $remote_size,
-						say_remote_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $remote_size}), 
-					}});
+					# Failed. :(
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0279", variables => { file => $full_path }});
+					unlink $full_path;
 				}
 			}
+			else
+			{
+				# Failed to rsync.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0280", variables => { 
+					file      => $full_path, 
+					host_name => $target_host, 
+					ip        => $target_ip, 
+				}});
+			}
+		}
+		else
+		{
+			# Doesn't match what we're looking for.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0281", variables => { 
+				file            => $full_path, 
+				host_name       => $target_host, 
+				ip              => $target_ip, 
+				file_size       => $file_size,
+				say_file_size   => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}),
+				remote_size     => $remote_size,
+				say_remote_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $remote_size}), 
+			}});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
-	return($found);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_found => $file_found }});
+	return($file_found);
 }
 
 
@@ -577,6 +496,7 @@ sub check_incoming
 	{
 		delete $anvil->data->{scan}{directories};
 	}
+	
 	# Read any files in '/mnt/shared/incoming'.
 	$anvil->Storage->scan_directory({
 		debug     => 3,
@@ -584,29 +504,43 @@ sub check_incoming
 		recursive => 1,
 	});
 	
-	my $incoming_directory = $anvil->data->{path}{directories}{shared}{incoming};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0264"});
+	my $archives_directory    = $anvil->data->{path}{directories}{shared}{archives};
+	my $definitions_directory = $anvil->data->{path}{directories}{shared}{definitions};
+	my $incoming_directory    = $anvil->data->{path}{directories}{shared}{incoming};
+	my $provision_directory   = $anvil->data->{path}{directories}{shared}{provision};
+	my $temp_directory        = $anvil->data->{path}{directories}{shared}{temp};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		archives_directory    => $archives_directory, 
+		definitions_directory => $definitions_directory,
+		incoming_directory    => $incoming_directory, 
+		provision_directory   => $provision_directory, 
+		temp_directory        => $temp_directory, 
+	}});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0264"});
 	foreach my $full_path (sort {$a cmp $b} keys %{$anvil->data->{scan}{directories}})
 	{
-		# Skip this if it's under '/mnt/shared/temp' (that's used for files being downloaded, etc)
-		next if $full_path =~ /^\/mnt\/shared\/temp\//;
+		# Skip this if it's under a directory managed elsewhere, or that we don't care about.
+		next if $full_path =~ /^$temp_directory/;
+		next if $full_path =~ /^$provision_directory/;
+		next if $full_path =~ /^$definitions_directory/;
 		
 		# Skip if this isn't a file.
 		my $file_type = $anvil->data->{scan}{directories}{$full_path}{type};
-		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			full_path => $full_path,
 			file_type => $file_type, 
 		}});
 		next if $file_type ne "file";
 		
-		my $file_name       = $anvil->data->{scan}{directories}{$full_path}{name};
-		my $file_directory  = $anvil->data->{scan}{directories}{$full_path}{directory};
-		my $file_size       = $anvil->data->{scan}{directories}{$full_path}{size};
-		my $file_mtime      = $anvil->data->{scan}{directories}{$full_path}{mtime};
-		my $file_mimetype   = $anvil->data->{scan}{directories}{$full_path}{mimetype};
-		my $file_executable = $anvil->data->{scan}{directories}{$full_path}{executable} = -x $full_path ? 1 : 0;
-		my $say_mimetype    = convert_mimetype($anvil, $file_mimetype, $full_path, $file_executable);
+		my $file_name       =  $anvil->data->{scan}{directories}{$full_path}{name};
+		my $file_directory  =  $anvil->data->{scan}{directories}{$full_path}{directory};
+		my $file_size       =  $anvil->data->{scan}{directories}{$full_path}{size};
+		my $file_mtime      =  $anvil->data->{scan}{directories}{$full_path}{mtime};
+		my $file_mimetype   =  $anvil->data->{scan}{directories}{$full_path}{mimetype};
+		my $file_executable =  $anvil->data->{scan}{directories}{$full_path}{executable} = -x $full_path ? 1 : 0;
+		my $say_mimetype    =  convert_mimetype($anvil, $file_mimetype, $full_path, $file_executable);
+		my $full_path       =  $file_directory."/".$file_name;
+		   $full_path       =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			file_name       => $file_name, 
 			file_size       => $file_size, 
@@ -614,6 +548,7 @@ sub check_incoming
 			file_mimetype   => $file_mimetype, 
 			file_executable => $file_executable, 
 			say_mimetype    => $say_mimetype, 
+			full_path       => $full_path,
 		}});
 		
 		# Do I know about this file? If so, is the file the same size? If either is no, calculate the md5sum.
@@ -626,11 +561,22 @@ sub check_incoming
 		}});
 		
 		# Calculate the md5sum?
-		my $file_md5sum = $recorded_md5sum;
+		my $file_md5sum =  $recorded_md5sum;
 		if ((not $file_uuid) or ($file_size != $recorded_size))
 		{
-			# Yes. But first, do we have a size mismatch? If so, see if we need to pull a newer 
-			# version down from elsewhere.
+			# It's possible the file is still uploading, so sleep for 2 seconds and see if the 
+			# size is still changing.
+			my $last_size = $file_size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				last_size => $last_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $last_size}).")", 
+			}});
+			$anvil->Storage->_wait_if_changing({
+				file      => $full_path,
+				last_size => $file_size, 
+			});
+			
+			# Yes, caluclate md5sum, but first, do we have a size mismatch? If so, see if we need
+			# to pull a newer version down from elsewhere.
 			if (($file_uuid) && ($file_mtime <= $recorded_mtime))
 			{
 				# We've got an older file, we need to update.
@@ -675,14 +621,6 @@ sub check_incoming
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
 		next if not $file_uuid;
 		
-		# Make sure we know about this file on this system
-		my ($file_locatiom_uuid) = $anvil->Database->insert_or_update_file_locations({
-			debug                   => 3,
-			file_location_file_uuid => $file_uuid, 
-			file_location_host_uuid => $anvil->data->{sys}{host_uuid},
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_locatiom_uuid => $file_locatiom_uuid }});
-		
 		# Are we in the incoming directory? If so, move the file.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			full_path          => $full_path,
@@ -690,18 +628,28 @@ sub check_incoming
 		}});
 		if ($full_path =~ /^$incoming_directory/)
 		{
+			# Ignore files starting with '.', they're often in-progress rsync's. 
+			next if $file_name =~ /^\./;
+			
 			# If it's a definition file, we'll move it to 
 			# 'path::directories::shared::definitions', otherwise we'll move it to 
 			# 'path::directories::shared::files'.
 			my $target =  $say_mimetype eq "definition" ? $anvil->data->{path}{directories}{shared}{definitions} : $anvil->data->{path}{directories}{shared}{files};
-			$target .= "/";
-			$target =~ s/\/\//\//g;
+			   $target .= "/";
+			   $target =~ s/\/\//\//g;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { target => $target }});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0268", variables => { 
 				file   => $full_path,
 				target => $target, 
 			}});
+			
+			# Wait in case it's still being uploaded.
+			$anvil->Storage->_wait_if_changing({
+				file      => $full_path,
+				last_size => $file_size, 
+			});
+			
 			$anvil->Storage->move_file({
 				debug       => 3,
 				source_file => $full_path, 
@@ -709,12 +657,11 @@ sub check_incoming
 			});
 			
 			# Update the file_directory.
-			my $say_directory =~ s/\/$//;
 			($file_uuid) = $anvil->Database->insert_or_update_files({
 				debug          => 3,
 				file_uuid      => $file_uuid, 
 				file_name      => $file_name, 
-				file_directory => $say_directory, 
+				file_directory => $target, 
 				file_size      => $file_size, 
 				file_md5sum    => $file_md5sum, 
 				file_mtime     => $file_mtime, 
@@ -975,47 +922,31 @@ sub convert_mimetype
 	return($say_mimetype);
 }
 
-# This looks for any files with the file_type of 'DELETED' and that has an entry in file_locations for this
-# machine. Any that are found will have their file deleted and the file_locations entry deleted.
+# This looks for any files with the file_type of 'DELETED'. Any that are found will be deleted.
 sub check_for_deletes
 {
 	my ($anvil) = @_;
 	
-	my $query = "
-SELECT 
-    a.file_uuid, 
-    b.file_location_uuid, 
-    a.file_directory || '/' || a.file_name AS full_path 
-FROM 
-    files a, 
-    file_locations b 
-WHERE 
-    a.file_uuid = b.file_location_file_uuid 
-AND 
-    a.file_type = 'DELETED' 
-AND 
-    b.file_location_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	# Get a list of files.
+	my $query = "SELECT file_uuid, file_directory || '/' || file_name AS full_path FROM files WHERE file_type = 'DELETED';";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
 	foreach my $row (@{$results})
 	{
-		my $file_uuid          = $row->[0];
-		my $file_location_uuid = $row->[1];
-		my $full_path          = $row->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			's1:file_uuid'          => $file_uuid, 
-			's2:file_location_uuid' => $file_location_uuid, 
-			's3:full_path'          => $full_path, 
+		my $file_uuid = $row->[0];
+		my $full_path = $row->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:file_uuid' => $file_uuid, 
+			's2:full_path' => $full_path, 
 		}});
 		
-		# Get rid of it (if it actually exists) and then remove it from file_locations.
+		# Get rid of it (if it actually exists).
 		if (-e $full_path)
 		{
 			# Delete it.
@@ -1038,10 +969,35 @@ AND
 			}
 		}
 		
-		# Delete the entry from file_locations, if needed.
-		$query = "DELETE FROM file_locations WHERE file_location_uuid = ".$anvil->Database->quote($file_location_uuid).";";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		# If we're a Striker, check for any file_locations that point to this file and DELETE them.
+		my $host_type = $anvil->Get->host_type();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		if ($host_type eq "striker")
+		{
+			my $query = "SELECT file_location_uuid FROM file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($file_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				my $file_location_uuid = $row->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
+				
+				# Delete the entry from file_locations, if needed.
+				my $query = "DELETE FROM history.file_locations WHERE file_location_uuid = ".$anvil->Database->quote($file_location_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM file_locations WHERE file_location_uuid = ".$anvil->Database->quote($file_location_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
 	}
 	
 	return(0);
@@ -1061,7 +1017,7 @@ sub handle_delete
 		# Um...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052"});
 		$anvil->Job->update_progress({
-			progress => 0, 
+			progress => 100, 
 			message  => "error_0052", 
 			job_uuid => $anvil->data->{jobs}{'job-uuid'},
 		});
@@ -1072,7 +1028,7 @@ sub handle_delete
 		# We don't do that here...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0053", variables => { file => $full_path }});
 		$anvil->Job->update_progress({
-			progress => 0, 
+			progress => 100, 
 			message  => "error_0053,!!file!".$full_path."!!", 
 			job_uuid => $anvil->data->{jobs}{'job-uuid'},
 		});
@@ -1126,7 +1082,7 @@ AND
 	# database. This way, if anything goes wrong below, future runs will try (again) to delete the file 
 	# itself. If it's only beind deleted locally, and it fails for some reason, there will be no attempt
 	# to try again.
-	if (($file_uuid) && ($anvil->data->{switches}{everywhere}))
+	if ($file_uuid)
 	{
 		# Yup.
 		($file_uuid) = $anvil->Database->insert_or_update_files({
@@ -1164,18 +1120,13 @@ AND
 		}
 	}
 	
-	# Now, if I have a file_uuid, delete it from file_locations if it exists.
+	# Now, if I have a file_uuid, delete it from file_locations if it exists. It's ok if peers in an 
+	# Anvil! haven't deleted yet, as they'll see the file marked as 'DELETED' and purge their local 
+	# copies.
 	if ($file_uuid)
 	{
 		# Delete the entry from file_locations, if needed.
-		my $query = "
-DELETE FROM 
-    file_locations 
-WHERE 
-    file_location_file_uuid = ".$anvil->Database->quote($file_uuid)." 
-AND 
-    file_location_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
-;";
+		my $query = "DELETE FROM file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($file_uuid).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}

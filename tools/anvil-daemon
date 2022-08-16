@@ -582,7 +582,7 @@ sub handle_periodic_tasks
 		my $problem = $anvil->Email->check_config({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
 		
-		# Check if any files have been uploaded to /mnt/shared/incoming on striker
+		# Check if anything is needed to be done in /mnt/shared.
 		check_incoming($anvil);
 		
 		# Check for stale db_in_use states.
@@ -799,18 +799,30 @@ AND
 				's3:state_note' => $state_note, 
 			}});
 			
-			my ($db_uuid, $state_pid) = ($state_name =~ /db_in_use::(.*?)::(\d+)$/);
+			my $caller                = "";
+			my ($db_uuid, $state_pid) = ($state_name =~ /db_in_use::(.*?)::(.*)$/);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:db_uuid'   => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")", 
-				's4:state_pid' => $state_pid, 
+				's2:state_pid' => $state_pid, 
 			}});
+			if ($state_pid =~ /(\d+)::(.*)$/)
+			{
+				$state_pid = $1;
+				$caller    = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:state_pid' => $state_pid, 
+					's2:caller'    => $caller,
+				}});
+			}
 			
 			if (not exists $anvil->data->{pids}{$state_pid})
 			{
 				# Reap the 'db_is_use'.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { state_name => $state_name }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0140", variables => { 
-					db  => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")",
-					pid => $state_pid,
+					db       => $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid})." (".$db_uuid.")",
+					pid      => $state_pid,
+					'caller' => $caller, 
 				}});
 				
 				my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
@@ -823,73 +835,23 @@ AND
 	return(0);
 }
 
-# On dashboards, this checks to see if any files are in /mnt/shared/incoming and, if so, that they've been processed.
+# This checks to see if any files in /mnt/shared need to be dealt with, like incorporating files in 
+# /mnt/shared/incoming, etc.
 sub check_incoming
 {
 	my ($anvil) = @_;
 	
-	my $system_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { system_type => $system_type }});
-	if ($system_type eq "striker")
-	{
-		# Look for files in /mnt/shared/incoming that are not yet in the database. 
-		my $directory = $anvil->data->{path}{directories}{shared}{incoming};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
-		local(*DIRECTORY);
-		opendir(DIRECTORY, $directory);
-		while(my $file = readdir(DIRECTORY))
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
-			next if $file eq ".";
-			next if $file eq "..";
-			next if $file =~ /^\./;	# This is files being rsync'ed still
-			my $full_path = $directory."/".$file;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
-			
-			# Skip anything that is not a file.
-			next if not -f $full_path;
-			
-			# Is this file already in the DB?
-			my $query = "SELECT file_uuid FROM files WHERE file_name = ".$anvil->Database->quote($file).";";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				results => $results, 
-				count   => $count, 
-			}});
-			if (not $count)
-			{
-				# Add it to the database.
-				my $size             = (stat($full_path))[7];
-				my $say_size_human   = $anvil->Convert->bytes_to_human_readable({'bytes' => $size});
-				my $say_size_comma   = $anvil->Convert->add_commas({number => $size});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					size             => $size,
-					say_size_human   => $say_size_human, 
-					say_size_comma   => $say_size_comma, 
-				}});
-				
-				# Register a job to call anvil-sync-shared 
-				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-					file            => $THIS_FILE, 
-					line            => __LINE__, 
-					job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}, 
-					job_data        => "file=".$full_path, 
-					job_name        => "storage::move_incoming", 
-					job_title       => "job_0132", 
-					job_description => "job_0133", 
-					job_progress    => 0,
-					job_host_uuid   => $anvil->data->{sys}{host_uuid},
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-			}
-			
-		}
-		closedir(DIRECTORY);
-	}
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({
+		shell_call => $shell_call, 
+		source     => $THIS_FILE, 
+		line       => __LINE__,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
 	
 	return(0);
 }

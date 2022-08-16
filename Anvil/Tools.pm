@@ -415,6 +415,7 @@ sub nice_exit
 		$anvil->data->{HANDLE}{'log'}{main} = "";
 	}
 	
+	#print "Exiting with RC: [".$exit_code."]\n";
 	exit($exit_code);
 }
 
@@ -772,7 +773,11 @@ sub _get_hash_reference
 	my $parameter = shift;
 	my $anvil        = $self;
 	
-	die "$THIS_FILE ".__LINE__."; The hash key string: [".$parameter->{key}."] doesn't seem to be valid. It should be a string in the format 'foo::bar::baz'.\n" if $parameter->{key} !~ /::/;
+	if ($parameter->{key} !~ /::/)
+	{
+		print "$THIS_FILE ".__LINE__."; The hash key string: [".$parameter->{key}."] doesn't seem to be valid. It should be a string in the format 'foo::bar::baz'.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	# Split up the keys.
 	my $key   = $parameter->{key} ? $parameter->{key} : "";
@@ -1111,6 +1116,7 @@ sub _set_paths
 				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-dr'		=>	"/usr/sbin/anvil-manage-dr",
+				'anvil-manage-files'		=>	"/usr/sbin/anvil-manage-files",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",

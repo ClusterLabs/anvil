@@ -789,21 +789,24 @@ sub read_snmp_oid
 	{
 		# Um, what are we supposed to read?
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->read_snmp_oid()", parameter => "oid" }});
-		die;
+		$anvil->nice_exit({exit_code => 1});
+		
 		return("!!error!!");
 	}
 	if (not $target)
 	{
 		# Who ya gonna call? No, seriously, I have no idea...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->read_snmp_oid()", parameter => "target" }});
-		die;
+		$anvil->nice_exit({exit_code => 1});
+		
 		return("!!error!!");
 	}
 	if (($mib) && (not -r $mib))
 	{
 		# Bad MIB path
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0163", variables => { mib => $mib }});
-		die;
+		$anvil->nice_exit({exit_code => 1});
+		
 		return("!!error!!");
 	}
 	

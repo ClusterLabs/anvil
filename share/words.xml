@@ -1664,13 +1664,13 @@ The fingerprint of: [#!variable!machine!#] has changed! Updating it's entry in k
 		<key name="log_0279">The md5sum of file: [#!variable!file!#] failed to match. Discarding the downloaded file.</key>
 		<key name="log_0280">Failed to download: [#!variable!file!#] from: [#!variable!host_name!# (#!variable!ip!#). Will look on other hosts (if any left).</key>
 		<key name="log_0281">The file: [#!variable!file!#] on: [#!variable!host_name!# (#!variable!ip!#]) doesn't match the file we're looking for.
-- Wanted; md5sum: [#!variable!file_md5sum!#], size: [#!variable!say_file_size!# (#!variable!file_size!# bytes)]
-- Found;  md5sum: [#!variable!remote_md5sum!#], size: [#!variable!say_remote_size!# (#!variable!remote_size!# bytes)]
+- Wanted; size: [#!variable!say_file_size!# (#!variable!file_size!# bytes)]
+- Found;  size: [#!variable!say_remote_size!# (#!variable!remote_size!# bytes)]
 We will keep looking.</key>
 		<key name="log_0282">Already searched: [#!variable!host_name!# using another IP address, skipping this IP: [#!variable!ip!#].</key>
 		<key name="log_0283">Done.</key>
 		<key name="log_0284">[ Error ] - Failed to remove the file: [#!variable!file!#]! Please check the permissions or for SELinux denials.</key>
-		<key name="log_0285">As requested by another machine, we will now delete the file: [#!variable!file!#].</key>
+		<key name="log_0285">The file: [#!variable!file!#] is marked as not sync'ed to this Anvil!, removing it now.</key>
 		<key name="log_0286">[ Error ] - The URL: [#!variable!url!#] to download appears to be invalid.</key>
 		<key name="log_0287">[ Error ] - The requested URL: [#!variable!url!#] was not found on the remote server.</key>
 		<key name="log_0288">[ Error ] - The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
@@ -2151,6 +2151,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0721">The server: [#!variable!server!#] is ready to boot.</key>
 		<key name="log_0722">The server: [#!variable!server!#] was found to be running already, but it wasn't marked as booted. Marking it as if it just booted to handle any dependent servers.</key>
 		<key name="log_0723">The server: [#!variable!server!#] is configured to stay off, ignoring it.</key>
+		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variables!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variables!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variables!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodocally until the size stops changing.</key>
+		<key name="log_0725">Found the missing file: [#!variable!file!#] in the directory: [#!variable!directory!#]. Updating the database now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3248,7 +3250,7 @@ We will sleep a bit and try again.
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
 		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, which might be why the RAM is high. NOT exiting while this program is running.</key>
-		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] had marked the database: [#!variable!db!#] as "in_use", but the PID is gone now. Reaping the flag.</key>
+		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] (used by: [#!variable!caller!#] had marked the database: [#!variable!db!#] as "in_use", but the PID is gone now. Reaping the flag.</key>
 		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
 		<key name="warning_0143">[ Warning ] - While evaluating database shutdown, the host UUID: [#!variable!host_uuid!#] was not yet found in the database on host: [#!variable!db_uuid!#]. DB shutdown will not happen until all hosts are in all DBs.</key>

@@ -791,11 +791,11 @@ sub bridges
 	if (not $test)
 	{
 		# JSON parse failed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0140", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "error_0140", variables => { 
 			json  => $output,
 			error => $@,
 		}});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0519"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0519"});
 		
 		# NOTE: This is not design to be normally used. It was created as a stop-gap while waiting 
 		#       for resolution on: https://bugzilla.redhat.com/show_bug.cgi?id=1868467
@@ -1027,7 +1027,7 @@ sub cgi
 			if (not $cgi->upload('upload_file'))
 			{
 				# Empty file passed, looks like the user forgot to select a file to upload.
-				$anvil->Log->entry({log_level => 2, message_key => "log_0242", file => $THIS_FILE, line => __LINE__});
+				$anvil->Log->entry({level => 2, message_key => "log_0242", file => $THIS_FILE, line => __LINE__});
 			}
 			else
 			{
@@ -1183,11 +1183,13 @@ sub date_and_time
 	# Are things sane?
 	if ($use_time =~ /D/)
 	{
-		die "Get->date_and_time() was called with 'use_time' set to: [$use_time]. Only a unix timestamp is allowed.\n";
+		warn "Get->date_and_time() was called with 'use_time' set to: [$use_time]. Only a unix timestamp is allowed.\n";
+		$anvil->nice_exit({exit_code => 1});
 	}
 	if ($offset =~ /D/)
 	{
-		die "Get->date_and_time() was called with 'offset' set to: [$offset]. Only real number is allowed.\n";
+		warn "Get->date_and_time() was called with 'offset' set to: [$offset]. Only real number is allowed.\n";
+		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	# Do my initial calculation.
@@ -2297,12 +2299,14 @@ sub switches
 			next if $set_switch eq "?";
 			next if $set_switch eq "h";
 			next if $set_switch eq "help";
+			next if $set_switch eq "log-secure";
+			next if $set_switch eq "log-db-transactions";
 			next if $set_switch eq "raw";
+			next if $set_switch eq "resync-db";
 			next if $set_switch eq "v";
 			next if $set_switch eq "vv";
 			next if $set_switch eq "vvv";
 			next if $set_switch eq "vvvv";
-			next if $set_switch eq "log-secure";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_switch => $set_switch }});
 			
 			my $found = 0;

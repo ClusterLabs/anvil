@@ -481,7 +481,7 @@ sub entry
 			my $shell_call = $log_file;
 			print $THIS_FILE." ".__LINE__."; shell_call: [".$shell_call."]\n" if $test;
 			# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
-			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
+			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [".$shell_call."] for writing. The error was: $!\n";
 			$file_handle->autoflush(1);
 			$anvil->data->{HANDLE}{'log'}{main} = $file_handle;
 			binmode($anvil->data->{HANDLE}{'log'}{main}, ':encoding(utf-8)');
@@ -494,7 +494,8 @@ sub entry
 		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# NOTE: This can't be a normal error because we can't write to the logs.
-			die $THIS_FILE." ".__LINE__."; log main file handle doesn't exist, but it should by now.\n";
+			print $THIS_FILE." ".__LINE__."; log main file handle doesn't exist, but it should by now.\n";
+			exit 1;
 		}
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
@@ -533,7 +534,8 @@ sub entry
 			if (not $anvil->data->{HANDLE}{'log'}{alert})
 			{
 				# NOTE: This can't be a normal error because we can't write to the logs.
-				die $THIS_FILE." ".__LINE__."; log alert file handle doesn't exist, but it should by now.\n";
+				print $THIS_FILE." ".__LINE__."; log alert file handle doesn't exist, but it should by now.\n";
+				exit 1;
 			}
 			
 			# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
@@ -871,11 +873,13 @@ sub variables
 	#die if $test;
 	if (not defined $level)
 	{
-		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] defined from: [$source : $line]\n";
+		warn $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] defined from: [$source : $line]\n";
+		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif (not defined $anvil->Log->level)
 	{
-		die $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$anvil->Log->level."] defined from: [$source : $line]\n";
+		warn $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$anvil->Log->level."] defined from: [$source : $line]\n";
+		$anvil->nice_exit({exit_code => 1});
 	}
 	print "level: [$level], logging: [".$anvil->Log->level."], secure: [$secure], logging secure: [".$anvil->Log->secure."]\n" if $test;
 	if ($level > $anvil->Log->level)

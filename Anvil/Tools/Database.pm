@@ -381,7 +381,7 @@ sub backup_database
 
 =head2 check_file_locations
 
-This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< false >>.
+This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< true >>.
 
 This method takes no parameters.
 
@@ -420,7 +420,7 @@ sub check_file_locations
 					debug                    => $debug, 
 					file_location_file_uuid  => $file_uuid, 
 					file_location_anvil_uuid => $anvil_uuid, 
-					file_location_active     => 0, 
+					file_location_active     => 1, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 			}
@@ -1644,7 +1644,6 @@ sub connect
 					query => $query,
 				}});
 				$anvil->nice_exit({exit_code => 1});
-				die;
 			}
 			
 			# Check to see if the schema needs to be loaded.
@@ -2711,7 +2710,7 @@ WHERE
 			next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
 			
 			my $file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				file_uuid => $file_uuid,
 				file_name => $file_name, 
 			}});
@@ -2723,7 +2722,7 @@ WHERE
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}, 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory}, 
 				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
@@ -2733,7 +2732,7 @@ WHERE
 			
 			# Make it so that we can list the files by name.
 			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid} = $file_uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
 			}});
 		}
@@ -15379,10 +15378,13 @@ sub mark_active
 		return(0);
 	}
 	
+	my $caller = $ENV{_} ? $ENV{_} : "unknown";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'caller' => $caller }});
+	
 	# Record that we're using each available striker DB UUID.
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
-		my $state_name = "db_in_use::".$uuid."::".$$;
+		my $state_name = "db_in_use::".$uuid."::".$$."::".$caller;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			set        => $set,
 			state_name => $state_name,
@@ -16444,7 +16446,6 @@ sub resync_databases
 					{
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0114", variables => { query => $query }});
 						$anvil->nice_exit({exit_code => 1});
-						die;
 					}
 					
 					# If we don't have a row uuid, something has also gone wrong...
@@ -16455,7 +16456,6 @@ sub resync_databases
 							query       => $query,
 						}});
 						$anvil->nice_exit({exit_code => 1});
-						die;
 					}
 					
 					# Record this in the unified and local hashes.

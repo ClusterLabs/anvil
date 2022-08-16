@@ -19,6 +19,10 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_server_log
 		<!-- Error entries -->
 		<key name="scan_drbd_error_0001">DRBD is not configured on this host, exiting.</key>
 			
+		<!-- Warnings entries -->
+		<key name="scan_drbd_warning_0001">[ Warning ] - The variable 'old_scan_drbd_resource_xml' is undefined, which should never be the case. This is likely a program error.</key>
+		<key name="scan_drbd_warning_0002">[ Warning ] - The variable 'scan_drbd_peer_scan_drbd_volume_uuid' is empty, which should never be the case. This is likely a program error.</key>
+			
 		<!-- Error entries -->
 		<key name="scan_drbd_log_0001">Starting The: [#!variable!program!#] DRBD resource agent.</key>
 		
