@@ -36,7 +36,7 @@ import {
   InputTestBatches,
   TestInputFunction,
 } from '../types/TestInputFunction';
-import { BodyText, HeaderText, Monospace } from './Text';
+import { BodyText, HeaderText, InlineMonoText } from './Text';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -1355,9 +1355,11 @@ const ProvisionServerDialog = ({
       <Grid container columns={gridColumns} direction="column">
         <Grid direction="row" item xs={gridColumns}>
           <BodyText>
-            Server <Monospace text={inputServerNameValue} /> will be created on
-            anvil node pair{' '}
-            <Monospace text={anvilUUIDMapToData[inputAnvilValue].anvilName} />{' '}
+            Server <InlineMonoText text={inputServerNameValue} /> will be
+            created on anvil node pair{' '}
+            <InlineMonoText
+              text={anvilUUIDMapToData[inputAnvilValue].anvilName}
+            />{' '}
             with the following properties:
           </BodyText>
         </Grid>
@@ -1367,12 +1369,12 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2}>
             <BodyText>
-              <Monospace text={inputCPUCoresValue} /> core(s)
+              <InlineMonoText text={inputCPUCoresValue} /> core(s)
             </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
-              <Monospace text={inputCPUCoresMax} /> core(s) available
+              <InlineMonoText text={inputCPUCoresMax} /> core(s) available
             </BodyText>
           </Grid>
         </Grid>
@@ -1381,11 +1383,11 @@ const ProvisionServerDialog = ({
             <BodyText text="Memory" />
           </Grid>
           <Grid item xs={c2}>
-            <Monospace text={`${inputMemoryValue} ${inputMemoryUnit}`} />
+            <InlineMonoText text={`${inputMemoryValue} ${inputMemoryUnit}`} />
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
-              <Monospace text={`${inputMemoryMax} ${inputMemoryUnit}`} />{' '}
+              <InlineMonoText text={`${inputMemoryMax} ${inputMemoryUnit}`} />{' '}
               available
             </BodyText>
           </Grid>
@@ -1409,18 +1411,19 @@ const ProvisionServerDialog = ({
             >
               <Grid item xs={c1}>
                 <BodyText>
-                  Virtual disk <Monospace text={vdIndex} />
+                  Virtual disk <InlineMonoText text={vdIndex} />
                 </BodyText>
               </Grid>
               <Grid item xs={c2}>
                 <BodyText>
-                  <Monospace text={`${vdInputSize} ${vdInputUnit}`} /> on{' '}
+                  <InlineMonoText text={`${vdInputSize} ${vdInputUnit}`} /> on{' '}
                   {vdStorageGroupName}
                 </BodyText>
               </Grid>
               <Grid item xs={c3}>
                 <BodyText>
-                  <Monospace text={`${vdInputMax} ${vdInputUnit}`} /> available
+                  <InlineMonoText text={`${vdInputMax} ${vdInputUnit}`} />{' '}
+                  available
                 </BodyText>
               </Grid>
             </Grid>
@@ -1431,7 +1434,7 @@ const ProvisionServerDialog = ({
             <BodyText text="Install ISO" />
           </Grid>
           <Grid item xs={c2n3}>
-            <Monospace
+            <InlineMonoText
               text={fileUUIDMapToData[inputInstallISOFileUUID].fileName}
             />
           </Grid>
@@ -1442,7 +1445,7 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2n3}>
             {fileUUIDMapToData[inputDriverISOFileUUID] ? (
-              <Monospace
+              <InlineMonoText
                 text={fileUUIDMapToData[inputDriverISOFileUUID].fileName}
               />
             ) : (

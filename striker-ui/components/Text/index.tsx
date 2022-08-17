@@ -1,7 +1,9 @@
 import BodyText, { BodyTextProps } from './BodyText';
-import DataGridCellText from './DataGridCellText';
 import HeaderText from './HeaderText';
-import Monospace from './Monospace';
+import InlineMonoText from './InlineMonoText';
+import MonoText from './MonoText';
+import SmallText from './SmallText';
 
 export type { BodyTextProps };
-export { BodyText, DataGridCellText, HeaderText, Monospace };
+
+export { BodyText, HeaderText, InlineMonoText, MonoText, SmallText };
