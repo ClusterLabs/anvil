@@ -52,7 +52,7 @@ import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
 import { InputTestBatches, InputTestInputs } from '../types/TestInputFunction';
-import { BodyText, DataGridCellText } from './Text';
+import { BodyText, MonoText, SmallText } from './Text';
 
 type NetworkInput = {
   inputUUID: string;
@@ -73,16 +73,15 @@ type NetworkInterfaceInputMap = Record<
   }
 >;
 
+type NetworkInitFormValues = {
+  domainNameServerCSV?: string;
+  gateway?: string;
+  gatewayInterface?: string;
+  networks: Omit<NetworkInput, 'ipAddressInputRef' | 'subnetMaskInputRef'>[];
+};
+
 type NetworkInitFormForwardRefContent = {
-  get?: () => {
-    domainNameServerCSV?: string;
-    gateway?: string;
-    gatewayInterface?: string;
-    networks: Omit<
-      NetworkInput,
-      'inputUUID' | 'ipAddressInputRef' | 'subnetMaskInputRef'
-    >[];
-  };
+  get?: () => NetworkInitFormValues;
 };
 
 type GetNetworkTypeCountFunction = (
@@ -232,7 +231,7 @@ const createNetworkInterfaceTableColumns = (
           colour={networkInterfaceState === 'up' ? 'ok' : 'off'}
           sx={{ height: 'auto' }}
         />
-        <DataGridCellText text={value} />
+        <SmallText text={value} />
       </MUIBox>
     ),
     sortComparator: (v1, v2) => sumstring(v1) - sumstring(v2),
@@ -241,7 +240,7 @@ const createNetworkInterfaceTableColumns = (
     field: 'networkInterfaceMACAddress',
     flex: 1,
     headerName: 'MAC',
-    renderCell: ({ value }) => <DataGridCellText monospaced text={value} />,
+    renderCell: ({ value }) => <MonoText text={value} />,
   },
   {
     field: 'networkInterfaceState',
@@ -251,7 +250,7 @@ const createNetworkInterfaceTableColumns = (
       const state = String(value);
 
       return (
-        <DataGridCellText
+        <SmallText
           text={`${state.charAt(0).toUpperCase()}${state.substring(1)}`}
         />
       );
@@ -262,7 +261,7 @@ const createNetworkInterfaceTableColumns = (
     flex: 1,
     headerName: 'Speed',
     renderCell: ({ value }) => (
-      <DataGridCellText text={`${parseFloat(value).toLocaleString()} Mbps`} />
+      <SmallText text={`${parseFloat(value).toLocaleString()} Mbps`} />
     ),
   },
   {
@@ -1003,6 +1002,7 @@ const NetworkInitForm = forwardRef<
         gatewayInterface,
         networks: networkInputs.map(
           ({
+            inputUUID,
             interfaces,
             ipAddressInputRef,
             name,
@@ -1010,6 +1010,7 @@ const NetworkInitForm = forwardRef<
             type,
             typeCount,
           }) => ({
+            inputUUID,
             interfaces,
             ipAddress: ipAddressInputRef?.current.getValue?.call(null) ?? '',
             name,
@@ -1176,6 +1177,7 @@ NetworkInitForm.displayName = 'NetworkInitForm';
 
 export type {
   NetworkInitFormForwardRefContent,
+  NetworkInitFormValues,
   NetworkInput,
   NetworkInterfaceInputMap,
 };

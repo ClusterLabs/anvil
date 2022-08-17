@@ -27,15 +27,17 @@ import { createTestInputFunction, testNotBlank } from '../lib/test_input';
 import { InputTestBatches, InputTestInputs } from '../types/TestInputFunction';
 import { BodyText } from './Text';
 
+type GeneralInitFormValues = {
+  adminPassword?: string;
+  domainName?: string;
+  hostName?: string;
+  hostNumber?: number;
+  organizationName?: string;
+  organizationPrefix?: string;
+};
+
 type GeneralInitFormForwardRefContent = {
-  get?: () => {
-    adminPassword?: string;
-    domainName?: string;
-    hostName?: string;
-    hostNumber?: number;
-    organizationName?: string;
-    organizationPrefix?: string;
-  };
+  get?: () => GeneralInitFormValues;
 };
 
 type OutlinedInputWithLabelOnBlur = Exclude<
@@ -723,6 +725,6 @@ const GeneralInitForm = forwardRef<
 GeneralInitForm.defaultProps = { toggleSubmitDisabled: undefined };
 GeneralInitForm.displayName = 'GeneralInitForm';
 
-export type { GeneralInitFormForwardRefContent };
+export type { GeneralInitFormForwardRefContent, GeneralInitFormValues };
 
 export default GeneralInitForm;
