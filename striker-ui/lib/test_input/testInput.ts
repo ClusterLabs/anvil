@@ -8,17 +8,13 @@ import {
 
 const testInput: TestInputFunction = ({
   excludeTestIds = [],
-  inputs,
+  inputs = {},
   isContinueOnFailure,
   isIgnoreOnCallbacks,
+  isTestAll = Object.keys(inputs).length === 0,
   tests = {},
 } = {}): boolean => {
-  let testsToRun: Readonly<InputTestInputs> =
-    inputs ??
-    Object.keys(tests).reduce<InputTestInputs>((previous, id: string) => {
-      previous[id] = {};
-      return previous;
-    }, {});
+  let testsToRun: InputTestInputs = {};
   let allResult = true;
 
   let setBatchCallback: (batch?: Partial<InputTestBatches[string]>) => {
@@ -39,13 +35,17 @@ const testInput: TestInputFunction = ({
     });
   }
 
-  testsToRun = excludeTestIds.reduce<InputTestInputs>(
-    (previous, id: string) => {
-      delete previous[id];
-      return previous;
-    },
-    { ...testsToRun },
-  );
+  if (isTestAll) {
+    Object.keys(tests).forEach((id: string) => {
+      testsToRun[id] = {};
+    });
+  }
+
+  testsToRun = { ...testsToRun, ...inputs };
+
+  excludeTestIds.forEach((id: string) => {
+    delete testsToRun[id];
+  });
 
   Object.keys(testsToRun).every((id: string) => {
     const {
@@ -120,11 +120,14 @@ const testInput: TestInputFunction = ({
 
     const requiredTestsResult = requiredTests.every(runTest);
 
-    // console.log(
-    //   `[${requiredTestsResult ? 'PASS' : 'FAILED'}]id=${id},getValue=${
-    //     getValue !== undefined
-    //   },value=${value}`,
-    // );
+    // Log for debug testing only.
+    // (() => {
+    //   console.log(
+    //     `[${requiredTestsResult ? 'PASS' : 'FAILED'}]id=${id},getValue=${
+    //       getValue !== undefined
+    //     },value=${value}`,
+    //   );
+    // })();
 
     cbFinishBatch?.call(null);
 

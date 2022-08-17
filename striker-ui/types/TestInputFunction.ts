@@ -49,6 +49,7 @@ export type TestInputFunctionOptions = {
   inputs?: InputTestInputs;
   isContinueOnFailure?: boolean;
   isIgnoreOnCallbacks?: boolean;
+  isTestAll?: boolean;
   tests?: InputTestBatches;
 };
 
