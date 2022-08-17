@@ -24,7 +24,10 @@ import OutlinedInputWithLabel, {
 import pad from '../lib/pad';
 import SuggestButton from './SuggestButton';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
-import { InputTestBatches, InputTestInputs } from '../types/TestInputFunction';
+import {
+  InputTestBatches,
+  TestInputFunctionOptions,
+} from '../types/TestInputFunction';
 import { BodyText } from './Text';
 
 type GeneralInitFormValues = {
@@ -219,9 +222,7 @@ const GeneralInitForm = forwardRef<
       [IT_IDS.confirmAdminPassword]: {
         defaults: {
           getValue: () =>
-            isConfirmAdminPassword
-              ? confirmAdminPasswordInputRef.current.getValue?.call(null)
-              : adminPasswordInputRef.current.getValue?.call(null),
+            confirmAdminPasswordInputRef.current?.getValue?.call(null),
           onSuccess: () => {
             setConfirmAdminPasswordInputMessage(undefined);
           },
@@ -336,7 +337,6 @@ const GeneralInitForm = forwardRef<
       },
     }),
     [
-      isConfirmAdminPassword,
       setAdminPasswordInputMessage,
       setConfirmAdminPasswordInputMessage,
       setDomainNameInputMessage,
@@ -350,19 +350,29 @@ const GeneralInitForm = forwardRef<
     [inputTests],
   );
 
-  const testAllInputs = useCallback(
-    (...excludeTestIds: string[]) =>
-      testInput({ excludeTestIds, isIgnoreOnCallbacks: true }),
-    [testInput],
-  );
-  const testInputSeparate = useCallback(
-    (id: string, input: InputTestInputs[string]) => {
-      const isLocalValid = testInput({
-        inputs: { [id]: input },
-      });
-      toggleSubmitDisabled?.call(null, isLocalValid && testAllInputs(id));
+  const testInputToToggleSubmitDisabled = useCallback(
+    ({
+      excludeTestIds = [],
+      inputs,
+      isExcludeConfirmAdminPassword = !isConfirmAdminPassword,
+    }: Pick<TestInputFunctionOptions, 'inputs' | 'excludeTestIds'> & {
+      isExcludeConfirmAdminPassword?: boolean;
+    } = {}) => {
+      if (isExcludeConfirmAdminPassword) {
+        excludeTestIds.push(IT_IDS.confirmAdminPassword);
+      }
+
+      toggleSubmitDisabled?.call(
+        null,
+        testInput({
+          excludeTestIds,
+          inputs,
+          isIgnoreOnCallbacks: true,
+          isTestAll: true,
+        }),
+      );
     },
-    [testInput, testAllInputs, toggleSubmitDisabled],
+    [isConfirmAdminPassword, testInput, toggleSubmitDisabled],
   );
   const populateOrganizationPrefixInput = useCallback(
     ({
@@ -439,13 +449,33 @@ const GeneralInitForm = forwardRef<
   const handleOrganizationPrefixSuggest = useCallback(() => {
     const organizationPrefix = populateOrganizationPrefixInput();
 
+    let hostName: string | undefined;
+
     if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
-      populateHostNameInput({ organizationPrefix });
+      hostName = populateHostNameInput({ organizationPrefix });
     }
-  }, [populateHostNameInput, populateOrganizationPrefixInput]);
+
+    testInput({
+      inputs: {
+        [IT_IDS.hostName]: { value: hostName },
+        [IT_IDS.organizationPrefix]: { value: organizationPrefix },
+      },
+    });
+    testInputToToggleSubmitDisabled({
+      excludeTestIds: [IT_IDS.hostName, IT_IDS.organizationPrefix],
+    });
+  }, [
+    populateHostNameInput,
+    populateOrganizationPrefixInput,
+    testInput,
+    testInputToToggleSubmitDisabled,
+  ]);
   const handlerHostNameSuggest = useCallback(() => {
-    populateHostNameInput();
-  }, [populateHostNameInput]);
+    const hostName = populateHostNameInput();
+
+    testInput({ inputs: { [IT_IDS.hostName]: { value: hostName } } });
+    testInputToToggleSubmitDisabled({ excludeTestIds: [IT_IDS.hostName] });
+  }, [populateHostNameInput, testInput, testInputToToggleSubmitDisabled]);
   const buildHelpMessage = useCallback(
     (text: string) => (previous?: string) =>
       previous === text ? undefined : text,
@@ -479,7 +509,7 @@ const GeneralInitForm = forwardRef<
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Organization name"
                   onChange={() => {
-                    toggleSubmitDisabled?.call(null, testAllInputs());
+                    testInputToToggleSubmitDisabled();
                   }}
                   onHelp={() => {
                     setHelpMessage(
@@ -517,18 +547,24 @@ const GeneralInitForm = forwardRef<
                           minWidth: '2.5em',
                         },
                       },
-                      onBlur: populateHostNameInputOnBlur,
+                      onBlur: (event, ...resetArgs) => {
+                        const {
+                          target: { value },
+                        } = event;
+
+                        testInput({
+                          inputs: { [IT_IDS.organizationPrefix]: { value } },
+                        });
+                        populateHostNameInputOnBlur(event, ...resetArgs);
+                      },
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Prefix"
                     onChange={({ target: { value } }) => {
-                      testInputSeparate(IT_IDS.organizationPrefix, {
-                        [IT_IDS.organizationPrefix]: {
-                          max: MAX_ORGANIZATION_PREFIX_LENGTH,
-                          min: MIN_ORGANIZATION_PREFIX_LENGTH,
-                          value,
-                        },
+                      testInputToToggleSubmitDisabled({
+                        inputs: { [IT_IDS.organizationPrefix]: { value } },
                       });
+                      setOrganizationPrefixInputMessage();
                       setIsShowOrganizationPrefixSuggest(
                         isOrganizationPrefixPrereqFilled(),
                       );
@@ -555,12 +591,24 @@ const GeneralInitForm = forwardRef<
                           minWidth: '2em',
                         },
                       },
-                      onBlur: populateHostNameInputOnBlur,
+                      onBlur: (event, ...restArgs) => {
+                        const {
+                          target: { value },
+                        } = event;
+
+                        testInput({
+                          inputs: { [IT_IDS.hostNumber]: { value } },
+                        });
+                        populateHostNameInputOnBlur(event, ...restArgs);
+                      },
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Striker #"
                     onChange={({ target: { value } }) => {
-                      testInputSeparate(IT_IDS.hostNumber, { value });
+                      testInputToToggleSubmitDisabled({
+                        inputs: { [IT_IDS.hostNumber]: { value } },
+                      });
+                      setHostNumberInputMessage();
                     }}
                     onHelp={() => {
                       setHelpMessage(
@@ -584,12 +632,22 @@ const GeneralInitForm = forwardRef<
                 <OutlinedInputWithLabel
                   id="striker-init-general-domain-name"
                   inputProps={{
-                    onBlur: populateHostNameInputOnBlur,
+                    onBlur: (event, ...restArgs) => {
+                      const {
+                        target: { value },
+                      } = event;
+
+                      testInput({ inputs: { [IT_IDS.domainName]: { value } } });
+                      populateHostNameInputOnBlur(event, ...restArgs);
+                    },
                   }}
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Domain name"
                   onChange={({ target: { value } }) => {
-                    testInputSeparate(IT_IDS.domainName, { value });
+                    testInputToToggleSubmitDisabled({
+                      inputs: { [IT_IDS.domainName]: { value } },
+                    });
+                    setDomainNameInputMessage();
                   }}
                   onHelp={() => {
                     setHelpMessage(
@@ -614,11 +672,17 @@ const GeneralInitForm = forwardRef<
                         onClick={handlerHostNameSuggest}
                       />
                     ),
+                    onBlur: ({ target: { value } }) => {
+                      testInput({ inputs: { [IT_IDS.hostName]: { value } } });
+                    },
                   }}
                   inputLabelProps={{ isNotifyRequired: true }}
                   label="Host name"
                   onChange={({ target: { value } }) => {
-                    testInputSeparate(IT_IDS.hostName, { value });
+                    testInputToToggleSubmitDisabled({
+                      inputs: { [IT_IDS.hostName]: { value } },
+                    });
+                    setHostNameInputMessage();
                     setIsShowHostNameSuggest(isHostNamePrereqFilled());
                   }}
                   onHelp={() => {
@@ -654,18 +718,30 @@ const GeneralInitForm = forwardRef<
                       inputProps: {
                         type: INPUT_TYPES.password,
                       },
+                      onBlur: ({ target: { value } }) => {
+                        testInput({
+                          inputs: { [IT_IDS.adminPassword]: { value } },
+                        });
+                      },
                       onPasswordVisibilityAppend: (inputType) => {
-                        setIsConfirmAdminPassword(
-                          inputType === INPUT_TYPES.password,
-                        );
+                        const localIsConfirmAdminPassword =
+                          inputType === INPUT_TYPES.password;
+
+                        testInputToToggleSubmitDisabled({
+                          isExcludeConfirmAdminPassword:
+                            !localIsConfirmAdminPassword,
+                        });
+                        setIsConfirmAdminPassword(localIsConfirmAdminPassword);
+                        setConfirmAdminPasswordInputMessage();
                       },
                     }}
                     inputLabelProps={{ isNotifyRequired: true }}
                     label="Admin password"
                     onChange={({ target: { value } }) => {
-                      testInputSeparate(IT_IDS.adminPassword, {
-                        value,
+                      testInputToToggleSubmitDisabled({
+                        inputs: { [IT_IDS.adminPassword]: { value } },
                       });
+                      setAdminPasswordInputMessage();
                     }}
                     onHelp={() => {
                       setHelpMessage(
@@ -689,15 +765,23 @@ const GeneralInitForm = forwardRef<
                         inputProps: {
                           type: INPUT_TYPES.password,
                         },
+                        onBlur: ({ target: { value } }) => {
+                          testInput({
+                            inputs: {
+                              [IT_IDS.confirmAdminPassword]: { value },
+                            },
+                          });
+                        },
                       }}
                       inputLabelProps={{
                         isNotifyRequired: isConfirmAdminPassword,
                       }}
                       label="Confirm password"
                       onChange={({ target: { value } }) => {
-                        testInputSeparate(IT_IDS.confirmAdminPassword, {
-                          value,
+                        testInputToToggleSubmitDisabled({
+                          inputs: { [IT_IDS.confirmAdminPassword]: { value } },
                         });
+                        setConfirmAdminPasswordInputMessage();
                       }}
                     />
                   }
