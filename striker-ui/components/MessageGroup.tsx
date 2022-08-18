@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  ReactNode,
   useCallback,
   useImperativeHandle,
   useMemo,
@@ -13,6 +14,7 @@ type Messages = {
 };
 
 type MessageGroupOptionalProps = {
+  count?: number;
   defaultMessageType?: MessageBoxProps['type'];
 };
 
@@ -25,6 +27,7 @@ type MessageGroupForwardedRefContent = {
 };
 
 const MESSAGE_GROUP_DEFAULT_PROPS: Required<MessageGroupOptionalProps> = {
+  count: 0,
   defaultMessageType: 'info',
 };
 
@@ -33,7 +36,10 @@ const MessageGroup = forwardRef<
   MessageGroupProps
 >(
   (
-    { defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType },
+    {
+      count = MESSAGE_GROUP_DEFAULT_PROPS.count,
+      defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType,
+    },
     ref,
   ) => {
     const [messages, setMessages] = useState<Messages>({});
@@ -65,26 +71,39 @@ const MessageGroup = forwardRef<
       });
     }, []);
 
-    const messageElements = useMemo(
-      () =>
-        Object.entries(messages).map(([messageKey, message]) => {
-          let messageElement;
+    const messageElements = useMemo(() => {
+      const pairs = Object.entries(messages);
+      const isValidCount = count > 0;
+      const limit = isValidCount ? count : pairs.length;
+      const result: ReactNode[] = [];
 
-          if (message) {
-            const { children: messageChildren, type = defaultMessageType } =
-              message;
+      pairs.every(([messageKey, message]) => {
+        if (message) {
+          const { children: messageChildren, type = defaultMessageType } =
+            message;
 
-            messageElement = (
-              <MessageBox key={`message-${messageKey}`} type={type}>
-                {messageChildren}
-              </MessageBox>
-            );
-          }
+          result.push(
+            <MessageBox key={`message-${messageKey}`} type={type}>
+              {messageChildren}
+            </MessageBox>,
+          );
+        }
 
-          return messageElement;
-        }),
-      [defaultMessageType, messages],
-    );
+        return result.length < limit;
+      });
+
+      if (isValidCount && result.length === 0) {
+        result.push(
+          <MessageBox
+            key="message-placeholder"
+            sx={{ visibility: 'hidden' }}
+            text="Placeholder"
+          />,
+        );
+      }
+
+      return result;
+    }, [count, defaultMessageType, messages]);
 
     useImperativeHandle(ref, () => ({ exists, setMessage, setMessageRe }), [
       exists,
