@@ -373,9 +373,16 @@ const GeneralInitForm = forwardRef<
         organizationPrefix,
       );
 
+      testInput({
+        inputs: { [IT_IDS.organizationPrefix]: { value: organizationPrefix } },
+      });
+      testInputToToggleSubmitDisabled({
+        excludeTestIds: [IT_IDS.organizationPrefix],
+      });
+
       return organizationPrefix;
     },
-    [],
+    [testInput, testInputToToggleSubmitDisabled],
   );
   const populateHostNameInput = useCallback(
     ({
@@ -393,9 +400,12 @@ const GeneralInitForm = forwardRef<
 
       hostNameInputRef.current.setValue?.call(null, hostName);
 
+      testInput({ inputs: { [IT_IDS.hostName]: { value: hostName } } });
+      testInputToToggleSubmitDisabled({ excludeTestIds: [IT_IDS.hostName] });
+
       return hostName;
     },
-    [],
+    [testInput, testInputToToggleSubmitDisabled],
   );
   const isOrganizationPrefixPrereqFilled = useCallback(
     () =>
@@ -437,33 +447,13 @@ const GeneralInitForm = forwardRef<
   const handleOrganizationPrefixSuggest = useCallback(() => {
     const organizationPrefix = populateOrganizationPrefixInput();
 
-    let hostName: string | undefined;
-
     if (!hostNameInputRef.current.getIsChangedByUser?.call(null)) {
-      hostName = populateHostNameInput({ organizationPrefix });
+      populateHostNameInput({ organizationPrefix });
     }
-
-    testInput({
-      inputs: {
-        [IT_IDS.hostName]: { value: hostName },
-        [IT_IDS.organizationPrefix]: { value: organizationPrefix },
-      },
-    });
-    testInputToToggleSubmitDisabled({
-      excludeTestIds: [IT_IDS.hostName, IT_IDS.organizationPrefix],
-    });
-  }, [
-    populateHostNameInput,
-    populateOrganizationPrefixInput,
-    testInput,
-    testInputToToggleSubmitDisabled,
-  ]);
+  }, [populateHostNameInput, populateOrganizationPrefixInput]);
   const handlerHostNameSuggest = useCallback(() => {
-    const hostName = populateHostNameInput();
-
-    testInput({ inputs: { [IT_IDS.hostName]: { value: hostName } } });
-    testInputToToggleSubmitDisabled({ excludeTestIds: [IT_IDS.hostName] });
-  }, [populateHostNameInput, testInput, testInputToToggleSubmitDisabled]);
+    populateHostNameInput();
+  }, [populateHostNameInput]);
   const buildHelpMessage = useCallback(
     (text: string) => (previous?: string) =>
       previous === text ? undefined : text,
