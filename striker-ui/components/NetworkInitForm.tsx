@@ -630,22 +630,17 @@ const NetworkInitForm = forwardRef<
       fn = 'every',
       ip = '',
       mask = '',
-      negateMatch = fn === 'every',
+      isNegateMatch = fn === 'every',
       onMatch,
       onMiss,
       skipUUID,
     }: {
       fn?: Extract<keyof Array<NetworkInput>, 'every' | 'some'>;
       ip?: string;
+      isNegateMatch?: boolean;
       mask?: string;
-      negateMatch?: boolean;
-      onMatch?: (
-        otherInput: Pick<
-          NetworkInput,
-          'inputUUID' | 'name' | 'type' | 'typeCount'
-        >,
-      ) => void;
-      onMiss?: (otherInput: Pick<NetworkInput, 'inputUUID'>) => void;
+      onMatch?: (otherInput: NetworkInput) => void;
+      onMiss?: (otherInput: NetworkInput) => void;
       skipUUID?: string;
     }) => {
       const skipReturn = fn === 'every';
@@ -661,41 +656,35 @@ const NetworkInitForm = forwardRef<
         // eslint-disable-next-line no-empty
       } catch (netmaskError) {}
 
-      return networkInputs[fn](
-        ({
-          inputUUID,
-          ipAddressInputRef,
-          name,
-          subnetMaskInputRef,
-          type,
-          typeCount,
-        }) => {
-          if (inputUUID === skipUUID) {
-            return skipReturn;
-          }
+      return networkInputs[fn]((networkInput) => {
+        const { inputUUID, ipAddressInputRef, subnetMaskInputRef } =
+          networkInput;
 
-          const otherIP = ipAddressInputRef?.current.getValue?.call(null);
-          const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
+        if (inputUUID === skipUUID) {
+          return skipReturn;
+        }
 
-          let isMatch = false;
+        const otherIP = ipAddressInputRef?.current.getValue?.call(null);
+        const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
 
-          try {
-            const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
+        let isMatch = false;
 
-            isMatch = match(otherSubnet, { b: subnet, bIP: ip });
+        try {
+          const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
 
-            // eslint-disable-next-line no-empty
-          } catch (netmaskError) {}
+          isMatch = match(otherSubnet, { b: subnet, bIP: ip });
 
-          if (isMatch) {
-            onMatch?.call(null, { inputUUID, name, type, typeCount });
-          } else {
-            onMiss?.call(null, { inputUUID });
-          }
+          // eslint-disable-next-line no-empty
+        } catch (netmaskError) {}
 
-          return negateMatch ? !isMatch : isMatch;
-        },
-      );
+        if (isMatch) {
+          onMatch?.call(null, networkInput);
+        } else {
+          onMiss?.call(null, networkInput);
+        }
+
+        return isNegateMatch ? !isMatch : isMatch;
+      });
     },
     [networkInputs],
   );
@@ -739,19 +728,35 @@ const NetworkInitForm = forwardRef<
             test: ({ value }) => REP_IPV4.test(value as string),
           },
           {
-            onFailure: () => {
-              setGatewayInputMessage({
-                children: "Gateway must be in one network's subnet.",
-              });
-            },
-            test: ({ value }) =>
-              subnetContains({
+            test: ({ value }) => {
+              let isDistinctIP = true;
+
+              const isIPInOneNetwork = subnetContains({
                 fn: 'some',
                 ip: value as string,
-                onMatch: ({ type, typeCount }) => {
+                onMatch: ({ ipAddress, name, type, typeCount }) => {
+                  if (value === ipAddress) {
+                    isDistinctIP = false;
+
+                    setGatewayInputMessage({
+                      children: `Gateway cannot be the same as IP address in ${name}.`,
+                    });
+
+                    return;
+                  }
+
                   setGatewayInterface(`${type}${typeCount}`);
                 },
-              }),
+              });
+
+              if (!isIPInOneNetwork) {
+                setGatewayInputMessage({
+                  children: "Gateway must be in one network's subnet.",
+                });
+              }
+
+              return isIPInOneNetwork && isDistinctIP;
+            },
           },
           { test: testNotBlank },
         ],
