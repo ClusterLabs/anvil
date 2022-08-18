@@ -21,6 +21,7 @@ type MessageGroupProps = MessageGroupOptionalProps;
 type MessageGroupForwardedRefContent = {
   exists?: (key: string) => boolean;
   setMessage?: (key: string, message?: Message) => void;
+  setMessageRe?: (re: RegExp, message?: Message) => void;
 };
 
 const MESSAGE_GROUP_DEFAULT_PROPS: Required<MessageGroupOptionalProps> = {
@@ -50,6 +51,19 @@ const MessageGroup = forwardRef<
         return result;
       });
     }, []);
+    const setMessageRe = useCallback((re: RegExp, message?: Message) => {
+      setMessages((previous) => {
+        const result = { ...previous };
+
+        Object.keys(previous).forEach((key: string) => {
+          if (re.test(key)) {
+            result[key] = message;
+          }
+        });
+
+        return result;
+      });
+    }, []);
 
     const messageElements = useMemo(
       () =>
@@ -72,9 +86,10 @@ const MessageGroup = forwardRef<
       [defaultMessageType, messages],
     );
 
-    useImperativeHandle(ref, () => ({ exists, setMessage }), [
+    useImperativeHandle(ref, () => ({ exists, setMessage, setMessageRe }), [
       exists,
       setMessage,
+      setMessageRe,
     ]);
 
     return <>{messageElements}</>;
