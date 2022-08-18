@@ -72,6 +72,7 @@ type NetworkInput = {
 type NetworkInterfaceInputMap = Record<
   string,
   {
+    metadata: NetworkInterfaceOverviewMetadata;
     isApplied?: boolean;
   }
 >;
@@ -129,6 +130,11 @@ const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
     networkInterfaceOrder: 4,
   },
 ];
+
+const CLASS_PREFIX = 'NetworkInitForm';
+const CLASSES = {
+  ifaceNotApplied: `${CLASS_PREFIX}-network-interface-not-applied`,
+};
 
 const NETWORK_TYPES: Record<string, string> = {
   bcn: 'Back-Channel Network',
@@ -574,19 +580,17 @@ const NetworkInitForm = forwardRef<
   >(`${API_BASE_URL}/network-interface`, {
     refreshInterval: 2000,
     onSuccess: (data) => {
-      if (data instanceof Array) {
-        const map = data.reduce<NetworkInterfaceInputMap>(
-          (reduceContainer, { networkInterfaceUUID }) => {
-            reduceContainer[networkInterfaceUUID] =
-              networkInterfaceInputMap[networkInterfaceUUID] ?? {};
+      const map = data.reduce<NetworkInterfaceInputMap>((result, metadata) => {
+        const { networkInterfaceUUID } = metadata;
 
-            return reduceContainer;
-          },
-          {},
-        );
+        result[networkInterfaceUUID] = networkInterfaceInputMap[
+          networkInterfaceUUID
+        ] ?? { metadata };
 
-        setNetworkInterfaceInputMap(map);
-      }
+        return result;
+      }, {});
+
+      setNetworkInterfaceInputMap(map);
     },
   });
 
@@ -972,7 +976,8 @@ const NetworkInitForm = forwardRef<
       };
   }, [networkInterfaceHeld, networkInterfaceInputMap]);
   const dragAreaDraggingSx: MUIBoxProps['sx'] = useMemo(
-    () => (networkInterfaceHeld ? { cursor: 'grabbing' } : {}),
+    () =>
+      networkInterfaceHeld ? { cursor: 'grabbing', userSelect: 'none' } : {},
     [networkInterfaceHeld],
   );
   const floatingNetworkInterface: JSX.Element = useMemo(() => {
@@ -1030,11 +1035,14 @@ const NetworkInitForm = forwardRef<
 
   useEffect(() => {
     const map = networkInterfaces.reduce<NetworkInterfaceInputMap>(
-      (reduceContainer, { networkInterfaceUUID }) => {
-        reduceContainer[networkInterfaceUUID] =
-          networkInterfaceInputMap[networkInterfaceUUID] ?? {};
+      (result, metadata) => {
+        const { networkInterfaceUUID } = metadata;
 
-        return reduceContainer;
+        result[networkInterfaceUUID] = networkInterfaceInputMap[
+          networkInterfaceUUID
+        ] ?? { metadata };
+
+        return result;
       },
       {},
     );
@@ -1110,8 +1118,42 @@ const NetworkInitForm = forwardRef<
           columns={createNetworkInterfaceTableColumns((row) => {
             setNetworkInterfaceHeld(row);
           }, networkInterfaceInputMap)}
+          componentsProps={{
+            row: {
+              onMouseDown: ({
+                target: {
+                  parentElement: {
+                    dataset: { id: networkInterfaceUUID = undefined } = {},
+                  } = {},
+                } = {},
+              }: {
+                target?: { parentElement?: { dataset?: { id?: string } } };
+              }) => {
+                if (networkInterfaceUUID) {
+                  const { isApplied, metadata } =
+                    networkInterfaceInputMap[networkInterfaceUUID];
+
+                  if (!isApplied) {
+                    setNetworkInterfaceHeld(metadata);
+                  }
+                }
+              },
+            },
+          }}
           disableColumnMenu
           disableSelectionOnClick
+          getRowClassName={({ row: { networkInterfaceUUID } }) => {
+            const { isApplied } =
+              networkInterfaceInputMap[networkInterfaceUUID] ?? false;
+
+            let className = '';
+
+            if (!isApplied) {
+              className += ` ${CLASSES.ifaceNotApplied}`;
+            }
+
+            return className;
+          }}
           getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
           hideFooter
           rows={networkInterfaces}
@@ -1124,6 +1166,14 @@ const NetworkInitForm = forwardRef<
 
             [`& .${muiGridClasses.cell}:focus`]: {
               outline: 'none',
+            },
+
+            [`& .${muiGridClasses.row}.${CLASSES.ifaceNotApplied}:hover`]: {
+              cursor: 'grab',
+
+              [`& .${muiGridClasses.cell} p`]: {
+                cursor: 'auto',
+              },
             },
           }}
         />
