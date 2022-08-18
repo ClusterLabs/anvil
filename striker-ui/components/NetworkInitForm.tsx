@@ -51,7 +51,10 @@ import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
-import { InputTestBatches, InputTestInputs } from '../types/TestInputFunction';
+import {
+  InputTestBatches,
+  TestInputFunctionOptions,
+} from '../types/TestInputFunction';
 import { BodyText, MonoText, SmallText } from './Text';
 
 type NetworkInput = {
@@ -281,11 +284,15 @@ const NetworkForm: FC<{
   networkInput: NetworkInput;
   networkInterfaceInputMap: NetworkInterfaceInputMap;
   optionalNetworkInputsLength: number;
+  setMessageRe: (re: RegExp, message?: Message) => void;
   setNetworkInputs: Dispatch<SetStateAction<NetworkInput[]>>;
   setNetworkInterfaceInputMap: Dispatch<
     SetStateAction<NetworkInterfaceInputMap>
   >;
-  testInputSeparate: (id: string, input: InputTestInputs[string]) => void;
+  testInput: (options?: TestInputFunctionOptions) => boolean;
+  testInputToToggleSubmitDisabled: (
+    options?: Pick<TestInputFunctionOptions, 'inputs' | 'excludeTestIds'>,
+  ) => void;
 }> = ({
   createDropMouseUpHandler,
   getNetworkTypeCount,
@@ -293,9 +300,11 @@ const NetworkForm: FC<{
   networkInput,
   networkInterfaceInputMap,
   optionalNetworkInputsLength,
+  setMessageRe,
   setNetworkInputs,
   setNetworkInterfaceInputMap,
-  testInputSeparate,
+  testInput,
+  testInputToToggleSubmitDisabled,
 }) => {
   const theme = useTheme();
   const breakpointMedium = useMediaQuery(theme.breakpoints.up('md'));
@@ -321,6 +330,10 @@ const NetworkForm: FC<{
   );
   const subnetMaskInputTestId = useMemo(
     () => IT_IDS.networkSubnetMask(inputTestPrefix),
+    [inputTestPrefix],
+  );
+  const subnetConflictInputMessageKeyPrefix = useMemo(
+    () => IT_IDS.networkSubnetConflict(inputTestPrefix),
     [inputTestPrefix],
   );
   const isNetworkOptional = useMemo(
@@ -437,8 +450,12 @@ const NetworkForm: FC<{
                     ?.call(null, interfaces, networkInterfaceIndex)
                     ?.call(null, ...args);
 
-                  testInputSeparate(interfacesInputTestId, {
-                    value: getFilled(interfaces).length,
+                  testInputToToggleSubmitDisabled({
+                    inputs: {
+                      [interfacesInputTestId]: {
+                        value: getFilled(interfaces).length,
+                      },
+                    },
                   });
                 }}
               >
@@ -454,8 +471,12 @@ const NetworkForm: FC<{
                       setNetworkInterfaceInputMap((previous) => ({
                         ...previous,
                       }));
-                      testInputSeparate(interfacesInputTestId, {
-                        value: getFilled(interfaces).length,
+                      testInputToToggleSubmitDisabled({
+                        inputs: {
+                          [interfacesInputTestId]: {
+                            value: getFilled(interfaces).length,
+                          },
+                        },
                       });
                     }}
                   />
@@ -470,10 +491,22 @@ const NetworkForm: FC<{
           input={
             <OutlinedInputWithLabel
               id={`network-${inputUUID}-ip-address`}
+              inputProps={{
+                onBlur: ({ target: { value } }) => {
+                  testInput({ inputs: { [ipAddressInputTestId]: { value } } });
+                },
+              }}
               inputLabelProps={{ isNotifyRequired: true }}
               label="IP address"
               onChange={({ target: { value } }) => {
-                testInputSeparate(ipAddressInputTestId, { value });
+                testInputToToggleSubmitDisabled({
+                  inputs: { [ipAddressInputTestId]: { value } },
+                });
+                setMessageRe(
+                  RegExp(
+                    `(?:^(?:${ipAddressInputTestId}|${subnetConflictInputMessageKeyPrefix})|${inputUUID}$)`,
+                  ),
+                );
               }}
               value={ipAddress}
             />
@@ -484,10 +517,22 @@ const NetworkForm: FC<{
           input={
             <OutlinedInputWithLabel
               id={`network-${inputUUID}-subnet-mask`}
+              inputProps={{
+                onBlur: ({ target: { value } }) => {
+                  testInput({ inputs: { [subnetMaskInputTestId]: { value } } });
+                },
+              }}
               inputLabelProps={{ isNotifyRequired: true }}
               label="Subnet mask"
               onChange={({ target: { value } }) => {
-                testInputSeparate(subnetMaskInputTestId, { value });
+                testInputToToggleSubmitDisabled({
+                  inputs: { [subnetMaskInputTestId]: { value } },
+                });
+                setMessageRe(
+                  RegExp(
+                    `(?:^(?:${subnetMaskInputTestId}|${subnetConflictInputMessageKeyPrefix})|${inputUUID}$)`,
+                  ),
+                );
               }}
               value={subnetMask}
             />
@@ -561,6 +606,11 @@ const NetworkInitForm = forwardRef<
   const setMessage = useCallback(
     (key: string, message?: Message) =>
       messageGroupRef.current.setMessage?.call(null, key, message),
+    [],
+  );
+  const setMessageRe = useCallback(
+    (re: RegExp, message?: Message) =>
+      messageGroupRef.current.setMessageRe?.call(null, re, message),
     [],
   );
   const setDomainNameServerCSVInputMessage = useCallback(
@@ -720,7 +770,7 @@ const NetworkInitForm = forwardRef<
           setMessage(inputTestIDIPAddress, message);
         const setNetworkSubnetMaskInputMessage = (message?: Message) =>
           setMessage(inputTestIDSubnetMask, message);
-        const setNetworkSubnetConflict = (
+        const setNetworkSubnetConflictInputMessage = (
           uuid: string,
           otherUUID: string,
           message?: Message,
@@ -750,12 +800,12 @@ const NetworkInitForm = forwardRef<
             ip,
             mask,
             onMatch: ({ inputUUID: otherUUID, name: otherName }) => {
-              setNetworkSubnetConflict(inputUUID, otherUUID, {
+              setNetworkSubnetConflictInputMessage(inputUUID, otherUUID, {
                 children: `"${name}" and "${otherName}" cannot be in the same subnet.`,
               });
             },
             onMiss: ({ inputUUID: otherUUID }) => {
-              setNetworkSubnetConflict(inputUUID, otherUUID);
+              setNetworkSubnetConflictInputMessage(inputUUID, otherUUID);
             },
             skipUUID: inputUUID,
           });
@@ -791,7 +841,7 @@ const NetworkInitForm = forwardRef<
           defaults: { value: name },
           tests: [{ test: testNotBlank }],
         };
-        tests[IT_IDS.networkSubnetMask(inputTestPrefix)] = {
+        tests[inputTestIDSubnetMask] = {
           defaults: {
             getValue: () => subnetMaskInputRef?.current.getValue?.call(null),
             onSuccess: () => {
@@ -832,19 +882,22 @@ const NetworkInitForm = forwardRef<
     [inputTests],
   );
 
-  const testAllInputs = useCallback(
-    (...excludeTestIds: string[]) =>
-      testInput({ excludeTestIds, isIgnoreOnCallbacks: true }),
-    [testInput],
-  );
-  const testInputSeparate = useCallback(
-    (id: string, input: InputTestInputs[string]) => {
-      const isLocalValid = testInput({
-        inputs: { [id]: input },
-      });
-      toggleSubmitDisabled?.call(null, isLocalValid && testAllInputs(id));
+  const testInputToToggleSubmitDisabled = useCallback(
+    ({
+      excludeTestIds = [],
+      inputs,
+    }: Pick<TestInputFunctionOptions, 'inputs' | 'excludeTestIds'> = {}) => {
+      toggleSubmitDisabled?.call(
+        null,
+        testInput({
+          excludeTestIds,
+          inputs,
+          isIgnoreOnCallbacks: true,
+          isTestAll: true,
+        }),
+      );
     },
-    [testInput, testAllInputs, toggleSubmitDisabled],
+    [testInput, toggleSubmitDisabled],
   );
   const clearNetworkInterfaceHeld = useCallback(() => {
     setNetworkInterfaceHeld(undefined);
@@ -1126,9 +1179,11 @@ const NetworkInitForm = forwardRef<
                     networkInput,
                     networkInterfaceInputMap,
                     optionalNetworkInputsLength,
+                    setMessageRe,
                     setNetworkInputs,
                     setNetworkInterfaceInputMap,
-                    testInputSeparate,
+                    testInput,
+                    testInputToToggleSubmitDisabled,
                   }}
                 />
               );
@@ -1143,9 +1198,17 @@ const NetworkInitForm = forwardRef<
             input={
               <OutlinedInputWithLabel
                 id="network-init-gateway"
+                inputProps={{
+                  onBlur: ({ target: { value } }) => {
+                    testInput({ inputs: { [IT_IDS.gateway]: { value } } });
+                  },
+                }}
                 inputLabelProps={{ isNotifyRequired: true }}
                 onChange={({ target: { value } }) => {
-                  testInputSeparate(IT_IDS.gateway, { value });
+                  testInputToToggleSubmitDisabled({
+                    inputs: { [IT_IDS.gateway]: { value } },
+                  });
+                  setGatewayInputMessage();
                 }}
                 label="Gateway"
               />
@@ -1156,9 +1219,17 @@ const NetworkInitForm = forwardRef<
             input={
               <OutlinedInputWithLabel
                 id="network-init-dns-csv"
+                inputProps={{
+                  onBlur: ({ target: { value } }) => {
+                    testInput({ inputs: { [IT_IDS.dnsCSV]: { value } } });
+                  },
+                }}
                 inputLabelProps={{ isNotifyRequired: true }}
                 onChange={({ target: { value } }) => {
-                  testInputSeparate(IT_IDS.dnsCSV, { value });
+                  testInputToToggleSubmitDisabled({
+                    inputs: { [IT_IDS.dnsCSV]: { value } },
+                  });
+                  setDomainNameServerCSVInputMessage();
                 }}
                 label="Domain name server(s)"
               />
