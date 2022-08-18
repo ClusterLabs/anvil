@@ -1,6 +1,5 @@
 import { Grid as MUIGrid } from '@mui/material';
 import {
-  FC,
   forwardRef,
   ReactNode,
   useCallback,
@@ -13,7 +12,7 @@ import {
 import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 import { REP_DOMAIN } from '../lib/consts/REG_EXP_PATTERNS';
 
-import FlexBox, { FlexBoxProps } from './FlexBox';
+import FlexBox from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import isEmpty from '../lib/isEmpty';
 import MessageBox, { Message } from './MessageBox';
@@ -28,7 +27,7 @@ import {
   InputTestBatches,
   TestInputFunctionOptions,
 } from '../types/TestInputFunction';
-import { BodyText } from './Text';
+import { BodyText, InlineMonoText } from './Text';
 
 type GeneralInitFormValues = {
   adminPassword?: string;
@@ -95,23 +94,6 @@ const buildHostName = ({
   isEmpty([organizationPrefix, hostNumber, domainName], { not: true })
     ? `${organizationPrefix}-striker${pad(hostNumber)}.${domainName}`
     : '';
-
-const ms = (text: ReactNode) => (
-  <BodyText className="inline-monospace-text" monospaced text={text} />
-);
-
-const MessageChildren: FC<FlexBoxProps> = ({ ...flexBoxProps }) => (
-  <FlexBox
-    {...flexBoxProps}
-    row
-    spacing={0}
-    sx={{
-      '& > .inline-monospace-text': {
-        marginTop: '-.2em',
-      },
-    }}
-  />
-);
 
 const GeneralInitForm = forwardRef<
   GeneralInitFormForwardRefContent,
@@ -205,12 +187,16 @@ const GeneralInitForm = forwardRef<
             onFailure: () => {
               setAdminPasswordInputMessage({
                 children: (
-                  <MessageChildren>
-                    Admin password cannot contain single-quote ({ms("'")}),
-                    double-quote ({ms('"')}), slash ({ms('/')}), backslash (
-                    {ms('\\')}), angle brackets ({ms('<>')}), curly brackets (
-                    {ms('{}')}).
-                  </MessageChildren>
+                  <BodyText>
+                    Admin password cannot contain single-quote (
+                    <InlineMonoText text="'" />
+                    ), double-quote (<InlineMonoText text='"' />
+                    ), slash (<InlineMonoText text="/" />
+                    ), backslash (<InlineMonoText text="\" />
+                    ), angle brackets (<InlineMonoText text="<>" />
+                    ), curly brackets (<InlineMonoText text="{}" />
+                    ).
+                  </BodyText>
                 ),
               });
             },
@@ -231,7 +217,7 @@ const GeneralInitForm = forwardRef<
           {
             onFailure: () => {
               setConfirmAdminPasswordInputMessage({
-                children: 'Admin password confirmation failed.',
+                children: "Confirmation doesn't match admin password.",
               });
             },
             test: ({ value }) =>
@@ -252,10 +238,11 @@ const GeneralInitForm = forwardRef<
             onFailure: () => {
               setDomainNameInputMessage({
                 children: (
-                  <MessageChildren>
+                  <BodyText>
                     Domain name can only contain lowercase alphanumeric, hyphen
-                    ({ms('-')}), and dot ({ms('.')}) characters.
-                  </MessageChildren>
+                    (<InlineMonoText text="-" />
+                    ), and dot (<InlineMonoText text="." />) characters.
+                  </BodyText>
                 ),
               });
             },
@@ -276,10 +263,11 @@ const GeneralInitForm = forwardRef<
             onFailure: () => {
               setHostNameInputMessage({
                 children: (
-                  <MessageChildren>
+                  <BodyText>
                     Host name can only contain lowercase alphanumeric, hyphen (
-                    {ms('-')}), and dot ({ms('.')}) characters.
-                  </MessageChildren>
+                    <InlineMonoText text="-" />
+                    ), and dot (<InlineMonoText text="." />) characters.
+                  </BodyText>
                 ),
               });
             },
