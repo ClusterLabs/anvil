@@ -4,7 +4,7 @@ import fetcher from './fetchJSON';
 
 const periodicFetch = <T>(
   url: string,
-  { refreshInterval = 5000, onSuccess }: SWRConfiguration = {},
+  { refreshInterval = 5000, onSuccess }: SWRConfiguration<T> = {},
 ): GetResponses<T> => {
   // The purpose of react-hooks/rules-of-hooks is to ensure that react hooks
   // are called in order (i.e., not potentially skipped due to conditionals).
