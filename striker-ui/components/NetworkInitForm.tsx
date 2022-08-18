@@ -1237,7 +1237,11 @@ const NetworkInitForm = forwardRef<
             ref={dnsCSVInputRef}
           />
         </FlexBox>
-        <MessageGroup defaultMessageType="warning" ref={messageGroupRef} />
+        <MessageGroup
+          count={1}
+          defaultMessageType="warning"
+          ref={messageGroupRef}
+        />
       </MUIBox>
     </MUIBox>
   );

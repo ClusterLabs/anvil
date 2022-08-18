@@ -780,7 +780,11 @@ const GeneralInitForm = forwardRef<
           </MUIGrid>
         </MUIGrid>
       </MUIGrid>
-      <MessageGroup defaultMessageType="warning" ref={messageGroupRef} />
+      <MessageGroup
+        count={1}
+        defaultMessageType="warning"
+        ref={messageGroupRef}
+      />
       {helpMessage && (
         <MessageBox
           onClose={() => {
