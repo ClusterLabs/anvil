@@ -120,7 +120,7 @@ const testInput: TestInputFunction = ({
       });
 
       if (singleResult) {
-        cbSuccess?.call(null);
+        cbSuccess?.call(null, { append });
       } else {
         allResult = singleResult;
 
