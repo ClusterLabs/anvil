@@ -66,6 +66,7 @@ export type InputTestBatches = {
 
 export type TestInputFunctionOptions = {
   excludeTestIds?: string[];
+  excludeTestIdsRe?: RegExp;
   inputs?: InputTestInputs;
   isContinueOnFailure?: boolean;
   isIgnoreOnCallbacks?: boolean;

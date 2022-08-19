@@ -44,12 +44,15 @@ const evalIsIgnoreOnCallbacks = ({
 
 const testInput: TestInputFunction = ({
   excludeTestIds = [],
+  excludeTestIdsRe,
   inputs = {},
   isContinueOnFailure,
   isIgnoreOnCallbacks: isIgnoreAllOnCallbacks,
   isTestAll = Object.keys(inputs).length === 0,
   tests = {},
 } = {}): boolean => {
+  const allExcludeIds = [...excludeTestIds];
+
   let testsToRun: InputTestInputs = {};
   let allResult = true;
 
@@ -61,7 +64,15 @@ const testInput: TestInputFunction = ({
 
   testsToRun = { ...testsToRun, ...inputs };
 
-  excludeTestIds.forEach((id: string) => {
+  if (excludeTestIdsRe) {
+    Object.keys(testsToRun).forEach((id: string) => {
+      if (excludeTestIdsRe.test(id)) {
+        allExcludeIds.push(id);
+      }
+    });
+  }
+
+  allExcludeIds.forEach((id: string) => {
     delete testsToRun[id];
   });
 
