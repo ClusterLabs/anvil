@@ -1,4 +1,4 @@
-import { Grid as MUIGrid } from '@mui/material';
+import { Checkbox as MUICheckbox, Grid as MUIGrid } from '@mui/material';
 import {
   forwardRef,
   ReactNode,
@@ -106,6 +106,7 @@ const GeneralInitForm = forwardRef<
     useState<boolean>(false);
   const [isConfirmAdminPassword, setIsConfirmAdminPassword] =
     useState<boolean>(true);
+  const [isValidateDomain, setIsValidateDomain] = useState<boolean>(true);
 
   const adminPasswordInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const confirmAdminPasswordInputRef = useRef<
@@ -228,6 +229,7 @@ const GeneralInitForm = forwardRef<
       },
       [IT_IDS.domainName]: {
         defaults: {
+          compare: [!isValidateDomain],
           getValue: () => domainNameInputRef.current.getValue?.call(null),
           onSuccess: () => {
             setDomainNameInputMessage(undefined);
@@ -246,13 +248,15 @@ const GeneralInitForm = forwardRef<
                 ),
               });
             },
-            test: ({ value }) => REP_DOMAIN.test(value as string),
+            test: ({ compare, value }) =>
+              (compare[0] as boolean) || REP_DOMAIN.test(value as string),
           },
           { test: testNotBlank },
         ],
       },
       [IT_IDS.hostName]: {
         defaults: {
+          compare: [!isValidateDomain],
           getValue: () => hostNameInputRef.current.getValue?.call(null),
           onSuccess: () => {
             setHostNameInputMessage(undefined);
@@ -271,7 +275,8 @@ const GeneralInitForm = forwardRef<
                 ),
               });
             },
-            test: ({ value }) => REP_DOMAIN.test(value as string),
+            test: ({ compare, value }) =>
+              (compare[0] as boolean) || REP_DOMAIN.test(value as string),
           },
           { test: testNotBlank },
         ],
@@ -287,7 +292,7 @@ const GeneralInitForm = forwardRef<
           {
             onFailure: () => {
               setHostNumberInputMessage({
-                children: 'Host number can only contain digits.',
+                children: 'Striker number can only contain digits.',
               });
             },
             test: ({ value }) => /^\d+$/.test(value as string),
@@ -325,6 +330,7 @@ const GeneralInitForm = forwardRef<
       },
     }),
     [
+      isValidateDomain,
       setAdminPasswordInputMessage,
       setConfirmAdminPasswordInputMessage,
       setDomainNameInputMessage,
@@ -342,8 +348,12 @@ const GeneralInitForm = forwardRef<
     ({
       excludeTestIds = [],
       inputs,
+      isContinueOnFailure,
       isExcludeConfirmAdminPassword = !isConfirmAdminPassword,
-    }: Pick<TestInputFunctionOptions, 'inputs' | 'excludeTestIds'> & {
+    }: Pick<
+      TestInputFunctionOptions,
+      'inputs' | 'excludeTestIds' | 'isContinueOnFailure'
+    > & {
       isExcludeConfirmAdminPassword?: boolean;
     } = {}) => {
       if (isExcludeConfirmAdminPassword) {
@@ -355,6 +365,7 @@ const GeneralInitForm = forwardRef<
         testInput({
           excludeTestIds,
           inputs,
+          isContinueOnFailure,
           isIgnoreOnCallbacks: true,
           isTestAll: true,
         }),
@@ -373,16 +384,19 @@ const GeneralInitForm = forwardRef<
         organizationPrefix,
       );
 
-      testInput({
-        inputs: { [IT_IDS.organizationPrefix]: { value: organizationPrefix } },
-      });
       testInputToToggleSubmitDisabled({
-        excludeTestIds: [IT_IDS.organizationPrefix],
+        inputs: {
+          [IT_IDS.organizationPrefix]: {
+            isIgnoreOnCallbacks: false,
+            value: organizationPrefix,
+          },
+        },
+        isContinueOnFailure: true,
       });
 
       return organizationPrefix;
     },
-    [testInput, testInputToToggleSubmitDisabled],
+    [testInputToToggleSubmitDisabled],
   );
   const populateHostNameInput = useCallback(
     ({
@@ -400,12 +414,16 @@ const GeneralInitForm = forwardRef<
 
       hostNameInputRef.current.setValue?.call(null, hostName);
 
-      testInput({ inputs: { [IT_IDS.hostName]: { value: hostName } } });
-      testInputToToggleSubmitDisabled({ excludeTestIds: [IT_IDS.hostName] });
+      testInputToToggleSubmitDisabled({
+        inputs: {
+          [IT_IDS.hostName]: { isIgnoreOnCallbacks: false, value: hostName },
+        },
+        isContinueOnFailure: true,
+      });
 
       return hostName;
     },
-    [testInput, testInputToToggleSubmitDisabled],
+    [testInputToToggleSubmitDisabled],
   );
   const isOrganizationPrefixPrereqFilled = useCallback(
     () =>
@@ -458,6 +476,32 @@ const GeneralInitForm = forwardRef<
     (text: string) => (previous?: string) =>
       previous === text ? undefined : text,
     [],
+  );
+
+  const validateDomainCheckbox = useMemo(
+    () => (
+      <MUICheckbox
+        checked={isValidateDomain}
+        onChange={(event, checked) => {
+          setIsValidateDomain(checked);
+          testInputToToggleSubmitDisabled({
+            inputs: {
+              [IT_IDS.domainName]: {
+                compare: [!checked],
+                isIgnoreOnCallbacks: false,
+              },
+              [IT_IDS.hostName]: {
+                compare: [!checked],
+                isIgnoreOnCallbacks: false,
+              },
+            },
+            isContinueOnFailure: true,
+          });
+        }}
+        sx={{ padding: '.2em' }}
+      />
+    ),
+    [isValidateDomain, testInputToToggleSubmitDisabled],
   );
 
   useImperativeHandle(ref, () => ({
@@ -775,6 +819,16 @@ const GeneralInitForm = forwardRef<
         defaultMessageType="warning"
         ref={messageGroupRef}
       />
+      <MessageBox>
+        <FlexBox row sx={{ '& > :last-child': { flexGrow: 1 } }}>
+          {validateDomainCheckbox}
+          <BodyText inverted>
+            {isValidateDomain
+              ? 'Uncheck to skip domain and host name pattern validation.'
+              : 'Check to re-enable domain and host name pattern validation.'}
+          </BodyText>
+        </FlexBox>
+      </MessageBox>
       {helpMessage && (
         <MessageBox
           onClose={() => {
