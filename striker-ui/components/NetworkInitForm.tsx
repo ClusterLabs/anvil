@@ -1090,6 +1090,9 @@ const NetworkInitForm = forwardRef<
     [gatewayInterface, networkInputs],
   );
 
+  const networkInputMinWidth = '13em';
+  const networkInputWidth = '25%';
+
   return isLoading ? (
     <Spinner />
   ) : (
@@ -1212,8 +1215,8 @@ const NetworkInitForm = forwardRef<
               '& > div': {
                 marginBottom: '.8em',
                 marginTop: '.4em',
-                minWidth: '13em',
-                width: '25%',
+                minWidth: networkInputMinWidth,
+                width: networkInputWidth,
               },
 
               '& > :not(:first-child)': {
@@ -1247,7 +1250,15 @@ const NetworkInitForm = forwardRef<
         </FlexBox>
         <FlexBox
           sm="row"
-          sx={{ marginTop: '.2em', '& > :last-child': { flexGrow: 1 } }}
+          sx={{
+            marginLeft: { sm: '3.8em' },
+            marginTop: '.2em',
+
+            '& > *': {
+              minWidth: networkInputMinWidth,
+              width: { sm: networkInputWidth },
+            },
+          }}
         >
           <InputWithRef
             input={
