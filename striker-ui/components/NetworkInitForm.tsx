@@ -8,6 +8,7 @@ import {
 import {
   Add as MUIAddIcon,
   Check as MUICheckIcon,
+  Close as MUICloseIcon,
   DragHandle as MUIDragHandleIcon,
 } from '@mui/icons-material';
 import {
@@ -39,7 +40,6 @@ import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
 import FlexBox from './FlexBox';
-import getFilled from '../lib/getFilled';
 import IconButton from './IconButton';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import { Message } from './MessageBox';
@@ -62,6 +62,7 @@ type NetworkInput = {
   interfaces: (NetworkInterfaceOverviewMetadata | undefined)[];
   ipAddress: string;
   ipAddressInputRef?: MutableRefObject<InputForwardedRefContent<'string'>>;
+  isRequired?: boolean;
   name?: string;
   subnetMask: string;
   subnetMaskInputRef?: MutableRefObject<InputForwardedRefContent<'string'>>;
@@ -95,6 +96,13 @@ type GetNetworkTypeCountFunction = (
     lastIndex?: number | undefined;
   },
 ) => number;
+
+type TestInputToToggleSubmitDisabled = (
+  options?: Pick<
+    TestInputFunctionOptions,
+    'excludeTestIds' | 'excludeTestIdsRe' | 'inputs' | 'isContinueOnFailure'
+  >,
+) => void;
 
 const MOCK_NICS: NetworkInterfaceOverviewMetadata[] = [
   {
@@ -146,6 +154,7 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
     inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
     interfaces: [],
     ipAddress: '10.200.1.1',
+    isRequired: true,
     name: `${NETWORK_TYPES.bcn} 1`,
     subnetMask: '255.255.0.0',
     type: 'bcn',
@@ -155,6 +164,7 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
     inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
     interfaces: [],
     ipAddress: '10.201.1.1',
+    isRequired: true,
     name: `${NETWORK_TYPES.ifn} 1`,
     subnetMask: '255.255.0.0',
     type: 'ifn',
@@ -289,23 +299,21 @@ const NetworkForm: FC<{
   networkIndex: number;
   networkInput: NetworkInput;
   networkInterfaceInputMap: NetworkInterfaceInputMap;
-  optionalNetworkInputsLength: number;
+  removeNetwork: (index: number) => void;
   setMessageRe: (re: RegExp, message?: Message) => void;
   setNetworkInputs: Dispatch<SetStateAction<NetworkInput[]>>;
   setNetworkInterfaceInputMap: Dispatch<
     SetStateAction<NetworkInterfaceInputMap>
   >;
   testInput: (options?: TestInputFunctionOptions) => boolean;
-  testInputToToggleSubmitDisabled: (
-    options?: Pick<TestInputFunctionOptions, 'inputs' | 'excludeTestIds'>,
-  ) => void;
+  testInputToToggleSubmitDisabled: TestInputToToggleSubmitDisabled;
 }> = ({
   createDropMouseUpHandler,
   getNetworkTypeCount,
   networkIndex,
   networkInput,
   networkInterfaceInputMap,
-  optionalNetworkInputsLength,
+  removeNetwork,
   setMessageRe,
   setNetworkInputs,
   setNetworkInterfaceInputMap,
@@ -319,8 +327,15 @@ const NetworkForm: FC<{
   const ipAddressInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const subnetMaskInputRef = useRef<InputForwardedRefContent<'string'>>({});
 
-  const { inputUUID, interfaces, ipAddress, subnetMask, type, typeCount } =
-    networkInput;
+  const {
+    inputUUID,
+    interfaces,
+    ipAddress,
+    isRequired,
+    subnetMask,
+    type,
+    typeCount,
+  } = networkInput;
 
   const inputTestPrefix = useMemo(
     () => createInputTestPrefix(inputUUID),
@@ -342,10 +357,6 @@ const NetworkForm: FC<{
     () => IT_IDS.networkSubnetConflict(inputTestPrefix),
     [inputTestPrefix],
   );
-  const isNetworkOptional = useMemo(
-    () => networkIndex < optionalNetworkInputsLength,
-    [networkIndex, optionalNetworkInputsLength],
-  );
 
   useEffect(() => {
     const { ipAddressInputRef: ipRef, subnetMaskInputRef: maskRef } =
@@ -364,7 +375,7 @@ const NetworkForm: FC<{
       <InnerPanelHeader>
         <SelectWithLabel
           id={`network-${inputUUID}-name`}
-          isReadOnly={!isNetworkOptional}
+          isReadOnly={isRequired}
           inputLabelProps={{ isNotifyRequired: true }}
           label="Network name"
           selectItems={Object.entries(NETWORK_TYPES).map(
@@ -403,6 +414,21 @@ const NetworkForm: FC<{
             value: type,
           }}
         />
+        {!isRequired && (
+          <IconButton
+            onClick={() => {
+              removeNetwork(networkIndex);
+            }}
+            sx={{
+              padding: '.2em',
+              position: 'absolute',
+              right: '-9px',
+              top: '-4px',
+            }}
+          >
+            <MUICloseIcon fontSize="small" />
+          </IconButton>
+        )}
       </InnerPanelHeader>
       <MUIBox
         sx={{
@@ -455,13 +481,13 @@ const NetworkForm: FC<{
                   createDropMouseUpHandler
                     ?.call(null, interfaces, networkInterfaceIndex)
                     ?.call(null, ...args);
-
                   testInputToToggleSubmitDisabled({
                     inputs: {
                       [interfacesInputTestId]: {
-                        value: getFilled(interfaces).length,
+                        isIgnoreOnCallbacks: false,
                       },
                     },
+                    isContinueOnFailure: true,
                   });
                 }}
               >
@@ -480,9 +506,10 @@ const NetworkForm: FC<{
                       testInputToToggleSubmitDisabled({
                         inputs: {
                           [interfacesInputTestId]: {
-                            value: getFilled(interfaces).length,
+                            isIgnoreOnCallbacks: false,
                           },
                         },
+                        isContinueOnFailure: true,
                       });
                     }}
                   />
@@ -594,10 +621,6 @@ const NetworkInitForm = forwardRef<
     },
   });
 
-  const optionalNetworkInputsLength: number = useMemo(
-    () => networkInputs.length - 2,
-    [networkInputs],
-  );
   const isDisableAddNetworkButton: boolean = useMemo(
     () =>
       networkInputs.length >= networkInterfaces.length ||
@@ -772,9 +795,12 @@ const NetworkInitForm = forwardRef<
         subnetMaskInputRef,
       }) => {
         const inputTestPrefix = createInputTestPrefix(inputUUID);
+        const inputTestIDIfaces = IT_IDS.networkInterfaces(inputTestPrefix);
         const inputTestIDIPAddress = IT_IDS.networkIPAddress(inputTestPrefix);
         const inputTestIDSubnetMask = IT_IDS.networkSubnetMask(inputTestPrefix);
 
+        const setNetworkIfacesInputMessage = (message?: Message) =>
+          setMessage(inputTestIDIfaces, message);
         const setNetworkIPAddressInputMessage = (message?: Message) =>
           setMessage(inputTestIDIPAddress, message);
         const setNetworkSubnetMaskInputMessage = (message?: Message) =>
@@ -819,9 +845,33 @@ const NetworkInitForm = forwardRef<
             skipUUID: inputUUID,
           });
 
-        tests[IT_IDS.networkInterfaces(inputTestPrefix)] = {
-          defaults: { getValue: () => getFilled(interfaces).length },
-          tests: [{ test: ({ value }) => (value as number) > 0 }],
+        tests[inputTestIDIfaces] = {
+          defaults: {
+            getCompare: () => interfaces.map((iface) => iface !== undefined),
+            onSuccess: () => {
+              setNetworkIfacesInputMessage();
+            },
+          },
+          tests: [
+            {
+              onFailure: () => {
+                setNetworkIfacesInputMessage({
+                  children: `${name} must have at least 1 interface.`,
+                });
+              },
+              test: ({ compare }) =>
+                (compare as boolean[]).some((ifaceSet) => ifaceSet),
+            },
+            {
+              onFailure: () => {
+                setNetworkIfacesInputMessage({
+                  children: `${name} must have a Link 1 interface.`,
+                });
+              },
+              test: ({ compare: [iface1Exists, iface2Exists] }) =>
+                !(iface2Exists && !iface1Exists),
+            },
+          ],
         };
         tests[inputTestIDIPAddress] = {
           defaults: {
@@ -891,23 +941,21 @@ const NetworkInitForm = forwardRef<
     [inputTests],
   );
 
-  const testInputToToggleSubmitDisabled = useCallback(
-    ({
-      excludeTestIds = [],
-      inputs,
-    }: Pick<TestInputFunctionOptions, 'inputs' | 'excludeTestIds'> = {}) => {
-      toggleSubmitDisabled?.call(
-        null,
-        testInput({
-          excludeTestIds,
-          inputs,
-          isIgnoreOnCallbacks: true,
-          isTestAll: true,
-        }),
-      );
-    },
-    [testInput, toggleSubmitDisabled],
-  );
+  const testInputToToggleSubmitDisabled: TestInputToToggleSubmitDisabled =
+    useCallback(
+      (options) => {
+        toggleSubmitDisabled?.call(
+          null,
+          testInput({
+            isIgnoreOnCallbacks: true,
+            isTestAll: true,
+
+            ...options,
+          }),
+        );
+      },
+      [testInput, toggleSubmitDisabled],
+    );
   const clearNetworkInterfaceHeld = useCallback(() => {
     setNetworkInterfaceHeld(undefined);
   }, []);
@@ -922,8 +970,18 @@ const NetworkInitForm = forwardRef<
       typeCount: 0,
     });
 
+    toggleSubmitDisabled?.call(null, false);
     setNetworkInputs([...networkInputs]);
-  }, [networkInputs]);
+  }, [networkInputs, toggleSubmitDisabled]);
+  const removeNetwork = useCallback(
+    (networkIndex: number) => {
+      const [{ inputUUID }] = networkInputs.splice(networkIndex, 1);
+
+      testInputToToggleSubmitDisabled({ excludeTestIdsRe: RegExp(inputUUID) });
+      setNetworkInputs([...networkInputs]);
+    },
+    [networkInputs, testInputToToggleSubmitDisabled],
+  );
   const getNetworkTypeCount: GetNetworkTypeCountFunction = useCallback(
     (
       targetType: string,
@@ -1236,7 +1294,7 @@ const NetworkInitForm = forwardRef<
                     networkIndex,
                     networkInput,
                     networkInterfaceInputMap,
-                    optionalNetworkInputsLength,
+                    removeNetwork,
                     setMessageRe,
                     setNetworkInputs,
                     setNetworkInterfaceInputMap,
