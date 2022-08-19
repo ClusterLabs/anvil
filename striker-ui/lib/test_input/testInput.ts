@@ -1,39 +1,57 @@
 import {
   InputTest,
-  InputTestBatches,
   InputTestInputs,
   CallbackAppendArgs,
   TestInputFunction,
+  InputTestBatchFinishCallback,
+  InputTestFailureCallback,
+  InputTestSuccessCallback,
 } from '../../types/TestInputFunction';
+
+type TestCallbacks = Pick<InputTest, 'onFailure' | 'onSuccess'>;
+
+const cbEmptySetter = () => ({});
+
+const cbSetter = ({
+  onFailure,
+  onSuccess,
+}: Pick<InputTest, 'onFailure' | 'onSuccess'>) => ({
+  cbFailure: onFailure,
+  cbSuccess: onSuccess,
+});
+
+const evalIsIgnoreOnCallbacks = ({
+  isIgnoreOnCallbacks,
+  onFinishBatch,
+}: {
+  isIgnoreOnCallbacks?: boolean;
+  onFinishBatch?: InputTestBatchFinishCallback;
+}): {
+  cbFinishBatch?: InputTestBatchFinishCallback;
+  setTestCallbacks: (testCallbacks: TestCallbacks) => {
+    cbFailure?: InputTestFailureCallback;
+    cbSuccess?: InputTestSuccessCallback;
+  };
+} =>
+  isIgnoreOnCallbacks
+    ? {
+        setTestCallbacks: cbEmptySetter,
+      }
+    : {
+        cbFinishBatch: onFinishBatch,
+        setTestCallbacks: cbSetter,
+      };
 
 const testInput: TestInputFunction = ({
   excludeTestIds = [],
   inputs = {},
   isContinueOnFailure,
-  isIgnoreOnCallbacks,
+  isIgnoreOnCallbacks: isIgnoreAllOnCallbacks,
   isTestAll = Object.keys(inputs).length === 0,
   tests = {},
 } = {}): boolean => {
   let testsToRun: InputTestInputs = {};
   let allResult = true;
-
-  let setBatchCallback: (batch?: Partial<InputTestBatches[string]>) => {
-    cbFinishBatch: InputTestBatches[string]['onFinishBatch'];
-  } = () => ({ cbFinishBatch: undefined });
-  let setSingleCallback: (test?: Partial<InputTest>) => {
-    cbFailure: InputTest['onFailure'];
-    cbSuccess: InputTest['onSuccess'];
-  } = () => ({ cbFailure: undefined, cbSuccess: undefined });
-
-  if (!isIgnoreOnCallbacks) {
-    setBatchCallback = ({ onFinishBatch } = {}) => ({
-      cbFinishBatch: onFinishBatch,
-    });
-    setSingleCallback = ({ onFailure, onSuccess } = {}) => ({
-      cbFailure: onFailure,
-      cbSuccess: onSuccess,
-    });
-  }
 
   if (isTestAll) {
     Object.keys(tests).forEach((id: string) => {
@@ -55,6 +73,7 @@ const testInput: TestInputFunction = ({
         displayMin: dDisplayMin,
         getCompare: dGetCompare,
         getValue: dGetValue,
+        isIgnoreOnCallbacks: dIsIgnoreOnCallbacks = isIgnoreAllOnCallbacks,
         max: dMax = 0,
         min: dMin = 0,
         onSuccess: dOnSuccess,
@@ -67,6 +86,7 @@ const testInput: TestInputFunction = ({
     const {
       getCompare = dGetCompare,
       getValue = dGetValue,
+      isIgnoreOnCallbacks = dIsIgnoreOnCallbacks,
       max = dMax,
       min = dMin,
       compare = getCompare?.call(null) ?? dCompare,
@@ -75,7 +95,10 @@ const testInput: TestInputFunction = ({
       displayMin = dDisplayMin || String(min),
     } = testsToRun[id];
 
-    const { cbFinishBatch } = setBatchCallback({ onFinishBatch });
+    const { cbFinishBatch, setTestCallbacks } = evalIsIgnoreOnCallbacks({
+      isIgnoreOnCallbacks,
+      onFinishBatch,
+    });
 
     const runTest: (test: InputTest) => boolean = ({
       onFailure,
@@ -91,7 +114,7 @@ const testInput: TestInputFunction = ({
         value,
       });
 
-      const { cbFailure, cbSuccess } = setSingleCallback({
+      const { cbFailure, cbSuccess } = setTestCallbacks({
         onFailure,
         onSuccess,
       });
