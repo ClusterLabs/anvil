@@ -39,7 +39,7 @@ export type InputTestFailureCallback = (
   args: InputTestArgs & CallbackAppendArgs,
 ) => void;
 
-export type InputTestSuccessCallback = () => void;
+export type InputTestSuccessCallback = (args: CallbackAppendArgs) => void;
 
 export type InputTest = {
   onFailure?: InputTestFailureCallback;
