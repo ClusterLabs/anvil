@@ -188,7 +188,7 @@ const GeneralInitForm = forwardRef<
             onFailure: () => {
               setAdminPasswordInputMessage({
                 children: (
-                  <BodyText>
+                  <>
                     Admin password cannot contain single-quote (
                     <InlineMonoText text="'" />
                     ), double-quote (<InlineMonoText text='"' />
@@ -197,7 +197,7 @@ const GeneralInitForm = forwardRef<
                     ), angle brackets (<InlineMonoText text="<>" />
                     ), curly brackets (<InlineMonoText text="{}" />
                     ).
-                  </BodyText>
+                  </>
                 ),
               });
             },
@@ -240,11 +240,11 @@ const GeneralInitForm = forwardRef<
             onFailure: () => {
               setDomainNameInputMessage({
                 children: (
-                  <BodyText>
+                  <>
                     Domain name can only contain lowercase alphanumeric, hyphen
                     (<InlineMonoText text="-" />
                     ), and dot (<InlineMonoText text="." />) characters.
-                  </BodyText>
+                  </>
                 ),
               });
             },
@@ -267,11 +267,11 @@ const GeneralInitForm = forwardRef<
             onFailure: () => {
               setHostNameInputMessage({
                 children: (
-                  <BodyText>
+                  <>
                     Host name can only contain lowercase alphanumeric, hyphen (
                     <InlineMonoText text="-" />
                     ), and dot (<InlineMonoText text="." />) characters.
-                  </BodyText>
+                  </>
                 ),
               });
             },
