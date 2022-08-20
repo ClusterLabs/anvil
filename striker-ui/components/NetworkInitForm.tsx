@@ -976,12 +976,25 @@ const NetworkInitForm = forwardRef<
   }, [networkInputs, toggleSubmitDisabled]);
   const removeNetwork = useCallback(
     (networkIndex: number) => {
-      const [{ inputUUID }] = networkInputs.splice(networkIndex, 1);
+      const [{ inputUUID, interfaces }] = networkInputs.splice(networkIndex, 1);
+
+      interfaces.forEach((iface) => {
+        if (iface === undefined) {
+          return;
+        }
+
+        const { networkInterfaceUUID } = iface;
+
+        networkInterfaceInputMap[networkInterfaceUUID].isApplied = false;
+      });
 
       testInputToToggleSubmitDisabled({ excludeTestIdsRe: RegExp(inputUUID) });
       setNetworkInputs([...networkInputs]);
+      setNetworkInterfaceInputMap((previous) => ({
+        ...previous,
+      }));
     },
-    [networkInputs, testInputToToggleSubmitDisabled],
+    [networkInputs, networkInterfaceInputMap, testInputToToggleSubmitDisabled],
   );
   const getNetworkTypeCount: GetNetworkTypeCountFunction = useCallback(
     (
