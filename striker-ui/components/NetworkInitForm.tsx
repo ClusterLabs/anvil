@@ -143,6 +143,7 @@ const CLASS_PREFIX = 'NetworkInitForm';
 const CLASSES = {
   ifaceNotApplied: `${CLASS_PREFIX}-network-interface-not-applied`,
 };
+const INITIAL_IFACES = [undefined, undefined];
 
 const NETWORK_TYPES: Record<string, string> = {
   bcn: 'Back-Channel Network',
@@ -152,7 +153,7 @@ const NETWORK_TYPES: Record<string, string> = {
 const REQUIRED_NETWORKS: NetworkInput[] = [
   {
     inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
-    interfaces: [],
+    interfaces: [...INITIAL_IFACES],
     ipAddress: '10.200.1.1',
     isRequired: true,
     name: `${NETWORK_TYPES.bcn} 1`,
@@ -162,7 +163,7 @@ const REQUIRED_NETWORKS: NetworkInput[] = [
   },
   {
     inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
-    interfaces: [],
+    interfaces: [...INITIAL_IFACES],
     ipAddress: '10.201.1.1',
     isRequired: true,
     name: `${NETWORK_TYPES.ifn} 1`,
@@ -962,7 +963,7 @@ const NetworkInitForm = forwardRef<
   const createNetwork = useCallback(() => {
     networkInputs.unshift({
       inputUUID: uuidv4(),
-      interfaces: [],
+      interfaces: [...INITIAL_IFACES],
       ipAddress: '',
       name: 'Unknown Network',
       subnetMask: '',

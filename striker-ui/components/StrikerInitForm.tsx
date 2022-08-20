@@ -156,22 +156,27 @@ const StrikerInitForm: FC = () => {
                         )
                       </BodyText>
                     </Grid>
-                    {interfaces.map((iface, interfaceIndex) => {
-                      if (iface === undefined) {
-                        return <></>;
+                    {interfaces.map((iface, ifaceIndex) => {
+                      let key = `network-confirm-${inputUUID}-interface${ifaceIndex}`;
+                      let ifaceName = 'none';
+
+                      if (iface) {
+                        const { networkInterfaceName, networkInterfaceUUID } =
+                          iface;
+
+                        key = `${key}-${networkInterfaceUUID}`;
+                        ifaceName = networkInterfaceName;
                       }
 
-                      const { networkInterfaceName } = iface;
-
                       return (
-                        <>
+                        <Grid container key={key} item>
                           <Grid item xs={1}>
-                            <BodyText>{`Link ${interfaceIndex + 1}`}</BodyText>
+                            <BodyText>{`Link ${ifaceIndex + 1}`}</BodyText>
                           </Grid>
                           <Grid item xs={1}>
-                            <MonoText>{networkInterfaceName}</MonoText>
+                            <MonoText>{ifaceName}</MonoText>
                           </Grid>
-                        </>
+                        </Grid>
                       );
                     })}
                     <Grid item xs={2}>
