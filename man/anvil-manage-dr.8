@@ -1,0 +1,85 @@
+.\" Manpage for the Anvil! server removal tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-dr "8" "August 18 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-dr \- This program manages if a server is (and when) a server is protected by a DR host.
+.SH SYNOPSIS
+.B anvil-manage-dr --server <server>
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-connect\fR 
+Connect a server already on DR to it's DR copy, update the data there if needed and begin streaming replication.
+.TP
+\fB\-\-disconnect\fR 
+Disconnect a server from the DR image. This will end streaming replication. 
+.TP
+\fB\-\-protect\fR
+The sets up the server to be imaged on DR, if it isn't already protected. 
+.TP
+Notes: If the server is not running, the DRBD resource volume(s) will be brought up. Both nodes need to be online and in the cluster.
+.TP
+\fB\-\-protocol\fR <sync,async,long-throw>, default 'async'
+This allows the protocol used to replicate data to the DR host to be configured. By default, 'async' is used.
+.br
+Modes:
+.br
+async (default)
+
+This tells the storage layer to consider the write to be completed once the data is on the active node's network transmit buffer. In this way, the DR host is allowed to fall behind a small amount, but the active nodes will not slow down because of higher network transit times to the DR location. 
+.br
+    NOTE: The transmit (TX) buffer size can be checked / updated with 'ethtool -g <link_device>'. If the transmit buffer fills, storage will hold until the buffer flushes, causing periodic storage IO waits. You can increase the buffer size to a certain degree with'ethtool -G <link_device> tx <size>' (set on all storage network link devices on both nodes. For more information, see:
+
+    https://www.linuxjournal.com/content/queueing-linux-network-stack
+
+    or
+
+    https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_and_managing_networking/monitoring-and-tuning-the-rx-ring-buffer_configuring-and-managing-networking
+
+    If you set the maximum transmit buffer size and still run into IO waits, consider 'long-throw'.
+.br
+sync
+
+    This tells the storage layer to consider the write complete when the data has reached the DR host's storage (when the data is committed to disk on DR). This means that the DR host will never fall behind. However, if the DR's network latency is higher or the bandwidth to the DR is lower than that of the latency/bandwidth between the nodes, then total storage performance will be reduced to DR network speeds while DR is connected. 
+
+    This should be tested before implemented in production.
+.br
+long-throw
+
+    This is an option that requires an additional license fee to use.
+
+    This option (based on LINBIT's DRBD Proxy) and is designed for DR hosts that are connected over a wide-area network (or other cases where the connection to the DR is high-latency, low bandwidth or intermittently interrupted). It uses RAM on the host to act, effectively, as a  very large transmit buffer. This requires allocating host RAM to the task, and so could  reduces the available RAM assignable to assign to servers.
+
+    In this mode, the DR host is allowed to fall further behind production, but it significantly reduces (hopefully eliminates) how often node replication waits because of a full transmit buffer. 
+
+    The default size is 16 MiB, with a maximum size of 16 GiB. When the size is set to over 1 GiB, the size allocated to this buffer is accounted for when calculating available RAM that can be assigned to hosted servers.
+.TP
+\fB\-\-remove\fB
+This removes the DR image from the DR host for the server, freeing up space on DR but removing the  protection afforded by DR.
+.TP
+\fB\-\-server\fB <server name or uuid> (required)
+This is the name or UUID of the server being worked on.
+.TP
+\fB\-\-update\fB
+This tells the DR to be connected and sync, Once the volume(s) on DR are 'UpToDate', the connection is closed. This provides a point in time update of the server's image on DR.
+.TP
+\fB\-\-Yes\fB
+Note the capital 'Y'. This can be set to proceed without confirmation. Use carefully with '\-\-protect' and '\-\-remove'! If the '\-\-job-uuid' is set, this is assumed and no prompt will be presented.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

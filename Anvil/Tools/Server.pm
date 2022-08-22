@@ -1362,6 +1362,14 @@ sub parse_definition
 		return(1);
 	}
 	
+	# If whoever called us did so after a 'virsh dumpxml <server>' while the server was off, the "definition" 
+	# will contain the string 'error: failed to get domain'. In such a case, return.
+	if ($definition =~ /error: failed to get domain/gs)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0367", variables => { definition => $definition }});
+		return(1);
+	}
+	
 	### TODO: Switch this away from XML::Simple
 	local $@;
 	my $xml        = XML::Simple->new();
@@ -1370,12 +1378,12 @@ sub parse_definition
 	if (not $test)
 	{
 		chomp $@;
-		my $error =  "[ Error ] - The was a problem parsing: [$definition]. The error was:\n";
+		my $error =  "[ Error ] - The was a problem parsing: [".$definition."]. The error was:\n";
 		   $error .= "===========================================================\n";
 		   $error .= $@."\n";
 		   $error .= "===========================================================\n";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", list => { error => $error }});
-		$anvil->nice_exit({exit_code => 1});
+		return(1);
 	}
 	
 	$anvil->data->{server}{$target}{$server}{$source}{parsed} = $server_xml;

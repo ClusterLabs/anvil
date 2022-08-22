@@ -512,6 +512,13 @@ The output, if any, was;
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
 		<key name="error_0366">[ Error ] - Failed to reconnect to the database, and now no connections remain.</key>
+		<key name="error_0367"><![CDATA[[ Error ] - I was asked to parse the server definition XML, but it looks like I was passed in the output of a 'virsh dumpxml <server>' for a server that was not running.
+
+The definition data passed in was:
+====
+#!variable!definition!#
+====
+]]></key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -767,8 +774,8 @@ sys::manage::firewall						=	1
 ]]></key>
 		<key name="file_0005"><![CDATA[
 	connection {
-		host #!variable!host1_short_name!# address #!variable!host1_sn_ip!#:#!variable!tcp_port!#;
-		host #!variable!host2_short_name!# address #!variable!host2_sn_ip!#:#!variable!tcp_port!#;
+		host #!variable!host1_short_name!# address #!variable!host1_ip!#:#!variable!tcp_port!#;
+		host #!variable!host2_short_name!# address #!variable!host2_ip!#:#!variable!tcp_port!#;
 		disk {
 			# The variable bit rate caps at 100 MiB/sec, setting this changes the maximum 
 			# variable rate.
@@ -1326,6 +1333,23 @@ Note: This will connect the DR host until the disk(s) on DR are (all) UpToDate.
 		<key name="job_0401">Waiting until the server: [#!variable!server!#] appears.</key>
 		<key name="job_0402">[ Error ] - Timed out waiting for the server: [#!variable!server!#] to appear!</key>
 		<key name="job_0403">Waiting for the server: [#!variable!server!#] to appear. Will wait: [#!variable!time_left!#] more seconds.</key>
+		<key name="job_0404">Failed to access: [#!variable!host_name!#], will check again in: [#!variable!waiting!#] seconds.</key>
+		<key name="job_0405">There was a problem writing the new resource config file: [#!variable!file!#] on the host: [#!variable!host_name!#]. 
+When checking, a difference was found:
+====
+#!variable!difference!#
+====
+
+The new version should have been:
+====
+#!variable!new_resource_config!#
+====
+
+The version read in (if anything) was: 
+====
+#!variable!check_resource_config!#
+====
+</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

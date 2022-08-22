@@ -4676,7 +4676,7 @@ sub _manage_striker_firewall
 	# We open dhcp, tftp, and dns on the BCN for the install target feature. DNS is not currently 
 	# provided, but it should be added later.
 	my $changes      = 0;
-	my @services     = ("audit", "http", "https", "postgresql", "ssh", "vnc-server", "zabbix-agent", "zabbix-server");
+	my @services     = ("audit", "http", "https", "postgresql", "ssh", "vnc-server", "zabbix-agent", "zabbix-server", "vnc-server");
 	my @bcn_services = ("dhcp", "dns", "tftp");
 	my @ifn_services = ();
 	

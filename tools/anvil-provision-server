@@ -1599,6 +1599,9 @@ sub check_anvil
 {
 	my ($anvil) = @_;
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
+	}});
 	if (($anvil->data->{switches}{anvil}) && (not $anvil->data->{switches}{'anvil-uuid'}) && (not $anvil->data->{switches}{'anvil-name'}))
 	{
 		if ($anvil->Validate->uuid({uuid => $anvil->data->{switches}{anvil}}))
@@ -1618,8 +1621,15 @@ sub check_anvil
 	}
 	
 	# Do we know or can we find the Anvil! UUID?
-	$anvil->data->{new_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";
-	$anvil->data->{new_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'} ? $anvil->data->{switches}{'anvil-name'} : "";
+	if (not $anvil->data->{new_server}{anvil_uuid})
+	{
+		$anvil->data->{new_server}{anvil_uuid} = $anvil->data->{switches}{'anvil-uuid'} ? $anvil->data->{switches}{'anvil-uuid'} : "";
+		$anvil->data->{new_server}{anvil_name} = $anvil->data->{switches}{'anvil-name'} ? $anvil->data->{switches}{'anvil-name'} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
+			"new_server::anvil_name" => $anvil->data->{new_server}{anvil_name},
+		}});
+	}
 	
 	if ((not $anvil->data->{new_server}{anvil_uuid}) && (not $anvil->data->{new_server}{anvil_name}))
 	{
@@ -2334,6 +2344,7 @@ sub interactive_ask_server_install_media
 		$anvil->Database->get_files();
 		$anvil->Database->get_file_locations();
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		
 		# Create an array of install ISOs. 
 		my $install_isos = [""];
@@ -2427,6 +2438,7 @@ sub interactive_ask_server_driver_disc
 		$anvil->Database->get_files();
 		$anvil->Database->get_file_locations();
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		
 		my $say_ram                 = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}});
 		my $storage_group_uuid      = $anvil->data->{new_server}{storage_group};
@@ -2555,6 +2567,7 @@ sub interactive_ask_server_os
 		my $say_install_media       = $anvil->data->{files}{file_uuid}{$install_media_file_uuid}{file_name};
 		my $driver_disc_file_uuid   = $anvil->data->{new_server}{driver_disc};
 		my $say_driver_disc         = $driver_disc_file_uuid eq "none" ? "#!string!unit_0005!#" : $anvil->data->{files}{file_uuid}{$driver_disc_file_uuid}{file_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		
 		print $terminal->Tputs('cl');
 		print $anvil->Words->string({key => "job_0150"})."\n";
@@ -2624,6 +2637,10 @@ sub interactive_ask_server_confirm
 	$anvil->Database->get_files();
 	$anvil->Database->get_file_locations();
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
+		"switches::ci-test"      => $anvil->data->{switches}{'ci-test'},
+	}});
 	if ($anvil->data->{switches}{'ci-test'})
 	{
 		### NOTE: Show available options;
@@ -2946,19 +2963,23 @@ sub interactive_ask_server_confirm
 		$anvil->data->{new_server}{storage_size}  = $anvil->data->{switches}{'storage-size'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:new_server::name'          => $anvil->data->{new_server}{name},
-			's1:new_server::uuid'          => $anvil->data->{new_server}{uuid},
-			's2:new_server::os'            => $anvil->data->{new_server}{os},
-			's3:new_server::cpu'           => $anvil->data->{new_server}{cpu},
-			's4:new_server::ram'           => $anvil->data->{new_server}{ram},
-			's5:new_server::storage_group' => $anvil->data->{new_server}{storage_group},
-			's6:new_server::storage_size'  => $anvil->data->{new_server}{storage_size}." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size}).")",
-			's7:new_server::install_media' => $anvil->data->{new_server}{install_media},
-			's8:new_server::driver_disc'   => $anvil->data->{new_server}{driver_disc},
+			's2:new_server::uuid'          => $anvil->data->{new_server}{uuid},
+			's3:new_server::os'            => $anvil->data->{new_server}{os},
+			's4:new_server::cpu'           => $anvil->data->{new_server}{cpu},
+			's5:new_server::ram'           => $anvil->data->{new_server}{ram},
+			's6:new_server::storage_group' => $anvil->data->{new_server}{storage_group},
+			's7:new_server::storage_size'  => $anvil->data->{new_server}{storage_size}." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size}).")",
+			's8:new_server::install_media' => $anvil->data->{new_server}{install_media},
+			's9:new_server::driver_disc'   => $anvil->data->{new_server}{driver_disc},
 		}});
 	}
 	
 	my $anvil_uuid      = $anvil->data->{new_server}{anvil_uuid};
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:anvil_uuid'      => $anvil_uuid,
+		's2:node1_host_uuid' => $node1_host_uuid,
+	}});
 	
 	my $storage_group_uuid      = $anvil->data->{new_server}{storage_group};
 	my $say_ram                 = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}});
