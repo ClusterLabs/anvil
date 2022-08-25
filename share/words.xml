@@ -519,6 +519,8 @@ The definition data passed in was:
 #!variable!definition!#
 ====
 ]]></key>
+		<key name="error_0368">[ Error ] - Failed to wipe and delete the logical volume: [#!variable!local_lv!#] that was volume number: [#!variable!volume!#] under the server: [#!variable!server!#].</key>
+		<key name="error_0369">There was a problem deleting: [#!variables!config_file!#]. The rest of the process completed successfully. Please manually remove this file if it still exists.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -769,7 +771,7 @@ sys::manage::firewall						=	1
 		volume #!variable!volume!# {
 			device    #!variable!drbd_path!# minor #!variable!minor!#;
 			disk      #!variable!lv_path!#;
-			meta-disk internal;
+			meta-disk #!variable!meta_data!#;
 		}
 ]]></key>
 		<key name="file_0005"><![CDATA[
@@ -790,7 +792,6 @@ sys::manage::firewall						=	1
 		<key name="file_0006"><![CDATA[# Resource for #!variable!server!#
 resource #!variable!server!# {
 	#!variable!hosts!#
-	
 	#!variable!connections!#
 }
 ]]></key>
@@ -1350,6 +1351,21 @@ The version read in (if anything) was:
 #!variable!check_resource_config!#
 ====
 </key>
+		<key name="job_0406">Beginning to remove DR host protection from the server: [#!variable!server!#]!</key>
+		<key name="job_0407">
+Do you want to remove protection for the server: [#!variable!server!#]? 
+Note: This is a permanent action! If you protect this server again later, a full sync will be required.</key>
+		<key name="job_0408">The DRBD resource volume: [#!variable!volume!#] for the server: [#!variable!server!#] is backed by the logical volume: [#!variable!local_lv!#]. This volume exists, and will now be removed.</key>
+		<key name="job_0409">The DRBD resource volume: [#!variable!volume!#] for the server: [#!variable!server!#] is backed by the logical volume: [#!variable!local_lv!#]. This volume appears to already be removed.</key>
+		<key name="job_0410">The backing disk has been removed.</key>
+		<key name="job_0411">Generating and testing the new resource config.</key>
+		<key name="job_0412">Tests passed, copying new config to nodes now.</key>
+		<key name="job_0413">New replicated storage config copied to nodes.</key>
+		<key name="job_0414">Telling: [#!variable!host_name!#] to update it's replicates storage config.</key>
+		<key name="job_0415">The old replicated storage config file: [#!variable!config_file!#] will now be removed locally.</key>
+		<key name="job_0416">Done! The server: [#!variable!server!#] is no longer being protected on DR!</key>
+		<key name="job_0417">The resource config file: [#!variable!config_file!#] doesn't exist locally, pulling a copy over from: [#!variable!source!#].</key>
+		<key name="job_0418">Re-parsing the replicated storage configuration.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
