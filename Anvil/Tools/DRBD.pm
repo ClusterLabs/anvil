@@ -24,6 +24,7 @@ my $THIS_FILE = "DRBD.pm";
 # get_status
 # manage_resource
 # reload_defaults
+# remove_backing_lv
 # resource_uuid
 # update_global_common
 # _initialize_kmod
@@ -484,32 +485,11 @@ sub delete_resource
 	foreach my $backing_disk (sort {$a cmp $b} keys %{$anvil->data->{drbd}{resource}{$resource}{backing_disk}})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0591", variables => { device_path => $backing_disk }});
-		my $shell_call = $anvil->data->{path}{exe}{wipefs}." --all ".$backing_disk;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output, 
-			return_code => $return_code,
-		}});
-		if ($return_code)
-		{
-			# Should have been '0'
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0230", variables => { 
-				shell_call  => $shell_call, 
-				return_code => $return_code,
-				output      => $output, 
-			}});
-			return('!!error!!');
-		}
-		
-		# Now delete the logical volume
-		$shell_call = $anvil->data->{path}{exe}{lvremove}." --force ".$backing_disk;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output, 
-			return_code => $return_code,
-		}});
+		my $return_code = $anvil->DRBD->remove_backing_lv({
+			debug        => $debug, 
+			backing_disk => $backing_disk, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 		if ($return_code)
 		{
 			# Should have been '0'
@@ -705,11 +685,13 @@ sub gather_data
 					$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
 					$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
 					$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
+					$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{meta_disk}    = $meta_disk;
 					$anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{size}         = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"s1:new::resource::${resource}::host::${this_host_name}::volume::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_path},
 						"s2:new::resource::${resource}::host::${this_host_name}::volume::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{backing_disk},
 						"s3:new::resource::${resource}::host::${this_host_name}::volume::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{device_minor},
+						"s4:new::resource::${resource}::host::${this_host_name}::volume::${volume}::meta_disk"    => $anvil->data->{new}{resource}{$resource}{host}{$this_host_name}{volume}{$volume}{meta_disk},
 					}});
 					
 					# Record the local data only.
@@ -2159,6 +2141,68 @@ sub reload_defaults
 	return($return_code);
 }
 
+
+=head2 remove_backing_lv
+
+This method does the work wiping the data from, and then deleting the logical volume backing a DRBD resource. The return value from the C<< lvremove >> call is returned. If the C<< wipefs >> call returns non-zero, that return code is returned. If something else goes wrong, C<< 255 >> is returned.
+
+B<< NOTE >>: This does no sanity checks! This method assumes all checks were done before this method was called!
+
+Parameters;
+
+=head3 backing_disk (required)
+
+This is the full logical volume path that is to be deleted. 
+
+=cut
+sub remove_backing_lv
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->remove_backing_lv()" }});
+	
+	my $backing_disk = defined $parameter->{backing_disk} ? $parameter->{backing_disk} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		backing_disk => $backing_disk,
+	}});
+	
+	if (not $backing_disk)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->remove_backing_lv()", parameter => "backing_disk" }});
+		return(255);
+	}
+
+	my $shell_call = $anvil->data->{path}{exe}{wipefs}." --all ".$backing_disk;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	if ($return_code)
+	{
+		# Should have been '0'
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0230", variables => { 
+			shell_call  => $shell_call, 
+			return_code => $return_code,
+			output      => $output, 
+		}});
+		return($return_code);
+	}
+	
+	# Now delete the logical volume
+	$shell_call = $anvil->data->{path}{exe}{lvremove}." --force ".$backing_disk;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+
+	return($return_code);
+}
 
 =head2 resource_uuid
 
