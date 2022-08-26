@@ -1625,7 +1625,7 @@ sub connect
 			
 			# Read the DB identifier and then check that we've not already connected to this DB.
 			my $query      = "SELECT system_identifier FROM pg_control_system();";
-			my $identifier = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $identifier = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				query      => $query,
 				identifier => $identifier,
@@ -1691,7 +1691,7 @@ sub connect
 					variable_name => "database::".$uuid."::active",
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_value  => $active_value }});
-				if (not $active_value)
+				if ($active_value eq "0")
 				{
 					# If we're "retry", we just started up.
 					if (($retry) && ($is_local))
