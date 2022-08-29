@@ -2199,6 +2199,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0723">The server: [#!variable!server!#] is configured to stay off, ignoring it.</key>
 		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variable!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variable!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variable!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodocally until the size stops changing.</key>
 		<key name="log_0725">Found the missing file: [#!variable!file!#] in the directory: [#!variable!directory!#]. Updating the database now.</key>
+		<key name="log_0726">Deleting the hash key: [#!variable!hash_key!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

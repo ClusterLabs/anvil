@@ -260,7 +260,7 @@ FROM
 		my $scan_apc_pdu_link_speed       = $row->[10];
 		my $scan_apc_pdu_phase_count      = $row->[11];
 		my $scan_apc_pdu_outlet_count     = $row->[12];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			scan_apc_pdu_uuid             => $scan_apc_pdu_uuid, 
 			scan_apc_pdu_fence_uuid       => $scan_apc_pdu_fence_uuid, 
 			scan_apc_pdu_serial_number    => $scan_apc_pdu_serial_number, 
@@ -1385,6 +1385,7 @@ WHERE
 			}
 			
 			# Delete this from the SQL hash so we know it didn't vanish.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0726", variables => { hash_key => "sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}" }});
 			delete $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid};
 		}
 		else
@@ -1596,10 +1597,19 @@ INSERT INTO
 			scan_apc_pdu_ipv4_address  => $scan_apc_pdu_ipv4_address, 
 		}});
 		
+		
 		if ($scan_apc_pdu_model_number ne "DELETED")
 		{
-			# Yup! send an alert.
-			my $query = "
+			# The PDUs only allow one connection at a time, so if another scan agent is 
+			# connected, we'll get this issue. As such, check how long it's been missing, and 
+			# alert only if it's been missing for 10 minutes.
+			my $age = $anvil->Alert->check_condition_age({name => "scan_apc_pdu::lost_pdu::".$scan_apc_pdu_serial_number});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { age => $age }});
+			
+			if ($age > 600)
+			{
+				# Yup! send an alert.
+				my $query = "
 UPDATE 
     scan_apc_pdus 
 SET 
@@ -1608,22 +1618,23 @@ SET
 WHERE 
     scan_apc_pdu_uuid         = ".$anvil->Database->quote($scan_apc_pdu_uuid)." 
 ;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-			push @{$anvil->data->{sys}{queries}}, $query;
-			
-			my $variables = {
-				model        => $scan_apc_pdu_model_number,
-				serial_numer => $scan_apc_pdu_serial_number,
-				ip_address   => $scan_apc_pdu_ipv4_address,
-			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0040", variables => $variables});
-			$anvil->Alert->register({
-				alert_level   => "warning", 
-				message       => "scan_apc_pdu_message_0040", 
-				variables     => $variables, 
-				set_by        => $THIS_FILE, 
-				sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
-			});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$anvil->data->{sys}{queries}}, $query;
+				
+				my $variables = {
+					model        => $scan_apc_pdu_model_number,
+					serial_numer => $scan_apc_pdu_serial_number,
+					ip_address   => $scan_apc_pdu_ipv4_address,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0040", variables => $variables});
+				$anvil->Alert->register({
+					alert_level   => "warning", 
+					message       => "scan_apc_pdu_message_0040", 
+					variables     => $variables, 
+					set_by        => $THIS_FILE, 
+					sort_position => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+				});
+			}
 		}
 	}
 	
@@ -2003,6 +2014,9 @@ sub gather_pdu_data
 		
 		# If I got the serial number, I found the PDU.
 		next if not $scan_apc_pdu_serial_number;
+
+		# In case this PDU disappeared before, this will clear that condition.
+		$anvil->Alert->check_condition_age({clear => 1, name => "scan_apc_pdu::lost_pdu::".$scan_apc_pdu_serial_number});
 		
 		#############################################################################################
 		# Base PDU info                                                                             #

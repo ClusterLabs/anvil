@@ -276,7 +276,7 @@ sub check_condition_age
 	
 	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 0;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "NULL";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		clear     => $clear, 
 		name      => $name, 
