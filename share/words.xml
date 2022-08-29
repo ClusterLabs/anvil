@@ -466,7 +466,7 @@ Giving up.
 		<key name="error_0341">Failed to find the server: [#!variable!server!#] by name or UUID? Exiting.</key>
 		<key name="error_0342">The protocol: [#!variable!protocol!#] is invalid. Please use '--help' for more information.</key>
 		<key name="error_0343">The DR host: [#!variable!host_name!#] doesn't appear to be storage group: [#!variable!storage_group!#]. Unable to proceed.</key>
-		<key name="error_0344">We need: [#!variable!space_needed!# (#!variables!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but only: [#!variables!space_on_dr!# (#!variable!space_on_dr_bytes!# bytes)] is available on DR. Unable to proceed.</key>
+		<key name="error_0344">We need: [#!variable!space_needed!# (#!variable!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but only: [#!variable!space_on_dr!# (#!variable!space_on_dr_bytes!# bytes)] is available on DR. Unable to proceed.</key>
 		<key name="error_0345">[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [#!variable!return_code!#]
 The output, if any, was
 ====
@@ -520,7 +520,7 @@ The definition data passed in was:
 ====
 ]]></key>
 		<key name="error_0368">[ Error ] - Failed to wipe and delete the logical volume: [#!variable!local_lv!#] that was volume number: [#!variable!volume!#] under the server: [#!variable!server!#].</key>
-		<key name="error_0369">There was a problem deleting: [#!variables!config_file!#]. The rest of the process completed successfully. Please manually remove this file if it still exists.</key>
+		<key name="error_0369">There was a problem deleting: [#!variable!config_file!#]. The rest of the process completed successfully. Please manually remove this file if it still exists.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -576,7 +576,13 @@ sys::privacy::strong						=	#!data!sys::privacy::strong!#
 # Normally, if one node in the Anvil! is healthier than the other, it will pull the servers from the peer
 # on to it. This is a process called "preventative live migration". If you would like to disable this 
 # feature, set this to '1'.
-feature::scancore::disable::preventative-live-migration		=	0
+#feature::scancore::disable::preventative-live-migration	=	0
+
+# If "preventative live migration" is enabled, this sets the threshold to trigger migration. The difference
+# in health score has to be equal to or greater than the number below. The health scores are usually set to
+# '1' per event, though scan agents are free to assign higher scores per event. The default threshold is 
+# '2'. To migrate on any health difference, set this to '1'. Use whole numbers only. 
+#feature::scancore::threshold::preventative-live-migration	=	2
 
 ### Database
 # Database connections;
@@ -2191,8 +2197,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0721">The server: [#!variable!server!#] is ready to boot.</key>
 		<key name="log_0722">The server: [#!variable!server!#] was found to be running already, but it wasn't marked as booted. Marking it as if it just booted to handle any dependent servers.</key>
 		<key name="log_0723">The server: [#!variable!server!#] is configured to stay off, ignoring it.</key>
-		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variables!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variables!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variables!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodocally until the size stops changing.</key>
+		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variable!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variable!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variable!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodocally until the size stops changing.</key>
 		<key name="log_0725">Found the missing file: [#!variable!file!#] in the directory: [#!variable!directory!#]. Updating the database now.</key>
+		<key name="log_0726">Deleting the hash key: [#!variable!hash_key!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

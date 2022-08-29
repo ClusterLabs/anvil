@@ -2022,13 +2022,25 @@ sub post_scan_analysis_node
 			# Last, evaluate health if we're otherwise OK
 			if ($peer_health > $local_health)
 			{
+				# The user may have set a migration threashold. 
+				my $difference = $peer_health - $local_health;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+				
+				if (not $anvil->data->{feature}{scancore}{threshold}{'preventative-live-migration'})
+				{
+					$anvil->data->{feature}{scancore}{threshold}{'preventative-live-migration'} = 2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						'feature::scancore::threshold::preventative-live-migration' => $anvil->data->{feature}{scancore}{threshold}{'preventative-live-migration'},
+					}});
+				}
+				
 				# A user may disable health-based preventative live migrations. 
 				if ($anvil->data->{feature}{scancore}{disable}{'preventative-live-migration'})
 				{
 					# Do nothing.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0239"});
 				}
-				else
+				elsif ($difference >= $anvil->data->{feature}{scancore}{threshold}{'preventative-live-migration'})
 				{
 					# How long has this been the case?
 					my $age = $anvil->Alert->check_condition_age({
