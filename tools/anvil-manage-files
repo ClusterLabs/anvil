@@ -28,7 +28,8 @@
 # 6 = The file to delete is not under '/mnt/shared/'.
 # 
 # TODO: 
-# - 
+# - If two Strikers have the same file name, but different sizes, we get into a yo-yo of updating the two 
+#   sides. If this happens, we need to rsync the larger one over the smaller one.
 # 
 # NOTE:
 # - remove unsyncs, add syncs.

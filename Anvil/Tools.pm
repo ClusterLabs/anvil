@@ -1009,6 +1009,16 @@ sub _set_defaults
 			html		=>	"alteeve",
 		},
 	};
+	$anvil->data->{feature} = {
+		scancore	=>	{
+			disable		=>	{
+				'preventative-live-migration'	=>	0,
+			},
+			threshold	=>	{
+				'preventative-live-migration'	=>	2,
+			},
+		},
+	};
 	
 	return(0);
 }
