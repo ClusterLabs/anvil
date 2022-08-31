@@ -277,7 +277,20 @@ sub process_servers
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0321"});
 		$anvil->Job->update_progress({progress => 10, message => "job_0321"});
 	}
-	my $waiting = 1;
+	
+	# Use virsh to check for servers, in case pacemaker lies to us.
+	$anvil->Server->find();
+	my $progress       = 10;
+	my $waiting        = 1;
+	my $first_try      = 0;
+	my $second_try     = 0;
+	my $try_again      = 0;
+	my $server_count   = keys %{$anvil->data->{server}{location}};
+	my $progress_steps = $server_count ? int(35 / $server_count) : 70;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:server_count'   => $server_count, 
+		's2:progress_steps' => $progress_steps, 
+	}});
 	while ($waiting)
 	{
 		# Is the cluster up?
@@ -286,7 +299,84 @@ sub process_servers
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($problem)
 		{
-			# Nope.
+			# Nope. Are we stopping servers?
+			if ($anvil->data->{switches}{'stop-servers'})
+			{
+				# Yes, are any servers running (check virsh)
+				foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server}{location}})
+				{
+					my $status    =  $anvil->data->{server}{location}{$server_name}{status};
+					my $host_name =  $anvil->data->{server}{location}{$server_name}{host_name};
+					   $progress  += $progress_steps;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:server_name' => $server_name,
+						's2:status'      => $status,
+						's3:host_name'   => $host_name,
+						's4:progress'    => $progress, 
+					}});
+					
+					if ($host_name eq $anvil->Get->host_name)
+					{
+						# Server is still running.
+						if (($status eq "running") && (not $first_try))
+						{
+							# It's running despite the cluster being own, stop it.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0419", variables => { server => $server_name }});
+							$anvil->Job->update_progress({progress => $progress, message => "job_0419,!!server!".$server_name."!!"});
+							$anvil->Server->shutdown_virsh({
+								debug     => 2,
+								server    => $server_name, 
+								wait_time => 1,
+							});
+							
+							$waiting = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						}
+						elsif (($status eq "in shutdown") && ($try_again))
+						{
+							# Hit the power button again.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0420", variables => { server => $server_name }});
+							$anvil->Job->update_progress({progress => $progress, message => "job_0420,!!server!".$server_name."!!"});
+							$anvil->Server->shutdown_virsh({
+								debug     => 2,
+								server    => $server_name, 
+								wait_time => 1,
+							});
+							
+							$waiting = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						}
+					}
+				}
+				
+				if ($waiting)
+				{
+					if (not $first_try)
+					{
+						$first_try  = time;
+						$second_try = $first_try + 120;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							first_try  => $first_try, 
+							second_try => $second_try,
+						}});
+					}
+					elsif ($try_again)
+					{
+						$try_again  = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { try_again => $try_again }});
+					}
+					elsif (($second_try) && (time > $second_try))
+					{
+						$try_again  = 1;
+						$second_try = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							second_try => $second_try, 
+							try_again  => $try_again,
+						}});
+					}
+				}
+			}
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0313"});
 			$anvil->Job->update_progress({progress => 80, message => "job_0313"});
 		}
@@ -304,7 +394,7 @@ sub process_servers
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:server'    => $server,
 					's2:status'    => $status,
-					's2:host_name' => $host_name,
+					's3:host_name' => $host_name,
 					's4:role'      => $role,
 					's5:active'    => $active, 
 				}});
