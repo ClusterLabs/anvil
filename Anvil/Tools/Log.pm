@@ -924,7 +924,7 @@ sub variables
 				# Strip a leading 'sX:' in case the user is sorting the output.
 				my $say_key =  $key;
 				   $say_key =~ s/^s(\d+)://;
-				$raw .= "$say_key: [".$list->{$key}."], ";
+				   $raw     .= $say_key.": [".$list->{$key}."], ";
 				print $THIS_FILE." ".__LINE__."; raw: [".$raw."]\n" if $test;
 			}
 			$raw =~ s/, $//;
@@ -961,8 +961,8 @@ sub variables
 				{
 					$say_key = $prefix." - ".$say_key;
 				}
-				$say_key .= ":";
-				my $difference = $length - length($say_key);
+				   $say_key    .= ":";
+				my $difference =  $length - length($say_key);
 				print $THIS_FILE." ".__LINE__."; say_key: [".$say_key."], difference: [".$difference."]\n" if $test;
 				if ($difference)
 				{

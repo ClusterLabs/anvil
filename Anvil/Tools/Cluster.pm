@@ -2976,7 +2976,7 @@ sub parse_cib
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local call
-			($cib_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			($cib_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				cib_data    => $cib_data,
 				return_code => $return_code,
@@ -3151,6 +3151,7 @@ sub parse_cib
 			foreach my $node_state ($dom->findnodes('/cib/status/node_state'))
 			{
 				my $id = $node_state->{id};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 				foreach my $variable (sort {$a cmp $b} keys %{$node_state})
 				{
 					next if $variable eq "id";
@@ -3162,6 +3163,7 @@ sub parse_cib
 				foreach my $lrm ($node_state->findnodes('./lrm'))
 				{
 					my $lrm_id = $lrm->{id};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lrm_id => $lrm_id }});
 					foreach my $lrm_resource ($lrm->findnodes('./lrm_resources/lrm_resource'))
 					{
 						my $lrm_resource_id                                                                                                  = $lrm_resource->{id};
@@ -3642,6 +3644,8 @@ sub parse_cib
 			's5:active'    => $active, 
 		}});
 	}
+	
+	
 
 	return($problem);
 }
@@ -3717,7 +3721,7 @@ sub parse_crm_mon
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local call
-			($crm_mon_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			($crm_mon_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				crm_mon_data => $crm_mon_data,
 				return_code  => $return_code,
@@ -3764,28 +3768,59 @@ sub parse_crm_mon
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			foreach my $resource ($dom->findnodes('/pacemaker-result/resources/resource'))
 			{
-				next if $resource->{resource_agent} ne "ocf::alteeve:server";
-				my $id = $resource->{id};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
-				foreach my $variable (sort {$a cmp $b} keys %{$resource})
+				if ($resource->{resource_agent} eq "ocf::alteeve:server")
 				{
-					next if $variable eq "id";
-					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable} = $resource->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::variables::${variable}" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable}, 
-					}});
+					my $id = $resource->{id};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+					foreach my $variable (sort {$a cmp $b} keys %{$resource})
+					{
+						next if $variable eq "id";
+						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable} = $resource->{$variable};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"crm_mon::parsed::pacemaker-result::resources::resource::${id}::variables::${variable}" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable}, 
+						}});
+					}
+					foreach my $node ($resource->findnodes('./node'))
+					{
+						my $node_id   = $node->{id};
+						my $node_name = $node->{name};
+						my $cached    = $node->{cached};
+						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name} = $node->{name};
+						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}   = $node->{id};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_name" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name}, 
+							"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_id"   => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}, 
+						}});
+					}
 				}
-				foreach my $node ($resource->findnodes('./node'))
+				if ($resource->{resource_agent} =~ /stonith:(.*)$/)
 				{
-					my $node_id   = $node->{id};
-					my $node_name = $node->{name};
-					my $cached    = $node->{cached};
-					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name} = $node->{name};
-					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}   = $node->{id};
+					my $fence_agent = $1;
+					my $id          = $resource->{id};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_name" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name}, 
-						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_id"   => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}, 
+						's1:fence_agent' => $fence_agent, 
+						's2:id'          => $id,
 					}});
+					foreach my $variable (sort {$a cmp $b} keys %{$resource})
+					{
+						next if $variable eq "id";
+						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{variables}{$variable} = $resource->{$variable};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"crm_mon::parsed::pacemaker-result::resources::stonith::${id}::variables::${variable}" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{variables}{$variable}, 
+						}});
+					}
+					foreach my $node ($resource->findnodes('./node'))
+					{
+						my $node_id   = $node->{id};
+						my $node_name = $node->{name};
+						my $cached    = $node->{cached};
+						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{host}{node_name} = $node->{name};
+						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{host}{node_id}   = $node->{id};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"crm_mon::parsed::pacemaker-result::resources::stonith::${id}::host::node_name" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{host}{node_name}, 
+							"crm_mon::parsed::pacemaker-result::resources::stonith::${id}::host::node_id"   => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{host}{node_id}, 
+						}});
+					}
 				}
 			}
 		}

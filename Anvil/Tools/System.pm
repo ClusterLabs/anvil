@@ -3864,18 +3864,62 @@ sub parse_arguments
 		arguments => $arguments, 
 	}});
 	
+	# Convert escaped quotes, we'll convert them back at the end
+	my $secure = $arguments =~ /-passw/ ? 1 : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		">> arguments" => $secure ? $anvil->Log->is_secure($arguments) : $arguments,
+	}});
+	$arguments =~ s/\\\"/&quot;/g;
+	$arguments =~ s/\\\'/&apos;/g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"<< arguments" => $secure ? $anvil->Log->is_secure($arguments) : $arguments,
+	}});
+	
 	my $hash   = {};
 	my $quoted = "";
 	my $switch = "";
 	my $value  = "";
 	foreach my $arg (split/ /, $arguments)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { arg => $arg }});
+		# We're likely processing a password, so we need to decide if we're logging securely or not 
+		# right away.
+		my $secure = 0;
+		if (($switch) && ($switch =~ /passw/))
+		{
+			$secure = 1;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { secure => $secure }});
+		
+		# Now we can start logging.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			arg => $secure ? $anvil->Log->is_secure($arg) : $arg,
+		}});
 		if (($arg =~ /^'/) or ($arg =~ /^"/))
 		{
-			# Store a quoted value.
-			$quoted .= $arg." ";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { quoted => $quoted }});
+			# If the quoted value has no spaces, store it now.
+			if (($arg =~ /^'(.*?)'$/) or ($arg =~ /^"(.*?)"$/))
+			{
+				$hash->{$switch} = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+				}});
+			}
+			elsif (($arg =~ /'$/) or ($arg =~ /"$/))
+			{
+				$hash->{$switch} = $quoted.$arg;
+				$quoted          = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+				}});
+			}
+			else
+			{
+				# Store a quoted value.
+				$quoted .= $arg." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					quoted => $secure ? $anvil->Log->is_secure($quoted) : $quoted,
+				}});
+			}
 		}
 		elsif ($quoted)
 		{
@@ -3883,42 +3927,54 @@ sub parse_arguments
 			{
 				# Done
 				$quoted .= $arg;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { quoted => $quoted }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					quoted => $secure ? $anvil->Log->is_secure($quoted) : $quoted,
+				}});
 				if ($quoted =~ /^'(.*)'$/)
 				{
 					$value = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						value => $secure ? $anvil->Log->is_secure($value) : $value,
+					}});
 				}
 				elsif ($quoted =~ /^"(.*)"$/)
 				{
 					$value = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						value => $secure ? $anvil->Log->is_secure($value) : $value,
+					}});
 				}
 				$hash->{$switch} = $value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+				}});
 				
 				$quoted = "";
 				$switch = "";
 				$value  = "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					quoted => $quoted,
+					quoted => $secure ? $anvil->Log->is_secure($quoted) : $quoted,
 					switch => $switch, 
-					value  => $value,
+					value  => $secure ? $anvil->Log->is_secure($value)  : $value,
 				}});
 			}
 			else
 			{
 				$quoted .= $arg." ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { quoted => $quoted }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					quoted => $secure ? $anvil->Log->is_secure($quoted) : $quoted,
+				}});
 			}
 		}
 		elsif ($arg =~ /^-/)
 		{
 			if ($switch)
 			{
-				$value = "#!SET!#";
+				$value           = "#!SET!#";
 				$hash->{$switch} = $value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+				}});
 				
 				$switch = "";
 				$value  = "";
@@ -3928,7 +3984,7 @@ sub parse_arguments
 				}});
 			}
 			
-			$quoted =  "";
+			$quoted = "";
 			if ($arg =~ /^(.*?)=(.*)$/)
 			{
 				$switch =  $1;
@@ -3942,7 +3998,9 @@ sub parse_arguments
 				else
 				{
 					$hash->{$switch} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+					}});
 					
 					$switch = "";
 					$value  = "";
@@ -3962,7 +4020,9 @@ sub parse_arguments
 		else
 		{
 			$hash->{$switch} = $arg;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+			}});
 			
 			$switch = "";
 			$value  = "";
@@ -3971,6 +4031,19 @@ sub parse_arguments
 				value  => $value,
 			}});
 		}
+	}
+	
+	foreach my $switch (sort {$a cmp $b} keys %{$hash})
+	{
+		my $secure = $switch =~ /^passw/ ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			">> hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+		}});
+		$hash->{$switch} =~ s/&quot;/\\"/g; 
+		$hash->{$switch} =~ s/&apos;/\\'/g; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"<< hash->{$switch}" => $secure ? $anvil->Log->is_secure($hash->{$switch}) : $hash->{$switch},
+		}});
 	}
 	
 	return($hash);
