@@ -59,7 +59,7 @@ if (not $anvil->data->{switches}{'job-uuid'})
 	my $termios = new POSIX::Termios;
 	$termios->getattr;
 	my $ospeed   = $termios->getospeed;
-	$terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	   $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { terminal => $terminal }});
 	
 	$terminal->Trequire(qw/ce ku kd/);
@@ -93,6 +93,31 @@ sub sanity_check
 		host_type  => $host_type,
 		anvil_uuid => $anvil_uuid, 
 	}});
+	
+	# If we're (dis}connecting, is the server being protected in the first place?
+	if (($anvil->data->{switches}{'connect'}) or ($anvil->data->{switches}{'disconnect'}))
+	{
+		# Is this server configured to be protected?
+		my $server_name = $anvil->data->{switches}{server};
+		my $config_file = $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_file => $config_file }});
+		if (not -e $config_file)
+		{
+			# Can't connect an unprotected server.
+			my $variables = {
+				server      => $server_name, 
+				config_file => $config_file, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0371", variables => $variables});
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0371", 
+				variables  => $variables, 
+				job_status => "failed", 
+			});
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	# If we're doing a --protect or --remove, make sure we're a node, the cluster is up, and both nodes 
 	# are ready.
@@ -240,9 +265,9 @@ sub sanity_check
 		###       peer to be online.
 		# If we're protecting or removing a server from DR, the peer needs to be up.
 		if ((($anvil->data->{switches}{protect})   or 
-		($anvil->data->{switches}{remove})    or 
-		($anvil->data->{switches}{protocol})) && 
-		(not $anvil->data->{cib}{parsed}{peer}{ready}))
+		     ($anvil->data->{switches}{remove})    or 
+		     ($anvil->data->{switches}{protocol})) && 
+		    (not $anvil->data->{cib}{parsed}{peer}{ready}))
 		{
 			if ($anvil->data->{switches}{protect})
 			{
@@ -250,8 +275,8 @@ sub sanity_check
 				# isn't at this time.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0338"});
 				$anvil->Job->update_progress({
-					progress => 0,
-					message  => "error_0338", 
+					progress   => 0,
+					message    => "error_0338", 
 					job_status => "failed", 
 				});
 			}
@@ -261,8 +286,8 @@ sub sanity_check
 				# this time.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0339"});
 				$anvil->Job->update_progress({
-					progress => 0,
-					message  => "error_0339", 
+					progress   => 0,
+					message    => "error_0339", 
 					job_status => "failed", 
 				});
 			}
@@ -279,8 +304,8 @@ sub sanity_check
 		# Please specify the server to manager using '--server <name or uuid>'.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0340"});
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "error_0340", 
+			progress   => 100,
+			message    => "error_0340", 
 			job_status => "failed", 
 		});
 		$anvil->nice_exit({exit_code => 1});
@@ -986,6 +1011,24 @@ sub process_connect
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	
+	# If this was an error, abort.
+	if ($return_code)
+	{
+		# Failed.
+		my $variables = {
+			return_code => $return_code, 
+			output      => $output, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0370", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0370", 
+			variables => $variables, 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0388", variables => $variables});
 	$anvil->Job->update_progress({
 		progress => 60,

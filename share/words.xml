@@ -521,6 +521,11 @@ The definition data passed in was:
 ]]></key>
 		<key name="error_0368">[ Error ] - Failed to wipe and delete the logical volume: [#!variable!local_lv!#] that was volume number: [#!variable!volume!#] under the server: [#!variable!server!#].</key>
 		<key name="error_0369">There was a problem deleting: [#!variable!config_file!#]. The rest of the process completed successfully. Please manually remove this file if it still exists.</key>
+		<key name="error_0370">[ Error ] - Failed to connect the DRBD resource. Expected return code '0', but got: [#!variable!return_code!#]. The error output, if anything, was
+====
+#!variable!output!#
+====</key>
+		<key name="error_0371">Can not (dis)connect the server: [#!variable!server!#] as the resource config file: [#!variable!config_file!#] doesn't exist. Do you need to '--protect' it?</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1320,7 +1325,7 @@ Note: Depending on the disk write load and storage network speed to the DR host,
 		<key name="job_0387">About to connect the DR resource for the server: [#!variable!server!#].</key>
 		<key name="job_0388">Brought up the connection locally. Now checking that the resource is up on the nodes.</key>
 		<key name="job_0389">Making sure the resource is up on: [#!variable!host_name!#].</key>
-		<key name="job_0390">Waiting now for the our resource to connect.</key>
+		<key name="job_0390">Waiting now for the resource to connect.</key>
 		<key name="job_0391">Done! The server: [#!variable!server!#] is now connected.</key>
 		<key name="job_0392">
 Do you want to disconnect the DR host for the server: [#!variable!server!#]? 
