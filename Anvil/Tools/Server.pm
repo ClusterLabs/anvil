@@ -1959,21 +1959,22 @@ sub shutdown_virsh
 		}
 		elsif ($status eq "paused")
 		{
+			### TODO: No, don't do this! The server might be migrating
 			# The server is paused. Resume it, wait a few, then proceed with the shutdown.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0314", variables => { server => $server }});
-			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." resume $server"});
-			if ($return_code)
-			{
-				# Looks like virsh isn't running.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0315", variables => { 
-					server      => $server,
-					return_code => $return_code, 
-					output      => $output, 
-				}});
-				$anvil->nice_exit({exit_code => 1});
-			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0316"});
-			sleep 3;
+# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0314", variables => { server => $server }});
+# 			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." resume $server"});
+# 			if ($return_code)
+# 			{
+# 				# Looks like virsh isn't running.
+# 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0315", variables => { 
+# 					server      => $server,
+# 					return_code => $return_code, 
+# 					output      => $output, 
+# 				}});
+# 				$anvil->nice_exit({exit_code => 1});
+# 			}
+# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0316"});
+# 			sleep 3;
 		}
 		elsif ($status eq "pmsuspended")
 		{
@@ -2147,9 +2148,10 @@ WHERE
 		{
 			# Give up waiting.
 			$waiting = 0;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { waiting => $waiting }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
 			
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0427", variables => { 
+			my $key = $wait_time == 1 ? "log_0727" : "log_0427";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => $key, variables => { 
 				server => $server,
 				'wait' => $wait_time,
 			}});

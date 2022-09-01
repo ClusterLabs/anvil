@@ -1372,6 +1372,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0416">Done! The server: [#!variable!server!#] is no longer being protected on DR!</key>
 		<key name="job_0417">The resource config file: [#!variable!config_file!#] doesn't exist locally, pulling a copy over from: [#!variable!source!#].</key>
 		<key name="job_0418">Re-parsing the replicated storage configuration.</key>
+		<key name="job_0419">The server: [#!variable!server!#] was found to be running outside the cluster. Asking it to shut down now.</key>
+		<key name="job_0428">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2200,6 +2202,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variable!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variable!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variable!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodocally until the size stops changing.</key>
 		<key name="log_0725">Found the missing file: [#!variable!file!#] in the directory: [#!variable!directory!#]. Updating the database now.</key>
 		<key name="log_0726">Deleting the hash key: [#!variable!hash_key!#].</key>
+		<key name="log_0727">[ Note ] - The server: [#!variable!server!#] is not yet off, but we've been told not to wait for it to stop.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3315,6 +3318,7 @@ The error was:
 ========
 		</key>
 		<key name="warning_0147">[ Warning ] - The interface: [#!variable!interface!#] is in a bond, but it is down. The system uptime is: [#!variable!uptime!#], so it might be a problem where the interface didn't start on boot as it should have. So we're going to bring the interface up.</key>
+		<key name="warning_0148">[ Warning ] - The IPMI stonith resource: [#!variable!resource!#] is in the role: [#!variable!role!#] (should be 'Started'). Will check the IPMI config now.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
