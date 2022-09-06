@@ -1,6 +1,8 @@
 import { MouseEventHandler, ReactNode } from 'react';
 import { Box, ButtonProps, Dialog, DialogProps } from '@mui/material';
 
+import { BLUE, TEXT } from '../lib/consts/DEFAULT_THEME';
+
 import ContainedButton from './ContainedButton';
 import { Panel, PanelHeader } from './Panels';
 import { BodyText, HeaderText } from './Text';
@@ -61,7 +63,17 @@ const ConfirmDialog = (
         }}
       >
         <ContainedButton onClick={onCancel}>{actionCancelText}</ContainedButton>
-        <ContainedButton sx={proceedButtonSx} onClick={onProceed}>
+        <ContainedButton
+          sx={{
+            backgroundColor: BLUE,
+            color: TEXT,
+
+            '&:hover': { backgroundColor: `${BLUE}F0` },
+
+            ...proceedButtonSx,
+          }}
+          onClick={onProceed}
+        >
           {actionProceedText}
         </ContainedButton>
       </Box>
@@ -70,5 +82,7 @@ const ConfirmDialog = (
 };
 
 ConfirmDialog.defaultProps = CONFIRM_DIALOG_DEFAULT_PROPS;
+
+export type { ConfirmDialogProps };
 
 export default ConfirmDialog;
