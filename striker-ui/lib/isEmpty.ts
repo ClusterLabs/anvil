@@ -1,6 +1,8 @@
+type IsEmptyTypeMap = Pick<MapToType, 'number' | 'string' | 'undefined'>;
+
 type MapToValueIsEmptyFunction = {
-  [TypeName in keyof MapToType]: (
-    value: MapToType[TypeName] | undefined,
+  [TypeName in keyof IsEmptyTypeMap]: (
+    value: IsEmptyTypeMap[TypeName],
   ) => boolean;
 };
 
@@ -10,8 +12,8 @@ const MAP_TO_VALUE_IS_EMPTY_FUNCTION: MapToValueIsEmptyFunction = {
   undefined: () => true,
 };
 
-const isEmpty = <TypeName extends keyof MapToType>(
-  values: Array<MapToType[TypeName] | undefined>,
+const isEmpty = <TypeName extends keyof IsEmptyTypeMap>(
+  values: Array<IsEmptyTypeMap[TypeName]>,
   { not, fn = 'every' }: { not?: boolean; fn?: 'every' | 'some' } = {},
 ): boolean =>
   values[fn]((value) => {

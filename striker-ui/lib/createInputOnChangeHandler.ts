@@ -3,15 +3,21 @@ import { Dispatch, SetStateAction } from 'react';
 
 import MAP_TO_VALUE_CONVERTER from './consts/MAP_TO_VALUE_CONVERTER';
 
+type CreateInputOnChangeHandlerTypeMap = Pick<MapToType, 'number' | 'string'>;
+
 type InputOnChangeParameters = Parameters<
   Exclude<MUIInputProps['onChange'], undefined>
 >;
 
 type MapToStateSetter = {
-  [TypeName in keyof MapToType]: Dispatch<SetStateAction<MapToType[TypeName]>>;
+  [TypeName in keyof CreateInputOnChangeHandlerTypeMap]: Dispatch<
+    SetStateAction<CreateInputOnChangeHandlerTypeMap[TypeName]>
+  >;
 };
 
-type CreateInputOnChangeHandlerOptions<TypeName extends keyof MapToType> = {
+type CreateInputOnChangeHandlerOptions<
+  TypeName extends keyof CreateInputOnChangeHandlerTypeMap,
+> = {
   postSet?: (...args: InputOnChangeParameters) => void;
   preSet?: (...args: InputOnChangeParameters) => void;
   set?: MapToStateSetter[TypeName];
@@ -19,7 +25,7 @@ type CreateInputOnChangeHandlerOptions<TypeName extends keyof MapToType> = {
 };
 
 const createInputOnChangeHandler =
-  <TypeName extends keyof MapToType>({
+  <TypeName extends keyof CreateInputOnChangeHandlerTypeMap>({
     postSet,
     preSet,
     set,
@@ -31,7 +37,7 @@ const createInputOnChangeHandler =
     } = event;
     const postConvertValue = MAP_TO_VALUE_CONVERTER[setType](
       value,
-    ) as MapToType[TypeName];
+    ) as CreateInputOnChangeHandlerTypeMap[TypeName];
 
     preSet?.call(null, event);
     set?.call(null, postConvertValue);
