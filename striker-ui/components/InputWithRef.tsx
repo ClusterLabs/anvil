@@ -12,7 +12,9 @@ import createInputOnChangeHandler, {
   MapToStateSetter,
 } from '../lib/createInputOnChangeHandler';
 
-type InputWithRefOptionalProps<TypeName extends keyof MapToType> = {
+type InputWithRefTypeMap = Pick<MapToType, 'number' | 'string'>;
+
+type InputWithRefOptionalProps<TypeName extends keyof InputWithRefTypeMap> = {
   createInputOnChangeHandlerOptions?: Omit<
     CreateInputOnChangeHandlerOptions<TypeName>,
     'set'
@@ -21,22 +23,21 @@ type InputWithRefOptionalProps<TypeName extends keyof MapToType> = {
 };
 
 type InputWithRefProps<
-  TypeName extends keyof MapToType,
+  TypeName extends keyof InputWithRefTypeMap,
   InputComponent extends ReactElement,
 > = InputWithRefOptionalProps<TypeName> & {
   input: InputComponent;
 };
 
-type InputForwardedRefContent<TypeName extends keyof MapToType> = {
+type InputForwardedRefContent<TypeName extends keyof InputWithRefTypeMap> = {
   getIsChangedByUser?: () => boolean;
-  getValue?: () => MapToType[TypeName];
+  getValue?: () => InputWithRefTypeMap[TypeName];
   setValue?: MapToStateSetter[TypeName];
 };
 
-const MAP_TO_INITIAL_VALUE: MapToType = {
+const MAP_TO_INITIAL_VALUE: InputWithRefTypeMap = {
   number: 0,
   string: '',
-  undefined,
 };
 
 const INPUT_WITH_REF_DEFAULT_PROPS: Required<
@@ -47,7 +48,10 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
 };
 
 const InputWithRef = forwardRef(
-  <TypeName extends keyof MapToType, InputComponent extends ReactElement>(
+  <
+    TypeName extends keyof InputWithRefTypeMap,
+    InputComponent extends ReactElement,
+  >(
     {
       createInputOnChangeHandlerOptions: {
         postSet: postSetAppend,
@@ -62,9 +66,9 @@ const InputWithRef = forwardRef(
       props: { onChange: initOnChange, value: initValue, ...restInitProps },
     } = input;
 
-    const [value, setValue] = useState<MapToType[TypeName]>(
+    const [value, setValue] = useState<InputWithRefTypeMap[TypeName]>(
       initValue ?? MAP_TO_INITIAL_VALUE[valueType],
-    ) as [MapToType[TypeName], MapToStateSetter[TypeName]];
+    ) as [InputWithRefTypeMap[TypeName], MapToStateSetter[TypeName]];
     const [isChangedByUser, setIsChangedByUser] = useState<boolean>(false);
 
     const onChange = createInputOnChangeHandler<TypeName>({
