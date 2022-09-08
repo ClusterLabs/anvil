@@ -6,9 +6,8 @@ const InnerPanelBody: FC<BoxProps> = ({ sx, ...innerPanelBodyRestProps }) => (
     {...{
       ...innerPanelBodyRestProps,
       sx: {
-        paddingLeft: '.7em',
-        paddingRight: '.7em',
-        paddingTop: '.3em',
+        padding: '.3em .7em',
+
         ...sx,
       },
     }}
