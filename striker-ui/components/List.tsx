@@ -5,14 +5,17 @@ import {
   Edit as MUIEditIcon,
 } from '@mui/icons-material';
 import {
+  Box as MUIBox,
   List as MUIList,
   ListItem as MUIListItem,
   ListItemIcon as MUIListItemIcon,
+  ListItemProps as MUIListItemProps,
   ListProps as MUIListProps,
 } from '@mui/material';
 import { FC, ReactNode, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { BLUE, GREY, RED } from '../lib/consts/DEFAULT_THEME';
+
+import { BLUE, DIVIDER, GREY, RED } from '../lib/consts/DEFAULT_THEME';
 
 import Checkbox, { CheckboxProps } from './Checkbox';
 import FlexBox from './FlexBox';
@@ -28,6 +31,7 @@ type ListOptionalProps<T = unknown> = {
   isAllowEdit?: boolean;
   isAllowEditItem?: boolean;
   listItemKeyPrefix?: string;
+  listItemProps?: MUIListItemProps;
   listProps?: MUIListProps;
   onAdd?: IconButtonProps['onClick'];
   onDelete?: IconButtonProps['onClick'];
@@ -74,6 +78,7 @@ const LIST_DEFAULT_PROPS: Required<
   isAllowEdit: false,
   isAllowEditItem: undefined,
   listItemKeyPrefix: uuidv4(),
+  listItemProps: {},
   listProps: {},
   onAdd: undefined,
   onDelete: undefined,
@@ -87,8 +92,12 @@ const List = <T,>({
   isAllowEdit = LIST_DEFAULT_PROPS.isAllowEdit,
   isEdit = LIST_DEFAULT_PROPS.isEdit,
   listItemKeyPrefix = LIST_DEFAULT_PROPS.listItemKeyPrefix,
+  listItemProps: {
+    sx: listItemSx,
+    ...restListItemProps
+  } = LIST_DEFAULT_PROPS.listItemProps,
   listItems,
-  listProps = LIST_DEFAULT_PROPS.listProps,
+  listProps: { sx: listSx, ...restListProps } = LIST_DEFAULT_PROPS.listProps,
   onAdd,
   onDelete,
   onEdit,
@@ -141,12 +150,16 @@ const List = <T,>({
   const headerElement = useMemo(
     () =>
       typeof header === 'string' ? (
-        <FlexBox
-          row
-          spacing=".3em"
-          sx={{ height: '2.4em', '& > :first-child': { flexGrow: 1 } }}
-        >
+        <FlexBox row spacing=".3em" sx={{ height: '2.4em' }}>
           <BodyText>{header}</BodyText>
+          <MUIBox
+            sx={{
+              borderTopColor: DIVIDER,
+              borderTopStyle: 'solid',
+              borderTopWidth: '1px',
+              flexGrow: 1,
+            }}
+          />
           {deleteItemButton}
           {editItemButton}
           {addItemButton}
@@ -169,20 +182,33 @@ const List = <T,>({
     () =>
       Object.entries(listItems).map(([key, value]) => (
         <MUIListItem
+          {...restListItemProps}
           key={`${listItemKeyPrefix}-${key}`}
-          sx={{ paddingLeft: 0, paddingRight: 0 }}
+          sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
         >
           {listItemCheckbox}
           {renderListItem(key, value)}
         </MUIListItem>
       )),
-    [listItemCheckbox, listItemKeyPrefix, listItems, renderListItem],
+    [
+      listItemCheckbox,
+      listItemKeyPrefix,
+      listItems,
+      listItemSx,
+      renderListItem,
+      restListItemProps,
+    ],
   );
 
   return (
     <FlexBox spacing={0}>
       {headerElement}
-      <MUIList {...listProps}>{listItemElements}</MUIList>
+      <MUIList
+        {...restListProps}
+        sx={{ paddingBottom: 0, paddingTop: 0, ...listSx }}
+      >
+        {listItemElements}
+      </MUIList>
     </FlexBox>
   );
 };
