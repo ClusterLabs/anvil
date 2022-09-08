@@ -1,4 +1,7 @@
-type IsEmptyTypeMap = Pick<MapToType, 'number' | 'string' | 'undefined'>;
+type IsEmptyTypeMap = Pick<
+  MapToType,
+  'number' | 'object' | 'string' | 'undefined'
+>;
 
 type MapToValueIsEmptyFunction = {
   [TypeName in keyof IsEmptyTypeMap]: (
@@ -8,6 +11,7 @@ type MapToValueIsEmptyFunction = {
 
 const MAP_TO_VALUE_IS_EMPTY_FUNCTION: MapToValueIsEmptyFunction = {
   number: (value = 0) => value === 0,
+  object: (value) => Object.keys(value).length === 0,
   string: (value = '') => value.trim().length === 0,
   undefined: () => true,
 };
