@@ -1,4 +1,5 @@
 declare type MapToType = {
+  boolean: boolean;
   number: number;
   string: string;
   undefined: undefined;
