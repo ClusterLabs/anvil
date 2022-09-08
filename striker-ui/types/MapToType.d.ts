@@ -1,6 +1,7 @@
 declare type MapToType = {
   boolean: boolean;
   number: number;
+  object: Record<string, unknown>;
   string: string;
   undefined: undefined;
 };
