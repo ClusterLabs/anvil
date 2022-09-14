@@ -1,9 +1,7 @@
 const call = <T = unknown>(
   toCall: unknown,
   { parameters = [], notCallableReturn }: CallOptions = {},
-) =>
-  (typeof toCall === 'function'
-    ? toCall(...parameters)
-    : notCallableReturn) as T;
+): T =>
+  typeof toCall === 'function' ? toCall(...parameters) : notCallableReturn;
 
 export default call;
