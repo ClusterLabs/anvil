@@ -18,14 +18,14 @@ my $anvil = Anvil::Tools->new();
 
 sub db_access
 {
-	my $parameters  = shift;
-	my $db_uuid     = $parameters->{db_uuid};
-	my $sql_query   = $parameters->{sql_query};
-	my $access_mode = $parameters->{access_mode};
+	my $parameters     = shift;
+	my $db_access_mode = $parameters->{db_access_mode};
+	my $db_uuid        = $parameters->{db_uuid};
+	my $sql_query      = $parameters->{sql_query};
 
 	my $access_parameters = { query => $sql_query, uuid => $db_uuid, source => $THIS_FILE, line => __LINE__ };
 
-	return ($access_mode eq "write")
+	return ($db_access_mode eq "write")
 		? { write_code => $anvil->Database->write($access_parameters) }
 		: $anvil->Database->query($access_parameters);
 }
@@ -41,16 +41,17 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
+my $data_hash       = $anvil->data->{switches}{'data'};
+my $db_access_mode  = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
 my $db_uuid         = $anvil->data->{switches}{'uuid'};
-my $sub_name        = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
-my $sub_module_name = defined $anvil->data->{switches}{'sub-module'} ? $anvil->data->{switches}{'sub-module'} : "Database";
-my $sub_params      = defined $anvil->data->{switches}{'sub-params'} ? $anvil->data->{switches}{'sub-params'} : "{}";
 my $sql_query       = $anvil->data->{switches}{'query'};
-my $access_mode     = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
+my $sub_module_name = defined $anvil->data->{switches}{'sub-module'} ? $anvil->data->{switches}{'sub-module'} : "Database";
+my $sub_name        = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
+my $sub_params      = defined $anvil->data->{switches}{'sub-params'} ? $anvil->data->{switches}{'sub-params'} : "{}";
 
 if ($sql_query)
 {
-	my $results = db_access({ db_uuid => $db_uuid, sql_query => $sql_query, access_mode => $access_mode });
+	my $results = db_access({ db_uuid => $db_uuid, sql_query => $sql_query, db_access_mode => $db_access_mode });
 	print JSON->new->utf8->encode($results)."\n";
 }
 elsif ($anvil->${sub_module_name}->can($sub_name))
@@ -68,6 +69,10 @@ elsif ($anvil->${sub_module_name}->can($sub_name))
 
     my $results = $anvil->${sub_module_name}->${sub_name}($decoded_sub_params);
     print JSON->new->utf8->encode({ sub_results => $results })."\n";
+}
+elsif ($data_hash)
+{
+	print JSON->new->utf8->allow_blessed->encode($anvil->data)."\n";
 }
 else
 {
