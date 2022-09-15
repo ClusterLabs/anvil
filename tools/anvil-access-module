@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use JSON;
+use Data::Dumper;
 
 $| = 1;
 
@@ -15,6 +16,11 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
+
+sub is_hash
+{
+	return ref($_[0]) eq "HASH";
+}
 
 sub db_access
 {
@@ -28,6 +34,100 @@ sub db_access
 	return ($db_access_mode eq "write")
 		? { write_code => $anvil->Database->write($access_parameters) }
 		: $anvil->Database->query($access_parameters);
+}
+
+sub get_anvil_data
+{
+	my $parameters = shift;
+	my $chain      = $parameters->{chain};
+
+	my $source_intermediate = $anvil->data;
+	my $target_intermediate = $parameters->{data};
+	my $key_index           = 0;
+
+	foreach my $key ( @{$chain} )
+	{
+		last if not exists $source_intermediate->{$key};
+
+		$source_intermediate = $source_intermediate->{$key};
+
+		if (not exists $target_intermediate->{$key})
+		{
+			$target_intermediate->{$key} = {};
+		}
+
+		if ($key_index < $#{$chain})
+		{
+			$target_intermediate = $target_intermediate->{$key};
+		}
+		else
+		{
+			$target_intermediate->{$key} = $source_intermediate;
+		}
+
+		$key_index += 1;
+	}
+}
+
+sub run_fn
+{
+	my $parameters = shift;
+	my $chain      = $parameters->{chain};
+	my $fallback   = $parameters->{fallback};
+	my $fn_wrapper = $parameters->{fn};
+
+	if (exists $fn_wrapper->{fn})
+	{
+		my $fn        = $fn_wrapper->{fn};
+		my $fn_params = $fn_wrapper->{params};
+
+		$fn_params->{chain} = $chain;
+
+		return $fn->($fn_params);
+	}
+	else
+	{
+		return $fallback;
+	}
+}
+
+sub foreach_nested
+{
+	my $parameters   = shift;
+	# Required parameters:
+	my $hash         = $parameters->{hash};
+	# Optional parameters:
+	my $chain        = exists $parameters->{chain}        ? $parameters->{chain}        : ();
+	my $depth        = exists $parameters->{depth}        ? $parameters->{depth}        : 0;
+	my $on_key       = exists $parameters->{on_key}       ? $parameters->{on_key}       : {};
+	my $on_chain_end = exists $parameters->{on_chain_end} ? $parameters->{on_chain_end} : {};
+
+	foreach my $key (keys %{$hash})
+	{
+		my $is_continue_chain = 1;
+		my $value             = $hash->{$key};
+
+		push(@{$chain}, $key);
+
+		$is_continue_chain = run_fn({ chain => $chain, fallback => $is_continue_chain, fn => $on_key });
+
+		if ( ($is_continue_chain) && is_hash($value) )
+		{
+			foreach_nested({
+				chain        => $chain,
+				depth        => $depth + 1,
+				hash         => $value,
+				on_chain_end => $on_chain_end,
+				on_key       => $on_key,
+			});
+		}
+		else
+		{
+			run_fn({ chain => $chain, fn => $on_chain_end });
+		}
+
+		pop(@{$chain});
+	}
 }
 
 $anvil->Get->switches;
@@ -44,6 +144,7 @@ if (not $anvil->data->{sys}{database}{connections})
 my $data_hash       = $anvil->data->{switches}{'data'};
 my $db_access_mode  = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
 my $db_uuid         = $anvil->data->{switches}{'uuid'};
+my $pre_data        = $anvil->data->{switches}{'predata'};
 my $sql_query       = $anvil->data->{switches}{'query'};
 my $sub_module_name = defined $anvil->data->{switches}{'sub-module'} ? $anvil->data->{switches}{'sub-module'} : "Database";
 my $sub_name        = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
@@ -57,13 +158,11 @@ if ($sql_query)
 elsif ($anvil->${sub_module_name}->can($sub_name))
 {
     my $decoded_sub_params;
-    my $is_decode_json_success = eval {
-        $decoded_sub_params = decode_json($sub_params);
-    };
+    my $is_decode_sub_params_success = eval { $decoded_sub_params = decode_json($sub_params); };
 
-    if (not $is_decode_json_success)
+    if (not $is_decode_sub_params_success)
     {
-        print "error: failed to parse subroutine parameters\n";
+        print STDERR "error: failed to parse subroutine parameters\n";
         $anvil->nice_exit({ exit_code => 1 });
     }
 
@@ -72,11 +171,27 @@ elsif ($anvil->${sub_module_name}->can($sub_name))
 }
 elsif ($data_hash)
 {
-	print JSON->new->utf8->allow_blessed->encode($anvil->data)."\n";
+	my $decoded_data_hash;
+	my $is_decode_data_hash_success = eval { $decoded_data_hash = decode_json($data_hash); };
+
+	if (not $is_decode_data_hash_success)
+	{
+		print STDERR "error: failed to parse data structure\n";
+        $anvil->nice_exit({ exit_code => 1 });
+	}
+
+	my $get_anvil_data_params = { data => {} };
+
+	foreach_nested({
+		hash         => $decoded_data_hash,
+		on_chain_end => { fn => \&get_anvil_data, params => $get_anvil_data_params },
+	});
+
+	print JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data})."\n";
 }
 else
 {
-	print "error: missing switches and perhaps their respective parameters; one of --query or --sub is required\n";
+	print STDERR "error: missing switches and perhaps their respective parameters; one of --data, --query, or --sub is required\n";
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
