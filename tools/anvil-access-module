@@ -17,6 +17,11 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub is_array
+{
+	return ref($_[0]) eq "ARRAY";
+}
+
 sub is_hash
 {
 	return ref($_[0]) eq "HASH";
@@ -34,6 +39,43 @@ sub db_access
 	return ($db_access_mode eq "write")
 		? { write_code => $anvil->Database->write($access_parameters) }
 		: $anvil->Database->query($access_parameters);
+}
+
+sub call_pre_data_fns
+{
+	my $parameters = shift;
+	my $fns        = $parameters->{fns};
+
+	if (is_array($fns))
+	{
+		foreach my $fn_wrapper ( @{$fns} )
+		{
+			if (is_array($fn_wrapper))
+			{
+				my $pre_chain    = @{$fn_wrapper}[0] // "";
+				my @fn_params    = @{$fn_wrapper}[1..$#{$fn_wrapper}] // ();
+				my @chain        = split(/->|,/, $pre_chain);
+				my $intermediate = $anvil;
+				my $key_index    = 0;
+
+				foreach my $key ( @chain )
+				{
+					last if not defined $intermediate->${key};
+
+					if ($key_index == $#chain && $intermediate->can($key))
+					{
+						eval { $intermediate->${key}(@fn_params); };
+					}
+					else
+					{
+						$intermediate = $intermediate->${key};
+					}
+
+					$key_index += 1;
+				}
+			}
+		}
+	}
 }
 
 sub get_anvil_data
@@ -69,7 +111,7 @@ sub get_anvil_data
 	}
 }
 
-sub run_fn
+sub call_fn
 {
 	my $parameters = shift;
 	my $chain      = $parameters->{chain};
@@ -109,7 +151,7 @@ sub foreach_nested
 
 		push(@{$chain}, $key);
 
-		$is_continue_chain = run_fn({ chain => $chain, fallback => $is_continue_chain, fn => $on_key });
+		$is_continue_chain = call_fn({ chain => $chain, fallback => $is_continue_chain, fn => $on_key });
 
 		if ( ($is_continue_chain) && is_hash($value) )
 		{
@@ -123,7 +165,7 @@ sub foreach_nested
 		}
 		else
 		{
-			run_fn({ chain => $chain, fn => $on_chain_end });
+			call_fn({ chain => $chain, fn => $on_chain_end });
 		}
 
 		pop(@{$chain});
@@ -171,6 +213,17 @@ elsif ($anvil->${sub_module_name}->can($sub_name))
 }
 elsif ($data_hash)
 {
+	if ($pre_data)
+	{
+		my $decoded_pre_data;
+		my $is_decode_pre_data_success = eval { $decoded_pre_data = decode_json($pre_data); };
+
+		if ($is_decode_pre_data_success && is_array($decoded_pre_data))
+		{
+			call_pre_data_fns({ fns => $decoded_pre_data });
+		}
+	}
+
 	my $decoded_data_hash;
 	my $is_decode_data_hash_success = eval { $decoded_data_hash = decode_json($data_hash); };
 
