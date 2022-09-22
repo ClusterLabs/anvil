@@ -19,7 +19,7 @@ const execAnvilAccessModule = (
     throw error;
   }
 
-  if (stderr) {
+  if (stderr.length > 0) {
     throw new Error(stderr.toString());
   }
 
@@ -122,6 +122,20 @@ const dbSubRefreshTimestamp = () =>
 const dbWrite = (query: string, options?: SpawnSyncOptions) =>
   execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
 
+const getAnvilData = (
+  dataStruct: AnvilDataStruct,
+  { predata, ...spawnSyncOptions }: GetAnvilDataOptions = {},
+) =>
+  execAnvilAccessModule(
+    [
+      '--predata',
+      JSON.stringify(predata),
+      '--data',
+      JSON.stringify(dataStruct),
+    ],
+    spawnSyncOptions,
+  ).stdout;
+
 const getLocalHostUUID = () =>
   execModuleSubroutine('host_uuid', {
     subModuleName: 'Get',
@@ -132,6 +146,7 @@ export {
   dbQuery,
   dbSubRefreshTimestamp,
   dbWrite,
+  getAnvilData,
   getLocalHostUUID,
   execModuleSubroutine as sub,
 };
