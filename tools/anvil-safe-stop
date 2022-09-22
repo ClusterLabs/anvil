@@ -8,6 +8,9 @@
 # 
 # TODO: 
 # 
+# BUG:
+# - --poweroff when the peer is offline tries to migrate anyway.
+# - 
 
 use strict;
 use warnings;
@@ -265,19 +268,6 @@ sub process_servers
 {
 	my ($anvil) = @_;
 	
-	if ($anvil->data->{switches}{'stop-servers'})
-	{
-		# Tell the user we're about to shut down servers.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0320"});
-		$anvil->Job->update_progress({progress => 10, message => "job_0320"});
-	}
-	else
-	{
-		# Tell the user we're about to migrate servers.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0321"});
-		$anvil->Job->update_progress({progress => 10, message => "job_0321"});
-	}
-	
 	# Use virsh to check for servers, in case pacemaker lies to us.
 	$anvil->Server->find();
 	my $progress       = 10;
@@ -291,6 +281,51 @@ sub process_servers
 		's1:server_count'   => $server_count, 
 		's2:progress_steps' => $progress_steps, 
 	}});
+	
+	# If we have one or more local servers, we need to know if both of us are in the cluster. If we're 
+	# not, or the peer isn't, we can't migrate.
+	my $can_migrate = 0;
+	if ($server_count)
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:problem'                   => $problem,
+			's2:cib::parsed::local::ready' => $anvil->data->{cib}{parsed}{'local'}{ready}, 
+			's3:cib::parsed::peer::ready'  => $anvil->data->{cib}{parsed}{peer}{ready}, 
+		}});
+		if ($problem)
+		{
+			$can_migrate = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { can_migrate => $can_migrate }});
+		}
+		elsif ((not $anvil->data->{cib}{parsed}{'local'}{ready}) or (not $anvil->data->{cib}{parsed}{peer}{ready}))
+		{
+			$can_migrate = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { can_migrate => $can_migrate }});
+		}
+		
+		if ((not $anvil->data->{switches}{'stop-servers'}) && (not $can_migrate))
+		{
+			# Abort.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0372"});
+			$anvil->Job->update_progress({progress => 100, message => "error_0372"});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	if ($anvil->data->{switches}{'stop-servers'})
+	{
+		# Tell the user we're about to shut down servers.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0320"});
+		$anvil->Job->update_progress({progress => 10, message => "job_0320"});
+	}
+	else
+	{
+		# Tell the user we're about to migrate servers.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0321"});
+		$anvil->Job->update_progress({progress => 10, message => "job_0321"});
+	}
+	
 	while ($waiting)
 	{
 		# Is the cluster up?

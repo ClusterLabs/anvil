@@ -101,6 +101,7 @@ Requires:       screen
 Requires:       smartmontools
 Requires:       syslinux
 Requires:       tar
+Requires:       tcpdump
 Requires:       tmux
 Requires:       unzip
 Requires:       usbutils

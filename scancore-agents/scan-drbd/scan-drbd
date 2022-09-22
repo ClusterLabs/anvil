@@ -14,7 +14,8 @@
 # TODO: 
 # - Create a background script that is invoked when we see a resync is running that loops every few seconds 
 #   and updates the progress in the database, exiting when the last resync is complete.
-# 
+# - If the DRBD proxy file exists, see how long until it expires. May want to suppress alerts if no resources
+#   use it.
 
 use strict;
 use warnings;
@@ -90,6 +91,9 @@ if ($anvil->DRBD->gather_data({debug => 2}))
 $problem = $anvil->Storage->manage_lvm_conf();
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 
+# TODO: Remove this eventually.
+check_schema($anvil);
+
 read_last_scan($anvil);
 
 find_changes($anvil);
@@ -103,6 +107,41 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# In the early days, scan_drbd_peers -> scan_drbd_peer_tcp_port was type numeric. This wasn't compatible with
+# drbd-proxy and had to be changed to type text to support csv port lists.
+sub check_schema
+{
+	my ($anvil) = @_;
+	
+	my $query = "SELECT table_schema, data_type FROM information_schema.columns WHERE column_name = 'scan_drbd_peer_tcp_port';";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $schema = $row->[0]; 
+		my $type   = $row->[1]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			schema => $schema,
+			type   => $type,
+		}});
+		
+		if ($type ne "text")
+		{
+			my $query = "ALTER TABLE ".$schema.".scan_drbd_peers ALTER COLUMN scan_drbd_peer_tcp_port TYPE text;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
 
 # This looks at the global-common.conf file and updates it, if needed.
 sub check_config
@@ -465,7 +504,7 @@ INSERT INTO
 sub process_peers
 {
 	my ($anvil, $resource, $scan_drbd_resource_uuid) = @_;
-		
+	
 	foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
 	{
 		foreach my $peer_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume_number}{peer}})
@@ -505,7 +544,26 @@ sub process_peers
 				"s13:new_scan_drbd_peer_protocol"               => $new_scan_drbd_peer_protocol,
 				"s14:new_scan_drbd_peer_fencing"                => $new_scan_drbd_peer_fencing,
 			}});
-		
+			
+			# Is there a proxy config?
+# 			my $new_scan_drbd_peer_inside_ip_address  = "";
+# 			my $new_scan_drbd_peer_inside_tcp_port    = "";
+# 			my $new_scan_drbd_peer_outside_ip_address = "";
+# 			my $new_scan_drbd_peer_outside_tcp_port   = "";
+# 			if (exists $anvil->data->{new}{resource}{$resource}{proxy}{$peer_host_name})
+# 			{
+# 				$new_scan_drbd_peer_inside_ip_address  = $anvil->data->{new}{resource}{$resource}{proxy}{$peer_host_name}{inside}{ip_address};
+# 				$new_scan_drbd_peer_inside_tcp_port    = $anvil->data->{new}{resource}{$resource}{proxy}{$peer_host_name}{inside}{ip_port};
+# 				$new_scan_drbd_peer_outside_ip_address = $anvil->data->{new}{resource}{$resource}{proxy}{$peer_host_name}{outside}{ip_address};
+# 				$new_scan_drbd_peer_outside_tcp_port   = $anvil->data->{new}{resource}{$resource}{proxy}{$peer_host_name}{outside}{ip_port};
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+# 					"s1:new_scan_drbd_peer_inside_ip_address"  => $new_scan_drbd_peer_inside_ip_address, 
+# 					"s2:new_scan_drbd_peer_inside_tcp_port"    => $new_scan_drbd_peer_inside_tcp_port, 
+# 					"s3:new_scan_drbd_peer_outside_ip_address" => $new_scan_drbd_peer_outside_ip_address, 
+# 					"s4:new_scan_drbd_peer_outside_tcp_port"   => $new_scan_drbd_peer_outside_tcp_port, 
+# 				}});
+# 			}
+			
 			if (exists $anvil->data->{old}{resource_to_uuid}{$resource}{volume}{$volume_number}{peer}{$peer_host_name})
 			{
 				# Look for changes

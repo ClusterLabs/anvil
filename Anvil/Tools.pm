@@ -1043,6 +1043,7 @@ sub _set_paths
 				'corosync.conf'			=>	"/etc/corosync/corosync.conf",
 				'dhcpd.conf'			=>	"/etc/dhcp/dhcpd.conf",
 				'dnf.conf'			=>	"/etc/dnf/dnf.conf",
+				'drbd-proxy.license'		=>	"/etc/drbd-proxy.license",
 				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
 				'global-common.conf'		=>	"/etc/drbd.d/global_common.conf",
 				hostname			=>	"/etc/hostname", 

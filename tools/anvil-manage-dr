@@ -32,7 +32,7 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->Get->switches({list => ["connect", "disconnect", "job-uuid", "protect", "protocol", "remove", "server", "update", "Yes"], man => $THIS_FILE});
+$anvil->Get->switches({list => ["connect", "disconnect", "job-uuid", "license-file", "protect", "protocol", "remove", "server", "update", "Yes"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -129,8 +129,8 @@ sub sanity_check
 			# This must be run on a node active in the cluster  hosting the server being managed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0332"});
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "error_0332", 
+				progress   => 100,
+				message    => "error_0332", 
 				job_status => "failed", 
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -146,8 +146,8 @@ sub sanity_check
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0336"});
 				$anvil->Job->update_progress({
-					progress => 0,
-					message  => "error_0336", 
+					progress   => 0,
+					message    => "error_0336", 
 					job_status => "failed", 
 				});
 				$anvil->nice_exit({exit_code => 1});
@@ -160,8 +160,8 @@ sub sanity_check
 				# We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0337"});
 				$anvil->Job->update_progress({
-					progress => 0,
-					message  => "error_0337", 
+					progress   => 0,
+					message    => "error_0337", 
 					job_status => "failed", 
 				});
 				$anvil->nice_exit({exit_code => 1});
@@ -172,23 +172,78 @@ sub sanity_check
 		{
 			if (not $anvil->data->{switches}{protocol})
 			{
-				$anvil->data->{switches}{protocol} = "async";
+				$anvil->data->{switches}{protocol} = "short-throw";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					'switches::protocol' => $anvil->data->{switches}{protocol},
 				}});
 			}
-			elsif (($anvil->data->{switches}{protocol} ne "sync")  && 
-			       ($anvil->data->{switches}{protocol} ne "async") && 
+			elsif (($anvil->data->{switches}{protocol} ne "sync")        && 
+			       ($anvil->data->{switches}{protocol} ne "short-throw") && 
 			       ($anvil->data->{switches}{protocol} ne "long-throw"))
 			{
 				# The protocol is invalid. Please use '--help' for more information.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0342", variables => { protocol => $anvil->data->{switches}{protocol} }});
 				$anvil->Job->update_progress({
-					progress => 100,
-					message  => "error_0341,!!protocol!".$anvil->data->{switches}{protocol}."!!", 
+					progress   => 100,
+					message    => "error_0341,!!protocol!".$anvil->data->{switches}{protocol}."!!", 
 					job_status => "failed", 
 				});
 				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			if ($anvil->data->{switches}{protocol} eq "long-throw"))
+			{
+				# If there isn't a license file, make sure it's being provided.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'path::config::drbd-proxy.license' => $anvil->data->{path}{configs}{'drbd-proxy.license'},
+				}});
+				if (not -e $anvil->data->{path}{configs}{'drbd-proxy.license'})
+				{
+					if (not $anvil->data->{switches}{'license-file'})
+					{
+						# Proxy wouldn't work.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0373"});
+						$anvil->Job->update_progress({
+							progress   => 100,
+							message    => "error_0373", 
+							job_status => "failed", 
+						});
+						$anvil->nice_exit({exit_code => 1});
+					}
+					elsif (not -f $anvil->data->{switches}{'license-file'})
+					{
+						# It was passed, but doesn't point to the file.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0374", variables => { file => $anvil->data->{switches}{'license-file'} }});
+						$anvil->Job->update_progress({
+							progress   => 100,
+							message    => "error_0374,!!file!".$anvil->data->{switches}{'license-file'}."!!", 
+							job_status => "failed", 
+						});
+						$anvil->nice_exit({exit_code => 1});
+					}
+					
+					# Still here? Copy the license file.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0429", variables => { file => $anvil->data->{switches}{'license-file'} }});
+					my $failed = $anvil->Storage->copy_file({
+						source_file => $anvil->data->{switches}{'license-file'}, 
+						target_file => $anvil->data->{path}{configs}{'drbd-proxy.license'},
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+				}
+				
+				# Lastly, read in the license file to make sure it _looks_ ok.
+				my $problem = $anvil->DRBD->check_proxy_license({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				if ($problem)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0375"});
+					$anvil->Job->update_progress({
+						progress   => 100,
+						message    => "error_0375", 
+						job_status => "failed", 
+					});
+					$anvil->nice_exit({exit_code => 1});
+				}
 			}
 		}
 	}
@@ -204,8 +259,8 @@ sub sanity_check
 		# This Anvil! does not seem to have a DR host. Exiting.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0333"});
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "error_0333", 
+			progress   => 100,
+			message    => "error_0333", 
 			job_status => "failed", 
 		});
 		$anvil->nice_exit({exit_code => 1});
@@ -233,8 +288,8 @@ sub sanity_check
 			# Failed to find an IP we can access the DR host. Has it been configured? Is it running? Exiting.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0334", variables => { host_name => $dr1_host_name }});
 			$anvil->Job->update_progress({
-				progress => 0,
-				message  => "error_0334,!!host_name!".$dr1_host_name."!!", 
+				progress   => 0,
+				message    => "error_0334,!!host_name!".$dr1_host_name."!!", 
 				job_status => "failed", 
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -254,15 +309,15 @@ sub sanity_check
 				ip_address => $dr_ip, 
 			}});
 			$anvil->Job->update_progress({
-				progress => 0,
-				message  => "error_0335,!!host_name!".$dr1_host_name."!!,!!ip_address!".$dr_ip."!!", 
+				progress   => 0,
+				message    => "error_0335,!!host_name!".$dr1_host_name."!!,!!ip_address!".$dr_ip."!!", 
 				job_status => "failed", 
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
-		### TODO: We can queue a job to update the peer later, there's no real need, in the long run, for the
-		###       peer to be online.
+		### TODO: We can queue a job to update the peer later, there's no real need, in the long run,
+		###       for the peer to be online.
 		# If we're protecting or removing a server from DR, the peer needs to be up.
 		if ((($anvil->data->{switches}{protect})   or 
 		     ($anvil->data->{switches}{remove})    or 
@@ -271,8 +326,8 @@ sub sanity_check
 		{
 			if ($anvil->data->{switches}{protect})
 			{
-				# We can't setup a server to be protected unless both nodes are up, and the peer 
-				# isn't at this time.
+				# We can't setup a server to be protected unless both nodes are up, and the 
+				# peer isn't at this time.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0338"});
 				$anvil->Job->update_progress({
 					progress   => 0,
@@ -282,8 +337,8 @@ sub sanity_check
 			}
 			else
 			{
-				# We can't remove a server from DR unless both nodes are up, and the peer isn't at 
-				# this time.
+				# We can't remove a server from DR unless both nodes are up, and the peer 
+				# isn't at this time.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0339"});
 				$anvil->Job->update_progress({
 					progress   => 0,
@@ -342,8 +397,8 @@ sub sanity_check
 		# Failed to find the server by name or UUID.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0341", variables => { server => $anvil->data->{switches}{server} }});
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "error_0341,!!server!".$anvil->data->{switches}{server}."!!", 
+			progress   => 100,
+			message    => "error_0341,!!server!".$anvil->data->{switches}{server}."!!", 
 			job_status => "failed", 
 		});
 		$anvil->nice_exit({exit_code => 1});
@@ -1956,8 +2011,12 @@ sub process_protect
 	}
 	
 	# Have we already configured the DR? If so, what ports are already allocated.
-	my $node1_to_dr_port = "";
-	my $node2_to_dr_port = "";
+	my $node1_to_dr_port         = "";
+	my $node1_to_dr_port_inside  = "";
+	my $node1_to_dr_port_outside = "";
+	my $node2_to_dr_port         = "";
+	my $node2_to_dr_port_inside  = "";
+	my $node2_to_dr_port_outside = "";
 	foreach my $host1_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{host1_to_host2}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host1_name => $host1_name }});
@@ -1965,46 +2024,99 @@ sub process_protect
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host2_name => $host2_name }});
 			next if (($host1_name ne $dr1_short_host_name) && ($host2_name ne $dr1_short_host_name));
+			
 			if (($host1_name eq $node1_short_host_name) or ($host2_name eq $node1_short_host_name))
 			{
 				$node1_to_dr_port = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port => $node1_to_dr_port }});
+				
+				if (exists $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port})
+				{
+					$node1_to_dr_port_inside  = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port};
+					$node1_to_dr_port_outside = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						node1_to_dr_port_inside  => $node1_to_dr_port_inside,
+						node1_to_dr_port_outside => $node1_to_dr_port_outside, 
+					}});
+				}
 			}
 			else
 			{
 				$node2_to_dr_port = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port => $node2_to_dr_port }});
+				
+				if (exists $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port})
+				{
+					$node2_to_dr_port_inside  = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port};
+					$node2_to_dr_port_outside = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						node2_to_dr_port_inside  => $node2_to_dr_port_inside,
+						node2_to_dr_port_outside => $node2_to_dr_port_outside, 
+					}});
+				}
 			}
 		}
 	}
 	
 	# Get net next pair of TCP ports, if needed.
+	my $dr_tcp_ports     = 1;
+	my $long_throw_ports = 0;
+	if ($anvil->data->{switches}{protocol} eq "long-throw")
+	{
+		$dr_tcp_ports     = 0;
+		$long_throw_ports = 1;
+	}
 	my (undef, $tcp_ports) = $anvil->DRBD->get_next_resource({
-		debug        => 2,
-		dr_tcp_ports => 1, 
+		debug            => 2,
+		dr_tcp_ports     => $dr_tcp_ports, 
+		long_throw_ports => $long_throw_ports, 
 	});
-	my ($first_port, $second_port) = split/,/, $tcp_ports;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"s01:first_port"  => $first_port, 
-		"s02:second_port" => $second_port, 
-	}});
+	my @free_ports = split/,/, $tcp_ports;
+	my $i          = 0;
+
 	if ($node1_to_dr_port eq "")
 	{
-		$node1_to_dr_port = $first_port;
+		$node1_to_dr_port = $free_ports[$i++];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port => $node1_to_dr_port }});
 	}
+	
+	if (($long_throw_ports) && (not $node1_to_dr_port_inside))
+	{
+		$node1_to_dr_port_inside = $free_ports[$i++];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port_inside => $node1_to_dr_port_inside }});
+	}
+	if (($long_throw_ports) && (not $node1_to_dr_port_outside))
+	{
+		$node1_to_dr_port_outside = $free_ports[$i++];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port_outside => $node1_to_dr_port_outside }});
+	}
+	
 	if ($node2_to_dr_port eq "")
 	{
-		$node2_to_dr_port = $second_port;
+		$node2_to_dr_port = $free_ports[$i];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port => $node2_to_dr_port }});
+	}
+	if (($long_throw_ports) && (not $node2_to_dr_port_inside))
+	{
+		$node2_to_dr_port_inside = $free_ports[$i++];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port_inside => $node2_to_dr_port_inside }});
+	}
+	if (($long_throw_ports) && (not $node2_to_dr_port_outside))
+	{
+		$node2_to_dr_port_outside = $free_ports[$i++];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port_outside => $node2_to_dr_port_outside }});
 	}
 	
 	# Show what we're doing
 	my $variables = {
-		protocol         => $anvil->data->{switches}{protocol}, 
-		node1_to_dr_port => $node1_to_dr_port, 
-		node2_to_dr_port => $node2_to_dr_port, 
-		config_file      => $config_file, 
+		protocol                 => $anvil->data->{switches}{protocol}, 
+		node1_to_dr_port         => $node1_to_dr_port, 
+		node1_to_dr_port_inside  => $node1_to_dr_port_inside, 
+		node1_to_dr_port_outside => $node1_to_dr_port_outside, 
+		node2_to_dr_port         => $node2_to_dr_port, 
+		node2_to_dr_port_inside  => $node2_to_dr_port_inside, 
+		node2_to_dr_port_outside => $node2_to_dr_port_outside, 
+		config_file              => $config_file, 
 	};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0361", variables => $variables});
 	$anvil->Job->update_progress({
@@ -2282,33 +2394,58 @@ sub process_protect
 	}});
 	
 	# Choose the DR protocol
-	my $dr_protocol = "A";
+	my $use_drbd_proxy = 0;
+	my $dr_protocol    = "A";
 	if ($anvil->data->{switches}{protocol} eq "sync")
 	{
 		$dr_protocol = "C";
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_protocol => $dr_protocol }});
+	elsif ($anvil->data->{switches}{protocol} eq "long-throw")
+	{
+		$use_drbd_proxy = 1;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		dr_protocol    => $dr_protocol,
+		use_drbd_proxy => $use_drbd_proxy, 
+	}});
 
 	# Node 1 to Node 2 first
+	my $proxy      = "";
+	my $max_c_rate = 500;
+	my $file_key   = "file_0005";
+	if ($use_drbd_proxy)
+	{
+		$proxy      = $anvil->Words->string({key => "file_0008", variables => { memlimit => 256 }});
+		$max_c_rate = 100;
+		$file_key   = "file_0007";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		proxy      => $proxy, 
+		max_c_rate => $max_c_rate,
+		file_key   => $file_key, 
+	}});
+	
 	my $connections = $anvil->Words->string({key => "file_0005", variables => {
 		host1_short_name => $node1_short_host_name, 
 		host1_ip         => $node1_sn_ip, 
 		host2_short_name => $node2_short_host_name, 
 		host2_ip         => $node2_sn_ip, 
 		tcp_port         => $nodes_tcp_port, 
-		'c-rate-maximum' => 500,
+		'c-rate-maximum' => $max_c_rate,
 		protocol         => "C",
                 fencing          => "resource-and-stonith"
 	}});
 	
 	# Node 1 to DR
-	$connections .= $anvil->Words->string({key => "file_0005", variables => {
+	   $connections .= $anvil->Words->string({key => "file_0005", variables => {
 		host1_short_name => $node1_short_host_name, 
 		host1_ip         => $node1_dr_ip, 
 		host2_short_name => $dr1_short_host_name, 
 		host2_ip         => $dr1_ip, 
 		tcp_port         => $node1_to_dr_port, 
-		'c-rate-maximum' => 500,
+		inside_tcp_port  => $node1_to_dr_port_inside,
+		outside_tcp_port => $node1_to_dr_port_outside,
+		'c-rate-maximum' => $max_c_rate,
 		protocol         => $dr_protocol,
                 fencing          => "dont-care"
 	}});
@@ -2320,13 +2457,17 @@ sub process_protect
 		host2_short_name => $dr1_short_host_name, 
 		host2_ip         => $dr1_ip, 
 		tcp_port         => $node2_to_dr_port, 
-		'c-rate-maximum' => 500,
+		inside_tcp_port  => $node2_to_dr_port_inside,
+		outside_tcp_port => $node2_to_dr_port_outside,
+		'c-rate-maximum' => $max_c_rate,
 		protocol         => $dr_protocol,
                 fencing          => "dont-care"
 	}});
 	
+	
 	my $new_resource_config = $anvil->Words->string({key => "file_0006", variables => {
 		server      => $server_name,
+		proxy       => $proxy, 
 		hosts       => $hosts,
 		connections => $connections,
 	}});

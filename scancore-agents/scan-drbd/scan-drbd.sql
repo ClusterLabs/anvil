@@ -196,7 +196,7 @@ CREATE TABLE scan_drbd_peers (
     scan_drbd_peer_replication_speed         numeric                     not null,                -- This is how many bytes per second are being copied. Set to '0' when not synchronizing.
     scan_drbd_peer_estimated_time_to_sync    numeric                     not null,                -- This is the number of second that is *estimated* remaining in the resync. Set to '0' when both sides are UpToDate.
     scan_drbd_peer_ip_address                text                        not null,                -- The (SN) IP address used for this peer.
-    scan_drbd_peer_tcp_port                  numeric                     not null,                -- This is the port number used for this peer.
+    scan_drbd_peer_tcp_port                  text                        not null,                -- This is the port number used for this peer. It can be a CSV for drbd-proxy connections, hence being type text
     scan_drbd_peer_protocol                  text                        not null,                -- This is 'A' for async peers (to DR, usually) or 'C' to sync peers (node peer and sometimes DR)
     scan_drbd_peer_fencing                   text                        not null,                -- Set to 'resource-and-stonith' for node peers and 'dont-care' for DR hosts.
     modified_date                            timestamp with time zone    not null,
@@ -221,7 +221,7 @@ CREATE TABLE history.scan_drbd_peers (
     scan_drbd_peer_replication_speed         numeric, 
     scan_drbd_peer_estimated_time_to_sync    numeric, 
     scan_drbd_peer_ip_address                text, 
-    scan_drbd_peer_tcp_port                  numeric, 
+    scan_drbd_peer_tcp_port                  text, 
     scan_drbd_peer_protocol                  text, 
     scan_drbd_peer_fencing                   text, 
     modified_date                            timestamp with time zone    not null
