@@ -191,7 +191,7 @@ sub sanity_check
 				$anvil->nice_exit({exit_code => 1});
 			}
 			
-			if ($anvil->data->{switches}{protocol} eq "long-throw"))
+			if ($anvil->data->{switches}{protocol} eq "long-throw")
 			{
 				# If there isn't a license file, make sure it's being provided.
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -2030,10 +2030,10 @@ sub process_protect
 				$node1_to_dr_port = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_to_dr_port => $node1_to_dr_port }});
 				
-				if (exists $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port})
+				if (exists $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port})
 				{
-					$node1_to_dr_port_inside  = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port};
-					$node1_to_dr_port_outside = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port};
+					$node1_to_dr_port_inside  = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port};
+					$node1_to_dr_port_outside = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						node1_to_dr_port_inside  => $node1_to_dr_port_inside,
 						node1_to_dr_port_outside => $node1_to_dr_port_outside, 
@@ -2045,10 +2045,10 @@ sub process_protect
 				$node2_to_dr_port = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_to_dr_port => $node2_to_dr_port }});
 				
-				if (exists $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port})
+				if (exists $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port})
 				{
-					$node2_to_dr_port_inside  = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port};
-					$node2_to_dr_port_outside = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port};
+					$node2_to_dr_port_inside  = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port};
+					$node2_to_dr_port_outside = $anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						node2_to_dr_port_inside  => $node2_to_dr_port_inside,
 						node2_to_dr_port_outside => $node2_to_dr_port_outside, 
@@ -2425,6 +2425,7 @@ sub process_protect
 		file_key   => $file_key, 
 	}});
 	
+	# Node 1 to 2
 	my $connections = $anvil->Words->string({key => "file_0005", variables => {
 		host1_short_name => $node1_short_host_name, 
 		host1_ip         => $node1_sn_ip, 
@@ -2433,11 +2434,11 @@ sub process_protect
 		tcp_port         => $nodes_tcp_port, 
 		'c-rate-maximum' => $max_c_rate,
 		protocol         => "C",
-                fencing          => "resource-and-stonith"
+		fencing          => "resource-and-stonith"
 	}});
 	
 	# Node 1 to DR
-	   $connections .= $anvil->Words->string({key => "file_0005", variables => {
+	$connections .= $anvil->Words->string({key => $file_key, variables => {
 		host1_short_name => $node1_short_host_name, 
 		host1_ip         => $node1_dr_ip, 
 		host2_short_name => $dr1_short_host_name, 
@@ -2447,11 +2448,11 @@ sub process_protect
 		outside_tcp_port => $node1_to_dr_port_outside,
 		'c-rate-maximum' => $max_c_rate,
 		protocol         => $dr_protocol,
-                fencing          => "dont-care"
+		fencing          => "dont-care"
 	}});
 
 	# Node 2 to DR
-	$connections .= $anvil->Words->string({key => "file_0005", variables => {
+	$connections .= $anvil->Words->string({key => $file_key, variables => {
 		host1_short_name => $node2_short_host_name, 
 		host1_ip         => $node2_dr_ip, 
 		host2_short_name => $dr1_short_host_name, 
@@ -2461,9 +2462,8 @@ sub process_protect
 		outside_tcp_port => $node2_to_dr_port_outside,
 		'c-rate-maximum' => $max_c_rate,
 		protocol         => $dr_protocol,
-                fencing          => "dont-care"
+		fencing          => "dont-care"
 	}});
-	
 	
 	my $new_resource_config = $anvil->Words->string({key => "file_0006", variables => {
 		server      => $server_name,

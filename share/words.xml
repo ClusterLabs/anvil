@@ -832,12 +832,11 @@ resource #!variable!server!# {
                 }
         }
 ]]></key>
-		<key name="file_0008"><![CDATA[# Resource for #!variable!server!#
+		<key name="file_0008"><![CDATA[
         proxy {
                 # You need to allocate >= 16MB per proxy connection to DRBD proxy for it to bring up a connection
-                memlimit #!variable!memlimiin!#M;
+                memlimit #!variable!memlimit!#M;
         }
-
 ]]></key>
 		
 		<!-- Table headers -->
@@ -1320,8 +1319,6 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
 		<key name="job_0361">Verified that there is enough space on DR to proceed.
 * The connection protocol will be: ..... [#!variable!protocol!#]
-* Node 1 to DR will use TCP port: ...... [#!variable!node1_to_dr_port!#]
-* Node 2 to DR will use TCP port: ...... [#!variable!node2_to_dr_port!#]
 * We will update the DRBD resource file: [#!variable!config_file!#]
 The following LV(s) will be created:
 		</key>
