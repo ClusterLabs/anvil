@@ -759,6 +759,8 @@ sub startup_resource
 			task     => "up",
 		});
 		
+		# If both sides are Inconsistent, for node 1 to primary
+		
 		my $waiting = 1;
 		while($waiting)
 		{

@@ -17,6 +17,7 @@ my $THIS_FILE = "DRBD.pm";
 # allow_two_primaries
 # check_if_syncsource
 # check_if_synctarget
+# check_proxy_license
 # delete_resource
 # gather_data
 # get_devices
@@ -347,6 +348,144 @@ sub check_if_synctarget
 }
 
 
+=head2 check_proxy_license
+
+This method checks to see if the DRBD Proxy license file exists and _appears_ correct. If things look good, C<< 0 >> is returned. If there is a problem, C<< 1 >> is returned.
+
+=cut
+sub check_proxy_license
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->check_proxy_license()" }});
+	
+	if (not -e $anvil->data->{path}{configs}{'drbd-proxy.license'})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0728"});
+		return(1);
+	}
+	
+	# Read in the file.
+	my $wildcard_mac  = 0;
+	my $problem       = 0;
+	my $owner         = "";
+	my $expiry_date   = 0;
+	my $mac_addresses = [];
+	my $features      = "";
+	my $signature     = "";
+	my $license_body  = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'drbd-proxy.license'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { license_body => $license_body }});
+	foreach my $line (split/\n/, $license_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^owner: (.*)$/)
+		{
+			$owner = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { owner => $owner }});
+			next;
+		}
+		if ($line =~ /^expiry-date: (.*)$/)
+		{
+			$expiry_date = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { expiry_date => $expiry_date }});
+			next;
+		}
+		if ($line =~ /^mac-address: (.*)$/)
+		{
+			my $this_mac = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_mac => $this_mac }});
+			
+			if ($this_mac eq "00:00:00:00:00:00")
+			{
+				$wildcard_mac = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wildcard_mac => $wildcard_mac }});
+			}
+			
+			push @{$mac_addresses}, $this_mac;
+			next;
+		}
+		if ($line =~ /^features: (.*)$/)
+		{
+			$features = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { features => $features }});
+			next;
+		}
+		if ($line =~ /^signature: (.*)$/)
+		{
+			$signature = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { signature => $signature }});
+			next;
+		}
+	}
+	
+	if ((not $owner)       or 
+	    (not $expiry_date) or 
+	    (not $signature))
+	{
+		# Appears to not be a valid license file.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0731"});
+		return(1);
+	}
+	
+	if (time >= $expiry_date)
+	{
+		# The license has expired.
+		$problem = 1;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0729"});
+	}
+	
+	if (not $wildcard_mac)
+	{
+		# Loop through all MACs on this system and see if one matches the license.
+		my $match     = 0;
+		my $host      = $anvil->Get->short_host_name();
+		my $mac_count = @{$mac_addresses};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host      => $host, 
+			mac_count => $mac_count,
+		}});
+		
+		if (not $mac_count)
+		{
+		}
+		
+		foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
+		{
+			my $mac_address = $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:in_iface'    => $in_iface,
+				's2:mac_address' => $mac_address, 
+			}});
+			
+			foreach my $licensed_mac (@{$mac_addresses})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { licensed_mac => $licensed_mac }});
+				
+				if (lc($mac_address) eq lc($licensed_mac))
+				{
+					$match = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { match => $match }});
+					last;
+				}
+			}
+			last if $match;
+		}
+		
+		if (not $match)
+		{
+			# MACs don't match.
+			$problem = 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0730"});
+		}
+	}
+	
+	return($problem);
+}
+
+
 =head2 delete_resource
 
 This method deletes an entire resource. It does this by looping through the volumes configured in a resource and deleting them one after the other (even if there is only one volume).
@@ -578,6 +717,13 @@ sub gather_data
 		}
 	}
 	
+	my $local_host_name       = $anvil->Get->host_name;
+	my $local_short_host_name = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		local_host_name       => $local_host_name, 
+		local_short_host_name => $local_short_host_name, 
+	}});
+	
 	local $@;
 	my $dom = eval { XML::LibXML->load_xml(string => $xml); };
 	if ($@)
@@ -598,13 +744,6 @@ sub gather_data
 		$anvil->data->{new}{scan_drbd}{scan_drbd_flush_md}         = 1;
 		$anvil->data->{new}{scan_drbd}{scan_drbd_timeout}          = 6;		# Default is '60', 6 seconds
 		$anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed} = 0;
-		
-		my $local_host_name       = $anvil->Get->host_name;
-		my $local_short_host_name = $anvil->Get->short_host_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			local_host_name       => $local_host_name, 
-			local_short_host_name => $local_short_host_name, 
-		}});
 		foreach my $name ($dom->findnodes('/config/common/section'))
 		{
 			my $section = $name->{name};
@@ -736,7 +875,7 @@ sub gather_data
 					}
 					else
 					{
-						$host2_name = $this_host_name;
+						$host2_name       = $this_host_name;
 						$host2_ip_address = $host->findvalue('./address');
 						$host2_tcp_port   = $host->findvalue('./address/@port');
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -755,6 +894,37 @@ sub gather_data
 							"s3:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address},
 							"s4:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port},
 						}});
+						
+						foreach my $proxy ($host->findnodes('./proxy'))
+						{
+							my $host_name = $proxy->{hostname};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+							
+							# This should always be the target, but lets be safe/careful
+							next if $host_name ne $host2_name;
+							
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_ip_address}  = $proxy->findvalue('./inside');
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port}    = $proxy->findvalue('./inside/@port');
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_ip_address} = $proxy->findvalue('./outside');
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port}   = $proxy->findvalue('./outside/@port');
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"s1:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_inside_ip_address"  => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_ip_address},
+								"s2:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_inside_tcp_port"    => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port},
+								"s3:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_outside_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_ip_address},
+								"s4:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_outside_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port},
+							}});
+							
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{ip_address}  = $proxy->findvalue('./inside');
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{tcp_port}    = $proxy->findvalue('./inside/@port');
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{ip_address} = $proxy->findvalue('./outside');
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{tcp_port}   = $proxy->findvalue('./outside/@port');
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"new::resource::${resource}::proxy::${host_name}::inside::ip_address"  => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{ip_address},
+								"new::resource::${resource}::proxy::${host_name}::inside::tcp_port"    => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{tcp_port},
+								"new::resource::${resource}::proxy::${host_name}::outside::ip_address" => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{ip_address},
+								"new::resource::${resource}::proxy::${host_name}::outside::tcp_port"   => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{tcp_port},
+							}});
+						}
 					}
 					
 # 					$peer                                                                  = $this_host_name;
@@ -1016,6 +1186,127 @@ sub gather_data
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"new::scan_drbd::scan_drbd_total_sync_speed" => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{scan_drbd}{scan_drbd_total_sync_speed}}).")",
 	}});
+	
+	# For resources using drbd-proxy, the host1_to_host2 will be using the internal IP, which we want to 
+	# switch to the 'outside' IP. Also, the ports will need to be concatenated together as a CSV list.
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+		foreach my $host1_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host1_to_host2}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host1_name => $host1_name }});
+			foreach my $host2_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host2_name => $host2_name }});
+				
+				my $host1_ip_address = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address};
+				my $host1_tcp_port   = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port};
+				my $host2_ip_address = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address};
+				my $host2_tcp_port   = $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:host1_ip_address" => $host1_ip_address,
+					"s2:host1_tcp_port"   => $host1_tcp_port,
+					"s3:host2_ip_address" => $host2_ip_address,
+					"s4:host2_tcp_port"   => $host2_tcp_port,
+				}});
+				
+				my $host1_tcp_ports = $host1_tcp_port.",";
+				my $host2_tcp_ports = $host2_tcp_port.",";
+				my $proxy_found = 0;
+				if (exists $anvil->data->{new}{resource}{$resource}{proxy}{$host1_name})
+				{
+					   $proxy_found              =  1;
+					my $host1_inside_ip_address  =  $anvil->data->{new}{resource}{$resource}{proxy}{$host1_name}{inside}{ip_address};
+					my $host1_inside_tcp_port    =  $anvil->data->{new}{resource}{$resource}{proxy}{$host1_name}{inside}{tcp_port};
+					my $host1_outside_ip_address =  $anvil->data->{new}{resource}{$resource}{proxy}{$host1_name}{outside}{ip_address};
+					my $host1_outside_tcp_port   =  $anvil->data->{new}{resource}{$resource}{proxy}{$host1_name}{outside}{tcp_port};
+					   $host1_tcp_ports          .= $host1_inside_tcp_port.",".$host1_outside_tcp_port;
+					   $host1_ip_address         =  $host1_outside_ip_address;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:proxy_found"              => $proxy_found, 
+						"s2:host1_inside_ip_address"  => $host1_inside_ip_address,
+						"s3:host1_inside_tcp_port"    => $host1_inside_tcp_port,
+						"s4:host1_outside_ip_address" => $host1_outside_ip_address,
+						"s5:host1_outside_tcp_port"   => $host1_outside_tcp_port,
+						"s6:host1_tcp_ports"          => $host1_tcp_ports, 
+						"s7:host1_ip_address"         => $host1_ip_address, 
+					}});
+				}
+				if (exists $anvil->data->{new}{resource}{$resource}{proxy}{$host2_name})
+				{
+					   $proxy_found              =  1;
+					my $host2_inside_ip_address  =  $anvil->data->{new}{resource}{$resource}{proxy}{$host2_name}{inside}{ip_address};
+					my $host2_inside_tcp_port    =  $anvil->data->{new}{resource}{$resource}{proxy}{$host2_name}{inside}{tcp_port};
+					my $host2_outside_ip_address =  $anvil->data->{new}{resource}{$resource}{proxy}{$host2_name}{outside}{ip_address};
+					my $host2_outside_tcp_port   =  $anvil->data->{new}{resource}{$resource}{proxy}{$host2_name}{outside}{tcp_port};
+					   $host2_tcp_ports          .= $host2_inside_tcp_port.",".$host2_outside_tcp_port;
+					   $host2_ip_address         =  $host2_outside_ip_address;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:proxy_found"              => $proxy_found, 
+						"s2:host2_inside_ip_address"  => $host2_inside_ip_address,
+						"s3:host2_inside_tcp_port"    => $host2_inside_tcp_port,
+						"s4:host2_outside_ip_address" => $host2_outside_ip_address,
+						"s5:host2_outside_tcp_port"   => $host2_outside_tcp_port,
+						"s6:host2_tcp_ports"          => $host2_tcp_ports, 
+						"s7:host2_ip_address"         => $host2_ip_address, 
+					}});
+				}
+				next if not $proxy_found;
+				
+				# Save the new info.
+				$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address} = $host1_ip_address;
+				$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port}   = $host1_tcp_ports;
+				$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address} = $host2_ip_address;
+				$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port}   = $host2_tcp_ports;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host1_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address},
+					"s2:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host1_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port},
+					"s3:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address},
+					"s4:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port},
+				}});
+				
+				my $peer = "";
+				if (($host1_name eq $local_short_host_name) or ($host1_name eq $local_host_name))
+				{
+					# Our peer is host2. Is the protocol C? If so, this can't be proxy.
+					   $peer          = $host2_name;
+					my $peer_protocol = $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:peer"          => $peer,
+						"s2:peer_protocol" => $peer_protocol,
+					}});
+					next if uc($peer_protocol) eq "C";
+					
+					# Still here? Then this is a proxy connection, update the ports and IP
+					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host2_ip_address; 
+					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host1_tcp_ports; 	# Store our ports.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
+						"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
+					}});
+				}
+				else
+				{
+					# Our peer is host1, Is the protocol C? If so, this can't be proxy.
+					   $peer          = $host1_name;
+					my $peer_protocol = $anvil->data->{new}{resource}{$resource}{peer}{$peer}{protocol};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:peer"          => $peer,
+						"s2:peer_protocol" => $peer_protocol,
+					}});
+					next if uc($peer_protocol) eq "C";
+					
+					# Still here? Then this is a proxy connection, update the ports and IP
+					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address} = $host1_ip_address; 
+					$anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port}        = $host2_tcp_ports; 	# Store out ports
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:new::resource::${resource}::peer::${peer}::peer_ip_address" => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{peer_ip_address},
+						"s2:new::resource::${resource}::peer::${peer}::tcp_port"        => $anvil->data->{new}{resource}{$resource}{peer}{$peer}{tcp_port},
+					}});
+				}
+			}
+		}
+	}
 	
 	return(0);
 }
@@ -1399,6 +1690,10 @@ This is the Anvil! in which we're looking for the next free resources. It's requ
 
 If set, the 'free_port' returned will be a comma-separated pair of TCP ports. This is meant to help find two TCP ports needed to connect a resource from both nodes to a DR host.
 
+=head3 long_throw_ports (optional, default '0')
+
+If set, the 'free_port' returned will be a comma-separated list of seven TCP ports needed for a full B<< Long Throw >> configuration.
+
 =head3 resource_name (optional)
 
 If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, empty strings are returned.
@@ -1416,15 +1711,20 @@ sub get_next_resource
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_next_resource()" }});
 	
-	my $anvil_uuid    = defined $parameter->{anvil_uuid}    ? $parameter->{anvil_uuid}    : "";
-	my $dr_tcp_ports  = defined $parameter->{dr_tcp_ports}  ? $parameter->{dr_tcp_ports}  : "";
-	my $resource_name = defined $parameter->{resource_name} ? $parameter->{resource_name} : "";
-	my $force_unique  = defined $parameter->{force_unique}  ? $parameter->{force_unique}  : 0;
+	### TODO: Cache results in the states or variables table and don't reuse ports given out for five 
+	###       minutes. If the user batches a series of calls, TCP ports / minor numbers could be offered 
+	###       multiple times.
+	my $anvil_uuid       = defined $parameter->{anvil_uuid}       ? $parameter->{anvil_uuid}       : "";
+	my $dr_tcp_ports     = defined $parameter->{dr_tcp_ports}     ? $parameter->{dr_tcp_ports}     : "";
+	my $long_throw_ports = defined $parameter->{long_throw_ports} ? $parameter->{long_throw_ports} : "";
+	my $resource_name    = defined $parameter->{resource_name}    ? $parameter->{resource_name}    : "";
+	my $force_unique     = defined $parameter->{force_unique}     ? $parameter->{force_unique}     : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		anvil_uuid    => $anvil_uuid, 
-		dr_tcp_ports  => $dr_tcp_ports, 
-		resource_name => $resource_name, 
-		force_unique  => $force_unique, 
+		anvil_uuid       => $anvil_uuid, 
+		dr_tcp_ports     => $dr_tcp_ports, 
+		long_throw_ports => $long_throw_ports, 
+		resource_name    => $resource_name, 
+		force_unique     => $force_unique, 
 	}});
 	
 	# If we weren't passed an anvil_uuid, see if we can find one locally
@@ -1449,8 +1749,6 @@ sub get_next_resource
 	
 	# Read in the resource information from both nodes. They _should_ be identical, but that's not 100% 
 	# certain.
-	my $free_minor      = "";
-	my $free_port       = "";
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
@@ -1545,11 +1843,19 @@ ORDER BY
 		}});
 		
 		$anvil->data->{drbd}{used_resources}{minor}{$scan_drbd_volume_device_minor}{used} = 1;
-		$anvil->data->{drbd}{used_resources}{tcp_port}{$scan_drbd_peer_tcp_port}{used}    = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"drbd::used_resources::minor::${scan_drbd_volume_device_minor}::used" => $anvil->data->{drbd}{used_resources}{minor}{$scan_drbd_volume_device_minor}{used}, 
-			"drbd::used_resources::tcp_port::${scan_drbd_peer_tcp_port}::used"    => $anvil->data->{drbd}{used_resources}{tcp_port}{$scan_drbd_peer_tcp_port}{used}, 
 		}});
+		
+		# DRBD proxy uses three ports per connection. This handles that, and still works fine for 
+		# single TCP ports.
+		foreach my $tcp_port (split/,/, $scan_drbd_peer_tcp_port)
+		{
+			$anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"drbd::used_resources::tcp_port::${tcp_port}::used" => $anvil->data->{drbd}{used_resources}{tcp_port}{$tcp_port}{used}, 
+			}});
+		}
 		
 		if (($resource_name) && ($scan_drbd_resource_name eq $resource_name))
 		{
@@ -1568,10 +1874,9 @@ ORDER BY
 		}
 	}	
 	
-	# If I'm here, I need to find the next free TCP port. We'll look for the next minor number for this 
-	# host.
+	# If I'm here, We'll look for the next minor number for this host.
 	my $looking    = 1;
-	   $free_minor = 0;
+	my $free_minor = 0;
 	while($looking)
 	{
 		if (exists $anvil->data->{drbd}{used_resources}{minor}{$free_minor})
@@ -1586,60 +1891,62 @@ ORDER BY
 		}
 	}
 	
-	   $looking   = 1;
-	   $free_port = 7788;
-	my $tcp_pair  = "";
+	# I need to find the next free TCP port. 
+	   $looking     = 1;
+	my $check_port  = 7788;
+	my $free_ports  = "";
+	my $tcp_pair    = "";
+	my $proxy_list  = "";
+	my $port_count  = 0;
+	my $neeed_ports = 1;
+	if ($long_throw_ports)
+	{
+		$neeed_ports = 7;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { neeed_ports => $neeed_ports }});
+	}
+	elsif ($dr_tcp_ports)
+	{
+		$neeed_ports = 3;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { neeed_ports => $neeed_ports }});
+	}
 	while($looking)
 	{
-		if ((exists $anvil->data->{drbd}{used_resources}{tcp_port}{$free_port}) && 
-		    ($anvil->data->{drbd}{used_resources}{tcp_port}{$free_port}{used}))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
+		if ((exists $anvil->data->{drbd}{used_resources}{tcp_port}{$check_port}) && 
+		    ($anvil->data->{drbd}{used_resources}{tcp_port}{$check_port}{used}))
 		{
-			$free_port++;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
+			$check_port++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
+			next;
 		}
 		else
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
-			if ($dr_tcp_ports)
+			# This is a free port.
+			$free_ports .= $check_port.",";
+			$port_count++;
+			$check_port++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				free_ports => $free_ports, 
+				port_count => $port_count,
+			}});
+			
+			if ($port_count >= $neeed_ports)
 			{
-				if (not $tcp_pair)
-				{
-					$tcp_pair = $free_port;
-					$free_port++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						tcp_pair  => $tcp_pair,
-						free_port => $free_port, 
-					}});
-				}
-				elsif ($tcp_pair !~ /,/)
-				{
-					$tcp_pair .= ",".$free_port;
-					$looking  =  0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						tcp_pair => $tcp_pair,
-						looking  => $looking, 
-					}});
-				}
-			}
-			else
-			{
-				$looking = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
+				$looking    =  0;
+				$free_ports =~ s/,$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					looking    => $looking,
+					free_ports => $free_ports, 
+				}});
 			}
 		}
-	}
-	
-	if ($dr_tcp_ports)
-	{
-		$free_port = $tcp_pair;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_port => $free_port }});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		free_minor => $free_minor,
-		free_port  => $free_port, 
+		free_ports => $free_ports, 
 	}});
-	return($free_minor, $free_port);
+	return($free_minor, $free_ports);
 }
 
 

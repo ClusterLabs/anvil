@@ -521,6 +521,15 @@ The definition data passed in was:
 ]]></key>
 		<key name="error_0368">[ Error ] - Failed to wipe and delete the logical volume: [#!variable!local_lv!#] that was volume number: [#!variable!volume!#] under the server: [#!variable!server!#].</key>
 		<key name="error_0369">There was a problem deleting: [#!variable!config_file!#]. The rest of the process completed successfully. Please manually remove this file if it still exists.</key>
+		<key name="error_0370">[ Error ] - Failed to connect the DRBD resource. Expected return code '0', but got: [#!variable!return_code!#]. The error output, if anything, was
+====
+#!variable!output!#
+====</key>
+		<key name="error_0371">Can not (dis)connect the server: [#!variable!server!#] as the resource config file: [#!variable!config_file!#] doesn't exist. Do you need to '--protect' it?</key>
+		<key name="error_0372">We're set to migrate servers (--stop-servers not used) but both nodes are not in the cluster, so migrations would fail. Aborting.</key>
+		<key name="error_0373">Long-throw requires a license, and the license file is not installed, and '--license-file /path/to/drbd-proxy.license' was not passed.</key>
+		<key name="error_0374">The long-throw license file: [#!variable!file!#] was not found, so unable to install it.</key>
+		<key name="error_0375">There was a problem with the "Long-throw" lincense file. This will prevent Long-Throw DR from working. Details of the error will be recorded in the log file.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -797,9 +806,37 @@ sys::manage::firewall						=	1
 ]]></key>
 		<key name="file_0006"><![CDATA[# Resource for #!variable!server!#
 resource #!variable!server!# {
+	#!variable!proxy!#
 	#!variable!hosts!#
 	#!variable!connections!#
 }
+]]></key>
+		<key name="file_0007"><![CDATA[
+        connection {
+                host #!variable!host1_short_name!# address 127.0.0.1:#!variable!tcp_port!# via proxy on #!variable!host1_short_name!# {
+                        inside 127.0.0.1:#!variable!inside_tcp_port!#;
+                        outside #!variable!host1_ip!#:#!variable!outside_tcp_port!#;
+                }
+                host #!variable!host2_short_name!# address 127.0.0.1:#!variable!tcp_port!# via proxy on #!variable!host2_short_name!# {
+                        inside 127.0.0.1:#!variable!inside_tcp_port!#;
+                        outside #!variable!host2_ip!#:#!variable!outside_tcp_port!#;
+                }
+                disk {
+                        # The variable bit rate caps at 100 MiB/sec, setting this changes the maximum 
+                        # variable rate.
+                        c-max-rate #!variable!c-rate-maximum!#M;
+                }
+                net {
+                        protocol #!variable!protocol!#;
+                        fencing #!variable!fencing!#;
+                }
+        }
+]]></key>
+		<key name="file_0008"><![CDATA[
+        proxy {
+                # You need to allocate >= 16MB per proxy connection to DRBD proxy for it to bring up a connection
+                memlimit #!variable!memlimit!#M;
+        }
 ]]></key>
 		
 		<!-- Table headers -->
@@ -1282,8 +1319,6 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
 		<key name="job_0361">Verified that there is enough space on DR to proceed.
 * The connection protocol will be: ..... [#!variable!protocol!#]
-* Node 1 to DR will use TCP port: ...... [#!variable!node1_to_dr_port!#]
-* Node 2 to DR will use TCP port: ...... [#!variable!node2_to_dr_port!#]
 * We will update the DRBD resource file: [#!variable!config_file!#]
 The following LV(s) will be created:
 		</key>
@@ -1320,7 +1355,7 @@ Note: Depending on the disk write load and storage network speed to the DR host,
 		<key name="job_0387">About to connect the DR resource for the server: [#!variable!server!#].</key>
 		<key name="job_0388">Brought up the connection locally. Now checking that the resource is up on the nodes.</key>
 		<key name="job_0389">Making sure the resource is up on: [#!variable!host_name!#].</key>
-		<key name="job_0390">Waiting now for the our resource to connect.</key>
+		<key name="job_0390">Waiting now for the resource to connect.</key>
 		<key name="job_0391">Done! The server: [#!variable!server!#] is now connected.</key>
 		<key name="job_0392">
 Do you want to disconnect the DR host for the server: [#!variable!server!#]? 
@@ -1374,6 +1409,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0418">Re-parsing the replicated storage configuration.</key>
 		<key name="job_0419">The server: [#!variable!server!#] was found to be running outside the cluster. Asking it to shut down now.</key>
 		<key name="job_0428">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
+		<key name="job_0429">Copying the Long-throw (drbd proxy) license file: [#!variable!file!#] into place.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1506,7 +1542,7 @@ The database connection error was:
 - Record Locator: [#!variable!record_locator!#]
 - Timestamp: .... [#!variable!modified_date!#]
 		</key>
-		<key name="log_0099">[ Warning ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#]. Using 'admin'.</key>
+		<key name="log_0099">[ Warning ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::configs::anvil.conf!#]'s DB entry: [#!variable!uuid!#]. Using 'admin'.</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
 		<key name="log_0101">Failed to connect to: [#!variable!target!#:#!variable!port!#], sleeping for a second and then trying again.</key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
@@ -2203,6 +2239,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0725">Found the missing file: [#!variable!file!#] in the directory: [#!variable!directory!#]. Updating the database now.</key>
 		<key name="log_0726">Deleting the hash key: [#!variable!hash_key!#].</key>
 		<key name="log_0727">[ Note ] - The server: [#!variable!server!#] is not yet off, but we've been told not to wait for it to stop.</key>
+		<key name="log_0728">The DRBD Proxy license file: [#!data!path::configs::drbd-proxy.license!#] doesn't exist.</key>
+		<key name="log_0729">The DRBD Proxy license file has expired.</key>
+		<key name="log_0730">None of the MAC sddresses in the The DRBD Proxy license file match any of the MAC addresses on this system.</key>
+		<key name="log_0731">The DRBD Proxy license file: [#!data!path::configs::drbd-proxy.license!#] is missing expected data or is malformed.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
