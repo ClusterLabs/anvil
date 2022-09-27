@@ -4,19 +4,33 @@ import {
   BoxProps as MUIBoxProps,
   CircularProgress as MUICircularProgress,
   circularProgressClasses as muiCircularProgressClasses,
+  CircularProgressProps as MUICircularProgressProps,
 } from '@mui/material';
 
 import { TEXT } from '../lib/consts/DEFAULT_THEME';
 
-type SpinnerProps = MUIBoxProps;
+type SpinnerOptionalProps = {
+  progressProps?: MUICircularProgressProps;
+};
+
+type SpinnerProps = MUIBoxProps & SpinnerOptionalProps;
+
+const SPINNER_DEFAULT_PROPS: Required<SpinnerOptionalProps> = {
+  progressProps: {},
+};
 
 const Spinner: FC<SpinnerProps> = (spinnerProps): JSX.Element => {
-  const { sx, ...spinnerRestProps } = spinnerProps;
+  const {
+    sx,
+    progressProps = SPINNER_DEFAULT_PROPS.progressProps,
+    ...spinnerRestProps
+  } = spinnerProps;
 
   return (
     <MUIBox
       {...{
         ...spinnerRestProps,
+
         sx: {
           alignItems: 'center',
           display: 'flex',
@@ -31,9 +45,13 @@ const Spinner: FC<SpinnerProps> = (spinnerProps): JSX.Element => {
         },
       }}
     >
-      <MUICircularProgress variant="indeterminate" />
+      <MUICircularProgress
+        {...{ ...progressProps, variant: 'indeterminate' }}
+      />
     </MUIBox>
   );
 };
+
+Spinner.defaultProps = SPINNER_DEFAULT_PROPS;
 
 export default Spinner;
