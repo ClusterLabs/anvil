@@ -34,45 +34,9 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->data->{switches}{anvil}           = "";
-$anvil->data->{switches}{'anvil-name'}    = "";
-$anvil->data->{switches}{'anvil-uuid'}    = "";
-$anvil->data->{switches}{'ci-test'}       = "";	# If set, all we do is read the switches and submit the job
-$anvil->data->{switches}{'driver-disc'}   = "";
-$anvil->data->{switches}{cpu}             = "";
-$anvil->data->{switches}{'install-media'} = "";
-$anvil->data->{switches}{'job-uuid'}      = "";
-$anvil->data->{switches}{machine}         = "";
-$anvil->data->{switches}{name}            = "";
-$anvil->data->{switches}{options}         = "";
-$anvil->data->{switches}{os}              = "";
-$anvil->data->{switches}{'pre-test'}      = "";
-$anvil->data->{switches}{uuid}            = "";
-$anvil->data->{switches}{ram}             = "";
-$anvil->data->{switches}{'storage-group'} = "";
-$anvil->data->{switches}{'storage-size'}  = "";
-$anvil->data->{switches}{'use-image'}     = "";
-$anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::anvil'         => $anvil->data->{switches}{anvil},
-	'switches::anvil-name'    => $anvil->data->{switches}{'anvil-name'},
-	'switches::anvil-uuid'    => $anvil->data->{switches}{'anvil-uuid'},
-	'switches::ci-test'       => $anvil->data->{switches}{'ci-test'},
-	'switches::driver-disc'   => $anvil->data->{switches}{'driver-disc'},
-	'switches::cpu'           => $anvil->data->{switches}{cpu},
-	'switches::install-media' => $anvil->data->{switches}{'install-media'},
-	'switches::job-uuid'      => $anvil->data->{switches}{'job-uuid'},
-	'switches::machine'       => $anvil->data->{switches}{machine},
-	'switches::name'          => $anvil->data->{switches}{name},
-	'switches::options'       => $anvil->data->{switches}{options},
-	'switches::os'            => $anvil->data->{switches}{os},
-	'switches::pre-test'      => $anvil->data->{switches}{'pre-test'},
-	'switches::uuid'          => $anvil->data->{switches}{uuid},
-	'switches::ram'           => $anvil->data->{switches}{ram},
-	'switches::storage-group' => $anvil->data->{switches}{'storage-group'},
-	'switches::storage-size'  => $anvil->data->{switches}{'storage-size'},
-}});
+$anvil->Get->switches({list => ["anvil", "anvil-name", "anvil-uuid", "ci-test", "driver-disc", "cpu", "install-media", "machine", "name", "options", "os", "pre-test", "uuid", "ram", "storage-group", "storage-size", "use-image"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});

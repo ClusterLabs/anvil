@@ -633,10 +633,14 @@ sub find_changes
 	my $new_scan_hardware_swap_total   = $anvil->data->{summary}{ram}{proc}{swap_total};
 	my $new_scan_hardware_swap_free    = $anvil->data->{summary}{ram}{proc}{swap_free};
 	my $new_scan_hardware_swap_used    = $new_scan_hardware_swap_total - $new_scan_hardware_swap_free;
-	my $new_swap_used_percentage       = $anvil->Convert->round({
-		number => (($new_scan_hardware_swap_used / $new_scan_hardware_swap_total) * 100),
-		places => 0,
-	});
+	my $new_swap_used_percentage       = 0;
+	if ($new_scan_hardware_swap_total)
+	{
+		$new_swap_used_percentage = $anvil->Convert->round({
+			number => (($new_scan_hardware_swap_used / $new_scan_hardware_swap_total) * 100),
+			places => 0,
+		});
+	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"new_scan_hardware_cpu_model"    => $new_scan_hardware_cpu_model, 
 		"new_scan_hardware_cpu_cores"    => $new_scan_hardware_cpu_cores, 
