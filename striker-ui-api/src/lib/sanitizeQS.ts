@@ -1,5 +1,6 @@
 type MapToReturnType = {
   boolean: boolean;
+  number: number;
   string: string;
   'string[]': string[];
 };
@@ -12,6 +13,7 @@ type MapToReturnFunction = {
 
 const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
   boolean: (qs) => qs !== undefined,
+  number: (qs) => (Number.isFinite(qs) ? parseFloat(String(qs)) : 0),
   string: (qs) => (qs ? String(qs) : ''),
   'string[]': (qs) => {
     let result: string[] = [];
