@@ -9,6 +9,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
   tmp: {},
   usr: {
     bin: {
+      date: {},
       mkfifo: {},
       rm: {},
       sed: {},

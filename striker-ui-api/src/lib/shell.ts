@@ -21,6 +21,9 @@ const systemCall = (
   return stdout;
 };
 
+export const date = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.bin.date.self, args);
+
 export const mkfifo = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.mkfifo.self, args);
 
