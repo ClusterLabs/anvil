@@ -5,6 +5,7 @@ import commandRouter from './command';
 import echoRouter from './echo';
 import fileRouter from './file';
 import hostRouter from './host';
+import jobRouter from './job';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
 
@@ -14,6 +15,7 @@ const routes: Readonly<Record<string, Router>> = {
   echo: echoRouter,
   file: fileRouter,
   host: hostRouter,
+  job: jobRouter,
   'network-interface': networkInterfaceRouter,
   server: serverRouter,
 };
