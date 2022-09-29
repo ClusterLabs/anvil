@@ -85,7 +85,7 @@ type NetworkInitFormValues = {
   networks: Omit<NetworkInput, 'ipAddressInputRef' | 'subnetMaskInputRef'>[];
 };
 
-type NetworkInitFormForwardRefContent = {
+type NetworkInitFormForwardedRefContent = {
   get?: () => NetworkInitFormValues;
 };
 
@@ -583,7 +583,7 @@ NetworkForm.defaultProps = {
 };
 
 const NetworkInitForm = forwardRef<
-  NetworkInitFormForwardRefContent,
+  NetworkInitFormForwardedRefContent,
   { toggleSubmitDisabled?: (testResult: boolean) => void }
 >(({ toggleSubmitDisabled }, ref) => {
   const [dragMousePosition, setDragMousePosition] = useState<{
@@ -1389,7 +1389,7 @@ NetworkInitForm.defaultProps = { toggleSubmitDisabled: undefined };
 NetworkInitForm.displayName = 'NetworkInitForm';
 
 export type {
-  NetworkInitFormForwardRefContent,
+  NetworkInitFormForwardedRefContent,
   NetworkInitFormValues,
   NetworkInput,
   NetworkInterfaceInputMap,
