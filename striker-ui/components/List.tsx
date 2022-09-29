@@ -11,6 +11,8 @@ import {
   ListItemIcon as MUIListItemIcon,
   ListItemProps as MUIListItemProps,
   ListProps as MUIListProps,
+  SxProps,
+  Theme,
 } from '@mui/material';
 import { FC, ReactNode, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,18 +20,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { BLUE, DIVIDER, GREY, RED } from '../lib/consts/DEFAULT_THEME';
 
 import Checkbox, { CheckboxProps } from './Checkbox';
-import FlexBox from './FlexBox';
+import FlexBox, { FlexBoxProps } from './FlexBox';
 import IconButton, { IconButtonProps } from './IconButton';
 import { BodyText } from './Text';
 
 type ListOptionalProps<T = unknown> = {
   header?: ReactNode;
-  isEdit?: boolean;
   isAllowAddItem?: boolean;
   isAllowCheckItem?: boolean;
   isAllowDelete?: boolean;
   isAllowEdit?: boolean;
   isAllowEditItem?: boolean;
+  isEdit?: boolean;
+  isScroll?: boolean;
   listItemKeyPrefix?: string;
   listItemProps?: MUIListItemProps;
   listProps?: MUIListProps;
@@ -40,9 +43,10 @@ type ListOptionalProps<T = unknown> = {
   renderListItem?: (key: string, value: T) => ReactNode;
 };
 
-type ListProps<T = unknown> = ListOptionalProps<T> & {
-  listItems: Record<string, T>;
-};
+type ListProps<T = unknown> = FlexBoxProps &
+  ListOptionalProps<T> & {
+    listItems: Record<string, T>;
+  };
 
 const LIST_DEFAULT_PROPS: Required<
   Omit<
@@ -71,12 +75,13 @@ const LIST_DEFAULT_PROPS: Required<
     | 'onItemCheckboxChange'
   > = {
   header: undefined,
-  isEdit: false,
   isAllowAddItem: undefined,
   isAllowCheckItem: undefined,
   isAllowDelete: undefined,
   isAllowEdit: false,
   isAllowEditItem: undefined,
+  isEdit: false,
+  isScroll: false,
   listItemKeyPrefix: uuidv4(),
   listItemProps: {},
   listProps: {},
@@ -91,6 +96,7 @@ const List = <T,>({
   header,
   isAllowEdit = LIST_DEFAULT_PROPS.isAllowEdit,
   isEdit = LIST_DEFAULT_PROPS.isEdit,
+  isScroll = LIST_DEFAULT_PROPS.isScroll,
   listItemKeyPrefix = LIST_DEFAULT_PROPS.listItemKeyPrefix,
   listItemProps: {
     sx: listItemSx,
@@ -108,6 +114,8 @@ const List = <T,>({
   isAllowCheckItem = isAllowEdit,
   isAllowDelete = isAllowEdit,
   isAllowEditItem = isAllowEdit,
+
+  ...rootProps
 }: ListProps<T>): ReturnType<FC<ListProps<T>>> => {
   const addItemButton = useMemo(
     () =>
@@ -199,13 +207,17 @@ const List = <T,>({
       restListItemProps,
     ],
   );
+  const listScrollSx: SxProps<Theme> | undefined = useMemo(
+    () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
+    [isScroll],
+  );
 
   return (
-    <FlexBox spacing={0}>
+    <FlexBox spacing={0} {...rootProps}>
       {headerElement}
       <MUIList
         {...restListProps}
-        sx={{ paddingBottom: 0, paddingTop: 0, ...listSx }}
+        sx={{ paddingBottom: 0, paddingTop: 0, ...listScrollSx, ...listSx }}
       >
         {listItemElements}
       </MUIList>
