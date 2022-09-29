@@ -5,13 +5,13 @@ import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
 import GeneralInitForm, {
-  GeneralInitFormForwardRefContent,
+  GeneralInitFormForwardedRefContent,
   GeneralInitFormValues,
 } from './GeneralInitForm';
 import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
 import MessageBox, { Message } from './MessageBox';
 import NetworkInitForm, {
-  NetworkInitFormForwardRefContent,
+  NetworkInitFormForwardedRefContent,
   NetworkInitFormValues,
 } from './NetworkInitForm';
 import { Panel, PanelHeader } from './Panels';
@@ -31,8 +31,8 @@ const StrikerInitForm: FC = () => {
     useState<boolean>(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
 
-  const generalInitFormRef = useRef<GeneralInitFormForwardRefContent>({});
-  const networkInitFormRef = useRef<NetworkInitFormForwardRefContent>({});
+  const generalInitFormRef = useRef<GeneralInitFormForwardedRefContent>({});
+  const networkInitFormRef = useRef<NetworkInitFormForwardedRefContent>({});
 
   const buildSubmitSection = useMemo(
     () =>

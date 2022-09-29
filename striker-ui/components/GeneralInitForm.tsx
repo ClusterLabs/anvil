@@ -38,7 +38,7 @@ type GeneralInitFormValues = {
   organizationPrefix?: string;
 };
 
-type GeneralInitFormForwardRefContent = {
+type GeneralInitFormForwardedRefContent = {
   get?: () => GeneralInitFormValues;
 };
 
@@ -96,7 +96,7 @@ const buildHostName = ({
     : '';
 
 const GeneralInitForm = forwardRef<
-  GeneralInitFormForwardRefContent,
+  GeneralInitFormForwardedRefContent,
   { toggleSubmitDisabled?: ToggleSubmitDisabledFunction }
 >(({ toggleSubmitDisabled }, ref) => {
   const [helpMessage, setHelpMessage] = useState<ReactNode | undefined>();
@@ -845,6 +845,6 @@ const GeneralInitForm = forwardRef<
 GeneralInitForm.defaultProps = { toggleSubmitDisabled: undefined };
 GeneralInitForm.displayName = 'GeneralInitForm';
 
-export type { GeneralInitFormForwardRefContent, GeneralInitFormValues };
+export type { GeneralInitFormForwardedRefContent, GeneralInitFormValues };
 
 export default GeneralInitForm;
