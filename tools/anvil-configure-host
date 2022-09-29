@@ -11,6 +11,7 @@
 # 5 = Failed to write the temp file with the new password needed to call anvil-change-password.
 # 6 = The job-uuid was not found.
 # 7 = The host is an active cluster member.
+# 8 = Duplicate NICs assigned to the same MAC address
 # 
 # TODO: 
 # - Add MTU support
@@ -367,6 +368,72 @@ sub reconfigure_network
 # 		$ssh_fh                                    = "";
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 # 	}
+
+	# Before we continue, see if there's two interfaces pointing at the same NIC. If so, the node would 
+	# endlessly reboot.
+	my $macs  = {};
+	my $query = "
+SELECT 
+    variable_uuid, 
+    variable_name, 
+    variable_value 
+FROM 
+    variables 
+WHERE 
+    variable_name LIKE '\%_mac_to_set::value' 
+AND 
+    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+ORDER BY 
+    variable_name ASC;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $variable_uuid  = $row->[0];
+		my $variable_name  = $row->[1];
+		my $variable_value = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:variable_uuid'  => $variable_uuid, 
+			's2:variable_name'  => $variable_name,
+			's3:variable_value' => $variable_value, 
+		}});
+		
+		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
+		{
+			my $device = lc($1);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device}});
+			
+			if (not exists $macs->{$variable_value})
+			{
+				$macs->{$variable_value} = $device;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"macs->${variable_value}" => $macs->{$variable_value},
+				}});
+			}
+			else
+			{
+				# Fail out!
+				my $variables = {
+					mac_address => $variable_value, 
+					iface1      => $macs->{$variable_value}, 
+					iface2      => $device, 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0376", variables => $variables});
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0376", 
+					variables  => $variables, 
+					job_status => "failed", 
+				});
+				$anvil->nice_exit({exit_code => 8});
+			}
+		}
+	}
 	
 	# We'll set this to '1' if we reconfigure the network
 	$anvil->data->{sys}{reboot} = 0;
@@ -1518,7 +1585,7 @@ LIKE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
+    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
