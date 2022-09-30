@@ -1,5 +1,5 @@
+import { Box, BoxProps, GlobalStyles, PaperProps, styled } from '@mui/material';
 import { FC } from 'react';
-import { Box, GlobalStyles, PaperProps, styled } from '@mui/material';
 
 import {
   BORDER_RADIUS,
@@ -55,7 +55,17 @@ const StyledBox = styled(Box)(() => ({
   },
 }));
 
-type PanelProps = PaperProps;
+type PanelOptionalPropsWithDefault = {
+  paperProps?: BoxProps;
+};
+
+type PanelOptionalProps = PanelOptionalPropsWithDefault;
+
+type PanelProps = PaperProps & PanelOptionalProps;
+
+const PANEL_DEFAULT_PROPS: Required<PanelOptionalPropsWithDefault> = {
+  paperProps: {},
+};
 
 const styledScrollbars = (
   <GlobalStyles
@@ -79,6 +89,10 @@ const Panel: FC<PanelProps> = ({
   children,
   classes: rootClasses,
   className: rootClassName,
+  paperProps: {
+    className: paperClassName,
+    ...restPaperProps
+  } = PANEL_DEFAULT_PROPS.paperProps,
   sx: rootSx,
   ...restRootProps
 }) => (
@@ -91,10 +105,14 @@ const Panel: FC<PanelProps> = ({
     }}
   >
     {styledScrollbars}
-    <div className={`${classes.square} ${classes.topSquare}`} />
-    <div className={`${classes.square} ${classes.bottomSquare}`} />
-    <div className={classes.paper}>{children}</div>
+    <Box className={`${classes.square} ${classes.topSquare}`} />
+    <Box className={`${classes.square} ${classes.bottomSquare}`} />
+    <Box {...restPaperProps} className={`${classes.paper} ${paperClassName}`}>
+      {children}
+    </Box>
   </StyledBox>
 );
+
+Panel.defaultProps = PANEL_DEFAULT_PROPS;
 
 export default Panel;
