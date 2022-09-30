@@ -1,6 +1,6 @@
+import buildGetRequestHandler from '../buildGetRequestHandler';
 import { sanitizeQS } from '../../sanitizeQS';
 import { date } from '../../shell';
-import buildGetRequestHandler from '../buildGetRequestHandler';
 
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   const { epoch } = request.query;
