@@ -49,7 +49,7 @@ const ICON_WITH_INDICATOR_DEFAULT_PROPS: Required<IconWithIndicatorOptionalProps
     initialIndicatorValue: false,
   };
 const INDICATOR_LENGTH = { small: '24%', medium: '50%' };
-const INDICATOR_MAX = 99;
+const INDICATOR_MAX = 9;
 const INDICATOR_OFFSET = { small: '.1rem', medium: '0rem' };
 
 const IconWithIndicator = forwardRef<
@@ -121,8 +121,7 @@ const IconWithIndicator = forwardRef<
         <BodyText
           {...restIndicatorTextProps}
           sx={{
-            fontSize: '.7rem',
-            fontWeight: '700',
+            fontWeight: '500',
             paddingTop: '100%',
 
             ...indicatorTextSx,
