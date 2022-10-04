@@ -33,6 +33,7 @@ type ListOptionalProps<T = unknown> = {
   isAllowEditItem?: boolean;
   isEdit?: boolean;
   isScroll?: boolean;
+  listEmpty?: ReactNode;
   listItemKeyPrefix?: string;
   listItemProps?: MUIListItemProps;
   listProps?: MUIListProps;
@@ -56,6 +57,7 @@ const LIST_DEFAULT_PROPS: Required<
     | 'isAllowCheckItem'
     | 'isAllowDelete'
     | 'isAllowEditItem'
+    | 'listEmpty'
     | 'onAdd'
     | 'onDelete'
     | 'onEdit'
@@ -69,6 +71,7 @@ const LIST_DEFAULT_PROPS: Required<
     | 'isAllowCheckItem'
     | 'isAllowDelete'
     | 'isAllowEditItem'
+    | 'listEmpty'
     | 'onAdd'
     | 'onDelete'
     | 'onEdit'
@@ -82,6 +85,7 @@ const LIST_DEFAULT_PROPS: Required<
   isAllowEditItem: undefined,
   isEdit: false,
   isScroll: false,
+  listEmpty: undefined,
   listItemKeyPrefix: uuidv4(),
   listItemProps: {},
   listProps: {},
@@ -97,6 +101,7 @@ const List = <T,>({
   isAllowEdit = LIST_DEFAULT_PROPS.isAllowEdit,
   isEdit = LIST_DEFAULT_PROPS.isEdit,
   isScroll = LIST_DEFAULT_PROPS.isScroll,
+  listEmpty = LIST_DEFAULT_PROPS.listEmpty,
   listItemKeyPrefix = LIST_DEFAULT_PROPS.listItemKeyPrefix,
   listItemProps: {
     sx: listItemSx,
@@ -177,6 +182,15 @@ const List = <T,>({
       ),
     [addItemButton, deleteItemButton, editItemButton, header],
   );
+  const listEmptyElement = useMemo(
+    () =>
+      typeof listEmpty === 'string' ? (
+        <BodyText>{listEmpty}</BodyText>
+      ) : (
+        listEmpty
+      ),
+    [listEmpty],
+  );
   const listItemCheckbox = useMemo(
     () =>
       isEdit && isAllowCheckItem ? (
@@ -186,27 +200,30 @@ const List = <T,>({
       ) : undefined,
     [isAllowCheckItem, isEdit, onItemCheckboxChange],
   );
-  const listItemElements = useMemo(
-    () =>
-      Object.entries(listItems).map(([key, value]) => (
-        <MUIListItem
-          {...restListItemProps}
-          key={`${listItemKeyPrefix}-${key}`}
-          sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
-        >
-          {listItemCheckbox}
-          {renderListItem(key, value)}
-        </MUIListItem>
-      )),
-    [
-      listItemCheckbox,
-      listItemKeyPrefix,
-      listItems,
-      listItemSx,
-      renderListItem,
-      restListItemProps,
-    ],
-  );
+  const listItemElements = useMemo(() => {
+    const entries = Object.entries(listItems);
+
+    return entries.length > 0
+      ? entries.map(([key, value]) => (
+          <MUIListItem
+            {...restListItemProps}
+            key={`${listItemKeyPrefix}-${key}`}
+            sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
+          >
+            {listItemCheckbox}
+            {renderListItem(key, value)}
+          </MUIListItem>
+        ))
+      : listEmptyElement;
+  }, [
+    listEmptyElement,
+    listItemCheckbox,
+    listItemKeyPrefix,
+    listItems,
+    listItemSx,
+    renderListItem,
+    restListItemProps,
+  ]);
   const listScrollSx: SxProps<Theme> | undefined = useMemo(
     () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
     [isScroll],
