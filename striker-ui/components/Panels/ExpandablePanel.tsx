@@ -14,8 +14,9 @@ import InnerPanelHeader from './InnerPanelHeader';
 import Spinner from '../Spinner';
 
 type ExpandablePanelOptionalProps = {
-  isExpandInitially?: boolean;
-  isLoading?: boolean;
+  expandInitially?: boolean;
+  loading?: boolean;
+  showHeaderSpinner?: boolean;
 };
 
 type ExpandablePanelProps = ExpandablePanelOptionalProps & {
@@ -23,15 +24,20 @@ type ExpandablePanelProps = ExpandablePanelOptionalProps & {
 };
 
 const EXPANDABLE_PANEL_DEFAULT_PROPS: Required<ExpandablePanelOptionalProps> = {
-  isExpandInitially: false,
-  isLoading: false,
+  expandInitially: false,
+  loading: false,
+  showHeaderSpinner: false,
 };
+const HEADER_SPINNER_LENGTH = '1.2em';
 
 const ExpandablePanel: FC<ExpandablePanelProps> = ({
   children,
+  expandInitially:
+    isExpandInitially = EXPANDABLE_PANEL_DEFAULT_PROPS.expandInitially,
   header,
-  isExpandInitially = EXPANDABLE_PANEL_DEFAULT_PROPS.isExpandInitially,
-  isLoading = EXPANDABLE_PANEL_DEFAULT_PROPS.isLoading,
+  loading: isLoading = EXPANDABLE_PANEL_DEFAULT_PROPS.loading,
+  showHeaderSpinner:
+    isShowHeaderSpinner = EXPANDABLE_PANEL_DEFAULT_PROPS.showHeaderSpinner,
 }) => {
   const [isExpand, setIsExpand] = useState<boolean>(isExpandInitially);
 
@@ -40,17 +46,20 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
     [isExpand],
   );
   const contentHeight = useMemo(() => (isExpand ? 'auto' : '.2em'), [isExpand]);
-  const headerSpinner = useMemo(() => {
-    const spinnerLength = '1.2em';
-
-    return !isExpand && isLoading ? (
-      <Spinner
-        progressProps={{
-          style: { height: spinnerLength, width: spinnerLength },
-        }}
-      />
-    ) : undefined;
-  }, [isExpand, isLoading]);
+  const headerSpinner = useMemo(
+    () =>
+      isShowHeaderSpinner && !isExpand && isLoading ? (
+        <Spinner
+          progressProps={{
+            style: {
+              height: HEADER_SPINNER_LENGTH,
+              width: HEADER_SPINNER_LENGTH,
+            },
+          }}
+        />
+      ) : undefined,
+    [isExpand, isLoading, isShowHeaderSpinner],
+  );
   const content = useMemo(
     () =>
       isExpand && isLoading ? (
