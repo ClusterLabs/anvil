@@ -115,4 +115,6 @@ const Panel: FC<PanelProps> = ({
 
 Panel.defaultProps = PANEL_DEFAULT_PROPS;
 
+export { classes as panelClasses };
+
 export default Panel;
