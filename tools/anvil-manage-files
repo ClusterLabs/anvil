@@ -932,6 +932,10 @@ sub check_for_deletes
 	my $query = "SELECT file_uuid, file_directory || '/' || file_name AS full_path FROM files WHERE file_type = 'DELETED';";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
+	# This will be used to make sure we only delete from files
+	my $files_directory = $anvil->data->{path}{directories}{shared}{files};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { files_directory => $files_directory }});
+	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -946,6 +950,9 @@ sub check_for_deletes
 			's1:file_uuid' => $file_uuid, 
 			's2:full_path' => $full_path, 
 		}});
+		
+		# Only delete if the file is in the shared directory.
+		next if $full_path !~ /^$files_directory/;
 		
 		# Get rid of it (if it actually exists).
 		if (-e $full_path)
