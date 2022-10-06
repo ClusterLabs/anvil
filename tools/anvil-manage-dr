@@ -2436,6 +2436,7 @@ sub process_protect
 		protocol         => "C",
 		fencing          => "resource-and-stonith"
 	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 	
 	# Node 1 to DR
 	$connections .= $anvil->Words->string({key => $file_key, variables => {
@@ -2450,6 +2451,7 @@ sub process_protect
 		protocol         => $dr_protocol,
 		fencing          => "dont-care"
 	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 
 	# Node 2 to DR
 	$connections .= $anvil->Words->string({key => $file_key, variables => {
@@ -2464,6 +2466,7 @@ sub process_protect
 		protocol         => $dr_protocol,
 		fencing          => "dont-care"
 	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 	
 	my $new_resource_config = $anvil->Words->string({key => "file_0006", variables => {
 		server      => $server_name,

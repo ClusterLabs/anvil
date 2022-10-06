@@ -627,7 +627,7 @@ sub find_changes
 	my $new_scan_hardware_led_id       = $anvil->data->{summary}{led}{id_led};
 	my $new_scan_hardware_led_css      = $anvil->data->{summary}{led}{css_led};
 	my $new_scan_hardware_led_error    = $anvil->data->{summary}{led}{error_led};
-	my $new_scan_hardware_ram_total    = $anvil->data->{summary}{ram}{size};			# This is from counting the actual module capacity
+	my $new_scan_hardware_ram_total    = $anvil->data->{summary}{ram}{size};		# This is from counting the actual module capacity
 	my $new_scan_hardware_memory_total = $anvil->data->{summary}{ram}{proc}{memory_total};	# This is from /proc/meminfo and subtracts RAM used by shared video, etc.
 	my $new_scan_hardware_memory_free  = $anvil->data->{summary}{ram}{proc}{memory_free};
 	my $new_scan_hardware_swap_total   = $anvil->data->{summary}{ram}{proc}{swap_total};
