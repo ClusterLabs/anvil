@@ -1253,6 +1253,14 @@ sub gather_data
 				}
 				next if not $proxy_found;
 				
+				# Clear off trailing commas
+				$host1_tcp_ports =~ s/,$//;
+				$host2_tcp_ports =~ s/,$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:host1_tcp_ports" => $host1_tcp_ports, 
+					"s2:host2_tcp_ports" => $host2_tcp_ports, 
+				}});
+				
 				# Save the new info.
 				$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address} = $host1_ip_address;
 				$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port}   = $host1_tcp_ports;
