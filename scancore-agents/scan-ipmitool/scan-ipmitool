@@ -180,8 +180,11 @@ $anvil->data->{'scan-ipmitool'} = {
 		'RAID Controller'		=>	{
 			jump				=>	15,
 		},
-		# On Dells, 'Temp (xxh)' change a lot, so we bump the jump.
+		# On Dells, 'Temp (xxh)' and 'Exhaust Temp' change a lot, so we bump the jump.
 		'Temp'				=>	{
+			jump				=>	30,
+		},
+		'Exhaust Temp'			=>	{
 			jump				=>	30,
 		},
 	},

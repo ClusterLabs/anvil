@@ -5297,8 +5297,9 @@ sub _wait_if_changing
 		sleep $delay;
 		my $new_size = (stat($file))[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			file      => $file,
-			last_size => $last_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $last_size}).")", 
+			's1:file'      => $file,
+			's2:new_size'  => $new_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}).")", 
+			's3:last_size' => $last_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $last_size}).")", 
 		}});
 		if ($new_size == $last_size)
 		{
