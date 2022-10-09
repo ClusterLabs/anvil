@@ -500,7 +500,7 @@ sub check_incoming
 	
 	# Read any files in '/mnt/shared/incoming'.
 	$anvil->Storage->scan_directory({
-		debug     => 3,
+		debug     => 2,
 		directory => $anvil->data->{path}{directories}{shared}{base},
 		recursive => 1,
 	});
@@ -527,7 +527,7 @@ sub check_incoming
 		
 		# Skip if this isn't a file.
 		my $file_type = $anvil->data->{scan}{directories}{$full_path}{type};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			full_path => $full_path,
 			file_type => $file_type, 
 		}});
@@ -542,7 +542,7 @@ sub check_incoming
 		my $say_mimetype    =  convert_mimetype($anvil, $file_mimetype, $full_path, $file_executable);
 		my $full_path       =  $file_directory."/".$file_name;
 		   $full_path       =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			file_name       => $file_name, 
 			file_size       => $file_size, 
 			file_mtime      => $file_mtime, 
@@ -554,7 +554,7 @@ sub check_incoming
 		
 		# Do I know about this file? If so, is the file the same size? If either is no, calculate the md5sum.
 		my ($file_uuid, $recorded_size, $recorded_mtime, $recorded_md5sum) = get_file_db_info($anvil, "", $file_name);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			file_uuid       => $file_uuid, 
 			recorded_size   => $recorded_size,
 			recorded_mtime  => $recorded_mtime, 
@@ -727,9 +727,10 @@ WHERE
 	{
 		$query .= "    file_name = ".$anvil->Database->quote($file_name)."\n";
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -742,7 +743,7 @@ WHERE
 	my $file_size   = defined $results->[0]->[1] ? $results->[0]->[1] : 0;
 	my $file_mtime  = defined $results->[0]->[2] ? $results->[0]->[2] : 0;
 	   $file_md5sum = defined $results->[0]->[3] ? $results->[0]->[3] : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		file_uuid   => $file_uuid, 
 		file_size   => $file_size, 
 		file_mtime  => $file_mtime, 
