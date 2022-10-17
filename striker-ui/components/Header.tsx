@@ -1,9 +1,16 @@
-import { useState } from 'react';
-import { styled } from '@mui/material/styles';
-import { AppBar, Box, Button } from '@mui/material';
+import { Assignment as AssignmentIcon } from '@mui/icons-material';
+import { AppBar, Box, Button, IconButton, styled } from '@mui/material';
+import { useRef, useState } from 'react';
+
+import { BORDER_RADIUS, OLD_ICON, RED } from '../lib/consts/DEFAULT_THEME';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
-import { BORDER_RADIUS, RED } from '../lib/consts/DEFAULT_THEME';
+
 import AnvilDrawer from './AnvilDrawer';
+import FlexBox from './FlexBox';
+import IconWithIndicator, {
+  IconWithIndicatorForwardedRefContent,
+} from './IconWithIndicator';
+import JobSummary, { JobSummaryForwardedRefContent } from './JobSummary';
 
 const PREFIX = 'Header';
 
@@ -55,43 +62,65 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
 }));
 
 const Header = (): JSX.Element => {
+  const jobIconRef = useRef<IconWithIndicatorForwardedRefContent>({});
+  const jobSummaryRef = useRef<JobSummaryForwardedRefContent>({});
+
   const [open, setOpen] = useState(false);
 
   const toggleDrawer = (): void => setOpen(!open);
 
   return (
-    <StyledAppBar>
-      <Box display="flex" justifyContent="space-between" flexDirection="row">
-        <Box className={classes.barElement}>
-          <Button onClick={toggleDrawer}>
-            <img alt="" src="/pngs/logo.png" width="160" height="40" />
-          </Button>
-        </Box>
-        <Box className={`${classes.barElement} ${classes.iconBox}`}>
-          {ICONS.map(
-            (icon): JSX.Element => (
-              <a
-                key={icon.uri}
-                href={
-                  icon.uri.search(/^https?:/) !== -1
-                    ? icon.uri
-                    : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
-                }
+    <>
+      <StyledAppBar>
+        <Box display="flex" justifyContent="space-between" flexDirection="row">
+          <FlexBox row>
+            <Button onClick={toggleDrawer}>
+              <img alt="" src="/pngs/logo.png" width="160" height="40" />
+            </Button>
+          </FlexBox>
+          <FlexBox className={classes.iconBox} row spacing={0}>
+            <Box>
+              <IconButton
+                onClick={({ currentTarget }) => {
+                  jobSummaryRef.current.setAnchor?.call(null, currentTarget);
+                  jobSummaryRef.current.setOpen?.call(null, true);
+                }}
+                sx={{ color: OLD_ICON, padding: '0 .1rem' }}
               >
-                <img
-                  alt=""
-                  key="icon"
-                  src={icon.image}
-                  {...ICON_SIZE}
-                  className={classes.icons}
-                />
-              </a>
-            ),
-          )}
+                <IconWithIndicator icon={AssignmentIcon} ref={jobIconRef} />
+              </IconButton>
+            </Box>
+            {ICONS.map(
+              (icon): JSX.Element => (
+                <a
+                  key={icon.uri}
+                  href={
+                    icon.uri.search(/^https?:/) !== -1
+                      ? icon.uri
+                      : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
+                  }
+                >
+                  <img
+                    alt=""
+                    key="icon"
+                    src={icon.image}
+                    {...ICON_SIZE}
+                    className={classes.icons}
+                  />
+                </a>
+              ),
+            )}
+          </FlexBox>
         </Box>
-      </Box>
+      </StyledAppBar>
       <AnvilDrawer open={open} setOpen={setOpen} />
-    </StyledAppBar>
+      <JobSummary
+        onFetchSuccessAppend={(jobs) => {
+          jobIconRef.current.indicate?.call(null, Object.keys(jobs).length > 0);
+        }}
+        ref={jobSummaryRef}
+      />
+    </>
   );
 };
 
