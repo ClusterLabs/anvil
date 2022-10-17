@@ -56,7 +56,8 @@
     "react/jsx-curly-newline": "off",
     "react/jsx-props-no-spreading": "off",
     "@next/next/no-img-element": "off",
-    "@typescript-eslint/camelcase": "off"
+    "@typescript-eslint/camelcase": "off",
+    "@typescript-eslint/no-unused-vars": [1, { "ignoreRestSiblings": true }]
   },
   "settings": {
     "react": { "version": "detect" }
