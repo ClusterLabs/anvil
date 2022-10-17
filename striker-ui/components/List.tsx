@@ -14,7 +14,16 @@ import {
   SxProps,
   Theme,
 } from '@mui/material';
-import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+import {
+  FC,
+  ForwardedRef,
+  forwardRef,
+  ReactNode,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BLUE, GREY, RED } from '../lib/consts/DEFAULT_THEME';
@@ -27,7 +36,7 @@ import { BodyText } from './Text';
 
 type OnCheckboxChange = Exclude<CheckboxProps['onChange'], undefined>;
 
-type ListOptionalPropsWithDefaults<T = unknown> = {
+type ListOptionalPropsWithDefaults<T extends unknown = unknown> = {
   allowCheckAll?: boolean;
   allowEdit?: boolean;
   edit?: boolean;
@@ -40,7 +49,7 @@ type ListOptionalPropsWithDefaults<T = unknown> = {
   scroll?: boolean;
 };
 
-type ListOptionalPropsWithoutDefaults<T = unknown> = {
+type ListOptionalPropsWithoutDefaults<T extends unknown = unknown> = {
   allowAddItem?: boolean;
   allowCheckItem?: boolean;
   allowDelete?: boolean;
@@ -58,13 +67,17 @@ type ListOptionalPropsWithoutDefaults<T = unknown> = {
   renderListItemCheckboxState?: (key: string, value: T) => boolean;
 };
 
-type ListOptionalProps<T = unknown> = ListOptionalPropsWithDefaults<T> &
-  ListOptionalPropsWithoutDefaults<T>;
+type ListOptionalProps<T extends unknown = unknown> =
+  ListOptionalPropsWithDefaults<T> & ListOptionalPropsWithoutDefaults<T>;
 
-type ListProps<T = unknown> = FlexBoxProps &
+type ListProps<T extends unknown = unknown> = FlexBoxProps &
   ListOptionalProps<T> & {
     listItems: Record<string, T>;
   };
+
+type ListForwardedRefContent = {
+  setCheckAll?: (value: boolean) => void;
+};
 
 const HEADER_SPACING = '.3em';
 const LIST_DEFAULT_PROPS: Required<ListOptionalPropsWithDefaults> &
@@ -96,208 +109,229 @@ const LIST_ICON_MIN_WIDTH = '56px';
 
 const CHECK_ALL_MIN_WIDTH = `calc(${LIST_ICON_MIN_WIDTH} - ${HEADER_SPACING})`;
 
-const List = <T,>({
-  header,
-  allowCheckAll: isAllowCheckAll = LIST_DEFAULT_PROPS.allowCheckAll,
-  allowEdit: isAllowEdit = LIST_DEFAULT_PROPS.allowEdit,
-  edit: isEdit = LIST_DEFAULT_PROPS.edit,
-  initialCheckAll = LIST_DEFAULT_PROPS.initialCheckAll,
-  insertHeader: isInsertHeader = LIST_DEFAULT_PROPS.insertHeader,
-  listEmpty = LIST_DEFAULT_PROPS.listEmpty,
-  listItemKeyPrefix = LIST_DEFAULT_PROPS.listItemKeyPrefix,
-  listItemProps: {
-    sx: listItemSx,
-    ...restListItemProps
-  } = LIST_DEFAULT_PROPS.listItemProps,
-  listItems,
-  listProps: { sx: listSx, ...restListProps } = LIST_DEFAULT_PROPS.listProps,
-  onAdd,
-  onDelete,
-  onEdit,
-  onAllCheckboxChange,
-  onItemCheckboxChange,
-  renderListItem = LIST_DEFAULT_PROPS.renderListItem,
-  renderListItemCheckboxState,
-  scroll: isScroll = LIST_DEFAULT_PROPS.scroll,
-  // Input props that depend on other input props.
-  allowAddItem: isAllowAddItem = isAllowEdit,
-  allowCheckItem: isAllowCheckItem = isAllowEdit,
-  allowDelete: isAllowDelete = isAllowEdit,
-  allowEditItem: isAllowEditItem = isAllowEdit,
-
-  ...rootProps
-}: ListProps<T>): ReturnType<FC<ListProps<T>>> => {
-  const [isCheckAll, setIsCheckAll] = useState<boolean>(initialCheckAll);
-
-  const addItemButton = useMemo(
-    () =>
-      isAllowAddItem ? (
-        <IconButton onClick={onAdd} size="small">
-          <MUIAddIcon />
-        </IconButton>
-      ) : undefined,
-    [isAllowAddItem, onAdd],
-  );
-  const deleteItemButton = useMemo(
-    () =>
-      isEdit && isAllowDelete ? (
-        <IconButton
-          onClick={onDelete}
-          size="small"
-          sx={{
-            backgroundColor: RED,
-            color: GREY,
-
-            '&:hover': { backgroundColor: `${RED}F0` },
-          }}
-        >
-          <Delete />
-        </IconButton>
-      ) : undefined,
-    [isAllowDelete, isEdit, onDelete],
-  );
-  const editItemButton = useMemo(() => {
-    if (isAllowEditItem) {
-      return (
-        <IconButton onClick={onEdit} size="small">
-          {isEdit ? <MUIDoneIcon sx={{ color: BLUE }} /> : <MUIEditIcon />}
-        </IconButton>
-      );
-    }
-
-    return undefined;
-  }, [isAllowEditItem, isEdit, onEdit]);
-  const checkAllElement = useMemo(() => {
-    let element;
-
-    if (isEdit && isAllowCheckItem) {
-      element = isAllowCheckAll ? (
-        <MUIBox sx={{ minWidth: CHECK_ALL_MIN_WIDTH }}>
-          <Checkbox
-            checked={isCheckAll}
-            edge="start"
-            onChange={(...args) => {
-              const [, isChecked] = args;
-
-              onAllCheckboxChange?.call(null, ...args);
-              setIsCheckAll(isChecked);
-            }}
-          />
-        </MUIBox>
-      ) : (
-        <Divider sx={{ minWidth: CHECK_ALL_MIN_WIDTH }} />
-      );
-    }
-
-    return element;
-  }, [
-    isAllowCheckAll,
-    isAllowCheckItem,
-    isCheckAll,
-    isEdit,
-    onAllCheckboxChange,
-  ]);
-  const headerElement = useMemo(
-    () =>
-      isInsertHeader ? (
-        <FlexBox row spacing={HEADER_SPACING} sx={{ height: '2.4em' }}>
-          {checkAllElement}
-          {typeof header === 'string' ? (
-            <>
-              <BodyText>{header}</BodyText>
-              <Divider sx={{ flexGrow: 1 }} />
-            </>
-          ) : (
-            header
-          )}
-          {deleteItemButton}
-          {editItemButton}
-          {addItemButton}
-        </FlexBox>
-      ) : (
-        header
-      ),
-    [
-      addItemButton,
-      checkAllElement,
-      deleteItemButton,
-      editItemButton,
+const List = forwardRef(
+  <T,>(
+    {
       header,
-      isInsertHeader,
-    ],
-  );
-  const listEmptyElement = useMemo(
-    () =>
-      typeof listEmpty === 'string' ? (
-        <BodyText>{listEmpty}</BodyText>
-      ) : (
-        listEmpty
-      ),
-    [listEmpty],
-  );
+      allowCheckAll: isAllowCheckAll = LIST_DEFAULT_PROPS.allowCheckAll,
+      allowEdit: isAllowEdit = LIST_DEFAULT_PROPS.allowEdit,
+      edit: isEdit = LIST_DEFAULT_PROPS.edit,
+      initialCheckAll = LIST_DEFAULT_PROPS.initialCheckAll,
+      insertHeader: isInsertHeader = LIST_DEFAULT_PROPS.insertHeader,
+      listEmpty = LIST_DEFAULT_PROPS.listEmpty,
+      listItemKeyPrefix = LIST_DEFAULT_PROPS.listItemKeyPrefix,
+      listItemProps: {
+        sx: listItemSx,
+        ...restListItemProps
+      } = LIST_DEFAULT_PROPS.listItemProps,
+      listItems,
+      listProps: {
+        sx: listSx,
+        ...restListProps
+      } = LIST_DEFAULT_PROPS.listProps,
+      onAdd,
+      onDelete,
+      onEdit,
+      onAllCheckboxChange,
+      onItemCheckboxChange,
+      renderListItem = LIST_DEFAULT_PROPS.renderListItem,
+      renderListItemCheckboxState,
+      scroll: isScroll = LIST_DEFAULT_PROPS.scroll,
+      // Input props that depend on other input props.
+      allowAddItem: isAllowAddItem = isAllowEdit,
+      allowCheckItem: isAllowCheckItem = isAllowEdit,
+      allowDelete: isAllowDelete = isAllowEdit,
+      allowEditItem: isAllowEditItem = isAllowEdit,
 
-  const listItemCheckbox = useCallback(
-    (key: string, checked?: boolean) =>
-      isEdit && isAllowCheckItem ? (
-        <MUIListItemIcon sx={{ minWidth: LIST_ICON_MIN_WIDTH }}>
-          <Checkbox
-            checked={checked}
-            edge="start"
-            onChange={(...args) =>
-              onItemCheckboxChange?.call(null, key, ...args)
-            }
-          />
-        </MUIListItemIcon>
-      ) : undefined,
-    [isAllowCheckItem, isEdit, onItemCheckboxChange],
-  );
+      ...rootProps
+    }: ListProps<T>,
+    ref: ForwardedRef<ListForwardedRefContent>,
+  ) => {
+    const [isCheckAll, setIsCheckAll] = useState<boolean>(initialCheckAll);
 
-  const listItemElements = useMemo(() => {
-    const entries = Object.entries(listItems);
+    const addItemButton = useMemo(
+      () =>
+        isAllowAddItem ? (
+          <IconButton onClick={onAdd} size="small">
+            <MUIAddIcon />
+          </IconButton>
+        ) : undefined,
+      [isAllowAddItem, onAdd],
+    );
+    const deleteItemButton = useMemo(
+      () =>
+        isEdit && isAllowDelete ? (
+          <IconButton
+            onClick={onDelete}
+            size="small"
+            sx={{
+              backgroundColor: RED,
+              color: GREY,
 
-    return entries.length > 0
-      ? entries.map(([key, value]) => (
-          <MUIListItem
-            {...restListItemProps}
-            key={`${listItemKeyPrefix}-${key}`}
-            sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
+              '&:hover': { backgroundColor: `${RED}F0` },
+            }}
           >
-            {listItemCheckbox(
-              key,
-              renderListItemCheckboxState?.call(null, key, value),
-            )}
-            {renderListItem(key, value)}
-          </MUIListItem>
-        ))
-      : listEmptyElement;
-  }, [
-    listEmptyElement,
-    listItemCheckbox,
-    listItemKeyPrefix,
-    listItems,
-    listItemSx,
-    renderListItem,
-    renderListItemCheckboxState,
-    restListItemProps,
-  ]);
-  const listScrollSx: SxProps<Theme> | undefined = useMemo(
-    () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
-    [isScroll],
-  );
+            <Delete />
+          </IconButton>
+        ) : undefined,
+      [isAllowDelete, isEdit, onDelete],
+    );
+    const editItemButton = useMemo(() => {
+      if (isAllowEditItem) {
+        return (
+          <IconButton onClick={onEdit} size="small">
+            {isEdit ? <MUIDoneIcon sx={{ color: BLUE }} /> : <MUIEditIcon />}
+          </IconButton>
+        );
+      }
 
-  return (
-    <FlexBox spacing={0} {...rootProps}>
-      {headerElement}
-      <MUIList
-        {...restListProps}
-        sx={{ paddingBottom: 0, paddingTop: 0, ...listScrollSx, ...listSx }}
-      >
-        {listItemElements}
-      </MUIList>
-    </FlexBox>
-  );
-};
+      return undefined;
+    }, [isAllowEditItem, isEdit, onEdit]);
+    const checkAllElement = useMemo(() => {
+      let element;
+
+      if (isEdit && isAllowCheckItem) {
+        element = isAllowCheckAll ? (
+          <MUIBox sx={{ minWidth: CHECK_ALL_MIN_WIDTH }}>
+            <Checkbox
+              checked={isCheckAll}
+              edge="start"
+              onChange={(...args) => {
+                const [, isChecked] = args;
+
+                onAllCheckboxChange?.call(null, ...args);
+                setIsCheckAll(isChecked);
+              }}
+            />
+          </MUIBox>
+        ) : (
+          <Divider sx={{ minWidth: CHECK_ALL_MIN_WIDTH }} />
+        );
+      }
+
+      return element;
+    }, [
+      isAllowCheckAll,
+      isAllowCheckItem,
+      isCheckAll,
+      isEdit,
+      onAllCheckboxChange,
+    ]);
+    const headerElement = useMemo(
+      () =>
+        isInsertHeader ? (
+          <FlexBox row spacing={HEADER_SPACING} sx={{ height: '2.4em' }}>
+            {checkAllElement}
+            {typeof header === 'string' ? (
+              <>
+                <BodyText>{header}</BodyText>
+                <Divider sx={{ flexGrow: 1 }} />
+              </>
+            ) : (
+              header
+            )}
+            {deleteItemButton}
+            {editItemButton}
+            {addItemButton}
+          </FlexBox>
+        ) : (
+          header
+        ),
+      [
+        addItemButton,
+        checkAllElement,
+        deleteItemButton,
+        editItemButton,
+        header,
+        isInsertHeader,
+      ],
+    );
+    const listEmptyElement = useMemo(
+      () =>
+        typeof listEmpty === 'string' ? (
+          <BodyText>{listEmpty}</BodyText>
+        ) : (
+          listEmpty
+        ),
+      [listEmpty],
+    );
+
+    const listItemCheckbox = useCallback(
+      (key: string, checked?: boolean) =>
+        isEdit && isAllowCheckItem ? (
+          <MUIListItemIcon sx={{ minWidth: LIST_ICON_MIN_WIDTH }}>
+            <Checkbox
+              checked={checked}
+              edge="start"
+              onChange={(...args) =>
+                onItemCheckboxChange?.call(null, key, ...args)
+              }
+            />
+          </MUIListItemIcon>
+        ) : undefined,
+      [isAllowCheckItem, isEdit, onItemCheckboxChange],
+    );
+
+    const listItemElements = useMemo(() => {
+      const entries = Object.entries(listItems);
+
+      return entries.length > 0
+        ? entries.map(([key, value]) => (
+            <MUIListItem
+              {...restListItemProps}
+              key={`${listItemKeyPrefix}-${key}`}
+              sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
+            >
+              {listItemCheckbox(
+                key,
+                renderListItemCheckboxState?.call(null, key, value),
+              )}
+              {renderListItem(key, value)}
+            </MUIListItem>
+          ))
+        : listEmptyElement;
+    }, [
+      listEmptyElement,
+      listItemCheckbox,
+      listItemKeyPrefix,
+      listItems,
+      listItemSx,
+      renderListItem,
+      renderListItemCheckboxState,
+      restListItemProps,
+    ]);
+    const listScrollSx: SxProps<Theme> | undefined = useMemo(
+      () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
+      [isScroll],
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        setCheckAll: (value) => setIsCheckAll(value),
+      }),
+      [],
+    );
+
+    return (
+      <FlexBox spacing={0} {...rootProps}>
+        {headerElement}
+        <MUIList
+          {...restListProps}
+          sx={{ paddingBottom: 0, paddingTop: 0, ...listScrollSx, ...listSx }}
+        >
+          {listItemElements}
+        </MUIList>
+      </FlexBox>
+    );
+  },
+);
 
 List.defaultProps = LIST_DEFAULT_PROPS;
+List.displayName = 'List';
 
-export default List;
+export type { ListForwardedRefContent, ListProps };
+
+export default List as <T>(
+  props: ListProps<T> & { ref?: ForwardedRef<ListForwardedRefContent> },
+) => ReturnType<FC<ListProps<T>>>;
