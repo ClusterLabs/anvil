@@ -3,23 +3,33 @@ import { FC, useMemo } from 'react';
 
 type FlexBoxDirection = 'column' | 'row';
 
-type FlexBoxOptionalProps = {
+type FlexBoxSpacing = number | string;
+
+type FlexBoxOptionalPropsWithDefault = {
   row?: boolean;
-  lg?: FlexBoxDirection;
-  md?: FlexBoxDirection;
-  sm?: FlexBoxDirection;
-  spacing?: number | string;
-  xl?: FlexBoxDirection;
+  spacing?: FlexBoxSpacing;
   xs?: FlexBoxDirection;
 };
 
+type FlexBoxOptionalPropsWithoutDefault = {
+  columnSpacing?: FlexBoxSpacing;
+  rowSpacing?: FlexBoxSpacing;
+  lg?: FlexBoxDirection;
+  md?: FlexBoxDirection;
+  sm?: FlexBoxDirection;
+  xl?: FlexBoxDirection;
+};
+
+type FlexBoxOptionalProps = FlexBoxOptionalPropsWithDefault &
+  FlexBoxOptionalPropsWithoutDefault;
+
 type FlexBoxProps = MUIBoxProps & FlexBoxOptionalProps;
 
-const FLEX_BOX_DEFAULT_PROPS: Required<
-  Omit<FlexBoxOptionalProps, 'lg' | 'md' | 'sm' | 'xl'>
-> &
-  Pick<FlexBoxOptionalProps, 'lg' | 'md' | 'sm' | 'xl'> = {
+const FLEX_BOX_DEFAULT_PROPS: Required<FlexBoxOptionalPropsWithDefault> &
+  FlexBoxOptionalPropsWithoutDefault = {
+  columnSpacing: undefined,
   row: false,
+  rowSpacing: undefined,
   lg: undefined,
   md: undefined,
   sm: undefined,
@@ -37,6 +47,10 @@ const FlexBox: FC<FlexBoxProps> = ({
   sx,
   xl: dXl = FLEX_BOX_DEFAULT_PROPS.xl,
   xs: dXs = FLEX_BOX_DEFAULT_PROPS.xs,
+  // Input props that depend on other input props.
+  columnSpacing = spacing,
+  rowSpacing = spacing,
+
   ...muiBoxRestProps
 }) => {
   const xs = useMemo(() => (isRow ? 'row' : dXs), [dXs, isRow]);
@@ -49,23 +63,23 @@ const FlexBox: FC<FlexBoxProps> = ({
     FlexBoxDirection,
     {
       alignItems: string;
-      marginLeft: string | number;
-      marginTop: string | number;
+      marginLeft: FlexBoxSpacing;
+      marginTop: FlexBoxSpacing;
     }
   > = useMemo(
     () => ({
       column: {
         alignItems: 'normal',
         marginLeft: 0,
-        marginTop: spacing,
+        marginTop: columnSpacing,
       },
       row: {
         alignItems: 'center',
-        marginLeft: spacing,
+        marginLeft: rowSpacing,
         marginTop: 0,
       },
     }),
-    [spacing],
+    [columnSpacing, rowSpacing],
   );
 
   return (
