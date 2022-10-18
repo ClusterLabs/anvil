@@ -9,7 +9,7 @@ import {
 } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { sub } from '../../accessModule';
+import { job } from '../../accessModule';
 
 const fvar = (configStepCount: number, fieldName: string) =>
   ['form', `config_step${configStepCount}`, fieldName, 'value'].join('::');
@@ -115,7 +115,7 @@ export const initializeStriker: RequestHandler<
   }
 
   try {
-    sub('insert_or_update_jobs', {
+    job({
       subParams: {
         file: __filename,
         line: 0,
@@ -155,7 +155,7 @@ ${buildNetworkLinks(2, networkShortName, interfaces)}`;
         job_description: 'job_0071',
         job_progress: 0,
       },
-    }).stdout;
+    });
   } catch (subError) {
     console.log(`Failed to queue striker initialization; CAUSE: ${subError}`);
 

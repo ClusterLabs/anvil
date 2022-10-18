@@ -6,7 +6,7 @@ import path from 'path';
 import { REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { dbQuery, getLocalHostUUID, sub } from '../../accessModule';
+import { dbQuery, getLocalHostUUID, job } from '../../accessModule';
 import { sanitizeQS } from '../../sanitizeQS';
 import { mkfifo, rm } from '../../shell';
 
@@ -127,7 +127,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
     }
 
     try {
-      sub('insert_or_update_jobs', {
+      job({
         subParams: {
           file: __filename,
           line: 0,
@@ -143,7 +143,7 @@ out-file-id=${epoch}`,
           job_progress: 0,
           job_host_uuid: serverHostUUID,
         },
-      }).stdout;
+      });
     } catch (subError) {
       console.log(
         `Failed to queue fetch server screenshot job; CAUSE: ${subError}`,

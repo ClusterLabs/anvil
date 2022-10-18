@@ -5,7 +5,7 @@ import { OS_LIST_MAP } from '../../consts/OS_LIST';
 import { REP_INTEGER, REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { dbQuery, sub } from '../../accessModule';
+import { dbQuery, job } from '../../accessModule';
 
 export const createServer: RequestHandler = ({ body }, response) => {
   console.log('Creating server.');
@@ -136,7 +136,7 @@ driver_iso=${dataDriverISO}`;
 
   console.log(`provisionServerJobHostUUID: [${provisionServerJobHostUUID}]`);
 
-  sub('insert_or_update_jobs', {
+  job({
     subParams: {
       file: __filename,
       line: 0,
