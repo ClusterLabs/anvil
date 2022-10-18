@@ -2,6 +2,10 @@ import { spawnSync, SpawnSyncOptions } from 'child_process';
 
 import SERVER_PATHS from './consts/SERVER_PATHS';
 
+import { stderr as sherr, stdout as shout } from './shell';
+
+const formatQuery = (query: string) => query.replace(/\s+/g, ' ');
+
 const execAnvilAccessModule = (
   args: string[],
   options: SpawnSyncOptions = {
@@ -30,7 +34,7 @@ const execAnvilAccessModule = (
   } catch (stdoutParseError) {
     output = stdout;
 
-    console.warn(
+    sherr(
       `Failed to parse anvil-access-module output [${output}]; CAUSE: [${stdoutParseError}]`,
     );
   }
@@ -59,7 +63,7 @@ const execModuleSubroutine = (
     args.push('--sub-params', JSON.stringify(subParams));
   }
 
-  console.log(
+  shout(
     `...${subModuleName}->${subName} with params: ${JSON.stringify(
       subParams,
       null,
@@ -113,8 +117,7 @@ const dbJobAnvilSyncShared = (
 };
 
 const dbQuery = (query: string, options?: SpawnSyncOptions) => {
-  // For printing SQL query to debug.
-  // process.stdout.write(`${query.replace(/\s+/g, ' ')}\n`);
+  shout(formatQuery(query));
 
   return execAnvilAccessModule(['--query', query], options);
 };
@@ -122,8 +125,11 @@ const dbQuery = (query: string, options?: SpawnSyncOptions) => {
 const dbSubRefreshTimestamp = () =>
   execModuleSubroutine('refresh_timestamp').stdout;
 
-const dbWrite = (query: string, options?: SpawnSyncOptions) =>
-  execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
+const dbWrite = (query: string, options?: SpawnSyncOptions) => {
+  shout(formatQuery(query));
+
+  return execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
+};
 
 const getAnvilData = (
   dataStruct: AnvilDataStruct,
