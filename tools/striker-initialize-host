@@ -375,6 +375,8 @@ sub add_repos
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0028");
 	
+	### TODO: Rework this, add $anvil->data->{data}{enterprise_uuid}
+	
 	# Add the local repo.
 	my $repo = $anvil->Striker->get_local_repo({debug => 2});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { repo => $repo }});
@@ -1014,6 +1016,15 @@ sub get_job_details
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0034", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
 		$anvil->nice_exit({exit_code => 3});
 	}
+	
+	# Set up all possible variables.
+	$anvil->data->{data}{enterprise_uuid} = "";
+	$anvil->data->{data}{host_ip_address} = "";
+	$anvil->data->{data}{password}        = "";
+	$anvil->data->{data}{rh_password}     = "";
+	$anvil->data->{data}{rh_user}         = "";
+	$anvil->data->{data}{ssh_port}        = "";
+	$anvil->data->{data}{type}            = "";
 	
 	$anvil->data->{jobs}{job_uuid}    = $anvil->data->{switches}{'job-uuid'};
 	$anvil->data->{jobs}{job_command} = $return->{job_command};

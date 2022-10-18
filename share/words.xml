@@ -3003,6 +3003,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0294">This indicates if a Striker's DB is available to be used.</key>
 		<key name="striker_0295">This indicates that this node has had pacemaker configured.</key>
 		<key name="striker_0296">This indicates that this node or DR host has had base DRBD configured.</key>
+		<key name="striker_0297">This indicates that this node or DR host has completed all tasks needed to be a full member of the Anvil!.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

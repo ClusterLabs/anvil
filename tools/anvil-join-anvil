@@ -68,6 +68,18 @@ configure_drbd($anvil);
 
 update_progress($anvil, 100, "job_0128");
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0128"});
+
+# Record that we're done configuring pacemaker.
+$anvil->Database->insert_or_update_variables({
+	variable_name         => "system::all::configured", 
+	variable_value        => 1, 
+	variable_default      => "", 
+	variable_description  => "striker_0297", 
+	variable_section      => "system", 
+	variable_source_uuid  => $anvil->data->{sys}{host_uuid}, 
+	variable_source_table => "hosts", 
+});
+
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
