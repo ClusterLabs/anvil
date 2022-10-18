@@ -1,9 +1,16 @@
 import express from 'express';
 
-import { getHost, getHostConnection } from '../lib/request_handlers/host';
+import {
+  createHost,
+  getHost,
+  getHostConnection,
+} from '../lib/request_handlers/host';
 
 const router = express.Router();
 
-router.get('/', getHost).get('/connection', getHostConnection);
+router
+  .get('/', getHost)
+  .get('/connection', getHostConnection)
+  .post('/', createHost);
 
 export default router;
