@@ -1,0 +1,55 @@
+.\" Manpage for the Alteeve! striker-initialize-host tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH striker-initialize-host "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+striker-initialize-host \- Tool used on Striker dashboards to initialize new Nodes and DR hosts.
+.SH SYNOPSIS
+.B striker-initialize-host 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+striker-initialize-host \- This tool logs into a target Anvil! sub-node or DR host, adds the Alteeve! repository, installs \fBanvil-node\fR or \fBanvil-dr\fR, and then configures \fBanvil.conf\fR so that the target can start communicating with any peered Striker dashboards.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\-d, \fB\-\-job-uuid\fR
+This is the jobs -> job_uuid of the job to run, if it exists.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\fB\-v\fR, \fB\-vv\fR, \fB\-vvv\fR
+Set the log level for this run to 1, 2 or 3 (higher == more verbose).
+.TP
+.SS "Commands:"
+.TP
+\-k, \fB\-\-enterprise-uuid\fR <uuid>
+If you have a key, provide it this way. This will configure the host to use the Alteeve enterprise repository. (see 'man alteeve-repo-setup' for repo options).
+.TP
+\-k, \fB\-\-host-ip-address\fR <ip_address>
+This is the IP address of the target node or DR host.
+.TP
+\-k, \fB\-\-password\fR <string>
+This is the current \fBroot\fR user's password on the target node or DR host.
+.TP
+\-k, \fB\-\-rh-password\fR <string>
+If the target is a Red Hat Enterprise Linux OS, and if the target is not yet connected to a subscription, you can provide the \fBrh-user\fR and this password to have the target subscribed during initialization.
+.TP
+\-k, \fB\-\-rh-user\fR <string>
+If the target is a Red Hat Enterprise Linux OS, and if the target is not yet connected to a subscription, you can provide this user name and \fBrh-password\fR to have the target subscribed during initialization.
+.TP
+\-k, \fB\-\-ssh-port\fR <number, default 22>
+If you need to connect over a non-standard port, you can set it with this switch.
+.TP
+\-k, \fB\-\-target\fR <ip_address>
+Alternative to \fB\-\-host-ip-address\fR.
+.TP
+\-k, \fB\-\-type\fR <'node' or 'dr'>
+This indicates how you want the target to be initialized as.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
