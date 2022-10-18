@@ -2,6 +2,14 @@ import { spawnSync } from 'child_process';
 
 import SERVER_PATHS from './consts/SERVER_PATHS';
 
+const print = (
+  message: string,
+  {
+    eol = '\n',
+    stream = 'stdout',
+  }: { eol?: string; stream?: 'stderr' | 'stdout' } = {},
+) => process[stream].write(`${message}${eol}`);
+
 const systemCall = (
   ...[command, args = [], options = {}]: Parameters<typeof spawnSync>
 ) => {
@@ -29,3 +37,7 @@ export const mkfifo = (...args: string[]) =>
 
 export const rm = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.rm.self, args);
+
+export const stderr = (message: string) => print(message);
+
+export const stdout = (message: string) => print(message, { stream: 'stderr' });
