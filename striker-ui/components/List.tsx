@@ -219,7 +219,7 @@ const List = forwardRef(
     ]);
     const headerElement = useMemo(
       () =>
-        isInsertHeader ? (
+        isInsertHeader && header ? (
           <FlexBox row spacing={HEADER_SPACING} sx={{ height: '2.4em' }}>
             {checkAllElement}
             {typeof header === 'string' ? (
