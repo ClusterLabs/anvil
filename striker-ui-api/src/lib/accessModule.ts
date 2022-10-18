@@ -46,11 +46,7 @@ const execModuleSubroutine = (
     spawnSyncOptions,
     subModuleName,
     subParams,
-  }: {
-    spawnSyncOptions?: SpawnSyncOptions;
-    subModuleName?: string;
-    subParams?: Record<string, unknown>;
-  } = {},
+  }: ExecModuleSubroutineOptions = {},
 ) => {
   const args = ['--sub', subName];
 
@@ -77,6 +73,9 @@ const execModuleSubroutine = (
     stdout: stdout['sub_results'],
   };
 };
+
+const dbInsertOrUpdateJob = (options?: ExecModuleSubroutineOptions) =>
+  execModuleSubroutine('insert_or_update_jobs', options).stdout;
 
 const dbJobAnvilSyncShared = (
   jobName: string,
@@ -110,7 +109,7 @@ const dbJobAnvilSyncShared = (
     subParams.job_host_uuid = jobHostUUID;
   }
 
-  return execModuleSubroutine('insert_or_update_jobs', { subParams }).stdout;
+  return dbInsertOrUpdateJob({ subParams });
 };
 
 const dbQuery = (query: string, options?: SpawnSyncOptions) => {
@@ -146,6 +145,7 @@ const getLocalHostUUID = () =>
   }).stdout;
 
 export {
+  dbInsertOrUpdateJob as job,
   dbJobAnvilSyncShared,
   dbQuery,
   dbSubRefreshTimestamp,
