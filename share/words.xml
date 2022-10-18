@@ -568,7 +568,8 @@ resource #!variable!server!# {
 			c-max-rate 500M;
 		}
 		net {
-			protocol  C;
+			protocol C;
+			verify-alg md5;
                 	fencing resource-and-stonith;
 		}
 	}
@@ -801,6 +802,7 @@ sys::manage::firewall						=	1
 		}
 		net {
 			protocol #!variable!protocol!#;
+			verify-alg md5;
                 	fencing #!variable!fencing!#;
 		}
 	}
@@ -829,6 +831,7 @@ resource #!variable!server!# {
                 }
                 net {
                         protocol #!variable!protocol!#;
+			verify-alg md5;
                         fencing #!variable!fencing!#;
                 }
         }
@@ -2998,6 +3001,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0292">Stay Off</key>
 		<key name="striker_0293">This is the command used to provision the referenced server.</key>
 		<key name="striker_0294">This indicates if a Striker's DB is available to be used.</key>
+		<key name="striker_0295">This indicates that this node has had pacemaker configured.</key>
+		<key name="striker_0296">This indicates that this node or DR host has had base DRBD configured.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
