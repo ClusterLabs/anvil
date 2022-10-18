@@ -3,14 +3,14 @@ import { sanitizeQS } from '../../sanitizeQS';
 import { date } from '../../shell';
 
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
-  const { epoch } = request.query;
+  const { start: rawStart } = request.query;
 
-  const sanitizedEpoch = sanitizeQS(epoch, { returnType: 'number' });
+  const start = sanitizeQS(rawStart, { returnType: 'number' });
 
   let condModifiedDate = '';
 
   try {
-    const minDate = date('--date', `@${sanitizedEpoch}`, '--rfc-3339', 'ns');
+    const minDate = date('--date', `@${start}`, '--rfc-3339', 'ns');
 
     condModifiedDate = `OR (job.job_progress = 100 AND job.modified_date >= '${minDate}')`;
   } catch (shellError) {
