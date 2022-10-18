@@ -2,12 +2,45 @@ import { getAnvilData, getLocalHostUUID } from '../../accessModule';
 import { buildIDCondition } from '../../buildIDCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 
+const buildHostConnections = (
+  fromHostUUID: string,
+  databaseHash: DatabaseHash,
+  {
+    defaultPort = 5432,
+    defaultUser = 'admin',
+  }: { defaultPort?: number; defaultUser?: string } = {},
+) =>
+  Object.entries(databaseHash).reduce<HostConnectionOverview>(
+    (previous, [hostUUID, { host: ipAddress, ping, port: rawPort, user }]) => {
+      const port = parseInt(rawPort);
+
+      if (hostUUID === fromHostUUID) {
+        previous.inbound.port = port;
+        previous.inbound.user = user;
+      } else {
+        previous.peer[ipAddress] = {
+          hostUUID,
+          ipAddress,
+          isPing: ping === '1',
+          port,
+          user,
+        };
+      }
+
+      return previous;
+    },
+    {
+      inbound: { ipAddress: {}, port: defaultPort, user: defaultUser },
+      peer: {},
+    },
+  );
+
 export const getHostConnection = buildGetRequestHandler(
   (request, buildQueryOptions) => {
-    const { hostUUIDs } = request.query;
+    const { hostUUIDs: rawHostUUIDs } = request.query;
 
     let localHostUUID: string;
-    let rawDatabases: {
+    let rawDatabaseData: {
       [hostUUID: string]: {
         host: string;
         name: string;
@@ -25,87 +58,57 @@ export const getHostConnection = buildGetRequestHandler(
     }
 
     const hostUUIDField = 'ip_add.ip_address_host_uuid';
-    const condHostUUIDs = buildIDCondition(hostUUIDs, hostUUIDField, {
-      onFallback: () => `${hostUUIDField} = '${localHostUUID}'`,
-    });
+    const { after: condHostUUIDs, before: beforeBuildIDCond } =
+      buildIDCondition(rawHostUUIDs, hostUUIDField, {
+        onFallback: () => `${hostUUIDField} = '${localHostUUID}'`,
+      });
+    const hostUUIDs =
+      beforeBuildIDCond.length > 0 ? beforeBuildIDCond : [localHostUUID];
+
+    const getConnectionKey = (hostUUID: string) =>
+      hostUUID === localHostUUID ? 'local' : hostUUID;
 
     process.stdout.write(`condHostUUIDs=[${condHostUUIDs}]\n`);
 
     try {
-      ({ database: rawDatabases } = getAnvilData({ database: true }));
+      ({ database: rawDatabaseData } = getAnvilData({ database: true }));
     } catch (subError) {
       throw new Error(`Failed to get anvil data; CAUSE: ${subError}`);
     }
 
-    const connections = Object.entries(rawDatabases).reduce<{
-      inbound: {
-        ipAddresses: {
-          [ipAddress: string]: {
-            hostUUID: string;
-            ipAddress: string;
-            ipAddressUUID: string;
-            networkLinkNumber: number;
-            networkNumber: number;
-            networkType: string;
-          };
-        };
-        port: number;
-        user: string;
-      };
-      peer: {
-        [ipAddress: string]: {
-          hostUUID: string;
-          ipAddress: string;
-          isPing: boolean;
-          port: number;
-          user: string;
-        };
-      };
-    }>(
-      (
-        previous,
-        [hostUUID, { host: ipAddress, ping, port: rawPort, user }],
-      ) => {
-        const port = parseInt(rawPort);
+    const connections = hostUUIDs.reduce<{
+      [hostUUID: string]: HostConnectionOverview;
+    }>((previous, hostUUID) => {
+      const connectionKey = getConnectionKey(hostUUID);
 
-        if (hostUUID === localHostUUID) {
-          previous.inbound.port = port;
-          previous.inbound.user = user;
-        } else {
-          previous.peer[ipAddress] = {
-            hostUUID,
-            ipAddress,
-            isPing: ping === '1',
-            port,
-            user,
-          };
-        }
+      previous[connectionKey] = buildHostConnections(hostUUID, rawDatabaseData);
 
-        return previous;
-      },
-      { inbound: { ipAddresses: {}, port: 5432, user: 'admin' }, peer: {} },
-    );
+      return previous;
+    }, {});
 
-    process.stdout.write(`Connections=[\n${JSON.stringify(connections)}\n]\n`);
+    process.stdout.write(`connections=[${JSON.stringify(connections)}]\n`);
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {
         let result = queryStdout;
 
         if (queryStdout instanceof Array) {
-          queryStdout.forEach(([ipAddressUUID, ipAddress, network]) => {
-            const [, networkType, networkNumber, networkLinkNumber] =
-              network.match(/^([^\s]+)(\d+)_[^\s]+(\d+)$/);
+          queryStdout.forEach(
+            ([ipAddressUUID, hostUUID, ipAddress, network]) => {
+              const [, networkType, rawNetworkNumber, rawNetworkLinkNumber] =
+                network.match(/^([^\s]+)(\d+)_[^\s]+(\d+)$/);
+              const connectionKey = getConnectionKey(hostUUID);
 
-            connections.inbound.ipAddresses[ipAddress] = {
-              hostUUID: localHostUUID,
-              ipAddress,
-              ipAddressUUID,
-              networkLinkNumber,
-              networkNumber,
-              networkType,
-            };
-          });
+              connections[connectionKey].inbound.ipAddress[ipAddress] = {
+                hostUUID,
+                ipAddress,
+                ipAddressUUID,
+                networkLinkNumber: parseInt(rawNetworkLinkNumber),
+                networkNumber: parseInt(rawNetworkNumber),
+                networkType,
+              };
+            },
+          );
 
           result = connections;
         }
@@ -116,6 +119,7 @@ export const getHostConnection = buildGetRequestHandler(
 
     return `SELECT
               ip_add.ip_address_uuid,
+              ip_add.ip_address_host_uuid,
               ip_add.ip_address_address,
               CASE
                 WHEN ip_add.ip_address_on_type = 'interface'
@@ -130,6 +134,7 @@ export const getHostConnection = buildGetRequestHandler(
             LEFT JOIN bonds AS bon
               ON bri.bridge_uuid = bon.bond_bridge_uuid
                 OR ip_add.ip_address_on_uuid = bon.bond_uuid
-            WHERE ${condHostUUIDs};`;
+            WHERE ${condHostUUIDs}
+              AND ip_add.ip_address_note != 'DELETED';`;
   },
 );

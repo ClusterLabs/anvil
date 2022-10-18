@@ -6,7 +6,7 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
   const { hostUUIDs } = request.query;
 
   const hostUUIDField = 'hos.host_uuid';
-  const condHostUUIDs = buildIDCondition(hostUUIDs, hostUUIDField, {
+  const { after: condHostUUIDs } = buildIDCondition(hostUUIDs, hostUUIDField, {
     onFallback: () => {
       try {
         return `${hostUUIDField} = '${getLocalHostUUID()}'`;

@@ -5,10 +5,14 @@ export const buildIDCondition = (
   ids: unknown,
   field: string,
   { onFallback = () => '' }: { onFallback?: () => string },
-): string =>
-  join(sanitizeQS(ids, { returnType: 'string[]' }), {
+): { after: string; before: string[] } => {
+  const before = sanitizeQS(ids, { returnType: 'string[]' });
+  const after = join(before, {
     beforeReturn: (toReturn) =>
       toReturn ? `${field} IN (${toReturn})` : onFallback.call(null),
     elementWrapper: "'",
     separator: ', ',
   }) as string;
+
+  return { after, before };
+};
