@@ -113,8 +113,12 @@ const dbJobAnvilSyncShared = (
   return execModuleSubroutine('insert_or_update_jobs', { subParams }).stdout;
 };
 
-const dbQuery = (query: string, options?: SpawnSyncOptions) =>
-  execAnvilAccessModule(['--query', query], options);
+const dbQuery = (query: string, options?: SpawnSyncOptions) => {
+  // For printing SQL query to debug.
+  // process.stdout.write(`${query.replace(/\s+/g, ' ')}\n`);
+
+  return execAnvilAccessModule(['--query', query], options);
+};
 
 const dbSubRefreshTimestamp = () =>
   execModuleSubroutine('refresh_timestamp').stdout;
