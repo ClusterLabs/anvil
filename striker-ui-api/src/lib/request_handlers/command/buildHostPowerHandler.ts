@@ -35,15 +35,12 @@ export const buildHostPowerHandler: (
   (request, response) => {
     const subParams: DBJobParams = {
       file: __filename,
-      line: 0,
-      job_data: '',
-      job_progress: 100,
 
       ...MANAGE_HOST_POWER_JOB_PARAMS[task],
     };
 
     try {
-      job({ subParams });
+      job(subParams);
     } catch (subError) {
       stderr(`Failed to ${task} host; CAUSE: ${subError}`);
 
