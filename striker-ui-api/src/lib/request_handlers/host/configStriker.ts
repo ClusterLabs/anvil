@@ -35,7 +35,7 @@ ${fvar(
     return result;
   }, '');
 
-export const initializeStriker: RequestHandler<
+export const configStriker: RequestHandler<
   unknown,
   undefined,
   InitializeStrikerForm
