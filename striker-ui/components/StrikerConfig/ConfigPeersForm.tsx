@@ -47,36 +47,40 @@ const ConfigPeersForm: FC = () => {
     useState<boolean>(false);
 
   const { isLoading } = periodicFetch<{
-    inbound: {
-      ipAddresses: {
+    local: {
+      inbound: {
+        ipAddress: {
+          [ipAddress: string]: {
+            hostUUID: string;
+            ipAddress: string;
+            ipAddressUUID: string;
+            networkLinkNumber: number;
+            networkNumber: number;
+            networkType: string;
+          };
+        };
+        port: number;
+        user: string;
+      };
+      peer: {
         [ipAddress: string]: {
           hostUUID: string;
           ipAddress: string;
-          ipAddressUUID: string;
-          networkLinkNumber: number;
-          networkNumber: number;
-          networkType: string;
+          isPing: boolean;
+          port: number;
+          user: string;
         };
-      };
-      port: number;
-      user: string;
-    };
-    peer: {
-      [ipAddress: string]: {
-        hostUUID: string;
-        ipAddress: string;
-        isPing: boolean;
-        port: number;
-        user: string;
       };
     };
   }>(`${API_BASE_URL}/host/connection`, {
     onSuccess: ({
-      inbound: { ipAddresses, port: dbPort, user: dbUser },
-      peer,
+      local: {
+        inbound: { ipAddress: ipAddressList, port: dbPort, user: dbUser },
+        peer,
+      },
     }) => {
       setInboundConnections(
-        Object.entries(ipAddresses).reduce<InboundConnections>(
+        Object.entries(ipAddressList).reduce<InboundConnections>(
           (
             previous,
             [ipAddress, { networkLinkNumber, networkNumber, networkType }],
@@ -123,7 +127,7 @@ const ConfigPeersForm: FC = () => {
   return (
     <ExpandablePanel
       header={<BodyText>Configure striker peers</BodyText>}
-      isLoading={isLoading}
+      loading={isLoading}
     >
       <Grid columns={{ xs: 1, sm: 2 }} container spacing="1em">
         <Grid item xs={1}>
@@ -145,8 +149,8 @@ const ConfigPeersForm: FC = () => {
         <Grid item xs={1}>
           <List
             header="Peer connections"
-            isAllowEdit
-            isEdit={isEditPeerConnections}
+            allowEdit
+            edit={isEditPeerConnections}
             listItemKeyPrefix="config-peers-peer-connection"
             listItems={peerConnections}
             onEdit={() => {
