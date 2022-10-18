@@ -74,7 +74,7 @@ const execModuleSubroutine = (
   };
 };
 
-const dbInsertOrUpdateJob = (options?: ExecModuleSubroutineOptions) =>
+const dbInsertOrUpdateJob = (options?: DBInsertOrUpdateJobOptions) =>
   execModuleSubroutine('insert_or_update_jobs', options).stdout;
 
 const dbJobAnvilSyncShared = (
