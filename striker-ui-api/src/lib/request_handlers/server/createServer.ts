@@ -137,17 +137,13 @@ driver_iso=${dataDriverISO}`;
   console.log(`provisionServerJobHostUUID: [${provisionServerJobHostUUID}]`);
 
   job({
-    subParams: {
-      file: __filename,
-      line: 0,
-      job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
-      job_data: provisionServerJobData,
-      job_name: 'server:provision',
-      job_title: 'job_0147',
-      job_description: 'job_0148',
-      job_progress: 0,
-      job_host_uuid: provisionServerJobHostUUID,
-    },
+    file: __filename,
+    job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
+    job_data: provisionServerJobData,
+    job_name: 'server:provision',
+    job_title: 'job_0147',
+    job_description: 'job_0148',
+    job_host_uuid: provisionServerJobHostUUID,
   });
 
   response.status(202).send();

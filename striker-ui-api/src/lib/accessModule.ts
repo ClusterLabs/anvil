@@ -78,8 +78,14 @@ const execModuleSubroutine = (
   };
 };
 
-const dbInsertOrUpdateJob = (options?: DBInsertOrUpdateJobOptions) =>
-  execModuleSubroutine('insert_or_update_jobs', options).stdout;
+const dbInsertOrUpdateJob = (
+  { job_progress = 0, line = 0, ...rest }: DBJobParams,
+  { spawnSyncOptions }: DBInsertOrUpdateJobOptions = {},
+) =>
+  execModuleSubroutine('insert_or_update_jobs', {
+    spawnSyncOptions,
+    subParams: { job_progress, line, ...rest },
+  }).stdout;
 
 const dbJobAnvilSyncShared = (
   jobName: string,
@@ -88,32 +94,20 @@ const dbJobAnvilSyncShared = (
   jobDescription: string,
   { jobHostUUID }: DBJobAnvilSyncSharedOptions = { jobHostUUID: undefined },
 ) => {
-  const subParams: {
-    file: string;
-    line: number;
-    job_command: string;
-    job_data: string;
-    job_name: string;
-    job_title: string;
-    job_description: string;
-    job_host_uuid?: string;
-    job_progress: number;
-  } = {
+  const subParams: DBJobParams = {
     file: __filename,
-    line: 0,
     job_command: SERVER_PATHS.usr.sbin['anvil-sync-shared'].self,
     job_data: jobData,
     job_name: `storage::${jobName}`,
     job_title: `job_${jobTitle}`,
     job_description: `job_${jobDescription}`,
-    job_progress: 0,
   };
 
   if (jobHostUUID) {
     subParams.job_host_uuid = jobHostUUID;
   }
 
-  return dbInsertOrUpdateJob({ subParams });
+  return dbInsertOrUpdateJob(subParams);
 };
 
 const dbQuery = (query: string, options?: SpawnSyncOptions) => {

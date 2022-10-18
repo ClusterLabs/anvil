@@ -128,21 +128,16 @@ export const getServerDetail: RequestHandler = (request, response) => {
 
     try {
       job({
-        subParams: {
-          file: __filename,
-          line: 0,
-          job_command:
-            SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self,
-          job_data: `server-uuid=${serverUUID}
+        file: __filename,
+        job_command: SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self,
+        job_data: `server-uuid=${serverUUID}
 request-host-uuid=${requestHostUUID}
 resize=${resizeArgs}
 out-file-id=${epoch}`,
-          job_name: `get_server_screenshot::${serverUUID}::${epoch}`,
-          job_title: 'job_0356',
-          job_description: 'job_0357',
-          job_progress: 0,
-          job_host_uuid: serverHostUUID,
-        },
+        job_name: `get_server_screenshot::${serverUUID}::${epoch}`,
+        job_title: 'job_0356',
+        job_description: 'job_0357',
+        job_host_uuid: serverHostUUID,
       });
     } catch (subError) {
       console.log(
