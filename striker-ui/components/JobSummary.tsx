@@ -63,7 +63,9 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
       HTMLElement | undefined
     >();
 
-    periodicFetch<AnvilJobs>(`${API_BASE_URL}/job`, {
+    const loadTimestamp = useMemo(() => Math.floor(Date.now() / 1000), []);
+
+    periodicFetch<AnvilJobs>(`${API_BASE_URL}/job?start=${loadTimestamp}`, {
       onError: () => {
         setAnvilJobs({});
       },
