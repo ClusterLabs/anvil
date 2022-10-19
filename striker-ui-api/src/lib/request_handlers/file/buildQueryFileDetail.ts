@@ -1,5 +1,4 @@
 import join from '../../join';
-import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 
 const buildQueryFileDetail = ({
   fileUUIDs = ['*'],
@@ -10,9 +9,7 @@ const buildQueryFileDetail = ({
     ? ''
     : join(fileUUIDs, {
         beforeReturn: (toReturn) =>
-          toReturn
-            ? `AND fil.file_uuid IN (${sanitizeSQLParam(toReturn)})`
-            : '',
+          toReturn ? `AND fil.file_uuid IN (${toReturn})` : '',
         elementWrapper: "'",
         separator: ', ',
       });
