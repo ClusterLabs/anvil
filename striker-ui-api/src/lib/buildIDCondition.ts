@@ -6,7 +6,7 @@ export const buildIDCondition = (
   field: string,
   { onFallback = () => '' }: { onFallback?: () => string },
 ): { after: string; before: string[] } => {
-  const before = sanitizeQS(ids, { returnType: 'string[]' });
+  const before = sanitizeQS(ids, { isForSQL: true, returnType: 'string[]' });
   const after = join(before, {
     beforeReturn: (toReturn) =>
       toReturn ? `${field} IN (${toReturn})` : onFallback.call(null),
