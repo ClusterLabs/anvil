@@ -2,13 +2,24 @@ import call from './call';
 
 const join = (
   elements: string[] | string | undefined,
-  { beforeReturn, elementWrapper = '', separator = '' }: JoinOptions = {},
+  {
+    beforeReturn,
+    elementWrapper = '',
+    onEach = (element: string) => element,
+    separator = '',
+  }: JoinOptions = {},
 ) => {
   const joinSeparator = `${elementWrapper}${separator}${elementWrapper}`;
 
   const toReturn =
     elements instanceof Array && elements.length > 0
-      ? `${elementWrapper}${elements.join(joinSeparator)}${elementWrapper}`
+      ? `${elementWrapper}${elements
+          .slice(1)
+          .reduce<string>(
+            (previous, element) =>
+              `${previous}${joinSeparator}${onEach(element)}`,
+            elements[0],
+          )}${elementWrapper}`
       : undefined;
 
   return call<string | undefined>(beforeReturn, {
