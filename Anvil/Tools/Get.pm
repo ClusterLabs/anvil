@@ -2299,6 +2299,7 @@ sub switches
 			next if $set_switch eq "?";
 			next if $set_switch eq "h";
 			next if $set_switch eq "help";
+			next if $set_switch eq "job-uuid";
 			next if $set_switch eq "log-secure";
 			next if $set_switch eq "log-db-transactions";
 			next if $set_switch eq "raw";

@@ -30,17 +30,15 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-# Read switches (target ([user@]host[:port]) and the file with the target's password.
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->Get->switches;
 ### TODO: Remove this before final release
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 ##########################################
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->Get->switches({list => ["enterprise-uuid", "host-ip-address", "password", "rh-password", "rh-user", "ssh-port", "target", "type"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
-}});
 
 # Connect to the database(s).
 $anvil->Database->connect({check_for_resync => 1});
@@ -383,9 +381,6 @@ sub add_repos
 	
 	# If this striker is an enterprise user, get the key for when we initialize targets.
 	my $enterprise_key = "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"path::configs::alteeve-release.repo" => $anvil->data->{path}{configs}{'alteeve-release.repo'},
-	}});
 	if (-e $anvil->data->{path}{configs}{'alteeve-release.repo'})
 	{
 		# Read the file
@@ -401,6 +396,15 @@ sub add_repos
 				last;
 			}
 		}
+	}
+	
+	# If the user set an enterprise key, use it, even if we found one on disk.
+	if ($anvil->data->{data}{enterprise_uuid})
+	{
+		$enterprise_key = $anvil->data->{data}{enterprise_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"path::configs::alteeve-release.repo" => $anvil->data->{path}{configs}{'alteeve-release.repo'},
+		}});
 	}
 	
 	if ($repo)
@@ -431,7 +435,7 @@ EOF
 		update_progress($anvil, $anvil->data->{job}{progress}, "job_0029");
 	}
 	
-	# If I have a Red Hat user and password, try to subscribe this syste,.
+	# If I have a Red Hat user and password, try to subscribe this system.
 	if (($anvil->data->{data}{rh_user}) && ($anvil->data->{data}{rh_password}))
 	{
 		# If there's no internet, this will fail. If the network is up, we can see if the 
@@ -1002,19 +1006,34 @@ sub get_job_details
 		}
 	}
 	
-	if (not $anvil->data->{switches}{'job-uuid'})
-	{
-		# No job UUID.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0073"});
-		$anvil->nice_exit({exit_code => 2});
-	}
+	# It's now possible to run without a job_uuid
+# 	if (not $anvil->data->{switches}{'job-uuid'})
+# 	{
+# 		# No job UUID.
+# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0073"});
+# 		$anvil->nice_exit({exit_code => 2});
+# 	}
 	
-	my $return = $anvil->Database->get_job_details({debug => 3, job_uuid => $anvil->data->{switches}{'job-uuid'}});
-	if (not $return)
+	my $return = 0;
+	if ($anvil->data->{switches}{'job-uuid'})
 	{
-		# No job details
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0034", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
-		$anvil->nice_exit({exit_code => 3});
+		$return = $anvil->Database->get_job_details({debug => 3, job_uuid => $anvil->data->{switches}{'job-uuid'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+	}
+# 	if (not $return)
+# 	{
+# 		# No job details
+# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0034", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
+# 		$anvil->nice_exit({exit_code => 3});
+# 	}
+
+	# If the user used '--target', but not '--host-ip-address', set it.
+	if ((not $anvil->data->{switches}{'host-ip-address'}) && ($anvil->data->{switches}{'target'}))
+	{
+		$anvil->data->{switches}{'host-ip-address'} = $anvil->data->{switches}{'target'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'switches::host-ip-address' => $anvil->data->{switches}{'host-ip-address'},
+		}});
 	}
 	
 	# Set up all possible variables.
@@ -1025,34 +1044,121 @@ sub get_job_details
 	$anvil->data->{data}{rh_user}         = "";
 	$anvil->data->{data}{ssh_port}        = "";
 	$anvil->data->{data}{type}            = "";
+	$anvil->data->{jobs}{job_uuid}        = "";
 	
-	$anvil->data->{jobs}{job_uuid}    = $anvil->data->{switches}{'job-uuid'};
-	$anvil->data->{jobs}{job_command} = $return->{job_command};
-	$anvil->data->{jobs}{job_data}    = $return->{job_data};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		'jobs::job_uuid'    => $anvil->data->{jobs}{job_uuid},
-		'jobs::job_command' => $anvil->data->{jobs}{job_command},
-		'jobs::job_data'    => $anvil->Log->is_secure($anvil->data->{jobs}{job_data}),
-	}});
-	
-	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	# If we have a job_uuid, load the data.
+	if ($return)
 	{
-		my $secure = $line =~ /passw/ ? 1 : 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { line => $line }});
-		
-		my ($variable, $value) = ($line =~ /^(.*?)=(.*)$/);
+		$anvil->data->{jobs}{job_uuid}    = $anvil->data->{switches}{'job-uuid'};
+		$anvil->data->{jobs}{job_command} = $return->{job_command};
+		$anvil->data->{jobs}{job_data}    = $return->{job_data};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			variable => $variable,
-			value    => $secure ? $anvil->Log->is_secure($value) : $value,
+			'jobs::job_uuid'    => $anvil->data->{jobs}{job_uuid},
+			'jobs::job_command' => $anvil->data->{jobs}{job_command},
+			'jobs::job_data'    => $anvil->Log->is_secure($anvil->data->{jobs}{job_data}),
 		}});
 		
-		$anvil->data->{data}{$variable} = $value;
+		foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+		{
+			my $secure = $line =~ /passw/ ? 1 : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { line => $line }});
+			
+			my ($variable, $value) = ($line =~ /^(.*?)=(.*)$/);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				variable => $variable,
+				value    => $secure ? $anvil->Log->is_secure($value) : $value,
+			}});
+			
+			$anvil->data->{data}{$variable} = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"data::${variable}" => $secure ? $anvil->Log->is_secure($anvil->data->{data}{$variable}) : $anvil->data->{data}{$variable},
+			}});
+		}
+	}
+	
+	# If the user set command line switches, they will override the values read from the job.
+	if ($anvil->data->{switches}{'enterprise-uuid'})
+	{
+		$anvil->data->{data}{enterprise_uuid} = $anvil->data->{switches}{'enterprise-uuid'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"data::${variable}" => $secure ? $anvil->Log->is_secure($anvil->data->{data}{$variable}) : $anvil->data->{data}{$variable},
+			"data::enterprise_uuid" => $anvil->data->{data}{enterprise_uuid},
+		}});
+	}
+	if ($anvil->data->{switches}{'host-ip-address'})
+	{
+		$anvil->data->{data}{host_ip_address} = $anvil->data->{switches}{'host-ip-address'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"data::host_ip_address" => $anvil->data->{data}{host_ip_address},
+		}});
+	}
+	if ($anvil->data->{switches}{'password'})
+	{
+		$anvil->data->{data}{password} = $anvil->data->{switches}{'password'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"data::password" => $anvil->Log->is_secure($anvil->data->{data}{password}),
+		}});
+	}
+	if ($anvil->data->{switches}{'rh-password'})
+	{
+		$anvil->data->{data}{rh_password} = $anvil->data->{switches}{'rh-password'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"data::rh_password" => $anvil->Log->is_secure($anvil->data->{data}{rh_password}),
+		}});
+	}
+	if ($anvil->data->{switches}{'rh-user'})
+	{
+		$anvil->data->{data}{rh_user} = $anvil->data->{switches}{'rh-user'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"data::rh_user" => $anvil->data->{data}{rh_user},
+		}});
+	}
+	if ($anvil->data->{switches}{'ssh-port'})
+	{
+		$anvil->data->{data}{ssh_port} = $anvil->data->{switches}{'ssh-port'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"data::ssh_port" => $anvil->data->{data}{ssh_port},
+		}});
+	}
+	if ($anvil->data->{switches}{'type'})
+	{
+		$anvil->data->{data}{type} = $anvil->data->{switches}{'type'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"data::type" => $anvil->data->{data}{type},
 		}});
 	}
 	
-	$anvil->data->{data}{say_target} = "root\@".$anvil->data->{data}{host_ip_address}.":".$anvil->data->{data}{ssh_port};
+	### Sanity checks.
+	my $problem = 0;
+	# Good type?
+	if (($anvil->data->{data}{type} ne "node") && ($anvil->data->{data}{type} ne "dr"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0377", variables => { type => $anvil->data->{data}{type} }});
+		update_progress($anvil, 100, "error_0377,!!type!".$anvil->data->{data}{type}."!!");
+		$anvil->nice_exit({exit_code => 1});
+	}
+	# Valid enterprise UUID?
+	if (($anvil->data->{data}{enterprise_uuid}) && (not $anvil->Validate->uuid({uuid => $anvil->data->{data}{enterprise_uuid}})))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0378", variables => { uuid => $anvil->data->{data}{$anvil->data->{data}{enterprise_uuid}} }});
+		update_progress($anvil, 100, "error_0378,!!uuid!".$anvil->data->{data}{$anvil->data->{data}{enterprise_uuid}}."!!");
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $anvil->data->{data}{host_ip_address})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0379"});
+		update_progress($anvil, 100, "error_0379");
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Create our target
+	$anvil->data->{data}{say_target} = "root\@".$anvil->data->{data}{host_ip_address};
+	if (($anvil->data->{data}{ssh_port}) && ($anvil->data->{data}{ssh_port} != 22))
+	{
+		$anvil->data->{data}{say_target} .= ":".$anvil->data->{data}{ssh_port};
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"data::say_target" => $anvil->data->{data}{say_target},
+	}});
 	
 	# Update that we've picked the job up.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0027", variables => { 'job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
@@ -1071,7 +1177,18 @@ sub update_progress
 	$progress = 95 if $progress > 100;
 	if (not $anvil->data->{switches}{'job-uuid'})
 	{
-		return(0);
+		if ($anvil->data->{jobs}{job_uuid})
+		{
+			$anvil->data->{switches}{'job-uuid'} = $anvil->data->{jobs}{job_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'},
+			}});
+		}
+		else
+		{
+			# Just return.
+			return(0);
+		}
 	}
 	
 	$anvil->Job->update_progress({
