@@ -1,13 +1,13 @@
 import call from './call';
 
-const join = (
-  elements: string[] | string | undefined,
+const join: JoinFunction = (
+  elements,
   {
     beforeReturn,
     elementWrapper = '',
     onEach = (element: string) => element,
     separator = '',
-  }: JoinOptions = {},
+  } = {},
 ) => {
   const joinSeparator = `${elementWrapper}${separator}${elementWrapper}`;
 
