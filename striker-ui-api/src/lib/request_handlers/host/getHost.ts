@@ -1,20 +1,24 @@
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildIDCondition } from '../../buildIDCondition';
+import { buildQSIDCondition } from '../../buildCondition';
 
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
   const { hostUUIDs } = request.query;
 
   const hostUUIDField = 'hos.host_uuid';
-  const { after: condHostUUIDs } = buildIDCondition(hostUUIDs, hostUUIDField, {
-    onFallback: () => {
-      try {
-        return `${hostUUIDField} = '${getLocalHostUUID()}'`;
-      } catch (subError) {
-        throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
-      }
+  const { after: condHostUUIDs } = buildQSIDCondition(
+    hostUUIDs,
+    hostUUIDField,
+    {
+      onFallback: () => {
+        try {
+          return `${hostUUIDField} = '${getLocalHostUUID()}'`;
+        } catch (subError) {
+          throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
+        }
+      },
     },
-  });
+  );
 
   process.stdout.write(`condHostUUIDs=[${condHostUUIDs}]`);
 
