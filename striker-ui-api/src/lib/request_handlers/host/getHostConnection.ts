@@ -1,5 +1,5 @@
 import { getAnvilData, getLocalHostUUID } from '../../accessModule';
-import { buildIDCondition } from '../../buildIDCondition';
+import { buildQSIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 
 const buildHostConnections = (
@@ -59,7 +59,7 @@ export const getHostConnection = buildGetRequestHandler(
 
     const hostUUIDField = 'ip_add.ip_address_host_uuid';
     const { after: condHostUUIDs, before: beforeBuildIDCond } =
-      buildIDCondition(rawHostUUIDs, hostUUIDField, {
+      buildQSIDCondition(rawHostUUIDs, hostUUIDField, {
         onFallback: () => `${hostUUIDField} = '${localHostUUID}'`,
       });
     const hostUUIDs =
