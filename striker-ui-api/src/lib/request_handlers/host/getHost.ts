@@ -1,12 +1,12 @@
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildQSIDCondition } from '../../buildCondition';
+import { buildUnknownIDCondition } from '../../buildCondition';
 
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
   const { hostUUIDs } = request.query;
 
   const hostUUIDField = 'hos.host_uuid';
-  const { after: condHostUUIDs } = buildQSIDCondition(
+  const { after: condHostUUIDs } = buildUnknownIDCondition(
     hostUUIDs,
     hostUUIDField,
     {
