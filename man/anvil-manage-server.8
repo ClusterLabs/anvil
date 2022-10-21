@@ -1,0 +1,75 @@
+.\" Manpage for the Alteeve! anvil-manage-server tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-server "8" "October 19 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-server \- Tool used to manage a server running on an Anvil! cluster.
+.SH SYNOPSIS
+.B anvil-manage-server 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+anvil-manage-server \- This tool allow the management of a server's hardware.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\-d, \fB\-\-job-uuid\fR
+This is the jobs -> job_uuid of the job to run, if it exists.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\fB\-v\fR, \fB\-vv\fR, \fB\-vvv\fR
+Set the log level for this run to 1, 2 or 3 (higher == more verbose).
+.TP
+.SS "Commands:"
+.TP
+\-k, \fB\-\-anvil\fR <name or uuid>
+If specified, and \fBserver\fR is not specified, this will list the servers running on the Anvil! system currently. If, in the unlikely event that two servers exist on different Anvil! systems but with the same name, this will help identify which server you want to work on.
+.TP
+\-k, \fB\-\-server\fR <name or uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+.TP
+\-k, \fB\-\-\fR <uuid>
+
+$anvil->data->{switches}{boot}        = "";	# This is a comma-separated list of ordered boot devices
+$anvil->data->{switches}{cores}       = "";	# This sets the server to use this number of CPU cores.
+$anvil->data->{switches}{drive}       = "";	# drive being modified (insert/eject ISO, growing drive)
+$anvil->data->{switches}{eject}       = "";	# This will eject whatever ISO (if any) in the '--drive'. 
+$anvil->data->{switches}{'expand-to'} = "";	# When the drive is a disk (backed by a DRBD resource), this is the new desired size to grow to.
+$anvil->data->{switches}{insert}      = "";	# This is the ISO to insert into the --drive
+$anvil->data->{switches}{'job-uuid'}  = "";
+$anvil->data->{switches}{ram}         = "";	# This is the amount of RAM to set the server to use.
+$anvil->data->{switches}{server}      = "";	# server name or uuid
+$anvil->data->{switches}{y}           = "";	# Don't prompt for confirmation. Only useful when there isn't a job UUID.
+
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

@@ -30,11 +30,6 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-### TODO: Remove this before final release
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-##########################################
-
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => ["enterprise-uuid", "host-ip-address", "password", "rh-password", "rh-user", "ssh-port", "target", "type"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});

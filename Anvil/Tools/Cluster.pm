@@ -1272,6 +1272,7 @@ sub check_stonith_config
 		{
 			my $delete_old      = 0;
 			my $create_entry    = 0;
+			my $dont_create     = 0;
 			my $old_switches    = {};
 			my $fence_uuid      = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$device}{uuid};
 			my $fence_name      = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
@@ -1312,9 +1313,9 @@ sub check_stonith_config
 			{
 				# Ignore 'delay', we handle that in Cluster->set_delay();
 				my $pair               =  ($fence_arguments =~ /(\S*?=".*?")/)[0];
-					$fence_arguments    =~ s/$pair//;
-					$fence_arguments    =~ s/^\s+//;
-					$fence_arguments    =~ s/\s+$//;
+				   $fence_arguments    =~ s/$pair//;
+				   $fence_arguments    =~ s/^\s+//;
+				   $fence_arguments    =~ s/\s+$//;
 				my ($argument, $value) =  ($pair =~ /(.*)="(.*)"/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:fence_arguments' => $fence_arguments, 
@@ -1325,8 +1326,8 @@ sub check_stonith_config
 				
 				# Ignore 'delay', we handle that in Cluster->set_delay();
 				if (($argument ne "pcmk_off_action")                                           && 
-					(exists $anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name}) && 
-					($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
+				    (exists $anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name}) && 
+				    ($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
 				{
 					next;
 				}
@@ -1337,6 +1338,8 @@ sub check_stonith_config
 					"old_switches->{$argument}" => $old_switches->{$argument},
 				}});
 			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port => $port }});
 			if ($port)
 			{
 				$port                 =~ s/"/\\"/g;
@@ -1346,6 +1349,30 @@ sub check_stonith_config
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
 					"old_switches->{port}" => $old_switches->{port},
 				}});
+			}
+			else
+			{
+				# If the port is required but not defined, remove this.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fence_data::${fence_agent}::parameters::port::required" => $anvil->data->{fence_data}{$fence_agent}{parameters}{port}{required}, 
+					port                                                     => $port,
+				}});
+				if (($anvil->data->{fence_data}{$fence_agent}{parameters}{port}{required}) && (not $port))
+				{
+					if (exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$stonith_name})
+					{
+						$delete_old = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_old => $delete_old }});
+						
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0430", variables => { device => $stonith_name }});
+					}
+					else
+					{
+						# Don't create it.
+						$dont_create = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dont_create => $dont_create }});
+					}
+				}
 			}
 			$pcs_add_command .= "op monitor interval=\"60\"";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1368,15 +1395,26 @@ sub check_stonith_config
 					
 					if ($old_entry ne $new_entry)
 					{
-						# Changed, delete and recreate.
-						$delete_old   = 1;
-						$create_entry = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							delete_old   => $delete_old,
-							create_entry => $create_entry,
-						}});
-						
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
+						# If the port was removed, delete his entry.
+						if (not $port)
+						{
+							$delete_old = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_old => $delete_old }});
+							
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0430", variables => { device => $stonith_name }});
+						}
+						else
+						{
+							# Changed, delete and recreate.
+							$delete_old   = 1;
+							$create_entry = 1 if not $dont_create;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								delete_old   => $delete_old,
+								create_entry => $create_entry,
+							}});
+							
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
+						}
 						last;
 					}
 					
@@ -1391,7 +1429,7 @@ sub check_stonith_config
 				{
 					# Delete and recreate. 
 					$delete_old   = 1;
-					$create_entry = 1;
+					$create_entry = 1 if not $dont_create;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						delete_old   => $delete_old,
 						create_entry => $create_entry,
@@ -1400,7 +1438,7 @@ sub check_stonith_config
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
 				}
 			}
-			else
+			elsif ((not $delete_old) && (not $dont_create))
 			{
 				# No existing entry, add a new one.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0122", variables => { device => $stonith_name }});
@@ -1437,10 +1475,10 @@ sub check_stonith_config
 					return(1);
 				}
 				
-				$something_changed->{$node_name} = 1;
+				$something_changed->{$node_name} = 1 if not $delete_old;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			}
-			if ($create_entry)
+			if (($create_entry) && (not $dont_create))
 			{
 				# Create.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $stonith_name }});
@@ -1464,7 +1502,7 @@ sub check_stonith_config
 					return(1);
 				}
 				
-				$something_changed->{$node_name} = 1;
+				$something_changed->{$node_name} = 1 if not $delete_old;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			}
 		}
