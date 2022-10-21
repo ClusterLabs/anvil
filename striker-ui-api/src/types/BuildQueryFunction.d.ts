@@ -1,5 +1,7 @@
+type QueryResultModifierFunction = (result: unknown) => unknown;
+
 type BuildQueryOptions = {
-  afterQueryReturn?: (queryStdout: unknown) => unknown;
+  afterQueryReturn?: QueryResultModifierFunction;
 };
 
 type BuildQueryFunction = (
