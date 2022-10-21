@@ -2,7 +2,7 @@ import join from './join';
 import { sanitizeQS } from './sanitizeQS';
 
 const buildIDCondition = (
-  ids: Parameters<JoinFunction>[0],
+  keys: Parameters<JoinFunction>[0],
   conditionPrefix: string,
   {
     onFallback = () => '',
@@ -10,24 +10,27 @@ const buildIDCondition = (
       result ? `${conditionPrefix} IN (${result})` : onFallback(),
   }: Pick<JoinOptions, 'beforeReturn'> & { onFallback?: () => string } = {},
 ) =>
-  join(ids, {
+  join(keys, {
     beforeReturn,
     elementWrapper: "'",
     separator: ', ',
   }) as string;
 
-export const buildQSIDCondition = (
-  ids: unknown,
+export const buildUnknownIDCondition = (
+  keys: unknown,
   conditionPrefix: string,
   { onFallback = () => '' }: { onFallback?: () => string },
 ): { after: string; before: string[] } => {
-  const before = sanitizeQS(ids, { isForSQL: true, returnType: 'string[]' });
+  const before = sanitizeQS(keys, {
+    modifierType: 'sql',
+    returnType: 'string[]',
+  });
   const after = buildIDCondition(before, conditionPrefix, { onFallback });
 
   return { after, before };
 };
 
-export const buildParamIDCondition = (
-  ids: string[] | '*' = '*',
+export const buildKnownIDCondition = (
+  keys: string[] | '*' = '*',
   conditionPrefix: string,
-) => (ids[0] === '*' ? '' : buildIDCondition(ids, conditionPrefix));
+) => (keys[0] === '*' ? '' : buildIDCondition(keys, conditionPrefix));
