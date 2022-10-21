@@ -1,3 +1,4 @@
+import call from './call';
 import join from './join';
 import { sanitizeQS } from './sanitizeQS';
 
@@ -5,9 +6,11 @@ const buildIDCondition = (
   keys: Parameters<JoinFunction>[0],
   conditionPrefix: string,
   {
-    onFallback = () => '',
+    onFallback,
     beforeReturn = (result) =>
-      result ? `${conditionPrefix} IN (${result})` : onFallback(),
+      result
+        ? `${conditionPrefix} IN (${result})`
+        : call(onFallback, { notCallableReturn: '' }),
   }: Pick<JoinOptions, 'beforeReturn'> & { onFallback?: () => string } = {},
 ) =>
   join(keys, {
@@ -19,7 +22,7 @@ const buildIDCondition = (
 export const buildUnknownIDCondition = (
   keys: unknown,
   conditionPrefix: string,
-  { onFallback = () => '' }: { onFallback?: () => string },
+  { onFallback }: { onFallback?: () => string },
 ): { after: string; before: string[] } => {
   const before = sanitizeQS(keys, {
     modifierType: 'sql',
