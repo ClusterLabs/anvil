@@ -17,6 +17,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
 
 ### Methods;
+# anvil_from_switch
 # anvil_name_from_uuid
 # anvil_version
 # available_resources
@@ -34,6 +35,7 @@ my $THIS_FILE = "Get.pm";
 # kernel_release
 # md5sum
 # os_type
+# server_from_switch
 # server_uuid_from_name
 # switches
 # trusted_hosts
@@ -107,6 +109,69 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 anvil_from_switch
+
+This takes a C<< switches::anvil >> switch, which could be a name or UUID, and tries to find the associated Anvil!. If/when found, C<< switches::anvil_uuid >> and C<< switches::anvil_name >> are set accordingly.
+
+If no match is found, two empty strings are returned. If it is found, the Anvil! name is returned first, and the Anvil! UUID is returned after. If there is a problemm C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 anvil (optional, required, optional if 'switches::anvil' used if set)
+
+This is the Anvil! name or UUID that we're looking for. 
+
+=cut
+sub anvil_from_switch
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->anvil_from_switch()" }});
+	
+	my $anvil_string = defined $parameter->{anvil} ? $parameter->{anvil} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_string => $anvil_string,
+	}});
+	
+	if ((not $anvil_string) && ($anvil->data->{switches}{'anvil'}))
+	{
+		$anvil_string = $anvil->data->{switches}{'anvil'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_string => $anvil_string }});
+	}
+	if (not $anvil_string)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->anvil_from_switch()", parameter => "anvil" }});
+		return("!!error!!", "");
+	}
+	
+	$anvil->Database->get_anvils({debug => $debug});
+	$anvil->data->{switches}{anvil_name} = "" if not exists $anvil->data->{switches}{anvil_name};
+	$anvil->data->{switches}{anvil_uuid} = "" if not exists $anvil->data->{switches}{anvil_uuid};
+	if (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_string})
+	{
+		# Found it by UUID.
+		$anvil->data->{switches}{anvil_name} = $anvil->data->{anvils}{anvil_uuid}{$anvil_string}{anvil_name};
+		$anvil->data->{switches}{anvil_uuid} = $anvil_string;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::anvil_name" => $anvil->data->{switches}{anvil_name},
+			"switches::anvil_uuid" => $anvil->data->{switches}{anvil_uuid},
+		}});
+	}
+	elsif (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_string})
+	{
+		$anvil->data->{switches}{anvil_name} = $anvil_string;
+		$anvil->data->{switches}{anvil_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_string}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::anvil_name" => $anvil->data->{switches}{anvil_name},
+			"switches::anvil_uuid" => $anvil->data->{switches}{anvil_uuid},
+		}});
+	}
+	
+	return($anvil->data->{switches}{anvil_name}, $anvil->data->{switches}{anvil_uuid});
+}
+
 
 =head2 anvil_name_from_uuid
 
@@ -129,7 +194,9 @@ sub anvil_name_from_uuid
 	
 	my $anvil_name = "";
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid => $anvil_uuid,
+	}});
 	
 	if (not $anvil_uuid)
 	{
@@ -2029,6 +2096,76 @@ sub os_type
 		os_arch => $os_arch,
 	}});
 	return($os_type, $os_arch);
+}
+
+
+=head2 server_from_switch
+
+This takes a C<< switches::server >> switch, which could be a name or UUID, and tries to find the associated server. If/when found, C<< switches::server_uuid >> and C<< switches::server_name >> are set accordingly.
+
+If no match is found, two empty strings are returned. If it is found, the server's name is returned first, and the server's UUID is returned after. If there is a problemm C<< !!error!! >> is returned.
+
+Parameters;
+
+=head4 anvil_uuid (optional)
+
+If specified, the server will be searched for on the specified Anvil! only. If not specified, all Anvil! nodes are searched, with the first match being returned. This should only be needed in the unlikely event that two or more servers share the same name across different Anvil! systems (something that should not be possible).
+
+=head3 server (optional, required, optional if 'switches::server' used if set)
+
+This is the server name or UUID that we're looking for. 
+
+=cut
+sub server_from_switch
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->server_from_switch()" }});
+	
+	my $server_string = defined $parameter->{server}     ? $parameter->{server}     : "";
+	my $anvil_uuid    = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid    => $anvil_uuid, 
+		server_string => $server_string,
+	}});
+	
+	if ((not $server_string) && ($anvil->data->{switches}{'anvil'}))
+	{
+		$server_string = $anvil->data->{switches}{'anvil'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_string => $server_string }});
+	}
+	if (not $server_string)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->server_from_switch()", parameter => "server" }});
+		return("!!error!!", "");
+	}
+	
+	$anvil->Database->get_servers({debug => $debug});
+	$anvil->data->{switches}{server_name} = "" if not exists $anvil->data->{switches}{server_name};
+	$anvil->data->{switches}{server_uuid} = "" if not exists $anvil->data->{switches}{server_uuid};
+	if (exists $anvil->data->{servers}{server_uuid}{$server_string}{server_name})
+	{
+		# Found it by UUID.
+		$anvil->data->{switches}{server_name} = $anvil->data->{anvils}{server_uuid}{$server_string}{server_name};
+		$anvil->data->{switches}{server_uuid} = $server_string;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::server_name" => $anvil->data->{switches}{server_name},
+			"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+		}});
+	}
+	elsif (exists $anvil->data->{anvils}{server_uuid}{$server_string})
+	{
+		$anvil->data->{switches}{server_name} = $server_string;
+		$anvil->data->{switches}{server_uuid} = $anvil->data->{anvils}{server_uuid}{$server_string}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::server_name" => $anvil->data->{switches}{server_name},
+			"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+		}});
+	}
+	
+	return($anvil->data->{switches}{server_name}, $anvil->data->{switches}{server_uuid});
 }
 
 
