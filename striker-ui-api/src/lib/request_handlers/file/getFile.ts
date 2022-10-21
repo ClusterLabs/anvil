@@ -20,7 +20,7 @@ const getFile: RequestHandler = buildGetRequestHandler((request) => {
   if (fileUUIDs) {
     query = buildQueryFileDetail({
       fileUUIDs: sanitizeQS(fileUUIDs, {
-        isForSQL: true,
+        modifierType: 'sql',
         returnType: 'string[]',
       }),
     });

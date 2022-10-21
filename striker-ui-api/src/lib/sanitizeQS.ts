@@ -1,3 +1,4 @@
+import call from './call';
 import { sanitizeSQLParam } from './sanitizeSQLParam';
 
 type MapToReturnType = {
@@ -10,27 +11,39 @@ type MapToReturnType = {
 type MapToReturnFunction = {
   [ReturnTypeName in keyof MapToReturnType]: (
     qs: unknown,
-    modSQL: (value: string) => string,
+    modifier: (value: unknown) => string,
   ) => MapToReturnType[ReturnTypeName];
+};
+
+type ModifierFunction = (value: string) => string;
+
+type MapToModifierFunction = {
+  none: undefined;
+  sql: ModifierFunction;
+};
+
+const MAP_TO_MODIFIER_FUNCTION: MapToModifierFunction = {
+  none: undefined,
+  sql: sanitizeSQLParam,
 };
 
 const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
   boolean: (qs) => qs !== undefined,
   number: (qs) => parseFloat(String(qs)) || 0,
-  string: (qs, modSQL) => (qs ? modSQL(String(qs)) : ''),
-  'string[]': (qs, modSQL) => {
+  string: (qs, mod) => (qs ? mod(qs) : ''),
+  'string[]': (qs, mod) => {
     let result: string[] = [];
 
     if (qs instanceof Array) {
       result = qs.reduce<string[]>((reduceContainer, element) => {
         if (element) {
-          reduceContainer.push(modSQL(String(element)));
+          reduceContainer.push(mod(element));
         }
 
         return reduceContainer;
       }, []);
     } else if (qs) {
-      result = modSQL(String(qs)).split(/[,;]/);
+      result = mod(qs).split(/[,;]/);
     }
 
     return result;
@@ -40,11 +53,20 @@ const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
 export const sanitizeQS = <ReturnTypeName extends keyof MapToReturnType>(
   qs: unknown,
   {
-    isForSQL = false,
+    modifierType = 'none',
+    modifier = MAP_TO_MODIFIER_FUNCTION[modifierType],
     returnType = 'string',
-  }: { isForSQL?: boolean; returnType?: ReturnTypeName | 'string' } = {},
+  }: {
+    modifier?: ModifierFunction;
+    modifierType?: keyof MapToModifierFunction;
+    returnType?: ReturnTypeName | 'string';
+  } = {},
 ): MapToReturnType[ReturnTypeName] =>
-  MAP_TO_RETURN_FUNCTION[returnType](
-    qs,
-    isForSQL ? sanitizeSQLParam : (value: string) => value,
-  ) as MapToReturnType[ReturnTypeName];
+  MAP_TO_RETURN_FUNCTION[returnType](qs, (value: unknown) => {
+    const input = String(value);
+
+    return call<string>(modifier, {
+      notCallableReturn: input,
+      parameters: [input],
+    });
+  }) as MapToReturnType[ReturnTypeName];

@@ -62,7 +62,7 @@ const getAnvil: RequestHandler = buildGetRequestHandler(
         afterQueryReturn: anvilDetailAfterQueryReturn,
       } = buildQueryAnvilDetail({
         anvilUUIDs: sanitizeQS(anvilUUIDs, {
-          isForSQL: true,
+          modifierType: 'sql',
           returnType: 'string[]',
         }),
         isForProvisionServer: sanitizeQS(isForProvisionServer, {
