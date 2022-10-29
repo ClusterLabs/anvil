@@ -534,6 +534,18 @@ The definition data passed in was:
 		<key name="error_0377">[ Error ] - The '--type' must be 'host' or 'dr'. Was given: [#!variable!type!#].</key>
 		<key name="error_0378">[ Error ] - The UUID: [#!variable!uuid!#] is not a valid UUID.</key>
 		<key name="error_0379">[ Error ] - Neither '--host-ip-address' or '--target' were used to define who we are trying to connect to.</key>
+		<key name="error_0380">[ Error ] - The UUID: [#!variable!uuid!#] passed in by the switch: [#!variable!switch!#] appears to be invalid.</key>
+		<key name="error_0381">[ Error ] - The domain or IP: [#!variable!name!#] passed in by the switch: [#!variable!switch!#] appears to be invalid.</key>
+		<key name="error_0382">[ Error ] - The alert level: [#!variable!level!#] passed in by the switch: [#!variable!switch!#] appears to be invalid. Valid values are '1', '2', '3' or '4'. These represent;
+1 = "critical" alerts only
+2 = "warning" and critical alerts
+3 = "notice", warning and critical alerts
+4 = "info"; All alerts. This generates almost constant alerts!
+</key>
+		<key name="error_0383">[ Error ] - The TCP port: [#!variable!port!#] passed in by the switch: [#!variable!switch!#] appears to be invalid. TCP ports must be integers between 1 and 65535.</key>
+		<key name="error_0384">[ Error ] - The mail server security: [#!variable!security!#] appears to be invalid. Valid options are 'none', 'starttls' or 'tls-ssl'.</key>
+		<key name="error_0385">[ Error ] - The mail server authentication: [#!variable!auth!#] appears to be invalid. Valid options are 'none', 'plain-text', or 'encrypted'.</key>
+		<key name="error_0386">[ Error ] - The email address: [#!variable!email!#] appears to be invalid.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
