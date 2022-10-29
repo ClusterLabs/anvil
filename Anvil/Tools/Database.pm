@@ -4632,8 +4632,10 @@ WHERE
 		
 		# Make it easy to look up the mail server's UUID from the server address.
 		$anvil->data->{recipients}{email_to_uuid}{$recipient_email} = $recipient_uuid;
+		$anvil->data->{recipients}{name_to_uuid}{$recipient_name}   = $recipient_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"recipients::email_to_uuid::${recipient_email}" => $anvil->data->{recipients}{email_to_uuid}{$recipient_email}, 
+			"recipients::name_to_uuid::${recipient_name}"   => $anvil->data->{recipients}{email_to_uuid}{$recipient_name}, 
 		}});
 		
 		# If there is an override for a given recipient on this host, mark it as such.

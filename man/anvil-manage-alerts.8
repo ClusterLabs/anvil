@@ -1,0 +1,142 @@
+.\" Manpage for the Anvil! server removal tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-alerts "8" "October 26 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-alerts \- This program manages alerts; Email servers, recipients, notification overrides, and generating test alerts.
+.SH SYNOPSIS
+.B anvil-manage-alerts 
+\fI\,<command> \/\fR
+.SH DESCRIPTION
+The program allows you to add, edit and delete email servers, alert recipients, and notification overrides. You can also use it to generate a test alert. 
+If run without any switches, the list of mail servers and recipients are returned. 
+
+When called without any switches, the list of currect mail servers, alert recipients and notification overrides are shown, along with all known hosts.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-add\fR 
+This is used to add a new mail server or alert recipient.
+.TP
+\fB\-\-edit\fR 
+This is used to edit and existing mail server or alert recipient.
+
+NOTE: All fields are required when editing an existing mail server or recipient!
+.TP
+\fB\-\-delete\fR 
+This deletes an existing mail server or alert recipient.
+.TP
+\fB\-\-mail-servers\fR 
+This is used to manage mail servers. Specifically, this control the mail server that we send alert emails to. The options used with this are;
+.TP
+\fB\-\-mail-server-uuid\fR <uuid>
+This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing mail server being worked on.
+.TP
+\fB\-\-mail-server-address\fR <URL or IP>
+This is the URL or IP address of the mail server we're logging into to send email. 
+
+Example: mail.example.com
+.TP
+\fB\-\-mail-server-port\fR 
+This is the TCP port used when connecting to the target mail server.
+
+Example: 587
+.TP
+\fB\-\-mail-server-username\fR 
+This is the mail server user name (usually an email address) used when authenticating against the mail server.
+
+Example: admin@example.com
+.TP
+\fB\-\-mail-server-password\fR 
+This is the password used along with \fB\-\-mail-server-username\fR when authenticating against the mail server. Not all mail servers require a password, so this is optional.
+.TP
+\fB\-\-mail-server-security\fR <none, starttls or tls-ssl>
+This is the security type used when authenticating against the mail server. 
+
+Valid values are: 'none', 'starttls' or 'tls-ssl'.
+.TP
+\fB\-\-mail-server-authentication\fR <none, plain-text, or encrypted>
+This is how passwords are passed to the mail server. 
+
+Valid values are: 'none', 'plain-text', or 'encrypted'
+.TP
+\fB\-\-mail-server-helo-domain\fR 
+This is the 'HELO' domain name used when communicating with the mail server. This is the domain we're telling the mail server that the email is coming from. You can use your domain, or the domain of the host.
+
+Example: example.com
+
+See: https://www.ibm.com/docs/en/zos/2.2.0?topic=sc-helo-command-identify-domain-name-sending-host-smtp
+.TP
+\fB\-\-notifications\fR 
+This is where an alert recipient can have notification overrides. Typically this is used so that a given user can ignore alerts from a specific Anvil! node pair.
+.TP
+\fB\-\-notification-uuid\fR <uuid>
+This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing notification override being worked on.
+.TP
+\fB\-\-notification-recipient-uuid\fR <uuid>
+This is the recipients -> recipient_uuid who we are creating the override for.
+.TP
+\fB\-\-notification-host-uuid\fR 
+This is the hosts -> host_uuid of the machine that you are creating the alert 
+.TP
+\fB\-\-notification-alert-level\fR <1, 2, 3 or 4>
+This is the desired override alert level.
+
+Valid values are: 
+
+1 = "critical" alerts only
+
+2 = "warning" and critical alerts
+
+3 = "notice", warning and critical alerts
+
+4 = "info"; All alerts. This generates almost constant alerts! 
+.TP
+\fB\-\-recipients\fR 
+This is used to manage alert recipients. Specifically, this control the mail server that we send alert emails to. The options used with this are;
+.TP
+\fB\-\-recipient-uuid\fR 
+This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing alert recipient is being worked on.
+.TP
+\fB\-\-recipient-name\fR 
+This is the name of the person receiving the alerts. This is used in the email header.
+
+Example: Austin Powers
+.TP
+\fB\-\-recipient-email\fR 
+This is the email address for the alert recipient.
+
+Example: notaspy@example.com
+.TP
+\fB\-\-recipient-language\fR <en_CA>
+In the future, languages will be added and this can be used to indicate what language the user will receive their alerts in. At the time of writing this man page, only 'en_CA' is supported.
+.TP
+\fB\-\-recipient-level\fR <1, 2, 3 or 4>
+This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'notifications' over-rides.
+
+Valid values are: 
+
+1 = "critical" alerts only
+
+2 = "warning" and critical alerts
+
+3 = "notice", warning and critical alerts
+
+4 = "info"; All alerts. This generates almost constant alerts! 
+.TP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
+
+
+", "download", "everywhere", "file", "is-script", "job-uuid", "rename", "to
