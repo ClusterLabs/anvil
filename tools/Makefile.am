@@ -42,6 +42,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-update-system \
 			  anvil-watch-bonds \
 			  scancore \
+			  striker-access-database \
 			  striker-auto-initialize-all \
 			  striker-boot-machine \
 			  striker-db-report \
