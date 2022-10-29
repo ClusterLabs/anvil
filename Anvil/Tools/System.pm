@@ -1723,6 +1723,7 @@ sub collect_ipmi_data
 			    $entity_id, 
 			    $current_value) = split /\|/, $line;
 			next if not $sensor_name;
+			next if lc($current_value) eq "no reading";
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				sensor_name   => $sensor_name, 
