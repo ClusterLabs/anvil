@@ -1,5 +1,6 @@
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
+import { cap } from '../../cap';
 import { stdout } from '../../shell';
 
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
@@ -28,8 +29,15 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       return output.reduce<
         { hostName: string; hostUUID: string } & Record<string, string>
       >(
-        (previous, [, variableName, variableValue]) => {
-          previous[variableName] = variableValue;
+        (previous, [, , variableName, variableValue]) => {
+          const [, , variableKey] = variableName.split('::');
+          const [head, ...rest] = variableKey.split('_');
+          const key = rest.reduce<string>(
+            (previous, part) => `${previous}${cap(part)}`,
+            head,
+          );
+
+          previous[key] = variableValue;
 
           return previous;
         },
