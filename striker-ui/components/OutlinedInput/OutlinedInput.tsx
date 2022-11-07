@@ -37,18 +37,21 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
     onPasswordVisibilityAppend,
     sx,
     inputProps: { type: baseType, ...inputRestProps } = {},
+    // Input props that depend on other input props.
+    type: initialType = baseType,
+
     ...outlinedInputRestProps
   } = outlinedInputProps;
 
-  const [type, setType] = useState<string>(baseType);
+  const [type, setType] = useState<string>(initialType);
 
-  const additionalEndAdornment = useMemo(() => {
-    const isBaseTypePassword = baseType === INPUT_TYPES.password;
+  const passwordVisibilityButton = useMemo(() => {
+    const isInitialTypePassword = initialType === INPUT_TYPES.password;
     const isTypePassword = type === INPUT_TYPES.password;
 
     return (
       <>
-        {isBaseTypePassword && (
+        {isInitialTypePassword && (
           <MUIIconButton
             onClick={(...args) => {
               const newType = isTypePassword
@@ -64,7 +67,7 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
         )}
       </>
     );
-  }, [baseType, onPasswordVisibilityAppend, type]);
+  }, [initialType, onPasswordVisibilityAppend, type]);
   const combinedSx = useMemo(
     () => ({
       color: GREY,
@@ -104,11 +107,11 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
         props: { children: castedChildren = [], ...castedRestProps },
       } = casted;
 
-      return cloneElement(casted, {
+      result = cloneElement(casted, {
         ...castedRestProps,
         children: (
           <>
-            {additionalEndAdornment}
+            {passwordVisibilityButton}
             {castedChildren}
           </>
         ),
@@ -116,7 +119,7 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
     }
 
     return result;
-  }, [additionalEndAdornment, endAdornment]);
+  }, [passwordVisibilityButton, endAdornment]);
 
   return (
     <MUIOutlinedInput
