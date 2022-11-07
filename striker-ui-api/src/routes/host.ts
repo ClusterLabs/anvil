@@ -11,8 +11,8 @@ const router = express.Router();
 
 router
   .get('/', getHost)
-  .get('/:hostUUID', getHostDetail)
   .get('/connection', getHostConnection)
+  .get('/:hostUUID', getHostDetail)
   .post('/', createHost);
 
 export default router;
