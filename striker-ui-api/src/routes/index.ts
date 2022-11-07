@@ -8,6 +8,7 @@ import hostRouter from './host';
 import jobRouter from './job';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
+import userRouter from './user';
 
 const routes: Readonly<Record<string, Router>> = {
   anvil: anvilRouter,
@@ -18,6 +19,7 @@ const routes: Readonly<Record<string, Router>> = {
   job: jobRouter,
   'network-interface': networkInterfaceRouter,
   server: serverRouter,
+  user: userRouter,
 };
 
 export default routes;
