@@ -1,6 +1,7 @@
 import { getAnvilData, getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { match } from '../../match';
 
 const buildHostConnections = (
   fromHostUUID: string,
@@ -90,7 +91,7 @@ export const getHostConnection = buildGetRequestHandler(
           queryStdout.forEach(
             ([ipAddressUUID, hostUUID, ipAddress, network]) => {
               const [, networkType, rawNetworkNumber, rawNetworkLinkNumber] =
-                network.match(/^([^\s]+)(\d+)_[^\s]+(\d+)$/);
+                match(network, /^([^\s]+)(\d+)_[^\s]+(\d+)$/);
               const connectionKey = getConnectionKey(hostUUID);
 
               connections[connectionKey].inbound.ipAddress[ipAddress] = {
