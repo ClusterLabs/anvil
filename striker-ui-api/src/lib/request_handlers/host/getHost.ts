@@ -6,13 +6,7 @@ import { sanitizeQS } from '../../sanitizeQS';
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
   const { hostUUIDs } = request.query;
 
-  let localHostUUID: string;
-
-  try {
-    localHostUUID = getLocalHostUUID();
-  } catch (subError) {
-    throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
-  }
+  const localHostUUID: string = getLocalHostUUID();
 
   let query = `
     SELECT

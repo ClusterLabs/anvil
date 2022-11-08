@@ -39,7 +39,6 @@ export const getHostConnection = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { hostUUIDs: rawHostUUIDs } = request.query;
 
-    let localHostUUID: string;
     let rawDatabaseData: {
       [hostUUID: string]: {
         host: string;
@@ -51,13 +50,8 @@ export const getHostConnection = buildGetRequestHandler(
       };
     };
 
-    try {
-      localHostUUID = getLocalHostUUID();
-    } catch (subError) {
-      throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
-    }
-
     const hostUUIDField = 'ip_add.ip_address_host_uuid';
+    const localHostUUID: string = getLocalHostUUID();
     const { after: condHostUUIDs, before: beforeBuildIDCond } =
       buildUnknownIDCondition(rawHostUUIDs, hostUUIDField, {
         onFallback: () => `${hostUUIDField} = '${localHostUUID}'`,
