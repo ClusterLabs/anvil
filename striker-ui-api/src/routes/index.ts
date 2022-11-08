@@ -8,6 +8,7 @@ import hostRouter from './host';
 import jobRouter from './job';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
+import sshKeyRouter from './ssh-key';
 import userRouter from './user';
 
 const routes: Readonly<Record<string, Router>> = {
@@ -19,6 +20,7 @@ const routes: Readonly<Record<string, Router>> = {
   job: jobRouter,
   'network-interface': networkInterfaceRouter,
   server: serverRouter,
+  'ssh-key': sshKeyRouter,
   user: userRouter,
 };
 
