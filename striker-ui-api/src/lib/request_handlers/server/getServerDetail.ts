@@ -44,7 +44,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
     try {
       requestHostUUID = getLocalHostUUID();
     } catch (subError) {
-      console.log(`Failed to get local host UUID; CAUSE: ${subError}`);
+      console.log(subError);
 
       response.status(500).send();
 

@@ -4,17 +4,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 
 export const getNetworkInterface = buildGetRequestHandler(
   (request, buildQueryOptions) => {
-    let localHostUUID: string;
-
-    try {
-      localHostUUID = getLocalHostUUID();
-    } catch (subError) {
-      console.log(`Failed to get local host UUID; CAUSE: ${subError}`);
-
-      throw subError;
-    }
-
-    console.log(`localHostUUID=[${localHostUUID}]`);
+    const localHostUUID: string = getLocalHostUUID();
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {

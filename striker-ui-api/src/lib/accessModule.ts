@@ -139,10 +139,21 @@ const getAnvilData = (
     spawnSyncOptions,
   ).stdout;
 
-const getLocalHostUUID = () =>
-  execModuleSubroutine('host_uuid', {
-    subModuleName: 'Get',
-  }).stdout;
+const getLocalHostUUID = () => {
+  let result;
+
+  try {
+    result = execModuleSubroutine('host_uuid', {
+      subModuleName: 'Get',
+    }).stdout;
+  } catch (subError) {
+    throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
+  }
+
+  shout(`localHostUUID=[${result}]`);
+
+  return result;
+};
 
 export {
   dbInsertOrUpdateJob as job,
