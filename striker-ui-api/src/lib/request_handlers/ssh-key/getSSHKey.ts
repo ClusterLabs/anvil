@@ -1,6 +1,7 @@
 import { getLocalHostUUID } from '../../accessModule';
-import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { buildQueryResultReducer } from '../../buildQueryResultModifier';
+import { match } from '../../match';
 import { sanitizeQS } from '../../sanitizeQS';
 
 type BuildQuerySubFunction = (result: Parameters<BuildQueryFunction>[0]) => {
@@ -18,11 +19,11 @@ const MAP_TO_HANDLER: Record<string, BuildQuerySubFunction> = {
       afterQueryReturn: buildQueryResultReducer<{
         [hostUUID: string]: {
           [stateUUID: string]: {
+            badFile: string;
+            badLine: number;
             hostName: string;
             hostUUID: string;
             ipAddress: string;
-            stateName: string;
-            stateNote: string;
             stateUUID: string;
           };
         };
@@ -33,12 +34,18 @@ const MAP_TO_HANDLER: Record<string, BuildQuerySubFunction> = {
           previous[hostUUIDKey] = {};
         }
 
+        const ipAddress = stateName.slice(HOST_KEY_CHANGED_PREFIX.length);
+        const [, badFile, badLine = '0'] = match(
+          stateNote,
+          /file=([^\s]+),line=(\d+)/,
+        );
+
         previous[hostUUIDKey][stateUUID] = {
+          badFile,
+          badLine: parseInt(badLine),
           hostName,
           hostUUID,
-          ipAddress: stateName.slice(HOST_KEY_CHANGED_PREFIX.length),
-          stateName,
-          stateNote,
+          ipAddress,
           stateUUID,
         };
 
