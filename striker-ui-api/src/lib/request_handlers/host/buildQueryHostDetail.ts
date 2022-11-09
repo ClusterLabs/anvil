@@ -3,6 +3,20 @@ import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { cap } from '../../cap';
 import { stdout } from '../../shell';
 
+type ExtractVariableKeyFunction = (parts: string[]) => string;
+
+const MAP_TO_EXTRACTOR: { [prefix: string]: ExtractVariableKeyFunction } = {
+  form: ([, part2]) => {
+    const [head, ...rest] = part2.split('_');
+
+    return rest.reduce<string>(
+      (previous, part) => `${previous}${cap(part)}`,
+      head,
+    );
+  },
+  'install-target': () => 'installTargetEnable',
+};
+
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   keys: hostUUIDs = '*',
 } = {}) => {
@@ -19,7 +33,10 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
     FROM variables AS var
     JOIN hosts AS hos
       ON var.variable_source_uuid = hos.host_uuid
-    WHERE variable_name LIKE 'form::config_%'
+    WHERE (
+        variable_name LIKE 'form::config_%'
+        OR variable_name = 'install-target::enabled'
+      )
       ${condHostUUIDs};`;
 
   const afterQueryReturn: QueryResultModifierFunction =
@@ -30,12 +47,9 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         { hostName: string; hostUUID: string } & Record<string, string>
       >(
         (previous, [, , variableName, variableValue]) => {
-          const [, , variableKey] = variableName.split('::');
-          const [head, ...rest] = variableKey.split('_');
-          const key = rest.reduce<string>(
-            (previous, part) => `${previous}${cap(part)}`,
-            head,
-          );
+          const [variablePrefix, ...restVariableParts] =
+            variableName.split('::');
+          const key = MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
 
           previous[key] = variableValue;
 
