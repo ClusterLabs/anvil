@@ -140,7 +140,7 @@ const getAnvilData = (
   ).stdout;
 
 const getLocalHostUUID = () => {
-  let result;
+  let result: string;
 
   try {
     result = execModuleSubroutine('host_uuid', {
