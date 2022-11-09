@@ -1,9 +1,9 @@
-import { LOCAL } from '../../consts/LOCAL';
-
 import { getAnvilData, getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
+import { stdout } from '../../shell';
 
 const buildHostConnections = (
   fromHostUUID: string,
@@ -63,9 +63,9 @@ export const getHostConnection = buildGetRequestHandler(
       beforeBuildIDCond.length > 0 ? beforeBuildIDCond : [localHostUUID];
 
     const getConnectionKey = (hostUUID: string) =>
-      hostUUID === localHostUUID ? LOCAL : hostUUID;
+      toLocal(hostUUID, localHostUUID);
 
-    process.stdout.write(`condHostUUIDs=[${condHostUUIDs}]\n`);
+    stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
     try {
       ({ database: rawDatabaseData } = getAnvilData({ database: true }));
@@ -83,7 +83,7 @@ export const getHostConnection = buildGetRequestHandler(
       return previous;
     }, {});
 
-    process.stdout.write(`connections=[${JSON.stringify(connections)}]\n`);
+    stdout(`connections=[${JSON.stringify(connections, null, 2)}]`);
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {

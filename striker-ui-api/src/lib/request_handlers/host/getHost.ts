@@ -1,8 +1,7 @@
-import { LOCAL } from '../../consts/LOCAL';
-
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryHostDetail } from './buildQueryHostDetail';
+import { toLocal } from '../../convertHostUUID';
 import { sanitizeQS } from '../../sanitizeQS';
 
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
@@ -23,7 +22,7 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
     if (output instanceof Array) {
       result = output.reduce<Record<string, HostOverview>>(
         (previous, [hostName, hostUUID]) => {
-          const key = hostUUID === localHostUUID ? LOCAL : hostUUID;
+          const key = toLocal(hostUUID, localHostUUID);
 
           previous[key] = { hostName, hostUUID };
 

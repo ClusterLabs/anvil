@@ -1,13 +1,11 @@
-import { LOCAL } from '../../consts/LOCAL';
-
-import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryHostDetail } from './buildQueryHostDetail';
+import { toHostUUID } from '../../convertHostUUID';
 import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 
 export const getHostDetail = buildGetRequestHandler(
-  ({ params: { hostUUID: host } }, buildQueryOptions) => {
-    const hostUUID = host === LOCAL ? getLocalHostUUID() : host;
+  ({ params: { hostUUID: rawHostUUID } }, buildQueryOptions) => {
+    const hostUUID = toHostUUID(rawHostUUID);
     const { afterQueryReturn, query } = buildQueryHostDetail({
       keys: [sanitizeSQLParam(hostUUID)],
     });
