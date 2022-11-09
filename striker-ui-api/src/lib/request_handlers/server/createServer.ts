@@ -6,10 +6,10 @@ import { REP_INTEGER, REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { dbQuery, job } from '../../accessModule';
+import { stderr, stdout } from '../../shell';
 
 export const createServer: RequestHandler = ({ body }, response) => {
-  console.log('Creating server.');
-  console.dir(body, { depth: null });
+  stdout(`Creating server.\n${JSON.stringify(body, null, 2)}`);
 
   const {
     serverName,
@@ -81,7 +81,7 @@ export const createServer: RequestHandler = ({ body }, response) => {
       `Data anvil UUID must be a valid UUID; got [${dataAnvilUUID}].`,
     );
   } catch (assertError) {
-    console.log(
+    stdout(
       `Failed to assert value when trying to provision a server; CAUSE: ${assertError}.`,
     );
 
@@ -99,7 +99,7 @@ storage_size=${dataStorageSize}
 install_iso=${dataInstallISO}
 driver_iso=${dataDriverISO}`;
 
-  console.log(`provisionServerJobData: [${provisionServerJobData}]`);
+  stdout(`provisionServerJobData=[${provisionServerJobData}]`);
 
   const [[provisionServerJobHostUUID]] = dbQuery(
     `SELECT
@@ -134,17 +134,25 @@ driver_iso=${dataDriverISO}`;
           ON pri_hos.phl = nod_1.phr;`,
   ).stdout;
 
-  console.log(`provisionServerJobHostUUID: [${provisionServerJobHostUUID}]`);
+  stdout(`provisionServerJobHostUUID=[${provisionServerJobHostUUID}]`);
 
-  job({
-    file: __filename,
-    job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
-    job_data: provisionServerJobData,
-    job_name: 'server:provision',
-    job_title: 'job_0147',
-    job_description: 'job_0148',
-    job_host_uuid: provisionServerJobHostUUID,
-  });
+  try {
+    job({
+      file: __filename,
+      job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
+      job_data: provisionServerJobData,
+      job_name: 'server:provision',
+      job_title: 'job_0147',
+      job_description: 'job_0148',
+      job_host_uuid: provisionServerJobHostUUID,
+    });
+  } catch (subError) {
+    stderr(`Failed to provision server; CAUSE: ${subError}`);
+
+    response.status(500).send();
+
+    return;
+  }
 
   response.status(202).send();
 };
