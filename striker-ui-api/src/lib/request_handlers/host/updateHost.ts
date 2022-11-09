@@ -4,7 +4,7 @@ import { LOCAL } from '../../consts/LOCAL';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
-import { stdout } from '../../shell';
+import { stderr, stdout } from '../../shell';
 
 export const updateHost: RequestHandler<
   { hostUUID: string },
@@ -25,14 +25,22 @@ export const updateHost: RequestHandler<
   if (isEnableInstallTarget !== undefined) {
     const task = isEnableInstallTarget ? 'enable' : 'disable';
 
-    job({
-      file: __filename,
-      job_command: `${SERVER_PATHS.usr.sbin['striker-manage-install-target'].self} --${task}`,
-      job_description: 'job_0016',
-      job_host_uuid: hostUUID,
-      job_name: `install-target::${task}`,
-      job_title: 'job_0015',
-    });
+    try {
+      job({
+        file: __filename,
+        job_command: `${SERVER_PATHS.usr.sbin['striker-manage-install-target'].self} --${task}`,
+        job_description: 'job_0016',
+        job_host_uuid: hostUUID,
+        job_name: `install-target::${task}`,
+        job_title: 'job_0015',
+      });
+    } catch (subError) {
+      stderr(`Failed to ${task} install target; CAUSE: ${subError}`);
+
+      response.status(500).send();
+
+      return;
+    }
   }
 
   response.status(200).send();
