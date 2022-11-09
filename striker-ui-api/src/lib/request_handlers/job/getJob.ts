@@ -1,6 +1,6 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { sanitizeQS } from '../../sanitizeQS';
-import { date } from '../../shell';
+import { date, stdout } from '../../shell';
 
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   const { start: rawStart } = request.query;
@@ -19,7 +19,7 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
     );
   }
 
-  process.stdout.write(`condModifiedDate=[${condModifiedDate}]\n`);
+  stdout(`condModifiedDate=[${condModifiedDate}]`);
 
   if (buildQueryOptions) {
     buildQueryOptions.afterQueryReturn = (queryStdout) => {

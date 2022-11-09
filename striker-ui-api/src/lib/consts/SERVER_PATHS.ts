@@ -21,6 +21,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-manage-power': {},
       'anvil-provision-server': {},
       'anvil-sync-shared': {},
+      'striker-manage-install-target': {},
       'striker-parse-os-list': {},
     },
   },
