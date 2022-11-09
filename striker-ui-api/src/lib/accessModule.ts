@@ -147,7 +147,7 @@ const getLocalHostUUID = () => {
       subModuleName: 'Get',
     }).stdout;
   } catch (subError) {
-    throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
+    throw new Error(`Failed to get localhost UUID; CAUSE: ${subError}`);
   }
 
   shout(`localHostUUID=[${result}]`);

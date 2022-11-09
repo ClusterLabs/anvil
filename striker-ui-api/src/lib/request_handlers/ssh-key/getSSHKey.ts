@@ -1,3 +1,5 @@
+import { LOCAL } from '../../consts/LOCAL';
+
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
@@ -28,7 +30,7 @@ const MAP_TO_HANDLER: Record<string, BuildQuerySubFunction> = {
           };
         };
       }>((previous, [hostName, hostUUID, stateName, stateNote, stateUUID]) => {
-        const hostUUIDKey = hostUUID === localHostUUID ? 'local' : hostUUID;
+        const hostUUIDKey = hostUUID === localHostUUID ? LOCAL : hostUUID;
 
         if (previous[hostUUIDKey] === undefined) {
           previous[hostUUIDKey] = {};

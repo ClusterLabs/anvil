@@ -1,3 +1,5 @@
+import { LOCAL } from '../../consts/LOCAL';
+
 import { getAnvilData, getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
@@ -61,7 +63,7 @@ export const getHostConnection = buildGetRequestHandler(
       beforeBuildIDCond.length > 0 ? beforeBuildIDCond : [localHostUUID];
 
     const getConnectionKey = (hostUUID: string) =>
-      hostUUID === localHostUUID ? 'local' : hostUUID;
+      hostUUID === localHostUUID ? LOCAL : hostUUID;
 
     process.stdout.write(`condHostUUIDs=[${condHostUUIDs}]\n`);
 
