@@ -1,10 +1,10 @@
+import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
+
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
-
-const HOST_KEY_CHANGED_PREFIX = 'host_key_changed::';
 
 export const getSSHKeyConflict = buildGetRequestHandler(
   (request, buildQueryOptions) => {

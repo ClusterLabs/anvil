@@ -10,7 +10,7 @@ import {
 const router = express.Router();
 
 router
-  .put('/inquire-peer', getHostSSH)
+  .put('/inquire-host', getHostSSH)
   .put('/poweroff-host', poweroffHost)
   .put('/reboot-host', rebootHost)
   .put('/update-system', updateSystem);

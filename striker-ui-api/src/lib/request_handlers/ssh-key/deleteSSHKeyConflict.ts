@@ -8,7 +8,7 @@ import { stderr } from '../../shell';
 export const deleteSSHKeyConflict: RequestHandler<
   unknown,
   undefined,
-  { [hostUUID: string]: string[] }
+  DeleteSSHKeyConflictRequestBody
 > = (request, response) => {
   const { body } = request;
   const hostUUIDs = Object.keys(body);

@@ -1,11 +1,15 @@
 import { RequestHandler } from 'express';
 
-import { sub } from '../../accessModule';
+import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
+
+import { dbQuery, getLocalHostUUID, sub } from '../../accessModule';
+import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 import { stderr } from '../../shell';
 
 export const getHostSSH: RequestHandler<
   unknown,
   {
+    badSSHKeys?: DeleteSSHKeyConflictRequestBody;
     hostName: string;
     hostOS: string;
     hostUUID: string;
@@ -28,6 +32,8 @@ export const getHostSSH: RequestHandler<
     hostUUID: string,
     rawIsInetConnected: string,
     rawIsOSRegistered: string;
+
+  const localHostUUID = getLocalHostUUID();
 
   try {
     ({
@@ -54,11 +60,37 @@ export const getHostSSH: RequestHandler<
     return;
   }
 
+  const isConnected: boolean = hostName.length > 0;
+
+  let badSSHKeys: DeleteSSHKeyConflictRequestBody | undefined;
+
+  if (!isConnected) {
+    const rows = dbQuery(`
+      SELECT sta.state_note, sta.state_uuid
+      FROM states AS sta
+      WHERE sta.state_host_uuid = '${localHostUUID}'
+        AND sta.state_name = '${HOST_KEY_CHANGED_PREFIX}${sanitizeSQLParam(
+      target,
+    )}';`).stdout as [stateNote: string, stateUUID: string][];
+
+    if (rows.length > 0) {
+      badSSHKeys = rows.reduce<DeleteSSHKeyConflictRequestBody>(
+        (previous, [, stateUUID]) => {
+          previous[localHostUUID].push(stateUUID);
+
+          return previous;
+        },
+        { [localHostUUID]: [] },
+      );
+    }
+  }
+
   response.status(200).send({
+    badSSHKeys,
     hostName,
     hostOS,
     hostUUID,
-    isConnected: hostName.length > 0,
+    isConnected,
     isInetConnected: rawIsInetConnected === '1',
     isOSRegistered: rawIsOSRegistered === 'yes',
   });
