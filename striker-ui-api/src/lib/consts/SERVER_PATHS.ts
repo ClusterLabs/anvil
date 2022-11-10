@@ -18,6 +18,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-access-module': {},
       'anvil-configure-host': {},
       'anvil-get-server-screenshot': {},
+      'anvil-manage-keys': {},
       'anvil-manage-power': {},
       'anvil-provision-server': {},
       'anvil-sync-shared': {},

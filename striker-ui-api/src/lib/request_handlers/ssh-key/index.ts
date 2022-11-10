@@ -1,1 +1,2 @@
-export * from './getSSHKey';
+export * from './deleteSSHKeyConflict';
+export * from './getSSHKeyConflict';
