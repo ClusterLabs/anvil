@@ -44,15 +44,15 @@ export const prepareHost: RequestHandler<
 
   const isHostUUIDProvided = hostUUID !== undefined;
 
-  const dataHostIPAddress = sanitize<'string'>(hostIPAddress);
-  const dataHostName = sanitize<'string'>(hostName);
-  const dataHostPassword = sanitize<'string'>(hostPassword);
-  const dataHostSSHPort = sanitize<'number'>(hostSSHPort) || 22;
-  const dataHostType = sanitize<'string'>(hostType);
-  const dataHostUser = sanitize<'string'>(hostUser);
-  const dataHostUUID = sanitize<'string'>(hostUUID);
-  const dataRedhatPassword = sanitize<'string'>(redhatPassword);
-  const dataRedhatUser = sanitize<'string'>(redhatUser);
+  const dataHostIPAddress = sanitize(hostIPAddress, 'string');
+  const dataHostName = sanitize(hostName, 'string');
+  const dataHostPassword = sanitize(hostPassword, 'string');
+  const dataHostSSHPort = sanitize(hostSSHPort, 'number') || 22;
+  const dataHostType = sanitize(hostType, 'string');
+  const dataHostUser = sanitize(hostUser, 'string');
+  const dataHostUUID = sanitize(hostUUID, 'string');
+  const dataRedhatPassword = sanitize(redhatPassword, 'string');
+  const dataRedhatUser = sanitize(redhatUser, 'string');
 
   try {
     assert(

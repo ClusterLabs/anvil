@@ -52,14 +52,13 @@ const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
 
 export const sanitize = <ReturnTypeName extends keyof MapToReturnType>(
   value: unknown,
+  returnType: ReturnTypeName,
   {
     modifierType = 'none',
     modifier = MAP_TO_MODIFIER_FUNCTION[modifierType],
-    returnType = 'string',
   }: {
     modifier?: ModifierFunction;
     modifierType?: keyof MapToModifierFunction;
-    returnType?: ReturnTypeName | 'string';
   } = {},
 ): MapToReturnType[ReturnTypeName] =>
   MAP_TO_RETURN_FUNCTION[returnType](value, (unmodified: unknown) => {

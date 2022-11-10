@@ -15,9 +15,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
   const { ss, resize } = request.query;
 
   const epoch = Date.now();
-  const isScreenshot = sanitize(ss, {
-    returnType: 'boolean',
-  });
+  const isScreenshot = sanitize(ss, 'boolean');
 
   console.log(
     `serverUUID=[${serverUUID}],epoch=[${epoch}],isScreenshot=[${isScreenshot}]`,
@@ -118,9 +116,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
       return;
     }
 
-    let resizeArgs = sanitize(resize, {
-      returnType: 'string',
-    });
+    let resizeArgs = sanitize(resize, 'string');
 
     if (!/^\d+x\d+$/.test(resizeArgs)) {
       resizeArgs = '';
