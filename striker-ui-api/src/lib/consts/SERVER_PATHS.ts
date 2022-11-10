@@ -23,6 +23,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-provision-server': {},
       'anvil-sync-shared': {},
       'anvil-update-system': {},
+      'striker-initialize-host': {},
       'striker-manage-install-target': {},
       'striker-parse-os-list': {},
     },

@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryAnvilDetail from './buildQueryAnvilDetail';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 
 const getAnvil: RequestHandler = buildGetRequestHandler(
   (request, buildQueryOptions) => {
@@ -61,11 +61,11 @@ const getAnvil: RequestHandler = buildGetRequestHandler(
         query: anvilDetailQuery,
         afterQueryReturn: anvilDetailAfterQueryReturn,
       } = buildQueryAnvilDetail({
-        anvilUUIDs: sanitizeQS(anvilUUIDs, {
+        anvilUUIDs: sanitize(anvilUUIDs, {
           modifierType: 'sql',
           returnType: 'string[]',
         }),
-        isForProvisionServer: sanitizeQS(isForProvisionServer, {
+        isForProvisionServer: sanitize(isForProvisionServer, {
           returnType: 'boolean',
         }),
       });

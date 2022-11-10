@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryFileDetail from './buildQueryFileDetail';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 
 const getFile: RequestHandler = buildGetRequestHandler((request) => {
   const { fileUUIDs } = request.query;
@@ -19,7 +19,7 @@ const getFile: RequestHandler = buildGetRequestHandler((request) => {
 
   if (fileUUIDs) {
     query = buildQueryFileDetail({
-      fileUUIDs: sanitizeQS(fileUUIDs, {
+      fileUUIDs: sanitize(fileUUIDs, {
         modifierType: 'sql',
         returnType: 'string[]',
       }),

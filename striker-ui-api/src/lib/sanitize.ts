@@ -10,12 +10,12 @@ type MapToReturnType = {
 
 type MapToReturnFunction = {
   [ReturnTypeName in keyof MapToReturnType]: (
-    qs: unknown,
-    modifier: (value: unknown) => string,
+    value: unknown,
+    modifier: (unmodified: unknown) => string,
   ) => MapToReturnType[ReturnTypeName];
 };
 
-type ModifierFunction = (value: string) => string;
+type ModifierFunction = (unmodified: string) => string;
 
 type MapToModifierFunction = {
   none: undefined;
@@ -28,30 +28,30 @@ const MAP_TO_MODIFIER_FUNCTION: MapToModifierFunction = {
 };
 
 const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
-  boolean: (qs) => qs !== undefined,
-  number: (qs) => parseFloat(String(qs)) || 0,
-  string: (qs, mod) => (qs ? mod(qs) : ''),
-  'string[]': (qs, mod) => {
+  boolean: (value) => value !== undefined,
+  number: (value) => parseFloat(String(value)) || 0,
+  string: (value, mod) => (value ? mod(value) : ''),
+  'string[]': (value, mod) => {
     let result: string[] = [];
 
-    if (qs instanceof Array) {
-      result = qs.reduce<string[]>((reduceContainer, element) => {
+    if (value instanceof Array) {
+      result = value.reduce<string[]>((reduceContainer, element) => {
         if (element) {
           reduceContainer.push(mod(element));
         }
 
         return reduceContainer;
       }, []);
-    } else if (qs) {
-      result = mod(qs).split(/[,;]/);
+    } else if (value) {
+      result = mod(value).split(/[,;]/);
     }
 
     return result;
   },
 };
 
-export const sanitizeQS = <ReturnTypeName extends keyof MapToReturnType>(
-  qs: unknown,
+export const sanitize = <ReturnTypeName extends keyof MapToReturnType>(
+  value: unknown,
   {
     modifierType = 'none',
     modifier = MAP_TO_MODIFIER_FUNCTION[modifierType],
@@ -62,8 +62,8 @@ export const sanitizeQS = <ReturnTypeName extends keyof MapToReturnType>(
     returnType?: ReturnTypeName | 'string';
   } = {},
 ): MapToReturnType[ReturnTypeName] =>
-  MAP_TO_RETURN_FUNCTION[returnType](qs, (value: unknown) => {
-    const input = String(value);
+  MAP_TO_RETURN_FUNCTION[returnType](value, (unmodified: unknown) => {
+    const input = String(unmodified);
 
     return call<string>(modifier, {
       notCallableReturn: input,

@@ -1,6 +1,6 @@
 import call from './call';
 import join from './join';
-import { sanitizeQS } from './sanitizeQS';
+import { sanitize } from './sanitize';
 
 const buildIDCondition = (
   keys: Parameters<JoinFunction>[0],
@@ -24,7 +24,7 @@ export const buildUnknownIDCondition = (
   conditionPrefix: string,
   { onFallback }: { onFallback?: () => string },
 ): { after: string; before: string[] } => {
-  const before = sanitizeQS(keys, {
+  const before = sanitize(keys, {
     modifierType: 'sql',
     returnType: 'string[]',
   });

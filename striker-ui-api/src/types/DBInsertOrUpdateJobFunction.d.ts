@@ -1,6 +1,4 @@
-type DBJobParams = {
-  file: string;
-  line?: number;
+type DBJobParams = DBInsertOrUpdateFunctionCommonParams & {
   job_command: string;
   job_data?: string;
   job_name: string;
@@ -10,7 +8,4 @@ type DBJobParams = {
   job_progress?: number;
 };
 
-type DBInsertOrUpdateJobOptions = Omit<
-  ExecModuleSubroutineOptions,
-  'subParams' | 'subModuleName'
->;
+type DBInsertOrUpdateJobOptions = DBInsertOrUpdateFunctionCommonOptions;

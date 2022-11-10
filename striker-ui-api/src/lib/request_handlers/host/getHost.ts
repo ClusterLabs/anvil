@@ -2,7 +2,7 @@ import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryHostDetail } from './buildQueryHostDetail';
 import { toLocal } from '../../convertHostUUID';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
   const { hostUUIDs } = request.query;
@@ -37,7 +37,7 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
   if (hostUUIDs) {
     ({ query, afterQueryReturn } = buildQueryHostDetail({
-      keys: sanitizeQS(hostUUIDs, {
+      keys: sanitize(hostUUIDs, {
         modifierType: 'sql',
         returnType: 'string[]',
       }),
