@@ -24,9 +24,8 @@ export const buildUnknownIDCondition = (
   conditionPrefix: string,
   { onFallback }: { onFallback?: () => string },
 ): { after: string; before: string[] } => {
-  const before = sanitize(keys, {
+  const before = sanitize(keys, 'string[]', {
     modifierType: 'sql',
-    returnType: 'string[]',
   });
   const after = buildIDCondition(before, conditionPrefix, { onFallback });
 

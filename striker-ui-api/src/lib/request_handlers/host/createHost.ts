@@ -16,7 +16,7 @@ export const createHost: RequestHandler = (...args) => {
     },
   ] = args;
 
-  const hostType = sanitize(rawHostType, { returnType: 'string' });
+  const hostType = sanitize(rawHostType, 'string');
 
   stdout(`hostType=[${hostType}]`);
 

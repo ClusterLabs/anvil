@@ -5,7 +5,7 @@ import { date, stdout } from '../../shell';
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   const { start: rawStart } = request.query;
 
-  const start = sanitize(rawStart, { returnType: 'number' });
+  const start = sanitize(rawStart, 'number');
 
   let condModifiedDate = '';
 

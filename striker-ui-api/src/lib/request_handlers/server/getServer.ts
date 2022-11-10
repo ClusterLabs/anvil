@@ -6,15 +6,12 @@ export const getServer = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { anvilUUIDs } = request.query;
 
-    const condAnvilUUIDs = join(
-      sanitize(anvilUUIDs, { returnType: 'string[]' }),
-      {
-        beforeReturn: (toReturn) =>
-          toReturn ? `AND ser.server_anvil_uuid IN (${toReturn})` : '',
-        elementWrapper: "'",
-        separator: ', ',
-      },
-    );
+    const condAnvilUUIDs = join(sanitize(anvilUUIDs, 'string[]'), {
+      beforeReturn: (toReturn) =>
+        toReturn ? `AND ser.server_anvil_uuid IN (${toReturn})` : '',
+      elementWrapper: "'",
+      separator: ', ',
+    });
 
     console.log(`condAnvilsUUID=[${condAnvilUUIDs}]`);
 

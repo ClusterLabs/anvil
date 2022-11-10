@@ -37,9 +37,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
   if (hostUUIDs) {
     ({ query, afterQueryReturn } = buildQueryHostDetail({
-      keys: sanitize(hostUUIDs, {
+      keys: sanitize(hostUUIDs, 'string[]', {
         modifierType: 'sql',
-        returnType: 'string[]',
       }),
     }));
   }
