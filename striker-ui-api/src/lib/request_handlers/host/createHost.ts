@@ -1,24 +1,8 @@
 import { RequestHandler } from 'express';
 
+import { buildBranchRequestHandler } from '../buildBranchRequestHandler';
 import { configStriker } from './configStriker';
-import { sanitize } from '../../sanitize';
-import { stdout } from '../../shell';
 
-// Ensure each create handler sends a response at the end of any branch.
-const MAP_TO_CREATE_HANDLER: Record<string, RequestHandler | undefined> = {
+export const createHost: RequestHandler = buildBranchRequestHandler({
   striker: configStriker,
-};
-
-export const createHost: RequestHandler = (...args) => {
-  const [
-    {
-      query: { hostType: rawHostType },
-    },
-  ] = args;
-
-  const hostType = sanitize(rawHostType, 'string');
-
-  stdout(`hostType=[${hostType}]`);
-
-  MAP_TO_CREATE_HANDLER[hostType]?.call(null, ...args);
-};
+});
