@@ -1,13 +1,13 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import join from '../../join';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 
 export const getServer = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { anvilUUIDs } = request.query;
 
     const condAnvilUUIDs = join(
-      sanitizeQS(anvilUUIDs, { returnType: 'string[]' }),
+      sanitize(anvilUUIDs, { returnType: 'string[]' }),
       {
         beforeReturn: (toReturn) =>
           toReturn ? `AND ser.server_anvil_uuid IN (${toReturn})` : '',

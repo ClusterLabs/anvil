@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { configStriker } from './configStriker';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 import { stdout } from '../../shell';
 
 // Ensure each create handler sends a response at the end of any branch.
@@ -16,7 +16,7 @@ export const createHost: RequestHandler = (...args) => {
     },
   ] = args;
 
-  const hostType = sanitizeQS(rawHostType, { returnType: 'string' });
+  const hostType = sanitize(rawHostType, { returnType: 'string' });
 
   stdout(`hostType=[${hostType}]`);
 

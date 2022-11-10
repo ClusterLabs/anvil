@@ -1,11 +1,11 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 import { date, stdout } from '../../shell';
 
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   const { start: rawStart } = request.query;
 
-  const start = sanitizeQS(rawStart, { returnType: 'number' });
+  const start = sanitize(rawStart, { returnType: 'number' });
 
   let condModifiedDate = '';
 

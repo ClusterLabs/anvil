@@ -87,6 +87,15 @@ const dbInsertOrUpdateJob = (
     subParams: { job_progress, line, ...rest },
   }).stdout;
 
+const dbInsertOrUpdateVariable: DBInsertOrUpdateVariableFunction = (
+  subParams,
+  { spawnSyncOptions } = {},
+) =>
+  execModuleSubroutine('insert_or_update_variables', {
+    spawnSyncOptions,
+    subParams,
+  }).stdout;
+
 const dbJobAnvilSyncShared = (
   jobName: string,
   jobData: string,
@@ -157,6 +166,7 @@ const getLocalHostUUID = () => {
 
 export {
   dbInsertOrUpdateJob as job,
+  dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
   dbQuery,
   dbSubRefreshTimestamp,

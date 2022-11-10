@@ -7,7 +7,7 @@ import { REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { dbQuery, getLocalHostUUID, job } from '../../accessModule';
-import { sanitizeQS } from '../../sanitizeQS';
+import { sanitize } from '../../sanitize';
 import { mkfifo, rm } from '../../shell';
 
 export const getServerDetail: RequestHandler = (request, response) => {
@@ -15,7 +15,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
   const { ss, resize } = request.query;
 
   const epoch = Date.now();
-  const isScreenshot = sanitizeQS(ss, {
+  const isScreenshot = sanitize(ss, {
     returnType: 'boolean',
   });
 
@@ -118,7 +118,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
       return;
     }
 
-    let resizeArgs = sanitizeQS(resize, {
+    let resizeArgs = sanitize(resize, {
       returnType: 'string',
     });
 
