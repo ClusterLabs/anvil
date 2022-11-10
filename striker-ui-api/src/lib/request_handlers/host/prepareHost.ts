@@ -11,22 +11,12 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job, variable } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { stderr, stdout } from '../../shell';
 
 export const prepareHost: RequestHandler<
   unknown,
   undefined,
-  {
-    hostIPAddress: string;
-    hostName: string;
-    hostPassword: string;
-    hostSSHPort?: number;
-    hostType: string;
-    hostUser?: string;
-    hostUUID?: string;
-    redhatPassword: string;
-    redhatUser: string;
-  }
+  PrepareHostRequestBody
 > = (request, response) => {
   const {
     body: {
@@ -43,6 +33,8 @@ export const prepareHost: RequestHandler<
   } = request;
 
   const isHostUUIDProvided = hostUUID !== undefined;
+  const isRedhatAccountProvided =
+    redhatPassword !== undefined || redhatUser !== undefined;
 
   const dataHostIPAddress = sanitize(hostIPAddress, 'string');
   const dataHostName = sanitize(hostName, 'string');
@@ -87,15 +79,17 @@ export const prepareHost: RequestHandler<
       );
     }
 
-    assert(
-      REP_PEACEFUL_STRING.test(dataRedhatPassword),
-      `Data redhat password must be a peaceful string; got [${dataRedhatPassword}]`,
-    );
+    if (isRedhatAccountProvided) {
+      assert(
+        REP_PEACEFUL_STRING.test(dataRedhatPassword),
+        `Data redhat password must be a peaceful string; got [${dataRedhatPassword}]`,
+      );
 
-    assert(
-      REP_PEACEFUL_STRING.test(dataRedhatUser),
-      `Data redhat user must be a peaceful string; got [${dataRedhatUser}]`,
-    );
+      assert(
+        REP_PEACEFUL_STRING.test(dataRedhatUser),
+        `Data redhat user must be a peaceful string; got [${dataRedhatUser}]`,
+      );
+    }
   } catch (assertError) {
     stderr(
       `Failed to assert value when trying to prepare host; CAUSE: ${assertError}`,
@@ -130,7 +124,6 @@ ssh_port=${dataHostSSHPort}
 type=${dataHostType}`,
       job_description: 'job_0022',
       job_name: `initialize::${dataHostType}::${dataHostIPAddress}`,
-      job_progress: 100,
       job_title: `job_002${dataHostType === 'dr' ? '1' : '0'}`,
     });
   } catch (subError) {
