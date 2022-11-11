@@ -76,6 +76,10 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
         borderColor: UNSELECTED,
       },
 
+      [`& .${muiOutlinedInputClasses.input}`]: {
+        color: TEXT,
+      },
+
       '&:hover': {
         [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
           borderColor: GREY,

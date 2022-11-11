@@ -27,7 +27,7 @@ const OutlinedInputLabel = (
     ...inputLabelRestProps
   } = inputLabelProps;
   const combinedSx = {
-    color: GREY,
+    color: `${GREY}9f`,
 
     [`&.${muiInputLabelClasses.focused}`]: {
       backgroundColor: GREY,
