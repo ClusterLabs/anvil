@@ -1,6 +1,6 @@
 import { FC } from 'react';
 
-import ContainedButton, { ContainedButtonProps } from './ContainedButton';
+import ContainedButton from './ContainedButton';
 
 type SuggestButtonOptionalProps = {
   show?: boolean;

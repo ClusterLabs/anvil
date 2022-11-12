@@ -1,41 +1,33 @@
-import {
-  Button as MUIButton,
-  ButtonProps as MUIButtonProps,
-} from '@mui/material';
+import { Button as MUIButton, SxProps, Theme } from '@mui/material';
+import { FC, useMemo } from 'react';
 
 import { BLACK, GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
-type ContainedButtonProps = MUIButtonProps;
+const ContainedButton: FC<ContainedButtonProps> = ({ sx, ...restProps }) => {
+  const combinedSx = useMemo<SxProps<Theme>>(
+    () => ({
+      backgroundColor: TEXT,
+      color: BLACK,
+      textTransform: 'none',
 
-const ContainedButton = (
-  containedButtonProps: ContainedButtonProps,
-): JSX.Element => {
-  const { children, sx } = containedButtonProps;
-  const combinedSx: ContainedButtonProps['sx'] = {
-    backgroundColor: TEXT,
-    color: BLACK,
-    textTransform: 'none',
+      '&:hover': {
+        backgroundColor: GREY,
+      },
 
-    '&:hover': {
-      backgroundColor: GREY,
-    },
-
-    ...sx,
-  };
+      ...sx,
+    }),
+    [sx],
+  );
 
   return (
     <MUIButton
       {...{
         variant: 'contained',
-        ...containedButtonProps,
+        ...restProps,
         sx: combinedSx,
       }}
-    >
-      {children}
-    </MUIButton>
+    />
   );
 };
-
-export type { ContainedButtonProps };
 
 export default ContainedButton;
