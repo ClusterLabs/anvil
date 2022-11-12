@@ -1,5 +1,5 @@
-import { MouseEventHandler, ReactNode } from 'react';
-import { Box, ButtonProps, Dialog, DialogProps } from '@mui/material';
+import { Box, Dialog } from '@mui/material';
+import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 
 import { BLUE, TEXT } from '../lib/consts/DEFAULT_THEME';
 
@@ -7,82 +7,100 @@ import ContainedButton from './ContainedButton';
 import { Panel, PanelHeader } from './Panels';
 import { BodyText, HeaderText } from './Text';
 
-type ConfirmDialogProps = {
-  actionCancelText?: string;
-  actionProceedText: string;
-  content: ReactNode | string;
-  dialogProps: DialogProps;
-  onCancel: MouseEventHandler<HTMLButtonElement>;
-  onProceed: MouseEventHandler<HTMLButtonElement>;
-  proceedButtonProps?: ButtonProps;
-  titleText: string;
-};
+const ConfirmDialog = forwardRef<
+  ConfirmDialogForwardedRefContent,
+  ConfirmDialogProps
+>(
+  (
+    {
+      actionCancelText = 'Cancel',
+      actionProceedText,
+      content,
+      dialogProps: { open: baseOpen = false, ...restDialogProps } = {},
+      onCancelAppend,
+      onProceedAppend,
+      openInitially = false,
+      proceedButtonProps = {},
+      titleText,
+    },
+    ref,
+  ) => {
+    const { sx: proceedButtonSx } = proceedButtonProps;
 
-const CONFIRM_DIALOG_DEFAULT_PROPS = {
-  actionCancelText: 'Cancel',
-  proceedButtonProps: { sx: undefined },
-};
+    const [isOpen, setIsOpen] = useState<boolean>(openInitially);
 
-const ConfirmDialog = (
-  {
-    actionCancelText,
-    actionProceedText,
-    content,
-    dialogProps: { open },
-    onCancel,
-    onProceed,
-    proceedButtonProps,
-    titleText,
-  }: ConfirmDialogProps = CONFIRM_DIALOG_DEFAULT_PROPS as ConfirmDialogProps,
-): JSX.Element => {
-  const { sx: proceedButtonSx } =
-    proceedButtonProps ?? CONFIRM_DIALOG_DEFAULT_PROPS.proceedButtonProps;
+    // TODO: using base open is depreciated; use internal state once all
+    // dependent components finish the migrate.
+    const open = useMemo(
+      () => (ref ? isOpen : baseOpen),
+      [baseOpen, isOpen, ref],
+    );
 
-  return (
-    <Dialog
-      {...{ open }}
-      PaperComponent={Panel}
-      PaperProps={{ sx: { overflow: 'visible' } }}
-    >
-      <PanelHeader>
-        <HeaderText text={titleText} />
-      </PanelHeader>
-      <Box sx={{ marginBottom: '1em' }}>
-        {typeof content === 'string' ? <BodyText text={content} /> : content}
-      </Box>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'flex-end',
-          width: '100%',
+    useImperativeHandle(
+      ref,
+      () => ({
+        setOpen: (value) => setIsOpen(value),
+      }),
+      [],
+    );
 
-          '& > :not(:first-child)': {
-            marginLeft: '.5em',
-          },
-        }}
+    return (
+      <Dialog
+        open={open}
+        PaperComponent={Panel}
+        PaperProps={{ sx: { overflow: 'visible' } }}
+        {...restDialogProps}
       >
-        <ContainedButton onClick={onCancel}>{actionCancelText}</ContainedButton>
-        <ContainedButton
+        <PanelHeader>
+          <HeaderText text={titleText} />
+        </PanelHeader>
+        <Box sx={{ marginBottom: '1em' }}>
+          {typeof content === 'string' ? <BodyText text={content} /> : content}
+        </Box>
+        <Box
           sx={{
-            backgroundColor: BLUE,
-            color: TEXT,
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            width: '100%',
 
-            '&:hover': { backgroundColor: `${BLUE}F0` },
-
-            ...proceedButtonSx,
+            '& > :not(:first-child)': {
+              marginLeft: '.5em',
+            },
           }}
-          onClick={onProceed}
         >
-          {actionProceedText}
-        </ContainedButton>
-      </Box>
-    </Dialog>
-  );
-};
+          <ContainedButton
+            onClick={(...args) => {
+              setIsOpen(false);
 
-ConfirmDialog.defaultProps = CONFIRM_DIALOG_DEFAULT_PROPS;
+              onCancelAppend?.call(null, ...args);
+            }}
+          >
+            {actionCancelText}
+          </ContainedButton>
+          <ContainedButton
+            sx={{
+              backgroundColor: BLUE,
+              color: TEXT,
 
-export type { ConfirmDialogProps };
+              '&:hover': { backgroundColor: `${BLUE}F0` },
+
+              ...proceedButtonSx,
+            }}
+            onClick={(...args) => {
+              setIsOpen(false);
+
+              onProceedAppend?.call(null, ...args);
+            }}
+          >
+            {actionProceedText}
+          </ContainedButton>
+        </Box>
+      </Dialog>
+    );
+  },
+);
+
+ConfirmDialog.displayName = 'ConfirmDialog';
 
 export default ConfirmDialog;

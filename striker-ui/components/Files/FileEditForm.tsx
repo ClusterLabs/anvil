@@ -327,8 +327,8 @@ const FileEditForm = (
             actionProceedText="Purge"
             content={`${selectedFilesCount} files will be removed from the system. You cannot undo this purge.`}
             dialogProps={{ open: isOpenPurgeConfirmDialog }}
-            onCancel={cancelPurge}
-            onProceed={purgeFiles}
+            onCancelAppend={cancelPurge}
+            onProceedAppend={purgeFiles}
             proceedButtonProps={{ sx: purgeButtonStyleOverride }}
             titleText={`Are you sure you want to purge ${selectedFilesCount} selected files? `}
           />

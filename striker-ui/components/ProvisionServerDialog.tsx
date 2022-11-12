@@ -1787,10 +1787,10 @@ const ProvisionServerDialog = ({
           actionProceedText="Provision"
           content={createConfirmDialogContent()}
           dialogProps={{ open: isOpenProvisionConfirmDialog }}
-          onCancel={() => {
+          onCancelAppend={() => {
             setIsOpenProvisionConfirmDialog(false);
           }}
-          onProceed={() => {
+          onProceedAppend={() => {
             const requestBody = JSON.stringify({
               serverName: inputServerNameValue,
               cpuCores: inputCPUCoresValue,
