@@ -210,10 +210,10 @@ const StrikerInitForm: FC = () => {
           </Grid>
         }
         dialogProps={{ open: isOpenConfirm }}
-        onCancel={() => {
+        onCancelAppend={() => {
           setIsOpenConfirm(false);
         }}
-        onProceed={() => {
+        onProceedAppend={() => {
           setSubmitMessage(undefined);
           setIsSubmittingForm(true);
           setIsOpenConfirm(false);
