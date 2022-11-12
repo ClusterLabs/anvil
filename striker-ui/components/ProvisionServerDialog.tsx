@@ -15,7 +15,7 @@ import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 import Autocomplete from './Autocomplete';
 import ConfirmDialog from './ConfirmDialog';
-import ContainedButton, { ContainedButtonProps } from './ContainedButton';
+import ContainedButton from './ContainedButton';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
 import IconButton, { IconButtonProps } from './IconButton';
 import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
