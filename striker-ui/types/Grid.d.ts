@@ -9,6 +9,7 @@ type GridOptionalProps = {
   ) => Partial<
     Pick<import('@mui/material').GridProps, 'xs' | 'sm' | 'md' | 'lg' | 'xl'>
   >;
+  wrapperBoxProps?: import('@mui/material').BoxProps;
 };
 
 type GridProps = import('@mui/material').GridProps &
