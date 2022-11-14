@@ -906,6 +906,11 @@ sub _set_defaults
 		privacy				=>	{
 			strong				=>	0,
 		},
+		ram_limits			=>	{
+			striker				=>	3221225472,	# 3 GiB
+			node				=>	1073741824,	# 1 GiB
+			dr				=>	2147483648,	# 2 GiB
+		},
 		# On actual RHEL systems, this will be used to ensure that given repos are enabled on given 
 		# machines types. Obviously, this requires that the host has been subscribed.
 		rhel				=>	{

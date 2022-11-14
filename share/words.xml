@@ -534,18 +534,25 @@ The definition data passed in was:
 		<key name="error_0377">[ Error ] - The '--type' must be 'host' or 'dr'. Was given: [#!variable!type!#].</key>
 		<key name="error_0378">[ Error ] - The UUID: [#!variable!uuid!#] is not a valid UUID.</key>
 		<key name="error_0379">[ Error ] - Neither '--host-ip-address' or '--target' were used to define who we are trying to connect to.</key>
-		<key name="error_0380">[ Error ] - The UUID: [#!variable!uuid!#] passed in by the switch: [#!variable!switch!#] appears to be invalid.</key>
-		<key name="error_0381">[ Error ] - The domain or IP: [#!variable!name!#] passed in by the switch: [#!variable!switch!#] appears to be invalid.</key>
-		<key name="error_0382">[ Error ] - The alert level: [#!variable!level!#] passed in by the switch: [#!variable!switch!#] appears to be invalid. Valid values are '1', '2', '3' or '4'. These represent;
-1 = "critical" alerts only
-2 = "warning" and critical alerts
-3 = "notice", warning and critical alerts
-4 = "info"; All alerts. This generates almost constant alerts!
-</key>
-		<key name="error_0383">[ Error ] - The TCP port: [#!variable!port!#] passed in by the switch: [#!variable!switch!#] appears to be invalid. TCP ports must be integers between 1 and 65535.</key>
+		<key name="error_0380">[ Error ] - The UUID: [#!variable!uuid!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid.</key>
+		<key name="error_0381">[ Error ] - The domain or IP: [#!variable!name!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid.</key>
+		<key name="error_0382">[ Error ] - The alert level: [#!variable!level!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid. Valid values are '1', '2', '3' or '4'. These represent;
+          * 1 = "critical" alerts only
+          * 2 = "warning" and critical alerts
+          * 3 = "notice", warning and critical alerts
+          * 4 = "info"; All alerts. This generates almost constant alerts!</key>
+		<key name="error_0383">[ Error ] - The TCP port: [#!variable!port!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid. TCP ports must be integers between 1 and 65535.</key>
 		<key name="error_0384">[ Error ] - The mail server security: [#!variable!security!#] appears to be invalid. Valid options are 'none', 'starttls' or 'tls-ssl'.</key>
-		<key name="error_0385">[ Error ] - The mail server authentication: [#!variable!auth!#] appears to be invalid. Valid options are 'none', 'plain-text', or 'encrypted'.</key>
+		<key name="error_0385">[ Error ] - The mail server authentication: [#!variable!auth!#] appears to be invalid. Valid options are:
+          * none      = Normal Password
+          * encrypted = Encrypted Password
+          * kerberos  = Kerberos GSSAPI
+          * ntlm      = NTLM
+          * tls       = TLS
+          * oauth2    = oauth2</key>
 		<key name="error_0386">[ Error ] - The email address: [#!variable!email!#] appears to be invalid.</key>
+		<key name="error_0387">[ Error ] - The switch: [--#!variable!switch!#] is required, but not provided.</key>
+		<key name="error_0388">[ Error ] - The mail server UUID: [#!variable!uuid!#] was not found.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2689,6 +2696,50 @@ Available options;
 #          configuration option. It will be removed in a future release. 
 #          Please consider disabling it now.</key>
 		<key name="message_0293">Migration Network</key>
+		<key name="message_0294">Are you sure you want to create the new mail server:
+* Address: ...... [#!variable!new_address!#]
+* TCP port: ..... [#!variable!new_port!#]
+* User name: .... [#!variable!new_username!#]
+* Password: ..... [#!variable!new_password!#]
+* Authentication: [#!variable!new_authentication!#]
+* Security: ..... [#!variable!new_security!#]
+* HELO domain: .. [#!variable!new_helo_domain!#]
+Proceed? [y/N]
+</key>
+		<key name="message_0295">Are you sure you want to change the mail server thusly:
+* Address: ...... [#!variable!old_address!#] -> [#!variable!new_address!#]
+* TCP port: ..... [#!variable!old_port!#] -> [#!variable!new_port!#]
+* User name: .... [#!variable!old_username!#] -> [#!variable!new_username!#]
+* Password: ..... [#!variable!old_password!#] -> [#!variable!new_password!#]
+* Authentication: [#!variable!old_authentication!#] -> [#!variable!new_authentication!#]
+* Security: ..... [#!variable!old_security!#] -> [#!variable!new_security!#]
+* HELO domain: .. [#!variable!old_helo_domain!#] -> [#!variable!new_helo_domain!#]
+Proceed? [y/N]
+</key>
+		<key name="message_0296">Are you sure you want to delete the mail server:
+* Address: ...... [#!variable!old_address!#]
+* TCP port: ..... [#!variable!old_port!#]
+* User name: .... [#!variable!old_username!#]
+* Password: ..... [#!variable!old_password!#]
+* Authentication: [#!variable!old_authentication!#]
+* Security: ..... [#!variable!old_security!#]
+* HELO domain: .. [#!variable!old_helo_domain!#]
+Proceed? [y/N]
+</key>
+		<key name="message_0297">The new mail server was created with the UUID: [#!variable!uuid!#].</key>
+		<key name="message_0298">The mail server has been updated.</key>
+		<key name="message_0299">The mail server has been deleted.</key>
+
+		<!-- Translate names (protocols, etc) -->
+		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
+		<key name="name_0002">Enctrypted Password</key>	<!-- encrypted in mail-server -->
+		<key name="name_0003">Kerberos GSSAPI</key>	<!-- kerberos in mail-server -->
+		<key name="name_0004">NTLM</key>		<!-- ntlm in mail-server -->
+		<key name="name_0005">TLS Certificate</key>	<!-- tls in mail-server -->
+		<key name="name_0006">OAuth2</key>		<!-- oauth2 in mail-server -->
+		<key name="name_0007">None</key>		<!-- none in mail-server -->
+		<key name="name_0008">STARTTLS</key>		<!-- starttls in mail-server -->
+		<key name="name_0009">TLS/SSL</key>		<!-- tls-ssl in mail-server -->
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

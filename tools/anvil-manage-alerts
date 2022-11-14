@@ -42,6 +42,8 @@ $anvil->Get->switches({list => [
 	"recipient-email",
 	"recipient-language",
 	"recipient-level",
+	"y",
+	"yes",
 ]});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
@@ -62,14 +64,32 @@ if ($anvil->data->{switches}{"mail-servers"})
 }
 elsif ($anvil->data->{switches}{"notifications"})
 {
+	$anvil->data->{sys}{show}{notifications} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::show::notifications' => $anvil->data->{sys}{show}{notifications}, 
+	}});
 	handle_notifications($anvil);
 }
 elsif ($anvil->data->{switches}{"recipients"})
 {
+	$anvil->data->{sys}{show}{recipients} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::show::recipients' => $anvil->data->{sys}{show}{recipients}, 
+	}});
 	handle_recipients($anvil);
 }
 else
 {
+	$anvil->data->{sys}{show}{mail_servers}  = 1;
+	$anvil->data->{sys}{show}{recipients}    = 1;
+	$anvil->data->{sys}{show}{notifications} = 1;
+	$anvil->data->{sys}{show}{systems}       = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::show::mail_servers'  => $anvil->data->{sys}{show}{mail_servers}, 
+		'sys::show::recipients'    => $anvil->data->{sys}{show}{recipients}, 
+		'sys::show::notifications' => $anvil->data->{sys}{show}{notifications}, 
+		'sys::show::systems'       => $anvil->data->{sys}{show}{systems}, 
+	}});
 	show_existing($anvil);
 }
 
@@ -93,7 +113,155 @@ sub handle_mail_servers
 {
 	my ($anvil) = @_;
 	
+	### Are we adding, editing or deleting?
+	# If we're adding or editing, all fields are required.
+	my $confirm_needed = 0;
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{edit}) or ($anvil->data->{switches}{'delete'}))
+	{
+		# Did the user confirm yet?
+		if ((not $anvil->data->{switches}{'y'}) and (not $anvil->data->{switches}{'yes'}))
+		{
+			$confirm_needed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { confirm_needed => $confirm_needed }});
+		}
+	}
 	
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{edit}))
+	{
+		# Do we have what we need?
+		my $problem = 0;
+		foreach my $switch ("mail-server-address", "mail-server-port", "mail-server-username", "mail-server-password", "mail-server-security", "mail-server-authentication", "mail-server-helo-domain")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				switch              => $switch,
+				"switches::$switch" => $anvil->data->{switches}{$switch}, 
+			}});
+			if (not $anvil->data->{switches}{$switch})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0387", variables => { switch => $switch }});
+				$problem = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			}
+		}
+		if ($problem)
+		{
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# If we're editing or deleting, make sure we have a valid UUID.
+	my $mail_server_uuid = $anvil->data->{switches}{"mail-server-uuid"};
+	if (($anvil->data->{switches}{edit}) or ($anvil->data->{switches}{'delete'}))
+	{
+		if (not $mail_server_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0387", variables => { switch => "mail-server-uuid" }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if (not exists $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0388", variables => { uuid => $mail_server_uuid }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# Confirmed?
+	if ($confirm_needed)
+	{
+		my $key = "";
+		if ($anvil->data->{switches}{add})
+		{
+			$key = "message_0294";
+		}
+		elsif ($anvil->data->{switches}{edit})
+		{
+			$key = "message_0295";
+		}
+		elsif ($anvil->data->{switches}{'delete'})
+		{
+			$key = "message_0296";
+		}
+		print $anvil->Words->string({key => $key, variables => { 
+			new_address        => $anvil->data->{switches}{"mail-server-address"},
+			new_port           => $anvil->data->{switches}{"mail-server-port"},
+			new_username       => $anvil->data->{switches}{"mail-server-username"},
+			new_password       => $anvil->data->{switches}{"mail-server-password"},
+			new_authentication => $anvil->Words->string({key => $anvil->data->{sys}{say_new_auth}}),
+			new_security       => $anvil->Words->string({key => $anvil->data->{sys}{say_new_security}}),
+			new_helo_domain    => $anvil->data->{switches}{"mail-server-helo-domain"},
+			old_address        => $mail_server_uuid ? $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_address}     : "",
+			old_port           => $mail_server_uuid ? $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port}        : "",
+			old_username       => $mail_server_uuid ? $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username}    : "",
+			old_password       => $mail_server_uuid ? $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}    : "",
+			old_authentication => $mail_server_uuid ? $anvil->Words->string({key => $anvil->data->{sys}{say_old_auth}})                     : "",
+			old_security       => $mail_server_uuid ? $anvil->Words->string({key => $anvil->data->{sys}{say_old_security}})                 : "",
+			old_helo_domain    => $mail_server_uuid ? $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain} : "",
+		}})."\n";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if (lc($answer) !~ /^y/)
+		{
+			print $anvil->Words->string({key => "message_0022"})."\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	# Still alive?
+	if ($anvil->data->{switches}{add})
+	{
+		# Create the new entry.
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_mail_servers({
+			debug                      => 2,
+			mail_server_address        => $anvil->data->{switches}{"mail-server-address"}, 
+			mail_server_port           => $anvil->data->{switches}{"mail-server-port"}, 
+			mail_server_username       => $anvil->data->{switches}{"mail-server-username"}, 
+			mail_server_password       => $anvil->data->{switches}{"mail-server-password"}, 
+			mail_server_authentication => $anvil->data->{switches}{"mail-server-authentication"}, 
+			mail_server_security       => $anvil->data->{switches}{"mail-server-security"}, 
+			mail_server_helo_domain    => $anvil->data->{switches}{"mail-server-helo-domain"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0297", variables => { uuid => $mail_server_uuid }})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{edit})
+	{
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_mail_servers({
+			debug                      => 2,
+			mail_server_uuid           => $anvil->data->{switches}{"mail-server-uuid"}, 
+			mail_server_address        => $anvil->data->{switches}{"mail-server-address"}, 
+			mail_server_port           => $anvil->data->{switches}{"mail-server-port"}, 
+			mail_server_username       => $anvil->data->{switches}{"mail-server-username"}, 
+			mail_server_password       => $anvil->data->{switches}{"mail-server-password"}, 
+			mail_server_authentication => $anvil->data->{switches}{"mail-server-authentication"}, 
+			mail_server_security       => $anvil->data->{switches}{"mail-server-security"}, 
+			mail_server_helo_domain    => $anvil->data->{switches}{"mail-server-helo-domain"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0298"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{'delete'})
+	{
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_mail_servers({
+			debug            => 2,
+			'delete'         => 1, 
+			mail_server_uuid => $anvil->data->{switches}{"mail-server-uuid"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0299"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	else
+	{
+		$anvil->data->{sys}{show}{mail_servers} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'sys::show::mail_servers' => $anvil->data->{sys}{show}{mail_servers}, 
+		}});
+		show_existing($anvil);
+	}
 	
 	return(0);
 }
@@ -160,6 +328,9 @@ sub show_existing
 			's7:mail_server_authentication' => $mail_server_authentication, 
 			's8:mail_server_helo_domain'    => $mail_server_helo_domain, 
 		}});
+		
+		# mail_server_helo_domain is 'DELETED' if, well, deleted.
+		next if $mail_server_helo_domain eq "DELETED";
 		
 		if (length($mail_server_address) > $anvil->data->{longest}{mail_server_address})
 		{
@@ -335,124 +506,138 @@ sub show_existing
 	}
 	
 	# Now show the data.
-# 	my $break_line  = "+-".sprintf("%0${longest_anvil_name}d", 0);
-# 	my $header_line = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
-# 	my $blank_lead  = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
-	print "-=] Mail Servers;\n";
-	print "Address, Port, Login User, Password, Security, Authentication, HELO Domaon, Mail Server UUID\n";
-	my $mail_servers = 0;
-	foreach my $mail_server_address (sort {$a cmp $b} keys %{$anvil->data->{mail_servers}{address_to_uuid}})
+	if ($anvil->data->{sys}{show}{mail_servers})
 	{
-		my $mail_server_uuid           = $anvil->data->{mail_servers}{address_to_uuid}{$mail_server_address};
-		my $mail_server_port           = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port};
-		my $mail_server_username       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username};
-		my $mail_server_password       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password};
-		my $mail_server_security       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security};
-		my $mail_server_authentication = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication};
-		my $mail_server_helo_domain    = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:mail_server_address'        => $mail_server_address,
-			's2:mail_server_uuid'           => $mail_server_uuid, 
-			's3:mail_server_port'           => $mail_server_port, 
-			's4:mail_server_username'       => $mail_server_username, 
-			's5:mail_server_password'       => $anvil->Log->is_secure($mail_server_password), 
-			's6:mail_server_security'       => $mail_server_security, 
-			's7:mail_server_authentication' => $mail_server_authentication, 
-			's8:mail_server_helo_domain'    => $mail_server_helo_domain, 
-		}});
-		
-		print $mail_server_address.", ".$mail_server_port.", ".$mail_server_username.", ".$mail_server_password.", ".$mail_server_security.", ".$mail_server_authentication.", ".$mail_server_helo_domain.", ".$mail_server_uuid."\n";
-		$mail_servers++;
-	}
-	if (not $mail_servers)
-	{
-		print "No mail servers configured yet!\n";
-	}
-	print "\n";
-	print "-=] Recipients;\n";
-	print "Name, Email, Alert Level, Language, Recipient UUID\n";
-	my $recipients = 0;
-	foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{recipients}{name_to_uuid}})
-	{
-		my $recipient_uuid     = $anvil->data->{recipients}{name_to_uuid}{$recipient_name};
-		my $recipient_email    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email};
-		my $recipient_language = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language};
-		my $say_language       = $anvil->data->{sys}{languages}{$recipient_language};
-		my $recipient_level    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:recipient_name"     => $recipient_name, 
-			"s2:recipient_uuid"     => $recipient_uuid, 
-			"s3:recipient_email"    => $recipient_email, 
-			"s4:recipient_language" => $recipient_language, 
-			"s5:say_language"       => $say_language, 
-			"s6:recipient_level"    => $recipient_level, 
-		}});
-		
-		print $recipient_name.", ".$recipient_email.", ".$anvil->data->{say_alert}{$recipient_level}.", ".$say_language.", ".$recipient_uuid."\n";
-		$recipients++;
-	}
-	if (not $recipients)
-	{
-		print "No alert recipients added yet!\n";
+	# 	my $break_line  = "+-".sprintf("%0${longest_anvil_name}d", 0);
+	# 	my $header_line = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
+	# 	my $blank_lead  = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
+		print "-=] Mail Servers;\n";
+		print "Address, Port, Login User, Password, Security, Authentication, HELO Domaon, Mail Server UUID\n";
+		my $mail_servers = 0;
+		foreach my $mail_server_address (sort {$a cmp $b} keys %{$anvil->data->{mail_servers}{address_to_uuid}})
+		{
+			my $mail_server_uuid           = $anvil->data->{mail_servers}{address_to_uuid}{$mail_server_address};
+			my $mail_server_port           = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port};
+			my $mail_server_username       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username};
+			my $mail_server_password       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password};
+			my $mail_server_security       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security};
+			my $mail_server_authentication = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication};
+			my $mail_server_helo_domain    = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:mail_server_address'        => $mail_server_address,
+				's2:mail_server_uuid'           => $mail_server_uuid, 
+				's3:mail_server_port'           => $mail_server_port, 
+				's4:mail_server_username'       => $mail_server_username, 
+				's5:mail_server_password'       => $anvil->Log->is_secure($mail_server_password), 
+				's6:mail_server_security'       => $mail_server_security, 
+				's7:mail_server_authentication' => $mail_server_authentication, 
+				's8:mail_server_helo_domain'    => $mail_server_helo_domain, 
+			}});
+			next if $mail_server_helo_domain eq "DELETED";
+			
+			print $mail_server_address.", ".$mail_server_port.", ".$mail_server_username.", ".$mail_server_password.", ".$mail_server_security.", ".$mail_server_authentication.", ".$mail_server_helo_domain.", ".$mail_server_uuid."\n";
+			$mail_servers++;
+		}
+		if (not $mail_servers)
+		{
+			print "# No mail servers configured yet!\n";
+		}
+		print "\n";
 	}
 	
-	print "\n";
-	print "-=] Notification Over-rides;\n";
-	print "Recipient, Host, Anvil!, Alert Level, Notification UUID\n";
-	my $notifications = 0;
-	foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{notifications}{name_to_uuid}})
+	if ($anvil->data->{sys}{show}{recipients})
 	{
-		my $notification_uuid = $anvil->data->{notifications}{name_to_uuid}{$recipient_name};
-		my $say_recipient     = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{recipient_name};
-		my $say_anvil_name    = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{anvil_name};
-		my $host_uuid         = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
-		my $short_host_name   = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
-		my $alert_level       = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:notification_uuid' => $notification_uuid,
-			's2:say_recipient'     => $say_recipient, 
-			's3:say_anvil_name'    => $say_anvil_name, 
-			's4:alert_level'       => $alert_level, 
-		}});
-		
-		print $say_recipient.", ".$short_host_name.", ".$say_anvil_name.", ".$anvil->data->{say_alert}{$alert_level}.", ".$notification_uuid."\n";
-		$notifications++;
+		print "-=] Recipients;\n";
+		print "Name, Email, Alert Level, Language, Recipient UUID\n";
+		my $recipients = 0;
+		foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{recipients}{name_to_uuid}})
+		{
+			my $recipient_uuid     = $anvil->data->{recipients}{name_to_uuid}{$recipient_name};
+			my $recipient_email    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email};
+			my $recipient_language = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language};
+			my $say_language       = $anvil->data->{sys}{languages}{$recipient_language};
+			my $recipient_level    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:recipient_name"     => $recipient_name, 
+				"s2:recipient_uuid"     => $recipient_uuid, 
+				"s3:recipient_email"    => $recipient_email, 
+				"s4:recipient_language" => $recipient_language, 
+				"s5:say_language"       => $say_language, 
+				"s6:recipient_level"    => $recipient_level, 
+			}});
+			
+			print $recipient_name.", ".$recipient_email.", ".$anvil->data->{say_alert}{$recipient_level}.", ".$say_language.", ".$recipient_uuid."\n";
+			$recipients++;
+		}
+		if (not $recipients)
+		{
+			print "# No alert recipients added yet!\n";
+		}
+		print "\n";
 	}
-	if (not $notifications)
+	
+	if ($anvil->data->{sys}{show}{notifications})
 	{
-		print "No notification over-rides found.\n";
+		print "-=] Notification Over-rides;\n";
+		print "Recipient, Host, Anvil!, Alert Level, Notification UUID\n";
+		my $notifications = 0;
+		foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{notifications}{name_to_uuid}})
+		{
+			my $notification_uuid = $anvil->data->{notifications}{name_to_uuid}{$recipient_name};
+			my $say_recipient     = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{recipient_name};
+			my $say_anvil_name    = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{anvil_name};
+			my $host_uuid         = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
+			my $short_host_name   = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+			my $alert_level       = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:notification_uuid' => $notification_uuid,
+				's2:say_recipient'     => $say_recipient, 
+				's3:say_anvil_name'    => $say_anvil_name, 
+				's4:alert_level'       => $alert_level, 
+			}});
+			
+			print $say_recipient.", ".$short_host_name.", ".$say_anvil_name.", ".$anvil->data->{say_alert}{$alert_level}.", ".$notification_uuid."\n";
+			$notifications++;
+		}
+		if (not $notifications)
+		{
+			print "# No notification over-rides found.\n";
+		}
+		print "\n";
 	}
 	
 	# Lastly, show machines.
-	print "\n";
-	print "-=] Striker Dashboards;\n";
-	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	if ($anvil->data->{sys}{show}{systems})
 	{
-		my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
-		my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-		next if $host_type ne "striker";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:host_name' => $host_name,
-			's2:host_uuid' => $host_uuid, 
-		}});
-		
-		print "- ".$host_name.", UUID: [".$host_uuid."]\n";
-	}
-	print "\n";
-	print "-=] Anvil! Nodes;\n";
-	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
-	{
-		my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
-		my $anvil_description     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
-		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
-		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
-		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
-		my $say_dr1_name          = $anvil_dr1_host_uuid ? $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{short_host_name} : "--";
-		my $say_dr1_uuid          = $anvil_dr1_host_uuid ? $anvil_dr1_host_uuid                                                    : "--";
-		print "- Name: [".$anvil_name."], UUID: [".$anvil_uuid."], Description: [".$anvil_uuid."]\n";
-		print "  - Node 1: .. [".$anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name}."], UUID: [".$anvil_node1_host_uuid."]\n";
-		print "  - Node 2: .. [".$anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{short_host_name}."], UUID: [".$anvil_node2_host_uuid."]\n";
-		print "  - DR Host 1: [".$say_dr1_name."], UUID: [".$say_dr1_uuid."]\n";
+		print "-=] Striker Dashboards;\n";
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+		{
+			my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			next if $host_type ne "striker";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_name' => $host_name,
+				's2:host_uuid' => $host_uuid, 
+			}});
+			
+			print "- ".$host_name.", UUID: [".$host_uuid."]\n";
+		}
+		print "\n";
+		print "-=] Anvil! Nodes;\n";
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			my $anvil_description     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+			my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
+			my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+			my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
+			my $say_dr1_name          = $anvil_dr1_host_uuid ? $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{short_host_name} : "--";
+			my $say_dr1_uuid          = $anvil_dr1_host_uuid ? $anvil_dr1_host_uuid                                                    : "--";
+			print "- Name: [".$anvil_name."], UUID: [".$anvil_uuid."], Description: [".$anvil_uuid."]\n";
+			print "  - Node 1: .. [".$anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name}."], UUID: [".$anvil_node1_host_uuid."]\n";
+			print "  - Node 2: .. [".$anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{short_host_name}."], UUID: [".$anvil_node2_host_uuid."]\n";
+			print "  - DR Host 1: [".$say_dr1_name."], UUID: [".$say_dr1_uuid."]\n";
+		}
 	}
 	
 	return(0);
@@ -474,6 +659,14 @@ sub check_switches
 	### Now sanity check
 	my $problem = 0;
 	
+	# These will be used to limit the display of things, if/when appropriate
+	$anvil->data->{sys}{show}{mail_servers}  = 0;
+	$anvil->data->{sys}{show}{recipients}    = 0;
+	$anvil->data->{sys}{show}{notifications} = 0;
+	$anvil->data->{sys}{show}{systems}       = 0;
+	$anvil->data->{sys}{say_old_security}    = "";
+	$anvil->data->{sys}{say_old_auth}        = "";
+	
 	# Validate UUIDs.
 	foreach my $switch ("mail-server-uuid", "notification-uuid", "recipient-uuid", "notification-recipient-uuid", "notification-host-uuid")
 	{
@@ -481,13 +674,97 @@ sub check_switches
 		if (($anvil->data->{switches}{$switch}) && (not $anvil->Validate->uuid({uuid => $anvil->data->{switches}{$switch}})))
 		{
 			# Invalid UUID.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0380", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0380", variables => { 
 				uuid   => $anvil->data->{switches}{$switch},
 				switch => "--".$switch,
 			}});
 			
 			$problem = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		}
+		
+		# If it's a Security or Authentication UUID, translate the strings.
+		if ((not $problem) && ($switch eq "mail-server-uuid") && ($anvil->data->{switches}{$switch}))
+		{
+			my $mail_server_uuid           = $anvil->data->{switches}{$switch};
+			my $mail_server_security       = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security};
+			my $mail_server_authentication = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				mail_server_uuid           => $mail_server_uuid, 
+				mail_server_security       => $mail_server_security, 
+				mail_server_authentication => $mail_server_authentication,
+			}});
+
+			if ($mail_server_security eq "none")
+			{
+				$anvil->data->{sys}{say_old_security} = "name_0007";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_security" => $anvil->data->{sys}{say_old_security},
+				}});
+			}
+			elsif ($mail_server_security eq "starttls")
+			{
+				$anvil->data->{sys}{say_old_security} = "name_0008";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_security" => $anvil->data->{sys}{say_old_security},
+				}});
+			}
+			elsif ($mail_server_security eq "ssl_tls")
+			{
+				$anvil->data->{sys}{say_old_security} = "name_0009";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_security" => $anvil->data->{sys}{say_old_security},
+				}});
+			}
+			
+			if ($mail_server_authentication eq "normal_password")
+			{
+				# normal_password
+				$anvil->data->{sys}{say_old_auth} = "name_0001";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_auth" => $anvil->data->{sys}{say_old_auth}, 
+				}});
+			}
+			elsif ($mail_server_authentication eq "encrypted_password")
+			{
+				# encrypted_password 
+				$anvil->data->{sys}{say_old_auth} = "name_0002";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_auth" => $anvil->data->{sys}{say_old_auth}, 
+				}});
+			}
+			elsif ($mail_server_authentication eq "kerberos_gssapi")
+			{
+				# kerberos_gssapi
+				$anvil->data->{sys}{say_old_auth} = "name_0003";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_auth" => $anvil->data->{sys}{say_old_auth}, 
+				}});
+			}
+			elsif ($mail_server_authentication eq "ntlm")
+			{
+				# ntlm, no need to translate
+				$anvil->data->{sys}{say_old_auth} = "name_0004";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_auth" => $anvil->data->{sys}{say_old_auth}, 
+				}});
+			}
+			elsif ($mail_server_authentication eq "tls_certificate")
+			{
+				# tls_certificate
+				$anvil->data->{sys}{say_old_auth} = "name_0005";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_auth" => $anvil->data->{sys}{say_old_auth}, 
+				}});
+			}
+			elsif ($mail_server_authentication eq "oauth2")
+			{
+				# oauth2, no need to translate
+				$anvil->data->{sys}{say_old_auth} = "name_0006";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::say_old_auth" => $anvil->data->{sys}{say_old_auth}, 
+				}});
+			}
 		}
 	}
 	
@@ -500,7 +777,7 @@ sub check_switches
 			# Make sure it's a domain or IP address.
 			if ((not $anvil->Validate->domain_name({name => $anvil->data->{switches}{$switch}})) && (not $anvil->Validate->ip({ip => $anvil->data->{switches}{$switch}})))
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0381", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0381", variables => { 
 					name   => $anvil->data->{switches}{$switch},
 					switch => "--".$switch,
 				}});
@@ -547,7 +824,7 @@ sub check_switches
 			    ($anvil->data->{switches}{$switch} < 1)     or 
 			    ($anvil->data->{switches}{$switch} > 4))
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0382", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0382", variables => { 
 					level  => $anvil->data->{switches}{$switch},
 					switch => "--".$switch,
 				}});
@@ -566,7 +843,7 @@ sub check_switches
 		    ($anvil->data->{switches}{"mail-server-port"} < 1)     or 
 		    ($anvil->data->{switches}{"mail-server-port"} > 65535))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0383", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0383", variables => { 
 				port   => $anvil->data->{switches}{"mail-server-port"},
 				switch => "--mail-server-port",
 			}});
@@ -577,14 +854,37 @@ sub check_switches
 	}
 	
 	# Make sure mail server security is correct.
+	$anvil->data->{sys}{say_new_security} = "";
 	if ($anvil->data->{switches}{"mail-server-security"})
 	{
 		$anvil->data->{switches}{"mail-server-security"} = lc($anvil->data->{switches}{"mail-server-security"});
-		if (($anvil->data->{switches}{"mail-server-security"} ne "none")     &&  
-		    ($anvil->data->{switches}{"mail-server-security"} ne "starttls") &&  
-		    ($anvil->data->{switches}{"mail-server-security"} ne "tls-ssl"))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::mail-server-security" => $anvil->data->{switches}{"mail-server-security"},
+		}});
+		if ($anvil->data->{switches}{"mail-server-security"} eq "none")
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0384", variables => { 
+			$anvil->data->{sys}{say_new_security} = "name_0007";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_security" => $anvil->data->{sys}{say_new_security},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-security"} eq "starttls")
+		{
+			$anvil->data->{sys}{say_new_security} = "name_0008";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_security" => $anvil->data->{sys}{say_new_security},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-security"} eq "tls-ssl")
+		{
+			$anvil->data->{sys}{say_new_security} = "name_0009";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_security" => $anvil->data->{sys}{say_new_security},
+			}});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0384", variables => { 
 				security => $anvil->data->{switches}{"mail-server-security"},
 			}});
 			
@@ -593,26 +893,84 @@ sub check_switches
 		}
 	}
 	
+	$anvil->data->{sys}{say_new_auth} = "";
 	if ($anvil->data->{switches}{"mail-server-authentication"})
 	{
 		$anvil->data->{switches}{"mail-server-authentication"} = lc($anvil->data->{switches}{"mail-server-authentication"});
-		if (($anvil->data->{switches}{"mail-server-authentication"} ne "none")       &&  
-		    ($anvil->data->{switches}{"mail-server-authentication"} ne "plain-text") &&  
-		    ($anvil->data->{switches}{"mail-server-authentication"} ne "encrypted"))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
+		}});
+		if ($anvil->data->{switches}{"mail-server-authentication"} eq "none")
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0385", variables => { 
-				auth => $anvil->data->{switches}{"mail-server-authentication"},
+			# normal_password
+			$anvil->data->{sys}{say_new_auth}                      = "name_0001";
+			$anvil->data->{switches}{"mail-server-authentication"} = "normal_password";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_auth"                    => $anvil->data->{sys}{say_new_auth}, 
+				"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
 			}});
-			
+		}
+		elsif ($anvil->data->{switches}{"mail-server-authentication"} eq "encrypted")
+		{
+			# encrypted_password 
+			$anvil->data->{sys}{say_new_auth}                      = "name_0002";
+			$anvil->data->{switches}{"mail-server-authentication"} = "encrypted_password";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_auth"                    => $anvil->data->{sys}{say_new_auth}, 
+				"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-authentication"} eq "kerberos")
+		{
+			# kerberos_gssapi
+			$anvil->data->{sys}{say_new_auth}                      = "name_0003";
+			$anvil->data->{switches}{"mail-server-authentication"} = "kerberos_gssapi";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_auth"                    => $anvil->data->{sys}{say_new_auth}, 
+				"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-authentication"} eq "ntlm")
+		{
+			# ntlm, no need to translate
+			$anvil->data->{sys}{say_new_auth} = "name_0004";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_auth" => $anvil->data->{sys}{say_new_auth}, 
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-authentication"} eq "tls")
+		{
+			# tls_certificate
+			$anvil->data->{sys}{say_new_auth}                      = "name_0005";
+			$anvil->data->{switches}{"mail-server-authentication"} = "tls_certificate";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_auth"                    => $anvil->data->{sys}{say_new_auth}, 
+				"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-authentication"} eq "oauth2")
+		{
+			# oauth2, no need to translate
+			$anvil->data->{sys}{say_new_auth} = "name_0006";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::say_new_auth" => $anvil->data->{sys}{say_new_auth}, 
+			}});
+		}
+		else
+		{
+			# Not valid
 			$problem = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0385", variables => { 
+				auth => $anvil->data->{switches}{"mail-server-authentication"},
+			}});
 		}
 	}
 	if ($anvil->data->{switches}{"recipient-email"})
 	{
 		if (not $anvil->Validate->email({email => $anvil->data->{switches}{"recipient-email"}}))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0386", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0386", variables => { 
 				email => $anvil->data->{switches}{"recipient-email"},
 			}});
 			
