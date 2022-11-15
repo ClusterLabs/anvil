@@ -51,10 +51,6 @@ import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import sumstring from '../lib/sumstring';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
-import {
-  InputTestBatches,
-  TestInputFunctionOptions,
-} from '../types/TestInputFunction';
 import { BodyText, MonoText, SmallText } from './Text';
 
 type NetworkInput = {

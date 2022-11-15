@@ -23,10 +23,6 @@ import OutlinedInputWithLabel, {
 import pad from '../lib/pad';
 import SuggestButton from './SuggestButton';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
-import {
-  InputTestBatches,
-  TestInputFunctionOptions,
-} from '../types/TestInputFunction';
 import { BodyText, InlineMonoText } from './Text';
 
 type GeneralInitFormValues = {

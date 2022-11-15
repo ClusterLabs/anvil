@@ -1,5 +1,3 @@
-import { MinimalInputTestArgs } from '../../types/TestInputFunction';
-
 const testLength: (
   args: Pick<MinimalInputTestArgs, 'value'> &
     Partial<Pick<MinimalInputTestArgs, 'max' | 'min'>>,

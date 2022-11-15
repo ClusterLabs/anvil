@@ -32,10 +32,6 @@ import {
   testNotBlank,
   testRange,
 } from '../lib/test_input';
-import {
-  InputTestBatches,
-  TestInputFunction,
-} from '../types/TestInputFunction';
 import { BodyText, HeaderText, InlineMonoText } from './Text';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;

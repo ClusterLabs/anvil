@@ -1,12 +1,6 @@
-export type InputTestValue =
-  | bigint
-  | boolean
-  | number
-  | null
-  | string
-  | undefined;
+type InputTestValue = bigint | boolean | number | null | string | undefined;
 
-export type InputTestArgs = {
+type InputTestArgs = {
   compare?: InputTestValue[];
   displayMax?: string;
   displayMin?: string;
@@ -18,7 +12,7 @@ export type InputTestArgs = {
   value?: InputTestValue;
 };
 
-export type MinimalInputTestArgs = Required<
+type MinimalInputTestArgs = Required<
   Omit<
     InputTestArgs,
     | 'displayMax'
@@ -29,31 +23,31 @@ export type MinimalInputTestArgs = Required<
   >
 >;
 
-export type CallbackAppendArgs = {
+type CallbackAppendArgs = {
   append: {
     [arg: string]: InputTestValue;
   };
 };
 
-export type InputTestFailureCallback = (
+type InputTestFailureCallback = (
   args: InputTestArgs & CallbackAppendArgs,
 ) => void;
 
-export type InputTestSuccessCallback = (args: CallbackAppendArgs) => void;
+type InputTestSuccessCallback = (args: CallbackAppendArgs) => void;
 
-export type InputTest = {
+type InputTest = {
   onFailure?: InputTestFailureCallback;
   onSuccess?: InputTestSuccessCallback;
   test: (args: MinimalInputTestArgs & CallbackAppendArgs) => boolean;
 };
 
-export type InputTestInputs = {
+type InputTestInputs = {
   [id: string]: Partial<InputTestArgs>;
 };
 
-export type InputTestBatchFinishCallback = () => void;
+type InputTestBatchFinishCallback = () => void;
 
-export type InputTestBatches = {
+type InputTestBatches = {
   [id: string]: {
     defaults?: InputTestArgs & {
       onSuccess?: InputTestSuccessCallback;
@@ -64,7 +58,7 @@ export type InputTestBatches = {
   };
 };
 
-export type TestInputFunctionOptions = {
+type TestInputFunctionOptions = {
   excludeTestIds?: string[];
   excludeTestIdsRe?: RegExp;
   inputs?: InputTestInputs;
@@ -74,4 +68,4 @@ export type TestInputFunctionOptions = {
   tests?: InputTestBatches;
 };
 
-export type TestInputFunction = (options?: TestInputFunctionOptions) => boolean;
+type TestInputFunction = (options?: TestInputFunctionOptions) => boolean;
