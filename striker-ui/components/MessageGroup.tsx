@@ -10,12 +10,13 @@ import {
 import MessageBox, { Message, MessageBoxProps } from './MessageBox';
 
 type Messages = {
-  [messageKey: string]: Message | undefined;
+  [messageKey: string]: Message;
 };
 
 type MessageGroupOptionalProps = {
   count?: number;
   defaultMessageType?: MessageBoxProps['type'];
+  onSet?: (length: number) => void;
 };
 
 type MessageGroupProps = MessageGroupOptionalProps;
@@ -26,9 +27,13 @@ type MessageGroupForwardedRefContent = {
   setMessageRe?: (re: RegExp, message?: Message) => void;
 };
 
-const MESSAGE_GROUP_DEFAULT_PROPS: Required<MessageGroupOptionalProps> = {
+const MESSAGE_GROUP_DEFAULT_PROPS: Required<
+  Omit<MessageGroupOptionalProps, 'onSet'>
+> &
+  Pick<MessageGroupOptionalProps, 'onSet'> = {
   count: 0,
   defaultMessageType: 'info',
+  onSet: undefined,
 };
 
 const MessageGroup = forwardRef<
@@ -39,6 +44,7 @@ const MessageGroup = forwardRef<
     {
       count = MESSAGE_GROUP_DEFAULT_PROPS.count,
       defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType,
+      onSet,
     },
     ref,
   ) => {
@@ -48,28 +54,56 @@ const MessageGroup = forwardRef<
       (key: string) => messages[key] !== undefined,
       [messages],
     );
-    const setMessage = useCallback((key: string, message?: Message) => {
-      setMessages((previous) => {
-        const result = { ...previous };
+    const setMessage = useCallback(
+      (key: string, message?: Message) => {
+        let length = 0;
 
-        result[key] = message;
+        setMessages(({ [key]: unused, ...rest }) => {
+          const result: Messages = rest;
 
-        return result;
-      });
-    }, []);
-    const setMessageRe = useCallback((re: RegExp, message?: Message) => {
-      setMessages((previous) => {
-        const result = { ...previous };
-
-        Object.keys(previous).forEach((key: string) => {
-          if (re.test(key)) {
+          if (message) {
             result[key] = message;
           }
+
+          length = Object.keys(result).length;
+
+          return result;
         });
 
-        return result;
-      });
-    }, []);
+        onSet?.call(null, length);
+      },
+      [onSet],
+    );
+    const setMessageRe = useCallback(
+      (re: RegExp, message?: Message) => {
+        let length = 0;
+
+        const assignMessage = message
+          ? (container: Messages, key: string) => {
+              container[key] = message;
+              length += 1;
+            }
+          : undefined;
+
+        setMessages((previous) => {
+          const result: Messages = {};
+
+          Object.keys(previous).forEach((key: string) => {
+            if (re.test(key)) {
+              assignMessage?.call(null, result, key);
+            } else {
+              result[key] = previous[key];
+              length += 1;
+            }
+          });
+
+          return result;
+        });
+
+        onSet?.call(null, length);
+      },
+      [onSet],
+    );
 
     const messageElements = useMemo(() => {
       const pairs = Object.entries(messages);
@@ -78,16 +112,14 @@ const MessageGroup = forwardRef<
       const result: ReactNode[] = [];
 
       pairs.every(([messageKey, message]) => {
-        if (message) {
-          const { children: messageChildren, type = defaultMessageType } =
-            message;
+        const { children: messageChildren, type = defaultMessageType } =
+          message;
 
-          result.push(
-            <MessageBox key={`message-${messageKey}`} type={type}>
-              {messageChildren}
-            </MessageBox>,
-          );
-        }
+        result.push(
+          <MessageBox key={`message-${messageKey}`} type={type}>
+            {messageChildren}
+          </MessageBox>,
+        );
 
         return result.length < limit;
       });
