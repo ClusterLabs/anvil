@@ -1,5 +1,3 @@
-import { MinimalInputTestArgs } from '../../types/TestInputFunction';
-
 const testRange: (args: MinimalInputTestArgs) => boolean = ({
   max,
   min,

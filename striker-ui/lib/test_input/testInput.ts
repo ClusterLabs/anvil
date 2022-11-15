@@ -1,13 +1,3 @@
-import {
-  InputTest,
-  InputTestInputs,
-  CallbackAppendArgs,
-  TestInputFunction,
-  InputTestBatchFinishCallback,
-  InputTestFailureCallback,
-  InputTestSuccessCallback,
-} from '../../types/TestInputFunction';
-
 type TestCallbacks = Pick<InputTest, 'onFailure' | 'onSuccess'>;
 
 const cbEmptySetter = () => ({});

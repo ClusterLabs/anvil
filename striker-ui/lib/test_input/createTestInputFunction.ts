@@ -1,9 +1,4 @@
 import testInput from './testInput';
-import {
-  InputTestBatches,
-  TestInputFunction,
-  TestInputFunctionOptions,
-} from '../../types/TestInputFunction';
 
 const createTestInputFunction =
   (
