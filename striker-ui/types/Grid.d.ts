@@ -1,5 +1,5 @@
 type GridLayout = {
-  [id: string]: import('@mui/material').GridProps;
+  [id: string]: import('@mui/material').GridProps | undefined;
 };
 
 type GridOptionalProps = {

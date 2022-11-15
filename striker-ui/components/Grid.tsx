@@ -13,14 +13,14 @@ const Grid: FC<GridProps> = ({
     return items.map(([itemId, itemGridProps], index) => {
       const key = itemId;
 
-      return (
+      return itemGridProps ? (
         <MUIGrid
           {...calculateItemBreakpoints(index, key)}
           key={key}
           item
           {...itemGridProps}
         />
-      );
+      ) : undefined;
     });
   }, [calculateItemBreakpoints, layout]);
 
