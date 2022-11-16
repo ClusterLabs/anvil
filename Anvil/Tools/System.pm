@@ -684,11 +684,32 @@ sub check_ram_use
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ram_use()" }});
 	
 	my $program = defined $parameter->{program} ? $parameter->{program} : "";
-	my $max_ram = defined $parameter->{max_ram} ? $parameter->{max_ram} : 1073741824;
+	my $max_ram = defined $parameter->{max_ram} ? $parameter->{max_ram} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		program => $program, 
 		max_ram => $max_ram, 
 	}});
+	
+	# If we weren't told what the max RAM is, set it from defaults
+	if (not $max_ram)
+	{
+		my $host_type = $anvil->Get->host_type({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		
+		# We'll set '1073741824' (1 GiB) as max default. Then adjust if we have a device type.
+		$max_ram = 1073741824;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			max_ram => $anvil->Convert->add_commas({number => $max_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_ram}).")",
+		}});
+		
+		if (exists $anvil->data->{sys}{ram_limits}{$host_type})
+		{
+			$max_ram = $anvil->data->{sys}{ram_limits}{$host_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				max_ram => $anvil->Convert->add_commas({number => $max_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_ram}).")",
+			}});
+		}
+	}
 	
 	# Find the PID(s) of the program.
 	my $problem  = 0;

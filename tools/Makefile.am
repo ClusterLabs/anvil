@@ -17,6 +17,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-get-server-screenshot \
 			  anvil-join-anvil \
 			  anvil-maintenance-mode \
+			  anvil-manage-alerts \
 			  anvil-manage-dr \
 			  anvil-manage-files \
 			  anvil-manage-firewall \
@@ -25,6 +26,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-power \
 			  anvil-manage-server \
 			  anvil-migrate-server \
+			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
 			  anvil-provision-server \
 			  anvil-rename-server \
@@ -70,3 +72,5 @@ dist_fence_SCRIPTS	= \
 sharedir		= ${datarootdir}/anvil
 
 dist_share_DATA		= striker-auto-initialize-all.example
+
+# -rwxr-xr-x.  1 digimer digimer  34K Feb  1  2020 tool-fio-tester
