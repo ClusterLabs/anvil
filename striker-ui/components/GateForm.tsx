@@ -50,6 +50,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
         ...restIdentifierOutlinedInputWithLabelProps
       } = {},
       identifierInputTestBatchBuilder: overwriteIdentifierInputTestBatch,
+      onIdentifierBlurAppend,
       onSubmit,
       onSubmitAppend,
       passphraseLabel,
@@ -225,10 +226,19 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                       sx: { ...INPUT_ROOT_SX, ...identifierSx },
                     }}
                     inputProps={{
-                      onBlur: ({ target: { value } }) => {
+                      onBlur: (event) => {
+                        const {
+                          target: { value },
+                        } = event;
+
                         testInput({
                           inputs: { [IT_IDS.identifier]: { value } },
                         });
+
+                        onIdentifierBlurAppend?.call(null, event);
+                      },
+                      onFocus: () => {
+                        setIdentifierInputErrorMessage();
                       },
                       ...identifierInputProps,
                     }}
@@ -254,6 +264,9 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                         testInput({
                           inputs: { [IT_IDS.passphrase]: { value } },
                         });
+                      },
+                      onFocus: () => {
+                        setPassphraseInputErrorMessage();
                       },
                       type: INPUT_TYPES.password,
                       ...passphraseInputProps,
