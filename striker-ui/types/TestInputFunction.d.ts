@@ -33,6 +33,11 @@ type InputTestFailureCallback = (
   args: InputTestArgs & CallbackAppendArgs,
 ) => void;
 
+type InputTestFailureAppendCallback = (
+  message: import('react').ReactNode,
+  ...args: Parameters<InputTestFailureCallback>
+) => void;
+
 type InputTestSuccessCallback = (args: CallbackAppendArgs) => void;
 
 type InputTest = {
@@ -47,15 +52,24 @@ type InputTestInputs = {
 
 type InputTestBatchFinishCallback = () => void;
 
-type InputTestBatches = {
-  [id: string]: {
-    defaults?: InputTestArgs & {
-      onSuccess?: InputTestSuccessCallback;
-    };
-    onFinishBatch?: InputTestBatchFinishCallback;
-    optionalTests?: Array<InputTest>;
-    tests: Array<InputTest>;
+type InputTestBatch = {
+  defaults?: InputTestArgs & {
+    onSuccess?: InputTestSuccessCallback;
   };
+  onFinishBatch?: InputTestBatchFinishCallback;
+  optionalTests?: Array<InputTest>;
+  tests: Array<InputTest>;
+};
+
+type BuildInputTestBatchFunction = (
+  inputName: string,
+  onSuccess: InputTestSuccessCallback,
+  options?: InputTestBatch['defaults'],
+  ...onFailureAppends: InputTestFailureAppendCallback[]
+) => InputTestBatch;
+
+type InputTestBatches = {
+  [id: string]: InputTestBatch;
 };
 
 type TestInputFunctionOptions = {
