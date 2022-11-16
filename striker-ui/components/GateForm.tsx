@@ -17,9 +17,21 @@ import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import Spinner from './Spinner';
+import {
+  buildPeacefulStringTestBatch,
+  createTestInputFunction,
+} from '../lib/test_input';
 
 const INPUT_ROOT_SX: SxProps<Theme> = { width: '100%' };
-const MESSAGE_KEY: GateFormMessageKey = { accessError: 'accessError' };
+const IT_IDS = {
+  identifier: 'identifier',
+  passphrase: 'passphrase',
+};
+const MESSAGE_KEY: GateFormMessageKey = {
+  accessError: 'accessError',
+  identifierInputError: 'identifierInputError',
+  passphraseInputError: 'passphraseInputError',
+};
 
 const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
   (
@@ -34,8 +46,10 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
       identifierLabel,
       identifierOutlinedInputWithLabelProps: {
         formControlProps: identifierFormControlProps = {},
+        inputProps: identifierInputProps,
         ...restIdentifierOutlinedInputWithLabelProps
       } = {},
+      identifierInputTestBatchBuilder: overwriteIdentifierInputTestBatch,
       onSubmit,
       onSubmitAppend,
       passphraseLabel,
@@ -61,17 +75,78 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const [isShowMessageGroup, setIsShowMessageGroup] =
       useState<boolean>(false);
 
-    const setMessage: GateFormMessageSetter = useCallback(
-      (message?, key = 'accessError') => {
+    const setAccessErrorMessage: GateFormMessageSetter = useCallback(
+      (message?) => {
         messageGroupRef.current.setMessage?.call(
           null,
-          MESSAGE_KEY[key],
+          MESSAGE_KEY.accessError,
+          message,
+        );
+      },
+      [],
+    );
+    const setIdentifierInputErrorMessage: GateFormMessageSetter = useCallback(
+      (message?) => {
+        messageGroupRef.current.setMessage?.call(
+          null,
+          MESSAGE_KEY.identifierInputError,
+          message,
+        );
+      },
+      [],
+    );
+    const setPassphraseInputErrorMessage: GateFormMessageSetter = useCallback(
+      (message?) => {
+        messageGroupRef.current.setMessage?.call(
+          null,
+          MESSAGE_KEY.passphraseInputError,
           message,
         );
       },
       [],
     );
 
+    const identifierInputTestBatch = useMemo(
+      () =>
+        overwriteIdentifierInputTestBatch?.call(
+          null,
+          setIdentifierInputErrorMessage,
+          inputIdentifierRef.current,
+        ) ??
+        buildPeacefulStringTestBatch(
+          'Identifier',
+          () => {
+            setIdentifierInputErrorMessage();
+          },
+          { getValue: inputIdentifierRef.current.getValue },
+          (message) => {
+            setIdentifierInputErrorMessage({
+              children: message,
+              type: 'warning',
+            });
+          },
+        ),
+      [overwriteIdentifierInputTestBatch, setIdentifierInputErrorMessage],
+    );
+    const inputTests: InputTestBatches = useMemo(
+      () => ({
+        [IT_IDS.identifier]: identifierInputTestBatch,
+        [IT_IDS.passphrase]: buildPeacefulStringTestBatch(
+          'Passphrase',
+          () => {
+            setPassphraseInputErrorMessage();
+          },
+          { getValue: inputPassphraseRef.current.getValue },
+          (message) => {
+            setPassphraseInputErrorMessage({
+              children: message,
+              type: 'warning',
+            });
+          },
+        ),
+      }),
+      [identifierInputTestBatch, setPassphraseInputErrorMessage],
+    );
     const messageGroupSxDisplay = useMemo(
       () => (isShowMessageGroup ? undefined : 'none'),
       [isShowMessageGroup],
@@ -80,19 +155,19 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
       () =>
         onSubmit ??
         ((...args) => {
-          setMessage();
+          setAccessErrorMessage();
           setIsSubmitting(true);
           onSubmitAppend?.call(
             null,
             inputIdentifierRef.current,
             inputPassphraseRef.current,
-            setMessage,
+            setAccessErrorMessage,
             setIsSubmitting,
             messageGroupRef.current,
             ...args,
           );
         }),
-      [onSubmit, onSubmitAppend, setMessage],
+      [onSubmit, onSubmitAppend, setAccessErrorMessage],
     );
     const submitElement = useMemo(
       () =>
@@ -116,6 +191,11 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
             }
           : undefined,
       [isAllowSubmit, submitElement],
+    );
+
+    const testInput = useMemo(
+      () => createTestInputFunction(inputTests),
+      [inputTests],
     );
 
     useImperativeHandle(ref, () => ({
@@ -144,6 +224,14 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                       ...restIdentifierFormControlProps,
                       sx: { ...INPUT_ROOT_SX, ...identifierSx },
                     }}
+                    inputProps={{
+                      onBlur: ({ target: { value } }) => {
+                        testInput({
+                          inputs: { [IT_IDS.identifier]: { value } },
+                        });
+                      },
+                      ...identifierInputProps,
+                    }}
                     label={identifierLabel}
                     {...restIdentifierOutlinedInputWithLabelProps}
                   />
@@ -162,6 +250,11 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                       sx: { ...INPUT_ROOT_SX, ...passphraseSx },
                     }}
                     inputProps={{
+                      onBlur: ({ target: { value } }) => {
+                        testInput({
+                          inputs: { [IT_IDS.passphrase]: { value } },
+                        });
+                      },
                       type: INPUT_TYPES.password,
                       ...passphraseInputProps,
                     }}
@@ -177,6 +270,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           'credential-message-group': {
             children: (
               <MessageGroup
+                count={1}
                 onSet={(length) => {
                   setIsShowMessageGroup(length > 0);
                 }}

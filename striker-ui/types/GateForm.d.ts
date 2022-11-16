@@ -1,8 +1,11 @@
-type GateFormMessageKey = { accessError: string };
+type GateFormMessageKey = {
+  accessError: string;
+  identifierInputError: string;
+  passphraseInputError: string;
+};
 
 type GateFormMessageSetter = (
   message?: import('../components/MessageBox').Message,
-  key?: keyof GateFormMessageKey,
 ) => void;
 type GateFormSubmittingSetter = (value: boolean) => void;
 
@@ -21,6 +24,10 @@ type GateFormOptionalProps = {
   identifierOutlinedInputWithLabelProps?: Partial<
     import('../components/OutlinedInputWithLabel').OutlinedInputWithLabelProps
   >;
+  identifierInputTestBatchBuilder?: (
+    setMessage: GateFormMessageSetter,
+    identifierContent: import('../components/InputWithRef').InputForwardedRefContent<'string'>,
+  ) => ReturnType<BuildInputTestBatchFunction>;
   onSubmit?: ContainedButtonProps['onClick'];
   onSubmitAppend?: GateFormSubmitHandler;
   passphraseOutlinedInputWithLabelProps?: Partial<
