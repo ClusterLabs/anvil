@@ -62,14 +62,6 @@ if ($anvil->data->{switches}{"mail-servers"})
 {
 	handle_mail_servers($anvil);
 }
-elsif ($anvil->data->{switches}{"notifications"})
-{
-	$anvil->data->{sys}{show}{notifications} = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'sys::show::notifications' => $anvil->data->{sys}{show}{notifications}, 
-	}});
-	handle_notifications($anvil);
-}
 elsif ($anvil->data->{switches}{"recipients"})
 {
 	$anvil->data->{sys}{show}{recipients} = 1;
@@ -77,6 +69,14 @@ elsif ($anvil->data->{switches}{"recipients"})
 		'sys::show::recipients' => $anvil->data->{sys}{show}{recipients}, 
 	}});
 	handle_recipients($anvil);
+}
+elsif ($anvil->data->{switches}{"notifications"})
+{
+	$anvil->data->{sys}{show}{notifications} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::show::notifications' => $anvil->data->{sys}{show}{notifications}, 
+	}});
+	handle_notifications($anvil);
 }
 else
 {
@@ -100,11 +100,199 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub recipients
+sub handle_recipients
 {
 	my ($anvil) = @_;
 	
+	### Are we adding, editing or deleting?
+	# If we're adding or editing, all fields are required.
+	my $confirm_needed = 0;
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{edit}) or ($anvil->data->{switches}{'delete'}))
+	{
+		# Did the user confirm yet?
+		if ((not $anvil->data->{switches}{'y'}) and (not $anvil->data->{switches}{'yes'}))
+		{
+			$confirm_needed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { confirm_needed => $confirm_needed }});
+		}
+	}
 	
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{edit}))
+	{
+		# Do we have what we need?
+		my $problem = 0;
+		foreach my $switch ("recipient-name", "recipient-email", "recipient-language", "recipient-level")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				switch              => $switch,
+				"switches::$switch" => $anvil->data->{switches}{$switch}, 
+			}});
+			if (($anvil->data->{switches}{$switch} eq "") or ($anvil->data->{switches}{$switch} eq "#!SET!#"))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0387", variables => { switch => $switch }});
+				$problem = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			}
+		}
+		if ($problem)
+		{
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# If we're editing or deleting, make sure we have a valid UUID.
+	my $recipient_uuid         = $anvil->data->{switches}{"recipient-uuid"};
+	my $old_recipient_language = "";
+	my $old_recipient_level    = "";
+	if (($anvil->data->{switches}{edit}) or ($anvil->data->{switches}{'delete'}))
+	{
+		if (not $recipient_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0387", variables => { switch => "recipient-uuid" }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if (not exists $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0388", variables => { uuid => $recipient_uuid }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		$old_recipient_language = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language};
+		$old_recipient_level    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			old_recipient_language => $old_recipient_language,
+			old_recipient_level    => $old_recipient_level, 
+		}});
+		
+		$anvil->data->{sys}{say_old_language} = $anvil->data->{sys}{languages}{$old_recipient_language};
+		
+		# Get the translated log level name.
+		if ($old_recipient_level == 0)
+		{
+			# Ignore
+			$anvil->data->{sys}{say_old_level} = $anvil->Words->string({key => "unit_0023"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_level' => $anvil->data->{sys}{say_old_level},
+			}});
+		}
+		elsif ($old_recipient_level == 1)
+		{
+			# Critical
+			$anvil->data->{sys}{say_old_level} = $anvil->Words->string({key => "unit_0024"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_level' => $anvil->data->{sys}{say_old_level},
+			}});
+		}
+		elsif ($old_recipient_level == 2)
+		{
+			# Warning
+			$anvil->data->{sys}{say_old_level} = $anvil->Words->string({key => "unit_0025"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_level' => $anvil->data->{sys}{say_old_level},
+			}});
+		}
+		elsif ($old_recipient_level == 3)
+		{
+			# Notice
+			$anvil->data->{sys}{say_old_level} = $anvil->Words->string({key => "unit_0026"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_level' => $anvil->data->{sys}{say_old_level},
+			}});
+		}
+		elsif ($old_recipient_level == 4)
+		{
+			# Info
+			$anvil->data->{sys}{say_old_level} = $anvil->Words->string({key => "unit_0027"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_level' => $anvil->data->{sys}{say_old_level},
+			}});
+		}
+	}
+	
+	if ($confirm_needed)
+	{
+		my $key = "";
+		if ($anvil->data->{switches}{add})
+		{
+			$key = "message_0300";
+		}
+		elsif ($anvil->data->{switches}{edit})
+		{
+			$key = "message_0301";
+		}
+		elsif ($anvil->data->{switches}{'delete'})
+		{
+			$key = "message_0302";
+		}
+		print $anvil->Words->string({key => $key, variables => { 
+			new_name     => $anvil->data->{switches}{"recipient-name"},
+			new_email    => $anvil->data->{switches}{"recipient-email"},
+			new_language => $anvil->data->{sys}{say_new_language},
+			new_level    => $anvil->data->{sys}{say_new_level},
+			old_name     => $recipient_uuid ? $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}  : "",
+			old_email    => $recipient_uuid ? $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email} : "",
+			old_language => $anvil->data->{sys}{say_old_language},
+			old_level    => $anvil->data->{sys}{say_old_level},
+		}})."\n";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if (lc($answer) !~ /^y/)
+		{
+			print $anvil->Words->string({key => "message_0022"})."\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	# Still alive?
+	if ($anvil->data->{switches}{add})
+	{
+		# Create the new entry.
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_recipients({
+			debug              => 2,
+			recipient_name     => $anvil->data->{switches}{"recipient-name"}, 
+			recipient_email    => $anvil->data->{switches}{"recipient-email"}, 
+			recipient_language => $anvil->data->{switches}{"recipient-language"}, 
+			recipient_level    => $anvil->data->{switches}{"recipient-level"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0297", variables => { uuid => $mail_server_uuid }})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{edit})
+	{
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_recipients({
+			debug              => 2,
+			recipient_uuid     => $anvil->data->{switches}{"recipient-uuid"}, 
+			recipient_name     => $anvil->data->{switches}{"recipient-name"}, 
+			recipient_email    => $anvil->data->{switches}{"recipient-email"}, 
+			recipient_language => $anvil->data->{switches}{"recipient-language"}, 
+			recipient_level    => $anvil->data->{switches}{"recipient-level"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0298"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{'delete'})
+	{
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_recipients({
+			debug          => 2,
+			'delete'       => 1, 
+			recipient_uuid => $anvil->data->{switches}{"recipient-uuid"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0299"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	else
+	{
+		$anvil->data->{sys}{show}{mail_recipients} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'sys::show::recipients' => $anvil->data->{sys}{show}{recipients}, 
+		}});
+		show_existing($anvil);
+	}
 	
 	return(0);
 }
@@ -462,7 +650,7 @@ sub show_existing
 		my $recipient_email    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email};
 		my $recipient_language = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language};
 		my $say_language       = $anvil->data->{sys}{languages}{$recipient_language};
-		my $recipient_level    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level};
+		my $recipient_level    = say_recipient_level($anvil, $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:recipient_name"     => $recipient_name, 
 			"s2:recipient_uuid"     => $recipient_uuid, 
@@ -496,9 +684,9 @@ sub show_existing
 			}});
 		}
 		
-		if (length($anvil->data->{say_alert}{$recipient_level}) > $anvil->data->{longest}{recipient_alert_level})
+		if (length($recipient_level) > $anvil->data->{longest}{recipient_alert_level})
 		{
-			$anvil->data->{longest}{recipient_alert_level} = length($anvil->data->{say_alert}{$recipient_level});
+			$anvil->data->{longest}{recipient_alert_level} = length($recipient_level);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				'longest::recipient_alert_level' => $anvil->data->{longest}{recipient_alert_level}, 
 			}});
@@ -566,7 +754,10 @@ sub show_existing
 				"s6:recipient_level"    => $recipient_level, 
 			}});
 			
-			print $recipient_name.", ".$recipient_email.", ".$anvil->data->{say_alert}{$recipient_level}.", ".$say_language.", ".$recipient_uuid."\n";
+			# Get the translated log level name.
+			my $say_recipient_level = say_recipient_level($anvil, $recipient_level);
+			
+			print $recipient_name.", ".$recipient_email.", ".$say_recipient_level.", ".$say_language.", ".$recipient_uuid."\n";
 			$recipients++;
 		}
 		if (not $recipients)
@@ -643,6 +834,45 @@ sub show_existing
 	return(0);
 }
 
+sub say_recipient_level
+{
+	my ($anvil, $recipient_level) = @_;
+	
+	my $say_recipient_level = $recipient_level;
+	if ($recipient_level == 0)
+	{
+		# Ignore
+		$say_recipient_level .= " (".$anvil->Words->string({key => "unit_0023"}).")";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_recipient_level => $say_recipient_level }});
+	}
+	elsif ($recipient_level == 1)
+	{
+		# Critical
+		$say_recipient_level .= " (".$anvil->Words->string({key => "unit_0024"}).")";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_recipient_level => $say_recipient_level }});
+	}
+	elsif ($recipient_level == 2)
+	{
+		# Warning
+		$say_recipient_level .= " (".$anvil->Words->string({key => "unit_0025"}).")";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_recipient_level => $say_recipient_level }});
+	}
+	elsif ($recipient_level == 3)
+	{
+		# Notice
+		$say_recipient_level .= " (".$anvil->Words->string({key => "unit_0026"}).")";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_recipient_level => $say_recipient_level }});
+	}
+	elsif ($recipient_level == 4)
+	{
+		# Info
+		$say_recipient_level .= " (".$anvil->Words->string({key => "unit_0027"}).")";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_recipient_level => $say_recipient_level }});
+	}
+	
+	return($say_recipient_level);
+}
+
 # This sanity checks input switches. By necessity, this also loads data from the database.
 sub check_switches
 {
@@ -676,7 +906,7 @@ sub check_switches
 			# Invalid UUID.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0380", variables => { 
 				uuid   => $anvil->data->{switches}{$switch},
-				switch => "--".$switch,
+				switch => $switch,
 			}});
 			
 			$problem = 1;
@@ -779,7 +1009,7 @@ sub check_switches
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0381", variables => { 
 					name   => $anvil->data->{switches}{$switch},
-					switch => "--".$switch,
+					switch => $switch,
 				}});
 				
 				$problem = 1;
@@ -792,13 +1022,19 @@ sub check_switches
 	foreach my $switch ("notification-alert-level", "recipient-level")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { switch => $switch }});
-		if ($anvil->data->{switches}{$switch})
+		if ($anvil->data->{switches}{$switch} ne "")
 		{
 			# If they used a level name, convert it to a number.
+			# 0 = "ignore"
 			# 1 = "critical" alerts only
 			# 2 = "warning" and critical alerts
 			# 3 = "notice", warning and critical alerts
 			# 4 = "info"; All alerts. This generates almost constant alerts!
+			if ($anvil->data->{switches}{$switch} eq "ignore")
+			{
+				$anvil->data->{switches}{$switch} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::".$switch => $anvil->data->{switches}{$switch} }});
+			}
 			if ($anvil->data->{switches}{$switch} eq "critical")
 			{
 				$anvil->data->{switches}{$switch} = 1;
@@ -821,12 +1057,12 @@ sub check_switches
 			}
 			
 			if (($anvil->data->{switches}{$switch} =~ /\D/) or 
-			    ($anvil->data->{switches}{$switch} < 1)     or 
+			    ($anvil->data->{switches}{$switch} < 0)     or 
 			    ($anvil->data->{switches}{$switch} > 4))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0382", variables => { 
 					level  => $anvil->data->{switches}{$switch},
-					switch => "--".$switch,
+					switch => $switch,
 				}});
 				
 				$problem = 1;
@@ -966,6 +1202,9 @@ sub check_switches
 			}});
 		}
 	}
+	
+	$anvil->data->{sys}{say_new_language} = "";
+	$anvil->data->{sys}{say_new_level}    = "";
 	if ($anvil->data->{switches}{"recipient-email"})
 	{
 		if (not $anvil->Validate->email({email => $anvil->data->{switches}{"recipient-email"}}))
@@ -978,9 +1217,72 @@ sub check_switches
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		}
 	}
-	
+	if (($anvil->data->{switches}{"recipient-level"} ne "") and ($anvil->data->{switches}{"recipient-level"} ne "#!SET!#"))
+	{
+		if (($anvil->data->{switches}{"recipient-level"} =~ /\D/) or ($anvil->data->{switches}{"recipient-level"} < 0) or ($anvil->data->{switches}{"recipient-level"} > 4))
+		{
+			# Invalid.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0386", variables => { 
+				email => $anvil->data->{switches}{"recipient-email"},
+			}});
+			
+			$problem = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		}
+		
+		# Get the translated log level name.
+		if ($anvil->data->{switches}{"recipient-level"} == 0)
+		{
+			# Ignore
+			$anvil->data->{sys}{say_new_level} = $anvil->Words->string({key => "unit_0023"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_level' => $anvil->data->{sys}{say_new_level},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"recipient-level"} == 1)
+		{
+			# Critical
+			$anvil->data->{sys}{say_new_level} = $anvil->Words->string({key => "unit_0024"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_level' => $anvil->data->{sys}{say_new_level},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"recipient-level"} == 2)
+		{
+			# Warning
+			$anvil->data->{sys}{say_new_level} = $anvil->Words->string({key => "unit_0025"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_level' => $anvil->data->{sys}{say_new_level},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"recipient-level"} == 3)
+		{
+			# Notice
+			$anvil->data->{sys}{say_new_level} = $anvil->Words->string({key => "unit_0026"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_level' => $anvil->data->{sys}{say_new_level},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"recipient-level"} == 4)
+		{
+			# Info
+			$anvil->data->{sys}{say_new_level} = $anvil->Words->string({key => "unit_0027"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_level' => $anvil->data->{sys}{say_new_level},
+			}});
+		}
+	}
+
 	# Later, we'll need to parse the language file, for now, we always force 'en_CA'.
 	$anvil->data->{switches}{"recipient-language"} = "en_CA";
+	
+	# Get the name of the language.
+	my $recipient_language                   = $anvil->data->{switches}{"recipient-language"};
+	   $anvil->data->{sys}{say_new_language} = $anvil->data->{sys}{languages}{$recipient_language};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		recipient_language      => $recipient_language, 
+		'sys::say_new_language' => $anvil->data->{sys}{say_new_language},
+	}});
 	
 	# If there's a problem, exit now.
 	if ($problem)

@@ -536,7 +536,7 @@ The definition data passed in was:
 		<key name="error_0379">[ Error ] - Neither '--host-ip-address' or '--target' were used to define who we are trying to connect to.</key>
 		<key name="error_0380">[ Error ] - The UUID: [#!variable!uuid!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid.</key>
 		<key name="error_0381">[ Error ] - The domain or IP: [#!variable!name!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid.</key>
-		<key name="error_0382">[ Error ] - The alert level: [#!variable!level!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid. Valid values are '1', '2', '3' or '4'. These represent;
+		<key name="error_0382">[ Error ] - The alert level: [#!variable!level!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid. Valid values are '0', '1', '2', '3' or '4'. These represent;
           * 1 = "critical" alerts only
           * 2 = "warning" and critical alerts
           * 3 = "notice", warning and critical alerts
@@ -2729,6 +2729,27 @@ Proceed? [y/N]
 		<key name="message_0297">The new mail server was created with the UUID: [#!variable!uuid!#].</key>
 		<key name="message_0298">The mail server has been updated.</key>
 		<key name="message_0299">The mail server has been deleted.</key>
+		<key name="message_0300">Are you sure you want to create the alert recipient:
+* Name: ... [#!variable!new_name!#]
+* E-Mail: . [#!variable!new_email!#]
+* Language: [#!variable!new_language!#]
+* Level: .. [#!variable!new_level!#]
+Proceed? [y/N]
+</key>
+		<key name="message_0301">Are you sure you want to change the alert recipient thusly:
+* Name: ... [#!variable!old_name!#] -> [#!variable!new_name!#]
+* E-Mail: . [#!variable!old_email!#] -> [#!variable!new_email!#]
+* Language: [#!variable!old_language!#] -> [#!variable!new_language!#]
+* Level: .. [#!variable!old_level!#] -> [#!variable!new_level!#]
+Proceed? [y/N]
+</key>
+		<key name="message_0302">Are you sure you want to delete the alert recipient:
+* Name: ... [#!variable!old_name!#]
+* E-Mail: . [#!variable!old_email!#]
+* Language: [#!variable!old_language!#]
+* Level: .. [#!variable!old_level!#]
+Proceed? [y/N]
+</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
