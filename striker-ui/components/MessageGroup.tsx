@@ -67,10 +67,10 @@ const MessageGroup = forwardRef<
 
           length = Object.keys(result).length;
 
+          onSet?.call(null, length);
+
           return result;
         });
-
-        onSet?.call(null, length);
       },
       [onSet],
     );
@@ -97,10 +97,10 @@ const MessageGroup = forwardRef<
             }
           });
 
+          onSet?.call(null, length);
+
           return result;
         });
-
-        onSet?.call(null, length);
       },
       [onSet],
     );
