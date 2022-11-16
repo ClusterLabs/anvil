@@ -115,7 +115,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           inputIdentifierRef.current,
         ) ??
         buildPeacefulStringTestBatch(
-          'Identifier',
+          identifierLabel,
           () => {
             setIdentifierInputErrorMessage();
           },
@@ -127,13 +127,17 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
             });
           },
         ),
-      [overwriteIdentifierInputTestBatch, setIdentifierInputErrorMessage],
+      [
+        identifierLabel,
+        overwriteIdentifierInputTestBatch,
+        setIdentifierInputErrorMessage,
+      ],
     );
     const inputTests: InputTestBatches = useMemo(
       () => ({
         [IT_IDS.identifier]: identifierInputTestBatch,
         [IT_IDS.passphrase]: buildPeacefulStringTestBatch(
-          'Passphrase',
+          passphraseLabel,
           () => {
             setPassphraseInputErrorMessage();
           },
@@ -146,7 +150,11 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           },
         ),
       }),
-      [identifierInputTestBatch, setPassphraseInputErrorMessage],
+      [
+        identifierInputTestBatch,
+        passphraseLabel,
+        setPassphraseInputErrorMessage,
+      ],
     );
     const messageGroupSxDisplay = useMemo(
       () => (isShowMessageGroup ? undefined : 'none'),
@@ -225,6 +233,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                       ...restIdentifierFormControlProps,
                       sx: { ...INPUT_ROOT_SX, ...identifierSx },
                     }}
+                    id="credential-identifier-input"
                     inputProps={{
                       onBlur: (event) => {
                         const {
@@ -259,6 +268,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                       ...restPassphraseFormControlProps,
                       sx: { ...INPUT_ROOT_SX, ...passphraseSx },
                     }}
+                    id="credential-passphrase-input"
                     inputProps={{
                       onBlur: ({ target: { value } }) => {
                         testInput({
