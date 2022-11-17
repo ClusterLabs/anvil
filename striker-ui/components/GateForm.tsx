@@ -72,9 +72,11 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const inputPassphraseRef = useRef<InputForwardedRefContent<'string'>>({});
     const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [isShowMessageGroup, setIsShowMessageGroup] =
+    const [isInputIdentifierValid, setIsInputIdentifierValid] =
       useState<boolean>(false);
+    const [isInputPassphraseValid, setIsInputPassphraseValid] =
+      useState<boolean>(false);
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     const setAccessErrorMessage: GateFormMessageSetter = useCallback(
       (message?) => {
@@ -156,10 +158,6 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
         setPassphraseInputErrorMessage,
       ],
     );
-    const messageGroupSxDisplay = useMemo(
-      () => (isShowMessageGroup ? undefined : 'none'),
-      [isShowMessageGroup],
-    );
     const submitHandler: ContainedButtonProps['onClick'] = useMemo(
       () =>
         onSubmit ??
@@ -184,12 +182,21 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           <Spinner sx={{ marginTop: 0 }} />
         ) : (
           <FlexBox row sx={{ justifyContent: 'flex-end' }}>
-            <ContainedButton onClick={submitHandler}>
+            <ContainedButton
+              disabled={isInputIdentifierValid && isInputPassphraseValid}
+              onClick={submitHandler}
+            >
               {submitLabel}
             </ContainedButton>
           </FlexBox>
         ),
-      [isSubmitting, submitHandler, submitLabel],
+      [
+        isInputIdentifierValid,
+        isInputPassphraseValid,
+        isSubmitting,
+        submitHandler,
+        submitLabel,
+      ],
     );
     const submitGrid = useMemo(
       () =>
@@ -240,9 +247,10 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                           target: { value },
                         } = event;
 
-                        testInput({
+                        const valid = testInput({
                           inputs: { [IT_IDS.identifier]: { value } },
                         });
+                        setIsInputIdentifierValid(valid);
 
                         onIdentifierBlurAppend?.call(null, event);
                       },
@@ -271,9 +279,10 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                     id="credential-passphrase-input"
                     inputProps={{
                       onBlur: ({ target: { value } }) => {
-                        testInput({
+                        const valid = testInput({
                           inputs: { [IT_IDS.passphrase]: { value } },
                         });
+                        setIsInputPassphraseValid(valid);
                       },
                       onFocus: () => {
                         setPassphraseInputErrorMessage();
@@ -289,20 +298,11 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
               />
             ),
           },
-          'credential-submit': submitGrid,
           'credential-message-group': {
-            children: (
-              <MessageGroup
-                count={1}
-                onSet={(length) => {
-                  setIsShowMessageGroup(length > 0);
-                }}
-                ref={messageGroupRef}
-              />
-            ),
+            children: <MessageGroup count={1} ref={messageGroupRef} />,
             sm: 2,
-            sx: { display: messageGroupSxDisplay },
           },
+          'credential-submit': submitGrid,
         }}
         spacing={gridSpacing}
         {...restGridProps}
