@@ -484,7 +484,7 @@ CREATE TABLE recipients (
     recipient_name        text                        not null,                    -- This is the recipient's name
     recipient_email       text                        not null,                    -- This is the recipient's email address or the file name, depending.
     recipient_language    text                        not null,                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
-    recipient_level       integer                     not null,                    -- This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'notifications' table.
+    recipient_level       integer                     not null,                    -- This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'alert_overrides' table.
     modified_date         timestamp with time zone    not null
 );
 ALTER TABLE recipients OWNER TO admin;
@@ -533,55 +533,55 @@ CREATE TRIGGER trigger_recipients
 
 -- This table is used when a user wants to set a custom alert level for a given machine. Typically this is 
 -- used to ignore test Anvil! systems. 
-CREATE TABLE notifications (
-    notification_uuid              uuid                        not null    primary key,
-    notification_recipient_uuid    uuid                        not null,                    -- The recipient we're linking.
-    notification_host_uuid         uuid                        not null,                    -- This host_uuid of the referenced machine
-    notification_alert_level       integer                     not null,                    -- This is the alert level (at or above) that this user wants alerts from.
+CREATE TABLE alert_overrides (
+    alert_override_uuid              uuid                        not null    primary key,
+    alert_override_recipient_uuid    uuid                        not null,                    -- The recipient we're linking.
+    alert_override_host_uuid         uuid                        not null,                    -- This host_uuid of the referenced machine
+    alert_override_alert_level       integer                     not null,                    -- This is the alert level (at or above) that this user wants alerts from. If set to '-1', the record is deleted.
     modified_date                  timestamp with time zone    not null,
     
-    FOREIGN KEY(notification_host_uuid)     REFERENCES anvils(anvil_uuid),
-    FOREIGN KEY(notification_recipient_uuid) REFERENCES recipients(recipient_uuid)
+    FOREIGN KEY(alert_override_host_uuid)      REFERENCES hosts(host_uuid),
+    FOREIGN KEY(alert_override_recipient_uuid) REFERENCES recipients(recipient_uuid)
 );
-ALTER TABLE notifications OWNER TO admin;
+ALTER TABLE alert_overrides OWNER TO admin;
 
-CREATE TABLE history.notifications (
+CREATE TABLE history.alert_overrides (
     history_id                     bigserial,
-    notification_uuid              uuid,
-    notification_recipient_uuid    uuid,
-    notification_host_uuid         uuid,
-    notification_alert_level       integer,
+    alert_override_uuid              uuid,
+    alert_override_recipient_uuid    uuid,
+    alert_override_host_uuid         uuid,
+    alert_override_alert_level       integer,
     modified_date                  timestamp with time zone    not null
 );
-ALTER TABLE history.notifications OWNER TO admin;
+ALTER TABLE history.alert_overrides OWNER TO admin;
 
-CREATE FUNCTION history_notifications() RETURNS trigger
+CREATE FUNCTION history_alert_overrides() RETURNS trigger
 AS $$
 DECLARE
-    history_notifications RECORD;
+    history_alert_overrides RECORD;
 BEGIN
-    SELECT INTO history_notifications * FROM notifications WHERE notification_uuid = new.notification_uuid;
-    INSERT INTO history.notifications
-        (notification_uuid, 
-         notification_recipient_uuid, 
-         notification_host_uuid, 
-         notification_alert_level, 
+    SELECT INTO history_alert_overrides * FROM alert_overrides WHERE alert_override_uuid = new.alert_override_uuid;
+    INSERT INTO history.alert_overrides
+        (alert_override_uuid, 
+         alert_override_recipient_uuid, 
+         alert_override_host_uuid, 
+         alert_override_alert_level, 
          modified_date)
     VALUES
-        (history_notifications.notification_uuid,
-         history_notifications.notification_recipient_uuid, 
-         history_notifications.notification_host_uuid, 
-         history_notifications.notification_alert_level, 
-         history_notifications.modified_date);
+        (history_alert_overrides.alert_override_uuid,
+         history_alert_overrides.alert_override_recipient_uuid, 
+         history_alert_overrides.alert_override_host_uuid, 
+         history_alert_overrides.alert_override_alert_level, 
+         history_alert_overrides.modified_date);
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_notifications() OWNER TO admin;
+ALTER FUNCTION history_alert_overrides() OWNER TO admin;
 
-CREATE TRIGGER trigger_notifications
-    AFTER INSERT OR UPDATE ON notifications
-    FOR EACH ROW EXECUTE PROCEDURE history_notifications();
+CREATE TRIGGER trigger_alert_overrides
+    AFTER INSERT OR UPDATE ON alert_overrides
+    FOR EACH ROW EXECUTE PROCEDURE history_alert_overrides();
 
 
 -- This creates a list of mail servers that are available for use by hosts. This information is used to 
@@ -1921,6 +1921,53 @@ ALTER FUNCTION history_temperature() OWNER TO admin;
 CREATE TRIGGER trigger_temperature
     AFTER INSERT OR UPDATE ON temperature
     FOR EACH ROW EXECUTE PROCEDURE history_temperature();
+
+-- -- Enable after Yan's review
+-- This is used to audit major events by user.
+--CREATE TABLE audits (
+    --audit_uuid         uuid                        primary key,
+    --audit_user_uuid    uuid                        not null,       -- This is the users -> user_uuid the audit is tracking
+    --audit_details      text                        not null,       -- This is the information explaining the action being audited.
+    --modified_date      timestamp with time zone    not null, 
+    
+    --FOREIGN KEY(audit_user_uuid) REFERENCES users(user_uuid)
+--);
+--ALTER TABLE audits OWNER TO admin;
+
+--CREATE TABLE history.audits (
+    --history_id         bigserial,
+    --audit_uuid         uuid, 
+    --audit_user_uuid    uuid,
+    --audit_details      text,
+    --modified_date      timestamp with time zone    not null
+--);
+--ALTER TABLE history.audits OWNER TO admin;
+
+--CREATE FUNCTION history_audits() RETURNS trigger
+--AS $$
+--DECLARE
+    --history_audits RECORD;
+--BEGIN
+    --SELECT INTO history_audits * FROM audits WHERE audit_uuid = new.audit_uuid;
+    --INSERT INTO history.audits
+        --(audit_uuid,
+         --audit_user_uuid, 
+         --audit_details, 
+         --modified_date)
+    --VALUES
+        --(history_audit.audit_uuid,
+         --history_audit.audit_user_uuid, 
+         --history_audit.audit_details, 
+         --history_audit.modified_date);
+    --RETURN NULL;
+--END;
+--$$
+--LANGUAGE plpgsql;
+--ALTER FUNCTION history_audits() OWNER TO admin;
+
+--CREATE TRIGGER trigger_audits
+    --AFTER INSERT OR UPDATE ON audits
+    --FOR EACH ROW EXECUTE PROCEDURE history_audits();
 
 
 -- ------------------------------------------------------------------------------------------------------- --

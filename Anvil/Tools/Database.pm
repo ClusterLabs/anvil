@@ -25,6 +25,7 @@ my $THIS_FILE = "Database.pm";
 # connect
 # disconnect
 # find_host_uuid_columns
+# get_alert_overrides
 # get_alerts
 # get_anvils
 # get_bridges
@@ -40,7 +41,6 @@ my $THIS_FILE = "Database.pm";
 # get_local_uuid
 # get_mail_servers
 # get_manifests
-# get_notifications
 # get_recipients
 # get_servers
 # get_storage_group_data
@@ -49,6 +49,7 @@ my $THIS_FILE = "Database.pm";
 # get_power
 # get_upses
 # initialize
+# insert_or_update_alert_overrides
 # insert_or_update_anvils
 # insert_or_update_bridges
 # insert_or_update_bonds
@@ -62,7 +63,6 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_mail_servers
 # insert_or_update_manifests
 # insert_or_update_network_interfaces
-# insert_or_update_notifications
 # insert_or_update_mac_to_ip
 # insert_or_update_oui
 # insert_or_update_power
@@ -2519,6 +2519,80 @@ WHERE
 }
 
 
+=head2 get_alert_overrides
+
+By default, any machine generating an alert will go to recipients at their default level. Entries in this table allow for "overrides", either by Striker, or by Anvil! node / dr host set.
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted overrides are included when loading the data. When C<< 0 >> is set, the default, any manifest last_ran with C<< manifest_note >> set to C<< DELETED >> is ignored.
+
+=cut
+sub get_alert_overrides
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_alert_overrides()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	my $query = "
+SELECT 
+    alert_override_uuid, 
+    alert_override_recipient_uuid, 
+    alert_override_host_uuid, 
+    alert_override_alert_level
+FROM 
+    alert_overrides
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $alert_override_uuid           = $row->[0];
+		my $alert_override_recipient_uuid = $row->[1];
+		my $alert_override_host_uuid      = $row->[2];
+		my $alert_override_alert_level    = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			alert_override_uuid           => $alert_override_uuid, 
+			alert_override_recipient_uuid => $alert_override_recipient_uuid, 
+			alert_override_host_uuid      => $alert_override_host_uuid, 
+			alert_override_alert_level    => $alert_override_alert_level,
+		}});
+		
+		if (($alert_override_alert_level == -1) && (not $include_deleted))
+		{
+			next;
+		}
+		
+		# Store the data
+		$anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_recipient_uuid} = $alert_override_recipient_uuid;
+		$anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid}      = $alert_override_host_uuid;
+		$anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level}    = $alert_override_alert_level;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"alert_overrides::alert_override_uuid::${alert_override_uuid}::alert_override_recipient_uuid" => $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_recipient_uuid}, 
+			"alert_overrides::alert_override_uuid::${alert_override_uuid}::alert_override_host_uuid"      => $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid}, 
+			"alert_overrides::alert_override_uuid::${alert_override_uuid}::alert_override_alert_level"    => $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level}, 
+		}});
+	}
+	
+	return(0);
+}
+
+
 =head2 get_anvils
 
 This loads information about all known Anvil! systems as recorded in the C<< anvils >> table. 
@@ -4484,66 +4558,6 @@ WHERE
 }
 
 
-=head2 get_notifications
-
-By default, any machine generating an alert will go to recipients at their default level. Entries in this table allow for "overrides", either by Striker host or by Anvil! node / dr host set.
-
-This gets the list of configured mail servers.
-
-=cut
-sub get_notifications
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_notifications()" }});
-	
-	my $query = "
-SELECT 
-    notification_uuid, 
-    notification_recipient_uuid, 
-    notification_host_uuid, 
-    notification_alert_level
-FROM 
-    notifications
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
-	{
-		my $notification_uuid           = $row->[0];
-		my $notification_recipient_uuid = $row->[1];
-		my $notification_host_uuid      = $row->[2];
-		my $notification_alert_level    = $row->[3];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			notification_uuid           => $notification_uuid, 
-			notification_recipient_uuid => $notification_recipient_uuid, 
-			notification_host_uuid      => $notification_host_uuid, 
-			notification_alert_level    => $notification_alert_level,
-		}});
-		
-		# Store the data
-		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid} = $notification_recipient_uuid;
-		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}      = $notification_host_uuid;
-		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}    = $notification_alert_level;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"notifications::notification_uuid::${notification_uuid}::notification_recipient_uuid" => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid}, 
-			"notifications::notification_uuid::${notification_uuid}::notification_host_uuid"      => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}, 
-			"notifications::notification_uuid::${notification_uuid}::notification_alert_level"    => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}, 
-		}});
-	}
-	
-	return(0);
-}
-
-
 =head2 get_recipients
 
 This returns a list of users listening to alerts for a given host, along with their alert level. 
@@ -4569,10 +4583,10 @@ sub get_recipients
 	}});
 	
 	# We're going to include the alert levels for this host based on overrides that might exist in the 
-	# 'notifications' table. If the data hasn't already been loaded, we'll load it now.
-	if (not $anvil->data->{notifications}{notification_uuid})
+	# 'alert_overrides' table. If the data hasn't already been loaded, we'll load it now.
+	if (not $anvil->data->{alert_overrides}{alert_override_uuid})
 	{
-		$anvil->Database->get_notifications({debug => $debug});
+		$anvil->Database->get_alert_overrides({debug => $debug});
 	}
 	
 	my $host_uuid = $anvil->Get->host_uuid();
@@ -4639,19 +4653,19 @@ WHERE
 		}});
 		
 		# If there is an override for a given recipient on this host, mark it as such.
-		foreach my $notification_uuid (keys %{$anvil->data->{notifications}{notification_uuid}})
+		foreach my $alert_override_uuid (keys %{$anvil->data->{alert_overrides}{alert_override_uuid}})
 		{
-			my $notification_recipient_uuid = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid};
-			my $notification_host_uuid      = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
-			my $notification_alert_level    = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level};
+			my $alert_override_recipient_uuid = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_recipient_uuid};
+			my $alert_override_host_uuid      = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid};
+			my $alert_override_alert_level    = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				notification_recipient_uuid => $notification_recipient_uuid, 
-				notification_host_uuid      => $notification_host_uuid, 
-				notification_alert_level    => $notification_alert_level, 
+				alert_override_recipient_uuid => $alert_override_recipient_uuid, 
+				alert_override_host_uuid      => $alert_override_host_uuid, 
+				alert_override_alert_level    => $alert_override_alert_level, 
 			}});
-			if (($notification_host_uuid eq $host_uuid) && ($notification_recipient_uuid eq $recipient_uuid))
+			if (($alert_override_host_uuid eq $host_uuid) && ($alert_override_recipient_uuid eq $recipient_uuid))
 			{
-				$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host} = $notification_alert_level;
+				$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host} = $alert_override_alert_level;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"recipients::recipient_uuid::${recipient_uuid}::level_on_host" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
 				}});
@@ -5865,6 +5879,231 @@ sub initialize
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
 };
+
+
+=head2 insert_or_update_alert_overrides
+
+This updates (or inserts) a record in the C<< alert_overrides >> table used for configuring what recipients get what alerts for a given host.
+
+If there is an error, an empty string is returned.
+
+B<< NOTE >>: The information is this table IS NOT AUTHORITATIVE! It's generally updated daily, so the information here could be stale.
+
+Parameters;
+
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, the associated alert_override override will be deleted. Specifically, the C<< alert_override_alert_level >> is set to C<< -1 >>.
+
+When this is set, either C<< recipient_uuid >> or C<< recipient_email >> is required.
+
+=head3 alert_override_uuid (optional)
+
+If set, this is the specific entry that will be updated. 
+
+=head3 alert_override_recipient_uuid (required)
+
+This is the C<< recipients >> -> C<< recipient_uuid >> of the alert recipient.
+
+=head3 alert_override_host_uuid (required)
+
+This is the C<< hosts >> -> C<< host_uuid >> of the machine generating alerts.
+
+=head3 alert_override_alert_level (required)
+
+This is the alert level that the recipient is interested in. Any alert of equal or higher level will be sent to the associated recipient.
+
+Valid values;
+
+=head4 0 (ignore)
+
+No alerts from the associated system will be sent to this recipient.
+
+=head4 1 (critical)
+
+Critical alerts. These are alerts that almost certainly indicate an issue with the system that has are likely will cause a service interruption. (ie: node was fenced, emergency shut down, etc)
+
+=head4 2 (warning)
+
+Warning alerts. These are alerts that likely require the attention of an administrator, but have not caused a service interruption. (ie: power loss/load shed, over/under voltage, fan failure, network link failure, etc)
+
+=head4 3 (notice)
+
+Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)
+
+=head4 4 (info)
+
+Info alerts. These are generally for debugging, and will generating a staggering number of alerts. Not recommended for most cases.
+
+=cut
+sub insert_or_update_alert_overrides
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_alert_overrides()" }});
+	
+	my $delete                        = defined $parameter->{'delete'}                      ? $parameter->{'delete'}                      : 0;
+	my $uuid                          = defined $parameter->{uuid}                          ? $parameter->{uuid}                          : "";
+	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
+	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
+	my $alert_override_uuid           = defined $parameter->{alert_override_uuid}           ? $parameter->{alert_override_uuid}           : "";
+	my $alert_override_recipient_uuid = defined $parameter->{alert_override_recipient_uuid} ? $parameter->{alert_override_recipient_uuid} : "";
+	my $alert_override_host_uuid      = defined $parameter->{alert_override_host_uuid}      ? $parameter->{alert_override_host_uuid}      : "";
+	my $alert_override_alert_level    = defined $parameter->{alert_override_alert_level}    ? $parameter->{alert_override_alert_level}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'delete'                      => $delete, 
+		alert_override_uuid           => $alert_override_uuid, 
+		alert_override_recipient_uuid => $alert_override_recipient_uuid, 
+		alert_override_host_uuid      => $alert_override_host_uuid, 
+		alert_override_alert_level    => $alert_override_alert_level, 
+	}});
+	
+	if (not $delete)
+	{
+		if (not $alert_override_recipient_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_alert_overrides()", parameter => "alert_override_recipient_uuid" }});
+			return("");
+		}
+		if (not $alert_override_host_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_alert_overrides()", parameter => "alert_override_host_uuid" }});
+			return("");
+		}
+		if ($alert_override_alert_level eq "")
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_alert_overrides()", parameter => "alert_override_alert_level" }});
+			return("");
+		}
+		elsif (($alert_override_alert_level =~ /\D/) or ($alert_override_alert_level < 0) or ($alert_override_alert_level > 4))
+		{
+			# Not an integer
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0109", variables => { alert_override_alert_level => $alert_override_alert_level }});
+			return("");
+		}
+	}
+	
+	# If we're deleting, we need a alert_override_uuid
+	if (($parameter->{'delete'}) && (not $alert_override_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0389"});
+		return("");
+	}
+	
+	# If deleting, set the alert_override level to '-1'
+	if ($parameter->{'delete'})
+	{
+		$alert_override_alert_level = -1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_override_alert_level => $alert_override_alert_level }});
+	}
+	
+	# If we don't have the alert_override_uuid, see if we can look it up.
+	if (not $alert_override_uuid)
+	{
+		my $query = "
+SELECT 
+    alert_override_uuid 
+FROM 
+    alert_overrides 
+WHERE 
+    alert_override_recipient_uuid = ".$anvil->Database->quote($alert_override_recipient_uuid)." 
+AND 
+    alert_override_host_uuid      = ".$anvil->Database->quote($alert_override_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$alert_override_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_override_uuid => $alert_override_uuid }});
+		}
+	}
+	
+	# Do we have an existing entry?
+	if ($alert_override_uuid)
+	{
+		# Yes, look up the previous alert_override_alert_level.
+		my $query = "
+SELECT 
+    alert_override_alert_level 
+FROM 
+    alert_overrides 
+WHERE 
+    alert_override_uuid = ".$anvil->Database->quote($alert_override_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		# If this doesn't return anything, the passed in UUID was invalid.
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# Error out.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0110", variables => { alert_override_uuid => $alert_override_uuid }});
+			return("");
+		}
+		my $old_alert_override_alert_level = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_alert_override_alert_level => $old_alert_override_alert_level }});
+		
+		# Did the level change?
+		if ($alert_override_alert_level ne $old_alert_override_alert_level)
+		{
+			# UPDATE
+			my $query = "
+UPDATE 
+    alert_overrides 
+SET 
+    alert_override_alert_level = ".$anvil->Database->quote($alert_override_alert_level).", 
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    alert_override_uuid        = ".$anvil->Database->quote($alert_override_uuid)." 
+";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	else
+	{
+		# Nope, INSERT
+		$alert_override_uuid = $anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_override_uuid => $alert_override_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    alert_overrides 
+(
+    alert_override_uuid, 
+    alert_override_recipient_uuid, 
+    alert_override_host_uuid, 
+    alert_override_alert_level, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($alert_override_uuid).",  
+    ".$anvil->Database->quote($alert_override_recipient_uuid).",  
+    ".$anvil->Database->quote($alert_override_host_uuid).",  
+    ".$anvil->Database->quote($alert_override_alert_level).",  
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($alert_override_uuid)
+}
 
 
 =head2 insert_or_update_anvils
@@ -10100,202 +10339,6 @@ INSERT INTO
 }
 
 
-=head2 insert_or_update_notifications
-
-This updates (or inserts) a record in the C<< notifications >> table used for configuring what recipients get what alerts for a given host.
-
-If there is an error, an empty string is returned.
-
-B<< NOTE >>: The information is this table IS NOT AUTHORITATIVE! It's generally updated daily, so the information here could be stale.
-
-Parameters;
-
-=head3 notification_uuid (optional)
-
-If set, this is the specific entry that will be updated. 
-
-=head3 notification_recipient_uuid (required)
-
-This is the C<< recipients >> -> C<< recipient_uuid >> of the alert recipient.
-
-=head3 notification_host_uuid (required)
-
-This is the C<< hosts >> -> C<< host_uuid >> of the machine generating alerts.
-
-=head3 notification_alert_level (required)
-
-This is the alert level that the recipient is interested in. Any alert of equal or higher level will be sent to the associated recipient.
-
-Valid values;
-
-=head4 0 (ignore)
-
-No alerts from the associated system will be sent to this recipient.
-
-=head4 1 (critical)
-
-Critical alerts. These are alerts that almost certainly indicate an issue with the system that has are likely will cause a service interruption. (ie: node was fenced, emergency shut down, etc)
-
-=head4 2 (warning)
-
-Warning alerts. These are alerts that likely require the attention of an administrator, but have not caused a service interruption. (ie: power loss/load shed, over/under voltage, fan failure, network link failure, etc)
-
-=head4 3 (notice)
-
-Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)
-
-=cut
-sub insert_or_update_notifications
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_notifications()" }});
-	
-	my $uuid                        = defined $parameter->{uuid}                        ? $parameter->{uuid}                        : "";
-	my $file                        = defined $parameter->{file}                        ? $parameter->{file}                        : "";
-	my $line                        = defined $parameter->{line}                        ? $parameter->{line}                        : "";
-	my $notification_uuid           = defined $parameter->{notification_uuid}           ? $parameter->{notification_uuid}           : "";
-	my $notification_recipient_uuid = defined $parameter->{notification_recipient_uuid} ? $parameter->{notification_recipient_uuid} : "";
-	my $notification_host_uuid      = defined $parameter->{notification_host_uuid}      ? $parameter->{notification_host_uuid}      : "";
-	my $notification_alert_level    = defined $parameter->{notification_alert_level}    ? $parameter->{notification_alert_level}    : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		notification_uuid           => $notification_uuid, 
-		notification_recipient_uuid => $notification_recipient_uuid, 
-		notification_host_uuid      => $notification_host_uuid, 
-		notification_alert_level    => $notification_alert_level, 
-	}});
-	
-	if (not $notification_recipient_uuid)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_notifications()", parameter => "notification_recipient_uuid" }});
-		return("");
-	}
-	if (not $notification_host_uuid)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_notifications()", parameter => "notification_host_uuid" }});
-		return("");
-	}
-	if ($notification_alert_level eq "")
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_notifications()", parameter => "notification_alert_level" }});
-		return("");
-	}
-	elsif (($notification_alert_level =~ /\D/) or ($notification_alert_level < 0) or ($notification_alert_level > 3))
-	{
-		# Not an integer
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0109", variables => { notification_alert_level => $notification_alert_level }});
-		return("");
-	}
-	
-	# If we don't have the notification_uuid, see if we can look it up.
-	if (not $notification_uuid)
-	{
-		my $query = "
-SELECT 
-    notification_uuid 
-FROM 
-    notifications 
-WHERE 
-    notification_recipient_uuid = ".$anvil->Database->quote($notification_recipient_uuid)." 
-AND 
-    notification_host_uuid      = ".$anvil->Database->quote($notification_host_uuid)." 
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		if ($count)
-		{
-			$notification_uuid = $results->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { notification_uuid => $notification_uuid }});
-		}
-	}
-	
-	# Do we have an existing entry?
-	if ($notification_uuid)
-	{
-		# Yes, look up the previous notification_alert_level.
-		my $query = "
-SELECT 
-    notification_alert_level 
-FROM 
-    notifications 
-WHERE 
-    notification_uuid = ".$anvil->Database->quote($notification_uuid)." 
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		
-		# If this doesn't return anything, the passed in UUID was invalid.
-		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		if (not $count)
-		{
-			# Error out.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0110", variables => { notification_uuid => $notification_uuid }});
-			return("");
-		}
-		my $old_notification_alert_level = $results->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_notification_alert_level => $old_notification_alert_level }});
-		
-		# Did the level change?
-		if ($notification_alert_level ne $old_notification_alert_level)
-		{
-			# UPDATE
-			my $query = "
-UPDATE 
-    notifications 
-SET 
-    notification_alert_level = ".$anvil->Database->quote($notification_alert_level).", 
-    modified_date            = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
-WHERE 
-    notification_uuid        = ".$anvil->Database->quote($notification_uuid)." 
-";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-		}
-	}
-	else
-	{
-		# Nope, INSERT
-		$notification_uuid = $anvil->Get->uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { notification_uuid => $notification_uuid }});
-		
-		my $query = "
-INSERT INTO 
-    notifications 
-(
-    notification_uuid, 
-    notification_recipient_uuid, 
-    notification_host_uuid, 
-    notification_alert_level, 
-    modified_date
-) VALUES (
-    ".$anvil->Database->quote($notification_uuid).",  
-    ".$anvil->Database->quote($notification_recipient_uuid).",  
-    ".$anvil->Database->quote($notification_host_uuid).",  
-    ".$anvil->Database->quote($notification_alert_level).",  
-    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
-);
-";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-	}
-	
-	return($notification_uuid)
-}
-
-
 =head2 insert_or_update_mac_to_ip
 
 This updates (or inserts) a record in the C<< mac_to_ip >> table used for tracking what MAC addresses have what IP addresses.
@@ -10964,6 +11007,10 @@ Warning alerts. These are alerts that likely require the attention of an adminis
 
 Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)
 
+=head4 4 (info)
+
+Info alerts. These are generally for debugging, and will generating a staggering number of alerts. Not recommended for most cases.
+
 =head3 recipient_uuid (optional)
 
 If set, this is the UUID that will be used to update a record in the database. If not set, it will be searched for by looking for a matching C<< recipient_email >>.
@@ -11006,7 +11053,7 @@ sub insert_or_update_recipients
 	}
 	
 	# Make sure the recipient_level is 0, 1, 2 or 3
-	if (($recipient_level ne "0") && ($recipient_level ne "1") && ($recipient_level ne "2") && ($recipient_level ne "3"))
+	if (($recipient_level =~ /\D/) or ($recipient_level < 0) or ($recipient_level > 4))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0108", variables => { recipient_level => $recipient_level }});
 		return("");
