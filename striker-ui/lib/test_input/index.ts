@@ -1,6 +1,7 @@
 import buildDomainTestBatch from './buildDomainTestBatch';
 import buildIPAddressTestBatch from './buildIPAddressTestBatch';
 import buildPeacefulStringTestBatch from './buildPeacefulStringTestBatch';
+import buildUUIDTestBatch from './buildUUIDTestBatch';
 import createTestInputFunction from './createTestInputFunction';
 import testInput from './testInput';
 import testLength from './testLength';
@@ -12,6 +13,7 @@ export {
   buildDomainTestBatch,
   buildIPAddressTestBatch,
   buildPeacefulStringTestBatch,
+  buildUUIDTestBatch,
   createTestInputFunction,
   testInput,
   testLength,
