@@ -1,3 +1,5 @@
+import { REP_PEACEFUL_STRING } from '../consts/REG_EXP_PATTERNS';
+
 import testNotBlank from './testNotBlank';
 import { InlineMonoText } from '../../components/Text';
 
@@ -25,7 +27,7 @@ const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
           ...args,
         );
       },
-      test: ({ value }) => !/['"/\\><}{]/g.test(value as string),
+      test: ({ value }) => REP_PEACEFUL_STRING.test(value as string),
     },
     { test: testNotBlank },
   ],
