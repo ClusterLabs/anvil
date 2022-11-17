@@ -31,11 +31,11 @@ $anvil->Get->switches({list => [
 	"mail-server-security",
 	"mail-server-authentication",
 	"mail-server-helo-domain",
-	"notifications",
-	"notification-uuid",
-	"notification-recipient-uuid",
-	"notification-host-uuid",
-	"notification-alert-level",
+	"alert-overrides",
+	"alert-override-uuid",
+	"alert-override-recipient-uuid",
+	"alert-override-host-uuid",
+	"alert-override-alert-level",
 	"recipients",
 	"recipient-uuid",
 	"recipient-name",
@@ -70,25 +70,25 @@ elsif ($anvil->data->{switches}{"recipients"})
 	}});
 	handle_recipients($anvil);
 }
-elsif ($anvil->data->{switches}{"notifications"})
+elsif ($anvil->data->{switches}{"alert-overrides"})
 {
-	$anvil->data->{sys}{show}{notifications} = 1;
+	$anvil->data->{sys}{show}{alert_overrides} = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'sys::show::notifications' => $anvil->data->{sys}{show}{notifications}, 
+		'sys::show::alert_overrides' => $anvil->data->{sys}{show}{alert_overrides}, 
 	}});
-	handle_notifications($anvil);
+	handle_alert_overrides($anvil);
 }
 else
 {
-	$anvil->data->{sys}{show}{mail_servers}  = 1;
-	$anvil->data->{sys}{show}{recipients}    = 1;
-	$anvil->data->{sys}{show}{notifications} = 1;
-	$anvil->data->{sys}{show}{systems}       = 1;
+	$anvil->data->{sys}{show}{mail_servers}    = 1;
+	$anvil->data->{sys}{show}{recipients}      = 1;
+	$anvil->data->{sys}{show}{alert_overrides} = 1;
+	$anvil->data->{sys}{show}{systems}         = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'sys::show::mail_servers'  => $anvil->data->{sys}{show}{mail_servers}, 
-		'sys::show::recipients'    => $anvil->data->{sys}{show}{recipients}, 
-		'sys::show::notifications' => $anvil->data->{sys}{show}{notifications}, 
-		'sys::show::systems'       => $anvil->data->{sys}{show}{systems}, 
+		'sys::show::mail_servers'    => $anvil->data->{sys}{show}{mail_servers}, 
+		'sys::show::recipients'      => $anvil->data->{sys}{show}{recipients}, 
+		'sys::show::alert_overrides' => $anvil->data->{sys}{show}{alert_overrides}, 
+		'sys::show::systems'         => $anvil->data->{sys}{show}{systems}, 
 	}});
 	show_existing($anvil);
 }
@@ -99,6 +99,290 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub handle_alert_overrides
+{
+	my ($anvil) = @_;
+	
+	### Are we adding, editing or deleting?
+	# If we're adding or editing, all fields are required.
+	my $confirm_needed = 0;
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{edit}) or ($anvil->data->{switches}{'delete'}))
+	{
+		# Did the user confirm yet?
+		if ((not $anvil->data->{switches}{'y'}) and (not $anvil->data->{switches}{'yes'}))
+		{
+			$confirm_needed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { confirm_needed => $confirm_needed }});
+		}
+	}
+	
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{edit}))
+	{
+		# Do we have what we need?
+		my $problem = 0;
+		foreach my $switch ("alert-override-recipient-uuid", "alert-override-host-uuid", "alert-override-alert-level")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				switch              => $switch,
+				"switches::$switch" => $anvil->data->{switches}{$switch}, 
+			}});
+			if (($anvil->data->{switches}{$switch} eq "") or ($anvil->data->{switches}{$switch} eq "#!SET!#"))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0387", variables => { switch => $switch }});
+				$problem = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			}
+		}
+		
+		if ($problem)
+		{
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# These will be filled out if we need the user to confirm.
+	$anvil->data->{sys}{say_old_alert_override_level}     = "";
+	$anvil->data->{sys}{say_old_alert_override_recipient} = "";
+	$anvil->data->{sys}{say_old_alert_override_host}      = "";
+	$anvil->data->{sys}{say_new_alert_override_level}     = "";
+	$anvil->data->{sys}{say_new_alert_override_recipient} = "";
+	$anvil->data->{sys}{say_new_alert_override_host}      = "";
+	
+	# Populate the new 'say' strings, if needed.
+	my $alert_override_uuid               = $anvil->data->{switches}{"alert-override-uuid"};
+	my $new_alert_override_alert_level    = $anvil->data->{switches}{"alert-override-alert-level"};
+	my $new_alert_override_recipient_uuid = $anvil->data->{switches}{"alert-override-recipient-uuid"};
+	my $new_alert_override_host_uuid      = $anvil->data->{switches}{"alert-override-host-uuid"};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		alert_override_uuid               => $alert_override_uuid, 
+		new_alert_override_alert_level    => $new_alert_override_alert_level, 
+		new_alert_override_recipient_uuid => $new_alert_override_recipient_uuid, 
+		new_alert_override_host_uuid      => $new_alert_override_host_uuid, 
+	}});
+	if ($new_alert_override_recipient_uuid)
+	{
+		$anvil->data->{sys}{say_new_alert_override_recipient} = $anvil->data->{recipients}{recipient_uuid}{$new_alert_override_recipient_uuid}{recipient_name}." (".$anvil->data->{recipients}{recipient_uuid}{$new_alert_override_recipient_uuid}{recipient_email}.")";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'sys::say_new_alert_override_recipient' => $anvil->data->{sys}{say_new_alert_override_recipient},
+		}});
+	}
+	if ($new_alert_override_host_uuid)
+	{
+		$anvil->data->{sys}{say_new_alert_override_host} = $anvil->data->{hosts}{host_uuid}{$new_alert_override_host_uuid}{host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'sys::say_new_alert_override_host' => $anvil->data->{sys}{say_new_alert_override_host}, 
+		}});
+	}
+	
+	if ($new_alert_override_alert_level =~ /\d/)
+	{
+		if ($new_alert_override_alert_level == 0)
+		{
+			# Ignore
+			$anvil->data->{sys}{say_new_alert_override_level} = $anvil->Words->string({key => "unit_0023"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_alert_override_level' => $anvil->data->{sys}{say_new_alert_override_level},
+			}});
+		}
+		elsif ($new_alert_override_alert_level == 1)
+		{
+			# Critical
+			$anvil->data->{sys}{say_new_alert_override_level} = $anvil->Words->string({key => "unit_0024"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_alert_override_level' => $anvil->data->{sys}{say_new_alert_override_level},
+			}});
+		}
+		elsif ($new_alert_override_alert_level == 2)
+		{
+			# Warning
+			$anvil->data->{sys}{say_new_alert_override_level} = $anvil->Words->string({key => "unit_0025"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_alert_override_level' => $anvil->data->{sys}{say_new_alert_override_level},
+			}});
+		}
+		elsif ($new_alert_override_alert_level == 3)
+		{
+			# Notice
+			$anvil->data->{sys}{say_new_alert_override_level} = $anvil->Words->string({key => "unit_0026"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_alert_override_level' => $anvil->data->{sys}{say_new_alert_override_level},
+			}});
+		}
+		elsif ($new_alert_override_alert_level == 4)
+		{
+			# Info
+			$anvil->data->{sys}{say_new_alert_override_level} = $anvil->Words->string({key => "unit_0027"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_new_alert_override_level' => $anvil->data->{sys}{say_new_alert_override_level},
+			}});
+		}
+	}
+	
+	# If we're editing or deleting, make sure we have a valid UUID.
+	my $old_alert_override_level          = "";
+	my $old_alert_override_recipient_uuid = "";
+	my $old_alert_override_host_uuid      = "";
+	if (($anvil->data->{switches}{edit}) or ($anvil->data->{switches}{'delete'}))
+	{
+		if (not $alert_override_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0387", variables => { switch => "alert-override-uuid" }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if (not exists $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0388", variables => { uuid => $alert_override_uuid }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		$old_alert_override_recipient_uuid = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_recipient_uuid};
+		$old_alert_override_host_uuid      = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid};
+		$old_alert_override_level          = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			old_alert_override_recipient_uuid => $old_alert_override_recipient_uuid, 
+			old_alert_override_host_uuid      => $old_alert_override_host_uuid, 
+			old_alert_override_level          => $old_alert_override_level,
+		}});
+		
+		# Get the translated log level name.
+		if ($old_alert_override_level == 0)
+		{
+			# Ignore
+			$anvil->data->{sys}{say_old_alert_override_level} = $anvil->Words->string({key => "unit_0023"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_alert_override_level' => $anvil->data->{sys}{say_old_alert_override_level},
+			}});
+		}
+		elsif ($old_alert_override_level == 1)
+		{
+			# Critical
+			$anvil->data->{sys}{say_old_alert_override_level} = $anvil->Words->string({key => "unit_0024"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_alert_override_level' => $anvil->data->{sys}{say_old_alert_override_level},
+			}});
+		}
+		elsif ($old_alert_override_level == 2)
+		{
+			# Warning
+			$anvil->data->{sys}{say_old_alert_override_level} = $anvil->Words->string({key => "unit_0025"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_alert_override_level' => $anvil->data->{sys}{say_old_alert_override_level},
+			}});
+		}
+		elsif ($old_alert_override_level == 3)
+		{
+			# Notice
+			$anvil->data->{sys}{say_old_alert_override_level} = $anvil->Words->string({key => "unit_0026"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_alert_override_level' => $anvil->data->{sys}{say_old_alert_override_level},
+			}});
+		}
+		elsif ($old_alert_override_level == 4)
+		{
+			# Info
+			$anvil->data->{sys}{say_old_alert_override_level} = $anvil->Words->string({key => "unit_0027"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'sys::say_old_alert_override_level' => $anvil->data->{sys}{say_old_alert_override_level},
+			}});
+		}
+		
+		# Get the name / email of the recipient and the host
+		$anvil->data->{sys}{say_old_alert_override_recipient} = $anvil->data->{recipients}{recipient_uuid}{$old_alert_override_recipient_uuid}{recipient_name}." (".$anvil->data->{recipients}{recipient_uuid}{$old_alert_override_recipient_uuid}{recipient_email}.")";
+		$anvil->data->{sys}{say_old_alert_override_host}      = $anvil->data->{hosts}{host_uuid}{$old_alert_override_host_uuid}{host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'sys::say_old_alert_override_recipient' => $anvil->data->{sys}{say_old_alert_override_recipient},
+			'sys::say_old_alert_override_host'      => $anvil->data->{sys}{say_old_alert_override_host}, 
+		}});
+	}
+	
+	if ($confirm_needed)
+	{
+		my $key = "";
+		if ($anvil->data->{switches}{add})
+		{
+			$key = "message_0303";
+		}
+		elsif ($anvil->data->{switches}{edit})
+		{
+			$key = "message_0304";
+		}
+		elsif ($anvil->data->{switches}{'delete'})
+		{
+			$key = "message_0305";
+		}
+		print $anvil->Words->string({key => $key, variables => { 
+			new_level     => $anvil->data->{sys}{say_new_alert_override_level}, 
+			new_recipient => $anvil->data->{sys}{say_new_alert_override_recipient},
+			new_host      => $anvil->data->{sys}{say_new_alert_override_host},
+			old_level     => $anvil->data->{sys}{say_old_alert_override_level}, 
+			old_recipient => $anvil->data->{sys}{say_old_alert_override_recipient},
+			old_host      => $anvil->data->{sys}{say_old_alert_override_host},
+		}})."\n";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		if (lc($answer) !~ /^y/)
+		{
+			print $anvil->Words->string({key => "message_0022"})."\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	# Still alive?
+	if ($anvil->data->{switches}{add})
+	{
+		# Create the new entry.
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_alert_overrides({
+			debug                         => 2,
+			alert_override_recipient_uuid => $anvil->data->{switches}{"alert-override-recipient-uuid"},
+			alert_override_host_uuid      => $anvil->data->{switches}{"alert-override-host-uuid"},
+			alert_override_alert_level    => $anvil->data->{switches}{"alert-override-alert-level"},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0297", variables => { uuid => $mail_server_uuid }})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{edit})
+	{
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_alert_overrides({
+			debug                         => 2,
+			alert_override_uuid           => $anvil->data->{switches}{"alert-override-uuid"}, 
+			alert_override_recipient_uuid => $anvil->data->{switches}{"alert-override-recipient-uuid"},
+			alert_override_host_uuid      => $anvil->data->{switches}{"alert-override-host-uuid"},
+			alert_override_alert_level    => $anvil->data->{switches}{"alert-override-alert-level"},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0298"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{'delete'})
+	{
+		my ($mail_server_uuid) = $anvil->Database->insert_or_update_alert_overrides({
+			debug               => 2,
+			'delete'            => 1, 
+			alert_override_uuid => $anvil->data->{switches}{"alert-override-uuid"}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+		print $anvil->Words->string({key => "message_0299"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	else
+	{
+		$anvil->data->{sys}{show}{alert_overrides} = 1;
+		$anvil->data->{sys}{show}{recipients}      = 1;
+		$anvil->data->{sys}{show}{systems}         = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'sys::show::alert_overrides' => $anvil->data->{sys}{show}{alert_overrides}, 
+			'sys::show::recipients'      => $anvil->data->{sys}{show}{recipients}, 
+			'sys::show::systems'         => $anvil->data->{sys}{show}{systems}, 
+		}});
+		show_existing($anvil);
+	}
+	
+	return(0);
+}
 
 sub handle_recipients
 {
@@ -454,36 +738,27 @@ sub handle_mail_servers
 	return(0);
 }
 
-sub handle_notifications
-{
-	my ($anvil) = @_;
-	
-	
-	
-	return(0);
-}
-
 # Show existing mail servers.
 sub show_existing
 {
 	my ($anvil) = @_;
 	
 	# Show mail servers
-	$anvil->data->{longest}{mail_server_address}         = 0;
-	$anvil->data->{longest}{mail_server_port}            = 0;
-	$anvil->data->{longest}{mail_server_username}        = 0;
-	$anvil->data->{longest}{mail_server_password}        = 0;
-	$anvil->data->{longest}{mail_server_security}        = 0;
-	$anvil->data->{longest}{mail_server_authentication}  = 0;
-	$anvil->data->{longest}{mail_server_helo_domain}     = 0;
-	$anvil->data->{longest}{notification_recipient_name} = 0;
-	$anvil->data->{longest}{notification_host_name}      = 0;
-	$anvil->data->{longest}{notification_anvil_name}     = 0;
-	$anvil->data->{longest}{notification_alert_level}    = 0;
-	$anvil->data->{longest}{recipient_name}              = 0;
-	$anvil->data->{longest}{recipient_email}             = 0;
-	$anvil->data->{longest}{recipient_language}          = 0;
-	$anvil->data->{longest}{recipient_alert_level}       = 0;
+	$anvil->data->{longest}{mail_server_address}           = 0;
+	$anvil->data->{longest}{mail_server_port}              = 0;
+	$anvil->data->{longest}{mail_server_username}          = 0;
+	$anvil->data->{longest}{mail_server_password}          = 0;
+	$anvil->data->{longest}{mail_server_security}          = 0;
+	$anvil->data->{longest}{mail_server_authentication}    = 0;
+	$anvil->data->{longest}{mail_server_helo_domain}       = 0;
+	$anvil->data->{longest}{alert_override_recipient_name} = 0;
+	$anvil->data->{longest}{alert_override_host_name}      = 0;
+	$anvil->data->{longest}{alert_override_anvil_name}     = 0;
+	$anvil->data->{longest}{alert_override_alert_level}    = 0;
+	$anvil->data->{longest}{recipient_name}                = 0;
+	$anvil->data->{longest}{recipient_email}               = 0;
+	$anvil->data->{longest}{recipient_language}            = 0;
+	$anvil->data->{longest}{recipient_alert_level}         = 0;
 	
 	$anvil->data->{say_alert}{1} = "1 (".$anvil->Words->string({key => "unit_0024"}).")";
 	$anvil->data->{say_alert}{2} = "2 (".$anvil->Words->string({key => "unit_0025"}).")";
@@ -577,70 +852,70 @@ sub show_existing
 		}
 	}
 	
-	foreach my $notification_uuid (sort {$a cmp $b} keys %{$anvil->data->{notifications}{notification_uuid}})
+	foreach my $alert_override_uuid (sort {$a cmp $b} keys %{$anvil->data->{alert_overrides}{alert_override_uuid}})
 	{
-		my $notification_recipient_uuid  = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid};
-		my $notification_recipient_name  = $anvil->data->{recipients}{recipient_uuid}{$notification_recipient_uuid}{recipient_name}; 
-		my $notification_recipient_email = $anvil->data->{recipients}{recipient_uuid}{$notification_recipient_uuid}{recipient_email};
-		my $say_recipient                = $notification_recipient_name." <".$notification_recipient_email.">";
-		my $notification_host_uuid       = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
-		my $notification_short_host_name = $anvil->data->{hosts}{host_uuid}{$notification_host_uuid}{short_host_name};
-		my $say_anvil_name               = $anvil->data->{hosts}{host_uuid}{$notification_host_uuid}{anvil_name} ? $anvil->data->{hosts}{host_uuid}{$notification_host_uuid}{anvil_name} : "--";
-		my $notification_alert_level     = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level};
+		my $alert_override_recipient_uuid  = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_recipient_uuid};
+		my $alert_override_recipient_name  = $anvil->data->{recipients}{recipient_uuid}{$alert_override_recipient_uuid}{recipient_name}; 
+		my $alert_override_recipient_email = $anvil->data->{recipients}{recipient_uuid}{$alert_override_recipient_uuid}{recipient_email};
+		my $say_recipient                  = $alert_override_recipient_name." <".$alert_override_recipient_email.">";
+		my $alert_override_host_uuid       = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid};
+		my $alert_override_short_host_name = $anvil->data->{hosts}{host_uuid}{$alert_override_host_uuid}{short_host_name};
+		my $say_anvil_name                 = $anvil->data->{hosts}{host_uuid}{$alert_override_host_uuid}{anvil_name} ? $anvil->data->{hosts}{host_uuid}{$alert_override_host_uuid}{anvil_name} : "--";
+		my $alert_override_alert_level     = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:notification_uuid'            => $notification_uuid,
-			's2:notification_recipient_uuid'  => $notification_recipient_uuid, 
-			's3:notification_recipient_name'  => $notification_recipient_name, 
-			's4:notification_recipient_email' => $notification_recipient_email, 
-			's5:say_recipient'                => $say_recipient, 
-			's6:notification_host_uuid'       => $notification_host_uuid, 
-			's7:notification_short_host_name' => $notification_short_host_name, 
-			's8:say_anvil_name'               => $say_anvil_name, 
-			's9:notification_alert_level'     => $notification_alert_level, 
+			's1:alert_override_uuid'            => $alert_override_uuid,
+			's2:alert_override_recipient_uuid'  => $alert_override_recipient_uuid, 
+			's3:alert_override_recipient_name'  => $alert_override_recipient_name, 
+			's4:alert_override_recipient_email' => $alert_override_recipient_email, 
+			's5:say_recipient'                  => $say_recipient, 
+			's6:alert_override_host_uuid'       => $alert_override_host_uuid, 
+			's7:alert_override_short_host_name' => $alert_override_short_host_name, 
+			's8:say_anvil_name'                 => $say_anvil_name, 
+			's9:alert_override_alert_level'     => $alert_override_alert_level, 
 		}});
 		
-		if (length($say_recipient) > $anvil->data->{longest}{notification_recipient_name})
+		if (length($say_recipient) > $anvil->data->{longest}{alert_override_recipient_name})
 		{
-			$anvil->data->{longest}{notification_recipient_name} = length($say_recipient);
+			$anvil->data->{longest}{alert_override_recipient_name} = length($say_recipient);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'longest::notification_recipient_name' => $anvil->data->{longest}{notification_recipient_name}, 
+				'longest::alert_override_recipient_name' => $anvil->data->{longest}{alert_override_recipient_name}, 
 			}});
 		}
 		
-		if (length($notification_short_host_name) > $anvil->data->{longest}{notification_host_name})
+		if (length($alert_override_short_host_name) > $anvil->data->{longest}{alert_override_host_name})
 		{
-			$anvil->data->{longest}{notification_host_name} = length($notification_short_host_name);
+			$anvil->data->{longest}{alert_override_host_name} = length($alert_override_short_host_name);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'longest::notification_host_name' => $anvil->data->{longest}{notification_host_name}, 
+				'longest::alert_override_host_name' => $anvil->data->{longest}{alert_override_host_name}, 
 			}});
 		}
 		
-		if (length($say_anvil_name) > $anvil->data->{longest}{notification_anvil_name})
+		if (length($say_anvil_name) > $anvil->data->{longest}{alert_override_anvil_name})
 		{
-			$anvil->data->{longest}{notification_anvil_name} = length($say_anvil_name);
+			$anvil->data->{longest}{alert_override_anvil_name} = length($say_anvil_name);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'longest::notification_anvil_name' => $anvil->data->{longest}{notification_anvil_name}, 
+				'longest::alert_override_anvil_name' => $anvil->data->{longest}{alert_override_anvil_name}, 
 			}});
 		}
 		
-		if (length($anvil->data->{say_alert}{$notification_alert_level}) > $anvil->data->{longest}{notification_alert_level})
+		if (length($anvil->data->{say_alert}{$alert_override_alert_level}) > $anvil->data->{longest}{alert_override_alert_level})
 		{
-			$anvil->data->{longest}{notification_alert_level} = length($anvil->data->{say_alert}{$notification_alert_level});
+			$anvil->data->{longest}{alert_override_alert_level} = length($anvil->data->{say_alert}{$alert_override_alert_level});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'longest::notification_alert_level' => $anvil->data->{longest}{notification_alert_level}, 
+				'longest::alert_override_alert_level' => $anvil->data->{longest}{alert_override_alert_level}, 
 			}});
 		}
 		
 		# This will let us display over-rides by user in order.
-		$anvil->data->{notifications}{name_to_uuid}{$notification_recipient_name}            = $notification_uuid;
-		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{recipient_name} = $say_recipient;
-		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{anvil_name}     = $say_anvil_name;
-		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{host_uuid}      = $notification_host_uuid;
+		$anvil->data->{alert_overrides}{name_to_uuid}{$alert_override_recipient_name}              = $alert_override_uuid;
+		$anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{recipient_name} = $say_recipient;
+		$anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{anvil_name}     = $say_anvil_name;
+		$anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{host_uuid}      = $alert_override_host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:notifications::name_to_uuid::${notification_recipient_name}"         => $anvil->data->{notifications}{name_to_uuid}{$notification_recipient_name}, 
-			"s2:notifications::notification_uuid::${notification_uuid}::recipient_name" => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{recipient_name}, 
-			"s3:notifications::notification_uuid::${notification_uuid}::anvil_name"     => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{anvil_name}, 
-			"s4:notifications::notification_uuid::${notification_uuid}::host_uuid"      => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{host_uuid}, 
+			"s1:alert_overrides::name_to_uuid::${alert_override_recipient_name}"              => $anvil->data->{alert_overrides}{name_to_uuid}{$alert_override_recipient_name}, 
+			"s2:alert_overrides::alert_override_uuid::${alert_override_uuid}::recipient_name" => $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{recipient_name}, 
+			"s3:alert_overrides::alert_override_uuid::${alert_override_uuid}::anvil_name"     => $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{anvil_name}, 
+			"s4:alert_overrides::alert_override_uuid::${alert_override_uuid}::host_uuid"      => $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{host_uuid}, 
 		}});
 	}
 	
@@ -767,32 +1042,32 @@ sub show_existing
 		print "\n";
 	}
 	
-	if ($anvil->data->{sys}{show}{notifications})
+	if ($anvil->data->{sys}{show}{alert_overrides})
 	{
-		print "-=] Notification Over-rides;\n";
+		print "-=] Alert Overrides;\n";
 		print "Recipient, Host, Anvil!, Alert Level, Notification UUID\n";
-		my $notifications = 0;
-		foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{notifications}{name_to_uuid}})
+		my $alert_overrides = 0;
+		foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{alert_overrides}{name_to_uuid}})
 		{
-			my $notification_uuid = $anvil->data->{notifications}{name_to_uuid}{$recipient_name};
-			my $say_recipient     = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{recipient_name};
-			my $say_anvil_name    = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{anvil_name};
-			my $host_uuid         = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
-			my $short_host_name   = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
-			my $alert_level       = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level};
+			my $alert_override_uuid = $anvil->data->{alert_overrides}{name_to_uuid}{$recipient_name};
+			my $say_recipient       = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{recipient_name};
+			my $say_anvil_name      = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{anvil_name};
+			my $host_uuid           = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid};
+			my $short_host_name     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+			my $alert_level         = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:notification_uuid' => $notification_uuid,
-				's2:say_recipient'     => $say_recipient, 
-				's3:say_anvil_name'    => $say_anvil_name, 
-				's4:alert_level'       => $alert_level, 
+				's1:alert_override_uuid' => $alert_override_uuid,
+				's2:say_recipient'       => $say_recipient, 
+				's3:say_anvil_name'      => $say_anvil_name, 
+				's4:alert_level'         => $alert_level, 
 			}});
 			
-			print $say_recipient.", ".$short_host_name.", ".$say_anvil_name.", ".$anvil->data->{say_alert}{$alert_level}.", ".$notification_uuid."\n";
-			$notifications++;
+			print $say_recipient.", ".$short_host_name.", ".$say_anvil_name.", ".$anvil->data->{say_alert}{$alert_level}.", ".$alert_override_uuid."\n";
+			$alert_overrides++;
 		}
-		if (not $notifications)
+		if (not $alert_overrides)
 		{
-			print "# No notification over-rides found.\n";
+			print "# No alert override over-rides found.\n";
 		}
 		print "\n";
 	}
@@ -883,22 +1158,22 @@ sub check_switches
 	$anvil->Database->get_anvils();
 	$anvil->Database->get_mail_servers();
 	$anvil->Database->get_recipients();
-	$anvil->Database->get_notifications();
+	$anvil->Database->get_alert_overrides();
 	$anvil->Words->language_list();
 	
 	### Now sanity check
 	my $problem = 0;
 	
 	# These will be used to limit the display of things, if/when appropriate
-	$anvil->data->{sys}{show}{mail_servers}  = 0;
-	$anvil->data->{sys}{show}{recipients}    = 0;
-	$anvil->data->{sys}{show}{notifications} = 0;
-	$anvil->data->{sys}{show}{systems}       = 0;
-	$anvil->data->{sys}{say_old_security}    = "";
-	$anvil->data->{sys}{say_old_auth}        = "";
+	$anvil->data->{sys}{show}{mail_servers}    = 0;
+	$anvil->data->{sys}{show}{recipients}      = 0;
+	$anvil->data->{sys}{show}{alert_overrides} = 0;
+	$anvil->data->{sys}{show}{systems}         = 0;
+	$anvil->data->{sys}{say_old_security}      = "";
+	$anvil->data->{sys}{say_old_auth}          = "";
 	
 	# Validate UUIDs.
-	foreach my $switch ("mail-server-uuid", "notification-uuid", "recipient-uuid", "notification-recipient-uuid", "notification-host-uuid")
+	foreach my $switch ("mail-server-uuid", "alert-override-uuid", "recipient-uuid", "alert-override-recipient-uuid", "alert-override-host-uuid")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { switch => $switch }});
 		if (($anvil->data->{switches}{$switch}) && (not $anvil->Validate->uuid({uuid => $anvil->data->{switches}{$switch}})))
@@ -1019,7 +1294,7 @@ sub check_switches
 	}
 	
 	# Check log levels.
-	foreach my $switch ("notification-alert-level", "recipient-level")
+	foreach my $switch ("alert-override-alert-level", "recipient-level")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { switch => $switch }});
 		if ($anvil->data->{switches}{$switch} ne "")
@@ -1122,6 +1397,34 @@ sub check_switches
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0384", variables => { 
 				security => $anvil->data->{switches}{"mail-server-security"},
+			}});
+			
+			$problem = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		}
+	}
+	
+	# If set, make sure the "alert-override-recipient-uuid" and "alert-override-host-uuid" are valid.
+	if ($anvil->data->{switches}{"alert-override-recipient-uuid"})
+	{
+		my $recipient_uuid = $anvil->data->{switches}{"alert-override-recipient-uuid"};
+		if (not exists $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0390", variables => { 
+				uuid => $anvil->data->{switches}{"alert-override-recipient-uuid"},
+			}});
+			
+			$problem = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		}
+	}
+	if ($anvil->data->{switches}{"alert-override-host-uuid"})
+	{
+		my $host_uuid = $anvil->data->{switches}{"alert-override-host-uuid"};
+		if (not exists $anvil->data->{hosts}{host_uuid}{$host_uuid})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0391", variables => { 
+				uuid => $anvil->data->{switches}{"alert-override-host-uuid"},
 			}});
 			
 			$problem = 1;
@@ -1272,7 +1575,7 @@ sub check_switches
 			}});
 		}
 	}
-
+	
 	# Later, we'll need to parse the language file, for now, we always force 'en_CA'.
 	$anvil->data->{switches}{"recipient-language"} = "en_CA";
 	

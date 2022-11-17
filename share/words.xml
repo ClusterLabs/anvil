@@ -165,8 +165,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
 		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target? The caller was: [#!variable!source!#:#!variable!line!#].]]></key>
 		<key name="error_0107">Failed to reconnect after reconfiguring the network. Will reboot in hopes of coming up cleanly.</key>
-		<key name="error_0108">The 'recipient_level': [#!variable!recipient_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
-		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
+		<key name="error_0108">The 'recipient_level': [#!variable!recipient_level!#] is invalid. It should be '0', '1', '2', '3', or '4'.</key>
+		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', '3', or '4'.</key>
 		<key name="error_0110">The 'notification_uuid': [#!variable!notification_uuid!#] was not found in the database.</key>
 		<key name="error_0111">
 [ Error ] - The was a problem parsing the unified metadata:
@@ -553,6 +553,9 @@ The definition data passed in was:
 		<key name="error_0386">[ Error ] - The email address: [#!variable!email!#] appears to be invalid.</key>
 		<key name="error_0387">[ Error ] - The switch: [--#!variable!switch!#] is required, but not provided.</key>
 		<key name="error_0388">[ Error ] - The mail server UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="error_0389">[ Error ] - I was asked to delete a notification over-ride, but no 'notification_uuid' was provides.</key>
+		<key name="error_0390">[ Error ] - The alert recipient UUID: [#!variable!uuid!#] wasn't found in the database.</key>
+		<key name="error_0391">[ Error ] - The host UUID: [#!variable!uuid!#] wasn't found in the database.</key>
 		
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2704,8 +2707,7 @@ Available options;
 * Authentication: [#!variable!new_authentication!#]
 * Security: ..... [#!variable!new_security!#]
 * HELO domain: .. [#!variable!new_helo_domain!#]
-Proceed? [y/N]
-</key>
+Proceed? [y/N]</key>
 		<key name="message_0295">Are you sure you want to change the mail server thusly:
 * Address: ...... [#!variable!old_address!#] -> [#!variable!new_address!#]
 * TCP port: ..... [#!variable!old_port!#] -> [#!variable!new_port!#]
@@ -2714,8 +2716,7 @@ Proceed? [y/N]
 * Authentication: [#!variable!old_authentication!#] -> [#!variable!new_authentication!#]
 * Security: ..... [#!variable!old_security!#] -> [#!variable!new_security!#]
 * HELO domain: .. [#!variable!old_helo_domain!#] -> [#!variable!new_helo_domain!#]
-Proceed? [y/N]
-</key>
+Proceed? [y/N]</key>
 		<key name="message_0296">Are you sure you want to delete the mail server:
 * Address: ...... [#!variable!old_address!#]
 * TCP port: ..... [#!variable!old_port!#]
@@ -2724,8 +2725,7 @@ Proceed? [y/N]
 * Authentication: [#!variable!old_authentication!#]
 * Security: ..... [#!variable!old_security!#]
 * HELO domain: .. [#!variable!old_helo_domain!#]
-Proceed? [y/N]
-</key>
+Proceed? [y/N]</key>
 		<key name="message_0297">The new mail server was created with the UUID: [#!variable!uuid!#].</key>
 		<key name="message_0298">The mail server has been updated.</key>
 		<key name="message_0299">The mail server has been deleted.</key>
@@ -2734,22 +2734,34 @@ Proceed? [y/N]
 * E-Mail: . [#!variable!new_email!#]
 * Language: [#!variable!new_language!#]
 * Level: .. [#!variable!new_level!#]
-Proceed? [y/N]
-</key>
+Proceed? [y/N]</key>
 		<key name="message_0301">Are you sure you want to change the alert recipient thusly:
 * Name: ... [#!variable!old_name!#] -> [#!variable!new_name!#]
 * E-Mail: . [#!variable!old_email!#] -> [#!variable!new_email!#]
 * Language: [#!variable!old_language!#] -> [#!variable!new_language!#]
 * Level: .. [#!variable!old_level!#] -> [#!variable!new_level!#]
-Proceed? [y/N]
-</key>
+Proceed? [y/N]</key>
 		<key name="message_0302">Are you sure you want to delete the alert recipient:
 * Name: ... [#!variable!old_name!#]
 * E-Mail: . [#!variable!old_email!#]
 * Language: [#!variable!old_language!#]
 * Level: .. [#!variable!old_level!#]
-Proceed? [y/N]
-</key>
+Proceed? [y/N]</key>
+		<key name="message_0303">Are you sure you want to create the alert override for the recipient and system:
+* Recipient: . [#!variable!new_recipient!#]
+* Host: ...... [#!variable!new_host!#]
+* Alert Level: [#!variable!new_level!#]
+Proceed? [y/N]</key>
+		<key name="message_0304">Are you sure you want to change the alert override for the recipient and system:
+* Recipient: . [#!variable!old_recipient!#] -> [#!variable!new_recipient!#]
+* Host: ...... [#!variable!old_host!#] -> [#!variable!new_host!#]
+* Alert Level: [#!variable!old_level!#] -> [#!variable!new_level!#]
+Proceed? [y/N]</key>
+		<key name="message_0305">Are you sure you want to delete the alert override for the recipient and system:
+* Recipient: . [#!variable!old_recipient!#]
+* Host: ...... [#!variable!old_host!#]
+* Alert Level: [#!variable!old_level!#]
+Proceed? [y/N]</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

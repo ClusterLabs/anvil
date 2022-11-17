@@ -2,15 +2,15 @@
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
 .TH anvil-manage-alerts "8" "October 26 2022" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-manage-alerts \- This program manages alerts; Email servers, recipients, notification overrides, and generating test alerts.
+anvil-manage-alerts \- This program manages alerts; Email servers, recipients, alert-override overrides, and generating test alerts.
 .SH SYNOPSIS
 .B anvil-manage-alerts 
 \fI\,<command> \/\fR
 .SH DESCRIPTION
-The program allows you to add, edit and delete email servers, alert recipients, and notification overrides. You can also use it to generate a test alert. 
+The program allows you to add, edit and delete email servers, alert recipients, and alert-override overrides. You can also use it to generate a test alert. 
 If run without any switches, the list of mail servers and recipients are returned. 
 
-When called without any switches, the list of currect mail servers, alert recipients and notification overrides are shown, along with all known hosts.
+When called without any switches, the list of currect mail servers, alert recipients and alert-override overrides are shown, along with all known hosts.
 .TP
 .SH OPTIONS
 .TP
@@ -76,19 +76,19 @@ Example: example.com
 
 See: https://www.ibm.com/docs/en/zos/2.2.0?topic=sc-helo-command-identify-domain-name-sending-host-smtp
 .TP
-\fB\-\-notifications\fR 
-This is where an alert recipient can have notification overrides. Typically this is used so that a given user can ignore alerts from a specific Anvil! node pair.
+\fB\-\-alert-overrides\fR 
+This is where an alert recipient can have alert-override overrides. Typically this is used so that a given user can ignore alerts from a specific Anvil! node pair.
 .TP
-\fB\-\-notification-uuid\fR <uuid>
-This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing notification override being worked on.
+\fB\-\-alert-override-uuid\fR <uuid>
+This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing alert-override override being worked on.
 .TP
-\fB\-\-notification-recipient-uuid\fR <uuid>
+\fB\-\-alert-override-recipient-uuid\fR <uuid>
 This is the recipients -> recipient_uuid who we are creating the override for.
 .TP
-\fB\-\-notification-host-uuid\fR 
+\fB\-\-alert-override-host-uuid\fR 
 This is the hosts -> host_uuid of the machine that you are creating the alert 
 .TP
-\fB\-\-notification-alert-level\fR <1, 2, 3 or 4>
+\fB\-\-alert-override-alert-level\fR <1, 2, 3 or 4>
 This is the desired override alert level.
 
 Valid values are: 
@@ -121,7 +121,7 @@ Example: notaspy@example.com
 In the future, languages will be added and this can be used to indicate what language the user will receive their alerts in. At the time of writing this man page, only 'en_CA' is supported.
 .TP
 \fB\-\-recipient-level\fR <1, 2, 3 or 4>
-This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'notifications' over-rides.
+This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'alert-overrides' over-rides.
 
 Valid values are: 
 
@@ -137,6 +137,3 @@ Valid values are:
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
 .SH "REPORTING BUGS"
 Report bugs to users@clusterlabs.org
-
-
-", "download", "everywhere", "file", "is-script", "job-uuid", "rename", "to
