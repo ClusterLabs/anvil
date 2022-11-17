@@ -17,6 +17,7 @@ type MessageGroupOptionalProps = {
   count?: number;
   defaultMessageType?: MessageBoxProps['type'];
   onSet?: (length: number) => void;
+  usePlaceholder?: boolean;
 };
 
 type MessageGroupProps = MessageGroupOptionalProps;
@@ -34,6 +35,7 @@ const MESSAGE_GROUP_DEFAULT_PROPS: Required<
   count: 0,
   defaultMessageType: 'info',
   onSet: undefined,
+  usePlaceholder: true,
 };
 
 const MessageGroup = forwardRef<
@@ -45,6 +47,8 @@ const MessageGroup = forwardRef<
       count = MESSAGE_GROUP_DEFAULT_PROPS.count,
       defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType,
       onSet,
+      usePlaceholder:
+        isUsePlaceholder = MESSAGE_GROUP_DEFAULT_PROPS.usePlaceholder,
     },
     ref,
   ) => {
@@ -120,18 +124,22 @@ const MessageGroup = forwardRef<
         return result.length < limit;
       });
 
-      if (isValidCount && result.length === 0) {
-        result.push(
-          <MessageBox
-            key="message-placeholder"
-            sx={{ visibility: 'hidden' }}
-            text="Placeholder"
-          />,
-        );
+      if (isUsePlaceholder && isValidCount && result.length === 0) {
+        const placeholderCount = count - result.length;
+
+        for (let i = 0; i < placeholderCount; i += 1) {
+          result.push(
+            <MessageBox
+              key={`message-placeholder-${i}`}
+              sx={{ visibility: 'hidden' }}
+              text="Placeholder"
+            />,
+          );
+        }
       }
 
       return result;
-    }, [count, defaultMessageType, messages]);
+    }, [count, defaultMessageType, isUsePlaceholder, messages]);
 
     useImperativeHandle(ref, () => ({ exists, setMessage, setMessageRe }), [
       exists,
