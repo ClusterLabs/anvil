@@ -109,6 +109,10 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
       [],
     );
 
+    const messagesGroupSxDisplay = useMemo(
+      () => (isAllowSubmit ? undefined : 'none'),
+      [isAllowSubmit],
+    );
     const identifierInputTestBatch = useMemo(
       () =>
         overwriteIdentifierInputTestBatch?.call(
@@ -183,7 +187,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
         ) : (
           <FlexBox row sx={{ justifyContent: 'flex-end' }}>
             <ContainedButton
-              disabled={isInputIdentifierValid && isInputPassphraseValid}
+              disabled={!isInputIdentifierValid || !isInputPassphraseValid}
               onClick={submitHandler}
             >
               {submitLabel}
@@ -301,6 +305,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           'credential-message-group': {
             children: <MessageGroup count={1} ref={messageGroupRef} />,
             sm: 2,
+            sx: { display: messagesGroupSxDisplay },
           },
           'credential-submit': submitGrid,
         }}
