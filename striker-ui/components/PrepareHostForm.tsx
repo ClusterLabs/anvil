@@ -2,7 +2,7 @@ import {
   Visibility as MUIVisibilityIcon,
   VisibilityOff as MUIVisibilityOffIcon,
 } from '@mui/icons-material';
-import { IconButton as MUIIconButton } from '@mui/material';
+import { Box as MUIBox, IconButton as MUIIconButton } from '@mui/material';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
@@ -201,6 +201,7 @@ const PrepareHostForm: FC = () => {
 
             setIsShowAccessSubmit(isIdentifierChanged);
             setIsShowOptionalSection(!isIdentifierChanged);
+            setIsShowRedhatSection(!isIdentifierChanged);
           }
         }}
         onSubmitAppend={(
@@ -441,6 +442,15 @@ const PrepareHostForm: FC = () => {
     ],
   );
 
+  const messageSection = useMemo(
+    () => (
+      <MUIBox sx={{ display: isShowOptionalSection ? undefined : 'none' }}>
+        <MessageGroup count={1} ref={messageGroupRef} />
+      </MUIBox>
+    ),
+    [isShowOptionalSection],
+  );
+
   const submitSection = useMemo(
     () => (
       <FlexBox
@@ -452,10 +462,10 @@ const PrepareHostForm: FC = () => {
       >
         <ContainedButton
           disabled={
-            isInputHostNameValid &&
-            isInputEnterpriseKeyValid &&
-            isInputRedhatUserValid &&
-            isInputRedhatPasswordValid
+            !isInputHostNameValid ||
+            !isInputEnterpriseKeyValid ||
+            !isInputRedhatUserValid ||
+            !isInputRedhatPasswordValid
           }
           onClick={() => {
             const redhatPasswordInputValue =
@@ -511,7 +521,7 @@ const PrepareHostForm: FC = () => {
           {accessSection}
           {optionalSection}
           {redhatSection}
-          <MessageGroup count={1} ref={messageGroupRef} />
+          {messageSection}
           {submitSection}
         </FlexBox>
       </Panel>
