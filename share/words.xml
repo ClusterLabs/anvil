@@ -954,6 +954,23 @@ resource #!variable!server!# {
 		<key name="header_0083">Gateway (*DG)</key>
 		<key name="header_0084">Transmitted</key>
 		<key name="header_0085">Received</key>
+		<key name="header_0086">Mail Server Address</key>
+		<key name="header_0087">TCP Port</key>
+		<key name="header_0088">User Name</key>
+		<key name="header_0089">Password</key>
+		<key name="header_0090">Connection Security</key>
+		<key name="header_0091">Authentication Method</key>
+		<key name="header_0092">HELO Domain</key>
+		<key name="header_0093">Mail Server UUID</key>
+		<key name="header_0094">Recipients</key>
+		<key name="header_0095">E-mail</key>
+		<key name="header_0096">Alert Level</key>
+		<key name="header_0097">Language</key>
+		<key name="header_0098">Recipient UUID</key>
+		<key name="header_0099">Alert Overrides</key>
+		<key name="header_0100">Recipient</key>
+		<key name="header_0101">Anvil! Node</key>
+		<key name="header_0102">Alert Override UUID</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -3104,6 +3121,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0295">This indicates that this node has had pacemaker configured.</key>
 		<key name="striker_0296">This indicates that this node or DR host has had base DRBD configured.</key>
 		<key name="striker_0297">This indicates that this node or DR host has completed all tasks needed to be a full member of the Anvil!.</key>
+		<key name="striker_0298">TCP Port</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

@@ -744,21 +744,24 @@ sub show_existing
 	my ($anvil) = @_;
 	
 	# Show mail servers
-	$anvil->data->{longest}{mail_server_address}           = 0;
-	$anvil->data->{longest}{mail_server_port}              = 0;
-	$anvil->data->{longest}{mail_server_username}          = 0;
-	$anvil->data->{longest}{mail_server_password}          = 0;
-	$anvil->data->{longest}{mail_server_security}          = 0;
-	$anvil->data->{longest}{mail_server_authentication}    = 0;
-	$anvil->data->{longest}{mail_server_helo_domain}       = 0;
-	$anvil->data->{longest}{alert_override_recipient_name} = 0;
-	$anvil->data->{longest}{alert_override_host_name}      = 0;
-	$anvil->data->{longest}{alert_override_anvil_name}     = 0;
-	$anvil->data->{longest}{alert_override_alert_level}    = 0;
-	$anvil->data->{longest}{recipient_name}                = 0;
-	$anvil->data->{longest}{recipient_email}               = 0;
-	$anvil->data->{longest}{recipient_language}            = 0;
-	$anvil->data->{longest}{recipient_alert_level}         = 0;
+	$anvil->data->{longest}{mail_server_address}           = length($anvil->Words->string({key => "header_0086"}));
+	$anvil->data->{longest}{mail_server_port}              = length($anvil->Words->string({key => "header_0087"}));
+	$anvil->data->{longest}{mail_server_username}          = length($anvil->Words->string({key => "header_0088"}));
+	$anvil->data->{longest}{mail_server_password}          = length($anvil->Words->string({key => "header_0089"}));
+	$anvil->data->{longest}{mail_server_security}          = length($anvil->Words->string({key => "header_0090"}));
+	$anvil->data->{longest}{mail_server_authentication}    = length($anvil->Words->string({key => "header_0091"}));
+	$anvil->data->{longest}{mail_server_helo_domain}       = length($anvil->Words->string({key => "header_0092"}));
+	$anvil->data->{longest}{mail_server_uuid}              = length($anvil->Words->string({key => "header_0093"}));
+	$anvil->data->{longest}{recipient_name}                = length($anvil->Words->string({key => "header_0003"}));
+	$anvil->data->{longest}{recipient_email}               = length($anvil->Words->string({key => "header_0095"}));
+	$anvil->data->{longest}{recipient_alert_level}         = length($anvil->Words->string({key => "header_0096"}));
+	$anvil->data->{longest}{recipient_language}            = length($anvil->Words->string({key => "header_0097"}));
+	$anvil->data->{longest}{recipient_uuid}                = length($anvil->Words->string({key => "header_0098"}));
+	$anvil->data->{longest}{alert_override_recipient_name} = length($anvil->Words->string({key => "header_0100"}));
+	$anvil->data->{longest}{alert_override_host_name}      = length($anvil->Words->string({key => "header_0026"}));
+	$anvil->data->{longest}{alert_override_anvil_name}     = length($anvil->Words->string({key => "header_0101"}));
+	$anvil->data->{longest}{alert_override_alert_level}    = length($anvil->Words->string({key => "header_0096"}));
+	$anvil->data->{longest}{alert_override_uuid}           = length($anvil->Words->string({key => "header_0102"}));
 	
 	$anvil->data->{say_alert}{1} = "1 (".$anvil->Words->string({key => "unit_0024"}).")";
 	$anvil->data->{say_alert}{2} = "2 (".$anvil->Words->string({key => "unit_0025"}).")";
@@ -850,6 +853,14 @@ sub show_existing
 				'longest::mail_server_helo_domain' => $anvil->data->{longest}{mail_server_helo_domain}, 
 			}});
 		}
+		
+		if (length($mail_server_uuid) > $anvil->data->{longest}{mail_server_uuid})
+		{
+			$anvil->data->{longest}{mail_server_uuid} = length($mail_server_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::mail_server_uuid' => $anvil->data->{longest}{mail_server_uuid}, 
+			}});
+		}
 	}
 	
 	foreach my $alert_override_uuid (sort {$a cmp $b} keys %{$anvil->data->{alert_overrides}{alert_override_uuid}})
@@ -903,6 +914,14 @@ sub show_existing
 			$anvil->data->{longest}{alert_override_alert_level} = length($anvil->data->{say_alert}{$alert_override_alert_level});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				'longest::alert_override_alert_level' => $anvil->data->{longest}{alert_override_alert_level}, 
+			}});
+		}
+		
+		if (length($alert_override_uuid) > $anvil->data->{longest}{alert_override_uuid})
+		{
+			$anvil->data->{longest}{alert_override_uuid} = length($alert_override_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::alert_override_uuid' => $anvil->data->{longest}{alert_override_uuid}, 
 			}});
 		}
 		
@@ -966,16 +985,62 @@ sub show_existing
 				'longest::recipient_alert_level' => $anvil->data->{longest}{recipient_alert_level}, 
 			}});
 		}
+		
+		if (length($recipient_uuid) > $anvil->data->{longest}{recipient_uuid})
+		{
+			$anvil->data->{longest}{recipient_uuid} = length($recipient_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::recipient_uuid' => $anvil->data->{longest}{recipient_uuid}, 
+			}});
+		}
 	}
 	
 	# Now show the data.
 	if ($anvil->data->{sys}{show}{mail_servers})
 	{
-	# 	my $break_line  = "+-".sprintf("%0${longest_anvil_name}d", 0);
-	# 	my $header_line = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
-	# 	my $blank_lead  = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
-		print "-=] Mail Servers;\n";
-		print "Address, Port, Login User, Password, Security, Authentication, HELO Domaon, Mail Server UUID\n";
+		my $longest_mail_server_address        = $anvil->data->{longest}{mail_server_address};
+		my $longest_mail_server_port           = $anvil->data->{longest}{mail_server_port};
+		my $longest_mail_server_username       = $anvil->data->{longest}{mail_server_username};
+		my $longest_mail_server_password       = $anvil->data->{longest}{mail_server_password};
+		my $longest_mail_server_security       = $anvil->data->{longest}{mail_server_security};
+		my $longest_mail_server_authentication = $anvil->data->{longest}{mail_server_authentication};
+		my $longest_mail_server_helo_domain    = $anvil->data->{longest}{mail_server_helo_domain};
+		my $longest_mail_server_uuid           = $anvil->data->{longest}{mail_server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:longest_mail_server_address'        => $longest_mail_server_address,
+			's2:longest_mail_server_port'           => $longest_mail_server_port, 
+			's3:longest_mail_server_username'       => $longest_mail_server_username, 
+			's4:longest_mail_server_password'       => $longest_mail_server_password, 
+			's5:longest_mail_server_security'       => $longest_mail_server_security, 
+			's6:longest_mail_server_authentication' => $longest_mail_server_authentication, 
+			's7:longest_mail_server_helo_domain'    => $longest_mail_server_helo_domain, 
+			's8:longest_mail_server_uuid'           => $longest_mail_server_uuid, 
+		}});
+		
+		my $break_line  = "+-".sprintf("%0${longest_mail_server_address}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_port}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_username}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_password}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_security}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_authentication}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_helo_domain}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_mail_server_uuid}d", 0)."-+";
+		   $break_line =~ s/0/-/g;
+	
+		my $header_line =  "| ".sprintf("%-${longest_mail_server_address}s", $anvil->Words->string({key => "header_0086"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_port}s", $anvil->Words->string({key => "header_0087"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_username}s", $anvil->Words->string({key => "header_0088"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_password}s", $anvil->Words->string({key => "header_0089"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_security}s", $anvil->Words->string({key => "header_0090"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_authentication}s", $anvil->Words->string({key => "header_0091"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_helo_domain}s", $anvil->Words->string({key => "header_0092"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_mail_server_uuid}s", $anvil->Words->string({key => "header_0093"}))." |";
+		   
+		# Display
+		print "-=] ".$anvil->Words->string({key => "striker_0187"})."\n";
+		print $break_line."\n";
+		print $header_line."\n";
+		print $break_line."\n";
 		my $mail_servers = 0;
 		foreach my $mail_server_address (sort {$a cmp $b} keys %{$anvil->data->{mail_servers}{address_to_uuid}})
 		{
@@ -998,20 +1063,68 @@ sub show_existing
 			}});
 			next if $mail_server_helo_domain eq "DELETED";
 			
-			print $mail_server_address.", ".$mail_server_port.", ".$mail_server_username.", ".$mail_server_password.", ".$mail_server_security.", ".$mail_server_authentication.", ".$mail_server_helo_domain.", ".$mail_server_uuid."\n";
+			my $entry_line =  "| ".sprintf("%-${longest_mail_server_address}s", $mail_server_address)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_port}s", $mail_server_port)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_username}s", $mail_server_username)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_password}s", $mail_server_password)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_security}s", $mail_server_security)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_authentication}s", $mail_server_authentication)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_helo_domain}s", $mail_server_helo_domain)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_uuid}s", $mail_server_uuid)." |";
+			print $entry_line."\n";
+			
 			$mail_servers++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_servers => $mail_servers }});
 		}
 		if (not $mail_servers)
 		{
-			print "# No mail servers configured yet!\n";
+			my $entry_line =  "| ".sprintf("%-${longest_mail_server_address}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_port}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_username}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_password}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_security}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_authentication}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_helo_domain}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_mail_server_uuid}s", '--')." |";
+			print $entry_line."\n";
 		}
+		print $break_line."\n";
 		print "\n";
 	}
 	
 	if ($anvil->data->{sys}{show}{recipients})
 	{
-		print "-=] Recipients;\n";
-		print "Name, Email, Alert Level, Language, Recipient UUID\n";
+		my $longest_recipient_name        = $anvil->data->{longest}{recipient_name};
+		my $longest_recipient_email       = $anvil->data->{longest}{recipient_email};
+		my $longest_recipient_alert_level = $anvil->data->{longest}{recipient_alert_level};
+		my $longest_recipient_language    = $anvil->data->{longest}{recipient_language};
+		my $longest_recipient_uuid        = $anvil->data->{longest}{recipient_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:longest_recipient_name'        => $longest_recipient_name,
+			's2:longest_recipient_email'       => $longest_recipient_email, 
+			's3:longest_recipient_alert_level' => $longest_recipient_alert_level, 
+			's4:longest_recipient_language'    => $longest_recipient_language, 
+			's5:longest_recipient_uuid'        => $longest_recipient_uuid, 
+		}});
+		
+		my $break_line  = "+-".sprintf("%0${longest_recipient_name}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_recipient_email}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_recipient_alert_level}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_recipient_language}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_recipient_uuid}d", 0)."-+";
+		   $break_line =~ s/0/-/g;
+	
+		my $header_line =  "| ".sprintf("%-${longest_recipient_name}s", $anvil->Words->string({key => "header_0003"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_recipient_email}s", $anvil->Words->string({key => "header_0095"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_recipient_alert_level}s", $anvil->Words->string({key => "header_0096"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_recipient_language}s", $anvil->Words->string({key => "header_0097"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_recipient_uuid}s", $anvil->Words->string({key => "header_0098"}))." |";
+		   
+		# Display
+		print "-=] ".$anvil->Words->string({key => "header_0094"})."\n";
+		print $break_line."\n";
+		print $header_line."\n";
+		print $break_line."\n";
 		my $recipients = 0;
 		foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{recipients}{name_to_uuid}})
 		{
@@ -1032,20 +1145,63 @@ sub show_existing
 			# Get the translated log level name.
 			my $say_recipient_level = say_recipient_level($anvil, $recipient_level);
 			
-			print $recipient_name.", ".$recipient_email.", ".$say_recipient_level.", ".$say_language.", ".$recipient_uuid."\n";
+			my $entry_line =  "| ".sprintf("%-${longest_recipient_name}s", $recipient_name)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_email}s", $recipient_email)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_alert_level}s", $say_recipient_level)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_language}s", $say_language)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_uuid}s", $recipient_uuid)." |";
+			print $entry_line."\n";
+			
 			$recipients++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipients => $recipients }});
 		}
 		if (not $recipients)
 		{
-			print "# No alert recipients added yet!\n";
+			my $entry_line =  "| ".sprintf("%-${longest_recipient_name}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_email}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_alert_level}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_language}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_recipient_uuid}s", '--')." |";
+			print $entry_line."\n";
 		}
+		print $break_line."\n";
 		print "\n";
 	}
 	
 	if ($anvil->data->{sys}{show}{alert_overrides})
 	{
-		print "-=] Alert Overrides;\n";
-		print "Recipient, Host, Anvil!, Alert Level, Notification UUID\n";
+		my $longest_alert_override_recipient_name = $anvil->data->{longest}{alert_override_recipient_name};
+		my $longest_alert_override_host_name      = $anvil->data->{longest}{alert_override_host_name};
+		my $longest_alert_override_anvil_name     = $anvil->data->{longest}{alert_override_anvil_name};
+		my $longest_alert_override_alert_level    = $anvil->data->{longest}{alert_override_alert_level};;
+		my $longest_alert_override_uuid           = $anvil->data->{longest}{alert_override_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:longest_alert_override_recipient_name' => $longest_alert_override_recipient_name,
+			's2:longest_alert_override_host_name'      => $longest_alert_override_host_name, 
+			's3:longest_alert_override_anvil_name'     => $longest_alert_override_anvil_name, 
+			's4:longest_alert_override_alert_level'    => $longest_alert_override_alert_level, 
+			's5:longest_alert_override_uuid'           => $longest_alert_override_uuid, 
+		}});
+		
+		my $break_line  = "+-".sprintf("%0${longest_alert_override_recipient_name}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_alert_override_host_name}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_alert_override_anvil_name}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_alert_override_alert_level}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_alert_override_uuid}d", 0)."-+";
+		   $break_line =~ s/0/-/g;
+	
+		my $header_line =  "| ".sprintf("%-${longest_alert_override_recipient_name}s", $anvil->Words->string({key => "header_0100"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_alert_override_host_name}s", $anvil->Words->string({key => "header_0026"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_alert_override_anvil_name}s", $anvil->Words->string({key => "header_0101"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_alert_override_alert_level}s", $anvil->Words->string({key => "header_0096"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_alert_override_uuid}s", $anvil->Words->string({key => "header_0102"}))." |";
+		   
+		# Display
+		print "-=] ".$anvil->Words->string({key => "header_0099"})."\n";
+		print $break_line."\n";
+		print $header_line."\n";
+		print $break_line."\n";
+		
 		my $alert_overrides = 0;
 		foreach my $recipient_name (sort {$a cmp $b} keys %{$anvil->data->{alert_overrides}{name_to_uuid}})
 		{
@@ -1055,20 +1211,35 @@ sub show_existing
 			my $host_uuid           = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_host_uuid};
 			my $short_host_name     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 			my $alert_level         = $anvil->data->{alert_overrides}{alert_override_uuid}{$alert_override_uuid}{alert_override_alert_level};
+			my $say_alert_level     = $anvil->data->{say_alert}{$alert_level};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:alert_override_uuid' => $alert_override_uuid,
 				's2:say_recipient'       => $say_recipient, 
 				's3:say_anvil_name'      => $say_anvil_name, 
 				's4:alert_level'         => $alert_level, 
+				's5:say_alert_level'     => $say_alert_level, 
 			}});
 			
-			print $say_recipient.", ".$short_host_name.", ".$say_anvil_name.", ".$anvil->data->{say_alert}{$alert_level}.", ".$alert_override_uuid."\n";
+			my $entry_line =  "| ".sprintf("%-${longest_alert_override_recipient_name}s", $say_recipient)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_host_name}s", $short_host_name)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_anvil_name}s", $say_anvil_name)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_alert_level}s", $say_alert_level)." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_uuid}s", $alert_override_uuid)." |";
+			print $entry_line."\n";
+			
 			$alert_overrides++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_overrides => $alert_overrides }});
 		}
 		if (not $alert_overrides)
 		{
-			print "# No alert override over-rides found.\n";
+			my $entry_line =  "| ".sprintf("%-${longest_alert_override_recipient_name}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_host_name}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_anvil_name}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_alert_level}s", '--')." ";
+			   $entry_line .= "| ".sprintf("%-${longest_alert_override_uuid}s", '--')." |";
+			print $entry_line."\n";
 		}
+		print $break_line."\n";
 		print "\n";
 	}
 	
