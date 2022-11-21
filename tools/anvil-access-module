@@ -199,17 +199,17 @@ if ($sql_query)
 }
 elsif ($anvil->${sub_module_name}->can($sub_name))
 {
-    my $decoded_sub_params;
-    my $is_decode_sub_params_success = eval { $decoded_sub_params = decode_json($sub_params); };
+	my $decoded_sub_params;
+	my $is_decode_sub_params_success = eval { $decoded_sub_params = decode_json($sub_params); };
 
-    if (not $is_decode_sub_params_success)
-    {
-        print STDERR "error: failed to parse subroutine parameters\n";
-        $anvil->nice_exit({ exit_code => 1 });
-    }
+	if (not $is_decode_sub_params_success)
+	{
+		print STDERR "error: failed to parse subroutine parameters\n";
+		$anvil->nice_exit({ exit_code => 1 });
+	}
 
-    my $results = $anvil->${sub_module_name}->${sub_name}($decoded_sub_params);
-    print JSON->new->utf8->encode({ sub_results => $results })."\n";
+	my (@results) = $anvil->${sub_module_name}->${sub_name}($decoded_sub_params);
+	print JSON->new->utf8->encode({ sub_results => scalar(@results) > 1 ? \@results : $results[0] })."\n";
 }
 elsif ($data_hash)
 {
@@ -230,7 +230,7 @@ elsif ($data_hash)
 	if (not $is_decode_data_hash_success)
 	{
 		print STDERR "error: failed to parse data structure\n";
-        $anvil->nice_exit({ exit_code => 1 });
+		$anvil->nice_exit({ exit_code => 1 });
 	}
 
 	my $get_anvil_data_params = { data => {} };
