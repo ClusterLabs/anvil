@@ -1,7 +1,9 @@
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryHostDetail } from './buildQueryHostDetail';
+import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
+import { getShortHostName } from '../../getShortHostName';
 import { sanitize } from '../../sanitize';
 
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
@@ -14,26 +16,21 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
       hos.host_name,
       hos.host_uuid
     FROM hosts AS hos;`;
-  let afterQueryReturn: QueryResultModifierFunction | undefined = (
-    output: unknown,
-  ) => {
-    let result = output;
+  let afterQueryReturn: QueryResultModifierFunction | undefined =
+    buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
+      (previous, [hostName, hostUUID]) => {
+        const key = toLocal(hostUUID, localHostUUID);
 
-    if (output instanceof Array) {
-      result = output.reduce<Record<string, HostOverview>>(
-        (previous, [hostName, hostUUID]) => {
-          const key = toLocal(hostUUID, localHostUUID);
+        previous[key] = {
+          hostName,
+          hostUUID,
+          shortHostName: getShortHostName(hostName),
+        };
 
-          previous[key] = { hostName, hostUUID };
-
-          return previous;
-        },
-        {},
-      );
-    }
-
-    return result;
-  };
+        return previous;
+      },
+      {},
+    );
 
   if (hostUUIDs) {
     ({ query, afterQueryReturn } = buildQueryHostDetail({
