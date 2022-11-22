@@ -42,16 +42,7 @@ export const getHostConnection = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { hostUUIDs: rawHostUUIDs } = request.query;
 
-    let rawDatabaseData: {
-      [hostUUID: string]: {
-        host: string;
-        name: string;
-        password: string;
-        ping: string;
-        port: string;
-        user: string;
-      };
-    };
+    let rawDatabaseData: DatabaseHash;
 
     const hostUUIDField = 'ip_add.ip_address_host_uuid';
     const localHostUUID: string = getLocalHostUUID();

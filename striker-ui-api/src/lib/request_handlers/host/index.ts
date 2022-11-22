@@ -1,4 +1,6 @@
 export * from './createHost';
+export * from './createHostConnection';
+export * from './deleteHostConnection';
 export * from './getHost';
 export * from './getHostConnection';
 export * from './getHostDetail';
