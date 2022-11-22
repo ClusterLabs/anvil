@@ -1,5 +1,4 @@
-type DBInsertOrUpdateFunctionCommonParams = {
-  debug?: number;
+type DBInsertOrUpdateFunctionCommonParams = ModuleSubroutineCommonParams & {
   file: string;
   line?: number;
 };

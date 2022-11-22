@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
 
-import { dbQuery, getLocalHostUUID, sub } from '../../accessModule';
+import { dbQuery, getLocalHostUUID, getPeerData } from '../../accessModule';
 import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 import { stderr } from '../../shell';
 
@@ -27,31 +27,24 @@ export const getHostSSH: RequestHandler<
     body: { password, port = 22, ipAddress: target },
   } = request;
 
-  let hostName: string,
-    hostOS: string,
-    hostUUID: string,
-    rawIsInetConnected: string,
-    rawIsOSRegistered: string;
+  let hostName: string;
+  let hostOS: string;
+  let hostUUID: string;
+  let isConnected: boolean;
+  let isInetConnected: boolean;
+  let isOSRegistered: boolean;
 
   const localHostUUID = getLocalHostUUID();
 
   try {
     ({
-      host_name: hostName,
-      host_os: hostOS,
-      host_uuid: hostUUID,
-      internet: rawIsInetConnected,
-      os_registered: rawIsOSRegistered,
-    } = sub('get_peer_data', {
-      subModuleName: 'Striker',
-      subParams: { password, port, target },
-    }).stdout as {
-      host_name: string;
-      host_os: string;
-      host_uuid: string;
-      internet: string;
-      os_registered: string;
-    });
+      hostName,
+      hostOS,
+      hostUUID,
+      isConnected,
+      isInetConnected,
+      isOSRegistered,
+    } = getPeerData(target, { password, port }));
   } catch (subError) {
     stderr(`Failed to get peer data; CAUSE: ${subError}`);
 
@@ -59,8 +52,6 @@ export const getHostSSH: RequestHandler<
 
     return;
   }
-
-  const isConnected: boolean = hostName.length > 0;
 
   let badSSHKeys: DeleteSSHKeyConflictRequestBody | undefined;
 
@@ -91,7 +82,7 @@ export const getHostSSH: RequestHandler<
     hostOS,
     hostUUID,
     isConnected,
-    isInetConnected: rawIsInetConnected === '1',
-    isOSRegistered: rawIsOSRegistered === 'yes',
+    isInetConnected,
+    isOSRegistered,
   });
 };

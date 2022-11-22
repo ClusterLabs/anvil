@@ -164,6 +164,35 @@ const getLocalHostUUID = () => {
   return result;
 };
 
+const getPeerData: GetPeerDataFunction = (
+  target,
+  { password, port, ...restOptions } = {},
+) => {
+  const [
+    rawIsConnected,
+    {
+      host_name: hostName,
+      host_os: hostOS,
+      host_uuid: hostUUID,
+      internet: rawIsInetConnected,
+      os_registered: rawIsOSRegistered,
+    },
+  ] = execModuleSubroutine('get_peer_data', {
+    subModuleName: 'Striker',
+    subParams: { password, port, target },
+    ...restOptions,
+  }).stdout as [connected: string, data: PeerDataHash];
+
+  return {
+    hostName,
+    hostOS,
+    hostUUID,
+    isConnected: rawIsConnected === '1',
+    isInetConnected: rawIsInetConnected === '1',
+    isOSRegistered: rawIsOSRegistered === 'yes',
+  };
+};
+
 export {
   dbInsertOrUpdateJob as job,
   dbInsertOrUpdateVariable as variable,
@@ -173,5 +202,6 @@ export {
   dbWrite,
   getAnvilData,
   getLocalHostUUID,
+  getPeerData,
   execModuleSubroutine as sub,
 };
