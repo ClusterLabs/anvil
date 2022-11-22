@@ -35,6 +35,44 @@ NOTE: All fields are required when editing an existing mail server or recipient!
 \fB\-\-delete\fR 
 This deletes an existing mail server or alert recipient.
 .TP
+\fB\-\-alert-overrides\fR 
+This is where an alert recipient can have alert-override overrides. Typically this is used so that a given user can ignore alerts from a specific Anvil! node pair.
+.TP
+\fB\-\-alert-override-uuid\fR <uuid>
+This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing alert-override override being worked on.
+.TP
+\fB\-\-alert-override-recipient-uuid\fR <uuid>
+This is the recipients -> recipient_uuid who we are creating the override for.
+.TP
+\fB\-\-alert-override-host-uuid\fR 
+This is the hosts -> host_uuid of the machine that you are creating the alert 
+.TP
+\fB\-\-alert-override-alert-level\fR <1, 2, 3 or 4>
+This is the desired override alert level.
+
+Valid values are: 
+
+1 = "critical" alerts only
+
+2 = "warning" and critical alerts
+
+3 = "notice", warning and critical alerts
+
+4 = "info"; All alerts. This generates almost constant alerts! 
+.TP
+\fB\-\-level\fR <1, critical, 2, warning, 3, notice, 4, or info>
+When \fB\-\-test\fR is used, this sets the level the test alert is to be sent at. 
+
+Valid values are: 
+
+1 or "critical"
+
+2 or "warning"
+
+3 or "notice"
+
+4 or "info"
+.TP
 \fB\-\-mail-servers\fR 
 This is used to manage mail servers. Specifically, this control the mail server that we send alert emails to. The options used with this are;
 .TP
@@ -76,31 +114,6 @@ Example: example.com
 
 See: https://www.ibm.com/docs/en/zos/2.2.0?topic=sc-helo-command-identify-domain-name-sending-host-smtp
 .TP
-\fB\-\-alert-overrides\fR 
-This is where an alert recipient can have alert-override overrides. Typically this is used so that a given user can ignore alerts from a specific Anvil! node pair.
-.TP
-\fB\-\-alert-override-uuid\fR <uuid>
-This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing alert-override override being worked on.
-.TP
-\fB\-\-alert-override-recipient-uuid\fR <uuid>
-This is the recipients -> recipient_uuid who we are creating the override for.
-.TP
-\fB\-\-alert-override-host-uuid\fR 
-This is the hosts -> host_uuid of the machine that you are creating the alert 
-.TP
-\fB\-\-alert-override-alert-level\fR <1, 2, 3 or 4>
-This is the desired override alert level.
-
-Valid values are: 
-
-1 = "critical" alerts only
-
-2 = "warning" and critical alerts
-
-3 = "notice", warning and critical alerts
-
-4 = "info"; All alerts. This generates almost constant alerts! 
-.TP
 \fB\-\-recipients\fR 
 This is used to manage alert recipients. Specifically, this control the mail server that we send alert emails to. The options used with this are;
 .TP
@@ -132,6 +145,9 @@ Valid values are:
 3 = "notice", warning and critical alerts
 
 4 = "info"; All alerts. This generates almost constant alerts! 
+.TP
+\fB\-\-test\fR
+Tells the program to send a test alert at the desired \fB\-\-level\fR. The requested level is required.
 .TP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
