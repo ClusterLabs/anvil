@@ -8,8 +8,8 @@ import { FC, useCallback, useMemo, useRef, useState } from 'react';
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 
+import api from '../lib/api';
 import handleAPIError from '../lib/handleAPIError';
-import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
 import {
   buildDomainTestBatch,
   buildIPAddressTestBatch,
@@ -210,7 +210,7 @@ const PrepareHostForm: FC = () => {
           setMessage,
           setIsSubmitting,
         ) => {
-          mainAxiosInstance
+          api
             .put<{
               hostName: string;
               hostOS: string;
@@ -218,21 +218,10 @@ const PrepareHostForm: FC = () => {
               isConnected: boolean;
               isInetConnected: boolean;
               isOSRegistered: boolean;
-            }>(
-              '/command/inquire-host',
-              {
-                ipAddress: getIdentifier?.call(null),
-                password: getPassphrase?.call(null),
-              },
-              {
-                transformRequest: (data, headers = {}) => {
-                  headers['Content-Type'] = 'application/json';
-
-                  return JSON.stringify(data);
-                },
-                transformResponse: (data) => JSON.parse(data),
-              },
-            )
+            }>('/command/inquire-host', {
+              ipAddress: getIdentifier?.call(null),
+              password: getPassphrase?.call(null),
+            })
             .then(
               ({
                 data: {

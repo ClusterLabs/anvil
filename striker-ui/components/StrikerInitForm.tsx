@@ -1,6 +1,7 @@
 import { Grid } from '@mui/material';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
+import api from '../lib/api';
 import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
@@ -8,7 +9,7 @@ import GeneralInitForm, {
   GeneralInitFormForwardedRefContent,
   GeneralInitFormValues,
 } from './GeneralInitForm';
-import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
+import handleAPIError from '../lib/handleAPIError';
 import MessageBox, { Message } from './MessageBox';
 import NetworkInitForm, {
   NetworkInitFormForwardedRefContent,
@@ -218,19 +219,15 @@ const StrikerInitForm: FC = () => {
           setIsSubmittingForm(true);
           setIsOpenConfirm(false);
 
-          mainAxiosInstance
-            .put('/command/initialize-striker', JSON.stringify(requestBody), {
-              headers: { 'Content-Type': 'application/json' },
-            })
+          api
+            .post('/host', requestBody)
             .then(() => {
               setIsSubmittingForm(false);
             })
-            .catch((reason) => {
-              setSubmitMessage({
-                children: `Failed to submit; ${reason}`,
-                type: 'error',
-              });
+            .catch((error) => {
+              const errorMessage = handleAPIError(error);
 
+              setSubmitMessage(errorMessage);
               setIsSubmittingForm(false);
             });
         }}
