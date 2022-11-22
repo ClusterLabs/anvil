@@ -1,3 +1,4 @@
+import { Box, Checkbox, checkboxClasses } from '@mui/material';
 import { AxiosResponse } from 'axios';
 import {
   FormEventHandler,
@@ -5,18 +6,17 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Box, Checkbox, checkboxClasses } from '@mui/material';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { GREY, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
 
+import api from '../../lib/api';
 import ConfirmDialog from '../ConfirmDialog';
 import ContainedButton from '../ContainedButton';
 import FileInfo from './FileInfo';
 import Spinner from '../Spinner';
 
 import fetchJSON from '../../lib/fetchers/fetchJSON';
-import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
 
 type ReducedFileLocation = Partial<
   Pick<FileLocation, 'fileLocationUUID' | 'isFileLocationActive'>
@@ -127,17 +127,9 @@ const FileEditForm = (
           editRequestContent.fileLocations = changedFileLocations;
         }
 
-        const stringEditFileRequestContent = JSON.stringify(editRequestContent);
-
-        if (stringEditFileRequestContent !== '{}') {
+        if (Object.keys(editRequestContent).length > 0) {
           reducedEditPromises.push(
-            mainAxiosInstance.put(
-              `/file/${fileUUID}`,
-              stringEditFileRequestContent,
-              {
-                headers: { 'Content-Type': 'application/json' },
-              },
-            ),
+            api.put(`/file/${fileUUID}`, editRequestContent),
           );
         }
 
@@ -159,7 +151,7 @@ const FileEditForm = (
 
     const purgePromises = filesToEdit
       .filter(({ isSelected }) => isSelected)
-      .map(({ fileUUID }) => mainAxiosInstance.delete(`/file/${fileUUID}`));
+      .map(({ fileUUID }) => api.delete(`/file/${fileUUID}`));
 
     Promise.all(purgePromises)
       .then(() => {

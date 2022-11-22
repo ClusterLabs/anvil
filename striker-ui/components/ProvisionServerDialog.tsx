@@ -13,12 +13,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 
+import api from '../lib/api';
 import Autocomplete from './Autocomplete';
 import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
 import IconButton, { IconButtonProps } from './IconButton';
-import mainAxiosInstance from '../lib/singletons/mainAxiosInstance';
 import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
@@ -1462,16 +1462,14 @@ const ProvisionServerDialog = ({
   };
 
   useEffect(() => {
-    mainAxiosInstance
+    api
       .get('/anvil', {
         params: {
           anvilUUIDs: 'all',
           isForProvisionServer: true,
         },
       })
-      .then(({ data: stringData }) => {
-        const data = JSON.parse(stringData);
-
+      .then(({ data }) => {
         const {
           anvils: ueAllAnvils,
           anvilSelectItems: ueAnvilSelectItems,
@@ -1787,7 +1785,7 @@ const ProvisionServerDialog = ({
             setIsOpenProvisionConfirmDialog(false);
           }}
           onProceedAppend={() => {
-            const requestBody = JSON.stringify({
+            const requestBody = {
               serverName: inputServerNameValue,
               cpuCores: inputCPUCoresValue,
               memory: memory.toString(),
@@ -1799,18 +1797,14 @@ const ProvisionServerDialog = ({
               driverISOFileUUID: inputDriverISOFileUUID,
               anvilUUID: inputAnvilValue,
               optimizeForOS: inputOptimizeForOSValue?.key,
-            });
+            };
 
             setIsProvisionRequestInProgress(true);
 
-            mainAxiosInstance
-              .post('/server', requestBody, {
-                headers: { 'Content-Type': 'application/json' },
-              })
-              .then(() => {
-                setIsProvisionRequestInProgress(false);
-                setSuccessfulProvisionCount(successfulProvisionCount + 1);
-              });
+            api.post('/server', requestBody).then(() => {
+              setIsProvisionRequestInProgress(false);
+              setSuccessfulProvisionCount(successfulProvisionCount + 1);
+            });
 
             setIsOpenProvisionConfirmDialog(false);
           }}
