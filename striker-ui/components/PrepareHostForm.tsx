@@ -24,17 +24,22 @@ import FlexBox from './FlexBox';
 import GateForm from './GateForm';
 import Grid from './Grid';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
+import { Message } from './MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
 import RadioGroupWithLabel from './RadioGroupWithLabel';
+import Spinner from './Spinner';
 import { BodyText, HeaderText, MonoText } from './Text';
+import useProtect from '../hooks/useProtect';
+import useProtectedState from '../hooks/useProtectedState';
 
 const ENTERPRISE_KEY_LABEL = 'Alteeve enterprise key';
 const HOST_IP_LABEL = 'Host IP address';
 const HOST_NAME_LABEL = 'Host name';
 const REDHAT_PASSWORD_LABEL = 'RedHat password';
 const REDHAT_USER_LABEL = 'RedHat user';
+const SUCCESS_MESSAGE_TIMEOUT = 5000;
 
 const IT_IDS = {
   enterpriseKey: 'enterpriseKey',
@@ -50,6 +55,8 @@ const GRID_COLUMNS: Exclude<GridProps['columns'], undefined> = {
 const GRID_SPACING: Exclude<GridProps['spacing'], undefined> = '1em';
 
 const PrepareHostForm: FC = () => {
+  const { protect } = useProtect();
+
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const gateFormRef = useRef<GateFormForwardedRefContent>({});
   const inputEnterpriseKeyRef = useRef<InputForwardedRefContent<'string'>>({});
@@ -71,6 +78,13 @@ const PrepareHostForm: FC = () => {
   const [connectedHostIPAddress, setConnectedHostIPAddress] = useState<
     string | undefined
   >();
+  const [connectedHostPassword, setConnectedHostPassword] = useProtectedState<
+    string | undefined
+  >(undefined, protect);
+  const [connectedHostUUID, setConnectedHostUUID] = useProtectedState<string>(
+    '',
+    protect,
+  );
   const [inputHostType, setInputHostType] = useState<string>('');
   const [isInputEnterpriseKeyValid, setIsInputEnterpriseKeyValid] =
     useState<boolean>(true);
@@ -89,27 +103,38 @@ const PrepareHostForm: FC = () => {
     useState<boolean>(false);
   const [isShowRedhatSection, setIsShowRedhatSection] =
     useState<boolean>(false);
+  const [isSubmittingPrepareHost, setIsSubmittingPrepareHost] =
+    useState<boolean>(false);
 
-  const setHostNameInputMessage = useCallback((message?) => {
+  const setHostNameInputMessage = useCallback((message?: Message) => {
     messageGroupRef.current.setMessage?.call(null, IT_IDS.hostName, message);
   }, []);
-  const setEnterpriseKeyInputMessage = useCallback((message?) => {
+  const setEnterpriseKeyInputMessage = useCallback((message?: Message) => {
     messageGroupRef.current.setMessage?.call(
       null,
       IT_IDS.enterpriseKey,
       message,
     );
   }, []);
-  const setRedhatPasswordInputMessage = useCallback((message?) => {
+  const setRedhatPasswordInputMessage = useCallback((message?: Message) => {
     messageGroupRef.current.setMessage?.call(
       null,
       IT_IDS.redhatPassword,
       message,
     );
   }, []);
-  const setRedhatUserInputMessage = useCallback((message?) => {
+  const setRedhatUserInputMessage = useCallback((message?: Message) => {
     messageGroupRef.current.setMessage?.call(null, IT_IDS.redhatUser, message);
   }, []);
+  const setSubmitPrepareHostMessage = useCallback(
+    (message?: Message) =>
+      messageGroupRef.current.setMessage?.call(
+        null,
+        'submitPrepareHost',
+        message,
+      ),
+    [],
+  );
 
   const inputTests = useMemo(
     () => ({
@@ -210,6 +235,9 @@ const PrepareHostForm: FC = () => {
           setMessage,
           setIsSubmitting,
         ) => {
+          const identifierValue = getIdentifier?.call(null);
+          const passphraseValue = getPassphrase?.call(null);
+
           api
             .put<{
               hostName: string;
@@ -219,14 +247,15 @@ const PrepareHostForm: FC = () => {
               isInetConnected: boolean;
               isOSRegistered: boolean;
             }>('/command/inquire-host', {
-              ipAddress: getIdentifier?.call(null),
-              password: getPassphrase?.call(null),
+              ipAddress: identifierValue,
+              password: passphraseValue,
             })
             .then(
               ({
                 data: {
                   hostName,
                   hostOS,
+                  hostUUID,
                   isConnected,
                   isInetConnected,
                   isOSRegistered,
@@ -248,7 +277,10 @@ const PrepareHostForm: FC = () => {
                     setIsShowRedhatSection(true);
                   }
 
-                  setConnectedHostIPAddress(getIdentifier?.call(null));
+                  setConnectedHostIPAddress(identifierValue);
+                  setConnectedHostPassword(passphraseValue);
+                  setConnectedHostUUID(hostUUID);
+
                   setIsShowAccessSubmit(false);
                   setIsShowOptionalSection(true);
                 } else {
@@ -277,6 +309,8 @@ const PrepareHostForm: FC = () => {
       isShowAccessSection,
       isShowAccessSubmit,
       connectedHostIPAddress,
+      setConnectedHostPassword,
+      setConnectedHostUUID,
       testInput,
     ],
   );
@@ -441,50 +475,56 @@ const PrepareHostForm: FC = () => {
   );
 
   const submitSection = useMemo(
-    () => (
-      <FlexBox
-        row
-        sx={{
-          display: isShowOptionalSection ? 'flex' : 'none',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <ContainedButton
-          disabled={
-            !isInputHostNameValid ||
-            !isInputEnterpriseKeyValid ||
-            !isInputRedhatUserValid ||
-            !isInputRedhatPasswordValid
-          }
-          onClick={() => {
-            const redhatPasswordInputValue =
-              inputRedhatPassword.current.getValue?.call(null);
-
-            setConfirmValues({
-              enterpriseKey:
-                inputEnterpriseKeyRef.current.getValue?.call(null) ||
-                'none; using community version',
-              hostName: inputHostNameRef.current.getValue?.call(null) || '',
-              redhatPassword: redhatPasswordInputValue || 'none',
-              redhatPasswordHidden:
-                redhatPasswordInputValue?.replace(/./g, '*') || 'none',
-              redhatUser:
-                inputRedhatUser.current.getValue?.call(null) || 'none',
-            });
-
-            confirmDialogRef.current.setOpen?.call(null, true);
+    () =>
+      isSubmittingPrepareHost ? (
+        <Spinner sx={{ marginTop: 0 }} />
+      ) : (
+        <FlexBox
+          row
+          sx={{
+            display: isShowOptionalSection ? 'flex' : 'none',
+            justifyContent: 'flex-end',
           }}
         >
-          Prepare host
-        </ContainedButton>
-      </FlexBox>
-    ),
+          <ContainedButton
+            disabled={
+              !isInputHostNameValid ||
+              !isInputEnterpriseKeyValid ||
+              !isInputRedhatUserValid ||
+              !isInputRedhatPasswordValid
+            }
+            onClick={() => {
+              const redhatPasswordInputValue =
+                inputRedhatPassword.current.getValue?.call(null);
+
+              setConfirmValues({
+                enterpriseKey:
+                  inputEnterpriseKeyRef.current.getValue?.call(null) ||
+                  'none; using community version',
+                hostName: inputHostNameRef.current.getValue?.call(null) || '',
+                redhatPassword: redhatPasswordInputValue || 'none',
+                redhatPasswordHidden:
+                  redhatPasswordInputValue?.replace(/./g, '*') || 'none',
+                redhatUser:
+                  inputRedhatUser.current.getValue?.call(null) || 'none',
+              });
+              setSubmitPrepareHostMessage();
+
+              confirmDialogRef.current.setOpen?.call(null, true);
+            }}
+          >
+            Prepare host
+          </ContainedButton>
+        </FlexBox>
+      ),
     [
       isInputEnterpriseKeyValid,
       isInputHostNameValid,
       isInputRedhatPasswordValid,
       isInputRedhatUserValid,
       isShowOptionalSection,
+      isSubmittingPrepareHost,
+      setSubmitPrepareHostMessage,
     ],
   );
 
@@ -601,7 +641,50 @@ const PrepareHostForm: FC = () => {
           setIsShowRedhatPassword(false);
         }}
         onProceedAppend={() => {
-          //
+          setIsSubmittingPrepareHost(true);
+
+          api
+            .put('/host/prepare', {
+              enterpriseUUID:
+                inputEnterpriseKeyRef.current.getValue?.call(null),
+              hostIPAddress: connectedHostIPAddress,
+              hostName: inputHostNameRef.current.getValue?.call(null),
+              hostPassword: connectedHostPassword,
+              hostType: inputHostType,
+              hostUUID: connectedHostUUID,
+              redhatPassword: inputRedhatPassword.current.getValue?.call(null),
+              redhatUser: inputRedhatUser.current.getValue?.call(null),
+            })
+            .then(() => {
+              setSubmitPrepareHostMessage({
+                children: `Successfully initiated prepare host.`,
+              });
+
+              setTimeout(() => {
+                setSubmitPrepareHostMessage();
+              }, SUCCESS_MESSAGE_TIMEOUT);
+            })
+            .catch((error) => {
+              const errorMessage = handleAPIError(error, {
+                onResponseErrorAppend: ({ status }) => {
+                  let result: Message | undefined;
+
+                  if (status === 400) {
+                    result = {
+                      children: `The API found invalid values. Did you forget to fill in one of the RedHat fields?`,
+                      type: 'warning',
+                    };
+                  }
+
+                  return result;
+                },
+              });
+
+              setSubmitPrepareHostMessage(errorMessage);
+            })
+            .finally(() => {
+              setIsSubmittingPrepareHost(false);
+            });
         }}
         ref={confirmDialogRef}
         titleText="Confirm host preparation"
