@@ -3,6 +3,7 @@ import { RequestHandler } from 'express';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
+import { toHostUUID } from '../../convertHostUUID';
 import { stderr } from '../../shell';
 
 export const deleteSSHKeyConflict: RequestHandler<
@@ -13,8 +14,9 @@ export const deleteSSHKeyConflict: RequestHandler<
   const { body } = request;
   const hostUUIDs = Object.keys(body);
 
-  hostUUIDs.forEach((hostUUID) => {
-    const stateUUIDs = body[hostUUID];
+  hostUUIDs.forEach((key) => {
+    const hostUUID = toHostUUID(key);
+    const stateUUIDs = body[key];
 
     try {
       job({

@@ -11,7 +11,7 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job, variable } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, stdout } from '../../shell';
+import { stderr } from '../../shell';
 
 export const prepareHost: RequestHandler<
   unknown,

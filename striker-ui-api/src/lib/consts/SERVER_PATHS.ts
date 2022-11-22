@@ -11,6 +11,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
     bin: {
       date: {},
       mkfifo: {},
+      psql: {},
       rm: {},
       sed: {},
     },
@@ -25,6 +26,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-update-system': {},
       'striker-initialize-host': {},
       'striker-manage-install-target': {},
+      'striker-manage-peers': {},
       'striker-parse-os-list': {},
     },
   },

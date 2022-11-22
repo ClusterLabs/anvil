@@ -2,6 +2,8 @@ import express from 'express';
 
 import {
   createHost,
+  createHostConnection,
+  deleteHostConnection,
   getHost,
   getHostConnection,
   getHostDetail,
@@ -9,14 +11,18 @@ import {
   updateHost,
 } from '../lib/request_handlers/host';
 
+const CONNECTION_PATH = '/connection';
+
 const router = express.Router();
 
 router
   .get('/', getHost)
-  .get('/connection', getHostConnection)
+  .get(CONNECTION_PATH, getHostConnection)
   .get('/:hostUUID', getHostDetail)
   .post('/', createHost)
+  .post(CONNECTION_PATH, createHostConnection)
   .put('/prepare', prepareHost)
-  .put('/:hostUUID', updateHost);
+  .put('/:hostUUID', updateHost)
+  .delete(CONNECTION_PATH, deleteHostConnection);
 
 export default router;
