@@ -762,6 +762,10 @@ sub show_existing
 	$anvil->data->{longest}{alert_override_anvil_name}     = length($anvil->Words->string({key => "header_0101"}));
 	$anvil->data->{longest}{alert_override_alert_level}    = length($anvil->Words->string({key => "header_0096"}));
 	$anvil->data->{longest}{alert_override_uuid}           = length($anvil->Words->string({key => "header_0102"}));
+	$anvil->data->{longest}{host_name}                     = length($anvil->Words->string({key => "header_0026"}));
+	$anvil->data->{longest}{host_type}                     = length($anvil->Words->string({key => "header_0103"}));
+	$anvil->data->{longest}{host_anvil_name}               = length($anvil->Words->string({key => "header_0081"}));
+	$anvil->data->{longest}{host_uuid}                     = length($anvil->Words->string({key => "header_0104"}));
 	
 	$anvil->data->{say_alert}{1} = "1 (".$anvil->Words->string({key => "unit_0024"}).")";
 	$anvil->data->{say_alert}{2} = "2 (".$anvil->Words->string({key => "unit_0025"}).")";
@@ -991,6 +995,75 @@ sub show_existing
 			$anvil->data->{longest}{recipient_uuid} = length($recipient_uuid);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				'longest::recipient_uuid' => $anvil->data->{longest}{recipient_uuid}, 
+			}});
+		}
+	}
+	
+	# Pull out the Strikers, node pair members and DR hosts.
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $anvil_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} ? $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} : "--";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:host_name'       => $host_name, 
+			's2:short_host_name' => $short_host_name, 
+			's3:host_type'       => $host_type, 
+			's4:anvil_name'      => $anvil_name, 
+		}});
+		
+		if (length($short_host_name) > $anvil->data->{longest}{host_name})
+		{
+			$anvil->data->{longest}{host_name} = length($short_host_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::host_name' => $anvil->data->{longest}{host_name}, 
+			}});
+		}
+		
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type} = "";
+		if ($host_type eq "striker")
+		{
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type} = $anvil->Words->string({key => "brand_0003"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"hosts::host_uuid::${host_uuid}::say_host_type" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type},
+			}});
+		}
+		elsif ($host_type eq "node")
+		{
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type} = $anvil->Words->string({key => "brand_0007"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"hosts::host_uuid::${host_uuid}::say_host_type" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type},
+			}});
+		}
+		elsif ($host_type eq "dr")
+		{
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type} = $anvil->Words->string({key => "brand_0008"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"hosts::host_uuid::${host_uuid}::say_host_type" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type},
+			}});
+		}
+		if (length($anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type}) > $anvil->data->{longest}{host_type})
+		{
+			$anvil->data->{longest}{host_type} = length($anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::host_type' => $anvil->data->{longest}{host_type}, 
+			}});
+		}
+		
+		if (length($anvil_name) > $anvil->data->{longest}{host_anvil_name})
+		{
+			$anvil->data->{longest}{host_anvil_name} = length($anvil_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::host_anvil_name' => $anvil->data->{longest}{host_anvil_name}, 
+			}});
+		}
+		
+		if (length($host_uuid) > $anvil->data->{longest}{host_uuid})
+		{
+			$anvil->data->{longest}{host_uuid} = length($host_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'longest::host_uuid' => $anvil->data->{longest}{host_uuid}, 
 			}});
 		}
 	}
@@ -1246,35 +1319,61 @@ sub show_existing
 	# Lastly, show machines.
 	if ($anvil->data->{sys}{show}{systems})
 	{
-		print "-=] Striker Dashboards;\n";
-		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+		my $longest_host_name       = $anvil->data->{longest}{host_name};
+		my $longest_host_type       = $anvil->data->{longest}{host_type};
+		my $longest_host_anvil_name = $anvil->data->{longest}{host_anvil_name};
+		my $longest_host_uuid       = $anvil->data->{longest}{host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:longest_host_name'       => $longest_host_name,
+			's2:longest_host_type'       => $longest_host_type, 
+			's3:longest_host_anvil_name' => $longest_host_anvil_name, 
+			's4:longest_host_uuid'       => $longest_host_uuid, 
+		}});
+		
+		my $break_line  = "+-".sprintf("%0${longest_host_name}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_host_type}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_host_anvil_name}d", 0);
+		   $break_line  .= "-+-".sprintf("%0${longest_host_uuid}d", 0)."-+";
+		   $break_line =~ s/0/-/g;
+	
+		my $header_line =  "| ".sprintf("%-${longest_host_name}s", $anvil->Words->string({key => "header_0026"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_host_type}s", $anvil->Words->string({key => "header_0103"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_host_anvil_name}s", $anvil->Words->string({key => "header_0081"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_host_uuid}s", $anvil->Words->string({key => "header_0104"}))." |";
+		   
+		# Display
+		print "-=] ".$anvil->Words->string({key => "header_0105"})."\n";
+		print $break_line."\n";
+		print $header_line."\n";
+		print $break_line."\n";
+		foreach my $show_host_type ("striker", "node", "dr")
 		{
-			my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
-			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-			next if $host_type ne "striker";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:host_name' => $host_name,
-				's2:host_uuid' => $host_uuid, 
-			}});
-			
-			print "- ".$host_name.", UUID: [".$host_uuid."]\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { show_host_type => $show_host_type }});
+			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+			{
+				my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+				my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+				my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+				my $say_host_type   = $anvil->data->{hosts}{host_uuid}{$host_uuid}{say_host_type};
+				my $anvil_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} ? $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} : "--";
+				next if $host_type ne $show_host_type;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:host_name'       => $host_name, 
+					's2:host_uuid'       => $host_uuid, 
+					's3:short_host_name' => $short_host_name, 
+					's4:host_type'       => $host_type, 
+					's5:say_host_type'   => $say_host_type, 
+					's6:anvil_name'      => $anvil_name, 
+				}});
+				
+				my $entry_line =  "| ".sprintf("%-${longest_host_name}s", $short_host_name)." ";
+				   $entry_line .= "| ".sprintf("%-${longest_host_type}s", $say_host_type)." ";
+				   $entry_line .= "| ".sprintf("%-${longest_host_anvil_name}s", $anvil_name)." ";
+				   $entry_line .= "| ".sprintf("%-${longest_host_uuid}s", $host_uuid)." |";
+				print $entry_line."\n";
+			}
 		}
-		print "\n";
-		print "-=] Anvil! Nodes;\n";
-		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
-		{
-			my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
-			my $anvil_description     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
-			my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
-			my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
-			my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
-			my $say_dr1_name          = $anvil_dr1_host_uuid ? $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{short_host_name} : "--";
-			my $say_dr1_uuid          = $anvil_dr1_host_uuid ? $anvil_dr1_host_uuid                                                    : "--";
-			print "- Name: [".$anvil_name."], UUID: [".$anvil_uuid."], Description: [".$anvil_uuid."]\n";
-			print "  - Node 1: .. [".$anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name}."], UUID: [".$anvil_node1_host_uuid."]\n";
-			print "  - Node 2: .. [".$anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{short_host_name}."], UUID: [".$anvil_node2_host_uuid."]\n";
-			print "  - DR Host 1: [".$say_dr1_name."], UUID: [".$say_dr1_uuid."]\n";
-		}
+		print $break_line."\n";
 	}
 	
 	return(0);

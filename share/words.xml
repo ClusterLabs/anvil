@@ -949,7 +949,7 @@ resource #!variable!server!# {
 		<key name="header_0078">Storage Group</key>
 		<key name="header_0079">Used</key>
 		<key name="header_0080">Free</key>
-		<key name="header_0081">Anvil! Node Pair</key>
+		<key name="header_0081">Anvil! Node</key>
 		<key name="header_0082">Interface</key>
 		<key name="header_0083">Gateway (*DG)</key>
 		<key name="header_0084">Transmitted</key>
@@ -971,6 +971,9 @@ resource #!variable!server!# {
 		<key name="header_0100">Recipient</key>
 		<key name="header_0101">Anvil! Node</key>
 		<key name="header_0102">Alert Override UUID</key>
+		<key name="header_0103">Host Type</key>
+		<key name="header_0104">Host UUID</key>
+		<key name="header_0105">Machines</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
