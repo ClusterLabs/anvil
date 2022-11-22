@@ -2,7 +2,7 @@ import { FC, useMemo, useRef } from 'react';
 
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
-import List, { ListForwardedRefContent } from '../List';
+import List from '../List';
 import MessageBox from '../MessageBox';
 import { ExpandablePanel } from '../Panels';
 import { BodyText } from '../Text';
