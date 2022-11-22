@@ -22,6 +22,12 @@ $anvil->Get->switches({list => [
 	"add",
 	"edit",
 	"delete",
+	"alert-overrides",
+	"alert-override-uuid",
+	"alert-override-recipient-uuid",
+	"alert-override-host-uuid",
+	"alert-override-alert-level",
+	"level", 
 	"mail-servers",
 	"mail-server-uuid",
 	"mail-server-address",
@@ -31,17 +37,13 @@ $anvil->Get->switches({list => [
 	"mail-server-security",
 	"mail-server-authentication",
 	"mail-server-helo-domain",
-	"alert-overrides",
-	"alert-override-uuid",
-	"alert-override-recipient-uuid",
-	"alert-override-host-uuid",
-	"alert-override-alert-level",
 	"recipients",
 	"recipient-uuid",
 	"recipient-name",
 	"recipient-email",
 	"recipient-language",
 	"recipient-level",
+	"test",
 	"y",
 	"yes",
 ]});
@@ -78,6 +80,10 @@ elsif ($anvil->data->{switches}{"alert-overrides"})
 	}});
 	handle_alert_overrides($anvil);
 }
+elsif ($anvil->data->{switches}{"test"})
+{
+	handle_test_alert($anvil);
+}
 else
 {
 	$anvil->data->{sys}{show}{mail_servers}    = 1;
@@ -99,6 +105,68 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub handle_test_alert
+{
+	my ($anvil) = @_;
+	
+	# * 1 or "critical"
+	# * 2 or "warning"
+	# * 3 or "notice"
+	# * 4 or "info"
+	my $level     = "";
+	my $say_level = "";
+	if (($anvil->data->{switches}{level} eq "critical") or ($anvil->data->{switches}{level} eq "1"))
+	{
+		$level     = "critical";
+		$say_level = $anvil->Words->string({key => "unit_0024"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			level     => $level, 
+			say_level => $say_level, 
+		}});
+	}
+	elsif (($anvil->data->{switches}{level} eq "warning") or ($anvil->data->{switches}{level} eq "2"))
+	{
+		$level     = "warning";
+		$say_level = $anvil->Words->string({key => "unit_0025"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			level     => $level, 
+			say_level => $say_level, 
+		}});
+	}
+	elsif (($anvil->data->{switches}{level} eq "notice") or ($anvil->data->{switches}{level} eq "3"))
+	{
+		$level     = "notice";
+		$say_level = $anvil->Words->string({key => "unit_0026"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			level     => $level, 
+			say_level => $say_level, 
+		}});
+	}
+	elsif (($anvil->data->{switches}{level} eq "info") or ($anvil->data->{switches}{level} eq "4"))
+	{
+		$level     = "info";
+		$say_level = $anvil->Words->string({key => "unit_0027"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			level     => $level, 
+			say_level => $say_level, 
+		}});
+	}
+
+	my $alert_uuid = $anvil->Alert->register({debug => 2, alert_level => $level, message => "message_0306", variables => { level => $say_level }, set_by => $THIS_FILE, sort_position => 0});
+	if ($alert_uuid)
+	{
+		print $anvil->Words->string({key => "message_0306", variables => { level => $say_level }})."\n";
+		$anvil->Email->send_alerts();
+	}
+	else
+	{
+		# No one is listening, or no mail servers are configured.
+		print $anvil->Words->string({key => "message_0307", variables => { level => $say_level }})."\n";
+	}
+	
+	return(0);
+}
 
 sub handle_alert_overrides
 {
@@ -1441,6 +1509,42 @@ sub check_switches
 	$anvil->data->{sys}{show}{systems}         = 0;
 	$anvil->data->{sys}{say_old_security}      = "";
 	$anvil->data->{sys}{say_old_auth}          = "";
+	
+	# If we're given 'test', make sure the level is provides.
+	if ($anvil->data->{switches}{test})
+	{
+		if (not $anvil->data->{switches}{level})
+		{
+			# Test requires a level
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0392"});
+			
+			$problem = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		}
+		
+		# Is the level valid?
+		# * 1 or "critical"
+		# * 2 or "warning"
+		# * 3 or "notice"
+		# * 4 or "info"
+		if (($anvil->data->{switches}{level} ne "critical") && 
+		    ($anvil->data->{switches}{level} ne "1")        && 
+		    ($anvil->data->{switches}{level} ne "warning")  && 
+		    ($anvil->data->{switches}{level} ne "2")        && 
+		    ($anvil->data->{switches}{level} ne "notice")   && 
+		    ($anvil->data->{switches}{level} ne "3")        && 
+		    ($anvil->data->{switches}{level} ne "info")     && 
+		    ($anvil->data->{switches}{level} ne "4"))
+		{
+			# Invalid test alert level.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0393", variables => { 
+				level => $anvil->data->{switches}{level},
+			}});
+			
+			$problem = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		}
+	}
 	
 	# Validate UUIDs.
 	foreach my $switch ("mail-server-uuid", "alert-override-uuid", "recipient-uuid", "alert-override-recipient-uuid", "alert-override-host-uuid")

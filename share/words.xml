@@ -556,7 +556,17 @@ The definition data passed in was:
 		<key name="error_0389">[ Error ] - I was asked to delete a notification over-ride, but no 'notification_uuid' was provides.</key>
 		<key name="error_0390">[ Error ] - The alert recipient UUID: [#!variable!uuid!#] wasn't found in the database.</key>
 		<key name="error_0391">[ Error ] - The host UUID: [#!variable!uuid!#] wasn't found in the database.</key>
-		
+		<key name="error_0392">[ Error ] - The switch '--test' requires an alert level to send the test '--alert X' at. Valid alert levels are;
+          * 1 or "critical"
+          * 2 or "warning"
+          * 3 or "notice"
+	  * 4 or "info"</key>
+		<key name="error_0393">[ Error ] - The test alert requires an alert level, but the passed: [#!variable!level!#] is incorrect. Valid options are:
+          * 1 or "critical"
+          * 2 or "warning"
+          * 3 or "notice"
+	  * 4 or "info"</key>
+	
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
 		<!--       comments and which are command lines that can't be changed! -->
@@ -2782,6 +2792,8 @@ Proceed? [y/N]</key>
 * Host: ...... [#!variable!old_host!#]
 * Alert Level: [#!variable!old_level!#]
 Proceed? [y/N]</key>
+		<key name="message_0306">This is a test alert message sent at alert level: [#!variable!level!#].</key>
+		<key name="message_0307">Failed to send a test alert at level: [#!variable!level!#]. Is anyone listening at that level? Is the mail server configured?</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
