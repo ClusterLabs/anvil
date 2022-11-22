@@ -20,6 +20,7 @@ export const prepareHost: RequestHandler<
 > = (request, response) => {
   const {
     body: {
+      enterpriseUUID,
       hostIPAddress,
       hostName,
       hostPassword,
@@ -32,15 +33,18 @@ export const prepareHost: RequestHandler<
     } = {},
   } = request;
 
-  const isHostUUIDProvided = hostUUID !== undefined;
+  const isEnterpriseUUIDProvided = Boolean(enterpriseUUID);
+  const isHostUUIDProvided = Boolean(hostUUID);
   const isRedhatAccountProvided =
-    redhatPassword !== undefined || redhatUser !== undefined;
+    Boolean(redhatPassword) || Boolean(redhatUser);
 
+  const dataEnterpriseUUID = sanitize(enterpriseUUID, 'string');
   const dataHostIPAddress = sanitize(hostIPAddress, 'string');
   const dataHostName = sanitize(hostName, 'string');
   const dataHostPassword = sanitize(hostPassword, 'string');
   const dataHostSSHPort = sanitize(hostSSHPort, 'number') || 22;
   const dataHostType = sanitize(hostType, 'string');
+  // Host user is unused at the moment.
   const dataHostUser = sanitize(hostUser, 'string');
   const dataHostUUID = sanitize(hostUUID, 'string');
   const dataRedhatPassword = sanitize(redhatPassword, 'string');
@@ -71,6 +75,13 @@ export const prepareHost: RequestHandler<
       REP_PEACEFUL_STRING.test(dataHostUser),
       `Data host user must be a peaceful string; got [${dataHostUser}]`,
     );
+
+    if (isEnterpriseUUIDProvided) {
+      assert(
+        REP_UUID.test(dataEnterpriseUUID),
+        `Data enterprise UUID must be a valid UUIDv4; got [${dataEnterpriseUUID}]`,
+      );
+    }
 
     if (isHostUUIDProvided) {
       assert(
@@ -115,7 +126,8 @@ export const prepareHost: RequestHandler<
     job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['striker-initialize-host'].self,
-      job_data: `host_ip_address=${dataHostIPAddress}
+      job_data: `enterprise_uuid=${dataEnterpriseUUID}
+host_ip_address=${dataHostIPAddress}
 host_name=${dataHostName}
 password=${dataHostPassword}
 rh_password=${dataRedhatPassword}

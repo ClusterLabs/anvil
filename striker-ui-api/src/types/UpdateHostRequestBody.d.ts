@@ -3,6 +3,7 @@ type SetHostInstallTargetRequestBody = {
 };
 
 type PrepareHostRequestBody = {
+  enterpriseUUID?: string;
   hostIPAddress: string;
   hostName: string;
   hostPassword: string;
