@@ -43,11 +43,11 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
 
   const apiMessageElement = useMemo(
     () =>
-      apiMessage ? (
+      apiMessage && (
         <Grid item sm={2} xs={1}>
           <MessageBox {...apiMessage} />
         </Grid>
-      ) : undefined,
+      ),
     [apiMessage],
   );
 
@@ -67,13 +67,14 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
           peer,
         },
       }) => {
-        setInboundConnections(
+        setInboundConnections((previous) =>
           Object.entries(ipAddressList).reduce<InboundConnectionList>(
             (
-              previous,
+              nyu,
               [ipAddress, { networkLinkNumber, networkNumber, networkType }],
             ) => {
-              previous[ipAddress] = {
+              nyu[ipAddress] = {
+                ...previous[ipAddress],
                 dbPort,
                 dbUser,
                 ipAddress,
@@ -82,16 +83,16 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
                 networkType,
               };
 
-              return previous;
+              return nyu;
             },
             {},
           ),
         );
 
-        setPeerConnections(
+        setPeerConnections((previous) =>
           Object.entries(peer).reduce<PeerConnectionList>(
             (
-              previous,
+              nyu,
               [
                 peerIPAddress,
                 {
@@ -102,7 +103,10 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
                 },
               ],
             ) => {
-              previous[`${peerDBUser}@${peerIPAddress}:${peerDBPort}`] = {
+              const peerKey = `${peerDBUser}@${peerIPAddress}:${peerDBPort}`;
+
+              nyu[peerKey] = {
+                ...previous[peerKey],
                 dbPort: peerDBPort,
                 dbUser: peerDBUser,
                 hostUUID,
@@ -110,7 +114,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
                 isPingTest,
               };
 
-              return previous;
+              return nyu;
             },
             {},
           ),
