@@ -1,11 +1,19 @@
 import { Box, Dialog } from '@mui/material';
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 
-import { BLUE, TEXT } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 import ContainedButton from './ContainedButton';
 import { Panel, PanelHeader } from './Panels';
 import { BodyText, HeaderText } from './Text';
+
+const MAP_TO_COLOUR: Record<
+  Exclude<ConfirmDialogProps['proceedColour'], undefined>,
+  string
+> = {
+  blue: BLUE,
+  red: RED,
+};
 
 const ConfirmDialog = forwardRef<
   ConfirmDialogForwardedRefContent,
@@ -21,6 +29,7 @@ const ConfirmDialog = forwardRef<
       onProceedAppend,
       openInitially = false,
       proceedButtonProps = {},
+      proceedColour: proceedColourKey = 'blue',
       titleText,
     },
     ref,
@@ -34,6 +43,10 @@ const ConfirmDialog = forwardRef<
     const open = useMemo(
       () => (ref ? isOpen : baseOpen),
       [baseOpen, isOpen, ref],
+    );
+    const proceedColour = useMemo(
+      () => MAP_TO_COLOUR[proceedColourKey],
+      [proceedColourKey],
     );
 
     useImperativeHandle(
@@ -80,10 +93,10 @@ const ConfirmDialog = forwardRef<
           </ContainedButton>
           <ContainedButton
             sx={{
-              backgroundColor: BLUE,
+              backgroundColor: proceedColour,
               color: TEXT,
 
-              '&:hover': { backgroundColor: `${BLUE}F0` },
+              '&:hover': { backgroundColor: `${proceedColour}F0` },
 
               ...proceedButtonSx,
             }}
