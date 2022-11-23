@@ -95,16 +95,16 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
           </BodyText>
           <MessageBox type="warning" isAllowClose>
             If you haven&apos;t rebuilt the listed targets, then you could be
-            experiencing a &quot;
+            experiencing a{' '}
             <Link
               href={mitmExternalHref}
               sx={{ display: 'inline-flex' }}
               target="_blank"
             >
-              Man In The Middle
-            </Link>
-            &quot; attack. Please verify the targets have changed for a known
-            reason before proceeding to remove the broken keys.
+              &quot;Man In The Middle&quot;
+            </Link>{' '}
+            attack. Please verify the targets have changed for a known reason
+            before proceeding to remove the broken keys.
           </MessageBox>
           <List
             header={
