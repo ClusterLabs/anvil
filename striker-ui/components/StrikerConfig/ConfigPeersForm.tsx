@@ -57,7 +57,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
       refreshInterval,
       onError: (error) => {
         setAPIMessage({
-          children: `Failed to get connection data; CAUSE: ${error}`,
+          children: `Failed to get connection data. Error: ${error}`,
           type: 'error',
         });
       },
@@ -194,13 +194,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
                         .catch((error) => {
                           const emsg = handleAPIError(error);
 
-                          emsg.children = (
-                            <>
-                              Failed to delete peer connection(s)&semi;
-                              CAUSE&colon;
-                              {emsg.children}
-                            </>
-                          );
+                          emsg.children = `Failed to delete peer connection(s). ${emsg.children}`;
 
                           setAPIMessage(emsg);
                         });

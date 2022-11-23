@@ -30,6 +30,20 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
       ),
     [title],
   );
+  const messageElement = useMemo(
+    () =>
+      message && (
+        <Grid item sm={2} xs={1}>
+          <MessageBox
+            {...message}
+            onClose={() => {
+              setMessage(undefined);
+            }}
+          />
+        </Grid>
+      ),
+    [message],
+  );
 
   return (
     <Panel>
@@ -69,13 +83,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
                       .catch((error) => {
                         const emsg = handleAPIError(error);
 
-                        emsg.children = (
-                          <>
-                            Failed to {actionText} &quot;Install
-                            target&quot;&semi; CAUSE&colon;
-                            {emsg.children}
-                          </>
-                        );
+                        emsg.children = `Failed to ${actionText} "Install target". ${emsg.children}`;
 
                         setMessage(emsg);
                       });
@@ -102,12 +110,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
                   api.put('/command/update-system').catch((error) => {
                     const emsg = handleAPIError(error);
 
-                    emsg.children = (
-                      <>
-                        Failed to initiate system update&semi; CAUSE&colon;
-                        {emsg.children}
-                      </>
-                    );
+                    emsg.children = `Failed to initiate system update. ${emsg.children}`;
 
                     setMessage(emsg);
                   });
@@ -119,7 +122,6 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
             Update system
           </StretchedButton>
         </Grid>
-
         <Grid item sm={2} xs={1}>
           <StretchedButton>Reconfigure striker</StretchedButton>
         </Grid>
@@ -135,12 +137,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
                   api.put('/command/reboot-host').catch((error) => {
                     const emsg = handleAPIError(error);
 
-                    emsg.children = (
-                      <>
-                        Failed to initiate system reboot&semi; CAUSE&colon;
-                        {emsg.children}
-                      </>
-                    );
+                    emsg.children = `Failed to initiate system reboot. ${emsg.children}`;
 
                     setMessage(emsg);
                   });
@@ -164,12 +161,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
                   api.put('/command/poweroff-host').catch((error) => {
                     const emsg = handleAPIError(error);
 
-                    emsg.children = (
-                      <>
-                        Failed to initiate system shutdown&semi; CAUSE&colon;
-                        {emsg.children}
-                      </>
-                    );
+                    emsg.children = `Failed to initiate system shutdown. ${emsg.children}`;
 
                     setMessage(emsg);
                   });
@@ -181,16 +173,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
             Shutdown
           </StretchedButton>
         </Grid>
-        <Grid item sm={2} xs={1}>
-          {message && (
-            <MessageBox
-              {...message}
-              onClose={() => {
-                setMessage(undefined);
-              }}
-            />
-          )}
-        </Grid>
+        {messageElement}
       </Grid>
     </Panel>
   );
