@@ -163,26 +163,17 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
               listItems={peerConnections}
               onDelete={() => {
                 const pairs = Object.entries(peerConnections);
-                const {
-                  body: deleteRequestBody,
-                  post: remainingPeerConnections,
-                } = pairs.reduce<{
-                  body: APIDeleteHostConnectionRequestBody;
-                  post: PeerConnectionList;
-                }>(
-                  (previous, [key, value]) => {
-                    const { hostUUID, isChecked } = value;
+                const deleteRequestBody =
+                  pairs.reduce<APIDeleteHostConnectionRequestBody>(
+                    (previous, [, { hostUUID, isChecked }]) => {
+                      if (isChecked) {
+                        previous.local.push(hostUUID);
+                      }
 
-                    if (isChecked) {
-                      previous.body.local.push(hostUUID);
-                    } else {
-                      previous.post[key] = value;
-                    }
-
-                    return previous;
-                  },
-                  { body: { local: [] }, post: {} },
-                );
+                      return previous;
+                    },
+                    { local: [] },
+                  );
                 const deleteCount = deleteRequestBody.local.length;
 
                 if (deleteCount > 0) {
@@ -192,9 +183,6 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
                     onProceedAppend: () => {
                       api
                         .delete('/host/connection', { data: deleteRequestBody })
-                        .then(() => {
-                          setPeerConnections(remainingPeerConnections);
-                        })
                         .catch((error) => {
                           const emsg = handleAPIError(error);
 
