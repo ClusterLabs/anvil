@@ -1,17 +1,21 @@
 import { FC, useMemo, useRef } from 'react';
 
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
 import Link from '../Link';
 import List from '../List';
 import MessageBox from '../MessageBox';
 import { ExpandablePanel } from '../Panels';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { BodyText } from '../Text';
 import useProtect from '../../hooks/useProtect';
 import useProtectedState from '../../hooks/useProtectedState';
 
 const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
   mitmExternalHref = 'https://en.wikipedia.org/wiki/Man-in-the-middle_attack',
+  refreshInterval = 60000,
 }) => {
   const { protect } = useProtect();
 
@@ -27,8 +31,36 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
     [changedSSHKeys],
   );
 
+  const { isLoading } = periodicFetch<APISSHKeyConflictOverviewList>(
+    `${API_BASE_URL}/ssh-key/conflict`,
+    {
+      refreshInterval,
+      onSuccess: (data) => {
+        setChangedSSHKeys((previous) =>
+          Object.values(data).reduce<ChangedSSHKeys>((nyu, stateList) => {
+            Object.values(stateList).forEach(
+              ({ hostName, hostUUID, ipAddress, stateUUID }) => {
+                nyu[stateUUID] = {
+                  ...previous[stateUUID],
+                  hostName,
+                  hostUUID,
+                  ipAddress,
+                };
+              },
+            );
+
+            return nyu;
+          }, {}),
+        );
+      },
+    },
+  );
+
   return (
-    <ExpandablePanel header={<BodyText>Manage changed SSH keys</BodyText>}>
+    <ExpandablePanel
+      header={<BodyText>Manage changed SSH keys</BodyText>}
+      loading={isLoading}
+    >
       <FlexBox spacing=".2em">
         <BodyText>
           The identity of the following targets have unexpectedly changed.
