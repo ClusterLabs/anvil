@@ -1,6 +1,7 @@
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { cap } from '../../cap';
+import { getShortHostName } from '../../getShortHostName';
 import { stdout } from '../../shell';
 
 type ExtractVariableKeyFunction = (parts: string[]) => string;
@@ -14,7 +15,7 @@ const MAP_TO_EXTRACTOR: { [prefix: string]: ExtractVariableKeyFunction } = {
       head,
     );
   },
-  'install-target': () => 'installTargetEnable',
+  'install-target': () => 'installTarget',
 };
 
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
@@ -42,9 +43,13 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
       const [hostName, hostUUID] = output[0];
+      const shortHostName = getShortHostName(hostName);
 
       return output.reduce<
-        { hostName: string; hostUUID: string } & Record<string, string>
+        { hostName: string; hostUUID: string; shortHostName: string } & Record<
+          string,
+          string
+        >
       >(
         (previous, [, , variableName, variableValue]) => {
           const [variablePrefix, ...restVariableParts] =
@@ -55,7 +60,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 
           return previous;
         },
-        { hostName, hostUUID },
+        { hostName, hostUUID, shortHostName },
       );
     });
 
