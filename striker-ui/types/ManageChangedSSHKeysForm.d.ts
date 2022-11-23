@@ -1,5 +1,5 @@
 type ChangedSSHKeys = {
-  [hostUUID: string]: {
+  [stateUUID: string]: {
     hostName: string;
     hostUUID: string;
     ipAddress: string;
@@ -9,6 +9,7 @@ type ChangedSSHKeys = {
 
 type ManageChangedSSHKeysFormOptionalProps = {
   mitmExternalHref?: LinkProps['href'];
+  refreshInterval?: number;
 };
 
 type ManageChangedSSHKeysFormProps = ManageChangedSSHKeysFormOptionalProps;
