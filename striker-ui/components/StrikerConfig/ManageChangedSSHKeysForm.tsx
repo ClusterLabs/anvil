@@ -2,6 +2,7 @@ import { FC, useMemo, useRef } from 'react';
 
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
+import Link from '../Link';
 import List from '../List';
 import MessageBox from '../MessageBox';
 import { ExpandablePanel } from '../Panels';
@@ -9,16 +10,9 @@ import { BodyText } from '../Text';
 import useProtect from '../../hooks/useProtect';
 import useProtectedState from '../../hooks/useProtectedState';
 
-type ChangedSSHKeys = {
-  [hostUUID: string]: {
-    hostName: string;
-    hostUUID: string;
-    ipAddress: string;
-    isChecked?: boolean;
-  };
-};
-
-const ManageChangedSSHKeysForm: FC = () => {
+const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
+  mitmExternalHref = 'https://en.wikipedia.org/wiki/Man-in-the-middle_attack',
+}) => {
   const { protect } = useProtect();
 
   const listRef = useRef<ListForwardedRefContent>({});
@@ -41,9 +35,16 @@ const ManageChangedSSHKeysForm: FC = () => {
         </BodyText>
         <MessageBox type="warning" isAllowClose>
           If you haven&apos;t rebuilt the listed targets, then you could be
-          experiencing a &quot;Man In The Middle&quot; attack. Please verify the
-          targets have changed for a known reason before proceeding to remove
-          the broken keys.
+          experiencing a &quot;
+          <Link
+            href={mitmExternalHref}
+            sx={{ display: 'inline-flex' }}
+            target="_blank"
+          >
+            Man In The Middle
+          </Link>
+          &quot; attack. Please verify the targets have changed for a known
+          reason before proceeding to remove the broken keys.
         </MessageBox>
         <List
           header={
