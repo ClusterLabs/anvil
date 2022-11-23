@@ -1,6 +1,6 @@
 import {
   Add as MUIAddIcon,
-  Delete,
+  Delete as MUIDeleteIcon,
   Done as MUIDoneIcon,
   Edit as MUIEditIcon,
 } from '@mui/icons-material';
@@ -93,7 +93,7 @@ const List = forwardRef(
               '&:hover': { backgroundColor: `${RED}F0` },
             }}
           >
-            <Delete />
+            <MUIDeleteIcon />
           </IconButton>
         ) : undefined,
       [isAllowDelete, isEdit, onDelete],
