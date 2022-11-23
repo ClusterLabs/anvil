@@ -1,17 +1,23 @@
 import { Box, Grid } from '@mui/material';
-import { FC, useEffect, useState } from 'react';
+import { FC, useState } from 'react';
+
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Header from '../../components/Header';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import {
   ComplexOperationsPanel,
   SimpleOperationsPanel,
 } from '../../components/StrikerConfig';
 import useProtect from '../../hooks/useProtect';
 import useProtectedState from '../../hooks/useProtectedState';
-import api from '../../lib/api';
 
-const Config: FC = () => {
+// This page can't be reused, and default is set within the render function.
+// eslint-disable-next-line react/require-default-props
+const Config: FC<{ refreshInterval?: number }> = ({
+  refreshInterval = 60000,
+}) => {
   const { protect } = useProtect();
 
   const [isOpenConfirmDialog, setIsOpenConfirmDialog] =
@@ -29,25 +35,22 @@ const Config: FC = () => {
       },
       titleText: '',
     });
+  const [simpleOpsInstallTarget, setSimpleOpsInstallTarget] = useProtectedState<
+    APIHostInstallTarget | undefined
+  >(undefined, protect);
   const [simpleOpsPanelHeader, setSimpleOpsPanelHeader] =
     useProtectedState<string>('', protect);
-  const [simpleOpsInstallTarget, setSimpleOpsInstallTarget] = useState<
-    APIHostInstallTarget | undefined
-  >();
 
-  useEffect(() => {
-    if (!simpleOpsPanelHeader) {
-      api
-        .get<APIHostDetail>('/host/local')
-        .then(({ data: { installTarget, shortHostName } }) => {
-          setSimpleOpsInstallTarget(installTarget);
-          setSimpleOpsPanelHeader(shortHostName);
-        })
-        .catch(() => {
-          setSimpleOpsPanelHeader('Unknown');
-        });
-    }
-  }, [simpleOpsPanelHeader, setSimpleOpsPanelHeader]);
+  periodicFetch<APIHostDetail>(`${API_BASE_URL}/host/local`, {
+    onError: () => {
+      setSimpleOpsPanelHeader('Unknown');
+    },
+    onSuccess: ({ installTarget, shortHostName }) => {
+      setSimpleOpsInstallTarget(installTarget);
+      setSimpleOpsPanelHeader(shortHostName);
+    },
+    refreshInterval,
+  });
 
   return (
     <>
