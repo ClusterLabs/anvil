@@ -80,9 +80,7 @@ const ManageChangedSSHKeysForm: FC = () => {
           allowEdit={false}
           edit
           listEmpty={
-            <BodyText sx={{ textAlign: 'center' }}>
-              No conflicting keys found.
-            </BodyText>
+            <BodyText align="center">No conflicting keys found.</BodyText>
           }
           listItems={changedSSHKeys}
           onAllCheckboxChange={(event, isChecked) => {
