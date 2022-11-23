@@ -26,4 +26,13 @@ type APIHostConnectionOverviewList = {
   };
 };
 
+type APIHostInstallTarget = 'enabled' | 'disabled';
+
+type APIHostDetail = {
+  hostName: string;
+  hostUUID: string;
+  installTarget: APIHostInstallTarget;
+  shortHostName: string;
+};
+
 type APIDeleteHostConnectionRequestBody = { [key: 'local' | string]: string[] };
