@@ -18,7 +18,7 @@ import useProtect from '../../hooks/useProtect';
 import useProtectedState from '../../hooks/useProtectedState';
 
 const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
-  refreshInterval = 30000,
+  refreshInterval = 60000,
 }) => {
   const { protect } = useProtect();
 
