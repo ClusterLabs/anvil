@@ -1,16 +1,15 @@
 import { FC } from 'react';
 
-import FlexBox from '../FlexBox';
-import { ExpandablePanel, Panel } from '../Panels';
-import { BodyText } from '../Text';
+import ConfigPeersForm from './ConfigPeersForm';
+import ManageChangedSSHKeysForm from './ManageChangedSSHKeysForm';
+import ManageUsersForm from './ManageUsersForm';
+import { Panel } from '../Panels';
 
 const ComplexOperationsPanel: FC = () => (
   <Panel>
-    <ExpandablePanel header={<BodyText>Configure striker peers</BodyText>}>
-      <FlexBox>
-        <BodyText>Inbound connections</BodyText>
-      </FlexBox>
-    </ExpandablePanel>
+    <ConfigPeersForm />
+    <ManageChangedSSHKeysForm />
+    <ManageUsersForm />
   </Panel>
 );
 
