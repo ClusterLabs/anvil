@@ -1532,6 +1532,14 @@ sub post_scan_analysis_node
 		's2:peer_host_name' => $peer_host_name, 
 		's3:peer_host_uuid' => $peer_host_uuid, 
 	}});
+
+    # What is our name and name of our peer?
+    my $node_name =  $anvil->data->{sys}{anvil}{i_am};
+    my $peer_node_name = $peer_is;
+    $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		node_name      => $node_name,
+		peer_node_name => $peer_node_name
+	}});
 	
 	### The higher this number, the sicker a node is.
 	# Get health data
@@ -1599,7 +1607,7 @@ sub post_scan_analysis_node
 	my $load_shed    = "";	# Set to 'power' or 'thermal' it one of the nodes should go down, but we don't care which yet.
 	my $critical     = 0;	# Set if we have to shut down, even with servers.
 	my $power_off    = "";	# Set to 'power' or 'thermal' if we need to shut down. If not critical, will ignore if we have servers.
-    
+
 	# If we're still here, at least one issue exists. Any kind of load-shed or preventative live 
 	# migration decision now depends on our peer's state. So see if we're both in the cluster or not.
 	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
@@ -1654,12 +1662,15 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "warning", message => "warning_0082", set_by => "ScanCore", variables => $variables});
 				$anvil->Email->send_alerts();
 				
+                $anvil->Actions->insert_action_node_down({
+                    debug => $debug, 
+                    node_name => $node_name,
+                })
+
 				# Shutdown using 'anvil-safe-stop' and set the reason to 'power'
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 				$anvil->System->call({shell_call => $shell_call});
-
-                # TODO here
 				
 				# We should never live to this point, but just in case...
 				return(1);
@@ -1689,6 +1700,11 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "warning", message => "warning_0083", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 				
+                $anvil->Actions->insert_action_node_down({
+                    debug => $debug, 
+                    node_name => $node_name,
+                })
+
 				# Shutdown using 'anvil-safe-stop' and set the reason to 'thermal'
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1717,6 +1733,11 @@ sub post_scan_analysis_node
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0087"});
 				$anvil->Alert->register({alert_level => "notice", message => "warning_0087", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
+
+                $anvil->Actions->insert_action_node_down({
+                    debug => $debug, 
+                    node_name => $node_name,
+                })
 				
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1732,6 +1753,11 @@ sub post_scan_analysis_node
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0088"});
 				$anvil->Alert->register({alert_level => "notice", message => "warning_0088", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
+
+                $anvil->Actions->insert_action_node_down({
+                    debug => $debug, 
+                    node_name => $node_name,
+                })
 				
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
