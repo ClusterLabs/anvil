@@ -57,6 +57,7 @@ use Anvil::Tools::System;
 use Anvil::Tools::Template;
 use Anvil::Tools::Words;
 use Anvil::Tools::Validate;
+use Anvil::Tools::Actions;
 
 =pod
 
@@ -141,6 +142,7 @@ sub new
 			TEMPLATE			=>	Anvil::Tools::Template->new(),
 			WORDS				=>	Anvil::Tools::Words->new(),
 			VALIDATE			=>	Anvil::Tools::Validate->new(),
+            ACTIONS             =>  Anvil::Tools::Actions->new(),
 			# This is to be removed before development ends.
 			'log'			=>	{
 				main			=>	"",
@@ -185,6 +187,7 @@ sub new
 	$anvil->Template->parent($anvil);
 	$anvil->Words->parent($anvil);
 	$anvil->Validate->parent($anvil);
+    $anvil->Actions->parent($anvil);
 	
 	# Set some system paths and system default variables
 	$anvil->_set_defaults();
@@ -690,6 +693,17 @@ sub Validate
 	return ($self->{HANDLE}{VALIDATE});
 }
 
+=head2 Actions
+
+Access the C<Actions.pm> methods via 'C<< $anvil->Actions->method >>'.
+
+=cut
+sub Actions
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{ACTIONS});
+}
 
 =head1 Private Functions;
 
