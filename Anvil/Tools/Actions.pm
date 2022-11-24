@@ -131,9 +131,9 @@ sub insert_action_node_assume {
 		return("!!error!!");
     }
 
-    # Variable names for assume actions the in Database
-    my $node_assume_name        = "scancore::actions::node::$node_number\::assume";
-    my $peer_node_assume_name   = "scancore::actions::node::$peer_node_number\::assume";
+    # Variable names for assume actions in the Database
+    my $node_assume_name        = "scancore::actions::node::${node_number}::assume";
+    my $peer_node_assume_name   = "scancore::actions::node::${peer_node_number}::assume";
 
     $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
         $node_assume_name        => 1,
@@ -195,9 +195,9 @@ sub insert_action_node_down {
 		return("!!error!!");
     }
 
-    # Variable names for down and up actions the in Database
-    my $node_down_name = "scancore::actions::node::$node_number\::down";
-    my $node_up_name   = "scancore::actions::node::$node_number\::up";
+    # Variable names for down and up actions in the Database
+    my $node_down_name = "scancore::actions::node::${node_number}::down";
+    my $node_up_name   = "scancore::actions::node::${node_number}::up";
 
     $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
         $node_down_name => 0,
@@ -258,9 +258,9 @@ sub insert_action_node_up {
 		return("!!error!!");
     }
 
-    # Variable names for down and up actions the in Database
-    my $node_down_name = "scancore::actions::node::$node_number\::down";
-    my $node_up_name   = "scancore::actions::node::$node_number\::up";
+    # Variable names for down and up actions in the Database
+    my $node_down_name = "scancore::actions::node::${node_number}::down";
+    my $node_up_name   = "scancore::actions::node::${node_number}::up";
 
     $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
         $node_down_name => 1,
