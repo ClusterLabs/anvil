@@ -19,6 +19,7 @@ import OutlinedInputLabel, {
 } from './OutlinedInputLabel';
 
 type OutlinedInputWithLabelOptionalProps = {
+  fillRow?: boolean;
   formControlProps?: Partial<MUIFormControlProps>;
   helpMessageBoxProps?: Partial<MessageBoxProps>;
   id?: string;
@@ -45,6 +46,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
     OutlinedInputWithLabelOptionalProps,
     'onChange' | 'onHelp' | 'onHelpAppend'
   > = {
+  fillRow: false,
   formControlProps: {},
   helpMessageBoxProps: {},
   id: '',
@@ -58,6 +60,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
 };
 
 const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
+  fillRow: isFillRow = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.fillRow,
   formControlProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.formControlProps,
   helpMessageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.helpMessageBoxProps,
   id = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.id,
@@ -73,10 +76,15 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   onHelpAppend,
   value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
 }) => {
+  const { sx: formControlSx, ...restFormControlProps } = formControlProps;
   const { text: helpText = '' } = helpMessageBoxProps;
 
   const [isShowHelp, setIsShowHelp] = useState<boolean>(false);
 
+  const formControlWidth = useMemo(
+    () => (isFillRow ? '100%' : undefined),
+    [isFillRow],
+  );
   const isShowHelpButton: boolean = useMemo(
     () => onHelp !== undefined || helpText.length > 0,
     [helpText, onHelp],
@@ -101,7 +109,10 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   const handleHelp = useMemo(createHelpHandler, [createHelpHandler]);
 
   return (
-    <MUIFormControl {...formControlProps}>
+    <MUIFormControl
+      {...restFormControlProps}
+      sx={{ width: formControlWidth, ...formControlSx }}
+    >
       <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
         {label}
       </OutlinedInputLabel>
