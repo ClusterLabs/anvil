@@ -29,6 +29,7 @@ type OutlinedInputWithLabelOptionalProps = {
   onChange?: OutlinedInputProps['onChange'];
   onHelp?: MUIIconButtonProps['onClick'];
   onHelpAppend?: MUIIconButtonProps['onClick'];
+  required?: boolean;
   value?: OutlinedInputProps['value'];
 };
 
@@ -56,6 +57,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
   onChange: undefined,
   onHelp: undefined,
   onHelpAppend: undefined,
+  required: false,
   value: '',
 };
 
@@ -74,6 +76,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   onChange,
   onHelp,
   onHelpAppend,
+  required = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.required,
   value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
 }) => {
   const { sx: formControlSx, ...restFormControlProps } = formControlProps;
@@ -113,7 +116,11 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
       {...restFormControlProps}
       sx={{ width: formControlWidth, ...formControlSx }}
     >
-      <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
+      <OutlinedInputLabel
+        htmlFor={id}
+        isNotifyRequired={required}
+        {...inputLabelProps}
+      >
         {label}
       </OutlinedInputLabel>
       <OutlinedInput
