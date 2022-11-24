@@ -38,6 +38,7 @@ binmode(STDOUT, ':encoding(utf-8)');
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
 # methods via their containing module's name. (A La: C<< $anvil->Module->method >> rather than C<< $anvil->method >>).
 use Anvil::Tools::Account;
+use Anvil::Tools::Actions;
 use Anvil::Tools::Alert;
 use Anvil::Tools::Cluster;
 use Anvil::Tools::Convert;
@@ -57,7 +58,6 @@ use Anvil::Tools::System;
 use Anvil::Tools::Template;
 use Anvil::Tools::Words;
 use Anvil::Tools::Validate;
-use Anvil::Tools::Actions;
 
 =pod
 
@@ -123,6 +123,7 @@ sub new
 	my $self      = {
 		HANDLE				=>	{
 			ACCOUNT				=>	Anvil::Tools::Account->new(),
+            ACTIONS             =>  Anvil::Tools::Actions->new(),
 			ALERT				=>	Anvil::Tools::Alert->new(),
 			CLUSTER				=>	Anvil::Tools::Cluster->new(),
 			CONVERT				=>	Anvil::Tools::Convert->new(),
@@ -142,7 +143,6 @@ sub new
 			TEMPLATE			=>	Anvil::Tools::Template->new(),
 			WORDS				=>	Anvil::Tools::Words->new(),
 			VALIDATE			=>	Anvil::Tools::Validate->new(),
-            ACTIONS             =>  Anvil::Tools::Actions->new(),
 			# This is to be removed before development ends.
 			'log'			=>	{
 				main			=>	"",
@@ -168,6 +168,7 @@ sub new
 	
 	# Get a handle on the various submodules
 	$anvil->Account->parent($anvil);
+    $anvil->Actions->parent($anvil);
 	$anvil->Alert->parent($anvil);
 	$anvil->Cluster->parent($anvil);
 	$anvil->Convert->parent($anvil);
@@ -187,7 +188,6 @@ sub new
 	$anvil->Template->parent($anvil);
 	$anvil->Words->parent($anvil);
 	$anvil->Validate->parent($anvil);
-    $anvil->Actions->parent($anvil);
 	
 	# Set some system paths and system default variables
 	$anvil->_set_defaults();
@@ -465,6 +465,18 @@ sub Account
 	return ($self->{HANDLE}{ACCOUNT});
 }
 
+=head2 Actions
+
+Access the C<Actions.pm> methods via 'C<< $anvil->Actions->method >>'.
+
+=cut
+sub Actions
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{ACTIONS});
+}
+
 =head2 Alert
 
 Access the C<Alert.pm> methods via 'C<< $anvil->Alert->method >>'.
@@ -693,18 +705,6 @@ sub Validate
 	return ($self->{HANDLE}{VALIDATE});
 }
 
-=head2 Actions
-
-Access the C<Actions.pm> methods via 'C<< $anvil->Actions->method >>'.
-
-=cut
-sub Actions
-{
-	my $self = shift;
-	
-	return ($self->{HANDLE}{ACTIONS});
-}
-
 =head1 Private Functions;
 
 These methods generally should never be called from a program using Anvil::Tools. However, we are not your boss.
@@ -863,6 +863,9 @@ sub _set_defaults
 			# power data) is considered "old" and gets deleted from the database.
 			age_out				=>	24,
 		},
+        post_scan_checks    =>  {
+            enabled             =>  1,
+        },
 	};
 	$anvil->data->{sys} = {
 		apache				=>	{
