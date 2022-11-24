@@ -1,9 +1,5 @@
-import { OutlinedInputProps as MUIOutlinedInputProps } from '@mui/material';
-
-const INPUT_TYPES: Record<
-  Exclude<MUIOutlinedInputProps['type'], undefined>,
-  string
-> = {
+const INPUT_TYPES = {
+  number: 'number',
   password: 'password',
   text: 'text',
 };
