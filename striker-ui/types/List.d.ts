@@ -1,7 +1,4 @@
-type OnCheckboxChange = Exclude<
-  import('../components/Checkbox').CheckboxProps['onChange'],
-  undefined
->;
+type OnCheckboxChange = Exclude<CheckboxProps['onChange'], undefined>;
 
 type ListOptionalProps<T extends unknown = unknown> = {
   allowCheckAll?: boolean;
