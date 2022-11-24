@@ -1600,6 +1600,9 @@ sub post_scan_analysis_node
 	my $critical     = 0;	# Set if we have to shut down, even with servers.
 	my $power_off    = "";	# Set to 'power' or 'thermal' if we need to shut down. If not critical, will ignore if we have servers.
 	
+    my $actions      = 0b000000; # Determines the actions taken by the ScanCore as 
+                                 # (node_1_assume, node_1_down, node_1_up, node_2_assume, node_2_down, node_2_up)
+
 	# If we're still here, at least one issue exists. Any kind of load-shed or preventative live 
 	# migration decision now depends on our peer's state. So see if we're both in the cluster or not.
 	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
@@ -1658,6 +1661,8 @@ sub post_scan_analysis_node
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 				$anvil->System->call({shell_call => $shell_call});
+
+                # TODO here
 				
 				# We should never live to this point, but just in case...
 				return(1);
