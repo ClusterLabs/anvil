@@ -206,13 +206,13 @@ sub insert_action_node_down {
     $anvil->Database->insert_or_update_variables({
         debug                 => $debug, 
         variable_name         => $node_down_name,
-        variable_value        => 0, 
+        variable_value        => 1, 
         update_value_only     => 1,  
 	});
     $anvil->Database->insert_or_update_variables({
         debug                 => $debug, 
         variable_name         => $node_up_name,
-        variable_value        => 1, 
+        variable_value        => 0, 
         update_value_only     => 1,  
 	});
 
@@ -233,7 +233,7 @@ Parameters;
 This is the name/number of the node on which action was executed by ScanCore. Must include the node number that is either "1" or "2". Example: C<< node1 >> or C<< 2 >>
 
 =cut
-sub insert_action_node_up{
+sub insert_action_node_up {
     my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
@@ -269,13 +269,13 @@ sub insert_action_node_up{
     $anvil->Database->insert_or_update_variables({
         debug                 => $debug, 
         variable_name         => $node_down_name,
-        variable_value        => 1, 
+        variable_value        => 0, 
         update_value_only     => 1,  
 	});
     $anvil->Database->insert_or_update_variables({
         debug                 => $debug, 
         variable_name         => $node_up_name,
-        variable_value        => 0, 
+        variable_value        => 1, 
         update_value_only     => 1,  
 	});
 
