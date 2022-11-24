@@ -1,3 +1,4 @@
+import { Star as MUIRequiredIcon } from '@mui/icons-material';
 import {
   Box,
   InputLabel as MUIInputLabel,
@@ -5,7 +6,6 @@ import {
   InputLabelProps as MUIInputLabelProps,
   svgIconClasses as muiSvgIconClasses,
 } from '@mui/material';
-import { Star as RequiredIcon } from '@mui/icons-material';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -27,7 +27,11 @@ const OutlinedInputLabel = (
     ...inputLabelRestProps
   } = inputLabelProps;
   const combinedSx = {
-    color: `${GREY}9f`,
+    color: `${GREY}9F`,
+
+    [`& .${muiSvgIconClasses.root}`]: {
+      color: GREY,
+    },
 
     [`&.${muiInputLabelClasses.focused}`]: {
       backgroundColor: GREY,
@@ -62,7 +66,9 @@ const OutlinedInputLabel = (
         }}
       >
         {isNotifyRequired && (
-          <RequiredIcon sx={{ marginLeft: '-.2rem', marginRight: '.4rem' }} />
+          <MUIRequiredIcon
+            sx={{ marginLeft: '-.2rem', marginRight: '.4rem' }}
+          />
         )}
         {children}
       </Box>
