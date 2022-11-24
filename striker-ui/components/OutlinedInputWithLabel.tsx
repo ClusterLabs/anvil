@@ -30,6 +30,7 @@ type OutlinedInputWithLabelOptionalProps = {
   onHelp?: MUIIconButtonProps['onClick'];
   onHelpAppend?: MUIIconButtonProps['onClick'];
   required?: boolean;
+  type?: string;
   value?: OutlinedInputProps['value'];
 };
 
@@ -40,12 +41,12 @@ type OutlinedInputWithLabelProps = {
 const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
   Omit<
     OutlinedInputWithLabelOptionalProps,
-    'onChange' | 'onHelp' | 'onHelpAppend'
+    'onChange' | 'onHelp' | 'onHelpAppend' | 'type'
   >
 > &
   Pick<
     OutlinedInputWithLabelOptionalProps,
-    'onChange' | 'onHelp' | 'onHelpAppend'
+    'onChange' | 'onHelp' | 'onHelpAppend' | 'type'
   > = {
   fillRow: false,
   formControlProps: {},
@@ -58,6 +59,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
   onHelp: undefined,
   onHelpAppend: undefined,
   required: false,
+  type: undefined,
   value: '',
 };
 
@@ -77,6 +79,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   onHelp,
   onHelpAppend,
   required = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.required,
+  type,
   value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
 }) => {
   const { sx: formControlSx, ...restFormControlProps } = formControlProps;
@@ -87,6 +90,18 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   const formControlWidth = useMemo(
     () => (isFillRow ? '100%' : undefined),
     [isFillRow],
+  );
+  const helpElement = useMemo(
+    () =>
+      isShowHelp && (
+        <InputMessageBox
+          onClose={() => {
+            setIsShowHelp(false);
+          }}
+          {...helpMessageBoxProps}
+        />
+      ),
+    [helpMessageBoxProps, isShowHelp],
   );
   const isShowHelpButton: boolean = useMemo(
     () => onHelp !== undefined || helpText.length > 0,
@@ -124,51 +139,40 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
         {label}
       </OutlinedInputLabel>
       <OutlinedInput
-        {...{
-          endAdornment: (
-            <MUIInputAdornment
-              position="end"
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
+        endAdornment={
+          <MUIInputAdornment
+            position="end"
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
 
-                [`& > .${muiIconButtonClasses.root}`]: {
-                  color: GREY,
-                  padding: '.2em',
-                },
+              [`& > .${muiIconButtonClasses.root}`]: {
+                color: GREY,
+                padding: '.2em',
+              },
 
-                [`& > :not(:first-child, .${muiIconButtonClasses.root})`]: {
-                  marginLeft: '.3em',
-                },
-              }}
-            >
-              {endAdornment}
-              {isShowHelpButton && (
-                <MUIIconButton onClick={handleHelp} tabIndex={-1}>
-                  <MUIQuestionMarkIcon />
-                </MUIIconButton>
-              )}
-            </MUIInputAdornment>
-          ),
-          fullWidth: formControlProps.fullWidth,
-          id,
-          label,
-          onChange,
-          value,
-          ...restInputProps,
-        }}
+              [`& > :not(:first-child, .${muiIconButtonClasses.root})`]: {
+                marginLeft: '.3em',
+              },
+            }}
+          >
+            {endAdornment}
+            {isShowHelpButton && (
+              <MUIIconButton onClick={handleHelp} tabIndex={-1}>
+                <MUIQuestionMarkIcon />
+              </MUIIconButton>
+            )}
+          </MUIInputAdornment>
+        }
+        fullWidth={formControlProps.fullWidth}
+        id={id}
+        label={label}
+        onChange={onChange}
+        type={type}
+        value={value}
+        {...restInputProps}
       />
-      {isShowHelp && (
-        <InputMessageBox
-          {...{
-            onClose: () => {
-              setIsShowHelp(false);
-            },
-
-            ...helpMessageBoxProps,
-          }}
-        />
-      )}
+      {helpElement}
       <InputMessageBox {...messageBoxProps} />
     </MUIFormControl>
   );
