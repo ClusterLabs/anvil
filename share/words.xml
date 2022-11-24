@@ -3466,6 +3466,7 @@ The error was:
 		</key>
 		<key name="warning_0147">[ Warning ] - The interface: [#!variable!interface!#] is in a bond, but it is down. The system uptime is: [#!variable!uptime!#], so it might be a problem where the interface didn't start on boot as it should have. So we're going to bring the interface up.</key>
 		<key name="warning_0148">[ Warning ] - The IPMI stonith resource: [#!variable!resource!#] is in the role: [#!variable!role!#] (should be 'Started'). Will check the IPMI config now.</key>
+        <key name="warning_0149">[ Warning ] - The method: [#!variable!method!#] was called but the: [#!variable!parameter!#] parameter should include a node number which must be either '1' or '2'.</key>
 
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 

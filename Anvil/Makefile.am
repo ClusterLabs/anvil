@@ -33,4 +33,5 @@ dist_anviltools_DATA	= \
 			  Tools/System.pm \
 			  Tools/Job.pm \
 			  Tools/Template.pm \
-			  Tools/Network.pm
+			  Tools/Network.pm \
+              Tools/Actions.pm
