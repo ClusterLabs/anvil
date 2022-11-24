@@ -1,13 +1,10 @@
 import {
   Checkbox as MUICheckbox,
   checkboxClasses as muiCheckboxClasses,
-  CheckboxProps as MUICheckboxProps,
 } from '@mui/material';
 import { FC } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
-
-type CheckboxProps = MUICheckboxProps;
 
 const Checkbox: FC<CheckboxProps> = ({ sx, ...checkboxProps }) => (
   <MUICheckbox
@@ -23,7 +20,5 @@ const Checkbox: FC<CheckboxProps> = ({ sx, ...checkboxProps }) => (
     }}
   />
 );
-
-export type { CheckboxProps };
 
 export default Checkbox;
