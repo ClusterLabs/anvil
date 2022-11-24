@@ -4,6 +4,7 @@ import { FC, useMemo, useRef, useState } from 'react';
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
+import AddPeerDialog from './AddPeerDialog';
 import api from '../../lib/api';
 import ConfirmDialog from '../ConfirmDialog';
 import FlexBox from '../FlexBox';
@@ -22,6 +23,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
 }) => {
   const { protect } = useProtect();
 
+  const addPeerDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
 
   const [apiMessage, setAPIMessage] = useProtectedState<Message | undefined>(
@@ -161,6 +163,9 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
               }
               listItemKeyPrefix="config-peers-peer-connection"
               listItems={peerConnections}
+              onAdd={() => {
+                addPeerDialogRef.current.setOpen?.call(null, true);
+              }}
               onDelete={() => {
                 const pairs = Object.entries(peerConnections);
                 const deleteRequestBody =
@@ -219,6 +224,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
           {apiMessageElement}
         </Grid>
       </ExpandablePanel>
+      <AddPeerDialog ref={addPeerDialogRef} />
       <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
     </>
   );
