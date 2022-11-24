@@ -24,7 +24,11 @@ const ConfirmDialog = forwardRef<
       actionCancelText = 'Cancel',
       actionProceedText,
       content,
-      dialogProps: { open: baseOpen = false, ...restDialogProps } = {},
+      dialogProps: {
+        open: baseOpen = false,
+        PaperProps: paperProps = {},
+        ...restDialogProps
+      } = {},
       onCancelAppend,
       onProceedAppend,
       openInitially = false,
@@ -34,7 +38,9 @@ const ConfirmDialog = forwardRef<
     },
     ref,
   ) => {
-    const { sx: proceedButtonSx } = proceedButtonProps;
+    const { sx: paperSx, ...restPaperProps } = paperProps;
+    const { sx: proceedButtonSx, ...restProceedButtonProps } =
+      proceedButtonProps;
 
     const [isOpen, setIsOpen] = useState<boolean>(openInitially);
 
@@ -61,7 +67,10 @@ const ConfirmDialog = forwardRef<
       <Dialog
         open={open}
         PaperComponent={Panel}
-        PaperProps={{ sx: { overflow: 'visible' } }}
+        PaperProps={{
+          ...restPaperProps,
+          sx: { overflow: 'visible', ...paperSx },
+        }}
         {...restDialogProps}
       >
         <PanelHeader>
@@ -92,6 +101,12 @@ const ConfirmDialog = forwardRef<
             {actionCancelText}
           </ContainedButton>
           <ContainedButton
+            onClick={(...args) => {
+              setIsOpen(false);
+
+              onProceedAppend?.call(null, ...args);
+            }}
+            {...restProceedButtonProps}
             sx={{
               backgroundColor: proceedColour,
               color: TEXT,
@@ -99,11 +114,6 @@ const ConfirmDialog = forwardRef<
               '&:hover': { backgroundColor: `${proceedColour}F0` },
 
               ...proceedButtonSx,
-            }}
-            onClick={(...args) => {
-              setIsOpen(false);
-
-              onProceedAppend?.call(null, ...args);
             }}
           >
             {actionProceedText}
