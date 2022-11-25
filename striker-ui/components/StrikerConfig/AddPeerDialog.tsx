@@ -2,13 +2,16 @@ import { forwardRef, useCallback, useMemo, useRef, useState } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
+import api from '../../lib/api';
 import buildMapToMessageSetter from '../../lib/buildMapToMessageSetter';
 import buildNumberTestBatch from '../../lib/test_input/buildNumberTestBatch';
 import CheckboxWithLabel from '../CheckboxWithLabel';
 import ConfirmDialog from '../ConfirmDialog';
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
+import handleAPIError from '../../lib/handleAPIError';
 import InputWithRef, { InputForwardedRefContent } from '../InputWithRef';
+import { Message } from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import {
@@ -16,6 +19,8 @@ import {
   buildPeacefulStringTestBatch,
 } from '../../lib/test_input';
 import { BodyText } from '../Text';
+import useProtect from '../../hooks/useProtect';
+import useProtectedState from '../../hooks/useProtectedState';
 
 const IT_IDS = {
   dbPort: 'dbPort',
@@ -37,6 +42,8 @@ const AddPeerDialog = forwardRef<
   ConfirmDialogForwardedRefContent,
   AddPeerDialogProps
 >(({ formGridColumns = 2 }, ref) => {
+  const { protect } = useProtect();
+
   const inputPeerDBPortRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputPeerIPAddressRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputPeerPasswordRef = useRef<InputForwardedRefContent<'string'>>({});
@@ -44,10 +51,12 @@ const AddPeerDialog = forwardRef<
   const inputPeerUserRef = useRef<InputForwardedRefContent<'string'>>({});
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-  const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(false);
   const [formValidity, setFormValidity] = useState<{
     [inputTestID: string]: boolean;
   }>({});
+  const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(false);
+  const [isSubmittingAddPeer, setIsSubmittingAddPeer] =
+    useProtectedState<boolean>(false, protect);
 
   const buildFormValiditySetterCallback = useCallback(
     (key: string, value: boolean) =>
@@ -70,6 +79,9 @@ const AddPeerDialog = forwardRef<
     },
     [buildFormValiditySetterCallback],
   );
+  const setAPIMessage = useCallback((message?: Message) => {
+    messageGroupRef.current.setMessage?.call(null, 'api', message);
+  }, []);
 
   const isFormInvalid = useMemo(
     () => Object.values(formValidity).some((isInputValid) => !isInputValid),
@@ -265,8 +277,38 @@ const AddPeerDialog = forwardRef<
         />
       }
       dialogProps={{ PaperProps: { sx: { minWidth: '16em' } } }}
+      loadingAction={isSubmittingAddPeer}
+      onActionAppend={() => {
+        setAPIMessage();
+      }}
       onProceedAppend={() => {
-        // TODO: send the request.
+        setIsSubmittingAddPeer(true);
+
+        api
+          .post('/host/connection', {
+            ipAddress: inputPeerIPAddressRef.current.getValue?.call(null),
+            isPing: isEnablePingTest,
+            password: inputPeerPasswordRef.current.getValue?.call(null),
+            port: inputPeerDBPortRef.current.getValue?.call(null),
+            sshPort: inputPeerSSHPortRef.current.getValue?.call(null),
+            user: inputPeerUserRef.current.getValue?.call(null),
+          })
+          .then(() => {
+            setAPIMessage({
+              children: `Successfully initiated the peer addition. You can continue to edit the field(s) to add another peer.`,
+              type: 'info',
+            });
+          })
+          .catch((error) => {
+            const emsg = handleAPIError(error);
+
+            emsg.children = `Failed to add the given peer. ${emsg.children}`;
+
+            setAPIMessage(emsg);
+          })
+          .finally(() => {
+            setIsSubmittingAddPeer(false);
+          });
       }}
       proceedButtonProps={{ disabled: isFormInvalid }}
       ref={ref}
