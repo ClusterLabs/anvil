@@ -183,7 +183,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const submitElement = useMemo(
       () =>
         isSubmitting ? (
-          <Spinner sx={{ marginTop: 0 }} />
+          <Spinner mt={0} />
         ) : (
           <FlexBox row sx={{ justifyContent: 'flex-end' }}>
             <ContainedButton
