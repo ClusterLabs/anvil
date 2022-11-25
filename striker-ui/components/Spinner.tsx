@@ -21,8 +21,9 @@ const SPINNER_DEFAULT_PROPS: Required<SpinnerOptionalProps> = {
 
 const Spinner: FC<SpinnerProps> = (spinnerProps): JSX.Element => {
   const {
-    sx,
+    mt = '3em',
     progressProps = SPINNER_DEFAULT_PROPS.progressProps,
+    sx,
     ...spinnerRestProps
   } = spinnerProps;
 
@@ -35,7 +36,7 @@ const Spinner: FC<SpinnerProps> = (spinnerProps): JSX.Element => {
           alignItems: 'center',
           display: 'flex',
           justifyContent: 'center',
-          marginTop: '3em',
+          marginTop: mt,
 
           [`& .${muiCircularProgressClasses.root}`]: {
             color: TEXT,
