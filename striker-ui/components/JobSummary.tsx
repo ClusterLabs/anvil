@@ -23,6 +23,7 @@ type AnvilJobs = {
 
 type JobSummaryOptionalPropsWithDefault = {
   openInitially?: boolean;
+  refreshInterval?: number;
 };
 
 type JobSummaryOptionalPropsWithoutDefault = {
@@ -44,6 +45,7 @@ const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
   JobSummaryOptionalPropsWithoutDefault = {
   onFetchSuccessAppend: undefined,
   openInitially: false,
+  refreshInterval: 10000,
 };
 
 const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
@@ -51,6 +53,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     {
       onFetchSuccessAppend,
       openInitially = JOB_SUMMARY_DEFAULT_PROPS.openInitially,
+      refreshInterval = JOB_SUMMARY_DEFAULT_PROPS.refreshInterval,
     },
     ref,
   ) => {
@@ -74,6 +77,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
         onFetchSuccessAppend?.call(null, rawAnvilJobs);
       },
+      refreshInterval,
     });
 
     useImperativeHandle(
