@@ -1,4 +1,3 @@
-import { FC, useCallback, useMemo, useState } from 'react';
 import { QuestionMark as MUIQuestionMarkIcon } from '@mui/icons-material';
 import {
   FormControl as MUIFormControl,
@@ -8,6 +7,7 @@ import {
   iconButtonClasses as muiIconButtonClasses,
   InputAdornment as MUIInputAdornment,
 } from '@mui/material';
+import { FC, useCallback, useMemo, useState } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
@@ -18,7 +18,7 @@ import OutlinedInputLabel, {
   OutlinedInputLabelProps,
 } from './OutlinedInputLabel';
 
-type OutlinedInputWithLabelOptionalProps = {
+type OutlinedInputWithLabelOptionalPropsWithDefault = {
   fillRow?: boolean;
   formControlProps?: Partial<MUIFormControlProps>;
   helpMessageBoxProps?: Partial<MessageBoxProps>;
@@ -26,28 +26,29 @@ type OutlinedInputWithLabelOptionalProps = {
   inputProps?: Partial<OutlinedInputProps>;
   inputLabelProps?: Partial<OutlinedInputLabelProps>;
   messageBoxProps?: Partial<MessageBoxProps>;
-  onChange?: OutlinedInputProps['onChange'];
-  onHelp?: MUIIconButtonProps['onClick'];
-  onHelpAppend?: MUIIconButtonProps['onClick'];
   required?: boolean;
-  type?: string;
   value?: OutlinedInputProps['value'];
 };
 
-type OutlinedInputWithLabelProps = {
-  label: string;
-} & OutlinedInputWithLabelOptionalProps;
+type OutlinedInputWithLabelOptionalPropsWithoutDefault = {
+  onBlur?: OutlinedInputProps['onBlur'];
+  onChange?: OutlinedInputProps['onChange'];
+  onFocus?: OutlinedInputProps['onFocus'];
+  onHelp?: MUIIconButtonProps['onClick'];
+  onHelpAppend?: MUIIconButtonProps['onClick'];
+  type?: string;
+};
 
-const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
-  Omit<
-    OutlinedInputWithLabelOptionalProps,
-    'onChange' | 'onHelp' | 'onHelpAppend' | 'type'
-  >
-> &
-  Pick<
-    OutlinedInputWithLabelOptionalProps,
-    'onChange' | 'onHelp' | 'onHelpAppend' | 'type'
-  > = {
+type OutlinedInputWithLabelOptionalProps =
+  OutlinedInputWithLabelOptionalPropsWithDefault &
+    OutlinedInputWithLabelOptionalPropsWithoutDefault;
+
+type OutlinedInputWithLabelProps = OutlinedInputWithLabelOptionalProps & {
+  label: string;
+};
+
+const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOptionalPropsWithDefault> &
+  OutlinedInputWithLabelOptionalPropsWithoutDefault = {
   fillRow: false,
   formControlProps: {},
   helpMessageBoxProps: {},
@@ -55,7 +56,9 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<
   inputProps: {},
   inputLabelProps: {},
   messageBoxProps: {},
+  onBlur: undefined,
   onChange: undefined,
+  onFocus: undefined,
   onHelp: undefined,
   onHelpAppend: undefined,
   required: false,
@@ -75,7 +78,9 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   inputLabelProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputLabelProps,
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
+  onBlur,
   onChange,
+  onFocus,
   onHelp,
   onHelpAppend,
   required = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.required,
@@ -167,7 +172,9 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
         fullWidth={formControlProps.fullWidth}
         id={id}
         label={label}
+        onBlur={onBlur}
         onChange={onChange}
+        onFocus={onFocus}
         type={type}
         value={value}
         {...restInputProps}
