@@ -6,10 +6,11 @@ import { InlineMonoText } from '../../components/Text';
 const buildDomainTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
-  { compare: dCompare, getValue } = {},
+  { onFinishBatch, ...defaults } = {},
   onDomainTestFailure,
 ) => ({
-  defaults: { compare: dCompare, getValue, onSuccess },
+  defaults: { ...defaults, onSuccess },
+  onFinishBatch,
   tests: [
     {
       onFailure: (...args) => {

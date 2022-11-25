@@ -50,12 +50,13 @@ type InputTestInputs = {
   [id: string]: Partial<InputTestArgs>;
 };
 
-type InputTestBatchFinishCallback = () => void;
+type InputTestBatchFinishCallback = (result: boolean, id: string) => void;
 
 type InputTestBatch = {
   defaults?: InputTestArgs & {
     onSuccess?: InputTestSuccessCallback;
   };
+  isRequired?: boolean;
   onFinishBatch?: InputTestBatchFinishCallback;
   optionalTests?: Array<InputTest>;
   tests: Array<InputTest>;
@@ -64,7 +65,7 @@ type InputTestBatch = {
 type BuildInputTestBatchFunction = (
   inputName: string,
   onSuccess: InputTestSuccessCallback,
-  options?: InputTestBatch['defaults'],
+  options?: InputTestBatch['defaults'] & Pick<InputTestBatch, 'onFinishBatch'>,
   ...onFailureAppends: InputTestFailureAppendCallback[]
 ) => InputTestBatch;
 
