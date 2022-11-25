@@ -5,10 +5,11 @@ import testNotBlank from './testNotBlank';
 const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
-  { getValue } = {},
+  { onFinishBatch, ...defaults } = {},
   onIPv4TestFailure,
 ) => ({
-  defaults: { getValue, onSuccess },
+  defaults: { ...defaults, onSuccess },
+  onFinishBatch,
   tests: [
     {
       onFailure: (...args) => {

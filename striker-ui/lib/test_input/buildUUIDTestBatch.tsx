@@ -5,10 +5,11 @@ import testNotBlank from './testNotBlank';
 const buildUUIDTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
-  { getValue } = {},
+  { onFinishBatch, ...defaults } = {},
   onUUIDTestFailure,
 ) => ({
-  defaults: { getValue, onSuccess },
+  defaults: { ...defaults, onSuccess },
+  onFinishBatch,
   tests: [
     {
       onFailure: (...args) => {

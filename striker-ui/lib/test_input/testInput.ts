@@ -32,6 +32,9 @@ const evalIsIgnoreOnCallbacks = ({
         setTestCallbacks: cbSetter,
       };
 
+const nullishSet = <T>(a: T | undefined, b: T) => a ?? b;
+const orSet = <T>(a: T | undefined, b: T) => a || b;
+
 const testInput: TestInputFunction = ({
   excludeTestIds = [],
   excludeTestIdsRe,
@@ -80,21 +83,27 @@ const testInput: TestInputFunction = ({
         onSuccess: dOnSuccess,
         value: dValue = null,
       } = {},
+      isRequired = false,
       onFinishBatch,
       optionalTests,
       tests: requiredTests,
     } = tests[id];
+    const isOptional = !isRequired;
     const {
       getCompare = dGetCompare,
       getValue = dGetValue,
       isIgnoreOnCallbacks = dIsIgnoreOnCallbacks,
       max = dMax,
       min = dMin,
-      compare = getCompare?.call(null) ?? dCompare,
-      value = getValue?.call(null) ?? dValue,
-      displayMax = dDisplayMax || String(max),
-      displayMin = dDisplayMin || String(min),
+      compare = nullishSet(getCompare?.call(null), dCompare),
+      value = nullishSet(getValue?.call(null), dValue),
+      displayMax = orSet(dDisplayMax, String(max)),
+      displayMin = orSet(dDisplayMin, String(min)),
     } = testsToRun[id];
+
+    if (!value && isOptional) {
+      return true;
+    }
 
     const { cbFinishBatch, setTestCallbacks } = evalIsIgnoreOnCallbacks({
       isIgnoreOnCallbacks,
@@ -153,7 +162,7 @@ const testInput: TestInputFunction = ({
     //   );
     // })();
 
-    cbFinishBatch?.call(null);
+    cbFinishBatch?.call(null, requiredTestsResult, id);
 
     return requiredTestsResult || isContinueOnFailure;
   });
