@@ -23,12 +23,14 @@ const ConfirmDialog = forwardRef<
     {
       actionCancelText = 'Cancel',
       actionProceedText,
+      closeOnProceed = false,
       content,
       dialogProps: {
         open: baseOpen = false,
         PaperProps: paperProps = {},
         ...restDialogProps
       } = {},
+      onActionAppend,
       onCancelAppend,
       onProceedAppend,
       openInitially = false,
@@ -95,6 +97,7 @@ const ConfirmDialog = forwardRef<
             onClick={(...args) => {
               setIsOpen(false);
 
+              onActionAppend?.call(null, ...args);
               onCancelAppend?.call(null, ...args);
             }}
           >
@@ -102,8 +105,11 @@ const ConfirmDialog = forwardRef<
           </ContainedButton>
           <ContainedButton
             onClick={(...args) => {
-              setIsOpen(false);
+              if (closeOnProceed) {
+                setIsOpen(false);
+              }
 
+              onActionAppend?.call(null, ...args);
               onProceedAppend?.call(null, ...args);
             }}
             {...restProceedButtonProps}

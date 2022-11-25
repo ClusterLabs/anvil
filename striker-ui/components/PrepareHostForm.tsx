@@ -556,6 +556,7 @@ const PrepareHostForm: FC = () => {
       </Panel>
       <ConfirmDialog
         actionProceedText="Prepare"
+        closeOnProceed
         content={
           <Grid
             calculateItemBreakpoints={(index) => ({

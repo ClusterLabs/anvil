@@ -25,6 +25,7 @@ const Config: FC<{ refreshInterval?: number }> = ({
   const [confirmDialogProps, setConfirmDialogProps] =
     useState<ConfirmDialogProps>({
       actionProceedText: '',
+      closeOnProceed: true,
       content: '',
       dialogProps: { open: isOpenConfirmDialog },
       onCancelAppend: () => {

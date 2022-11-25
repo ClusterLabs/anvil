@@ -225,7 +225,11 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
         </Grid>
       </ExpandablePanel>
       <AddPeerDialog ref={addPeerDialogRef} />
-      <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
+      <ConfirmDialog
+        closeOnProceed
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
     </>
   );
 };
