@@ -4,7 +4,9 @@ import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 
 import ContainedButton from './ContainedButton';
+import FlexBox from './FlexBox';
 import { Panel, PanelHeader } from './Panels';
+import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
 
 const MAP_TO_COLOUR: Record<
@@ -23,13 +25,14 @@ const ConfirmDialog = forwardRef<
     {
       actionCancelText = 'Cancel',
       actionProceedText,
-      closeOnProceed = false,
+      closeOnProceed: isCloseOnProceed = false,
       content,
       dialogProps: {
         open: baseOpen = false,
         PaperProps: paperProps = {},
         ...restDialogProps
       } = {},
+      loadingAction: isLoadingAction = false,
       onActionAppend,
       onCancelAppend,
       onProceedAppend,
@@ -57,6 +60,72 @@ const ConfirmDialog = forwardRef<
       [proceedColourKey],
     );
 
+    const cancelButtonElement = useMemo(
+      () => (
+        <ContainedButton
+          onClick={(...args) => {
+            setIsOpen(false);
+
+            onActionAppend?.call(null, ...args);
+            onCancelAppend?.call(null, ...args);
+          }}
+        >
+          {actionCancelText}
+        </ContainedButton>
+      ),
+      [actionCancelText, onActionAppend, onCancelAppend],
+    );
+    const proceedButtonElement = useMemo(
+      () => (
+        <ContainedButton
+          onClick={(...args) => {
+            if (isCloseOnProceed) {
+              setIsOpen(false);
+            }
+
+            onActionAppend?.call(null, ...args);
+            onProceedAppend?.call(null, ...args);
+          }}
+          {...restProceedButtonProps}
+          sx={{
+            backgroundColor: proceedColour,
+            color: TEXT,
+
+            '&:hover': { backgroundColor: `${proceedColour}F0` },
+
+            ...proceedButtonSx,
+          }}
+        >
+          {actionProceedText}
+        </ContainedButton>
+      ),
+      [
+        actionProceedText,
+        isCloseOnProceed,
+        onActionAppend,
+        onProceedAppend,
+        proceedButtonSx,
+        proceedColour,
+        restProceedButtonProps,
+      ],
+    );
+    const actionAreaElement = useMemo(
+      () =>
+        isLoadingAction ? (
+          <Spinner mt={0} />
+        ) : (
+          <FlexBox
+            row
+            spacing=".5em"
+            sx={{ justifyContent: 'flex-end', width: '100%' }}
+          >
+            {cancelButtonElement}
+            {proceedButtonElement}
+          </FlexBox>
+        ),
+      [cancelButtonElement, isLoadingAction, proceedButtonElement],
+    );
+
     useImperativeHandle(
       ref,
       () => ({
@@ -81,50 +150,7 @@ const ConfirmDialog = forwardRef<
         <Box sx={{ marginBottom: '1em' }}>
           {typeof content === 'string' ? <BodyText text={content} /> : content}
         </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'flex-end',
-            width: '100%',
-
-            '& > :not(:first-child)': {
-              marginLeft: '.5em',
-            },
-          }}
-        >
-          <ContainedButton
-            onClick={(...args) => {
-              setIsOpen(false);
-
-              onActionAppend?.call(null, ...args);
-              onCancelAppend?.call(null, ...args);
-            }}
-          >
-            {actionCancelText}
-          </ContainedButton>
-          <ContainedButton
-            onClick={(...args) => {
-              if (closeOnProceed) {
-                setIsOpen(false);
-              }
-
-              onActionAppend?.call(null, ...args);
-              onProceedAppend?.call(null, ...args);
-            }}
-            {...restProceedButtonProps}
-            sx={{
-              backgroundColor: proceedColour,
-              color: TEXT,
-
-              '&:hover': { backgroundColor: `${proceedColour}F0` },
-
-              ...proceedButtonSx,
-            }}
-          >
-            {actionProceedText}
-          </ContainedButton>
-        </Box>
+        {actionAreaElement}
       </Dialog>
     );
   },
