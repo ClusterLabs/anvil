@@ -121,7 +121,7 @@ sub insert_action_node_assume {
 
     # Can we parse a node number from node_name or peer_node_name
     my ($node_number) = $node_name =~ /(\d)/;
-    if (not $number or ($number ne "1" and $number ne "2")) {
+    if (not $node_number or ($node_number ne "1" and $node_number ne "2")) {
         $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_assume()", parameter => "node_name" }});
 		return("!!error!!");
     }
