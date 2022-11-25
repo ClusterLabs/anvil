@@ -1,6 +1,8 @@
 type ConfirmDialogOptionalProps = {
   actionCancelText?: string;
+  closeOnProceed?: boolean;
   dialogProps?: Partial<import('@mui/material').DialogProps>;
+  onActionAppend?: ContainedButtonProps['onClick'];
   onProceedAppend?: ContainedButtonProps['onClick'];
   onCancelAppend?: ContainedButtonProps['onClick'];
   openInitially?: boolean;

@@ -225,7 +225,11 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
         </FlexBox>
         {apiMessageElement}
       </ExpandablePanel>
-      <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
+      <ConfirmDialog
+        closeOnProceed
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
     </>
   );
 };
