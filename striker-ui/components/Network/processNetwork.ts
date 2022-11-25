@@ -2,7 +2,7 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
   const processedBonds: string[] = [];
   const displayBonds: ProcessedNetwork = { bonds: [] };
 
-  data?.hosts.forEach((host) => {
+  data.hosts.forEach((host) => {
     host.bonds.forEach((bond) => {
       const index = processedBonds.findIndex(
         (processed: string) => processed === bond.bond_name,
@@ -33,7 +33,6 @@ const processNetworkData = (data: AnvilNetwork): ProcessedNetwork => {
     });
   });
 
-  /* eslint-disable no-param-reassign */
   displayBonds.bonds.forEach((bond) => {
     const hostIndex =
       bond.hosts[0].link.link_speed > bond.hosts[1].link.link_speed ? 1 : 0;

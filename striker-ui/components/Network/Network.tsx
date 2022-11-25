@@ -1,17 +1,20 @@
+import { Box, Divider, styled } from '@mui/material';
 import { useContext } from 'react';
-import { Box, Divider } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { Panel } from '../Panels';
-import { HeaderText, BodyText } from '../Text';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
+
 import {
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
 } from '../../lib/consts/DEFAULT_THEME';
-import processNetworkData from './processNetwork';
+
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
+import { Panel } from '../Panels';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
+import processNetworkData from './processNetwork';
 import Spinner from '../Spinner';
+import { HeaderText, BodyText } from '../Text';
+import useProtect from '../../hooks/useProtect';
+import useProtectedState from '../../hooks/useProtectedState';
 
 const PREFIX = 'Network';
 
@@ -68,26 +71,35 @@ const selectDecorator = (state: string): Colours => {
 
 const Network = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
+  const { protect } = useProtect();
 
-  const { data, isLoading } = periodicFetch<AnvilNetwork>(
+  const [processed, setProcessed] = useProtectedState<
+    ProcessedNetwork | undefined
+  >(undefined, protect);
+
+  const { isLoading } = periodicFetch<AnvilNetwork>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_networks?anvil_uuid=${uuid}`,
+    {
+      onSuccess: (data) => {
+        setProcessed(processNetworkData(data));
+      },
+    },
   );
 
-  const processed = processNetworkData(data);
   return (
     <Panel>
       <StyledDiv>
         <HeaderText text="Network" />
         {!isLoading ? (
           <Box className={classes.container}>
-            {data &&
+            {processed &&
               processed.bonds.map((bond: ProcessedBond) => (
                 <>
                   <Box
+                    className={classes.root}
                     display="flex"
                     flexDirection="row"
                     width="100%"
-                    className={classes.root}
                   >
                     <Box p={1} className={classes.noPaddingLeft}>
                       <Decorator colour={selectDecorator(bond.bond_state)} />
