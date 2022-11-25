@@ -1,20 +1,22 @@
+import { Box, styled } from '@mui/material';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useContext, useEffect } from 'react';
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { useContext, useEffect, useMemo } from 'react';
 
+import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
+
+import AnvilProvider, { AnvilContext } from '../../components/AnvilContext';
 import Anvils from '../../components/Anvils';
-import Hosts from '../../components/Hosts';
 import CPU from '../../components/CPU';
-import SharedStorage from '../../components/SharedStorage';
+import Header from '../../components/Header';
+import Hosts from '../../components/Hosts';
 import Memory from '../../components/Memory';
 import Network from '../../components/Network';
+import { Panel } from '../../components/Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Servers from '../../components/Servers';
-import Header from '../../components/Header';
-import AnvilProvider, { AnvilContext } from '../../components/AnvilContext';
-import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
+import SharedStorage from '../../components/SharedStorage';
+import Spinner from '../../components/Spinner';
 import useWindowDimensions from '../../hooks/useWindowDimenions';
 
 const PREFIX = 'Anvil';
@@ -62,8 +64,70 @@ const Anvil = (): JSX.Element => {
 
   const { anvil_uuid: queryAnvilUUID } = router.query;
   const { uuid: contextAnvilUUID, setAnvilUuid } = useContext(AnvilContext);
-  const { data } = periodicFetch<AnvilList>(
+  const { data, isLoading } = periodicFetch<AnvilList>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
+  );
+
+  const contentLayoutElement = useMemo(() => {
+    let result;
+
+    if (data && width) {
+      result =
+        width > LARGE_MOBILE_BREAKPOINT ? (
+          <Box className={classes.container}>
+            <Box className={classes.child}>
+              <Anvils list={data} />
+              <Hosts anvil={data.anvils} />
+            </Box>
+            <Box className={classes.server}>
+              <Servers anvil={data.anvils} />
+            </Box>
+            <Box className={classes.child}>
+              <SharedStorage />
+            </Box>
+            <Box className={classes.child}>
+              <Network />
+              <CPU />
+              <Memory />
+            </Box>
+          </Box>
+        ) : (
+          <Box className={classes.container}>
+            <Box className={classes.child}>
+              <Servers anvil={data.anvils} />
+              <Anvils list={data} />
+              <Hosts anvil={data.anvils} />
+            </Box>
+            <Box className={classes.child}>
+              <Network />
+              <SharedStorage />
+              <CPU />
+              <Memory />
+            </Box>
+          </Box>
+        );
+    }
+
+    return result;
+  }, [data, width]);
+  const contentAreaElement = useMemo(
+    () =>
+      isLoading ? (
+        <Panel
+          sx={{
+            marginLeft: { xs: '1em', sm: 'auto' },
+            marginRight: { xs: '1em', sm: 'auto' },
+            marginTop: 'calc(50vh - 10em)',
+            maxWidth: { xs: undefined, sm: '60%', md: '50%', lg: '40%' },
+            minWidth: 'fit-content',
+          }}
+        >
+          <Spinner sx={{ margin: '2em 2.4em' }} />
+        </Panel>
+      ) : (
+        contentLayoutElement
+      ),
+    [contentLayoutElement, isLoading],
   );
 
   useEffect(() => {
@@ -79,41 +143,7 @@ const Anvil = (): JSX.Element => {
       </Head>
       <AnvilProvider>
         <Header />
-        {data?.anvils &&
-          width &&
-          (width > LARGE_MOBILE_BREAKPOINT ? (
-            <Box className={classes.container}>
-              <Box className={classes.child}>
-                <Anvils list={data} />
-                <Hosts anvil={data.anvils} />
-              </Box>
-              <Box className={classes.server}>
-                <Servers anvil={data.anvils} />
-              </Box>
-              <Box className={classes.child}>
-                <SharedStorage />
-              </Box>
-              <Box className={classes.child}>
-                <Network />
-                <CPU />
-                <Memory />
-              </Box>
-            </Box>
-          ) : (
-            <Box className={classes.container}>
-              <Box className={classes.child}>
-                <Servers anvil={data.anvils} />
-                <Anvils list={data} />
-                <Hosts anvil={data.anvils} />
-              </Box>
-              <Box className={classes.child}>
-                <Network />
-                <SharedStorage />
-                <CPU />
-                <Memory />
-              </Box>
-            </Box>
-          ))}
+        {contentAreaElement}
       </AnvilProvider>
     </StyledDiv>
   );
