@@ -1,16 +1,29 @@
-import { forwardRef, useRef, useState } from 'react';
+import { forwardRef, useCallback, useMemo, useRef, useState } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
+import buildMapToMessageSetter from '../../lib/buildMapToMessageSetter';
+import buildNumberTestBatch from '../../lib/test_input/buildNumberTestBatch';
 import CheckboxWithLabel from '../CheckboxWithLabel';
 import ConfirmDialog from '../ConfirmDialog';
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
 import InputWithRef, { InputForwardedRefContent } from '../InputWithRef';
-import MessageGroup from '../MessageGroup';
+import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import {
+  buildIPAddressTestBatch,
+  buildPeacefulStringTestBatch,
+} from '../../lib/test_input';
 import { BodyText } from '../Text';
 
+const IT_IDS = {
+  dbPort: 'dbPort',
+  ipAddress: 'ipAddress',
+  password: 'password',
+  sshPort: 'sshPort',
+  user: 'user',
+};
 const LABEL = {
   dbPort: 'DB port',
   ipAddress: 'IP address',
@@ -29,8 +42,43 @@ const AddPeerDialog = forwardRef<
   const inputPeerPasswordRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputPeerSSHPortRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputPeerUserRef = useRef<InputForwardedRefContent<'string'>>({});
+  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
   const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(false);
+  const [formValidity, setFormValidity] = useState<{
+    [inputTestID: string]: boolean;
+  }>({});
+
+  const buildFormValiditySetterCallback = useCallback(
+    (key: string, value: boolean) =>
+      ({ [key]: toReplace, ...restPrevious }) => ({
+        ...restPrevious,
+        [key]: value,
+      }),
+    [],
+  );
+  const buildInputFirstRenderFunction = useCallback(
+    (key: string) =>
+      ({ isRequired }: { isRequired: boolean }) => {
+        setFormValidity(buildFormValiditySetterCallback(key, !isRequired));
+      },
+    [buildFormValiditySetterCallback],
+  );
+  const buildFinishInputTestBatchFunction = useCallback(
+    (key: string) => (result: boolean) => {
+      setFormValidity(buildFormValiditySetterCallback(key, result));
+    },
+    [buildFormValiditySetterCallback],
+  );
+
+  const isFormInvalid = useMemo(
+    () => Object.values(formValidity).some((isInputValid) => !isInputValid),
+    [formValidity],
+  );
+  const msgSetters = useMemo(
+    () => buildMapToMessageSetter(IT_IDS, messageGroupRef),
+    [],
+  );
 
   return (
     <ConfirmDialog
@@ -53,6 +101,21 @@ const AddPeerDialog = forwardRef<
                         label={LABEL.user}
                       />
                     }
+                    inputTestBatch={buildPeacefulStringTestBatch(
+                      LABEL.user,
+                      () => {
+                        msgSetters.user();
+                      },
+                      {
+                        onFinishBatch: buildFinishInputTestBatchFunction(
+                          IT_IDS.user,
+                        ),
+                      },
+                      (message) => {
+                        msgSetters.user({ children: message });
+                      },
+                    )}
+                    onFirstRender={buildInputFirstRenderFunction(IT_IDS.user)}
                     ref={inputPeerUserRef}
                   />
                   <BodyText>@</BodyText>
@@ -61,10 +124,27 @@ const AddPeerDialog = forwardRef<
                       <OutlinedInputWithLabel
                         id="add-peer-ip-address-input"
                         label={LABEL.ipAddress}
-                        required
                       />
                     }
+                    inputTestBatch={buildIPAddressTestBatch(
+                      LABEL.ipAddress,
+                      () => {
+                        msgSetters.ipAddress();
+                      },
+                      {
+                        onFinishBatch: buildFinishInputTestBatchFunction(
+                          IT_IDS.ipAddress,
+                        ),
+                      },
+                      (message) => {
+                        msgSetters.ipAddress({ children: message });
+                      },
+                    )}
+                    onFirstRender={buildInputFirstRenderFunction(
+                      IT_IDS.ipAddress,
+                    )}
                     ref={inputPeerIPAddressRef}
+                    required
                   />
                 </FlexBox>
               ),
@@ -77,11 +157,26 @@ const AddPeerDialog = forwardRef<
                       fillRow
                       id="add-peer-password-input"
                       label={LABEL.password}
-                      required
                       type={INPUT_TYPES.password}
                     />
                   }
+                  inputTestBatch={buildPeacefulStringTestBatch(
+                    LABEL.password,
+                    () => {
+                      msgSetters.password();
+                    },
+                    {
+                      onFinishBatch: buildFinishInputTestBatchFunction(
+                        IT_IDS.password,
+                      ),
+                    },
+                    (message) => {
+                      msgSetters.password({ children: message });
+                    },
+                  )}
+                  onFirstRender={buildInputFirstRenderFunction(IT_IDS.password)}
                   ref={inputPeerPasswordRef}
+                  required
                 />
               ),
             },
@@ -96,6 +191,21 @@ const AddPeerDialog = forwardRef<
                         label={LABEL.dbPort}
                       />
                     }
+                    inputTestBatch={buildNumberTestBatch(
+                      LABEL.dbPort,
+                      () => {
+                        msgSetters.dbPort();
+                      },
+                      {
+                        onFinishBatch: buildFinishInputTestBatchFunction(
+                          IT_IDS.dbPort,
+                        ),
+                      },
+                      (message) => {
+                        msgSetters.dbPort({ children: message });
+                      },
+                    )}
+                    onFirstRender={buildInputFirstRenderFunction(IT_IDS.dbPort)}
                     ref={inputPeerDBPortRef}
                   />
                   <InputWithRef
@@ -106,6 +216,23 @@ const AddPeerDialog = forwardRef<
                         label={LABEL.sshPort}
                       />
                     }
+                    inputTestBatch={buildNumberTestBatch(
+                      LABEL.sshPort,
+                      () => {
+                        msgSetters.sshPort();
+                      },
+                      {
+                        onFinishBatch: buildFinishInputTestBatchFunction(
+                          IT_IDS.sshPort,
+                        ),
+                      },
+                      (message) => {
+                        msgSetters.sshPort({ children: message });
+                      },
+                    )}
+                    onFirstRender={buildInputFirstRenderFunction(
+                      IT_IDS.sshPort,
+                    )}
                     ref={inputPeerSSHPortRef}
                   />
                 </FlexBox>
@@ -124,7 +251,13 @@ const AddPeerDialog = forwardRef<
               sx: { display: 'flex' },
             },
             'add-peer-message-group': {
-              children: <MessageGroup />,
+              children: (
+                <MessageGroup
+                  count={1}
+                  defaultMessageType="warning"
+                  ref={messageGroupRef}
+                />
+              ),
               sm: formGridColumns,
             },
           }}
@@ -132,6 +265,10 @@ const AddPeerDialog = forwardRef<
         />
       }
       dialogProps={{ PaperProps: { sx: { minWidth: '16em' } } }}
+      onProceedAppend={() => {
+        // TODO: send the request.
+      }}
+      proceedButtonProps={{ disabled: isFormInvalid }}
       ref={ref}
       titleText="Add a peer"
     />
