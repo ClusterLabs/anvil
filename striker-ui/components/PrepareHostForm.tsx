@@ -477,7 +477,7 @@ const PrepareHostForm: FC = () => {
   const submitSection = useMemo(
     () =>
       isSubmittingPrepareHost ? (
-        <Spinner sx={{ marginTop: 0 }} />
+        <Spinner mt={0} />
       ) : (
         <FlexBox
           row

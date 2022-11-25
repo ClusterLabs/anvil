@@ -1753,7 +1753,7 @@ const ProvisionServerDialog = ({
             />
           )}
           {isProvisionRequestInProgress ? (
-            <Spinner sx={{ marginTop: 0 }} />
+            <Spinner mt={0} />
           ) : (
             <Box
               sx={{

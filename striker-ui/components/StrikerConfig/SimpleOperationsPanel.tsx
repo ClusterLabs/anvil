@@ -33,7 +33,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
       title ? (
         <HeaderText sx={{ textAlign: 'center' }}>{title}</HeaderText>
       ) : (
-        <Spinner sx={{ marginTop: 0 }} />
+        <Spinner mt={0} />
       ),
     [title],
   );
