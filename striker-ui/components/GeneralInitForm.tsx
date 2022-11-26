@@ -14,7 +14,6 @@ import { REP_DOMAIN } from '../lib/consts/REG_EXP_PATTERNS';
 
 import FlexBox from './FlexBox';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
-import isEmpty from '../lib/isEmpty';
 import MessageBox, { Message } from './MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel, {
@@ -87,7 +86,7 @@ const buildHostName = ({
   hostNumber?: number;
   domainName?: string;
 }) =>
-  isEmpty([organizationPrefix, hostNumber, domainName], { not: true })
+  [organizationPrefix, hostNumber, domainName].every((value) => Boolean(value))
     ? `${organizationPrefix}-striker${pad(hostNumber)}.${domainName}`
     : '';
 
@@ -422,24 +421,16 @@ const GeneralInitForm = forwardRef<
     [testInputToToggleSubmitDisabled],
   );
   const isOrganizationPrefixPrereqFilled = useCallback(
-    () =>
-      isEmpty([organizationNameInputRef.current.getValue?.call(null)], {
-        not: true,
-      }),
+    () => Boolean(organizationNameInputRef.current.getValue?.call(null)),
     [],
   );
   const isHostNamePrereqFilled = useCallback(
     () =>
-      isEmpty(
-        [
-          organizationPrefixInputRef.current.getValue?.call(null),
-          hostNumberInputRef.current.getValue?.call(null),
-          domainNameInputRef.current.getValue?.call(null),
-        ],
-        {
-          not: true,
-        },
-      ),
+      [
+        organizationPrefixInputRef.current.getValue?.call(null),
+        hostNumberInputRef.current.getValue?.call(null),
+        domainNameInputRef.current.getValue?.call(null),
+      ].every((value) => Boolean(value)),
     [],
   );
   const populateOrganizationPrefixInputOnBlur: OutlinedInputWithLabelOnBlur =
