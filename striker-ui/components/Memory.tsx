@@ -1,25 +1,27 @@
-import { useContext } from 'react';
 import { Box } from '@mui/material';
 import * as prettyBytes from 'pretty-bytes';
+import { useContext } from 'react';
 
 import { AnvilContext } from './AnvilContext';
 import { AllocationBar } from './Bars';
-import { Panel } from './Panels';
+import { Panel, PanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import Spinner from './Spinner';
 import { HeaderText, BodyText } from './Text';
 
 const Memory = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const { data, isLoading } = periodicFetch<AnvilMemory>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_memory?anvil_uuid=${uuid}`,
-  );
 
-  const { allocated = 0, total = 0, reserved = 0 } = data ?? {};
+  const { data: { allocated = 0, reserved = 0, total = 0 } = {}, isLoading } =
+    periodicFetch<AnvilMemory>(
+      `${process.env.NEXT_PUBLIC_API_URL}/get_memory?anvil_uuid=${uuid}`,
+    );
 
   return (
     <Panel>
-      <HeaderText text="Memory" />
+      <PanelHeader>
+        <HeaderText text="Memory" />
+      </PanelHeader>
       {!isLoading ? (
         <>
           <Box display="flex" width="100%">
