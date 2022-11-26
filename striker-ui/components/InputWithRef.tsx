@@ -4,23 +4,19 @@ import {
   ForwardedRef,
   forwardRef,
   ReactElement,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from 'react';
 
-import createInputOnChangeHandler, {
-  CreateInputOnChangeHandlerOptions,
-  MapToStateSetter,
-} from '../lib/createInputOnChangeHandler';
+import createInputOnChangeHandler from '../lib/createInputOnChangeHandler';
 import { createTestInputFunction } from '../lib/test_input';
 import useIsFirstRender from '../hooks/useIsFirstRender';
 
-type InputWithRefTypeMap = Pick<MapToType, 'number' | 'string'>;
-
 type InputWithRefOptionalPropsWithDefault<
-  TypeName extends keyof InputWithRefTypeMap,
+  TypeName extends keyof MapToInputType,
 > = {
   createInputOnChangeHandlerOptions?: CreateInputOnChangeHandlerOptions<TypeName>;
   required?: boolean;
@@ -31,26 +27,26 @@ type InputWithRefOptionalPropsWithoutDefault = {
   onFirstRender?: (args: { isRequired: boolean }) => void;
 };
 
-type InputWithRefOptionalProps<TypeName extends keyof InputWithRefTypeMap> =
+type InputWithRefOptionalProps<TypeName extends keyof MapToInputType> =
   InputWithRefOptionalPropsWithDefault<TypeName> &
     InputWithRefOptionalPropsWithoutDefault;
 
 type InputWithRefProps<
-  TypeName extends keyof InputWithRefTypeMap,
+  TypeName extends keyof MapToInputType,
   InputComponent extends ReactElement,
 > = InputWithRefOptionalProps<TypeName> & {
   input: InputComponent;
 };
 
-type InputForwardedRefContent<TypeName extends keyof InputWithRefTypeMap> = {
+type InputForwardedRefContent<TypeName extends keyof MapToInputType> = {
   getIsChangedByUser?: () => boolean;
-  getValue?: () => InputWithRefTypeMap[TypeName];
+  getValue?: () => MapToInputType[TypeName];
   isValid?: () => boolean;
-  setValue?: MapToStateSetter[TypeName];
+  setValue?: StateSetter;
 };
 
 const INPUT_TEST_ID = 'input';
-const MAP_TO_INITIAL_VALUE: InputWithRefTypeMap = {
+const MAP_TO_INITIAL_VALUE: MapToInputType = {
   number: 0,
   string: '',
 };
@@ -65,10 +61,7 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
 };
 
 const InputWithRef = forwardRef(
-  <
-    TypeName extends keyof InputWithRefTypeMap,
-    InputComponent extends ReactElement,
-  >(
+  <TypeName extends keyof MapToInputType, InputComponent extends ReactElement>(
     {
       createInputOnChangeHandlerOptions: {
         postSet: postSetAppend,
@@ -94,11 +87,14 @@ const InputWithRef = forwardRef(
 
     const isFirstRender = useIsFirstRender();
 
-    const [inputValue, setInputValue] = useState<InputWithRefTypeMap[TypeName]>(
-      initValue,
-    ) as [InputWithRefTypeMap[TypeName], MapToStateSetter[TypeName]];
+    const [inputValue, setInputValue] =
+      useState<MapToInputType[TypeName]>(initValue);
     const [isChangedByUser, setIsChangedByUser] = useState<boolean>(false);
     const [isInputValid, setIsInputValid] = useState<boolean>(false);
+
+    const setValue: StateSetter = useCallback((value) => {
+      setInputValue(value as MapToInputType[TypeName]);
+    }, []);
 
     const testInput: TestInputFunction | undefined = useMemo(() => {
       let result;
@@ -143,7 +139,7 @@ const InputWithRef = forwardRef(
         initOnChange?.call(null, ...args);
         postSetAppend?.call(null, ...args);
       },
-      set: setInputValue,
+      set: setValue,
       setType: valueType,
       ...restCreateInputOnChangeHandlerOptions,
     });
@@ -160,9 +156,9 @@ const InputWithRef = forwardRef(
         getIsChangedByUser: () => isChangedByUser,
         getValue: () => inputValue,
         isValid: () => isInputValid,
-        setValue: setInputValue,
+        setValue,
       }),
-      [inputValue, isChangedByUser, isInputValid],
+      [inputValue, isChangedByUser, isInputValid, setValue],
     );
 
     return cloneElement(input, {
