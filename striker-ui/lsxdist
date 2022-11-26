@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# This script is for listing the EXTRA_DIST value in Makefile.am
+#
+# Note: the build output directory (out/ at the time of writing) should be
+# replaced by the corresponding variable set in the Makefile (currently
+# "nextoutdir").
+#
+# The find command:
+# * ignores node_modules/ directory,
+# * ignores git related files,
+# * ignores husky related files,
+# * ignores public/ directoy,
+# * ignores make related files,
+# * ignores environment-specific dot env files,
+# * ignores this script,
+# * ignores auto-generated .next/
+# and
+# * removes leading "./" and append "\"
+
+found=$(find . \
+    -mindepth 1 -maxdepth 1 \
+    -not \( -name node_modules -prune \) \
+    -not \( -name *git* -prune \) \
+    -not \( -name *husky* -prune \) \
+    -not \( -name public -prune \) \
+    -not \( -name *[Mm]ake* -prune \) \
+    -not \( -name [.]env[.]* -prune \) \
+    -not \( -name "*$(basename ${BASH_SOURCE[0]})*" -prune \) \
+    -not \( -name ".next" -prune \) \
+    | sed -E 's@^./(.+)$@\1 \\@')
+
+sorted=$(sort <<< "$found")
+
+echo "${sorted::-1}"
+echo "lines: $(wc -l <<< "$found")"
+
