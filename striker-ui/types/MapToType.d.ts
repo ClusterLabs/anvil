@@ -6,6 +6,10 @@ declare type MapToType = {
   undefined: undefined;
 };
 
+type ReducedMapToType = Pick<MapToType, 'boolean' | 'number' | 'string'>;
+
 declare type MapToValueConverter = {
-  [TypeName in keyof MapToType]: (value: unknown) => MapToType[TypeName];
+  [TypeName in keyof ReducedMapToType]: (
+    value: unknown,
+  ) => ReducedMapToType[TypeName];
 };

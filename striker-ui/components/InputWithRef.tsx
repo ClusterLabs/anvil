@@ -22,12 +22,9 @@ type InputWithRefTypeMap = Pick<MapToType, 'number' | 'string'>;
 type InputWithRefOptionalPropsWithDefault<
   TypeName extends keyof InputWithRefTypeMap,
 > = {
-  createInputOnChangeHandlerOptions?: Omit<
-    CreateInputOnChangeHandlerOptions<TypeName>,
-    'set'
-  >;
+  createInputOnChangeHandlerOptions?: CreateInputOnChangeHandlerOptions<TypeName>;
   required?: boolean;
-  valueType?: TypeName | 'string';
+  valueType?: TypeName;
 };
 type InputWithRefOptionalPropsWithoutDefault = {
   inputTestBatch?: InputTestBatch;
@@ -76,12 +73,12 @@ const InputWithRef = forwardRef(
       createInputOnChangeHandlerOptions: {
         postSet: postSetAppend,
         ...restCreateInputOnChangeHandlerOptions
-      } = INPUT_WITH_REF_DEFAULT_PROPS.createInputOnChangeHandlerOptions,
+      } = INPUT_WITH_REF_DEFAULT_PROPS.createInputOnChangeHandlerOptions as CreateInputOnChangeHandlerOptions<TypeName>,
       input,
       inputTestBatch,
       onFirstRender,
       required: isRequired = INPUT_WITH_REF_DEFAULT_PROPS.required,
-      valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType,
+      valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType as TypeName,
     }: InputWithRefProps<TypeName, InputComponent>,
     ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
   ) => {

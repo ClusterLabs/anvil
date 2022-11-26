@@ -21,7 +21,7 @@ type CreateInputOnChangeHandlerOptions<
   postSet?: (...args: InputOnChangeParameters) => void;
   preSet?: (...args: InputOnChangeParameters) => void;
   set?: MapToStateSetter[TypeName];
-  setType?: TypeName | 'string';
+  setType?: TypeName;
 };
 
 const createInputOnChangeHandler =
@@ -29,7 +29,7 @@ const createInputOnChangeHandler =
     postSet,
     preSet,
     set,
-    setType = 'string',
+    setType = 'string' as TypeName,
   }: CreateInputOnChangeHandlerOptions<TypeName> = {}): MUIInputProps['onChange'] =>
   (event) => {
     const {
