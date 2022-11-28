@@ -2827,7 +2827,12 @@ LIMIT 1;";
 					$shell_call =~ s/--action status/ --action on/;
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-					
+
+                    $anvil->Actions->insert_action_node_up({
+                        debug     => $debug,
+                        node_name => $anvil_role,
+                    });
+
 					# Mark it as booting.
 					$anvil->Database->update_host_status({
 						debug       => $debug,
@@ -2878,6 +2883,11 @@ LIMIT 1;";
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 					
+                    $anvil->Actions->insert_action_node_up({
+                        debug     => $debug,
+                        node_name => $anvil_role,
+                    });
+
 					# Mark it as booting.
 					$anvil->Database->update_host_status({
 						debug       => $debug,
@@ -2913,6 +2923,11 @@ LIMIT 1;";
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				
+                $anvil->Actions->insert_action_node_up({
+                    debug     => $debug,
+                    node_name => $anvil_role,
+                });
+
 				# Mark it as booting.
 				$anvil->Database->update_host_status({
 					debug       => $debug,
