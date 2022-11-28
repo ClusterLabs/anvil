@@ -556,7 +556,17 @@ The definition data passed in was:
 		<key name="error_0389">[ Error ] - I was asked to delete a notification over-ride, but no 'notification_uuid' was provides.</key>
 		<key name="error_0390">[ Error ] - The alert recipient UUID: [#!variable!uuid!#] wasn't found in the database.</key>
 		<key name="error_0391">[ Error ] - The host UUID: [#!variable!uuid!#] wasn't found in the database.</key>
-		
+		<key name="error_0392">[ Error ] - The switch '--test' requires an alert level to send the test '--alert X' at. Valid alert levels are;
+          * 1 or "critical"
+          * 2 or "warning"
+          * 3 or "notice"
+	  * 4 or "info"</key>
+		<key name="error_0393">[ Error ] - The test alert requires an alert level, but the passed: [#!variable!level!#] is incorrect. Valid options are:
+          * 1 or "critical"
+          * 2 or "warning"
+          * 3 or "notice"
+	  * 4 or "info"</key>
+	
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
 		<!--       comments and which are command lines that can't be changed! -->
@@ -949,11 +959,31 @@ resource #!variable!server!# {
 		<key name="header_0078">Storage Group</key>
 		<key name="header_0079">Used</key>
 		<key name="header_0080">Free</key>
-		<key name="header_0081">Anvil! Node Pair</key>
+		<key name="header_0081">Anvil! Node</key>
 		<key name="header_0082">Interface</key>
 		<key name="header_0083">Gateway (*DG)</key>
 		<key name="header_0084">Transmitted</key>
 		<key name="header_0085">Received</key>
+		<key name="header_0086">Mail Server Address</key>
+		<key name="header_0087">TCP Port</key>
+		<key name="header_0088">User Name</key>
+		<key name="header_0089">Password</key>
+		<key name="header_0090">Connection Security</key>
+		<key name="header_0091">Authentication Method</key>
+		<key name="header_0092">HELO Domain</key>
+		<key name="header_0093">Mail Server UUID</key>
+		<key name="header_0094">Recipients</key>
+		<key name="header_0095">E-mail</key>
+		<key name="header_0096">Alert Level</key>
+		<key name="header_0097">Language</key>
+		<key name="header_0098">Recipient UUID</key>
+		<key name="header_0099">Alert Overrides</key>
+		<key name="header_0100">Recipient</key>
+		<key name="header_0101">Anvil! Node</key>
+		<key name="header_0102">Alert Override UUID</key>
+		<key name="header_0103">Host Type</key>
+		<key name="header_0104">Host UUID</key>
+		<key name="header_0105">Machines</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -2762,6 +2792,8 @@ Proceed? [y/N]</key>
 * Host: ...... [#!variable!old_host!#]
 * Alert Level: [#!variable!old_level!#]
 Proceed? [y/N]</key>
+		<key name="message_0306">This is a test alert message sent at alert level: [#!variable!level!#].</key>
+		<key name="message_0307">Failed to send a test alert at level: [#!variable!level!#]. Is anyone listening at that level? Is the mail server configured?</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3104,6 +3136,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0295">This indicates that this node has had pacemaker configured.</key>
 		<key name="striker_0296">This indicates that this node or DR host has had base DRBD configured.</key>
 		<key name="striker_0297">This indicates that this node or DR host has completed all tasks needed to be a full member of the Anvil!.</key>
+		<key name="striker_0298">TCP Port</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
