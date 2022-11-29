@@ -1,4 +1,116 @@
 #!/usr/bin/perl
+#
+# This script exposes access to the Perl modules written for the Anvil! system.
+# It can be executed on Anvil! nodes, DR hosts, or strikers.
+#
+# Upon execution, creates an instance of Anvil::Tools which provides reference
+# to all *.pm instances under the Anvil/Tools/ directory. With these
+# references, proceed to execute 1 operation specified by one of --query,
+# --sub, or --data flags.
+#
+#
+# --- Notes ---
+#
+# * In this documentation, a "JSON object" does NOT include array.
+#
+#
+# --- Usages ---
+#
+#   To read from database:
+#   anvil-access-module --query <SQL query> [--uuid <database UUID>]
+#   > [ [row0_value0, row0_value1, row0_value2, ...],
+#       [row1_value0, row1_value1, row1_value2, ...],
+#       [row2_value0, row2_value1, row2_value2, ...], ... ]
+#
+#   To write to database:
+#   anvil-access-module --mode write --query <SQL command> [--uuid <database UUID>]
+#   > { write_code: 0 | 1 | "!!error!!" }
+#
+#   * The --query flag is required for specifying the SQL query (or command)
+#     for both read and write.
+#
+#   * To perform a write, the --mode flag must be set to 'write' (quotes are
+#     optional).
+#
+#   * It's possible to specify which database to access by providing the
+#     UUID; this can be ignored most of the time because it's rare to only
+#     target one database in a redundant system.
+#
+#   ! A non-zero 'write_code' means the write failed. Try running the same
+#     subroutine with a lower debug value, for example:
+#
+#     anvil-access-module --sub 'write' --sub-params '{ "query": <SQL command>, "debug": 2 }'
+#
+#
+#   To execute a Perl subroutine:
+#   anvil-access-module --sub <subroutine name> [--sub-module <module name>] [--sub-params <JSON object>]
+#   > { sub_results: only_value | [value0, value1, value2, ...] }
+#
+#   * The --sub flag is required for specifying the name of the target
+#     subroutine.
+#
+#   * The --sub-module flag sets the module name that the subroutine exists
+#     in. Module name is the file name (case sensitive and without extension)
+#     of any .pm file under '<root of this repository>/Anvil/Tools/'.
+#
+#     This flag defaults to 'Database'.
+#
+#   * The --sub-params flag accepts a JSON object which will be converted to a
+#     Perl hash and passed to the target subroutine as parameters.
+#
+#     This flag defaults to '{}' (blank JSON object).
+#
+#   ! In the case where the target subroutine returns a tuple or array, the
+#     'sub_results' key in the output JSON object will be an array.
+#
+#
+#   To access the data hash:
+#   anvil-access-module --data <JSON object> [--predata <JSON array>]
+#   > { ... }
+#
+#   * The --data flag is required for specifying the data structure to copy
+#     from the data hash. The script will recursively traverse each of the
+#     given JSON object's properties and pick values from the data hash for
+#     each property key that exists.
+#
+#     JSON object:
+#     {
+#       [key: string]: boolean | number | null | <JSON object>;
+#     }
+#
+#   * The --predata flag is a 2 dimentional JSON array for speficying 1 or more
+#     subroutines to execute in ascending-index-order before extracting data
+#     from the data hash. Each element of the top-level array contains a
+#     2nd-level array.
+#
+#     Each 2nd-level array contains:
+#     * in element 0, a string in Perl syntax that identifies the target
+#       subroutine, and
+#     * in element 1, a JSON object with parameters to supply to the target
+#       subroutine.
+#
+#     JSON array:
+#     [subroutine: string, parameters: object][];
+#
+#
+# --- Example usages ---
+#
+#   Select hosts from database:
+#   $ anvil-access-module --query "SELECT host_uuid, host_name FROM hosts;"
+#   [["09a3ac2f-5904-42a6-bb5e-28cffc7fa4af","mockhost01"],["df3653e3-7378-43e2-be2a-ead1b8aee881","mockhost02"],...]
+#
+#   Get local host name:
+#   $ anvil-access-module --sub 'host_name' --sub-module 'Get' --sub-params '{ "debug": 1 }'
+#   {"sub_results":"..."}
+#
+#   Get database data and 1 path from data hash:
+#   $ anvil-access-module --data '{ "database": true, "path": { "exe": { "grep": true } } }'
+#   {"database":{...},"path":{"exe":{"grep":"/usr/bin/grep"}}}
+#
+#   Get network data collected and recorded by the Network->get_ips() subroutine:
+#   $ anvil-access-module --predata '[ ["Network->get_ips", { "debug": 1 }] ]' --data '{ "network": true }'
+#   {"network":{...}}
+#
 
 use strict;
 use warnings;
@@ -52,6 +164,9 @@ sub call_pre_data_fns
 		{
 			if (is_array($fn_wrapper))
 			{
+				# The double dash ( // ) operator is similar to the or ( || )
+				# operator; it tests for defined instead of true.
+
 				my $pre_chain    = @{$fn_wrapper}[0] // "";
 				my @fn_params    = @{$fn_wrapper}[1..$#{$fn_wrapper}] // ();
 				my @chain        = split(/->|,/, $pre_chain);
