@@ -129,6 +129,7 @@ foreach my $i (0..31)
 # Record the environment variables
 foreach my $key (sort {$a cmp $b} keys %{$conf->{environment}})
 {
+	# $conf->{environment}{DRBD_RESOURCE} -> [srv51-Workstation3]
 	my $level = $conf->{environment}{$key} eq "" ? 3 : 2;
 	to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
 }
@@ -154,8 +155,17 @@ get_drbd_status($conf);
 
 to_log($conf, {message => "Ready to fence: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
 
-# Do the deed
-kill_target($conf);
+# Is there a specific resource?
+if ($conf->{environment}{DRBD_RESOURCE})
+{
+	# Prevent the resource from running on the peer.
+	create_constraint($conf);
+}
+else
+{
+	# No, do the deed
+	kill_target($conf);
+}
 
 # If we hit here, something very wrong happened.
 exit(1);
@@ -164,6 +174,20 @@ exit(1);
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This creates a location constraint that prevents the resource / server from running on the peer node.
+sub create_constraint
+{
+	my ($conf) = @_;
+	
+	my $resource    = $conf->{environment}{DRBD_RESOURCE};
+	my $target_node = $conf->{cluster}{target_node};
+	to_log($conf, {message => "Will now create a location constraint against: [".$resource."] preventing it from running on: [".$target_node."].", 'line' => __LINE__, level => 1});
+	
+	
+	
+	return(0);
+}
 
 # This reads the status of all resources. If we're not all UpToDate, check if the peer is. If the peer is, 
 # abort. If not, proceed (someone is gouig to have a bad day, but maybe some servers will live)

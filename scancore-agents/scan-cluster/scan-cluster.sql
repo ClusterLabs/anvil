@@ -127,7 +127,7 @@ CREATE TRIGGER trigger_scan_cluster_nodes
 -- TODO: We may want to track this data in the future. For now, we're not going to bother as we can always 
 --       dig through the historical cib.xml.X files on the nodes. 
 -- 
--- -- Constraints; Useful for tracking when servers are asked to migate.
+-- -- Constraints; Useful for tracking when servers are asked to migrate.
 -- CREATE TABLE scan_cluster_constraints (
 --     scan_cluster_constraint_uuid                 uuid                        primary key,
 --     scan_cluster_constraint_scan_cluster_uuid    uuid                        not null,       -- The parent scan_cluster_uuid.
