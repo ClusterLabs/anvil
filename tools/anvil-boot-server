@@ -9,6 +9,7 @@
 # 
 # TODO: 
 # - Add support for boot ordering.
+# - Check which node we want to put on and set a location constraint to prefer that node before calling pcs.
 # 
 
 use strict;

@@ -945,6 +945,12 @@ sub create_md
 	}
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0579", variables => { resource => $anvil->data->{job}{server_name} }});
 	
+	# If we're not the peer, force this resouroce to Primary.
+	if (not $anvil->data->{job}{peer_mode})
+	{
+		
+	}
+	
 	$anvil->Job->update_progress({
 		progress => 50,
 		message  => "job_0191,!!resource!".$anvil->data->{job}{server_name}."!!", 

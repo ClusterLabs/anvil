@@ -110,6 +110,9 @@ The definition for the server: [#!variable!server!#] was changed in the database
 #!variable!new_difference!#
 ======================
 		</key>
+		<key name="scan_server_alert_0019">
+There was no DRBD fence rule for the: [#!variable!server!#] in the pacemaker configuration. Adding it now.
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>
