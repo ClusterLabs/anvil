@@ -1281,6 +1281,7 @@ sub _set_paths
 				tput				=>	"/usr/bin/tput", 
 				'tr'				=>	"/usr/bin/tr",
 				uname				=>	"/usr/bin/uname",
+				unfence_pacemaker		=>	"/usr/sbin/unfence_pacemaker",
 				unzip				=>	"/usr/bin/unzip",
 				useradd				=>	"/usr/sbin/useradd",
 				usermod				=>	"/usr/sbin/usermod",

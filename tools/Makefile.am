@@ -67,7 +67,8 @@ fencedir		= ${FASEXECPREFIX}/sbin
 
 dist_fence_SCRIPTS	= \
 			  fence_delay \
-			  fence_pacemaker
+			  fence_pacemaker \
+			  unfence_pacemaker
 
 sharedir		= ${datarootdir}/anvil
 
