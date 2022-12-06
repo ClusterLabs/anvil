@@ -3504,12 +3504,14 @@ The error was:
 		<!-- The entries below here are not sequential, but use a key to find the entry. -->
 		<!-- Run 'striker-parse-os-list to find new entries. --> 
 		<key name="os_list_almalinux8"><![CDATA[AlmaLinux 8]]></key>
+		<key name="os_list_almalinux9"><![CDATA[AlmaLinux 9]]></key>
 		<key name="os_list_alpinelinux3.10"><![CDATA[Alpine Linux 3.10]]></key>
 		<key name="os_list_alpinelinux3.11"><![CDATA[Alpine Linux 3.11]]></key>
 		<key name="os_list_alpinelinux3.12"><![CDATA[Alpine Linux 3.12]]></key>
 		<key name="os_list_alpinelinux3.13"><![CDATA[Alpine Linux 3.13]]></key>
 		<key name="os_list_alpinelinux3.14"><![CDATA[Alpine Linux 3.14]]></key>
 		<key name="os_list_alpinelinux3.15"><![CDATA[Alpine Linux 3.15]]></key>
+		<key name="os_list_alpinelinux3.16"><![CDATA[Alpine Linux 3.16]]></key>
 		<key name="os_list_alpinelinux3.5"><![CDATA[Alpine Linux 3.5]]></key>
 		<key name="os_list_alpinelinux3.6"><![CDATA[Alpine Linux 3.6]]></key>
 		<key name="os_list_alpinelinux3.7"><![CDATA[Alpine Linux 3.7]]></key>
@@ -3519,6 +3521,7 @@ The error was:
 		<key name="os_list_alt.p8"><![CDATA[ALT p8 StarterKits]]></key>
 		<key name="os_list_alt.p9"><![CDATA[ALT p9 StarterKits]]></key>
 		<key name="os_list_alt.sisyphus"><![CDATA[ALT regular]]></key>
+		<key name="os_list_alt10.0"><![CDATA[ALT 10.0]]></key>
 		<key name="os_list_alt8.0"><![CDATA[ALT 8 Education]]></key>
 		<key name="os_list_alt8.1"><![CDATA[ALT 8.1]]></key>
 		<key name="os_list_alt8.2"><![CDATA[ALT 8.2]]></key>
@@ -3692,6 +3695,7 @@ The error was:
 		<key name="os_list_fedora-coreos-next"><![CDATA[Fedora CoreOS]]></key>
 		<key name="os_list_fedora-coreos-stable"><![CDATA[Fedora CoreOS]]></key>
 		<key name="os_list_fedora-coreos-testing"><![CDATA[Fedora CoreOS]]></key>
+		<key name="os_list_fedora-eln"><![CDATA[Fedora ELN]]></key>
 		<key name="os_list_fedora-rawhide"><![CDATA[Fedora Rawhide]]></key>
 		<key name="os_list_fedora-unknown"><![CDATA[Fedora]]></key>
 		<key name="os_list_fedora1"><![CDATA[Fedora Core 1]]></key>
@@ -3723,6 +3727,7 @@ The error was:
 		<key name="os_list_fedora33"><![CDATA[Fedora 33]]></key>
 		<key name="os_list_fedora34"><![CDATA[Fedora 34]]></key>
 		<key name="os_list_fedora35"><![CDATA[Fedora 35]]></key>
+		<key name="os_list_fedora36"><![CDATA[Fedora Linux 36]]></key>
 		<key name="os_list_fedora4"><![CDATA[Fedora Core 4]]></key>
 		<key name="os_list_fedora5"><![CDATA[Fedora Core 5]]></key>
 		<key name="os_list_fedora6"><![CDATA[Fedora Core 6]]></key>
@@ -3745,6 +3750,7 @@ The error was:
 		<key name="os_list_freebsd12.2"><![CDATA[FreeBSD 12.2]]></key>
 		<key name="os_list_freebsd12.3"><![CDATA[FreeBSD 12.3]]></key>
 		<key name="os_list_freebsd13.0"><![CDATA[FreeBSD 13.0]]></key>
+		<key name="os_list_freebsd13.1"><![CDATA[FreeBSD 13.1]]></key>
 		<key name="os_list_freebsd2.0"><![CDATA[FreeBSD 2.0]]></key>
 		<key name="os_list_freebsd2.0.5"><![CDATA[FreeBSD 2.0.5]]></key>
 		<key name="os_list_freebsd2.2.8"><![CDATA[FreeBSD 2.2.8]]></key>
@@ -3813,6 +3819,7 @@ The error was:
 		<key name="os_list_linux2016"><![CDATA[Generic Linux 2016]]></key>
 		<key name="os_list_linux2018"><![CDATA[Generic Linux 2018]]></key>
 		<key name="os_list_linux2020"><![CDATA[Generic Linux 2020]]></key>
+		<key name="os_list_linux2022"><![CDATA[Generic Linux 2022]]></key>
 		<key name="os_list_macosx10.0"><![CDATA[MacOS X Cheetah]]></key>
 		<key name="os_list_macosx10.1"><![CDATA[MacOS X Puma]]></key>
 		<key name="os_list_macosx10.2"><![CDATA[MacOS X Jaguar]]></key>
@@ -3894,6 +3901,8 @@ The error was:
 		<key name="os_list_nixos-20.03"><![CDATA[NixOS 20.03]]></key>
 		<key name="os_list_nixos-20.09"><![CDATA[NixOS 20.09]]></key>
 		<key name="os_list_nixos-21.05"><![CDATA[NixOS 21.05]]></key>
+		<key name="os_list_nixos-21.11"><![CDATA[NixOS 21.11]]></key>
+		<key name="os_list_nixos-22.05"><![CDATA[NixOS 22.05]]></key>
 		<key name="os_list_nixos-unknown"><![CDATA[NixOS]]></key>
 		<key name="os_list_nixos-unstable"><![CDATA[NixOS Unstable]]></key>
 		<key name="os_list_oel4.4"><![CDATA[Oracle Enterprise Linux 4.4]]></key>
@@ -3967,6 +3976,7 @@ The error was:
 		<key name="os_list_openbsd6.7"><![CDATA[OpenBSD 6.7]]></key>
 		<key name="os_list_openbsd6.8"><![CDATA[OpenBSD 6.8]]></key>
 		<key name="os_list_openbsd6.9"><![CDATA[OpenBSD 6.9]]></key>
+		<key name="os_list_openbsd7.0"><![CDATA[OpenBSD 7.0]]></key>
 		<key name="os_list_opensolaris2009.06"><![CDATA[OpenSolaris 2009.06]]></key>
 		<key name="os_list_opensuse-factory"><![CDATA[openSUSE]]></key>
 		<key name="os_list_opensuse-unknown"><![CDATA[openSUSE]]></key>
@@ -3986,6 +3996,7 @@ The error was:
 		<key name="os_list_opensuse15.1"><![CDATA[openSUSE Leap 15.1]]></key>
 		<key name="os_list_opensuse15.2"><![CDATA[openSUSE Leap 15.2]]></key>
 		<key name="os_list_opensuse15.3"><![CDATA[openSUSE Leap 15.3]]></key>
+		<key name="os_list_opensuse15.4"><![CDATA[openSUSE Leap 15.4]]></key>
 		<key name="os_list_opensuse42.1"><![CDATA[openSUSE Leap 42.1]]></key>
 		<key name="os_list_opensuse42.2"><![CDATA[openSUSE Leap 42.2]]></key>
 		<key name="os_list_opensuse42.3"><![CDATA[openSUSE Leap 42.3]]></key>
@@ -3997,7 +4008,9 @@ The error was:
 		<key name="os_list_popos19.10"><![CDATA[Pop!_OS 19.10]]></key>
 		<key name="os_list_popos20.04"><![CDATA[Pop!_OS 20.04]]></key>
 		<key name="os_list_popos20.10"><![CDATA[Pop!_OS 20.10]]></key>
+		<key name="os_list_pureos10"><![CDATA[PureOS]]></key>
 		<key name="os_list_pureos8"><![CDATA[PureOS]]></key>
+		<key name="os_list_pureos9"><![CDATA[PureOS]]></key>
 		<key name="os_list_rhel-atomic-7.0"><![CDATA[Red Hat Enterprise Linux Atomic Host 7.0]]></key>
 		<key name="os_list_rhel-atomic-7.1"><![CDATA[Red Hat Enterprise Linux Atomic Host 7.1]]></key>
 		<key name="os_list_rhel-atomic-7.2"><![CDATA[Red Hat Enterprise Linux Atomic Host 7.2]]></key>
@@ -4074,8 +4087,11 @@ The error was:
 		<key name="os_list_rhel8.3"><![CDATA[Red Hat Enterprise Linux 8.3]]></key>
 		<key name="os_list_rhel8.4"><![CDATA[Red Hat Enterprise Linux 8.4]]></key>
 		<key name="os_list_rhel8.5"><![CDATA[Red Hat Enterprise Linux 8.5]]></key>
+		<key name="os_list_rhel8.6"><![CDATA[Red Hat Enterprise Linux 8.6]]></key>
+		<key name="os_list_rhel8.7"><![CDATA[Red Hat Enterprise Linux 8.7]]></key>
 		<key name="os_list_rhel9-unknown"><![CDATA[Red Hat Enterprise Linux 9 Unknown]]></key>
 		<key name="os_list_rhel9.0"><![CDATA[Red Hat Enterprise Linux 9.0]]></key>
+		<key name="os_list_rhel9.1"><![CDATA[Red Hat Enterprise Linux 9.1]]></key>
 		<key name="os_list_rhl1.0"><![CDATA[Red Hat Linux 1.0]]></key>
 		<key name="os_list_rhl1.1"><![CDATA[Red Hat Linux 1.1]]></key>
 		<key name="os_list_rhl2.0"><![CDATA[Red Hat Linux 2.0]]></key>
@@ -4144,6 +4160,7 @@ The error was:
 		<key name="os_list_silverblue33"><![CDATA[Fedora Silverblue 33]]></key>
 		<key name="os_list_silverblue34"><![CDATA[Fedora Silverblue 34]]></key>
 		<key name="os_list_silverblue35"><![CDATA[Fedora Silverblue 35]]></key>
+		<key name="os_list_silverblue36"><![CDATA[Fedora Silverblue 36]]></key>
 		<key name="os_list_slackware-current"><![CDATA[Slackware -current]]></key>
 		<key name="os_list_slackware14.2"><![CDATA[Slackware 14.2]]></key>
 		<key name="os_list_sle-unknown"><![CDATA[SUSE Linux Enterprise Unknown]]></key>
@@ -4152,6 +4169,7 @@ The error was:
 		<key name="os_list_sle15sp1"><![CDATA[SUSE Linux Enterprise 15 SP1]]></key>
 		<key name="os_list_sle15sp2"><![CDATA[SUSE Linux Enterprise 15 SP2]]></key>
 		<key name="os_list_sle15sp3"><![CDATA[SUSE Linux Enterprise 15 SP3]]></key>
+		<key name="os_list_sle15sp4"><![CDATA[SUSE Linux Enterprise 15 SP4]]></key>
 		<key name="os_list_sled10"><![CDATA[SUSE Linux Enterprise Desktop 10]]></key>
 		<key name="os_list_sled10sp1"><![CDATA[SUSE Linux Enterprise Desktop 10 SP1]]></key>
 		<key name="os_list_sled10sp2"><![CDATA[SUSE Linux Enterprise Desktop 10 SP2]]></key>
@@ -4171,6 +4189,8 @@ The error was:
 		<key name="os_list_sled12sp5"><![CDATA[SUSE Linux Enterprise Desktop 12 SP5]]></key>
 		<key name="os_list_sled9"><![CDATA[SUSE Linux Enterprise Desktop 9]]></key>
 		<key name="os_list_slem5.0"><![CDATA[SUSE Linux Enterprise Micro]]></key>
+		<key name="os_list_slem5.1"><![CDATA[SUSE Linux Enterprise Micro 5.1]]></key>
+		<key name="os_list_slem5.2"><![CDATA[SUSE Linux Enterprise Micro 5.2]]></key>
 		<key name="os_list_sles10"><![CDATA[SUSE Linux Enterprise Server 10]]></key>
 		<key name="os_list_sles10sp1"><![CDATA[SUSE Linux Enterprise Server 10 SP1]]></key>
 		<key name="os_list_sles10sp2"><![CDATA[SUSE Linux Enterprise Server 10 SP2]]></key>
@@ -4217,6 +4237,7 @@ The error was:
 		<key name="os_list_ubuntu20.10"><![CDATA[Ubuntu 20.10]]></key>
 		<key name="os_list_ubuntu21.04"><![CDATA[Ubuntu 21.04]]></key>
 		<key name="os_list_ubuntu21.10"><![CDATA[Ubuntu 21.10]]></key>
+		<key name="os_list_ubuntu22.04"><![CDATA[Ubuntu 22.04 LTS]]></key>
 		<key name="os_list_ubuntu4.10"><![CDATA[Ubuntu 4.10]]></key>
 		<key name="os_list_ubuntu5.04"><![CDATA[Ubuntu 5.04]]></key>
 		<key name="os_list_ubuntu5.10"><![CDATA[Ubuntu 5.10]]></key>
