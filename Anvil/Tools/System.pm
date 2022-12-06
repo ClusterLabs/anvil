@@ -1458,6 +1458,12 @@ sub collect_ipmi_data
 		return('!!error!!');
 	}
 	
+	# Take the double-quotes off the password.
+	$ipmi_password =~ s/^"(.*)"$/$1/;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_password => $anvil->Log->is_secure($ipmi_password), 
+	}});
+	
 	my $read_start_time = time;
 	
 	# If there is a password, write it to a temp file.

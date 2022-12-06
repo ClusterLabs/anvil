@@ -408,6 +408,55 @@ CREATE TRIGGER trigger_anvils
     FOR EACH ROW EXECUTE PROCEDURE history_anvils();
 
 
+-- This is the new method of tracking DR hosts and while Anvil! node pairs they can back up. This allows DR 
+-- hosts to protect multiple nodes, and allow multiple DRs to protect one node pair.
+CREATE TABLE dr_links (
+    dr_link_uuid          uuid                        not null    primary key, 
+    dr_link_host_uuid     uuid                        not null,
+    dr_link_anvil_uuid    uuid                        not null,
+    modified_date         timestamp with time zone    not null, 
+    
+    FOREIGN KEY(dr_link_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(dr_link_anvil_uuid) REFERENCES anvils(anvil_uuid) 
+);
+ALTER TABLE dr_links OWNER TO admin;
+
+CREATE TABLE history.dr_links (
+    history_id            bigserial,
+    dr_link_uuid          uuid,
+    dr_link_host_uuid     uuid,
+    dr_link_anvil_uuid    uuid,
+    modified_date         timestamp with time zone    not null 
+);
+ALTER TABLE history.dr_links OWNER TO admin;
+
+CREATE FUNCTION history_dr_links() RETURNS trigger
+AS $$
+DECLARE
+    history_dr_links RECORD;
+BEGIN
+    SELECT INTO history_dr_links * FROM dr_links WHERE dr_link_uuid = new.dr_link_uuid;
+    INSERT INTO history.dr_links
+        (dr_link_uuid, 
+         dr_link_host_uuid,
+         dr_link_anvil_uuid,
+         modified_date)
+    VALUES
+        (history_dr_links.dr_link_uuid, 
+         history_dr_links.dr_link_host_uuid,
+         history_dr_links.dr_link_anvil_uuid,
+         history_dr_links.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_dr_links() OWNER TO admin;
+
+CREATE TRIGGER trigger_dr_links
+    AFTER INSERT OR UPDATE ON dr_links
+    FOR EACH ROW EXECUTE PROCEDURE history_dr_links();
+
+
 -- This stores alerts coming in from various sources
 CREATE TABLE alerts (
     alert_uuid             uuid                        not null    primary key,
