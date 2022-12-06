@@ -2652,7 +2652,12 @@ LIMIT 1;";
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_power => $check_power }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			check_power     => $check_power,
+			short_host_name => $short_host_name, 
+			host_ipmi       => $host_ipmi, 
+			host_status     => $host_status, 
+		}});
 		if (not $check_power)
 		{
 			next;
@@ -2845,7 +2850,6 @@ LIMIT 1;";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0672", variables => { host_name => $host_name }});
 				
 				# Check power 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0567", variables => { host_name => $host_name }});
 				my ($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time) = $anvil->ScanCore->check_power({
 					debug      => $debug,
 					anvil_uuid => $anvil_uuid,
