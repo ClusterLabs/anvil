@@ -5269,12 +5269,12 @@ sub _wait_if_changing
 	
 	if (not $delay)
 	{
-		$delay = 2;
+		$delay = 10;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
 	}
 	elsif (($delay =~ /\D/) or ($delay == 0))
 	{
-		$delay = 2;
+		$delay = 10;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
 	}
 	
