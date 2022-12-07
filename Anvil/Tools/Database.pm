@@ -14828,7 +14828,7 @@ INSERT INTO
 			{
 				### NOTE: There is no history schema for states.
 				# The lock is stale.
-				my $query = "DELETE FROM states WHERE state_uuid = ".$state_uuid.";";
+				my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 			}
