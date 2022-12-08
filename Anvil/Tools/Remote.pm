@@ -828,14 +828,14 @@ sub read_snmp_oid
 		output      => $output,
 		return_code => $return_code, 
 	}});
-	my $value = "!!no_value!!";
+	my $value = "#!no_value!#";
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		
 		if ($line =~ /No Response/i)
 		{
-			$value = "!!no_connection!!";
+			$value = "#!no_connection!#";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
 		}
 		elsif (($line =~ /STRING: "(.*)"$/i) or ($line =~ /STRING: (.*)$/i))
