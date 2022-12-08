@@ -2070,7 +2070,7 @@ sub gather_ups_data
 	my ($anvil) = @_;
 	
 	### TODO: If the network with the UPS is congested, it is possible that, despite connecting to the 
-	###       UPS, some OID reads may fail with '!!no_connection!!'. Try to read them a second time in
+	###       UPS, some OID reads may fail with '#!no_connection!#'. Try to read them a second time in
 	###       these cases. Regardless, be sure to check all returned OID values for 'no connection' and
 	###       handle such cases more gracefully.
 	
