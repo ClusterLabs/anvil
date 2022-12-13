@@ -566,6 +566,10 @@ The definition data passed in was:
           * 2 or "warning"
           * 3 or "notice"
 	  * 4 or "info"</key>
+		<key name="error_0394">[ Error ] - The host UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="error_0395">[ Error ] - The host UUID: [#!variable!uuid!#], with the host name: [#!variable!name!#] is of host type: [#!variable!type!#]. This must be a type 'dr'.</key>
+		<key name="error_0396">[ Error ] - The Anvil! UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="error_0397">[ Error ] - The DR link UUID: [#!variable!uuid!#] was not found.</key>
 	
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->

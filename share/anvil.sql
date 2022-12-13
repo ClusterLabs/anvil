@@ -414,6 +414,7 @@ CREATE TABLE dr_links (
     dr_link_uuid          uuid                        not null    primary key, 
     dr_link_host_uuid     uuid                        not null,
     dr_link_anvil_uuid    uuid                        not null,
+    dr_link_note          text,                                                 -- Set to 'DELETE' when no longer used.
     modified_date         timestamp with time zone    not null, 
     
     FOREIGN KEY(dr_link_host_uuid) REFERENCES hosts(host_uuid), 
@@ -426,6 +427,7 @@ CREATE TABLE history.dr_links (
     dr_link_uuid          uuid,
     dr_link_host_uuid     uuid,
     dr_link_anvil_uuid    uuid,
+    dr_link_note          text, 
     modified_date         timestamp with time zone    not null 
 );
 ALTER TABLE history.dr_links OWNER TO admin;
@@ -440,11 +442,13 @@ BEGIN
         (dr_link_uuid, 
          dr_link_host_uuid,
          dr_link_anvil_uuid,
+         dr_link_note, 
          modified_date)
     VALUES
         (history_dr_links.dr_link_uuid, 
          history_dr_links.dr_link_host_uuid,
          history_dr_links.dr_link_anvil_uuid,
+         history_dr_links.dr_link_note, 
          history_dr_links.modified_date);
     RETURN NULL;
 END;
