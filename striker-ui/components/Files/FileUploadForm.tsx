@@ -1,3 +1,4 @@
+import { Box, Input, InputLabel } from '@mui/material';
 import EventEmitter from 'events';
 import {
   ChangeEventHandler,
@@ -6,17 +7,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Box, Input, InputLabel } from '@mui/material';
 
 import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
+import api from '../../lib/api';
 import { ProgressBar } from '../Bars';
 import ContainedButton from '../ContainedButton';
 import FileInfo from './FileInfo';
 import MessageBox from '../MessageBox';
 import { BodyText } from '../Text';
-
-import mainAxiosInstance from '../../lib/singletons/mainAxiosInstance';
 
 type FileUploadFormProps = {
   onFileUploadComplete?: () => void;
@@ -117,8 +116,8 @@ const FileUploadForm = (
         const inUploadFile: InUploadFile = { fileName, progressValue: 0 };
         inUploadFiles.push(inUploadFile);
 
-        mainAxiosInstance
-          .post('/files', fileFormData, {
+        api
+          .post('/file', fileFormData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },

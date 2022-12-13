@@ -61,6 +61,7 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 pickup_job_details($anvil);
+overwrite_variables_with_switches($anvil);
 
 # Set maintenance mode
 $anvil->System->maintenance_mode({set => 1});
@@ -1608,6 +1609,19 @@ AND
 		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);
 	}
 	
+	# Overwrite variables with job data.
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		if ($line =~ /^(form::config_step[^\s]+)=(.*?)$/)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				'job_data::variable_name'  => $1,
+				'job_data::variable_value' => $anvil->Log->is_secure($2),
+			}});
+			$anvil->_make_hash_reference($anvil->data->{variables}, $1, $2);
+		}
+	}
+
 	# Clear previous data
 	$anvil->Job->update_progress({
 		progress => 0, 
@@ -1641,5 +1655,31 @@ AND
 		}
 	}
 	
+	return(0);
+}
+
+sub overwrite_variables_with_switches
+{
+	my ($anvil) = @_;
+
+	if (not defined $anvil->data->{variables})
+	{
+		$anvil->data->{variables} = {};
+	}
+
+	foreach my $switch_name (keys %{$anvil->data->{switches}})
+	{
+		my $switch_value = $anvil->data->{switches}{$switch_name};
+
+		if ($switch_name =~ /^form::config_step[^\s]+$/)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				'switches::variable_name'  => $switch_name,
+				'switches::variable_value' => $anvil->Log->is_secure($switch_value),
+			}});
+			$anvil->_make_hash_reference($anvil->data->{variables}, $switch_name, $switch_value);
+		}
+	}
+
 	return(0);
 }

@@ -7,60 +7,44 @@ nextbuilddir		= .next
 
 # List of paths relative to the build output directory.
 #
-outpages			= \
-						index.html \
-						server.html \
-						file-manager.html
+outpages		= \
+			anvil.html \
+			config.html \
+			file-manager.html \
+			index.html \
+			init.html \
+			prepare-host.html \
+			server.html
 outjsmodulesdir		= _next
 outimagesdir		= pngs
 
 # The build output directory listed under EXTRA_DIST contains the files to
 # include in the release/source tarball.
 #
-# It is recommended to use the following command to regenerate the file list
-# as files get added/removed:
+# It is recommended to use the lsxdist script to regenerate the file list
+# as files get added/removed.
 #
-# find . \
-#      -mindepth 1 -maxdepth 1 \
-#      -not \( -name node_modules -prune \) \
-#      -not \( -name *git* -prune \) \
-#      -not \( -name *husky* -prune \) \
-#      -not \( -name public -prune \) \
-#      -not \( -name *[Mm]ake* -prune \) \
-#      | sed -E 's@^./(.+)$@\1 \\@'
-#
-# The find command:
-# * ignores ./node_modules directory,
-# * ignores git related files,
-# * ignores husky related files
-# * ignores ./public directory
-# * ignores make related files, and
-# * removes leading "./" and append "\"
-#
-# Note: This only works when we want to include all files within the listed
-# subdirectories. It is recommended to run a similar find command on a
-# subdirectory to skip undesired files in the subdirectory.
-#
-EXTRA_DIST		= \
-			$(nextoutdir) \
-			next.config.js \
-			next-env.d.ts \
-			tsconfig.json \
-			theme \
-			styles \
-			.lintstagedrc.json \
-			README.md \
-			package.json \
-			lib \
-			.prettierrc.json \
-			types \
-			components \
-			pages \
-			.eslintrc.json \
-			commitlint.config.js \
-			.eslintignore \
-			.env \
-			package-lock.json
+EXTRA_DIST	= \
+		$(nextoutdir) \
+		commitlint.config.js \
+		components \
+		.env \
+		.eslintignore \
+		.eslintrc.json \
+		hooks \
+		lib \
+		.lintstagedrc.json \
+		next.config.js \
+		next-env.d.ts \
+		package.json \
+		package-lock.json \
+		pages \
+		.prettierrc.json \
+		README.md \
+		styles \
+		theme \
+		tsconfig.json \
+		types
 
 # Blank target; the build output directory should be usable as-is.
 $(nextoutdir): ;

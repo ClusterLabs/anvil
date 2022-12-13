@@ -14,7 +14,6 @@ const PREFIX = 'AnvilHost';
 const classes = {
   state: `${PREFIX}-state`,
   bar: `${PREFIX}-bar`,
-  header: `${PREFIX}-header`,
   label: `${PREFIX}-label`,
   decoratorBox: `${PREFIX}-decoratorBox`,
 };
@@ -32,16 +31,10 @@ const StyledBox = styled(Box)(({ theme }) => ({
   [`& .${classes.state}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
-    paddingTop: '1em',
   },
 
   [`& .${classes.bar}`]: {
     paddingLeft: '.7em',
-    paddingRight: '.7em',
-  },
-
-  [`& .${classes.header}`]: {
-    paddingTop: '.3em',
     paddingRight: '.7em',
   },
 
@@ -50,6 +43,7 @@ const StyledBox = styled(Box)(({ theme }) => ({
   },
 
   [`& .${classes.decoratorBox}`]: {
+    alignSelf: 'stretch',
     paddingRight: '.3em',
   },
 }));
@@ -92,22 +86,20 @@ const AnvilHost = ({
             host ? (
               <InnerPanel key={host.host_uuid}>
                 <InnerPanelHeader>
-                  <Box display="flex" width="100%" className={classes.header}>
-                    <Box flexGrow={1}>
-                      <BodyText text={host.host_name} />
-                    </Box>
-                    <Box className={classes.decoratorBox}>
-                      <Decorator colour={selectDecorator(host.state)} />
-                    </Box>
-                    <Box>
-                      <BodyText
-                        text={
-                          host?.state?.replace(stateRegex, (c) =>
-                            c.toUpperCase(),
-                          ) || 'Not Available'
-                        }
-                      />
-                    </Box>
+                  <Box flexGrow={1}>
+                    <BodyText text={host.host_name} />
+                  </Box>
+                  <Box className={classes.decoratorBox}>
+                    <Decorator colour={selectDecorator(host.state)} />
+                  </Box>
+                  <Box>
+                    <BodyText
+                      text={
+                        host?.state?.replace(stateRegex, (c) =>
+                          c.toUpperCase(),
+                        ) || 'Not Available'
+                      }
+                    />
                   </Box>
                 </InnerPanelHeader>
                 <Box display="flex" className={classes.state}>

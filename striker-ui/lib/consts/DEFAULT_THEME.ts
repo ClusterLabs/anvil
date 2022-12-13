@@ -13,6 +13,8 @@ export const DIVIDER = '#888';
 export const SELECTED_ANVIL = '#00ff00';
 export const DISABLED = '#AAA';
 export const BLACK = '#343434';
+// TODO: remove when old icons are completely replaced.
+export const OLD_ICON = '#9da2a7';
 
 export const BORDER_RADIUS = '3px';
 export const LARGE_MOBILE_BREAKPOINT = 1800;

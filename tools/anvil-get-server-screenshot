@@ -18,82 +18,103 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+sub remote_call
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug};
+
+	my @call_result = $anvil->Remote->call($parameters);
+	my ($output, $error, $return_code) = @call_result;
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		%$parameters,
+		output      => $output,
+		error       => $error,
+		return_code => $return_code,
+	} });
+
+	return @call_result;
+}
+
 sub system_call
 {
 	my $parameters = shift;
-	my $shell_call = $parameters->{shell_call};
+	my $debug      = $parameters->{debug};
 
-	my ($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $shell_call });
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		shell_call        => $shell_call,
-		shell_output      => $shell_output,
-		shell_return_code => $shell_return_code
+	my @call_result = $anvil->System->call($parameters);
+	my ($output, $return_code) = @call_result;
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		%$parameters,
+		output      => $output,
+		return_code => $return_code,
 	} });
 
-	return ($shell_output, $shell_return_code);
+	return @call_result;
 }
 
-sub is_existing_server_screenshot_outdated
+sub get_remote_call_requirements
 {
-	my $parameters  = shift;
-	my $server_uuid = $parameters->{server_uuid};
+	my $parameters = shift;
+	my $host_uuid  = $parameters->{host_uuid};
+	my $debug      = $parameters->{debug};
 
-	my ($encoded_image, $variable_uuid, $variable_mtime) = $anvil->Database->read_variable({ variable_name => "server_screenshot::".$server_uuid });
+	my $query = "
+SELECT ip_address_address
+FROM ip_addresses
+WHERE ip_address_gateway <> ''
+	AND ip_address_note <> 'DELETED'
+	AND ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)."
+;";
 
-	my $time_difference = time - $variable_mtime;
+	my $host_ip_address = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__, debug => $debug })->[0]->[0];
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		host_uuid       => $host_uuid,
+		host_ip_address => $host_ip_address,
+	} });
 
-	return $time_difference > 120 ? 1 : 0;
+	return $host_ip_address;
 }
 
 sub get_server_screenshot
 {
 	my $parameters  = shift;
 	my $server_uuid = $parameters->{server_uuid};
-	my ($resize_x, $resize_y) = split(/x/ , $parameters->{resize_args});
+	my $debug       = $parameters->{debug};
 
-	my $shell_call = "virsh screenshot --domain ".$server_uuid." --file /dev/stdout | sed 's/Screenshot.*//'";
+	my $resize_args = defined $parameters->{resize_args} ? $parameters->{resize_args} : '';
 
-	if ($resize_x =~ /^\d+$/ && $resize_y =~ /^\d+$/)
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." --quiet screenshot --domain ".$server_uuid." --file ".$anvil->data->{path}{devices}{stdout};
+
+	if ($resize_args =~ /^\d+x\d+$/)
 	{
-		$shell_call .= " | pamscale -quiet -xyfit ".$resize_x." ".$resize_y;
-		$shell_call .= " | pamtopng -quiet";
+		my ($resize_x, $resize_y) = split(/x/ , $resize_args);
+
+		$shell_call .= " | ".$anvil->data->{path}{exe}{pamscale}." -quiet -xyfit ".$resize_x." ".$resize_y;
 	}
 
-	$shell_call .= " | base64 --wrap 0";
+	$shell_call .= " | ".$anvil->data->{path}{exe}{pamtopng}." -quiet | ".$anvil->data->{path}{exe}{base64}." --wrap 0";
 
-	my ($shell_output, $shell_return_code) = system_call({ shell_call => $shell_call });
+	my ($output, $return_code) = system_call({ debug => $debug, shell_call => $shell_call });
 
-	return $shell_return_code == 0 ? $shell_output : undef;
-}
-
-sub insert_server_screenshot
-{
-	my $parameters    = shift;
-	my $server_uuid   = $parameters->{server_uuid};
-	my $encoded_image = $parameters->{encoded_image};
-
-	$anvil->Database->insert_or_update_states({
-		state_name => "server_screenshot::".$server_uuid,
-		state_note => $encoded_image
-	});
+	return $return_code == 0 ? $output : undef;
 }
 
 $anvil->Get->switches;
+my $debug = $anvil->data->{switches}{debug};
 
 $anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132" });
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
-	$anvil->nice_exit({exit_code => 1});
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
+	$anvil->nice_exit({ exit_code => 1 });
 }
 
 # Try to get a job UUID if not given.
 if (not $anvil->data->{switches}{'job-uuid'})
 {
 	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({ program => $THIS_FILE });
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}
 	} });
 }
@@ -122,51 +143,46 @@ if ($anvil->data->{switches}{'job-uuid'})
 			$anvil->data->{switches}{'resize'} = $1;
 		}
 
-		if ($line =~ /stdout=(.*?)$/)
+		if ($line =~ /request-host-uuid=(.*?)$/)
 		{
-			$anvil->data->{switches}{'stdout'} = $1;
+			$anvil->data->{switches}{'request-host-uuid'} = $1;
+		}
+
+		if ($line =~ /out-file-id=(.*?)$/)
+		{
+			$anvil->data->{switches}{'out-file-id'} = $1;
 		}
 	}
 }
 
-my $server_uuid = $anvil->data->{switches}{'server-uuid'};
-my $resize_args = $anvil->data->{switches}{'resize'};
-my $is_stdout   = $anvil->data->{switches}{'stdout'};
-my $job_uuid    = $anvil->data->{switches}{'job-uuid'};
+my $server_uuid       = $anvil->data->{switches}{'server-uuid'};
+my $resize_args       = $anvil->data->{switches}{resize};
+my $request_host_uuid = $anvil->data->{switches}{'request-host-uuid'};
+my $job_uuid          = $anvil->data->{switches}{'job-uuid'};
+my $out_file_id       = defined $anvil->data->{switches}{'out-file-id'} ? $anvil->data->{switches}{'out-file-id'} : "0";
 
-$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-	server_uuid => $server_uuid,
-	resize_args => $resize_args,
-	is_stdout   => $is_stdout,
-	job_uuid    => $job_uuid
+$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+	debug             => $debug,
+	job_uuid          => $job_uuid,
+	request_host_uuid => $request_host_uuid,
+	resize_args       => $resize_args,
+	server_uuid       => $server_uuid,
 } });
 
 if ($server_uuid)
 {
-	my $encoded_image;
+	my $encoded_image = get_server_screenshot({ debug => $debug, server_uuid => $server_uuid, resize_args => $resize_args });
 
-	if ($is_stdout)
+	if ($request_host_uuid)
 	{
-		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid, resize_args => $resize_args });
-
 		if (defined $encoded_image)
 		{
-			print($encoded_image);
+			my $request_host_ip_address = get_remote_call_requirements({ debug => $debug, host_uuid => $request_host_uuid });
+			my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' >".$anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot_".$out_file_id;
 
-			$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
-		}
-		else
-		{
-			$anvil->Job->update_progress({ progress => 100, message => "message_0265" });
-		}
-	}
-	elsif (is_existing_server_screenshot_outdated({ server_uuid => $server_uuid }))
-	{
-		$encoded_image = get_server_screenshot({ server_uuid => $server_uuid, resize_args => $resize_args });
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { request_host_ip_address => $request_host_ip_address } });
 
-		if (defined $encoded_image)
-		{
-			insert_server_screenshot({ server_uuid => $server_uuid, encoded_image => $encoded_image });
+			remote_call({ debug => $debug, shell_call => $remote_shell_call, target => $request_host_ip_address });
 
 			$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
 		}
@@ -177,7 +193,7 @@ if ($server_uuid)
 	}
 	else
 	{
-		$anvil->Job->update_progress({ progress => 100, message => "message_0266" });
+		print($encoded_image);
 	}
 }
 else

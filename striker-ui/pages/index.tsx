@@ -1,110 +1,238 @@
 import Head from 'next/head';
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { NextRouter, useRouter } from 'next/router';
+import { FC, useEffect, useRef, useState } from 'react';
+import { Box, Divider } from '@mui/material';
+import { Add as AddIcon } from '@mui/icons-material';
 
-import Anvils from '../components/Anvils';
-import Hosts from '../components/Hosts';
-import CPU from '../components/CPU';
-import SharedStorage from '../components/SharedStorage';
-import Memory from '../components/Memory';
-import Network from '../components/Network';
-import periodicFetch from '../lib/fetchers/periodicFetch';
-import Servers from '../components/Servers';
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
+
+import { Preview } from '../components/Display';
+import fetchJSON from '../lib/fetchers/fetchJSON';
 import Header from '../components/Header';
-import AnvilProvider from '../components/AnvilContext';
-import { LARGE_MOBILE_BREAKPOINT } from '../lib/consts/DEFAULT_THEME';
-import useWindowDimensions from '../hooks/useWindowDimenions';
+import IconButton from '../components/IconButton';
+import Link from '../components/Link';
+import OutlinedInput from '../components/OutlinedInput';
+import { Panel, PanelHeader } from '../components/Panels';
+import periodicFetch from '../lib/fetchers/periodicFetch';
+import ProvisionServerDialog from '../components/ProvisionServerDialog';
+import Spinner from '../components/Spinner';
 
-const PREFIX = 'Dashboard';
-
-const classes = {
-  child: `${PREFIX}-child`,
-  server: `${PREFIX}-server`,
-  container: `${PREFIX}-container`,
+type ServerListItem = ServerOverviewMetadata & {
+  isScreenshotStale?: boolean;
+  screenshot: string;
 };
 
-const StyledDiv = styled('div')(({ theme }) => ({
-  [`& .${classes.child}`]: {
-    width: '22%',
-    height: '100%',
-    [theme.breakpoints.down(LARGE_MOBILE_BREAKPOINT)]: {
-      width: '50%',
-    },
-    [theme.breakpoints.down('md')]: {
-      width: '100%',
-    },
-  },
+const createServerPreviewContainer = (
+  servers: ServerListItem[],
+  router: NextRouter,
+) => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
 
-  [`& .${classes.server}`]: {
-    width: '35%',
-    height: '100%',
-    [theme.breakpoints.down('md')]: {
-      width: '100%',
+      '& > *': {
+        width: { xs: '20em', md: '24em' },
+      },
+
+      '& > :not(:last-child)': {
+        marginRight: '2em',
+      },
+    }}
+  >
+    {servers.map(
+      ({
+        anvilName,
+        anvilUUID,
+        isScreenshotStale,
+        screenshot,
+        serverName,
+        serverUUID,
+      }) => (
+        <Preview
+          externalPreview={screenshot}
+          headerEndAdornment={[
+            <Link
+              href={`/server?uuid=${serverUUID}&server_name=${serverName}`}
+              key={`server_list_to_server_${serverUUID}`}
+            >
+              {serverName}
+            </Link>,
+            <Link
+              href={`/anvil?anvil_uuid=${anvilUUID}`}
+              key={`server_list_server_${serverUUID}_to_anvil_${anvilUUID}`}
+              sx={{
+                opacity: 0.7,
+              }}
+            >
+              {anvilName}
+            </Link>,
+          ]}
+          isExternalPreviewStale={isScreenshotStale}
+          isFetchPreview={false}
+          isShowControls={false}
+          isUseInnerPanel
+          key={`server-preview-${serverUUID}`}
+          onClickPreview={() => {
+            router.push(
+              `/server?uuid=${serverUUID}&server_name=${serverName}&vnc=1`,
+            );
+          }}
+          serverUUID={serverUUID}
+        />
+      ),
+    )}
+  </Box>
+);
+
+const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
+  searchTerm === ''
+    ? {
+        exclude: allServers,
+        include: [],
+      }
+    : allServers.reduce<{
+        exclude: ServerListItem[];
+        include: ServerListItem[];
+      }>(
+        (reduceContainer, server) => {
+          const { serverName } = server;
+
+          if (serverName.includes(searchTerm)) {
+            reduceContainer.include.push(server);
+          } else {
+            reduceContainer.exclude.push(server);
+          }
+
+          return reduceContainer;
+        },
+        { exclude: [], include: [] },
+      );
+
+const Dashboard: FC = () => {
+  const componentMountedRef = useRef(true);
+  const router = useRouter();
+
+  const [allServers, setAllServers] = useState<ServerListItem[]>([]);
+  const [excludeServers, setExcludeServers] = useState<ServerListItem[]>([]);
+  const [includeServers, setIncludeServers] = useState<ServerListItem[]>([]);
+
+  const [inputSearchTerm, setInputSearchTerm] = useState<string>('');
+
+  const [isOpenProvisionServerDialog, setIsOpenProvisionServerDialog] =
+    useState<boolean>(false);
+
+  const updateServerList = (
+    ...filterArgs: Parameters<typeof filterServers>
+  ) => {
+    const { exclude, include } = filterServers(...filterArgs);
+
+    if (!componentMountedRef.current) {
+      return;
+    }
+
+    setExcludeServers(exclude);
+    setIncludeServers(include);
+  };
+
+  const { isLoading } = periodicFetch<ServerListItem[]>(
+    `${API_BASE_URL}/server`,
+    {
+      onSuccess: (data = []) => {
+        const serverListItems: ServerListItem[] = (
+          data as ServerOverviewMetadata[]
+        ).map((serverOverview) => {
+          const { serverUUID } = serverOverview;
+          const previousScreenshot: string =
+            allServers.find(({ serverUUID: uuid }) => uuid === serverUUID)
+              ?.screenshot || '';
+          const item: ServerListItem = {
+            ...serverOverview,
+            screenshot: previousScreenshot,
+          };
+
+          fetchJSON<{ screenshot: string }>(
+            `${API_BASE_URL}/server/${serverUUID}?ss`,
+          )
+            .then(({ screenshot }) => {
+              item.screenshot = screenshot;
+              item.isScreenshotStale = false;
+
+              const allServersWithScreenshots = [...serverListItems];
+
+              if (!componentMountedRef.current) {
+                return;
+              }
+
+              setAllServers(allServersWithScreenshots);
+              // Don't update servers to include or exclude here to avoid
+              // updating using an outdated input search term. Remember this
+              // block is async and takes a lot longer to complete compared to
+              // the overview fetch.
+            })
+            .catch(() => {
+              item.isScreenshotStale = true;
+            });
+
+          return item;
+        });
+
+        setAllServers(serverListItems);
+        updateServerList(serverListItems, inputSearchTerm);
+      },
+      refreshInterval: 60000,
     },
-  },
+  );
 
-  [`& .${classes.container}`]: {
-    display: 'flex',
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    [theme.breakpoints.down('md')]: {
-      display: 'block',
+  useEffect(
+    () => () => {
+      componentMountedRef.current = false;
     },
-  },
-}));
-
-const Dashboard = (): JSX.Element => {
-  const width = useWindowDimensions();
-
-  const { data } = periodicFetch<AnvilList>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
+    [],
   );
 
   return (
-    <StyledDiv>
+    <Box>
       <Head>
         <title>Dashboard</title>
       </Head>
-      <AnvilProvider>
-        <Header />
-        {data?.anvils &&
-          width &&
-          (width > LARGE_MOBILE_BREAKPOINT ? (
-            <Box className={classes.container}>
-              <Box className={classes.child}>
-                <Anvils list={data} />
-                <Hosts anvil={data.anvils} />
-              </Box>
-              <Box className={classes.server}>
-                <Servers anvil={data.anvils} />
-              </Box>
-              <Box className={classes.child}>
-                <SharedStorage />
-              </Box>
-              <Box className={classes.child}>
-                <Network />
-                <CPU />
-                <Memory />
-              </Box>
-            </Box>
-          ) : (
-            <Box className={classes.container}>
-              <Box className={classes.child}>
-                <Servers anvil={data.anvils} />
-                <Anvils list={data} />
-                <Hosts anvil={data.anvils} />
-              </Box>
-              <Box className={classes.child}>
-                <Network />
-                <SharedStorage />
-                <CPU />
-                <Memory />
-              </Box>
-            </Box>
-          ))}
-      </AnvilProvider>
-    </StyledDiv>
+      <Header />
+      <Panel>
+        {isLoading ? (
+          <Spinner />
+        ) : (
+          <>
+            <PanelHeader>
+              <OutlinedInput
+                placeholder="Search by server name"
+                onChange={({ target: { value } }) => {
+                  setInputSearchTerm(value);
+                  updateServerList(allServers, value);
+                }}
+                sx={{ marginRight: '.6em' }}
+                value={inputSearchTerm}
+              />
+              <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
+                <AddIcon />
+              </IconButton>
+            </PanelHeader>
+            {createServerPreviewContainer(includeServers, router)}
+            {includeServers.length > 0 && (
+              <Divider sx={{ backgroundColor: DIVIDER }} />
+            )}
+            {createServerPreviewContainer(excludeServers, router)}
+          </>
+        )}
+      </Panel>
+      <ProvisionServerDialog
+        dialogProps={{ open: isOpenProvisionServerDialog }}
+        onClose={() => {
+          setIsOpenProvisionServerDialog(false);
+        }}
+      />
+    </Box>
   );
 };
 

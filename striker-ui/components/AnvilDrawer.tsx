@@ -82,13 +82,7 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => (
             >
               <Box display="flex" flexDirection="row" width="100%">
                 <Box>
-                  <img
-                    alt=""
-                    key="icon"
-                    src={icon.image}
-                    // eslint-disable-next-line react/jsx-props-no-spreading
-                    {...ICON_SIZE}
-                  />
+                  <img alt="" key="icon" src={icon.image} {...ICON_SIZE} />
                 </Box>
                 <Box flexGrow={1} className={classes.text}>
                   <BodyText text={icon.text} />

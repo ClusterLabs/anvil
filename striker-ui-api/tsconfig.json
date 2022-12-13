@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "lib": ["esnext"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "outDir": "ts_out",
+    "resolveJsonModule": true,
+    "strict": true,
+    "target": "es5",
+    "types": ["node"],
+    "typeRoots": ["src/types"]
+  },
+  "exclude": ["node_modules"],
+  "include": ["src/**/*.ts"]
+}

@@ -22,7 +22,7 @@ import { HeaderText } from '../Text';
 import fetchJSON from '../../lib/fetchers/fetchJSON';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 
-const FILES_ENDPOINT_URL = `${API_BASE_URL}/files`;
+const FILES_ENDPOINT_URL = `${API_BASE_URL}/file`;
 
 const Files = (): JSX.Element => {
   const [rawFilesOverview, setRawFilesOverview] = useState<string[][]>([]);

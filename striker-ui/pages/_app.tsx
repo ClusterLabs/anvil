@@ -20,10 +20,7 @@ const App = ({
 }: MyAppProps): JSX.Element => (
   <CacheProvider value={emotionCache}>
     <ThemeProvider theme={theme}>
-      <Component
-        // eslint-disable-next-line react/jsx-props-no-spreading
-        {...pageProps}
-      />
+      <Component {...pageProps} />
     </ThemeProvider>
   </CacheProvider>
 );
