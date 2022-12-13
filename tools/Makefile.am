@@ -43,6 +43,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-update-issue \
 			  anvil-update-states \
 			  anvil-update-system \
+			  anvil-version-changes \
 			  anvil-watch-bonds \
 			  scancore \
 			  striker-auto-initialize-all \

@@ -1151,6 +1151,7 @@ sub _set_paths
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
+				'anvil-version-changes'		=>	"/usr/sbin/anvil-version-changes",
 				augtool				=>	"/usr/bin/augtool",
 				base64				=>	"/usr/bin/base64",
 				blockdev			=>	"/usr/sbin/blockdev",
