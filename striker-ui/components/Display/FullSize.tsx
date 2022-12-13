@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, Dispatch, SetStateAction } from 'react';
+import { useState, useRef, useEffect, FC } from 'react';
 import dynamic from 'next/dynamic';
 import {
   Box,
   Button,
   IconButton,
+  IconButtonProps,
   Menu,
   MenuItem,
   Typography,
@@ -92,22 +93,32 @@ const StyledDiv = styled('div')(() => ({
 
 const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
-interface FullSizeProps {
-  setMode: Dispatch<SetStateAction<boolean>>;
-  uuid: string;
-  serverName: string | string[] | undefined;
-}
+type FullSizeOptionalProps = {
+  onClickCloseButton?: IconButtonProps['onClick'];
+};
 
-interface VncConnectionProps {
+type FullSizeProps = FullSizeOptionalProps & {
+  serverUUID: string;
+  serverName: string | string[] | undefined;
+};
+
+type VncConnectionProps = {
   protocol: string;
   forward_port: number;
-}
+};
 
-const FullSize = ({
-  setMode,
-  uuid,
+const FULL_SIZE_DEFAULT_PROPS: Required<
+  Omit<FullSizeOptionalProps, 'onClickCloseButton'>
+> &
+  Pick<FullSizeOptionalProps, 'onClickCloseButton'> = {
+  onClickCloseButton: undefined,
+};
+
+const FullSize: FC<FullSizeProps> = ({
+  onClickCloseButton,
+  serverUUID,
   serverName,
-}: FullSizeProps): JSX.Element => {
+}): JSX.Element => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>();
   const hostname = useRef<string | undefined>(undefined);
@@ -127,7 +138,7 @@ const FullSize = ({
           const res = await putFetchWithTimeout(
             `${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`,
             {
-              server_uuid: uuid,
+              server_uuid: serverUUID,
               is_open: true,
             },
             120000,
@@ -137,7 +148,7 @@ const FullSize = ({
           setIsError(true);
         }
       })();
-  }, [uuid, vncConnection, isError]);
+  }, [serverUUID, vncConnection, isError]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
@@ -145,7 +156,7 @@ const FullSize = ({
 
   const handleClickClose = async () => {
     await putFetch(`${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`, {
-      server_uuid: uuid,
+      server_uuid: serverUUID,
       is_open: false,
     });
   };
@@ -196,9 +207,13 @@ const FullSize = ({
                   className={classes.closeButton}
                   style={{ color: TEXT }}
                   component="span"
-                  onClick={() => {
+                  onClick={(
+                    ...args: Parameters<
+                      Exclude<IconButtonProps['onClick'], undefined>
+                    >
+                  ) => {
                     handleClickClose();
-                    setMode(true);
+                    onClickCloseButton?.call(null, ...args);
                   }}
                 >
                   <CloseIcon />
@@ -269,5 +284,7 @@ const FullSize = ({
     </Panel>
   );
 };
+
+FullSize.defaultProps = FULL_SIZE_DEFAULT_PROPS;
 
 export default FullSize;

@@ -1,28 +1,58 @@
-import { styled } from '@mui/material/styles';
-import { CircularProgress } from '@mui/material';
+import { FC } from 'react';
+import {
+  Box as MUIBox,
+  BoxProps as MUIBoxProps,
+  CircularProgress as MUICircularProgress,
+  circularProgressClasses as muiCircularProgressClasses,
+  CircularProgressProps as MUICircularProgressProps,
+} from '@mui/material';
+
 import { TEXT } from '../lib/consts/DEFAULT_THEME';
 
-const PREFIX = 'Spinner';
-
-const classes = {
-  spinner: `${PREFIX}-spinner`,
+type SpinnerOptionalProps = {
+  progressProps?: MUICircularProgressProps;
 };
 
-const StyledDiv = styled('div')(() => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginTop: '3em',
+type SpinnerProps = MUIBoxProps & SpinnerOptionalProps;
 
-  [`& .${classes.spinner}`]: {
-    color: TEXT,
-  },
-}));
+const SPINNER_DEFAULT_PROPS: Required<SpinnerOptionalProps> = {
+  progressProps: {},
+};
 
-const Spinner = (): JSX.Element => (
-  <StyledDiv>
-    <CircularProgress variant="indeterminate" className={classes.spinner} />
-  </StyledDiv>
-);
+const Spinner: FC<SpinnerProps> = (spinnerProps): JSX.Element => {
+  const {
+    mt = '3em',
+    progressProps = SPINNER_DEFAULT_PROPS.progressProps,
+    sx,
+    ...spinnerRestProps
+  } = spinnerProps;
+
+  return (
+    <MUIBox
+      {...{
+        ...spinnerRestProps,
+
+        sx: {
+          alignItems: 'center',
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: mt,
+
+          [`& .${muiCircularProgressClasses.root}`]: {
+            color: TEXT,
+          },
+
+          ...sx,
+        },
+      }}
+    >
+      <MUICircularProgress
+        {...{ ...progressProps, variant: 'indeterminate' }}
+      />
+    </MUIBox>
+  );
+};
+
+Spinner.defaultProps = SPINNER_DEFAULT_PROPS;
 
 export default Spinner;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { Box } from '@mui/material';
@@ -35,32 +35,44 @@ const Server = (): JSX.Element => {
   const [previewMode, setPreviewMode] = useState<boolean>(true);
 
   const router = useRouter();
-  const { uuid, server_name } = router.query;
+  const { server_name, uuid, vnc } = router.query;
+  const isConnectVNC: boolean = (vnc?.toString() || '').length > 0;
+  const serverUUID: string = uuid?.toString() || '';
+  const serverName: string = server_name?.toString() || '';
+
+  useEffect(() => {
+    if (isConnectVNC) {
+      setPreviewMode(false);
+    }
+  }, [isConnectVNC]);
 
   return (
     <StyledDiv>
       <Head>
-        <title>{server_name}</title>
+        <title>{serverName}</title>
       </Head>
       <Header />
-      {typeof uuid === 'string' &&
-        (previewMode ? (
-          <Box className={classes.preview}>
-            <Preview
-              setMode={setPreviewMode}
-              uuid={uuid}
-              serverName={server_name}
-            />
-          </Box>
-        ) : (
-          <Box className={classes.fullView}>
-            <FullSize
-              setMode={setPreviewMode}
-              uuid={uuid}
-              serverName={server_name}
-            />
-          </Box>
-        ))}
+      {previewMode ? (
+        <Box className={classes.preview}>
+          <Preview
+            onClickPreview={() => {
+              setPreviewMode(false);
+            }}
+            serverName={serverName}
+            serverUUID={serverUUID}
+          />
+        </Box>
+      ) : (
+        <Box className={classes.fullView}>
+          <FullSize
+            onClickCloseButton={() => {
+              setPreviewMode(true);
+            }}
+            serverUUID={serverUUID}
+            serverName={serverName}
+          />
+        </Box>
+      )}
     </StyledDiv>
   );
 };

@@ -2154,10 +2154,11 @@ This is the Anvil! UUID we're looking for the primary node in.
 =cut
 sub get_primary_host_uuid
 {
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $self             = shift;
+	my $parameter        = shift;
+	my $anvil            = $self->parent;
+	my $test_access_user = defined $parameter->{test_access_user} ? $parameter->{test_access_user} : undef;
+	my $debug            = defined $parameter->{debug}            ? $parameter->{debug}            : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_primary_host_uuid()" }});
 	
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
@@ -2205,11 +2206,13 @@ sub get_primary_host_uuid
 		debug    => $debug, 
 		target   => $node1_target_ip, 
 		password => $password, 
+		user     => $test_access_user,
 	});
 	my $node2_access = $anvil->Remote->test_access({
 		debug    => $debug, 
 		target   => $node2_target_ip, 
 		password => $password, 
+		user     => $test_access_user,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node1_access => $node1_access,

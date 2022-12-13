@@ -1,0 +1,4 @@
+// Unit: bytes
+const NODE_AND_DR_RESERVED_MEMORY_SIZE = 8589934592;
+
+export default NODE_AND_DR_RESERVED_MEMORY_SIZE;

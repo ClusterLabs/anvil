@@ -1,4 +1,5 @@
-import { GlobalStyles, PaperProps, styled } from '@mui/material';
+import { Box, BoxProps, GlobalStyles, PaperProps, styled } from '@mui/material';
+import { FC } from 'react';
 
 import {
   BORDER_RADIUS,
@@ -15,15 +16,18 @@ const classes = {
   bottomSquare: `${PREFIX}-bottomSquare`,
 };
 
-const StyledDiv = styled('div')(() => ({
+const StyledBox = styled(Box)(() => ({
   margin: '1em',
   position: 'relative',
 
   [`& .${classes.paper}`]: {
-    padding: '2.1em',
     backgroundColor: PANEL_BACKGROUND,
+    height: '100%',
     opacity: 0.8,
-    zIndex: 999,
+    padding: '2.1em',
+    position: 'relative',
+    width: '100%',
+    zIndex: 10,
   },
 
   [`& .${classes.square}`]: {
@@ -51,7 +55,17 @@ const StyledDiv = styled('div')(() => ({
   },
 }));
 
-type PanelProps = PaperProps;
+type PanelOptionalPropsWithDefault = {
+  paperProps?: BoxProps;
+};
+
+type PanelOptionalProps = PanelOptionalPropsWithDefault;
+
+type PanelProps = PaperProps & PanelOptionalProps;
+
+const PANEL_DEFAULT_PROPS: Required<PanelOptionalPropsWithDefault> = {
+  paperProps: {},
+};
 
 const styledScrollbars = (
   <GlobalStyles
@@ -71,13 +85,36 @@ const styledScrollbars = (
   />
 );
 
-const Panel = ({ children }: PanelProps): JSX.Element => (
-  <StyledDiv>
+const Panel: FC<PanelProps> = ({
+  children,
+  classes: rootClasses,
+  className: rootClassName,
+  paperProps: {
+    className: paperClassName,
+    ...restPaperProps
+  } = PANEL_DEFAULT_PROPS.paperProps,
+  sx: rootSx,
+  ...restRootProps
+}) => (
+  <StyledBox
+    {...{
+      classes: rootClasses,
+      className: rootClassName,
+      sx: rootSx,
+      ...restRootProps,
+    }}
+  >
     {styledScrollbars}
-    <div className={`${classes.square} ${classes.topSquare}`} />
-    <div className={`${classes.square} ${classes.bottomSquare}`} />
-    <div className={classes.paper}>{children}</div>
-  </StyledDiv>
+    <Box className={`${classes.square} ${classes.topSquare}`} />
+    <Box className={`${classes.square} ${classes.bottomSquare}`} />
+    <Box {...restPaperProps} className={`${classes.paper} ${paperClassName}`}>
+      {children}
+    </Box>
+  </StyledBox>
 );
+
+Panel.defaultProps = PANEL_DEFAULT_PROPS;
+
+export { classes as panelClasses };
 
 export default Panel;
