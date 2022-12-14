@@ -717,10 +717,27 @@ ORDER BY
 		}});
 	}
 
-	# Take 4 GiB off the available RAM for the host
-	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}  =  (4*(2**30));	# Reserve 4 GiB
+    # Check if the reserved RAM is overriden by the config
+    my $ram_reserved = $anvil->data->{anvil_resources}{ram}{reserved};
+    if (not $ram_reserved or $ram_reserved < 0 or $ram_reserved > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware})
+    {
+        $ram_reserved = 0;
+    }
+
+    $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+        "anvil_resources::ram::reserved" => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
+    }});
+
+	# Take 4 GiB or what was provided by the config off the available RAM for the host
+    $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}   = $ram_reserved ? $ram_reserved : (4*(2**30)); # Reserve 4 GiB by default or what's set in the config file.
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved};
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated};
+
+    if ($anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} < 0)
+    {
+        $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = 0;
+    }
+
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"anvil_resources::${anvil_uuid}::ram::allocated" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}}).")",
 		"anvil_resources::${anvil_uuid}::ram::reserved"  => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}}).")",
