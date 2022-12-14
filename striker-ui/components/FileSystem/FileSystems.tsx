@@ -35,7 +35,9 @@ const StyledDiv = styled('div')(({ theme }) => ({
 
 const SharedStorage = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const { data, isLoading } = periodicFetch<AnvilSharedStorage>(
+  const { data, isLoading } = periodicFetch<{
+    file_systems: AnvilFileSystem[];
+  }>(
     `${process.env.NEXT_PUBLIC_API_URL}/get_shared_storage?anvil_uuid=${uuid}`,
   );
   return (

@@ -65,7 +65,9 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
   const { uuid, setAnvilUuid } = useContext(AnvilContext);
 
   useEffect(() => {
-    if (uuid === '') setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
+    if (uuid === '') {
+      setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
+    }
   }, [uuid, list, setAnvilUuid]);
 
   return (

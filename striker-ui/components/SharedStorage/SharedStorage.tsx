@@ -13,16 +13,10 @@ import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 const PREFIX = 'SharedStorage';
 
 const classes = {
-  header: `${PREFIX}-header`,
   root: `${PREFIX}-root`,
 };
 
 const StyledDiv = styled('div')(({ theme }) => ({
-  [`& .${classes.header}`]: {
-    paddingTop: '.1em',
-    paddingRight: '.7em',
-  },
-
   [`& .${classes.root}`]: {
     overflow: 'auto',
     height: '78vh',
@@ -50,15 +44,7 @@ const SharedStorage = (): JSX.Element => {
                 (storageGroup: AnvilSharedStorageGroup): JSX.Element => (
                   <InnerPanel key={storageGroup.storage_group_uuid}>
                     <InnerPanelHeader>
-                      <Box
-                        display="flex"
-                        width="100%"
-                        className={classes.header}
-                      >
-                        <Box>
-                          <BodyText text={storageGroup.storage_group_name} />
-                        </Box>
-                      </Box>
+                      <BodyText text={storageGroup.storage_group_name} />
                     </InnerPanelHeader>
                     <SharedStorageHost
                       group={storageGroup}

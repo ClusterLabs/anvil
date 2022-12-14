@@ -19,13 +19,7 @@ class MyDocument extends Document {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         enhanceApp: (App: any) =>
           function EnhanceApp(props) {
-            return (
-              <App
-                emotionCache={emotionCache}
-                /* eslint-disable react/jsx-props-no-spreading */
-                {...props}
-              />
-            );
+            return <App emotionCache={emotionCache} {...props} />;
           },
       });
 

@@ -16,7 +16,6 @@ const StyledDiv = styled('div')(() => ({
   [`& .${classes.fs}`]: {
     paddingLeft: '.7em',
     paddingRight: '.7em',
-    paddingTop: '1.2em',
   },
 
   [`& .${classes.bar}`]: {

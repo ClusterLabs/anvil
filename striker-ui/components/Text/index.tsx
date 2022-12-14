@@ -1,4 +1,9 @@
+import BodyText, { BodyTextProps } from './BodyText';
 import HeaderText from './HeaderText';
-import BodyText from './BodyText';
+import InlineMonoText from './InlineMonoText';
+import MonoText from './MonoText';
+import SmallText from './SmallText';
 
-export { HeaderText, BodyText };
+export type { BodyTextProps };
+
+export { BodyText, HeaderText, InlineMonoText, MonoText, SmallText };
