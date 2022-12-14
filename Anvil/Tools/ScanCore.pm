@@ -2058,8 +2058,8 @@ sub post_scan_analysis_node
 					$anvil->Email->send_alerts();
 
                     $anvil->Actions->insert_action_node_down({
-                            debug => $debug, 
-                            node_name => $node_name,
+                        debug => $debug, 
+                        node_name => $node_name,
                     });
 					
 					my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
