@@ -1470,6 +1470,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0428">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
 		<key name="job_0429">Copying the Long-throw (drbd proxy) license file: [#!variable!file!#] into place.</key>
 		<key name="job_0430">The fence device: [#!variable!device!#] no longer has a port associated with it, will remove it.</key>
+        <key name="job_0431">Skipping RAM check on this Anvil!</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

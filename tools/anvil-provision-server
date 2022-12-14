@@ -34,7 +34,7 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->Get->switches({list => ["anvil", "anvil-name", "anvil-uuid", "ci-test", "driver-disc", "cpu", "install-media", "machine", "name", "options", "os", "pre-test", "uuid", "ram", "storage-group", "storage-size", "use-image"], man => $THIS_FILE});
+$anvil->Get->switches({list => ["anvil", "anvil-name", "anvil-uuid", "ci-test", "driver-disc", "cpu", "install-media", "machine", "name", "options", "os", "pre-test", "uuid", "ram", "storage-group", "storage-size", "use-image", "skip-ram-check"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -1749,6 +1749,11 @@ sub interactive_ask_anvil_name
 			$retry = 1;
 		}
 	}
+
+    if ($anvil->data->{switches}{'skip-ram-check'}) {
+        print $anvil->Words->string({key => "job_0431"})."\n";
+        return(0);
+    }
 	
 	# Verify that the Anvil! has enough RAM and disk space.
 	my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
