@@ -605,6 +605,55 @@ sub check_if_configured
 	
 	$configured = 0 if not defined $configured;
 	$configured = 0 if $configured eq "";
+	
+	if ((not $configured) && (-f $anvil->data->{path}{data}{host_configured}))
+	{
+		# See if there's a configured file.
+		my $body = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{data}{host_configured}});
+		foreach my $line (split/\n/, $body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /^(.*)=(.*)$/)
+			{
+				my $variable = $anvil->Words->clean_spaces({string => $1});
+				my $value    = $anvil->Words->clean_spaces({string => $2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable => $variable,
+					value    => $value,
+				}});
+				
+				if (($variable eq "system::configured") && ($value eq "1"))
+				{
+					# Write the database entry.
+					my $variable_uuid = $anvil->Database->insert_or_update_variables({
+						variable_name         => "system::configured", 
+						variable_value        => 1, 
+						variable_default      => "", 
+						variable_description  => "striker_0048", 
+						variable_section      => "system", 
+						variable_source_uuid  => $anvil->data->{sys}{host_uuid}, 
+						variable_source_table => "hosts", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+					
+					# mark it as configured.
+					$configured = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+				}
+			}
+		}
+	}
+	
+	if (($configured) && (not -f $anvil->data->{path}{data}{host_configured}))
+	{
+		my $failed = $anvil->Storage->write_file({
+			debug => $debug,
+			file  => $anvil->data->{path}{data}{host_configured}, 
+			body  => "system::configured = 1\n", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+	}
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
 	return($configured);
 }

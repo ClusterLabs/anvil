@@ -2650,6 +2650,9 @@ sub get_anvils
 	$anvil->Database->get_files({debug => $debug});
 	$anvil->Database->get_file_locations({debug => $debug});
 	
+	# Also pull in DRs so we can link them.
+	$anvil->Database->get_dr_links({debug => $debug});
+	
 	my $query = "
 SELECT 
     anvil_uuid, 
@@ -2759,6 +2762,7 @@ WHERE
 				"anvils::host_uuid::${anvil_node2_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{role}, 
 			}});
 		}
+		### TODO: Remove this once the switch over to 'dr_links' is done.
 		if ($anvil_dr1_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name} = $anvil_name;
@@ -2811,6 +2815,32 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
 			}});
+		}
+		
+		# Process DR hosts this Anvil! is allowed to use.
+		if (exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid})
+		{
+			foreach my $dr_link_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}})
+			{
+				my $dr_link_uuid            = $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid};
+				my $dr_link_note            = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note};
+				my $dr_link_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{short_host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:dr_link_host_uuid"       => $dr_link_host_uuid, 
+					"s2:dr_link_uuid"            => $dr_link_uuid, 
+					"s3:dr_link_note"            => $dr_link_note, 
+					"s4:dr_link_short_host_name" => $dr_link_short_host_name, 
+				}});
+				
+				next if $dr_link_note eq "DELETED";
+				
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{dr_link_uuid}    = $dr_link_uuid;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{short_host_name} = $dr_link_short_host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:anvils::anvil_uuid::${anvil_uuid}::dr_host::${dr_link_host_uuid}::dr_link_uuid"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{dr_link_uuid}, 
+					"s2:anvils::anvil_uuid::${anvil_uuid}::dr_host::${dr_link_host_uuid}::short_host_name" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{short_host_name}, 
+				}});
+			}
 		}
 	}
 

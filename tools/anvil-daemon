@@ -20,6 +20,8 @@
 # - 
 # - Increase DRBD's default timeout
 # - Check for and enable persistent journald logging
+# - 
+# - Record that a machine is configured /etc/anvil/host.is_configred 
 # 
 # NOTE:
 # - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
@@ -1303,41 +1305,6 @@ sub handle_special_cases
 		states_output => $states_output,
 		return_code   => $return_code, 
 	}});
-	
-	return(0);
-	
-	
-	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-	if ($host_type ne "striker")
-	{
-		### TODO: Test that this is fixed. The bug is now ERRATA
-		# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
-		# We're a node or DR host. We need to touch this file.
-		my $work_around_file = "/etc/qemu/firmware/50-edk2-ovmf-cc.json";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { work_around_file => $work_around_file }});
-		if (not -e $work_around_file)
-		{
-			$anvil->Storage->write_file({
-				debug     => 2,
-				file      => $work_around_file, 
-				body      => "", 
-				overwrite => 0,
-				backup    => 0,
-				mode      => "0644", 
-				user      => "root", 
-				group     => "root",
-			});
-		}
-		
-		# Make sure DRBD compiled after a kernel upgrade.
-		$anvil->DRBD->_initialize_kmod({debug => 2});
-	}
-	
-	if ($host_type eq "striker")
-	{
-		
-	}
 	
 	return(0);
 }
