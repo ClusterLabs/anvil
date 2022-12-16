@@ -123,7 +123,7 @@ sub new
 	my $self      = {
 		HANDLE				=>	{
 			ACCOUNT				=>	Anvil::Tools::Account->new(),
-            ACTIONS             =>  Anvil::Tools::Actions->new(),
+			ACTIONS				=>	Anvil::Tools::Actions->new(),
 			ALERT				=>	Anvil::Tools::Alert->new(),
 			CLUSTER				=>	Anvil::Tools::Cluster->new(),
 			CONVERT				=>	Anvil::Tools::Convert->new(),
@@ -168,7 +168,7 @@ sub new
 	
 	# Get a handle on the various submodules
 	$anvil->Account->parent($anvil);
-    $anvil->Actions->parent($anvil);
+	$anvil->Actions->parent($anvil);
 	$anvil->Alert->parent($anvil);
 	$anvil->Cluster->parent($anvil);
 	$anvil->Convert->parent($anvil);
@@ -863,9 +863,9 @@ sub _set_defaults
 			# power data) is considered "old" and gets deleted from the database.
 			age_out				=>	24,
 		},
-        post_scan_checks    =>  {
-            enabled             =>  1,
-        },
+		post_scan_checks	=>	{
+			enabled				=>	1,
+		},
 	};
 	$anvil->data->{sys} = {
 		apache				=>	{
