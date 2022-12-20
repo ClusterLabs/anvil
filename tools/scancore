@@ -141,7 +141,7 @@ while(1)
 		$anvil->ScanCore->call_scan_agents();
 		
 		# Is post-scan analysis enabled?
-		$post_scan_checks = $anvil->data->{scancore}{post_scan_checks}{enabled};
+		my $post_scan_checks = $anvil->data->{scancore}{post_scan_checks}{enabled};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { post_scan_checks => $post_scan_checks }});
 
 		if ($post_scan_checks) {
