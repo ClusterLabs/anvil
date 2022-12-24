@@ -925,7 +925,7 @@ sub _set_defaults
 			# This is the list of OSes short in the user's short list of OS types to 
 			# optimize for. The full the list is available by running: 
 			# /usr/bin/osinfo-query os
-			os_short_list			=>	"rhel5.11, rhel6.10, rhel7.9, rhel8.3, win10, win2k16, win2k19",
+			os_short_list			=>	"rhel8.7,rhel9.1,win10,win2k19,win2k22",
 		},
 		terminal			=>	{
 			columns				=>	80,
