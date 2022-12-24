@@ -20,8 +20,6 @@
 # - 
 # - Increase DRBD's default timeout
 # - Check for and enable persistent journald logging
-# - 
-# - Record that a machine is configured /etc/anvil/host.is_configred 
 # 
 # NOTE:
 # - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
