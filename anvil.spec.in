@@ -63,6 +63,7 @@ Requires:       lsscsi
 Requires:       mailx
 Requires:       mlocate 
 Requires:       net-snmp-utils
+Requires:       NetworkManager-initscripts-updown
 Requires:       nvme-cli
 Requires:       pciutils
 Requires:       perl-Capture-Tiny
