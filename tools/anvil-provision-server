@@ -475,9 +475,7 @@ sub provision_server
 		say_memory   => $say_memory,
 	}});
 	
-	### TODO: Support user-selected IFN. For now, we hard-code it to 'ifn_bridge1' Also allow a MAC to be
-	###       set with '--network ifn1_bridge1[:mac],ifn2_bridge1[:mac]...'.
-	###       Support disk images (ie: sysprep) via '--import'. The device used for booting is the first 
+	### TODO: Support disk images (ie: sysprep) via '--import'. The device used for booting is the first 
 	###       device specified via "--disk"
 	###       Consider support for TPM, RNG and watchdog devices
 	my $server_uuid = $anvil->data->{job}{server_uuid} ? $anvil->data->{job}{server_uuid} : $anvil->Get->uuid();
@@ -485,17 +483,36 @@ sub provision_server
 		"job::os"   => $anvil->data->{job}{os}, 
 		server_uuid => $server_uuid, 
 	}});
-	my $disk_bus  = ",target.bus=virtio";
-	my $nic_model = ",model.type=virtio";
+	my $disk_bus = ",target.bus=virtio";
 	if ($anvil->data->{job}{os} eq "win7")
 	{
-		$disk_bus  = "";
-		$nic_model = ",model.type=e1000e";
+		$disk_bus = "";
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		disk_bus  => $disk_bus,
-		nic_model => $nic_model, 
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disk_bus => $disk_bus }});
+	
+	# Setup the network line
+	my $nic = "bridge=";
+	if ($anvil->data->{job}{network}{bridge})
+	{
+		$nic .= $anvil->data->{job}{network}{bridge};
+	}
+	else
+	{
+		$nic .= "ifn1_bridge1";
+	}
+	if ($anvil->data->{job}{network}{model})
+	{
+		$nic .= ",model.type=".$anvil->data->{job}{network}{model};
+	}
+	elsif ($anvil->data->{job}{os} eq "win7")
+	{
+		$nic .= ",model.type=e1000e";
+	}
+	if ($anvil->data->{job}{network}{mac})
+	{
+		$nic .= ",mac.address=".$anvil->data->{job}{network}{mac};
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nic => $nic }});
 	
 	my $shell_call =  $anvil->data->{path}{exe}{'virt-install'}." --connect qemu:///system \\\n";
 	   $shell_call .= "--name ".$server." \\\n";
@@ -504,7 +521,7 @@ sub provision_server
 	   $shell_call .= " --events on_poweroff=destroy,on_reboot=restart \\\n";
 	   $shell_call .= " --vcpus ".$anvil->data->{job}{cpu_cores}.",sockets=1,cores=".$anvil->data->{job}{cpu_cores}." \\\n";
 	   $shell_call .= " --cpu host \\\n";
-	   $shell_call .= " --network bridge=ifn1_bridge1".$nic_model." \\\n";
+	   $shell_call .= " --network ".$nic." \\\n";
 	   $shell_call .= " --graphics vnc \\\n";
 	   $shell_call .= " --sound ich9 \\\n";
 	   $shell_call .= " --clock offset=".$clock_offset.",rtc_tickpolicy=catchup \\\n";
