@@ -2641,7 +2641,7 @@ sub interactive_ask_server_confirm
 		}
 		if (not $anvil->data->{switches}{os})
 		{
-			print "Missing '--os <os_variant>', valid options match 'virt-install --os-variant' (run: 'osinfo-query os' and reference the 'Short ID' column).\n" if not $anvil->data->{switches}{options};
+			print "Missing '--os <os_variant>'. Valid options match 'virt-install --os-variant' (run: 'osinfo-query os' and reference the 'Short ID' column).\n" if not $anvil->data->{switches}{options};
 			$problem = 1;
 		}
 		else
@@ -2700,7 +2700,7 @@ sub interactive_ask_server_confirm
 		my $storage_group_uuid     = "";
 		if (not $anvil->data->{switches}{'storage-group'})
 		{
-			print "Missing '--storage-group <name or uuid>. Valid options are:'\n" if not $anvil->data->{switches}{options};
+			print "Missing '--storage-group <name or uuid>'. Valid options are:\n" if not $anvil->data->{switches}{options};
 			foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 			{
 				print "- Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."]\n" if not $anvil->data->{switches}{options};
@@ -2732,7 +2732,7 @@ sub interactive_ask_server_confirm
 			else
 			{
 				# Invalid
-				print "- The requested storage group: [".$storage_group."] does not appear to be valid. Valid options are;\n" if not $anvil->data->{switches}{options};
+				print "- The requested storage group: [".$storage_group."] does not appear to be valid. Valid options are:\n" if not $anvil->data->{switches}{options};
 				foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 				{
 					print "- Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."]\n" if not $anvil->data->{switches}{options};
@@ -2745,11 +2745,11 @@ sub interactive_ask_server_confirm
 		{
 			if ($max_storage_group_size)
 			{
-				print "Missing '--storage-size <bytes or human readable. max is ".$say_max_storage_group_size.">'\n" if not $anvil->data->{switches}{options};
+				print "Missing '--storage-size <bytes or human readable, max is ".$say_max_storage_group_size.">'\n" if not $anvil->data->{switches}{options};
 			}
 			else
 			{
-				print "Missing '--storage-size <bytes or human readable>. Max will depend on selected --storage-group.'\n" if not $anvil->data->{switches}{options};
+				print "Missing '--storage-size <bytes or human readable>'. Max will depend on selected --storage-group.\n" if not $anvil->data->{switches}{options};
 			}
 			$problem = 1;
 		}
@@ -2778,7 +2778,14 @@ sub interactive_ask_server_confirm
 		}
 		if (not $anvil->data->{switches}{'install-media'})
 		{
-			print "Missing '--install-media <file name or file_uuid>'\n" if not $anvil->data->{switches}{options};
+			print "Missing '--install-media <file_name or file_uuid>'. Valid options are:\n" if not $anvil->data->{switches}{options};
+			foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+			{
+				my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+				my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				next if $file_type ne "iso";
+				print "- File name: [".$file_name."], file UUID: [".$file_uuid."]\n" if not $anvil->data->{switches}{options};
+			}
 			$problem = 1;
 		}
 		else
@@ -2790,7 +2797,8 @@ sub interactive_ask_server_confirm
 				my $file_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
 				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
 				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
-				if ($file_name eq $anvil->data->{switches}{'install-media'})
+				if (($file_name eq $anvil->data->{switches}{'install-media'}) or
+				    ($file_uuid eq $anvil->data->{switches}{'install-media'}))
 				{
 					# Found it.
 					$found = 1;
@@ -2813,7 +2821,14 @@ sub interactive_ask_server_confirm
 			}
 			if (not $found)
 			{
-				print "The install file: [".$anvil->data->{switches}{'install-media'}."] was not found on this Anvil!.\n" if not $anvil->data->{switches}{options};
+				print "The install file: [".$anvil->data->{switches}{'install-media'}."] was not found on this Anvil!. Valid options are:\n" if not $anvil->data->{switches}{options};
+				foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+				{
+					my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+					my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+					next if $file_type ne "iso";
+					print "- File name: [".$file_name."], file UUID: [".$file_uuid."]\n" if not $anvil->data->{switches}{options};
+				}
 				print "Is it in '/mnt/shared/files/' and are the daemons running?\n" if not $anvil->data->{switches}{options};
 				$problem = 1;
 			}
@@ -2827,7 +2842,8 @@ sub interactive_ask_server_confirm
 				my $file_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
 				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
 				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
-				if ($file_name eq $anvil->data->{switches}{'driver-disc'})
+				if (($file_name eq $anvil->data->{switches}{'driver-disc'}) or
+				    ($file_uuid eq $anvil->data->{switches}{'driver-disc'}))
 				{
 					# Found it.
 					$found = 1;
@@ -2850,7 +2866,14 @@ sub interactive_ask_server_confirm
 			}
 			if (not $found)
 			{
-				print "The driver file: [".$anvil->data->{switches}{'driver-disc'}."] was not found on this Anvil!.\n" if not $anvil->data->{switches}{options};
+				print "The driver file: [".$anvil->data->{switches}{'driver-disc'}."] was not found on this Anvil!. Valid options are:\n" if not $anvil->data->{switches}{options};
+				foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+				{
+					my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+					my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+					next if $file_type ne "iso";
+					print "- File name: [".$file_name."], file UUID: [".$file_uuid."]\n" if not $anvil->data->{switches}{options};
+				}
 				print "Is it in '/mnt/shared/files/' and are the daemons running?\n" if not $anvil->data->{switches}{options};
 				$problem = 1;
 			}
@@ -2888,20 +2911,20 @@ sub interactive_ask_server_confirm
 			{
 				# Show valid options to build a VM in a machine-parsable way.
 				print "Available options
- --name          - alphanumeric, 1~16 characters long.
- --os            - Valid options; run: 'osinfo-query os' and reference the 'Short ID' column.
+ --name          - Alphanumeric, 1~16 characters long.
+ --os            - Run 'osinfo-query os' and reference the 'Short ID' column for valid options.
  --cpu           - 1 ~ ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."
- --ram           - bytes or human readable, min is 64KiB, max is ".$say_max_ram."
- --storage-group - name or uuid. Valid options are:\n";
+ --ram           - Bytes or human readable, min is 64KiB, max is ".$say_max_ram.".
+ --storage-group - Name or UUID. Valid options are:\n";
 				foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 				{
 					my $storage_group_uuid         = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
 					my $max_storage_group_size     = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 					my $say_max_storage_group_size = $anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size});
-					print "                 - Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."], free space: [".$say_max_storage_group_size."]\n";
+					print "                     - Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."], free space: [".$say_max_storage_group_size."]\n";
 				}
-				print " --storage-size  - Disk size, see above for space available
- --install-media - file name or file UUID. Available discs are:\n";
+				print " --storage-size  - Disk size, see above for space available.
+ --install-media - File name or file UUID. Available discs are:\n";
 				foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
 				{
 					my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
@@ -2909,7 +2932,7 @@ sub interactive_ask_server_confirm
 					my $file_size = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size};
 					next if $file_type ne "iso";
 					my $say_size = $anvil->Convert->bytes_to_human_readable({"bytes" => $file_size});
-					print "                 - File name: [".$file_name."], file UUID: [".$file_uuid."], size: [".$say_size."]\n";
+					print "                     - File name: [".$file_name."], file UUID: [".$file_uuid."], size: [".$say_size."]\n";
 				}
 				print " --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.\n";
 			}
