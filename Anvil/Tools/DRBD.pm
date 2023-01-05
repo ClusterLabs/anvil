@@ -1396,9 +1396,9 @@ SELECT
 FROM 
     scan_drbd 
 WHERE 
-    scan_drbd_host_uuid = '618e8007-3a0b-4bbf-a616-a64fd7d2dc30' 
+    scan_drbd_host_uuid = ".$anvil->Database->quote($node1_host_uuid)."
 OR 
-    scan_drbd_host_uuid = '75070e21-a0e3-4ba5-b4f7-476bf5d08107' 
+    scan_drbd_host_uuid = ".$anvil->Database->quote($node2_host_uuid)."
 ORDER BY modified_date DESC 
 LIMIT 1
 ;";
