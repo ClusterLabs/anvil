@@ -1521,6 +1521,10 @@ sub post_scan_analysis_node
 		# Do nothing
 		return(0);
 	}
+
+    # Is scancore action logging disabled?
+	$action_log_disabled = $anvil->data->{scancore}{disable}{action_logging};
+    $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'disable::action_logging' => $action_log_disabled }});
 	
 	# What is our peer's host UUID?
 	$anvil->Cluster->get_peers({debug => $debug});
@@ -1662,10 +1666,12 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "warning", message => "warning_0082", set_by => "ScanCore", variables => $variables});
 				$anvil->Email->send_alerts();
 				
-				$anvil->Actions->insert_action_node_down({
-					debug     => $debug,
-					node_name => $node_name,
-				});
+				if (!$action_log_disabled) {
+					$anvil->Actions->insert_action_node_down({
+						debug     => $debug,
+						node_name => $node_name,
+					});
+				}
 
 				# Shutdown using 'anvil-safe-stop' and set the reason to 'power'
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
@@ -1700,10 +1706,12 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "warning", message => "warning_0083", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 				
-				$anvil->Actions->insert_action_node_down({
-					debug     => $debug,
-					node_name => $node_name,
-				});
+				if (!$action_log_disabled) {
+					$anvil->Actions->insert_action_node_down({
+						debug     => $debug,
+						node_name => $node_name,
+					});
+				}
 
 				# Shutdown using 'anvil-safe-stop' and set the reason to 'thermal'
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
@@ -1734,10 +1742,12 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "notice", message => "warning_0087", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 
-				$anvil->Actions->insert_action_node_down({
-					debug     => $debug,
-					node_name => $node_name,
-				});
+				if (!$action_log_disabled) {
+					$anvil->Actions->insert_action_node_down({
+						debug     => $debug,
+						node_name => $node_name,
+					});
+				}
 				
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1754,10 +1764,12 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "notice", message => "warning_0088", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 
-				$anvil->Actions->insert_action_node_down({
-					debug     => $debug,
-					node_name => $node_name,
-				});
+				if (!$action_log_disabled) {
+					$anvil->Actions->insert_action_node_down({
+						debug     => $debug,
+						node_name => $node_name,
+					});
+				}
 				
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1830,10 +1842,12 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0091", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_down({
-							debug     => $debug,
-							node_name => $node_name,
-						});
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_down({
+								debug     => $debug,
+								node_name => $node_name,
+							});
+						}
 						
 						# Shutdown using 'anvil-safe-stop' and set the reason to 'power_off'
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason ".$power_off." --power-off".$anvil->Log->switches;
@@ -1875,11 +1889,13 @@ sub post_scan_analysis_node
 					$anvil->Alert->register({alert_level => "notice", message => "warning_0094", set_by => "ScanCore", variables => $variables});
 					$anvil->Email->send_alerts();
 
-					$anvil->Actions->insert_action_node_assume({
-						debug          => $debug,
-						node_name      => $node_name,
-						peer_node_name => $peer_node_name,
-					});
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_assume({
+							debug          => $debug,
+							node_name      => $node_name,
+							peer_node_name => $peer_node_name,
+						});
+					}
 					
 					# Pull the server.
 					my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
@@ -1913,10 +1929,12 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0097", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_down({
-							debug     => $debug,
-							node_name => $node_name,
-						});
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_down({
+								debug     => $debug,
+								node_name => $node_name,
+							});
+						}
 						
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1933,10 +1951,12 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0096", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_down({
-							debug     => $debug,
-							node_name => $node_name,
-						});
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_down({
+								debug     => $debug,
+								node_name => $node_name,
+							});
+						}
 						
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason power --power-off".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1965,11 +1985,13 @@ sub post_scan_analysis_node
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "warning_0099"});
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0099", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
-
-						$anvil->Actions->insert_action_node_down({
-							debug     => $debug,
-							node_name => $node_name,
-						});
+						
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_down({
+								debug     => $debug,
+								node_name => $node_name,
+							});
+						}
 						
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -1986,10 +2008,12 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0100", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_down({
-							debug     => $debug,
-							node_name => $node_name,
-						});
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_down({
+								debug     => $debug,
+								node_name => $node_name,
+							});
+						}
 						
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -2025,11 +2049,13 @@ sub post_scan_analysis_node
 					$anvil->Alert->register({alert_level => "notice", message => "warning_0102", set_by => "ScanCore", variables => $variables});
 					$anvil->Email->send_alerts();
 
-					$anvil->Actions->insert_action_node_assume({
-						debug          => $debug,
-						node_name      => $node_name,
-						peer_node_name => $peer_node_name,
-					});
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_assume({
+							debug          => $debug,
+							node_name      => $node_name,
+							peer_node_name => $peer_node_name,
+						});
+					}
 					
 					# Pull the server.
 					my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
@@ -2057,11 +2083,13 @@ sub post_scan_analysis_node
 					$anvil->Alert->register({alert_level => "notice", message => "warning_0106", set_by => "ScanCore"});
 					$anvil->Email->send_alerts();
 
-					$anvil->Actions->insert_action_node_down({
-						debug     => $debug,
-						node_name => $node_name,
-					});
-					
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_down({
+							debug     => $debug,
+							node_name => $node_name,
+						});
+					}
+
 					my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 					$anvil->System->call({shell_call => $shell_call});
@@ -2079,11 +2107,13 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0104", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_down({
-							debug     => $debug,
-							node_name => $node_name,
-						});
-						
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_down({
+								debug     => $debug,
+								node_name => $node_name,
+							});
+						}
+
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason thermal --power-off".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
@@ -2141,12 +2171,14 @@ sub post_scan_analysis_node
 							$anvil->Alert->register({alert_level => "warning", message => "warning_0085", set_by => "ScanCore", variables => $variables});
 							$anvil->Email->send_alerts();
 
-							$anvil->Actions->insert_action_node_assume({
-								debug          => $debug,
-								node_name      => $node_name,
-								peer_node_name => $peer_node_name,
-							});
-							
+							if (!$action_log_disabled) {
+								$anvil->Actions->insert_action_node_assume({
+									debug          => $debug,
+									node_name      => $node_name,
+									peer_node_name => $peer_node_name,
+								});
+							}
+
 							my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 							$anvil->System->call({shell_call => $shell_call});
@@ -2203,12 +2235,14 @@ sub post_scan_analysis_node
 					}
 					$anvil->Email->send_alerts();
 
-					$anvil->Actions->insert_action_node_assume({
-						debug          => $debug,
-						node_name      => $node_name,
-						peer_node_name => $peer_node_name,
-					});
-					
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_assume({
+							debug          => $debug,
+							node_name      => $node_name,
+							peer_node_name => $peer_node_name,
+						});
+					}
+
 					my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 					$anvil->System->call({shell_call => $shell_call});
@@ -2242,10 +2276,12 @@ sub post_scan_analysis_node
 					}
 					$anvil->Email->send_alerts();
 
-					$anvil->Actions->insert_action_node_down({
-						debug     => $debug,
-						node_name => $node_name,
-					});
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_down({
+							debug     => $debug,
+							node_name => $node_name,
+						});
+					}
 					
 					my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --stop-reason ".$load_shed." --power-off".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
@@ -2277,12 +2313,14 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_assume({
-							debug          => $debug,
-							node_name      => $node_name,
-							peer_node_name => $peer_node_name,
-						});
-						
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_assume({
+								debug          => $debug,
+								node_name      => $node_name,
+								peer_node_name => $peer_node_name,
+							});
+						}
+
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
@@ -2318,12 +2356,14 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_assume({
-							debug          => $debug,
-							node_name      => $node_name,
-							peer_node_name => $peer_node_name,
-						});
-						
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_assume({
+								debug          => $debug,
+								node_name      => $node_name,
+								peer_node_name => $peer_node_name,
+							});
+						}
+
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
@@ -2376,12 +2416,14 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 
-						$anvil->Actions->insert_action_node_assume({
-							debug          => $debug,
-							node_name      => $node_name,
-							peer_node_name => $peer_node_name,
-						});
-						
+						if (!$action_log_disabled) {
+							$anvil->Actions->insert_action_node_assume({
+								debug          => $debug,
+								node_name      => $node_name,
+								peer_node_name => $peer_node_name,
+							});
+						}
+
 						my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
@@ -2828,10 +2870,12 @@ LIMIT 1;";
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 
-					$anvil->Actions->insert_action_node_up({
-						debug     => $debug,
-						node_name => $anvil_role,
-					});
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_up({
+							debug     => $debug,
+							node_name => $anvil_role,
+						});
+					}
 
 					# Mark it as booting.
 					$anvil->Database->update_host_status({
@@ -2883,10 +2927,12 @@ LIMIT 1;";
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 					
-					$anvil->Actions->insert_action_node_up({
-						debug     => $debug,
-						node_name => $anvil_role,
-					});
+					if (!$action_log_disabled) {
+						$anvil->Actions->insert_action_node_up({
+							debug     => $debug,
+							node_name => $anvil_role,
+						});
+					}
 
 					# Mark it as booting.
 					$anvil->Database->update_host_status({
@@ -2923,11 +2969,13 @@ LIMIT 1;";
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				
-				$anvil->Actions->insert_action_node_up({
-					debug     => $debug,
-					node_name => $anvil_role,
-				});
-
+				if (!$action_log_disabled) {
+					$anvil->Actions->insert_action_node_up({
+						debug     => $debug,
+						node_name => $anvil_role,
+					});
+				}
+				
 				# Mark it as booting.
 				$anvil->Database->update_host_status({
 					debug       => $debug,
