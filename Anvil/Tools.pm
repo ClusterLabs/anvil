@@ -863,8 +863,9 @@ sub _set_defaults
 			# power data) is considered "old" and gets deleted from the database.
 			age_out				=>	24,
 		},
-		post_scan_checks	=>	{
-			enabled				=>	1,
+		disable				=>	{
+			post_scan			=>	0,
+			action_logging		=>	1,
 		},
 	};
 	$anvil->data->{sys} = {
