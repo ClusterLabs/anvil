@@ -961,7 +961,7 @@ resource #!variable!server!# {
 		<key name="header_0075">RAM Used</key>
 		<key name="header_0076">RAM Free</key>
 		<key name="header_0077">Bridges</key>
-		<key name="header_0078">Storage Group</key>
+		<key name="header_0078">#!free!#</key>
 		<key name="header_0079">Used</key>
 		<key name="header_0080">Free</key>
 		<key name="header_0081">Anvil! Node</key>
