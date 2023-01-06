@@ -28,6 +28,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   const query = `
     SELECT
       hos.host_name,
+      hos.host_type,
       hos.host_uuid,
       var.variable_name,
       var.variable_value
@@ -42,16 +43,18 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
-      const [hostName, hostUUID] = output[0];
+      const [hostName, hostType, hostUUID] = output[0];
       const shortHostName = getShortHostName(hostName);
 
       return output.reduce<
-        { hostName: string; hostUUID: string; shortHostName: string } & Record<
-          string,
-          string
-        >
+        {
+          hostName: string;
+          hostType: string;
+          hostUUID: string;
+          shortHostName: string;
+        } & Record<string, string>
       >(
-        (previous, [, , variableName, variableValue]) => {
+        (previous, [, , , variableName, variableValue]) => {
           const [variablePrefix, ...restVariableParts] =
             variableName.split('::');
           const key = MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
@@ -60,7 +63,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 
           return previous;
         },
-        { hostName, hostUUID, shortHostName },
+        { hostName, hostType, hostUUID, shortHostName },
       );
     });
 
