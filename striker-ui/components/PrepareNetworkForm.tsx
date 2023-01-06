@@ -24,14 +24,8 @@ const PrepareNetworkForm = withRouter(
   }) => {
     const { protect } = useProtect();
 
-    const [dataHostName, setDataHostName] = useProtectedState<
-      string | undefined
-    >(undefined, protect);
-    const [dataHostUUID, setDataHostUUID] = useProtectedState<
-      string | undefined
-    >(undefined, protect);
-    const [dataShortHostName, setDataShortHostName] = useProtectedState<
-      string | undefined
+    const [dataHostDetail, setHostDetail] = useProtectedState<
+      APIHostDetail | undefined
     >(undefined, protect);
     const [fatalErrorMessage, setFatalErrorMessage] = useProtectedState<
       Message | undefined
@@ -41,10 +35,12 @@ const PrepareNetworkForm = withRouter(
     const panelHeaderElement = useMemo(
       () => (
         <PanelHeader>
-          <HeaderText>Prepare network on {dataShortHostName}</HeaderText>
+          <HeaderText>
+            Prepare network on {dataHostDetail?.shortHostName}
+          </HeaderText>
         </PanelHeader>
       ),
-      [dataShortHostName],
+      [dataHostDetail],
     );
     const contentElement = useMemo(() => {
       let result;
@@ -64,12 +60,12 @@ const PrepareNetworkForm = withRouter(
                     formControlProps={{ sx: { maxWidth: '20em' } }}
                     id="prepare-network-host-name"
                     label="Host name"
-                    value={dataHostName}
+                    value={dataHostDetail?.hostName}
                   />
                 }
                 required
               />
-              <NetworkInitForm targetHostUUID={dataHostUUID} />
+              <NetworkInitForm hostDetail={dataHostDetail} />
               <FlexBox row justifyContent="flex-end">
                 <ContainedButton>Prepare network</ContainedButton>
               </FlexBox>
@@ -79,13 +75,7 @@ const PrepareNetworkForm = withRouter(
       }
 
       return result;
-    }, [
-      dataHostName,
-      dataHostUUID,
-      fatalErrorMessage,
-      isLoading,
-      panelHeaderElement,
-    ]);
+    }, [dataHostDetail, fatalErrorMessage, isLoading, panelHeaderElement]);
 
     useEffect(() => {
       if (isReady) {
@@ -98,10 +88,8 @@ const PrepareNetworkForm = withRouter(
                   : queryHostUUID
               }`,
             )
-            .then(({ data: { hostName, hostUUID, shortHostName } }) => {
-              setDataHostName(hostName);
-              setDataHostUUID(hostUUID);
-              setDataShortHostName(shortHostName);
+            .then(({ data }) => {
+              setHostDetail(data);
             })
             .catch((error) => {
               const { children } = handleAPIError(error);
@@ -127,10 +115,8 @@ const PrepareNetworkForm = withRouter(
       fatalErrorMessage,
       isReady,
       queryHostUUID,
-      setDataHostName,
-      setDataHostUUID,
-      setDataShortHostName,
       setFatalErrorMessage,
+      setHostDetail,
       setIsLoading,
     ]);
 

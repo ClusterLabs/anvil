@@ -30,6 +30,7 @@ type APIHostInstallTarget = 'enabled' | 'disabled';
 
 type APIHostDetail = {
   hostName: string;
+  hostType: string;
   hostUUID: string;
   installTarget: APIHostInstallTarget;
   shortHostName: string;
