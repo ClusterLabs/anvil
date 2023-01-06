@@ -1,4 +1,7 @@
 
+Add 'lsof' to Required
+
+
 When pairing Striker, make sure new config goes to all known nodes!
 Immediately set drbdadm to 'secondary' after 'primary --force'
 

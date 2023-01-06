@@ -571,7 +571,8 @@ The definition data passed in was:
 		<key name="error_0396">[ Error ] - The Anvil! UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="error_0397">[ Error ] - The DR link UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="error_0398">[ Error ] - There was a problem processing the requested network: [#!variable!network!#]. Details should be logged.</key>
-	
+		<key name="error_0399">[ Error ] - It looks like the new device: [#!variable!resource!#] failed to appear. Unable to proceed.</key>
+
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
 		<!--       comments and which are command lines that can't be changed! -->
@@ -1227,7 +1228,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0215">The server has been flagged as deleted now.</key>
 		<key name="job_0216">The server delete is complete on this host!</key>
 		<key name="job_0217">It looks like ScanCore has not yet run on one or both nodes in this Anvil! system. Missing resource data, so unable to proceed.</key>
-		<key name="job_0218">Manually calling 'scan-drbd' to ensure that the new agent is recorded.</key>
+		<key name="job_0218">Manually calling 'scan-drbd' to ensure that the new resource is recorded.</key>
 		<key name="job_0219">The server name: [#!variable!server_name!#] is already used by another server.</key>
 		<key name="job_0220">Deleting the server's definition file: [#!variable!file!#]...</key>
 		<key name="job_0221">The server: [#!variable!server_name!#] was not found in the cluster configuration. This can happen if a server was partially deleted and we're trying again.</key>
@@ -1476,7 +1477,13 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0428">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
 		<key name="job_0429">Copying the Long-throw (drbd proxy) license file: [#!variable!file!#] into place.</key>
 		<key name="job_0430">The fence device: [#!variable!device!#] no longer has a port associated with it, will remove it.</key>
-		
+		<key name="job_0431">Calling drbdadm adjust to load the new resource, then waiting for the DRBD device to appear.</key>
+		<key name="job_0432">The new DRBD resource: [#!variable!resource!#] now exists!</key>
+		<key name="job_0433">Still waiting for the new DRBD resource: [#!variable!resource!#] to appear...</key>
+		<key name="job_0434">Waiting for up to a minute to see if the peer connects before provisioning the server.</key>
+		<key name="job_0435">One or more peer disk state or roles are 'unknown', waiting: [#!variable!waiting!#] seconds longer.</key>
+		<key name="job_0436">Peer disk state or role still unknown after one minute, proceeding without it.</key>
+
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
 		<key name="log_0002">

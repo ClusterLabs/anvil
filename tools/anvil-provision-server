@@ -705,7 +705,17 @@ sub provision_server
 		output      => $output,
 		return_code => $return_code,
 	}});
-	
+
+	# Call an adjust in case we forced the resource to disable fencing.
+	$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$anvil->data->{job}{server_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		output      => $output,
+		return_code => $return_code,
+	}});
+
 	return(0);
 }
 
@@ -758,8 +768,8 @@ sub startup_resource
 			task     => "up",
 		});
 		
-		# If both sides are Inconsistent, for node 1 to primary
-		
+		# If both sides are Inconsistent, for node 1 to primary. If we're primary and the peer is
+		# Unknown, force to primary.
 		my $waiting = 1;
 		while($waiting)
 		{
@@ -924,8 +934,93 @@ sub startup_resource
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_ready => $all_ready }});
 			if ($all_ready)
 			{
+				# If we're here, we're mostly ready, however we're in a bit of a spot if our
+				# peer hasn't connected. We're going to wait up to one minute for the peer to
+				# connect. If it doesn't, we're going to force back to primary.
+				$anvil->Job->update_progress({
+					progress => 59,
+					message  => "job_0434",
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0434"});
+
+				my $wait_until = time + 60;
+				my $resource   = $anvil->data->{job}{server_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					's1:time'       => time,
+					's2:wait_until' => $wait_until,
+					's3:resource'   => $resource,
+				}});
+				while ($waiting)
+				{
+					$anvil->DRBD->gather_data({debug => 3});
+					my $any_unknown = 0;
+					foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volume => $volume }});
+						foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}})
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer => $peer }});
+							if (not defined $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state})
+							{
+								$any_unknown = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volume => $volume }});
+								next;
+							}
+
+							my $local_disk_state = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state};
+							my $peer_disk_state  = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state};
+							my $local_role       = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role};
+							my $peer_role        = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+								's1:local_disk_state' => $local_disk_state,
+								's2:peer_disk_state'  => $peer_disk_state,
+								's3:local_role'       => $local_role,
+								's4:peer_role'        => $peer_role,
+							}});
+
+							if (($peer_disk_state =~ /unknown/i) or ($peer_role =~ /unknown/i))
+							{
+								$any_unknown = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volume => $volume }});
+							}
+							last if $any_unknown;
+						}
+						last if $any_unknown;
+					}
+
+					if ($any_unknown)
+					{
+						if (time > $wait_until)
+						{
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0436"});
+
+							my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$anvil->data->{job}{server_name}." ".$anvil->data->{job}{drbd_peer_node_id}." --set-defaults --_name=".$anvil->data->{job}{peer_short_name}." --protocol=C --fencing=dont-care";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+
+							my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+								output      => $output,
+								return_code => $return_code,
+							}});
+
+							$waiting = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						}
+						else
+						{
+							my $waiting = $wait_until - time;
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0435", variables => { waiting => $waiting }});
+							sleep 5;
+						}
+					}
+					else
+					{
+						$waiting = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					}
+				}
+
 				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 			}
 			
 			if ($waiting)
@@ -953,13 +1048,13 @@ sub create_md
 	# Create the DRBD metadata
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$anvil->data->{job}{server_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	
+
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		output      => $output,
 		return_code => $return_code,
 	}});
-	
+
 	### Return codes
 	# 0 == Success
 	# 1 == ?
@@ -969,21 +1064,21 @@ sub create_md
 		# Metadata creation failed.
 		$anvil->Job->update_progress({
 			progress   => 100,
-			message    => "error_0204,!!return_code!".$return_code."!!,!!output!".$output."!!", 
-			job_status => "failed", 
+			message    => "error_0204,!!return_code!".$return_code."!!,!!output!".$output."!!",
+			job_status => "failed",
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0204", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0204", variables => {
 			return_code => $return_code,
-			output      => $output, 
+			output      => $output,
 		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0579", variables => { resource => $anvil->data->{job}{server_name} }});
-	
+
 	# If we're not the peer, force this resouroce to Primary.
 	if (not $anvil->data->{job}{peer_mode})
 	{
-		
+
 	}
 	
 	$anvil->Job->update_progress({
