@@ -581,10 +581,10 @@ NetworkForm.defaultProps = {
 const NetworkInitForm = forwardRef<
   NetworkInitFormForwardedRefContent,
   {
-    targetHostUUID?: string;
+    hostDetail?: APIHostDetail;
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
->(({ targetHostUUID = 'local', toggleSubmitDisabled }, ref) => {
+>(({ hostDetail: { hostUUID = 'local' } = {}, toggleSubmitDisabled }, ref) => {
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
     y: number;
@@ -604,7 +604,7 @@ const NetworkInitForm = forwardRef<
 
   const { data: networkInterfaces = MOCK_NICS, isLoading } = periodicFetch<
     NetworkInterfaceOverviewMetadata[]
-  >(`${API_BASE_URL}/network-interface/${targetHostUUID}`, {
+  >(`${API_BASE_URL}/network-interface/${hostUUID}`, {
     refreshInterval: 2000,
     onSuccess: (data) => {
       const map = data.reduce<NetworkInterfaceInputMap>((result, metadata) => {
@@ -1385,7 +1385,7 @@ const NetworkInitForm = forwardRef<
 });
 
 NetworkInitForm.defaultProps = {
-  targetHostUUID: 'local',
+  hostDetail: undefined,
   toggleSubmitDisabled: undefined,
 };
 NetworkInitForm.displayName = 'NetworkInitForm';
