@@ -272,6 +272,7 @@ const NetworkForm: FC<{
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
   getNetworkTypeCount: GetNetworkTypeCountFunction;
+  hostDetail?: APIHostDetail;
   networkIndex: number;
   networkInput: NetworkInput;
   networkInterfaceInputMap: NetworkInterfaceInputMap;
@@ -286,6 +287,7 @@ const NetworkForm: FC<{
 }> = ({
   createDropMouseUpHandler,
   getNetworkTypeCount,
+  hostDetail: { hostType } = {},
   networkIndex,
   networkInput,
   networkInterfaceInputMap,
@@ -332,6 +334,14 @@ const NetworkForm: FC<{
   const subnetConflictInputMessageKeyPrefix = useMemo(
     () => IT_IDS.networkSubnetConflict(inputTestPrefix),
     [inputTestPrefix],
+  );
+
+  const netIfTemplate = useMemo(
+    () =>
+      hostType !== 'node' && Object.keys(networkInterfaceInputMap).length <= 2
+        ? [1]
+        : NETWORK_INTERFACE_TEMPLATE,
+    [hostType, networkInterfaceInputMap],
   );
 
   useEffect(() => {
@@ -417,7 +427,7 @@ const NetworkForm: FC<{
           },
         }}
       >
-        {NETWORK_INTERFACE_TEMPLATE.map((linkNumber) => {
+        {netIfTemplate.map((linkNumber) => {
           const linkName = `Link ${linkNumber}`;
           const networkInterfaceIndex = linkNumber - 1;
           const networkInterface = interfaces[networkInterfaceIndex];
@@ -555,6 +565,7 @@ const NetworkForm: FC<{
 
 NetworkForm.defaultProps = {
   createDropMouseUpHandler: undefined,
+  hostDetail: undefined,
 };
 
 const NetworkInitForm = forwardRef<
