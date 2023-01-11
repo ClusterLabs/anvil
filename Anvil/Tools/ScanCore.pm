@@ -1521,10 +1521,10 @@ sub post_scan_analysis_node
 		# Do nothing
 		return(0);
 	}
-
-    # Is scancore action logging disabled?
+	
+	# Is scancore action logging disabled?
 	my $action_log_disabled = $anvil->data->{scancore}{disable}{action_logging};
-    $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'disable::action_logging' => $action_log_disabled }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'disable::action_logging' => $action_log_disabled }});
 	
 	# What is our peer's host UUID?
 	$anvil->Cluster->get_peers({debug => $debug});
