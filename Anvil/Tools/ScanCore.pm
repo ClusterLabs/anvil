@@ -2473,6 +2473,10 @@ sub post_scan_analysis_striker
 		clear     => 1, 
 		host_uuid => $anvil->Get->host_uuid, 
 	});
+
+    # Is scancore action logging disabled?
+	my $action_log_disabled = $anvil->data->{scancore}{disable}{action_logging};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'disable::action_logging' => $action_log_disabled }});
 	
 	# Get a look at all nodes and DR hosts. For each, check if they're up.
 	foreach my $host_uuid (keys %{$anvil->data->{machine}{host_uuid}})
