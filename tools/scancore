@@ -141,7 +141,7 @@ while(1)
 		$anvil->ScanCore->call_scan_agents();
 		
 		# Is post-scan analysis disabled?
-		$post_scan_disabled = $anvil->data->{scancore}{disable}{post_scan};
+		my $post_scan_disabled = $anvil->data->{scancore}{disable}{post_scan};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'disable::post_scan_analysis' => $post_scan_disabled }});
 
 		if (!$post_scan_disabled) {
