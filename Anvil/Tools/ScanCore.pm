@@ -1523,7 +1523,7 @@ sub post_scan_analysis_node
 	}
 
     # Is scancore action logging disabled?
-	$action_log_disabled = $anvil->data->{scancore}{disable}{action_logging};
+	my $action_log_disabled = $anvil->data->{scancore}{disable}{action_logging};
     $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'disable::action_logging' => $action_log_disabled }});
 	
 	# What is our peer's host UUID?
