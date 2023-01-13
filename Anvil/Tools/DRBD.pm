@@ -1547,9 +1547,9 @@ LIMIT 1
 			### TODO: Handle external metadata
 			my $this_host = $host_href->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_host                      => $this_host,
-				'$anvil->Get->host_name'       => $anvil->Get->host_name, 
-				'$anvil->Get->short_host_name' => $anvil->Get->short_host_name, 
+				this_host              => $this_host,
+				'Get->host_name'       => $anvil->Get->host_name,
+				'Get->short_host_name' => $anvil->Get->short_host_name,
 			}});
 			if (($this_host eq $anvil->Get->host_name) or ($this_host eq $anvil->Get->short_host_name))
 			{
