@@ -617,7 +617,13 @@ sub find_executables
 	my $check = "";
 	my $bad   = 0;
 
-	# Log entries can only happen if I've found 'logger', so an extra check will be made on 'to_log' 
+	# If PATH isn't set, set it (could have been scrubbed by a caller).
+	if (not $ENV{PATH})
+	{
+		$ENV{PATH} = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin";
+	}
+
+	# Log entries can only happen if I've found 'logger', so an extra check will be made on 'to_log'
 	# calls.
 	my @dirs = split/:/, $ENV{PATH};
 	foreach my $exe (sort {$b cmp $a} keys %{$conf->{path}{exe}})

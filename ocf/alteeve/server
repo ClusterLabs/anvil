@@ -3,7 +3,7 @@
 #   This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
 #
 #   License: GNU General Public License (GPL) v2+
-#            (c) 1997-2021 - Alteeve's Niche! Inc.
+#            (c) 1997-2023 - Alteeve's Niche! Inc.
 # 
 # WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
@@ -125,10 +125,18 @@ $anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{O
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "";
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "";
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_record_pending} = defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : "";
+
+# When run from 'pcs', environment variables are scrubbed, which can cause us problems.
+if (not $ENV{PATH})
+{
+	$ENV{PATH} = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin";
+}
+
 # Any variable=value arguments in the resource are set under 'OCF_RESKEY_CRM_meta_'
 foreach my $key (sort {$a cmp $b} keys %ENV)
 {
-	next if $key !~ /^OCF_RESKEY_CRM_meta_/;
+	#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { "ENV{".$key."}" => $ENV{$key} }});
+	next if $key !~ /^OCF_/;
 	$anvil->data->{environment}{$key} = $ENV{$key};
 }
 
@@ -218,6 +226,14 @@ if (($anvil->data->{switches}{server}) && (not $anvil->data->{environment}{OCF_R
 		"environment::OCF_RESKEY_name" => $anvil->data->{environment}{OCF_RESKEY_name}, 
 	}});
 }
+elsif ((not $anvil->data->{switches}{server}) && ($anvil->data->{environment}{OCF_RESKEY_name}))
+{
+	$anvil->data->{switches}{server} =$anvil->data->{environment}{OCF_RESKEY_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		"switches::server" => $anvil->data->{switches}{server},
+	}});
+}
+
 if (($anvil->data->{switches}{migrate_to}) && (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}))
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = $anvil->data->{switches}{migrate_to};
@@ -1059,7 +1075,7 @@ sub stop_server
 	
 	# Read in an parse the server's XML.
 	$anvil->System->check_storage();
-	$anvil->Server->get_status({server => $server});
+	$anvil->Server->get_status({debug => 2, server => $server});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0313", variables => { server => $server }});
 	my $success = $anvil->Server->shutdown_virsh({server => $server});
@@ -1594,7 +1610,7 @@ sub validate_all
 		source => $source, 
 		target => $target,
 	}});
-	
+
 	# Log what we're doing.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0581", variables => { server => $server }});
 	

@@ -294,6 +294,7 @@ sub call
 				}});
 			}
 			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { timeout => $timeout }});
 			if ($timeout)
 			{
 				# Prepend a timeout.
@@ -301,6 +302,7 @@ sub call
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { shell_call => $shell_call }});
 			}
 			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { background => $background }});
 			if ($background)
 			{
 				# Prepend '/tmp/' to STDOUT and/or STDERR output files, if needed.
@@ -350,8 +352,10 @@ sub call
 			}
 			else
 			{
-				$output = "";
-				open (my $file_handle, $shell_call.$redirect."; ".$anvil->data->{path}{exe}{echo}." return_code:\$? |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+				   $output      = "";
+				my $call_string = $shell_call.$redirect."; ".$anvil->data->{path}{exe}{echo}." return_code:\$? |";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { call_string => $call_string }});
+				open (my $file_handle, $call_string) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 				while(<$file_handle>)
 				{
 					chomp;

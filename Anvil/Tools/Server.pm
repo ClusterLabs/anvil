@@ -24,6 +24,28 @@ my $THIS_FILE = "Server.pm";
 # migrate_virsh
 # shutdown_virsh
 
+=cut TODO
+
+Move all virsh calls over to using Sys::Virt;
+
+Example;
+
+ #!/usr/bin/perl
+ use strict;
+ use warnings;
+ use Sys::Virt;
+
+ my $uri        = "qemu:///system";
+ my $connection = Sys::Virt->new(uri => $uri);
+ my @domains    = $connection->list_domains();
+ foreach my $domain (@domains)
+ {
+	print $log_fh "Domain: [".$domain->get_name."], UUID: [".$domain->get_uuid_string()."]\n";
+ 	print $log_fh "Definition: [".$domain->get_xml_description."]\n";
+ }
+
+=cut
+
 =pod
 
 =encoding utf8
@@ -173,7 +195,7 @@ sub boot_virsh
 	# Is this a local call or a remote call?
 	my ($output, $return_code) = $anvil->System->call({
 		debug      => $debug, 
-		shell_call => $anvil->data->{path}{exe}{virsh}." create ".$definition,
+		shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." create ".$definition,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
@@ -286,7 +308,7 @@ sub count_servers
 	my $count = 0;
 	if (-e $anvil->data->{path}{exe}{virsh})
 	{
-		my $shell_call = $anvil->data->{path}{exe}{virsh}." list";
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, debug => $debug});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -396,12 +418,13 @@ sub find
 	
 	my $host_type    = $anvil->Get->host_type({debug => $debug});
 	my $host_name    = $anvil->Get->host_name;
+	my $virsh_call   = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all";
 	my $virsh_output = "";
 	my $return_code  = "";
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local call
-		($virsh_output, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
+		($virsh_output, my $return_code) = $anvil->System->call({shell_call => $virsh_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			virsh_output => $virsh_output,
 			return_code  => $return_code,
@@ -425,7 +448,7 @@ sub find
 		($virsh_output, $error, $return_code) = $anvil->Remote->call({
 			debug       => 2, 
 			password    => $password, 
-			shell_call  => $anvil->data->{path}{exe}{virsh}." list --all", 
+			shell_call  => $virsh_call,
 			target      => $target,
 			remote_user => "root", 
 		});
@@ -661,12 +684,19 @@ sub get_status
 	});
 	
 	# Is this a local call or a remote call?
-	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server;
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server;
 	my $this_host  = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		shell_call => $shell_call,
+		this_host  => $this_host,
+	}});
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local.
-		($anvil->data->{server}{$host}{$server}{from_virsh}{xml}, $anvil->data->{server}{$host}{$server}{from_virsh}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		($anvil->data->{server}{$host}{$server}{from_virsh}{xml}, $anvil->data->{server}{$host}{$server}{from_virsh}{return_code}) = $anvil->System->call({
+			debug      => $debug,
+			shell_call => $shell_call,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"server::${host}::${server}::from_virsh::xml"         => $anvil->data->{server}{$host}{$server}{from_virsh}{xml},
 			"server::${host}::${server}::from_virsh::return_code" => $anvil->data->{server}{$host}{$server}{from_virsh}{return_code},
@@ -865,7 +895,7 @@ sub map_network
 	
 	# NOTE: We don't use 'Server->find' as the hassle of tracking hosts to target isn't worth it.
 	# Get a list of servers. 
-	my $shell_call = $anvil->data->{path}{exe}{virsh}." list";
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list";
 	my $output     = "";
 	if ($anvil->Network->is_local({host => $target}))
 	{
@@ -1032,6 +1062,9 @@ sub migrate_virsh
 	### NOTE: This method is called by ocf:alteeve:server, which operates without database access. As 
 	###       such, queries need to be run only if we've got one or more DB connections.
 	# Mark this server as being in a migration state.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		$anvil->Database->get_servers({debug => 2});
@@ -1039,14 +1072,24 @@ sub migrate_virsh
 	my $migation_started = time;
 	my $server_uuid      = "";
 	my $old_server_state = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { migation_started => $migation_started }});
 	foreach my $this_server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			this_server_uuid                                         => $this_server_uuid,
+			"servers::server_uuid::${this_server_uuid}::server_name" => $anvil->data->{servers}{server_uuid}{$this_server_uuid}{server_name},
+		}});
 		if ($server eq $anvil->data->{servers}{server_uuid}{$this_server_uuid}{server_name})
 		{
 			$server_uuid = $this_server_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
 			last;
 		}
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		server_uuid                  => $server_uuid,
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
 	if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 	{
 		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} ne "migrating")
@@ -1066,12 +1109,15 @@ WHERE
 		}
 	}
 	
-	# The virsh command switches host names to IPs and needs to have both the source and target IPs in 
-	# the known_hosts file to work.
-	my $live_migrate = "";
-	if (($server_uuid) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}))
+	# We default to live migrations, but will remove that switch if it's been set to false.
+	my $live_migrate = "--live";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		server_uuid                                                   => $server_uuid,
+		"servers::server_uuid::${server_uuid}::server_live_migration" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration},
+	}});
+	if (($server_uuid) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration} eq "false"))
 	{
-		$live_migrate = "--live";
+		$live_migrate = "";
 	}
 	my $target_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1087,7 +1133,7 @@ WHERE
 		});
 	}
 	
-	my $migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
+	my $migration_command = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
 	if ($source)
 	{
 		my $source_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $source});
@@ -1101,7 +1147,7 @@ WHERE
 			});
 		}
 		
-		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
+		$migration_command = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { migration_command => $migration_command }});
 	
@@ -1962,7 +2008,7 @@ sub shutdown_virsh
 			### TODO: No, don't do this! The server might be migrating
 			# The server is paused. Resume it, wait a few, then proceed with the shutdown.
 # 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0314", variables => { server => $server }});
-# 			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." resume $server"});
+# 			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." resume $server"});
 # 			if ($return_code)
 # 			{
 # 				# Looks like virsh isn't running.
@@ -1980,7 +2026,7 @@ sub shutdown_virsh
 		{
 			# The server is suspended. Resume it, wait a few, then proceed with the shutdown.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0317", variables => { server => $server }});
-			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." dompmwakeup $server"});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dompmwakeup $server"});
 			if ($return_code)
 			{
 				# Looks like virsh isn't running.
@@ -2062,7 +2108,7 @@ WHERE
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0520", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({
 				debug      => $debug, 
-				shell_call => $anvil->data->{path}{exe}{virsh}." ".$task." ".$server,
+				shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." ".$task." ".$server,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				output      => $output,

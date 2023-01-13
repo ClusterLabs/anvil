@@ -4359,7 +4359,13 @@ sub search_directories
 	# Set a default if nothing was passed.
 	my $array      = defined $parameter->{directories} ? $parameter->{directories} : "";
 	my $initialize = defined $parameter->{initialize}  ? $parameter->{initialize}  : "";
-	
+
+	# If PATH isn't set, set it (could have been scrubbed by a caller).
+	if (not $ENV{PATH})
+	{
+		$ENV{PATH} = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin";
+	}
+
 	# If the array is a CSV of directories, convert it now.
 	if ($array =~ /,/)
 	{
