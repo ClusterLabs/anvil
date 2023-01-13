@@ -1297,7 +1297,14 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 sub migrate_server
 {
 	my ($anvil) = @_;
-	
+
+	# Do a sensitive, quick DB connect.
+	$anvil->Database->connect({
+		check_for_resync => 0,
+		retry            => 0,
+		sensitive        => 1,
+	});
+
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
 	###       ASAP is high). Maybe we'll enforce this and require a '--force' switch later?

@@ -1115,7 +1115,7 @@ WHERE
 		server_uuid                                                   => $server_uuid,
 		"servers::server_uuid::${server_uuid}::server_live_migration" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration},
 	}});
-	if (($server_uuid) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration} eq "false"))
+	if (($server_uuid) && (not $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}))
 	{
 		$live_migrate = "";
 	}
