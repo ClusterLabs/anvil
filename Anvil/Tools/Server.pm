@@ -35,6 +35,9 @@ Example;
  use warnings;
  use Sys::Virt;
 
+ # https://metacpan.org/pod/Sys::Virt::Domain
+ # https://libvirt.org/api.html
+
  my $uri        = "qemu:///system";
  my $connection = Sys::Virt->new(uri => $uri);
  my @domains    = $connection->list_domains();

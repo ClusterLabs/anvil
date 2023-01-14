@@ -103,7 +103,11 @@ sub node_checks
 	
 	# Make sure DRBD compiled after a kernel upgrade.
 	$anvil->DRBD->_initialize_kmod({debug => 2});
-	
+
+	# Make sure logind is update to handle fencing properly
+	# see - https://access.redhat.com/solutions/1578823
+	$anvil->Cluster->configure_logind({debug => 2});
+
 	return(0);
 }
 
@@ -117,7 +121,7 @@ sub dr_checks
 	
 	# Make sure DRBD compiled after a kernel upgrade.
 	$anvil->DRBD->_initialize_kmod({debug => 2});
-	
+
 	return(0);
 }
 

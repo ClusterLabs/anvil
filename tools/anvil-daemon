@@ -1295,7 +1295,7 @@ sub handle_special_cases
 	my ($anvil) = @_;
 	
 	# Thsi is now handled by 'anvil-version-changes'
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-version-changes'};
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-version-changes'}.$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});

@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
 use String::ShellQuote;
+use Text::Diff;
 use XML::LibXML;
 use XML::Simple qw(:strict);
 
@@ -21,6 +22,7 @@ my $THIS_FILE = "Cluster.pm";
 # check_node_status
 # check_server_constraints
 # check_stonith_config
+# configure_logind
 # delete_server
 # get_fence_methods
 # get_anvil_name
@@ -1622,6 +1624,109 @@ sub check_stonith_config
 	}
 	
 	
+	return(0);
+}
+
+
+=head2 configure_logind
+
+This configures logind to ensure it doesn't try to do a graceful shutdown when being fenced via acpid power-button events.
+
+See: https://access.redhat.com/solutions/1578823
+
+This method takes no parameters
+
+=cut
+sub configure_logind
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->configure_logind()" }});
+
+	# Only run this on nodes.
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		return(0);
+	}
+
+	# Read in the file.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		'path::configs::logind.conf' => $anvil->data->{path}{configs}{'logind.conf'},
+	}});
+	if (not -e $anvil->data->{path}{configs}{'logind.conf'})
+	{
+		# wtf?
+		return(0);
+	}
+
+	my $added    = 0;
+	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{configs}{'logind.conf'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+
+	if ($old_body eq "!!error!!")
+	{
+		return(0);
+	}
+
+	# If we don't see 'HandlePowerKey=ignore', we need to add it.
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+		$new_body .= $line."\n";
+		if ($line =~ /^HandlePowerKey=(.*)$/)
+		{
+			# It's been set. No matter how it's set, we don't change it again.
+			my $set_to = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_to => $set_to }});
+			return(0);
+		}
+		if ($line =~ /^#HandlePowerKey=/)
+		{
+			# Add line under the commented out one.
+			$new_body .= "HandlePowerKey=ignore\n";
+			$added    = 1;
+		}
+	}
+
+	if (not $added)
+	{
+		# Append it.
+		$new_body .= "HandlePowerKey=ignore\n";
+		$added    = 1;
+	}
+
+	# Still here? We almost certainly want to save then, but lets look for a difference just the same.
+	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		added      => $added,
+		difference => $difference,
+	}});
+	if ($added)
+	{
+		# Write it out.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0732"});
+		$anvil->Storage->write_file({
+			file      => $anvil->data->{path}{configs}{'logind.conf'},
+			body      => $new_body,
+			backup    => 1,
+			overwrite => 1,
+		});
+
+		sleep 1;
+
+		# Restart the daemon.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0733", variables => { daemon => "systemd-logind.service" }});
+		$anvil->System->restart_daemon({
+			debug  => $debug,
+			daemon => "systemd-logind.service",
+		});
+	}
+
 	return(0);
 }
 

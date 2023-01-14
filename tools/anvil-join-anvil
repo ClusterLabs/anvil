@@ -1068,7 +1068,11 @@ sub configure_pacemaker
 			}
 		}
 	}
-	
+
+	# Make sure logind is update to handle fencing properly
+	# see - https://access.redhat.com/solutions/1578823
+	$anvil->Cluster->configure_logind({debug => 2});
+
 	# Enable fencing and set the retry to INFINITY, if needed.
 	$anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} = "" if not defined $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
