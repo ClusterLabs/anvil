@@ -3313,7 +3313,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0012">[ Warning ] - Failed to log into the host. Is the IP or root user's password right?</key>
 		<key name="warning_0013"><![CDATA[[ Warning ] - The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
 		<key name="warning_0014">[ Warning ] - The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
-		<key name="warning_0015">[ Warning ] - To configure a host as either an #!string!brand_0002!# node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
+		<key name="warning_0015">[ Warning ] - To configure a #!string!brand_0002!# sub-node, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
 		<key name="warning_0016">[ Warning ] - No databases are available. Changes to the network interfaces will be cached.</key>
 		<key name="warning_0017">[ Warning ] - The subnet mask is not valid</key>
 		<key name="warning_0018">[ Warning ] - The IP address was specified, but the subnet mask was not</key>
