@@ -5356,10 +5356,13 @@ sub process_prep_network
 		process_anvil_menu($anvil);
 		return(0);
 	}
-	
+	my $host_uuid = $anvil->data->{cgi}{host_uuid}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+
 	# Pull the host's data out of the JSON file.
 	$anvil->Striker->parse_all_status_json();
 	
+	my $host_type = "";
 	my $host_name = "";
 	foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
 	{
@@ -5371,7 +5374,11 @@ sub process_prep_network
 		{
 			# Found it.
 			$host_name = $host;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_name => $host_name }});
+			$host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				host_name => $host_name,
+				host_type => $host_type,
+			}});
 			last;
 		}
 	}
@@ -5404,7 +5411,7 @@ sub process_prep_network
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}})
 	{
 		# if any interfaces are called 'virbrX-nic', ignore it as it will be removed. Likewise, ignore any 'vnetX' devices.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
 		if (($interface =~ /^virbr\d+-nic/) or ($interface =~ /^vnet\d+/))
 		{
 			# Ignore it.
@@ -5417,21 +5424,21 @@ sub process_prep_network
 		
 		# Store the mac address .
 		$interfaces->{$interface} = $mac_address;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "interfaces->{".$interface."}" => $interfaces->{$interface} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interfaces->{".$interface."}" => $interfaces->{$interface} }});
 	}
 	
 	# Get the interface count
 	my $interface_count = keys %{$interfaces};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface_count => $interface_count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_count => $interface_count }});
 	
-	if ($interface_count < 6)
+	if (($host_type eq "node") && ($interface_count < 6))
 	{
 		# Not enough interfaces.
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0015", variables => { interface_count => $interface_count } }) }});
 		$anvil->data->{cgi}{task}{value}    = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
 			"cgi::task::value"    => $anvil->data->{cgi}{task}{value},
-			"form::error_massage" => $anvil->data->{form}{error_massage}, 
+			"form::error_massage" => $anvil->data->{form}{error_massage},
 		}});
 		process_anvil_menu($anvil);
 	}
