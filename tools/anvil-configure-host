@@ -406,6 +406,9 @@ ORDER BY
 			's2:variable_name'  => $variable_name,
 			's3:variable_value' => $variable_value, 
 		}});
+
+		# An undefined interface will have the MAC address value set to '1', ignore those.
+		next if $variable_value = 1;
 		
 		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
 		{
