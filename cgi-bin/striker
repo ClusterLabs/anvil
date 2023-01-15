@@ -5825,7 +5825,7 @@ sub process_prep_network
 				if ((not $anvil->data->{cgi}{$link1_key}{value}) && (not $anvil->data->{cgi}{$link2_key}{value}))
 				{
 					# If this is network 1, both are required.
-					if ($i == 1)
+					if (($host_type eq "node") && ($i == 1))
 					{
 						# Required.
 						my $error_message                         = $anvil->Words->string({key => "warning_0021"});
