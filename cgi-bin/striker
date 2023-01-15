@@ -2017,10 +2017,12 @@ sub run_manifest
 	my $bcn_count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn};
 	my $sn_count  = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn};
 	my $ifn_count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{ifn};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	my $mn_count  = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{mn};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		bcn_count => $bcn_count, 
 		sn_count  => $sn_count, 
 		ifn_count => $ifn_count, 
+		mn_count  => $mn_count,
 	}});
 	
 	# If confirmed, run!
@@ -2355,7 +2357,7 @@ sub run_manifest
 	# Show the networks.
 	my $networks     = "";
 	my $default_seen = 0;
-	foreach my $network ("bcn", "sn", "ifn")
+	foreach my $network ("bcn", "sn", "mn", "ifn")
 	{
 		my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -2389,6 +2391,7 @@ sub run_manifest
 			my $network_key = "header_0036";
 			if    ($network eq "sn")  { $network_key = "header_0037"; }
 			elsif ($network eq "ifn") { $network_key = "header_0038"; }
+			elsif ($network eq "mn")  { $network_key = "header_0106"; }
 			$networks .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-network", variables => {
 				name        => $anvil->Words->string({key => $network_key, variables => { number => $i }}), 
 				network     => $network_range,
@@ -2402,7 +2405,7 @@ sub run_manifest
 	
 	# Pull out the IPs that will be assigned to servers.
 	my $machine_ips = "";
-	foreach my $network ("bcn", "sn", "ifn")
+	foreach my $network ("bcn", "sn", "mn", "ifn")
 	{
 		if ($network eq "sn")
 		{
@@ -2440,6 +2443,7 @@ sub run_manifest
 			my $network_key = "header_0036";
 			if    ($network eq "sn")  { $network_key = "header_0037"; }
 			elsif ($network eq "ifn") { $network_key = "header_0038"; }
+			elsif ($network eq "mn")  { $network_key = "header_0106"; }
 			$machine_ips .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ip", variables => {
 				name  => $anvil->Words->string({key => $network_key, variables => { number => $i }}), 
 				node1 => $node1_ip ? $node1_ip : "--",
@@ -2533,6 +2537,8 @@ sub handle_manifest
 	$anvil->data->{cgi}{bcn_count}{alert} = 0                 if not defined $anvil->data->{cgi}{bcn_count}{alert};
 	$anvil->data->{cgi}{sn_count}{value}  = 0                 if not defined $anvil->data->{cgi}{sn_count}{value};
 	$anvil->data->{cgi}{sn_count}{alert}  = 0                 if not defined $anvil->data->{cgi}{sn_count}{alert};
+	$anvil->data->{cgi}{mn_count}{value}  = 0                 if not defined $anvil->data->{cgi}{mn_count}{value};
+	$anvil->data->{cgi}{mn_count}{alert}  = 0                 if not defined $anvil->data->{cgi}{mn_count}{alert};
 	$anvil->data->{cgi}{ifn_count}{value} = 0                 if not defined $anvil->data->{cgi}{ifn_count}{value};
 	$anvil->data->{cgi}{ifn_count}{alert} = 0                 if not defined $anvil->data->{cgi}{ifn_count}{alert};
 	$anvil->data->{cgi}{dns}{value}       = "8.8.8.8,8.8.4.4" if not defined $anvil->data->{cgi}{dns}{value};
@@ -2549,6 +2555,7 @@ sub handle_manifest
 		"cgi::sequence::value"  => $anvil->data->{cgi}{sequence}{value},
 		"cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value},
 		"cgi::sn_count::value"  => $anvil->data->{cgi}{sn_count}{value},
+		"cgi::mn_count::value"  => $anvil->data->{cgi}{mn_count}{value},
 		"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value},
 		"cgi::dns::value"       => $anvil->data->{cgi}{dns}{value},
 		"cgi::ntp::value"       => $anvil->data->{cgi}{ntp}{value},
@@ -2749,6 +2756,11 @@ sub handle_manifest
 					$anvil->data->{cgi}{sn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::sn_count::value" => $anvil->data->{cgi}{sn_count}{value} }});
 				}
+				if (not $anvil->data->{cgi}{mn_count}{value})
+				{
+					$anvil->data->{cgi}{mn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{mn};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::mn_count::value" => $anvil->data->{cgi}{mn_count}{value} }});
+				}
 				if (not $anvil->data->{cgi}{bcn_count}{value})
 				{
 					$anvil->data->{cgi}{bcn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn};
@@ -2773,7 +2785,7 @@ sub handle_manifest
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::mtu::value" => $anvil->data->{cgi}{mtu}{value} }});
 				}
 				
-				foreach my $network ("bcn", "sn", "ifn")
+				foreach my $network ("bcn", "sn", "mn", "ifn")
 				{
 					my $count_key = $network."_count";
 					foreach my $i (1..$anvil->data->{cgi}{$count_key}{value})
@@ -2812,7 +2824,7 @@ sub handle_manifest
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${ipmi_ip_key}::value" => $anvil->data->{cgi}{$ipmi_ip_key}{value} }});
 					}
 					
-					foreach my $network ("bcn", "sn", "ifn")
+					foreach my $network ("bcn", "sn", "mn", "ifn")
 					{
 						my $count_key = $network."_count";
 						foreach my $i (1..$anvil->data->{cgi}{$count_key}{value})
@@ -2921,6 +2933,11 @@ sub handle_manifest
 				$anvil->data->{cgi}{sn_count}{value} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::sn_count::value" => $anvil->data->{cgi}{sn_count}{value} }});
 			}
+			if (not $anvil->data->{cgi}{mn_count}{value})
+			{
+				$anvil->data->{cgi}{mn_count}{value} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::mn_count::value" => $anvil->data->{cgi}{mn_count}{value} }});
+			}
 			if (not $anvil->data->{cgi}{bcn_count}{value})
 			{
 				$anvil->data->{cgi}{bcn_count}{value} = 1;
@@ -2941,9 +2958,11 @@ sub handle_manifest
 			sequence_class  => $anvil->data->{cgi}{sequence}{alert}  ? "input_alert" : "",
 			ifn_count       => $anvil->data->{cgi}{ifn_count}{value}, 
 			ifn_count_class => $anvil->data->{cgi}{ifn_count}{alert} ? "input_alert" : "",
-			sn_count        => $anvil->data->{cgi}{sn_count}{value}, 
+			sn_count        => $anvil->data->{cgi}{sn_count}{value},
 			sn_count_class  => $anvil->data->{cgi}{sn_count}{alert}  ? "input_alert" : "",
-			bcn_count       => $anvil->data->{cgi}{bcn_count}{value}, 
+			mn_count        => $anvil->data->{cgi}{mn_count}{value},
+			mn_count_class  => $anvil->data->{cgi}{mn_count}{alert}  ? "input_alert" : "",
+			bcn_count       => $anvil->data->{cgi}{bcn_count}{value},
 			bcn_count_class => $anvil->data->{cgi}{bcn_count}{alert} ? "input_alert" : "",
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
@@ -3000,29 +3019,29 @@ sub handle_manifest
 				subnet        => $select,
 			}});
 		}
-		
-		# There's only ever 1 SN. Just in case we change our mind later, we'll set it up as if it's 
+
+		# There's only ever 1 SN. Just in case we change our mind later, we'll set it up as if it's
 		# variable.
-		foreach my $i (1..$anvil->data->{cgi}{bcn_count}{value})
+		foreach my $i (1..$anvil->data->{cgi}{sn_count}{value})
 		{
 			my $say_sn      = $anvil->Words->string({key => "striker_0020", variables => { number => '1' }});
 			my $network_key = "sn".$i."_network";
 			my $subnet_key  = "sn".$i."_subnet";
 			my $gateway_key = "sn".$i."_gateway";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				say_sn => $say_sn,
-				network_key => $network_key, 
-				subnet_key  => $subnet_key, 
-				gateway_key => $gateway_key, 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				say_sn      => $say_sn,
+				network_key => $network_key,
+				subnet_key  => $subnet_key,
+				gateway_key => $gateway_key,
 			}});
-			
+
 			$anvil->data->{cgi}{$network_key}{value} = "10.10".$i.".0.0" if not defined $anvil->data->{cgi}{$network_key}{value};
 			$anvil->data->{cgi}{$network_key}{alert} = 0                 if not defined $anvil->data->{cgi}{$network_key}{alert};
 			$anvil->data->{cgi}{$subnet_key}{value}  = "255.255.0.0"     if not defined $anvil->data->{cgi}{$subnet_key}{value};
 			$anvil->data->{cgi}{$subnet_key}{alert}  = 0                 if not defined $anvil->data->{cgi}{$subnet_key}{alert};
 			$anvil->data->{cgi}{$gateway_key}{value} = ""                if not defined $anvil->data->{cgi}{$gateway_key}{value};
 			$anvil->data->{cgi}{$gateway_key}{alert} = 0                 if not defined $anvil->data->{cgi}{$gateway_key}{alert};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 				"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
 				"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
 				"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value},
@@ -3030,17 +3049,60 @@ sub handle_manifest
 				"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
 				"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
 			}});
-			
+
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::sn1_network::value" => $anvil->data->{cgi}{sn1_network}{value} }});
 			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
 				network       => $say_sn,
-				network_name  => $network_key, 
+				network_name  => $network_key,
 				network_class => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
-				network_value => $anvil->data->{cgi}{$network_key}{value}, 
+				network_value => $anvil->data->{cgi}{$network_key}{value},
 				subnet        => '255.255.0.0 <input type="hidden" name="'.$network_key.'" id="'.$network_key.'" value="'.$anvil->data->{cgi}{sn1_subnet}{value}.'" />',
 			}});
 		}
-		
+
+		# There's only ever 1 MN. Just in case we change our mind later, we'll set it up as if it's
+		# variable.
+		if ($anvil->data->{cgi}{mn_count}{value})
+		{
+			foreach my $i (1..$anvil->data->{cgi}{mn_count}{value})
+			{
+				my $say_mn      = $anvil->Words->string({key => "striker_0299", variables => { number => '1' }});
+				my $network_key = "mn".$i."_network";
+				my $subnet_key  = "mn".$i."_subnet";
+				my $gateway_key = "mn".$i."_gateway";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					say_mn      => $say_mn,
+					network_key => $network_key,
+					subnet_key  => $subnet_key,
+					gateway_key => $gateway_key,
+				}});
+
+				$anvil->data->{cgi}{$network_key}{value} = "10.199.0.0"  if not defined $anvil->data->{cgi}{$network_key}{value};
+				$anvil->data->{cgi}{$network_key}{alert} = 0             if not defined $anvil->data->{cgi}{$network_key}{alert};
+				$anvil->data->{cgi}{$subnet_key}{value}  = "255.255.0.0" if not defined $anvil->data->{cgi}{$subnet_key}{value};
+				$anvil->data->{cgi}{$subnet_key}{alert}  = 0             if not defined $anvil->data->{cgi}{$subnet_key}{alert};
+				$anvil->data->{cgi}{$gateway_key}{value} = ""            if not defined $anvil->data->{cgi}{$gateway_key}{value};
+				$anvil->data->{cgi}{$gateway_key}{alert} = 0             if not defined $anvil->data->{cgi}{$gateway_key}{alert};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+					"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+					"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value},
+					"cgi::${subnet_key}::alert"  => $anvil->data->{cgi}{$subnet_key}{alert},
+					"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+					"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
+				}});
+
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::mn1_network::value" => $anvil->data->{cgi}{mn1_network}{value} }});
+				$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
+					network       => $say_mn,
+					network_name  => $network_key,
+					network_class => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
+					network_value => $anvil->data->{cgi}{$network_key}{value},
+					subnet        => '255.255.0.0 <input type="hidden" name="'.$network_key.'" id="'.$network_key.'" value="'.$anvil->data->{cgi}{mn1_subnet}{value}.'" />',
+				}});
+			}
+		}
+
 		# Now IFNs
 		foreach my $i (1..$anvil->data->{cgi}{ifn_count}{value})
 		{
@@ -3091,7 +3153,7 @@ sub handle_manifest
 				gateway_value => $anvil->data->{cgi}{$gateway_key}{value}, 
 			}});
 		}
-		
+
 		my $back_link = $anvil->data->{sys}{cgi_string};
 		   $back_link =~ s/step=2/step=1/;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { back_link => $back_link}});
@@ -3125,7 +3187,7 @@ sub handle_manifest
 		
 		my $network_form = "";
 		my $network_note = "";
-		foreach my $network ("bcn", "sn", "ifn")
+		foreach my $network ("bcn", "sn", "mn", "ifn")
 		{
 			if ($network eq "sn")
 			{
@@ -3146,6 +3208,7 @@ sub handle_manifest
 				my $say_network_code = "striker_0018";
 				if    ($network eq "sn")  { $say_network_code = "striker_0020"; }
 				elsif ($network eq "ifn") { $say_network_code = "striker_0022"; }
+				elsif ($network eq "ifn") { $say_network_code = "striker_0299"; }
 
 				my $say_network  = $anvil->Words->string({key => $say_network_code, variables => { number => $i }});
 				my $network_key  = $network.$i."_network";
@@ -3423,7 +3486,7 @@ sub sanity_check_manifest_step3
 			{
 				# It's a valid IP. Does it match any BCN or IFN network?
 				my $match_found = 0;
-				foreach my $network ("bcn", "sn", "ifn")
+				foreach my $network ("bcn", "sn", "mn", "ifn")
 				{
 					my $count_key = $network."_count";
 					foreach my $i (1..$anvil->data->{cgi}{$count_key}{value})
@@ -3464,7 +3527,7 @@ sub sanity_check_manifest_step3
 		}
 		
 		# Now check that the IPs are sane.
-		foreach my $network ("bcn", "sn", "ifn")
+		foreach my $network ("bcn", "sn", "mn", "ifn")
 		{
 			my $count_key = $network."_count";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -3477,6 +3540,7 @@ sub sanity_check_manifest_step3
 				my $say_network_code = "striker_0018";
 				if    ($network eq "sn")  { $say_network_code = "striker_0020"; }
 				elsif ($network eq "ifn") { $say_network_code = "striker_0022"; }
+				elsif ($network eq "mn")  { $say_network_code = "striker_0299"; }
 
 				my $say_network    = $anvil->Words->string({key => $say_network_code, variables => { number => $i }});
 				my $network_key    = $network.$i."_network";
@@ -3598,7 +3662,18 @@ sub sanity_check_manifest_step2
 		
 	$sane = check_network($anvil, $sane, $say_sn, "sn1_network", "sn1_subnet", "sn1_gateway");
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
-	
+
+	# There's only ever 1 MN
+	my $say_mn = $anvil->Words->string({key => "striker_0299", variables => { number => '1' }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_mn => $say_mn }});
+
+	# The migration network always uses the subnet /16 and has no gateway.
+	$anvil->data->{cgi}{mn1_subnet}{value}  = "255.255.0.0" if not defined $anvil->data->{cgi}{mn1_subnet}{value};
+	$anvil->data->{cgi}{mn1_gateway}{value} = ""            if not defined $anvil->data->{cgi}{mn1_gateway}{value};
+
+	$sane = check_network($anvil, $sane, $say_mn, "mn1_network", "mn1_subnet", "mn1_gateway");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+
 	# Now IFNs
 	foreach my $i (1..$anvil->data->{cgi}{ifn_count}{value})
 	{
@@ -5443,16 +5518,18 @@ sub process_prep_network
 		process_anvil_menu($anvil);
 	}
 	
-	# TODO: For now, we're only allowing one BCN and SN. So at this time, we'll show one BCN pair, one SN
-	#       pair and N-IFN pairs.
+	# TODO: For now, we're only allowing one BCN, SN and MN. So at this time, we'll show one BCN pair,
+	#       one SN pair, one MN pair and N-IFN pairs.
 	my $bcn_pair_count = 1;
 	my $sn_pair_count  = 1;
-	my $ifn_pair_count = int(($interface_count - 4) / 2);
+	my $mn_pair_count  = $interface_count > 6 ? 1 : 0;
+	my $ifn_pair_count = int(($interface_count - 6) / 2);
 	   $ifn_pair_count = 1 if $ifn_pair_count < 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		bcn_pair_count => $bcn_pair_count,
 		sn_pair_count  => $sn_pair_count,
 		ifn_pair_count => $ifn_pair_count,
+		mn_pair_count  => $mn_pair_count,
 	}});
 	
 	### NOTE: The weird 'form::config_step2::<x>::value is from reusing the logic used back when 
@@ -5555,7 +5632,7 @@ sub process_prep_network
 				});
 			}
 		}
-		foreach my $network ("bcn", "sn", "ifn")
+		foreach my $network ("bcn", "sn", "mn", "ifn")
 		{
 			my $count_key = $network."_count";
 			my $loops     = $anvil->data->{cgi}{$count_key}{value};
@@ -5584,6 +5661,10 @@ sub process_prep_network
 				if ($network eq "sn")
 				{
 					$say_network = $anvil->Words->string({key => "striker_0020", variables => { number => $i }});
+				}
+				elsif ($network eq "mn")
+				{
+					$say_network = $anvil->Words->string({key => "striker_0299", variables => { number => $i }});
 				}
 				elsif ($network eq "ifn")
 				{
@@ -5903,7 +5984,8 @@ sub process_prep_network
 				bcn_count         => $bcn_pair_count,
 				sn_count          => $sn_pair_count,
 				ifn_count         => $ifn_pair_count,
-				gateway           => $anvil->data->{cgi}{gateway}{value}, 
+				mn_count          => $mn_pair_count,
+				gateway           => $anvil->data->{cgi}{gateway}{value},
 				dns               => $anvil->data->{cgi}{dns}{value}, 
 			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
@@ -5928,7 +6010,7 @@ sub process_prep_network
 	my $interface_form = "";
 	# NOTE: We don't assign IPs at this point, unless the user manually sets one. We'll set all to 'dhcp'
 	#       until set during the Anvil! build later.
-	foreach my $network ("bcn", "sn", "ifn")
+	foreach my $network ("bcn", "sn", "mn", "ifn")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
 		my $name_key        = "";
@@ -5952,7 +6034,13 @@ sub process_prep_network
 			$description_key = "striker_0023";
 			$count           = $ifn_pair_count;
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		elsif ($network eq "mn")
+		{
+			$name_key        = "striker_0299";
+			$description_key = "striker_0300";
+			$count           = $mn_pair_count;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
 			name_key        => $name_key,
 			description_key => $description_key,
 			count           => $count,
@@ -6013,7 +6101,7 @@ sub process_prep_network
 				iface1_select             => $this_iface1_form,
 				iface2_select             => $this_iface2_form,
 				network_name              => $network.$i, 
-				create_bridge             => $network eq "sn" ? 0 : 1,
+				create_bridge             => (($network eq "sn") or ($network eq "mn")) ? 0 : 1,
 			}});
 		}
 	}
@@ -6071,6 +6159,7 @@ sub process_prep_network
 		bcn_count      => $bcn_pair_count,
 		sn_count       => $sn_pair_count,
 		ifn_count      => $ifn_pair_count,
+		mn_count       => $mn_pair_count,
 		host_uuid      => $anvil->data->{cgi}{host_uuid}{value},
 		host_name      => $host_name,       # This is the current host name, used to find the data in the all_status.json
 	}});
@@ -8681,6 +8770,8 @@ x = Network;
     -  SN = 100 + network
             ie: SN1 = 10.101.y.z
                 SN2 = 10.102.y.z
+    -  MN = 199
+            ie: MN1 = 10.199.y.z
 
 y = Device Type.
     Foudation Pack;
