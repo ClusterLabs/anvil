@@ -990,7 +990,8 @@ resource #!variable!server!# {
 		<key name="header_0103">Host Type</key>
 		<key name="header_0104">Host UUID</key>
 		<key name="header_0105">Machines</key>
-		
+		<key name="header_0106">MN link #!variable!number!#</key>
+
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
 		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
@@ -3152,7 +3153,9 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0296">This indicates that this node or DR host has had base DRBD configured.</key>
 		<key name="striker_0297">This indicates that this node or DR host has completed all tasks needed to be a full member of the Anvil!.</key>
 		<key name="striker_0298">TCP Port</key>
-		
+		<key name="striker_0299">Migration Network link #!variable!number!#</key>
+		<key name="striker_0300">This is where you configure the optional network dedicated to RAM-copy during live migrations.</key>
+
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
 		<key name="suffix_0002">s</key>			<!-- Short suffix for 'seconds'. -->
