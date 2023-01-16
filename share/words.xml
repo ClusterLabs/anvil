@@ -2318,7 +2318,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0730">None of the MAC sddresses in the The DRBD Proxy license file match any of the MAC addresses on this system.</key>
 		<key name="log_0731">The DRBD Proxy license file: [#!data!path::configs::drbd-proxy.license!#] is missing expected data or is malformed.</key>
 		<key name="log_0732">Updating logind to ignore ACPI power button events so that IPMI-based fence requests don't trigger an attempt to gracefully shut down. For more information, see: https://access.redhat.com/solutions/1578823</key>
-		<key name="job_0733">Restarting the daemon: [#!variable!daemon!#].</key>
+		<key name="log_0733">Restarting the daemon: [#!variable!daemon!#].</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

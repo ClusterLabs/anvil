@@ -1720,7 +1720,7 @@ sub configure_logind
 		sleep 1;
 
 		# Restart the daemon.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0733", variables => { daemon => "systemd-logind.service" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0733", variables => { daemon => "systemd-logind.service" }});
 		$anvil->System->restart_daemon({
 			debug  => $debug,
 			daemon => "systemd-logind.service",
