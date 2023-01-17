@@ -1851,11 +1851,13 @@ sub connect
 	}
 	
 	# If we're a striker and no connections were found, start our database.
+	my $configured_databases = keys %{$anvil->data->{database}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		local_host_type              => $local_host_type,
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+		configured_databases         => $configured_databases,
 	}});
-	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
+	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}) && ($configured_databases > 2))
 	{
 		# Tell the user we're going to try to load and start.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
