@@ -213,6 +213,7 @@ sub reconfigure_network
 	my $organization     = exists $anvil->data->{variables}{form}{config_step1}{organization}{value} ? $anvil->data->{variables}{form}{config_step1}{organization}{value} : "";
 	my $bcn_count        = exists $anvil->data->{variables}{form}{config_step1}{bcn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{bcn_count}{value}    : 1;
 	my $sn_count         = exists $anvil->data->{variables}{form}{config_step1}{sn_count}{value}     ? $anvil->data->{variables}{form}{config_step1}{sn_count}{value}     : 0;
+	my $mn_count         = exists $anvil->data->{variables}{form}{config_step1}{mn_count}{value}     ? $anvil->data->{variables}{form}{config_step1}{mn_count}{value}     : 0;
 	my $ifn_count        = exists $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    : 1;
 	my $new_host_name    = exists $anvil->data->{variables}{form}{config_step2}{host_name}{value}    ? $anvil->data->{variables}{form}{config_step2}{host_name}{value}    : "";
 	my $type             = $anvil->Get->host_type();
@@ -222,8 +223,9 @@ sub reconfigure_network
 		domain        => $domain, 
 		organization  => $organization, 
 		bcn_count     => $bcn_count, 
-		sn_count      => $sn_count, 
-		ifn_count     => $ifn_count, 
+		sn_count      => $sn_count,
+		mn_count      => $mn_count,
+		ifn_count     => $ifn_count,
 		new_host_name => $new_host_name, 
 		type          => $type, 
 	}});
@@ -324,7 +326,7 @@ sub reconfigure_network
 	if (not $gateway_interface)
 	{
 		# IFN first, BCN second, SN last
-		foreach my $network_type ("ifn", "bcn", "sn")
+		foreach my $network_type ("ifn", "bcn", "sn", "mn")
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 			
@@ -332,6 +334,7 @@ sub reconfigure_network
 			if    ($network_type eq "bcn") { $count = $bcn_count; }
 			elsif ($network_type eq "sn")  { $count = $sn_count;  }
 			elsif ($network_type eq "ifn") { $count = $ifn_count; }
+			elsif ($network_type eq "mn")  { $count = $mn_count;  }
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 			
 			next if not $count;
@@ -403,6 +406,9 @@ ORDER BY
 			's2:variable_name'  => $variable_name,
 			's3:variable_value' => $variable_value, 
 		}});
+
+		# An undefined interface will have the MAC address value set to '1', ignore those.
+		next if $variable_value = 1;
 		
 		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
 		{
@@ -442,7 +448,7 @@ ORDER BY
 	# This will be set to '1' if we make a change.
 	my $changes        = 0;
 	my $new_interfaces = [];
-	foreach my $network_type ("bcn", "sn", "ifn")
+	foreach my $network_type ("bcn", "sn", "mn", "ifn")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 		
@@ -450,6 +456,7 @@ ORDER BY
 		if    ($network_type eq "bcn") { $count = $bcn_count; }
 		elsif ($network_type eq "sn")  { $count = $sn_count;  }
 		elsif ($network_type eq "ifn") { $count = $ifn_count; }
+		elsif ($network_type eq "mn")  { $count = $mn_count;  }
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 		
 		next if not $count;
@@ -570,6 +577,12 @@ ORDER BY
 					$say_network      = "Storage Network ".$network_count; 
 					$say_interface    = "sn".$network_count;
 					$interface_prefix = "SN";
+				}
+				elsif ($network_type eq "mn")
+				{
+					$say_network      = "Migration Network ".$network_count;
+					$say_interface    = "mn".$network_count;
+					$interface_prefix = "MN";
 				}
 				elsif ($network_type eq "ifn")
 				{
@@ -1139,6 +1152,12 @@ ORDER BY
 					$say_network      = "Internet-Facing Network ".$network_count; 
 					$say_interface    = "ifn".$network_count;
 					$interface_prefix = "IFN";
+				}
+				elsif ($network_type eq "mn")
+				{
+					$say_network      = "Migration Network ".$network_count;
+					$say_interface    = "mn".$network_count;
+					$interface_prefix = "MN";
 				}
 				my $say_defroute    = $is_gateway ? "yes" : "no";
 				my $cidr            = $anvil->Convert->cidr({subnet_mask => $subnet_mask});

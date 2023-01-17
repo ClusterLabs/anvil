@@ -4359,7 +4359,13 @@ sub search_directories
 	# Set a default if nothing was passed.
 	my $array      = defined $parameter->{directories} ? $parameter->{directories} : "";
 	my $initialize = defined $parameter->{initialize}  ? $parameter->{initialize}  : "";
-	
+
+	# If PATH isn't set, set it (could have been scrubbed by a caller).
+	if (not $ENV{PATH})
+	{
+		$ENV{PATH} = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin";
+	}
+
 	# If the array is a CSV of directories, convert it now.
 	if ($array =~ /,/)
 	{
@@ -5269,12 +5275,12 @@ sub _wait_if_changing
 	
 	if (not $delay)
 	{
-		$delay = 2;
+		$delay = 10;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
 	}
 	elsif (($delay =~ /\D/) or ($delay == 0))
 	{
-		$delay = 2;
+		$delay = 10;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay => $delay }});
 	}
 	
