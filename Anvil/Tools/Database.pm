@@ -29,6 +29,7 @@ my $THIS_FILE = "Database.pm";
 # get_alerts
 # get_anvils
 # get_bridges
+# get_dr_links
 # get_fences
 # get_file_locations
 # get_files
@@ -53,6 +54,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_anvils
 # insert_or_update_bridges
 # insert_or_update_bonds
+# insert_or_update_dr_links
 # insert_or_update_fences
 # insert_or_update_file_locations
 # insert_or_update_files
@@ -1849,11 +1851,13 @@ sub connect
 	}
 	
 	# If we're a striker and no connections were found, start our database.
+	my $configured_databases = keys %{$anvil->data->{database}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		local_host_type              => $local_host_type,
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+		configured_databases         => $configured_databases,
 	}});
-	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}))
+	if (($local_host_type eq "striker") && (not $anvil->data->{sys}{database}{connections}) && ($configured_databases > 2))
 	{
 		# Tell the user we're going to try to load and start.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0650"});
@@ -2648,6 +2652,9 @@ sub get_anvils
 	$anvil->Database->get_files({debug => $debug});
 	$anvil->Database->get_file_locations({debug => $debug});
 	
+	# Also pull in DRs so we can link them.
+	$anvil->Database->get_dr_links({debug => $debug});
+	
 	my $query = "
 SELECT 
     anvil_uuid, 
@@ -2757,6 +2764,7 @@ WHERE
 				"anvils::host_uuid::${anvil_node2_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{role}, 
 			}});
 		}
+		### TODO: Remove this once the switch over to 'dr_links' is done.
 		if ($anvil_dr1_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name} = $anvil_name;
@@ -2809,6 +2817,32 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
 			}});
+		}
+		
+		# Process DR hosts this Anvil! is allowed to use.
+		if (exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid})
+		{
+			foreach my $dr_link_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}})
+			{
+				my $dr_link_uuid            = $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid};
+				my $dr_link_note            = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note};
+				my $dr_link_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{short_host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:dr_link_host_uuid"       => $dr_link_host_uuid, 
+					"s2:dr_link_uuid"            => $dr_link_uuid, 
+					"s3:dr_link_note"            => $dr_link_note, 
+					"s4:dr_link_short_host_name" => $dr_link_short_host_name, 
+				}});
+				
+				next if $dr_link_note eq "DELETED";
+				
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{dr_link_uuid}    = $dr_link_uuid;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{short_host_name} = $dr_link_short_host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:anvils::anvil_uuid::${anvil_uuid}::dr_host::${dr_link_host_uuid}::dr_link_uuid"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{dr_link_uuid}, 
+					"s2:anvils::anvil_uuid::${anvil_uuid}::dr_host::${dr_link_host_uuid}::short_host_name" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}{$dr_link_host_uuid}{short_host_name}, 
+				}});
+			}
 		}
 	}
 
@@ -2918,6 +2952,112 @@ WHERE
 		$anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_name}{$bridge_name}{bridge_uuid} = $bridge_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"bridges::bridge_host_uuid::${bridge_host_uuid}::bridge_name::${bridge_name}::bridge_uuid" => $anvil->data->{bridges}{bridge_host_uuid}{$bridge_host_uuid}{bridge_name}{$bridge_name}{bridge_uuid}, 
+		}});
+	}
+
+	return(0);
+}
+
+
+=head2 get_dr_links
+
+This loads the known dr_link devices into the C<< anvil::data >> hash at:
+
+* dr_links::dr_link_uuid::<dr_link_uuid>::dr_link_host_uuid
+* dr_links::dr_link_uuid::<dr_link_uuid>::dr_link_anvil_uuid
+* dr_links::dr_link_uuid::<dr_link_uuid>::dr_link_note
+* dr_links::dr_link_uuid::<dr_link_uuid>::modified_date
+
+To simplify finding links by host or Anvil! UUID, links to C<< dr_link_uuid >> are stored in these hashes;
+
+* dr_links::by_anvil_uuid::<dr_link_anvil_uuid>::dr_link_host_uuid::<dr_link_host_uuid>::dr_link_uuid
+* dr_links::by_host_uuid::<dr_link_host_uuid>::dr_link_anvil_uuid::<dr_link_anvil_uuid>::dr_link_uuid
+
+If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
+
+B<<Note>>: Deleted links (ones where C<< dr_link_note >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted links are included when loading the data. When C<< 0 >> is set, the default, any dr_link agent with C<< dr_link_note >> set to C<< DELETED >> is ignored.
+
+=cut
+sub get_dr_links
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_dr_links()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	if (exists $anvil->data->{dr_links})
+	{
+		delete $anvil->data->{dr_links};
+	}
+	
+	my $query = "
+SELECT 
+    dr_link_uuid, 
+    dr_link_host_uuid, 
+    dr_link_anvil_uuid, 
+    dr_link_note, 
+    modified_date 
+FROM 
+    dr_links ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    dr_link_note != 'DELETED'";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $dr_link_uuid       =         $row->[0];
+		my $dr_link_host_uuid  =         $row->[1];
+		my $dr_link_anvil_uuid =         $row->[2];
+		my $dr_link_note       = defined $row->[3] ? $row->[3] : ""; 
+		my $modified_date      =         $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			dr_link_uuid       => $dr_link_uuid, 
+			dr_link_host_uuid  => $dr_link_host_uuid, 
+			dr_link_anvil_uuid => $dr_link_anvil_uuid, 
+			dr_link_note       => $dr_link_note, 
+			modified_date      => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_host_uuid}  = $dr_link_host_uuid;
+		$anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_anvil_uuid} = $dr_link_anvil_uuid;
+		$anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note}       = $dr_link_note;
+		$anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{modified_date}      = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"dr_links::dr_link_uuid::${dr_link_uuid}::dr_link_host_uuid"  => $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_host_uuid}, 
+			"dr_links::dr_link_uuid::${dr_link_uuid}::dr_link_anvil_uuid" => $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_anvil_uuid}, 
+			"dr_links::dr_link_uuid::${dr_link_uuid}::dr_link_note"       => $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note}, 
+			"dr_links::dr_link_uuid::${dr_link_uuid}::modified_date"      => $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{modified_date}, 
+		}});
+		
+		$anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid} = $dr_link_uuid;
+		$anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_uuid::${dr_link_host_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid}, 
+			"dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_uuid::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid}, 
 		}});
 	}
 
@@ -7165,6 +7305,241 @@ WHERE
 	}
 	
 	return($bond_uuid);
+}
+
+
+=head2 insert_or_update_dr_links
+
+This updates (or inserts) a record in the 'dr_links' table. The C<< dr_link_uuid >> UUID will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 delete (optional)
+
+If this is set to C<< 1 >>, the record will be deleted. Specifiically, C<< dr_link_note >> is set to C<< DELETED >>.
+
+=head3 dr_link_uuid (optional, usually)
+
+This is the specific record to update. If C<< delete >> is set, then either this OR both C<< dr_link_host_uuid >> and C<< dr_link_anvil_uuid >> are required.
+
+=head3 dr_link_host_uuid (required, must by a host_type -> dr)
+
+This is the DR host's c<< hosts >> -> C<< host_uuid >>. The host_type is checked and only hosts with C<< host_type >> = C<< dr >> are allowed.
+
+=head3 dr_link_anvil_uuid (required)
+
+This is the C<< anvils >> -> C<< anvil_uuid >> that will be allowed to use this DR host.
+
+=head3 dr_link_note (optional)
+
+This is an optional note that can be used to store anything. If this is set to C<< DELETED >>, the DR to Anvil! link is severed. 
+
+=cut
+sub insert_or_update_dr_links
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_dr_links()" }});
+	
+	my $uuid               = defined $parameter->{uuid}               ? $parameter->{uuid}               : "";
+	my $file               = defined $parameter->{file}               ? $parameter->{file}               : "";
+	my $line               = defined $parameter->{line}               ? $parameter->{line}               : "";
+	my $delete             = defined $parameter->{'delete'}           ? $parameter->{'delete'}           : "";
+	my $dr_link_uuid       = defined $parameter->{dr_link_uuid}       ? $parameter->{dr_link_uuid}       : "";
+	my $dr_link_host_uuid  = defined $parameter->{dr_link_host_uuid}  ? $parameter->{dr_link_host_uuid}  : "";
+	my $dr_link_anvil_uuid = defined $parameter->{dr_link_anvil_uuid} ? $parameter->{dr_link_anvil_uuid} : "";
+	my $dr_link_note       = defined $parameter->{dr_link_note}       ? $parameter->{dr_link_note}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid               => $uuid, 
+		file               => $file, 
+		line               => $line, 
+		dr_link_host_uuid  => $dr_link_host_uuid, 
+		dr_link_anvil_uuid => $dr_link_anvil_uuid, 
+		dr_link_note       => $dr_link_note, 
+	}});
+	
+	# Make sure that the UUIDs are valid.
+	$anvil->Database->get_hosts({deubg => $debug});
+	$anvil->Database->get_dr_links({debug => $debug});
+	
+	# If deleting, and if we have a valid 'dr_link_uuid' UUID, delete now and be done, 
+	if ($delete)
+	{
+		# Do we have a valid dr_link_uuid?
+		if ($dr_link_uuid)
+		{
+			# 
+			if (not exists $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid})
+			{
+				# Invalid, can't delete.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0397", variables => { uuid => $dr_link_uuid }});
+				return("");
+			}
+			
+			# If we're here, delete it if it isn't already.
+			if ($anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note} ne "DELETED")
+			{
+				my $query = "
+UPDATE 
+    dr_links 
+SET 
+    dr_link_node  = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    dr_link_uuid  = ".$anvil->Database->quote($dr_link_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+			return($dr_link_uuid)
+		}
+	}
+
+	# Still here? Make sure we've got sane parameters
+	if (not $dr_link_host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_dr_links()", parameter => "dr_link_host_uuid" }});
+		return("");
+	}
+	if (not $dr_link_anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_dr_links()", parameter => "dr_link_anvil_uuid" }});
+		return("");
+	}
+	
+	# We've got UUIDs, but are they valid?
+	if (not exists $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0394", variables => { uuid => $dr_link_host_uuid }});
+		return("");
+	}
+	elsif ($anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{host_type} ne "dr")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0395", variables => { 
+			uuid => $dr_link_host_uuid,
+			name => $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{host_name},
+			type => $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{host_type},
+		}});
+		return("");
+	}
+	if (not exists $anvil->data->{anvils}{anvil_uuid}{$dr_link_anvil_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0396", variables => { uuid => $dr_link_anvil_uuid }});
+		return("");
+	}
+	
+	my $dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{host_name};
+	my $anvil_name   = $anvil->data->{anvils}{anvil_uuid}{$dr_link_anvil_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		dr_host_name => $dr_host_name, 
+		anvil_name   => $anvil_name, 
+	}});
+	
+	# Get the dr_link_uuid, if one exists.
+	if (not $dr_link_uuid)
+	{
+		if ((exists $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}) && 
+		    (exists $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}))
+		{
+			$dr_link_uuid = $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dr_link_uuid => $dr_link_uuid }});
+		}
+	}
+	
+	# If we're deleting and we found a dr_link_uuid, DELETE now and return.
+	if ($delete)
+	{
+		if (($dr_link_uuid) && ($anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note} ne "DELETED"))
+		{
+			my $query = "
+UPDATE 
+    dr_links 
+SET 
+    dr_link_node  = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    dr_link_uuid  = ".$anvil->Database->quote($dr_link_uuid)." 
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+		return($dr_link_uuid)
+	}
+	
+	# Do we have a UUID?
+	if ($dr_link_uuid)
+	{
+		# Yup. Has something changed?
+		my $old_dr_link_anvil_uuid = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_anvil_uuid};
+		my $old_dr_link_host_uuid  = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_host_uuid};
+		my $old_dr_link_note       = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			old_dr_link_anvil_uuid => $old_dr_link_anvil_uuid, 
+			old_dr_link_host_uuid  => $old_dr_link_host_uuid, 
+			old_dr_link_note       => $old_dr_link_note, 
+		}});
+		if (($old_dr_link_anvil_uuid ne $dr_link_anvil_uuid) or 
+		    ($old_dr_link_host_uuid  ne $dr_link_host_uuid)  or 
+		    ($old_dr_link_note       ne $dr_link_note))
+		{
+			# Clear the stop data.
+			my $query = "
+UPDATE 
+    dr_links
+SET 
+    dr_link_host_uuid  = ".$anvil->Database->quote($dr_link_host_uuid).", 
+    dr_link_anvil_uuid = ".$anvil->Database->quote($dr_link_anvil_uuid).", 
+    dr_link_note       = ".$anvil->Database->quote($dr_link_note).", 
+    modified_date      = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE
+    dr_link_uuid       = ".$anvil->Database->quote($dr_link_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	else
+	{
+		# No, INSERT.
+		   $dr_link_uuid = $anvil->Get->uuid();
+		my $query        = "
+INSERT INTO 
+    dr_links 
+(
+    dr_link_uuid, 
+    dr_link_host_uuid, 
+    dr_link_anvil_uuid, 
+    dr_link_note, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($dr_link_uuid).", 
+    ".$anvil->Database->quote($dr_link_host_uuid).", 
+    ".$anvil->Database->quote($dr_link_anvil_uuid).", 
+    ".$anvil->Database->quote($dr_link_note).", 
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($dr_link_uuid);
 }
 
 
@@ -11826,9 +12201,9 @@ WHERE
 				{
 					my $difference = diff \$old_server_definition_xml, \$server_definition_xml, { STYLE => 'Unified' };
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0556", variables => { 
-						server_name            => $server_name,
+						server_name                   => $server_name,
 						server_definition_server_uuid => $server_definition_server_uuid, 
-						difference             => $difference,
+						difference                    => $difference,
 					}});
 				}
 				
@@ -14828,7 +15203,7 @@ INSERT INTO
 			{
 				### NOTE: There is no history schema for states.
 				# The lock is stale.
-				my $query = "DELETE FROM states WHERE state_uuid = ".$state_uuid.";";
+				my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 			}

@@ -91,6 +91,9 @@ record_migration_times($anvil);
 # Check if we need to update the websocket stuff.
 check_vnc($anvil);
 
+# Check that there's a DRBD fence rule for each server.
+check_drbd_fence_rules($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -98,6 +101,73 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Check that there's a DRBD fence rule for each server.
+sub check_drbd_fence_rules
+{
+	my ($anvil) = @_;
+	
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		return(0);
+	}
+	
+	my $problem = $anvil->Cluster->parse_cib();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($problem)
+	{
+		return(0);
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
+	}});
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		return(0);
+	}
+	
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{'scan-server'}{server_name}})
+	{
+		my $drbd_fence_rule_exists    = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{'exists'};
+		my $drbd_fence_rule_attribute = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{attribute};
+		my $drbd_fence_rule_operation = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{operation};
+		my $drbd_fence_rule_value     = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{value};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_name'               => $server_name,
+			's2:drbd_fence_rule_exists'    => $drbd_fence_rule_exists, 
+			's3:drbd_fence_rule_attribute' => $drbd_fence_rule_attribute, 
+			's4:drbd_fence_rule_operation' => $drbd_fence_rule_operation, 
+			's5:drbd_fence_rule_value'     => $drbd_fence_rule_value, 
+		}});
+		
+		### TODO: Verify that the other values are correct.
+		# If it's missing, add it 
+		if (not $drbd_fence_rule_exists)
+		{
+			# Create it.
+			my $variables = {
+				server => $server_name,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0019", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0019", variables => $variables, set_by => $THIS_FILE});
+			
+			# 
+			my $shell_call = $anvil->data->{path}{exe}{pcs}." constraint location ".$server_name." rule score=-INFINITY drbd-fenced_".$server_name." eq 1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+	}
+	
+	return(0);
+}
 
 # 
 sub check_vnc
@@ -755,7 +825,7 @@ DELETED   - Marks a server as no longer existing
 		}
 		if ($server_host_uuid ne $old_server_host_uuid)
 		{
-			# Server migated (to the peer or to a new Anvil!)
+			# Server migrated (to the peer or to a new Anvil!)
 			my $variables  = { 
 				server        => $server_name,
 				old_host_name => $old_server_host_uuid eq "NULL" ? "NULL" : $anvil->Get->host_name_from_uuid({host_uuid => $old_server_host_uuid}),

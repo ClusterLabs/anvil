@@ -238,9 +238,26 @@ sub bytes_to_human_readable
 	# Die if either the 'time' or 'float' has a non-digit character in it.	
 	if ($human_readable_size =~ /\D/)
 	{
+		# See if this is already human readable.
+		my $bytes = $anvil->Convert->human_readable_to_bytes({
+			debug => $debug,
+			size  => $human_readable_size,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'bytes' => $bytes }});
+		if ($bytes =~ /^\d+$/)
+		{
+			# This is fine, convert to our standard size and return.
+			my $new_human_readable_size = $anvil->Convert->bytes_to_human_readable({
+				debug   => 2,
+				'bytes' => $bytes,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_human_readable_size => $new_human_readable_size }});
+			return($new_human_readable_size);
+		}
+
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0116", variables => { 
 			method    => "Convert->bytes_to_human_readable()", 
-			parameter => "hostnmae",
+			parameter => "bytes",
 			value     => $human_readable_size,
 		}});
 		return ("!!error!!");
@@ -982,6 +999,12 @@ sub human_readable_to_bytes
 		type   => $type,
 	}});
 	
+	# If we were passed nothing, return nothing.
+	if ($size eq "")
+	{
+		return("");
+	}
+
 	# Start cleaning up the variables.
 	my $value  =  $size;
 	   $size   =~ s/ //g;

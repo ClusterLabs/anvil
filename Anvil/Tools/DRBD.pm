@@ -1396,9 +1396,9 @@ SELECT
 FROM 
     scan_drbd 
 WHERE 
-    scan_drbd_host_uuid = '618e8007-3a0b-4bbf-a616-a64fd7d2dc30' 
+    scan_drbd_host_uuid = ".$anvil->Database->quote($node1_host_uuid)."
 OR 
-    scan_drbd_host_uuid = '75070e21-a0e3-4ba5-b4f7-476bf5d08107' 
+    scan_drbd_host_uuid = ".$anvil->Database->quote($node2_host_uuid)."
 ORDER BY modified_date DESC 
 LIMIT 1
 ;";
@@ -1547,9 +1547,9 @@ LIMIT 1
 			### TODO: Handle external metadata
 			my $this_host = $host_href->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_host                      => $this_host,
-				'$anvil->Get->host_name'       => $anvil->Get->host_name, 
-				'$anvil->Get->short_host_name' => $anvil->Get->short_host_name, 
+				this_host              => $this_host,
+				'Get->host_name'       => $anvil->Get->host_name,
+				'Get->short_host_name' => $anvil->Get->short_host_name,
 			}});
 			if (($this_host eq $anvil->Get->host_name) or ($this_host eq $anvil->Get->short_host_name))
 			{
@@ -2755,6 +2755,7 @@ sub update_global_common
 	my $usage_count_seen         = 0;
 	my $udev_always_use_vnr_seen = 0;
 	my $fence_peer_seen          = 0;
+	my $unfence_peer_seen        = 0;
 	my $auto_promote_seen        = 0;
 	my $disk_flushes_seen        = 0;
 	my $md_flushes_seen          = 0;
@@ -2778,6 +2779,7 @@ sub update_global_common
 	# These values will be used to track where we are in processing the config file and what values are needed.
 	my $say_usage_count         = $usage_count ? "yes" : "no";
 	my $say_fence_peer          = $anvil->data->{path}{exe}{fence_pacemaker};
+	my $say_unfence_peer        = $anvil->data->{path}{exe}{unfence_pacemaker};
 	my $say_auto_promote        = "yes";
 	my $say_flushes             = $use_flushes ? "yes" : "no";
 	my $say_allow_two_primaries = "no";
@@ -2858,6 +2860,17 @@ sub update_global_common
 					{
 						   $update   = 1;
 						my $new_line = "\t\tfence-peer ".$say_fence_peer.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					}
+					if (not $unfence_peer_seen)
+					{
+						   $update   = 1;
+						my $new_line = "\t\tunfence-peer ".$say_unfence_peer.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
@@ -3091,7 +3104,37 @@ sub update_global_common
 		}
 		if ($in_handlers)
 		{
-			if ($line =~ /(\s*)fence-peer(\s+)(.*?)(;.*)$/)
+			if ($line =~ /(\s*)unfence-peer(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $unfence_peer_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'        => $left_space,
+					's2:middle_space'      => $middle_space, 
+					's3:value'             => $value, 
+					's4:right_side'        => $right_side,
+					's5:unfence_peer_seen' => $unfence_peer_seen, 
+					's6:say_unfence_peer'  => $say_unfence_peer, 
+				}});
+				   
+				if ($value ne $say_unfence_peer)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."unfence-peer".$middle_space.$say_unfence_peer.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
+				}
+			}
+			elsif ($line =~ /(\s*)fence-peer(\s+)(.*?)(;.*)$/)
 			{
 				my $left_space       = $1;
 				my $middle_space     = $2;
@@ -3104,6 +3147,7 @@ sub update_global_common
 					's3:value'           => $value, 
 					's4:right_side'      => $right_side,
 					's5:fence_peer_seen' => $fence_peer_seen, 
+					's6:say_fence_peer'  => $say_fence_peer, 
 				}});
 				   
 				if ($value ne $say_fence_peer)

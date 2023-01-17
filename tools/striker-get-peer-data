@@ -355,7 +355,7 @@ sub get_password
 	else
 	{
 		# We have the password. Delete the entry now.
-		my $query = "DELETE FROM states WHERE state_uuid=".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
+		my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
 		$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
