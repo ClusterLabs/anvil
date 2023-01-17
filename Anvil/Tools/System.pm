@@ -294,6 +294,7 @@ sub call
 				}});
 			}
 			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { timeout => $timeout }});
 			if ($timeout)
 			{
 				# Prepend a timeout.
@@ -301,6 +302,7 @@ sub call
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { shell_call => $shell_call }});
 			}
 			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { background => $background }});
 			if ($background)
 			{
 				# Prepend '/tmp/' to STDOUT and/or STDERR output files, if needed.
@@ -350,8 +352,10 @@ sub call
 			}
 			else
 			{
-				$output = "";
-				open (my $file_handle, $shell_call.$redirect."; ".$anvil->data->{path}{exe}{echo}." return_code:\$? |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+				   $output      = "";
+				my $call_string = $shell_call.$redirect."; ".$anvil->data->{path}{exe}{echo}." return_code:\$? |";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { call_string => $call_string }});
+				open (my $file_handle, $call_string) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 				while(<$file_handle>)
 				{
 					chomp;
@@ -605,6 +609,55 @@ sub check_if_configured
 	
 	$configured = 0 if not defined $configured;
 	$configured = 0 if $configured eq "";
+	
+	if ((not $configured) && (-f $anvil->data->{path}{data}{host_configured}))
+	{
+		# See if there's a configured file.
+		my $body = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{data}{host_configured}});
+		foreach my $line (split/\n/, $body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /^(.*)=(.*)$/)
+			{
+				my $variable = $anvil->Words->clean_spaces({string => $1});
+				my $value    = $anvil->Words->clean_spaces({string => $2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable => $variable,
+					value    => $value,
+				}});
+				
+				if (($variable eq "system::configured") && ($value eq "1"))
+				{
+					# Write the database entry.
+					my $variable_uuid = $anvil->Database->insert_or_update_variables({
+						variable_name         => "system::configured", 
+						variable_value        => 1, 
+						variable_default      => "", 
+						variable_description  => "striker_0048", 
+						variable_section      => "system", 
+						variable_source_uuid  => $anvil->data->{sys}{host_uuid}, 
+						variable_source_table => "hosts", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+					
+					# mark it as configured.
+					$configured = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+				}
+			}
+		}
+	}
+	
+	if (($configured) && (not -f $anvil->data->{path}{data}{host_configured}))
+	{
+		my $failed = $anvil->Storage->write_file({
+			debug => $debug,
+			file  => $anvil->data->{path}{data}{host_configured}, 
+			body  => "system::configured = 1\n", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+	}
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
 	return($configured);
 }
@@ -1457,6 +1510,12 @@ sub collect_ipmi_data
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->collect_ipmi_data()", parameter => "ipmitool_command" }});
 		return('!!error!!');
 	}
+	
+	# Take the double-quotes off the password.
+	$ipmi_password =~ s/^"(.*)"$/$1/;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_password => $anvil->Log->is_secure($ipmi_password), 
+	}});
 	
 	my $read_start_time = time;
 	

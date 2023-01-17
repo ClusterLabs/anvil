@@ -1,0 +1,411 @@
+#!/usr/bin/perl
+# 
+# This does checks for changes that are needed because of version changes. Over time, checks here can be 
+# removed.
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+# Get a list of all interfaces with IP addresses.
+$anvil->Get->switches({list => [
+]});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+
+$anvil->Database->connect({sensitive => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
+my $host_type = $anvil->Get->host_type();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+
+if ($host_type eq "striker")
+{
+	striker_checks($anvil);
+}
+elsif ($host_type eq "node")
+{
+	node_checks($anvil);
+}
+elsif ($host_type eq "dr")
+{
+	dr_checks($anvil);
+}
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# Check for things that need to happen on Striker dashboards.
+sub striker_checks
+{
+	my ($anvil) = @_;
+	
+	# This converts the old/broken 'notifications' tables with the more appropriately named 'alert-override'
+	update_notifications($anvil);
+	
+	### NOTE: Disabled until review complete
+	# This checks to make sure that the 'audits' table exists (added late into M3.0 pre-release)
+	#update_audits($anvil);
+	
+	### NOTE: Disabled until review complete
+	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
+	# entries are copied.
+	update_dr_links($anvil);
+	
+	### TODO: Remove these later. This is here to clean up how we used to handle db_in_use and lock_request flags.
+	if (1)
+	{
+		# Broadly clear all states that are '0' now.
+		my $queries = [];
+		push @{$queries}, "DELETE FROM states WHERE state_name LIKE 'db_in_use::%' AND state_note != '1';";
+		push @{$queries}, "DELETE FROM history.variables WHERE variable_name = 'lock_request';";
+		push @{$queries}, "DELETE FROM variables WHERE variable_name = 'lock_request';";
+		foreach my $query (@{$queries})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+		}
+		$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+# Check for things that need to happen on Anvil! Subnodes.
+sub node_checks
+{
+	my ($anvil) = @_;
+	
+	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
+	handle_bz1961562($anvil);
+	
+	# Make sure DRBD compiled after a kernel upgrade.
+	$anvil->DRBD->_initialize_kmod({debug => 2});
+
+	# Make sure logind is update to handle fencing properly
+	# see - https://access.redhat.com/solutions/1578823
+	$anvil->Cluster->configure_logind({debug => 2});
+
+	return(0);
+}
+
+# Check for things that need to happen on DR hosts.
+sub dr_checks
+{
+	my ($anvil) = @_;
+	
+	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
+	handle_bz1961562($anvil);
+	
+	# Make sure DRBD compiled after a kernel upgrade.
+	$anvil->DRBD->_initialize_kmod({debug => 2});
+
+	return(0);
+}
+
+# 
+sub update_dr_links
+{
+	my ($anvil) = @_;
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_catalog = 'anvil' AND table_name = 'dr_links';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			# Add the table.
+			my $query = q|
+CREATE TABLE dr_links (
+    dr_link_uuid          uuid                        not null    primary key, 
+    dr_link_host_uuid     uuid                        not null,
+    dr_link_anvil_uuid    uuid                        not null,
+    dr_link_note          text,                                                 -- Set to 'DELETE' when no longer used.
+    modified_date         timestamp with time zone    not null, 
+    
+    FOREIGN KEY(dr_link_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(dr_link_anvil_uuid) REFERENCES anvils(anvil_uuid) 
+);
+ALTER TABLE dr_links OWNER TO admin;
+
+CREATE TABLE history.dr_links (
+    history_id            bigserial,
+    dr_link_uuid          uuid,
+    dr_link_host_uuid     uuid,
+    dr_link_anvil_uuid    uuid,
+    dr_link_note          text, 
+    modified_date         timestamp with time zone    not null 
+);
+ALTER TABLE history.dr_links OWNER TO admin;
+
+CREATE FUNCTION history_dr_links() RETURNS trigger
+AS $$
+DECLARE
+    history_dr_links RECORD;
+BEGIN
+    SELECT INTO history_dr_links * FROM dr_links WHERE dr_link_uuid = new.dr_link_uuid;
+    INSERT INTO history.dr_links
+        (dr_link_uuid, 
+         dr_link_host_uuid,
+         dr_link_anvil_uuid,
+         dr_link_note, 
+         modified_date)
+    VALUES
+        (history_dr_links.dr_link_uuid, 
+         history_dr_links.dr_link_host_uuid,
+         history_dr_links.dr_link_anvil_uuid,
+         history_dr_links.dr_link_note, 
+         history_dr_links.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_dr_links() OWNER TO admin;
+
+CREATE TRIGGER trigger_dr_links
+    AFTER INSERT OR UPDATE ON dr_links
+    FOR EACH ROW EXECUTE PROCEDURE history_dr_links();
+|;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Now make sure that existing DR entries are copied here.
+	$anvil->Database->get_hosts({deubg => 2});
+	$anvil->Database->get_dr_links({debug => 2});
+	
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid          = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_dr1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name"          => $anvil_name,
+			"s2:anvil_uuid"          => $anvil_uuid, 
+			"s3:anvil_dr1_host_uuid" => $anvil_dr1_host_uuid, 
+		}});
+		if ($anvil_dr1_host_uuid)
+		{
+			my $dr1_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{short_host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_host_name => $dr1_host_name }});
+			
+			if ((not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid})                                          or 
+			    (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$anvil_dr1_host_uuid}) or 
+			    (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$anvil_dr1_host_uuid}{dr_link_uuid}))
+			{
+				# Add it.
+				my $dr_link_uuid = $anvil->Database->insert_or_update_dr_links({
+					debug              => 2,
+					dr_link_anvil_uuid => $anvil_uuid, 
+					dr_link_host_uuid  => $anvil_dr1_host_uuid, 
+					dr_link_note       => "auto_generated",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_host_name => $dr1_host_name }});
+			}
+		}
+	}
+
+	return(0);
+}
+
+# This checks to make sure that the 'audits' table exists (added late into M3.0 pre-release)
+sub update_audits
+{
+	my ($anvil) = @_;
+
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_catalog = 'anvil' AND table_name = 'audits';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			# Add the table.
+			my $query = q|
+CREATE TABLE audits (
+    audit_uuid           uuid                        primary key,
+    audit_user_uuid      uuid                        not null,       -- This is the users -> user_uuid the audit is tracking
+    audit_details        text                        not null,       -- This is the information explaining the action being audited.
+    modified_date        timestamp with time zone    not null, 
+    
+    FOREIGN KEY(audit_user_uuid) REFERENCES users(user_uuid)
+);
+ALTER TABLE audits OWNER TO admin;
+
+CREATE TABLE history.audits (
+    history_id           bigserial,
+    audit_uuid           uuid, 
+    audit_user_uuid      uuid,
+    audit_details        text,
+    modified_date        timestamp with time zone    not null
+);
+ALTER TABLE history.audits OWNER TO admin;
+
+CREATE FUNCTION history_audits() RETURNS trigger
+AS $$
+DECLARE
+    history_audits RECORD;
+BEGIN
+    SELECT INTO history_audits * FROM audits WHERE audit_uuid = new.audit_uuid;
+    INSERT INTO history.audits
+        (audit_uuid,
+         audit_user_uuid, 
+         audit_details, 
+         modified_date)
+    VALUES
+        (history_audit.audit_uuid,
+         history_audit.audit_user_uuid, 
+         history_audit.audit_details, 
+         history_audit.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_audits() OWNER TO admin;
+
+CREATE TRIGGER trigger_audits
+    AFTER INSERT OR UPDATE ON audits
+    FOR EACH ROW EXECUTE PROCEDURE history_audits();
+|;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
+
+# This converts the old/broken 'notifications' tables with the more appropriately named 'alert-override'
+sub update_notifications
+{
+	my ($anvil) = @_;
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_catalog = 'anvil' AND table_name = 'notifications';";
+		$anvil->Log->variables({source => $THIS_FILE, uuid => $uuid, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if ($count)
+		{
+			my $queries = [];
+			push @{$queries}, "DROP FUNCTION history_notifications() CASCADE;";
+			push @{$queries}, "DROP TABLE history.notifications;";
+			push @{$queries}, "DROP TABLE public.notifications;";
+			push @{$queries}, q|CREATE TABLE alert_overrides (
+    alert_override_uuid              uuid                        not null    primary key,
+    alert_override_recipient_uuid    uuid                        not null,                    -- The recipient we're linking.
+    alert_override_host_uuid         uuid                        not null,                    -- This host_uuid of the referenced machine
+    alert_override_alert_level       integer                     not null,                    -- This is the alert level (at or above) that this user wants alerts from. If set to '-1', the record is deleted.
+    modified_date                  timestamp with time zone    not null,
+    
+    FOREIGN KEY(alert_override_host_uuid)      REFERENCES hosts(host_uuid),
+    FOREIGN KEY(alert_override_recipient_uuid) REFERENCES recipients(recipient_uuid)
+);
+ALTER TABLE alert_overrides OWNER TO admin;
+
+CREATE TABLE history.alert_overrides (
+    history_id                     bigserial,
+    alert_override_uuid              uuid,
+    alert_override_recipient_uuid    uuid,
+    alert_override_host_uuid         uuid,
+    alert_override_alert_level       integer,
+    modified_date                  timestamp with time zone    not null
+);
+ALTER TABLE history.alert_overrides OWNER TO admin;
+
+CREATE FUNCTION history_alert_overrides() RETURNS trigger
+AS $$
+DECLARE
+    history_alert_overrides RECORD;
+BEGIN
+    SELECT INTO history_alert_overrides * FROM alert_overrides WHERE alert_override_uuid = new.alert_override_uuid;
+    INSERT INTO history.alert_overrides
+        (alert_override_uuid, 
+         alert_override_recipient_uuid, 
+         alert_override_host_uuid, 
+         alert_override_alert_level, 
+         modified_date)
+    VALUES
+        (history_alert_overrides.alert_override_uuid,
+         history_alert_overrides.alert_override_recipient_uuid, 
+         history_alert_overrides.alert_override_host_uuid, 
+         history_alert_overrides.alert_override_alert_level, 
+         history_alert_overrides.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_alert_overrides() OWNER TO admin;
+
+CREATE TRIGGER trigger_alert_overrides
+    AFTER INSERT OR UPDATE ON alert_overrides
+    FOR EACH ROW EXECUTE PROCEDURE history_alert_overrides();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
+
+sub handle_bz1961562
+{
+	my ($anvil) = @_;
+	
+	### TODO: Test that this is fixed. The bug is now ERRATA
+	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
+	# We're a node or DR host. We need to touch this file.
+	my $work_around_file = "/etc/qemu/firmware/50-edk2-ovmf-cc.json";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { work_around_file => $work_around_file }});
+	if (not -e $work_around_file)
+	{
+		$anvil->Storage->write_file({
+			debug     => 2,
+			file      => $work_around_file, 
+			body      => "", 
+			overwrite => 0,
+			backup    => 0,
+			mode      => "0644", 
+			user      => "root", 
+			group     => "root",
+		});
+	}
+	
+	return(0);
+}

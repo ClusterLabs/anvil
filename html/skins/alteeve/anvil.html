@@ -558,6 +558,7 @@
 								<!-- Note: Currently, the user can't choose the number of BCN and SNs. However, this may change later, so we already setup for it. -->
 								<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#" />
 								<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#" />
+								<input type="hidden" name="mn_count"  id="mn_count"  value="#!variable!mn_count!#" />
 							</td>
 						</tr>
 						<tr>
@@ -775,8 +776,9 @@
 							<input type="hidden" name="domain"        id="domain"        value="#!data!cgi::domain::value!#">
 							<input type="hidden" name="sequence"      id="sequence"      value="#!data!cgi::sequence::value!#">
 							<input type="hidden" name="bcn_count"     id="bcn_count"     value="#!data!cgi::bcn_count::value!#">
-							<input type="hidden" name="sn_count"      id="sn_count"      value="#!data!cgi::bcn_count::value!#">
+							<input type="hidden" name="sn_count"      id="sn_count"      value="#!data!cgi::sn_count::value!#">
 							<input type="hidden" name="ifn_count"     id="ifn_count"     value="#!data!cgi::ifn_count::value!#">
+							<input type="hidden" name="mn_count"      id="mn_count"      value="#!data!cgi::mn_count::value!#">
 							<input type="hidden" name="step"          id="step"          value="3">
 							<input type="hidden" name="anvil"         id="anvil"         value="true">
 							<input type="hidden" name="task"          id="task"          value="manifests">
@@ -1104,6 +1106,7 @@
 							<input type="hidden" name="bcn_count"     id="bcn_count"     value="#!data!cgi::bcn_count::value!#">
 							<input type="hidden" name="sn_count"      id="sn_count"      value="#!data!cgi::sn_count::value!#">
 							<input type="hidden" name="ifn_count"     id="ifn_count"     value="#!data!cgi::ifn_count::value!#">
+							<input type="hidden" name="mn_count"      id="mn_count"      value="#!data!cgi::mn_count::value!#">
 							<input type="hidden" name="dns"           id="dns"           value="#!data!cgi::dns::value!#" />
 							<input type="hidden" name="ntp"           id="ntp"           value="#!data!cgi::ntp::value!#" />
 							<input type="hidden" name="mtu"           id="mtu"           value="#!data!cgi::mtu::value!#" />
@@ -2455,6 +2458,7 @@
 						<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
 						<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#">
 						<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
+						<input type="hidden" name="mn_count"  id="mn_count"  value="#!variable!mn_count!#">
 						<input type="hidden" name="save"      id="save"      value="true">
 						<input type="hidden" name="anvil"     id="anvil"     value="true">
 						<input type="hidden" name="task"      id="task"      value="prep-network">
@@ -2557,6 +2561,7 @@
 						<input type="hidden" name="bcn_count"         id="bcn_count"         value="#!variable!bcn_count!#">
 						<input type="hidden" name="sn_count"          id="sn_count"          value="#!variable!sn_count!#">
 						<input type="hidden" name="ifn_count"         id="ifn_count"         value="#!variable!ifn_count!#">
+						<input type="hidden" name="mn_count"          id="mn_count"          value="#!variable!mn_count!#">
 						<input type="hidden" name="dns"               id="dns"               value="#!variable!dns!#">
 						<input type="hidden" name="gateway"           id="gateway"           value="#!variable!gateway!#">
 						<input type="hidden" name="gateway_interface" id="gateway_interface" value="#!variable!gateway_interface!#">

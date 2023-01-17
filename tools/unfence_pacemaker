@@ -8,42 +8,10 @@
 # This program ties LINBIT's DRBD fencing into pacemaker's stonith. It provides a power-fence alternative to
 # the default 'crm-{un,}fence-peer.sh' {un,}fence-handler.
 # 
-# WARNING: This fence handler is probably not safe to use outside of an Anvil! IA platform. It makes a lot of
-#          operational assumptions about the system and desired goals.
-#
-# Exit Codes (as per; http://lists.linbit.com/pipermail/drbd-dev/2006-November/000538.html)
-# - 3 -> peer is inconsistent
-# - 4 -> peer is outdated (this handler outdated it) [ resource fencing ]
-# - 5 -> peer was down / unreachable
-# - 6 -> peer is primary
-# - 7 -> peer got stonithed [ node fencing ]
-# ===] From crm-fence-peer.9.sh [===
-# drbd_fence_peer_exit_code is per the exit code
-# convention of the DRBD "fence-peer" handler,
-# obviously.
-# 3: peer is already outdated or worse (e.g. inconsistent)
-# 4: peer has been successfully fenced
-# 5: peer not reachable, assumed to be dead
-# 6: please outdate yourself, peer is known (or likely)
-#    to have better data, or is even currently primary.
-#    (actually, currently it is "peer is active primary now", but I'd like to
-#    change that meaning slightly towards the above meaning)
-# 7: peer has been STONITHed, thus assumed to be properly fenced
-#    XXX IMO, this should rather be handled like 5, not 4.
-# ========= 
-# 
-# This program uses;
-# - 1   = Something failed or end of program hit (should not happen).
-# - 7   = Fence succeeded
+# WARNING: This unfence handler is probably not safe to use outside of an Anvil! IA platform. It makes a lot 
+#          of operational assumptions about the system and desired goals.
 #
 # TODO: 
-# - Read the CIB; 'pcs status xml' or '/usr/sbin/cibadmin --local --query' ?
-# -- Map the peer's name in pacemaker.
-# -- Verify that stonith is enabled:
-# -- Verify that the node is not in maintenance mode:
-# -- Verify that we're quorate (a-la pacemaker):
-# - Verify that the resource is 'resource-and-stonith'
-# - Verify that the resource is 'UpToDate' (if not, should we suicide to give the other node priority, regardless of fence delay? what if both nodes have resources that are not UpToDate?)
 # - 
 
 ### NOTE: This doesn't use Anvil::Tools on purpose. We want to be quick and depend on as few things as 
@@ -88,7 +56,6 @@ my $conf = {
 	# The script will set this.
 	cluster		=>	{
 		target_node		=>	"",
-		fence_method		=>	"stonith",	# Will change to 'constraint' if we're using a DRBD resource is passed.
 	},
 	# These are the environment variables set by DRBD. See 'man drbd.conf'
 	# -> 'handlers'.
@@ -115,7 +82,7 @@ my $conf = {
 find_executables($conf);
 
 # Something for the logs
-to_log($conf, {message => "The Anvil! DRBD fence handler invoked.", 'line' => __LINE__});
+to_log($conf, {message => "The Anvil! DRBD unfence handler has been invoked.", 'line' => __LINE__});
 
 # These are the full host names of the nodes given their IDs.
 foreach my $i (0..31)
@@ -125,7 +92,7 @@ foreach my $i (0..31)
 	{
 		$conf->{environment}{$key} = $ENV{$key};
 		my $level = $conf->{environment}{$key} eq "" ? 3 : 2;
-		to_log($conf, {message => "DRBD Environment variable: [".$key."] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
+		to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
 	}
 }
 
@@ -134,13 +101,13 @@ foreach my $key (sort {$a cmp $b} keys %{$conf->{environment}})
 {
 	# $conf->{environment}{DRBD_RESOURCE} -> [srv51-Workstation3]
 	my $level = $conf->{environment}{$key} eq "" ? 3 : 2;
-	to_log($conf, {message => "DRBD Environment variable: [".$key."] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
+	to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
 }
 foreach my $key (sort {$a cmp $b} keys %ENV)
 {
 	next if exists $conf->{environment}{$key};
 	my $level = $ENV{$key} eq "" ? 3 : 2;
-	to_log($conf, {message => "System Environment variable: [".$key."] -> [".$ENV{$key}."]", 'line' => __LINE__, level => 3});
+	to_log($conf, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => 3});
 }
 
 # Make sure we at least have the target's IP.
@@ -160,17 +127,14 @@ get_drbd_status($conf);
 if ($conf->{environment}{DRBD_RESOURCE})
 {
 	# Prevent the resource from running on the peer.
-	to_log($conf, {message => "We're being asked to fence the specific resource: [".$conf->{environment}{DRBD_RESOURCE}."]. Switching to location constraint fencing to prevent the resource from running on: [".$conf->{cluster}{target_node}."].", 'line' => __LINE__});
-	$conf->{cluster}{fence_method} = "constraint";
-	to_log($conf, {message => "cluster::fence_method: [".$conf->{cluster}{fence_method}."].", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "We're being asked to unfence the specific resource: [".$conf->{environment}{DRBD_RESOURCE}."]. Will remove the node attribute blocking this server from running on: [".$conf->{cluster}{target_node}."].", 'line' => __LINE__});
+	remove_constraint($conf);
 }
 else
 {
-	to_log($conf, {message => "We were not given a specific resource to fence. Requesting pacemaker to stonith. Node: [".$conf->{cluster}{target_node}."] should power power off..", 'line' => __LINE__});
+	to_log($conf, {message => "We were not given a specific resource to unfence. Nothing to do.", 'line' => __LINE__});
+	exit(0);
 }
-
-# No, do the deed
-perform_fence($conf);
 
 # If we hit here, something very wrong happened.
 exit(1);
@@ -180,8 +144,8 @@ exit(1);
 # Functions                                                                                                 #
 #############################################################################################################
 
-# This creates a location constraint that prevents the resource / server from running on the peer node.
-sub create_constraint
+# This removes a location constraint that prevents the resource / server from running on the peer node.
+sub remove_constraint
 {
 	my ($conf) = @_;
 	
@@ -189,10 +153,12 @@ sub create_constraint
 	my $target_node   = $conf->{cluster}{target_node};
 	to_log($conf, {message => "Will now create a location constraint against: [".$target_server."] preventing it from running on: [".$target_node."].", 'line' => __LINE__, level => 1});
 	
-	# Make sure there's a rule to apply the node attribute against.
-	my $rule_found = 0;
-	my $rule_name  = "drbd-fenced_".$target_server;
-	my $shell_call = $conf->{path}{exe}{pcs}." constraint location config show ".$target_server;
+	# Check that the rule was set.
+	my $rule_name   = "drbd-fenced_".$target_server;
+	my $rule_set    = 1;
+	my $rule_found  = 0;
+	my $rule_output = "";
+	my $shell_call  = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --query";
 	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
@@ -202,52 +168,9 @@ sub create_constraint
 		my $line = $_;
 		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
 		
-		if ($line =~ /Expression: $rule_name /)
+		if (($line =~ /name=$rule_name/) && ($line =~ /value=0/))
 		{
-			$rule_found = 1;
-			to_log($conf, {message => "rule_found: [".$rule_found."]", 'line' => __LINE__, level => 2});
-			last;
-		}
-	}
-	close $file_handle;
-	
-	if (not $rule_found)
-	{
-		# We can't fence.
-		to_log($conf, {message => "The fence rule: [".$rule_name."] was now found in the cluster, unable to fence by constraint.", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(1);
-	}
-	
-	# Set the node attribute
-	my $rule_set   = 0;
-	$shell_call = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --update 1";
-	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
-	open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
-	while(<$file_handle>)
-	{
-		# This should not generate output.
-		chomp;
-		my $line = $_;
-		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
-	}
-	close $file_handle;
-	
-	# Check that the rule was set.
-	   $rule_set    = 0;
-	my $rule_output = "";
-	$shell_call = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --query";
-	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
-	open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
-	while(<$file_handle>)
-	{
-		# This should not generate output.
-		chomp;
-		my $line = $_;
-		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
-		
-		if (($line =~ /name=$rule_name/) && ($line =~ /value=1/))
-		{
-			$rule_set = 1;
+			$rule_set = 0;
 			to_log($conf, {message => "rule_set: [".$rule_set."]", 'line' => __LINE__, level => 2});
 			last;
 		}
@@ -260,74 +183,61 @@ sub create_constraint
 	
 	if (not $rule_set)
 	{
-		# We can't fence.
-		$rule_output =~ s/\n$//gs;
-		to_log($conf, {message => "The node attribute triggering the fence rule: [".$rule_name."] against the node: [".$target_node."] appears to have not been set. Expected a string with 'name=".$rule_name." value=1' but got: [".$rule_output."].", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(1);
+		# No need to unfence.
+		to_log($conf, {message => "The node attribute rule: [".$rule_name."] against the node: [".$target_node."] was not found. No need to unfence.", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(0);
 	}
 	
-	# Place the constraint. and wait up to a minute for the target's DRBD resource to not be primary (in 
-	# case the resource is running on the peer and needs to migrate here, which should not happen but 
-	# best to check and be safe).
-	my $stop_waiting = time + 60;
-	my $peer_rolee   = "";
-	my $waiting      = 1;
-	while ($waiting)
+	# Clear the node attribute
+	$shell_call = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --update 0";
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
 	{
-		# Check the peer's disk state
-		my $shell_call = $conf->{path}{exe}{drbdadm}." status ".$target_server;
-		to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
-		open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
-		while(<$file_handle>)
-		{
-			# This should not generate output.
-			chomp;
-			my $line = $_;
-			to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 3});
-			
-			
-			if ($line =~ /$target_node role:(.*)$/)
-			{
-				$peer_rolee = $1;
-				to_log($conf, {message => "peer_rolee: [".$peer_rolee."]", 'line' => __LINE__, level => 2});
-				last;
-			}
-		}
-		close $file_handle;
-		
-		if (lc($peer_rolee) ne "primary")
-		{
-			# We're good, fence is complete.
-			to_log($conf, {message => "Resource: [".$target_server."] has been fenced via location constraint successfully!", 'line' => __LINE__, level => 1});
-			
-			exit(7);
-		}
-		
-		if (time > $stop_waiting)
-		{
-			# Done waiting, failed.
-			to_log($conf, {message => "The resource: [".$target_server."] on the fence target: [".$target_node."] is still in the 'Primary' role after a minute. Is the server running on the target? Is something else holding it open? Giving up on the location constraint fence attempt.", 'line' => __LINE__, level => 0, priority => "err"});
-			exit(1);
-		}
-		
-		# Check again in a couple seconds.
-		sleep 2;
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 3});
 	}
+	close $file_handle;
 	
-	return(0);
-}
-
-sub perform_fence
-{
-	my ($conf) = @_;
-	
-	if ($conf->{cluster}{fence_method} eq "constraint")
+	# Check that the rule was set.
+	$rule_output = "";
+	$shell_call  = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --query";
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
 	{
-		create_constraint($conf);
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+		
+		if (($line =~ /name=$rule_name/) && ($line =~ /value=0/))
+		{
+			$rule_set = 0;
+			to_log($conf, {message => "rule_set: [".$rule_set."]", 'line' => __LINE__, level => 2});
+			last;
+		}
+		else
+		{
+			$rule_output .= $line."\n";
+		}
+	}
+	close $file_handle;
+	
+	if (not $rule_set)
+	{
+		# Success!
+		to_log($conf, {message => "The node attribute rule: [".$rule_name."] against the node: [".$target_node."] has been cleared successfully.", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(0);
 	}
 	else
 	{
-		kill_target($conf);
+		# Failed.
+		$rule_output =~ s/\n$//gs;
+		to_log($conf, {message => "The node attribute triggering the fence rule: [".$rule_name."] against the node: [".$target_node."] appears to have not been cleared. Expected a string with 'name=".$rule_name." value=0' but got: [".$rule_output."].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
 	}
 	
 	return(0);
@@ -482,7 +392,7 @@ sub identify_peer
 					# This is me. Am I in maintenance mode?
 					if (exists $hash_ref->{instance_attributes})
 					{
-						# We've got some data...
+						# We've got some data..
 						my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
 						my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
 						to_log($conf, {message => "node: [".$node."] instance attribyte name: [".$name."], value: [".$value."]", 'line' => __LINE__, level => 1});
@@ -623,7 +533,7 @@ sub find_executables
 		$ENV{PATH} = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin";
 	}
 
-	# Log entries can only happen if I've found 'logger', so an extra check will be made on 'to_log'
+	# Log entries can only happen if I've found 'logger', so an extra check will be made on 'to_log' 
 	# calls.
 	my @dirs = split/:/, $ENV{PATH};
 	foreach my $exe (sort {$b cmp $a} keys %{$conf->{path}{exe}})
@@ -680,99 +590,6 @@ sub find_executables
 		exit(1);
 	}
 
-	return(0);
-}
-
-# This checks to see if 'cluster::target_node' is out of the pacemaker cluster.
-sub check_peer_is_fenced
-{
-	my ($conf) = @_;
-	
-	my $fenced = 0;
-	my $body   = read_cib($conf);
-	foreach my $hash_ref (@{$body->{status}{node_state}})
-	{
-		my $node     = $hash_ref->{uname};
-		my $join     = $hash_ref->{'join'};
-		my $expected = $hash_ref->{expected};
-		to_log($conf, {message => "node: [".$node."] join: [".$join."], expected: [".$expected."]", 'line' => __LINE__, level => 3});
-		if ($node eq $conf->{cluster}{target_node})
-		{
-			to_log($conf, {message => "Checking the status of target node: [".$node."].", 'line' => __LINE__, level => 1});
-			if (($join eq "down") && ($expected eq "down"))
-			{
-				# The node is out.
-				to_log($conf, {message => "The node: [".$node."] has been fenced successfully.", 'line' => __LINE__, level => 1});
-				
-				# Call 'drbdadm adjust all' as it seems like drbd's in-memory can change 
-				# causing 'incompatible <fence option>' on return of the peer.
-				to_log($conf, {message => "Reloading DRBD config from disk to ensure in-memory and on-disk configs match.", 'line' => __LINE__, level => 1});
-				my $shell_call = $conf->{path}{exe}{drbdadm}." adjust all";
-				to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
-				open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
-				while(<$file_handle>)
-				{
-					# This should not generate output.
-					chomp;
-					my $line = $_;
-					to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
-				}
-				close $file_handle;
-				to_log($conf, {message => "Fence completed successfully!", 'line' => __LINE__, level => 1});
-				
-				exit(7);
-			}
-			else
-			{
-				to_log($conf, {message => "The node: [".$node."] is: [".$join."/".$expected."] (join/expected). It has not yet been fenced.", 'line' => __LINE__, level => 1});
-			}
-		}
-	}
-	
-	return(0);
-}
-
-# This kills remote node.
-sub kill_target
-{
-	my ($conf) = @_;
-
-	# Variables
-	my $shell_call = $conf->{path}{exe}{stonith_admin}." --fence ".$conf->{cluster}{target_node}." --reboot --verbose; RC=\$?; ".$conf->{path}{exe}{crm_error}." \$RC; ".$conf->{path}{exe}{echo}." rc:\$RC";
-	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
-	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
-	while(<$file_handle>)
-	{
-		# This should not generate output.
-		chomp;
-		my $line = $_;
-		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
-	}
-	close $file_handle;
-	
-	### NOTE: Should we just wait forever?
-	# Now loop and wait for it to be stonithed. We'll wait up to five minutes.
-	my $start_time = time;
-	my $end_time   = $start_time + 300;
-	my $fenced     = 0;
-	to_log($conf, {message => "start_time: [".$start_time."], end_time: [".$end_time."]", 'line' => __LINE__, level => 2});
-	until ($fenced)
-	{
-		# This will exit 
-		check_peer_is_fenced($conf);
-		if (time > $end_time)
-		{
-			# Done waiting, failed.
-			to_log($conf, {message => "The node has not been fenced after five minutes. Giving up.", 'line' => __LINE__, level => 0, priority => "err"});
-			exit(1);
-		}
-		else
-		{
-			sleep 5;
-		}
-	}
-
-	# This should not be reachable.
 	return(0);
 }
 

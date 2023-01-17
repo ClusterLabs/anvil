@@ -30,6 +30,8 @@
 # TODO: 
 # - If two Strikers have the same file name, but different sizes, we get into a yo-yo of updating the two 
 #   sides. If this happens, we need to rsync the larger one over the smaller one.
+#   
+# - Create a ".done.<file_name>" when the upload completes so that we know it's time to add it to the database.
 # 
 # NOTE:
 # - remove unsyncs, add syncs.

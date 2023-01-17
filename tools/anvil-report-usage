@@ -73,12 +73,10 @@ sub collect_anvil_data
 		$anvil->data->{anvil_data}{$anvil_name}{description}       = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
 		$anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
 		$anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
-		$anvil->data->{anvil_data}{$anvil_name}{dr1_host_uuid}     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:anvil_data::${anvil_name}::anvil_description" => $anvil->data->{anvil_data}{$anvil_name}{description}, 
 			"s2:anvil_data::${anvil_name}::node1_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}, 
 			"s3:anvil_data::${anvil_name}::node2_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}, 
-			"s4:anvil_data::${anvil_name}::dr1_host_uuid"     => $anvil->data->{anvil_data}{$anvil_name}{dr1_host_uuid}, 
 		}});
 		
 		if (length($anvil_name) > $anvil->data->{longest}{anvil_name})
@@ -99,34 +97,22 @@ sub collect_anvil_data
 		
 		my $node1_host_uuid = $anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvil_data}{$anvil_name}{dr1_host_uuid};
 		if ($anvil->data->{switches}{detailed})
 		{
 			$anvil->data->{anvil_data}{$anvil_name}{node1_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
 			$anvil->data->{anvil_data}{$anvil_name}{node2_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
-			$anvil->data->{anvil_data}{$anvil_name}{dr1_host_name}   = "";
-			if ($dr1_host_uuid)
-			{
-				$anvil->data->{anvil_data}{$anvil_name}{dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"s1:anvil_data::${anvil_name}::node1_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node1_host_name}, 
 				"s2:anvil_data::${anvil_name}::node2_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node2_host_name}, 
-				"s3:anvil_data::${anvil_name}::dr1_host_name"   => $anvil->data->{anvil_data}{$anvil_name}{dr1_host_name}, 
 			}});
 		}
 		else
 		{
 			$anvil->data->{anvil_data}{$anvil_name}{node1_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
 			$anvil->data->{anvil_data}{$anvil_name}{node2_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-			if ($dr1_host_uuid)
-			{
-				$anvil->data->{anvil_data}{$anvil_name}{dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
-			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"s1:anvil_data::${anvil_name}::node1_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node1_host_name}, 
 				"s2:anvil_data::${anvil_name}::node2_host_name" => $anvil->data->{anvil_data}{$anvil_name}{node2_host_name}, 
-				"s3:anvil_data::${anvil_name}::dr1_host_name"   => $anvil->data->{anvil_data}{$anvil_name}{dr1_host_name}, 
 			}});
 		}
 		
@@ -202,18 +188,12 @@ sub collect_anvil_data
 			my $vg_size            = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
 			my $free_size          = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 			my $sg_used            = $vg_size - $free_size;
-			my $vg_size_on_dr      = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr};
-			my $free_size_on_dr    = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr};
-			my $sg_used_on_dr      = $vg_size_on_dr - $free_size_on_dr;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:storage_group_name' => $storage_group_name, 
 				's2:storage_group_uuid' => $storage_group_uuid, 
 				's3:vg_size'            => $anvil->Convert->add_commas({number => $vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
 				's4:free_size'          => $anvil->Convert->add_commas({number => $free_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size}).")", 
 				's5:sg_used'            => $anvil->Convert->add_commas({number => $sg_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used}).")", 
-				's6:vg_size_on_dr'      => $anvil->Convert->add_commas({number => $vg_size_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size_on_dr}).")", 
-				's7:free_size_on_dr'    => $anvil->Convert->add_commas({number => $free_size_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size_on_dr}).")", 
-				's8:sg_used_on_dr'      => $anvil->Convert->add_commas({number => $sg_used_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used_on_dr}).")", 
 			}});
 			
 			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size} = $anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used});
@@ -266,7 +246,7 @@ sub show_anvils
 	my $longest_ram_free      = length($ram_free_header) > $anvil->data->{longest}{ram_free}           ? length($ram_free_header)      : $anvil->data->{longest}{ram_free};
 	my $bridge_header         = $anvil->Words->string({key => "header_0077"});
 	my $longest_bridge_string = length($bridge_header) > $anvil->data->{longest}{bridge_string}        ? length($bridge_header)        : $anvil->data->{longest}{bridge_string};
-	my $storage_group_header  = $anvil->Words->string({key => "header_0078"});
+	my $storage_group_header  = $anvil->Words->string({key => "header_0070"});
 	my $longest_storage_group = length($storage_group_header) > $anvil->data->{longest}{storage_group} ? length($storage_group_header) : $anvil->data->{longest}{storage_group};
 	my $sg_used_header        = $anvil->Words->string({key => "header_0079"});
 	my $longest_sg_used       = length($sg_used_header) > $anvil->data->{longest}{sg_used}             ? length($sg_used_header)       : $anvil->data->{longest}{sg_used};
@@ -287,37 +267,37 @@ sub show_anvils
 	# Anvil!
 	my $break_line  = "+-".sprintf("%0${longest_anvil_name}d", 0);
 	my $header_line = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
-	my $blank_lead  = "| ".sprintf("%-${longest_anvil_name}s", $anvil_header)." ";
+	my $blank_lead  = "| ".sprintf("%-${longest_anvil_name}s", "")." ";
 	if ($anvil->data->{switches}{detailed})
 	{
 		# Description
 		$break_line  .= "-+-".sprintf("%0${longest_description}d", 0);
 		$header_line .= "| ".sprintf("%-${longest_description}s", $description_header)." ";
-		$blank_lead  .= "   ".sprintf("%-${longest_description}s", $description_header)." ";
+		$blank_lead  .= "| ".sprintf("%-${longest_description}s", "")." ";
 	}
 	
 	# CPU String
 	$break_line  .= "-+-".sprintf("%0${longest_cpu_string}d", 0);
 	$header_line .= "| ".sprintf("%-${longest_cpu_string}s", $cpu_header)." ";
-	$blank_lead  .= "   ".sprintf("%-${longest_cpu_string}s", $cpu_header)." ";
+	$blank_lead  .= "| ".sprintf("%-${longest_cpu_string}s", "")." ";
 	
 	if ($anvil->data->{switches}{detailed})
 	{
 		# RAM used
 		$break_line  .= "-+-".sprintf("%0${longest_ram_used}d", 0);
 		$header_line .= "| ".sprintf("%-${longest_ram_used}s", $ram_used_header)." ";
-		$blank_lead  .= "   ".sprintf("%-${longest_ram_used}s", $ram_used_header)." ";
+		$blank_lead  .= "| ".sprintf("%-${longest_ram_used}s", "")." ";
 	}
 	
 	# RAM Free
 	$break_line  .= "-+-".sprintf("%0${longest_ram_free}d", 0);
 	$header_line .= "| ".sprintf("%-${longest_ram_free}s", $ram_free_header)." ";
-	$blank_lead  .= "   ".sprintf("%-${longest_ram_free}s", $ram_free_header)." ";
+	$blank_lead  .= "| ".sprintf("%-${longest_ram_free}s", "")." ";
 	
 	# Bridges
 	$break_line  .= "-+-".sprintf("%0${longest_bridge_string}d", 0);
 	$header_line .= "| ".sprintf("%-${longest_bridge_string}s", $bridge_header)." ";
-	$blank_lead  .= "   ".sprintf("%-${longest_bridge_string}s", $bridge_header)." ";
+	$blank_lead  .= "| ".sprintf("%-${longest_bridge_string}s", "");
 	
 	# Storage Group 
 	$break_line  .= "-+-".sprintf("%0${longest_storage_group}d", 0);
@@ -379,7 +359,8 @@ sub show_anvils
 				$storage_line .= " | ".sprintf("%-${longest_sg_used}s", $say_used_size);
 			}
 			$storage_line .= " | ".sprintf("%-${longest_sg_free}s", $say_free_size)." |";
-			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_line => $storage_line }});
+
 			push @{$storage_groups}, $storage_line;
 		}
 		
@@ -741,27 +722,17 @@ sub collect_server_data
 		# have a matching node name.
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		
 		# Get names.
 		my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
 		my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
 		my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 		my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-		my $dr1_host_name         = "";
-		my $dr1_short_host_name   = "";
-		if (($dr1_host_uuid) && (exists $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}))
-		{
-			$dr1_host_name      = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-			$dr1_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
-		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:node1_host_name'       => $node1_host_name, 
 			's2:node1_short_host_name' => $node1_short_host_name, 
 			's3:node2_host_name'       => $node2_host_name, 
 			's4:node2_short_host_name' => $node2_short_host_name, 
-			's5:dr1_host_name'         => $dr1_host_name, 
-			's6:dr1_short_host_name'   => $dr1_short_host_name, 
 		}});
 		
 		# Storage info.
@@ -806,9 +777,7 @@ sub collect_server_data
 				if (($drbd_node eq $node1_host_name)       or 
 				    ($drbd_node eq $node1_short_host_name) or 
 				    ($drbd_node eq $node2_host_name)       or 
-				    ($drbd_node eq $node2_short_host_name) or 
-				    (($dr1_host_name)       && ($drbd_node eq $dr1_host_name)) or 
-				    (($dr1_short_host_name) && ($drbd_node eq $dr1_short_host_name)))
+				    ($drbd_node eq $node2_short_host_name))
 				{
 					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path}        = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_path};
 					$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res} = $anvil->data->{drbd}{drbd_node}{$drbd_node}{config}{resource}{$resource}{volume}{$volume}{drbd_path_by_res};
@@ -833,11 +802,6 @@ sub collect_server_data
 					elsif (($drbd_node eq $node2_host_name) or ($drbd_node eq $node2_short_host_name))
 					{
 						$node_host_uuid = $node2_host_uuid;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
-					}
-					elsif (($drbd_node eq $dr1_host_name) or ($drbd_node eq $dr1_short_host_name))
-					{
-						$node_host_uuid = $dr1_host_uuid;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node_host_uuid => $node_host_uuid }});
 					}
 					

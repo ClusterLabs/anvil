@@ -944,7 +944,7 @@ sub _set_defaults
 			# This is the list of OSes short in the user's short list of OS types to 
 			# optimize for. The full the list is available by running: 
 			# /usr/bin/osinfo-query os
-			os_short_list			=>	"rhel5.11, rhel6.10, rhel7.9, rhel8.3, win10, win2k16, win2k19",
+			os_short_list			=>	"rhel8.7,rhel9.1,win10,win2k19,win2k22",
 		},
 		terminal			=>	{
 			columns				=>	80,
@@ -1075,6 +1075,7 @@ sub _set_paths
 				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
 				'journald.conf'			=>	"/etc/systemd/journald.conf", 
+				'logind.conf'			=>	"/etc/systemd/logind.conf",
 				'lvm.conf'			=>	"/etc/lvm/lvm.conf",
 				'pg_hba.conf'			=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
@@ -1093,10 +1094,11 @@ sub _set_paths
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
 				'chrony.conf'			=>	"/etc/chrony.conf",
 				group				=>	"/etc/group",
-				issue				=>	"/etc/issue",
 				httpd_conf			=>	"/etc/httpd/conf/httpd.conf",
+				host_configured			=>	"/etc/anvil/host.configured",
 				host_ssh_key			=>	"/etc/ssh/ssh_host_ecdsa_key.pub",
 				host_uuid			=>	"/etc/anvil/host.uuid",
+				issue				=>	"/etc/issue",
 				network_cache			=>	"/tmp/network_cache.anvil",
 				passwd				=>	"/etc/passwd",
 				'redhat-release'		=>	"/etc/redhat-release",
@@ -1170,6 +1172,7 @@ sub _set_paths
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
+				'anvil-version-changes'		=>	"/usr/sbin/anvil-version-changes",
 				augtool				=>	"/usr/bin/augtool",
 				base64				=>	"/usr/bin/base64",
 				blockdev			=>	"/usr/sbin/blockdev",
@@ -1186,6 +1189,7 @@ sub _set_paths
 				createdb			=>	"/usr/bin/createdb",
 				createrepo_c			=>	"/usr/bin/createrepo_c",
 				createuser			=>	"/usr/bin/createuser",
+				crm_attribute			=>	"/usr/sbin/crm_attribute",
 				crm_error			=>	"/usr/sbin/crm_error",
 				crm_resource			=>	"/usr/sbin/crm_resource",
 				crm_mon				=>	"/usr/sbin/crm_mon",
@@ -1269,6 +1273,7 @@ sub _set_paths
 				rpm				=>	"/usr/bin/rpm",
 				rsync				=>	"/usr/bin/rsync",
 				sed				=>	"/usr/bin/sed", 
+				setsid				=>	"/usr/bin/setsid",	# See: https://serverfault.com/questions/1105733/virsh-command-hangs-when-script-runs-in-the-background
 				'shutdown'			=>	"/usr/sbin/shutdown",
 				snmpget				=>	"/usr/bin/snmpget",
 				snmpset				=>	"/usr/bin/snmpset",
@@ -1299,6 +1304,7 @@ sub _set_paths
 				tput				=>	"/usr/bin/tput", 
 				'tr'				=>	"/usr/bin/tr",
 				uname				=>	"/usr/bin/uname",
+				unfence_pacemaker		=>	"/usr/sbin/unfence_pacemaker",
 				unzip				=>	"/usr/bin/unzip",
 				useradd				=>	"/usr/sbin/useradd",
 				usermod				=>	"/usr/sbin/usermod",
