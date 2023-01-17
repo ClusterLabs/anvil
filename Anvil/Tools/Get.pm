@@ -42,6 +42,8 @@ my $THIS_FILE = "Get.pm";
 # uptime
 # users_home
 # uuid
+# virsh_list_net
+# virsh_list_os
 # _salt
 # _wrap_to
 
@@ -466,12 +468,9 @@ Data is store in the following hashes;
  anvil_resources::<anvil_uuid>::ram::allocated
  anvil_resources::<anvil_uuid>::ram::hardware
  anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_nodes
- anvil_resources::<anvil_uuid>::bridges::<bridge_name>::on_dr
  anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::group_name
  anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size
  anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::free_size
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::vg_size_on_dr
- anvil_resources::<anvil_uuid>::storage_group::<storage_group_uuid>::available_on_dr
 
 All sizes are stored in bytes.
 
@@ -517,8 +516,7 @@ sub available_resources
 SELECT 
     anvil_name, 
     anvil_node1_host_uuid, 
-    anvil_node2_host_uuid, 
-    anvil_dr1_host_uuid 
+    anvil_node2_host_uuid 
 FROM 
     anvils 
 WHERE 
@@ -539,20 +537,13 @@ WHERE
 	}
 	
 	# Get the details.
-	my $anvil_name      =         $results->[0]->[0];
-	my $node1_host_uuid =         $results->[0]->[1];
-	my $node2_host_uuid =         $results->[0]->[2];
-	my $dr1_host_uuid   = defined $results->[0]->[3] ? $results->[0]->[3] : "";
+	my $anvil_name      = $results->[0]->[0];
+	my $node1_host_uuid = $results->[0]->[1];
+	my $node2_host_uuid = $results->[0]->[2];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_name      => $anvil_name,
 		node1_host_uuid => $node1_host_uuid, 
 		node2_host_uuid => $node2_host_uuid, 
-		dr1_host_uuid   => $dr1_host_uuid, 
-	}});
-	
-	$anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} = $dr1_host_uuid ? 1 : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"anvil_resources::${anvil_uuid}::has_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr},
 	}});
 	
 	# Load hosts and network bridges
@@ -570,13 +561,13 @@ WHERE
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}  = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = 0;
 
-	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
 	{
-		# If DR isn't defined, it'll be blank.
-		next if not $host_uuid;
 		my $this_is = "node1";
-		if ($host_uuid eq $node2_host_uuid)  { $this_is = "node2"; }
-		elsif ($host_uuid eq $dr1_host_uuid) { $this_is = "dr1";   }
+		if ($host_uuid eq $node2_host_uuid)
+		{
+			$this_is = "node2";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_is => $this_is }});
 		
 		# Start collecting data.
@@ -650,34 +641,30 @@ WHERE
 			"anvil_resources::${anvil_uuid}::host_uuid::${host_uuid}::ram::hardware"  => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{ram}{hardware}}).")",
 		}});
 		
-		# For available resources, we only care about nodes.
-		if ($this_is !~ /^dr/)
+		# How many cores?
+		if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}) or 
+			($scan_hardware_cpu_cores < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}))
 		{
-			# How many cores?
-			if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}) or 
-			    ($scan_hardware_cpu_cores < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}))
-			{
-				$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores} = $scan_hardware_cpu_cores;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"anvil_resources::${anvil_uuid}::cpu::cores" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores},
-				}});
-			}
-			if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}) or 
-			    ($scan_hardware_cpu_threads < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}))
-			{
-				$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} = $scan_hardware_cpu_threads;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"anvil_resources::${anvil_uuid}::cpu::threads" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
-				}});
-			}
-			if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}) or 
-			    ($scan_hardware_ram_total < $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
-			{
-				$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = $scan_hardware_ram_total;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
-				}});
-			}
+			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores} = $scan_hardware_cpu_cores;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::cpu::cores" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores},
+			}});
+		}
+		if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}) or 
+			($scan_hardware_cpu_threads < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}))
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} = $scan_hardware_cpu_threads;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::cpu::threads" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+			}});
+		}
+		if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}) or 
+			($scan_hardware_ram_total < $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = $scan_hardware_ram_total;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+			}});
 		}
 	}
 	
@@ -750,20 +737,12 @@ ORDER BY
 	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}})
 	{
 		$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes} = 0;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr}    = 0;
 		if (($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$node1_host_uuid}) && 
 		    ($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$node2_host_uuid}))
 		{
 			$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvil_resources::${anvil_uuid}::bridges::${bridge_name}::on_nodes" => $anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_nodes},
-			}});
-		}
-		if ($anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on}{$dr1_host_uuid})
-		{
-			$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"anvil_resources::${anvil_uuid}::bridges::${bridge_name}::on_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{bridges}{$bridge_name}{on_dr},
 			}});
 		}
 	}
@@ -779,8 +758,6 @@ ORDER BY
 		my $node1_vg_free = 0;
 		my $node2_vg_size = 0;
 		my $node2_vg_free = 0;
-		my $dr1_vg_size = 0;
-		my $dr1_vg_free = 0;
 		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid})
 		{
 			$node1_vg_size = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$node1_host_uuid}{vg_size};
@@ -799,25 +776,12 @@ ORDER BY
 				node2_vg_free => $node2_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $node2_vg_free}).")",
 			}});
 		}
-		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
-		{
-			$dr1_vg_size = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_size};
-			$dr1_vg_free = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				dr1_vg_size => $dr1_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr1_vg_size}).")",
-				dr1_vg_free => $dr1_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $dr1_vg_free}).")",
-			}});
-		}
 		
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}         = $node2_vg_size < $node1_vg_size ? $node2_vg_size : $node1_vg_size;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}       = $node2_vg_free < $node1_vg_free ? $node2_vg_free : $node1_vg_free;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}   = $dr1_vg_size;
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr} = $dr1_vg_free;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}   = $node2_vg_size < $node1_vg_size ? $node2_vg_size : $node1_vg_size;
+		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size} = $node2_vg_free < $node1_vg_free ? $node2_vg_free : $node1_vg_free;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::vg_size"         => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}}).")",
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::free_size"       => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")",
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::vg_size_on_dr"   => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size_on_dr}}).")",
-			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::available_on_dr" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{available_on_dr}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::vg_size"   => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size}}).")",
+			"anvil_resources::${anvil_uuid}::storage_group::${storage_group_uuid}::free_size" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size}}).")",
 		}});
 		
 		# Make it easy to sort by group name
@@ -2689,6 +2653,194 @@ sub uuid
 	}
 	
 	return($uuid);
+}
+
+=head2 virsh_list_net
+
+This parses the output from C<< osinfo-query device class=net >> and populated the hash;
+
+ osinfo::net::<name>::vendor     = Company name
+ osinfo::net::<name>::vendor_id  = Vendor ID hex value
+ osinfo::net::<name>::product    = Device friendly name
+ osinfo::net::<name>::product_id = Product ID hex value
+
+This method takes no parameters.
+
+=cut
+sub virsh_list_net
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->virsh_list_net()" }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{'osinfo-query'}." device class=net";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	if (exists $anvil->data->{osinfo}{net})
+	{
+		delete $anvil->data->{osinfo}{net};
+	}
+	
+	my $last_vendor = "";
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		next if $line =~ /Vendor \| Vendor ID/;
+		next if $line =~ /----+----/;
+		if ($line =~ /(.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*)$/)
+		{
+			my $vendor     = $1;
+			my $vendor_id  = $2;
+			my $product    = $3;
+			my $product_id = $4; 
+			my $name       = $5;
+			my $class      = $6;
+			my $bus        = $7;
+			my $id         = $8;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:vendor'     => $vendor, 
+				's2:vendor_id'  => $vendor_id, 
+				's3:product'    => $product, 
+				's4:product_id' => $product_id, 
+				's5:name'       => $name, 
+				's6:class'      => $class, 
+				's7:bus'        => $bus, 
+				's8:id'         => $id, 
+			}});
+			
+			if ($vendor)
+			{
+				$last_vendor = $vendor;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_vendor => $last_vendor }});
+			}
+			else
+			{
+				$vendor = $last_vendor;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vendor => $vendor }});
+			}
+			next if $bus eq "xen";
+			
+			$anvil->data->{osinfo}{net}{$name}{vendor}     = $vendor;
+			$anvil->data->{osinfo}{net}{$name}{vendor_id}  = $vendor_id;
+			$anvil->data->{osinfo}{net}{$name}{product}    = $product;
+			$anvil->data->{osinfo}{net}{$name}{product_id} = $product_id;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:osinfo::net::${name}::vendor"     => $anvil->data->{osinfo}{net}{$name}{vendor}, 
+				"s2:osinfo::net::${name}::vendor_id"  => $anvil->data->{osinfo}{net}{$name}{vendor_id}, 
+				"s3:osinfo::net::${name}::product"    => $anvil->data->{osinfo}{net}{$name}{product}, 
+				"s4:osinfo::net::${name}::product_id" => $anvil->data->{osinfo}{net}{$name}{product_id}, 
+			}});
+		}
+	}
+	
+	# If there's only a 'virtio-net', create a 'virtio' alias.
+	if ((not exists $anvil->data->{osinfo}{net}{virtio}) && (exists $anvil->data->{osinfo}{net}{'virtio-net'}))
+	{
+		$anvil->data->{osinfo}{net}{virtio}{vendor}     = $anvil->data->{osinfo}{net}{'virtio-net'}{vendor};
+		$anvil->data->{osinfo}{net}{virtio}{vendor_id}  = $anvil->data->{osinfo}{net}{'virtio-net'}{vendor_id};
+		$anvil->data->{osinfo}{net}{virtio}{product}    = $anvil->data->{osinfo}{net}{'virtio-net'}{product};
+		$anvil->data->{osinfo}{net}{virtio}{product_id} = $anvil->data->{osinfo}{net}{'virtio-net'}{product_id};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:osinfo::net::virtio::vendor"     => $anvil->data->{osinfo}{net}{virtio}{vendor}, 
+			"s2:osinfo::net::virtio::vendor_id"  => $anvil->data->{osinfo}{net}{virtio}{vendor_id}, 
+			"s3:osinfo::net::virtio::product"    => $anvil->data->{osinfo}{net}{virtio}{product}, 
+			"s4:osinfo::net::virtio::product_id" => $anvil->data->{osinfo}{net}{virtio}{product_id}, 
+		}});
+	}
+	
+	return(0);
+}
+
+=head2 virsh_list_os
+
+This parses the output from C<< osinfo-query os >> and populates the hash;
+
+ osinfo::os-list::<name>::name    = Operating System name
+ osinfo::os-list::<name>::version = OS Version
+ osinfo::os-list::<name>::id      = ID URL
+
+It also loads the OSes into the strings as 'os_list_<short_name>' = OS 
+ 
+This method takes no parameters.
+
+=cut
+sub virsh_list_os
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->virsh_list_os()" }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{'osinfo-query'}." os";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	if (exists $anvil->data->{osinfo}{'os-list'})
+	{
+		delete $anvil->data->{osinfo}{'os-list'};
+	}
+	
+	my $last_vendor = "";
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		next if $line =~ /Short ID \| Name/;
+		next if $line =~ /----+----/;
+		if ($line =~ /(.*?) \| (.*?) \| (.*?) \| (.*)$/)
+		{
+			my $short_id = $1;
+			my $name     = $2;
+			my $version  = $3;
+			my $id       = $4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:short_id' => $short_id, 
+				's2:name'     => $name, 
+				's3:version'  => $version, 
+				's4:id'       => $id, 
+			}});
+			
+			$version = "unknown" if $version eq "";
+			
+			$anvil->data->{osinfo}{'os-list'}{$short_id}{name}    = $name;
+			$anvil->data->{osinfo}{'os-list'}{$short_id}{version} = $version;
+			$anvil->data->{osinfo}{'os-list'}{$short_id}{id}      = $id;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:osinfo::os-list::${short_id}::name"    => $anvil->data->{osinfo}{'os-list'}{$short_id}{name}, 
+				"s2:osinfo::os-list::${short_id}::version" => $anvil->data->{osinfo}{'os-list'}{$short_id}{version}, 
+				"s3:osinfo::os-list::${short_id}::id"      => $anvil->data->{osinfo}{'os-list'}{$short_id}{id}, 
+			}});
+			
+			my $key = "os_list_".$short_id;
+			foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{words}})
+			{
+				foreach my $language (sort {$a cmp $b} keys %{$anvil->data->{words}{$file}{language}})
+				{
+					$anvil->data->{words}{$file}{language}{$language}{key}{$key}{content} = $name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"words::${file}::language::${language}::key::${key}::content" => $anvil->data->{words}{$file}{language}{$language}{key}{$key}{content}, 
+					}});
+				}
+			}
+		}
+	}
+	
+	return(0);
 }
 
 # =head3

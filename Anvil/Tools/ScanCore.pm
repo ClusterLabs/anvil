@@ -1843,7 +1843,7 @@ sub post_scan_analysis_node
 					$anvil->Email->send_alerts();
 					
 					# Pull the server.
-					my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+					my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 					$anvil->System->call({shell_call => $shell_call});
 					
@@ -1967,7 +1967,7 @@ sub post_scan_analysis_node
 					$anvil->Email->send_alerts();
 					
 					# Pull the server.
-					my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+					my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 					$anvil->System->call({shell_call => $shell_call});
 					
@@ -2122,7 +2122,7 @@ sub post_scan_analysis_node
 					}
 					$anvil->Email->send_alerts();
 					
-					my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+					my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 					$anvil->System->call({shell_call => $shell_call});
 					
@@ -2185,7 +2185,7 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 						
-						my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+						my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
 						
@@ -2220,7 +2220,7 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 						
-						my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+						my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
 						
@@ -2272,7 +2272,7 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 						
-						my $shell_call = $anvil->data->{path}{exe}{'anvil-migate-server'}." --target local --server all".$anvil->Log->switches;
+						my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 						$anvil->System->call({shell_call => $shell_call});
 						
@@ -2488,7 +2488,12 @@ LIMIT 1;";
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_power => $check_power }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			check_power     => $check_power,
+			short_host_name => $short_host_name, 
+			host_ipmi       => $host_ipmi, 
+			host_status     => $host_status, 
+		}});
 		if (not $check_power)
 		{
 			next;
@@ -2681,7 +2686,6 @@ LIMIT 1;";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0672", variables => { host_name => $host_name }});
 				
 				# Check power 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0567", variables => { host_name => $host_name }});
 				my ($power_health, $shortest_time_on_batteries, $highest_charge_percentage, $estimated_hold_up_time) = $anvil->ScanCore->check_power({
 					debug      => $debug,
 					anvil_uuid => $anvil_uuid,

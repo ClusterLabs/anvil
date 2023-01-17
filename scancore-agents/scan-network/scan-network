@@ -1054,12 +1054,14 @@ sub collect_data
 						'state'  => $state,
 					}});
 					
-					if ($state ne "active")
+					# This could be 'active' or 'activated'
+					if ($state !~ /activ/)
 					{
 						# Try brinding the interface up.
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0147", variables => { 
 							interface => $interface, 
 							uptime    => $uptime,
+							'state'   => $state,
 						}});
 						
 						my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$name;

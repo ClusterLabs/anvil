@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
 use String::ShellQuote;
+use Text::Diff;
 use XML::LibXML;
 use XML::Simple qw(:strict);
 
@@ -21,6 +22,7 @@ my $THIS_FILE = "Cluster.pm";
 # check_node_status
 # check_server_constraints
 # check_stonith_config
+# configure_logind
 # delete_server
 # get_fence_methods
 # get_anvil_name
@@ -646,6 +648,8 @@ sub boot_server
 		}
 	}
 	
+	### TODO: If we don't have a node, pick the node with the most VMs already running (by total RAM 
+	###       count)
 	if ($node)
 	{
 		$anvil->Cluster->_set_server_constraint({
@@ -653,6 +657,8 @@ sub boot_server
 			preferred_node => $node,
 		});
 	}
+	
+	### TODO: Make sure that the drbd fence rule exists in pacemaker and add it, if not.
 	
 	# Now boot the server.
 	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource enable ".$server});
@@ -1618,6 +1624,109 @@ sub check_stonith_config
 	}
 	
 	
+	return(0);
+}
+
+
+=head2 configure_logind
+
+This configures logind to ensure it doesn't try to do a graceful shutdown when being fenced via acpid power-button events.
+
+See: https://access.redhat.com/solutions/1578823
+
+This method takes no parameters
+
+=cut
+sub configure_logind
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->configure_logind()" }});
+
+	# Only run this on nodes.
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		return(0);
+	}
+
+	# Read in the file.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		'path::configs::logind.conf' => $anvil->data->{path}{configs}{'logind.conf'},
+	}});
+	if (not -e $anvil->data->{path}{configs}{'logind.conf'})
+	{
+		# wtf?
+		return(0);
+	}
+
+	my $added    = 0;
+	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{configs}{'logind.conf'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+
+	if ($old_body eq "!!error!!")
+	{
+		return(0);
+	}
+
+	# If we don't see 'HandlePowerKey=ignore', we need to add it.
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+		$new_body .= $line."\n";
+		if ($line =~ /^HandlePowerKey=(.*)$/)
+		{
+			# It's been set. No matter how it's set, we don't change it again.
+			my $set_to = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_to => $set_to }});
+			return(0);
+		}
+		if ($line =~ /^#HandlePowerKey=/)
+		{
+			# Add line under the commented out one.
+			$new_body .= "HandlePowerKey=ignore\n";
+			$added    = 1;
+		}
+	}
+
+	if (not $added)
+	{
+		# Append it.
+		$new_body .= "HandlePowerKey=ignore\n";
+		$added    = 1;
+	}
+
+	# Still here? We almost certainly want to save then, but lets look for a difference just the same.
+	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		added      => $added,
+		difference => $difference,
+	}});
+	if ($added)
+	{
+		# Write it out.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0732"});
+		$anvil->Storage->write_file({
+			file      => $anvil->data->{path}{configs}{'logind.conf'},
+			body      => $new_body,
+			backup    => 1,
+			overwrite => 1,
+		});
+
+		sleep 1;
+
+		# Restart the daemon.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0733", variables => { daemon => "systemd-logind.service" }});
+		$anvil->System->restart_daemon({
+			debug  => $debug,
+			daemon => "systemd-logind.service",
+		});
+	}
+
 	return(0);
 }
 
@@ -3079,6 +3188,7 @@ sub parse_cib
 			foreach my $node ($dom->findnodes('/cib/configuration/nodes/node'))
 			{
 				my $node_id = $node->{id};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node_id => $node_id }});
 				foreach my $variable (sort {$a cmp $b} keys %{$node})
 				{
 					next if $variable eq "id";
@@ -3111,6 +3221,7 @@ sub parse_cib
 				foreach my $instance_attributes ($node->findnodes('./instance_attributes'))
 				{
 					my $instance_attributes_id = $instance_attributes->{id};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { instance_attributes_id => $instance_attributes_id }});
 					foreach my $nvpair ($instance_attributes->findnodes('./nvpair'))
 					{
 						my $id    = $nvpair->{id};
@@ -3180,14 +3291,37 @@ sub parse_cib
 			foreach my $constraint ($dom->findnodes('/cib/configuration/constraints/rsc_location'))
 			{
 				my $id = $constraint->{id};
-				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}     = $constraint->{node};
+				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}     = $constraint->{node}  ? $constraint->{node}  : "";
 				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource} = $constraint->{rsc};
-				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}    = $constraint->{score};
+				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}    = $constraint->{score} ? $constraint->{score} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"cib::parsed::configuration::constraints::location::${id}::node"     => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}, 
 					"cib::parsed::configuration::constraints::location::${id}::resource" => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource}, 
 					"cib::parsed::configuration::constraints::location::${id}::score"    => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}, 
 				}});
+				
+				# If there's no 'node', this is probably a drbd fence constraint.
+				if (not $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node})
+				{
+					foreach my $rule_id ($constraint->findnodes('./rule'))
+					{
+						my $constraint_id = $rule_id->{id};
+						$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{score} = $rule_id->{score};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"cib::parsed::configuration::constraints::location::${id}::constraint::${constraint_id}::score" => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{score}, 
+						}});
+						foreach my $expression_id ($rule_id->findnodes('./expression'))
+						{
+							my $attribute = $expression_id->{attribute};
+							$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}{$attribute}{operation} = $expression_id->{operation};
+							$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}{$attribute}{value}     = $expression_id->{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"cib::parsed::configuration::constraints::location::${id}::constraint::${constraint_id}::attribute::${attribute}::operation" => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}{$attribute}{operation}, 
+								"cib::parsed::configuration::constraints::location::${id}::constraint::${constraint_id}::attribute::${attribute}::value"     => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}{$attribute}{value}, 
+							}});
+						}
+					}
+				}
 			}
 			foreach my $node_state ($dom->findnodes('/cib/status/node_state'))
 			{
@@ -3529,17 +3663,17 @@ sub parse_cib
 			foreach my $lrm_resource_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}})
 			{
 				my $lrm_resource_operations_count = keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lrm_resource_operations_count => $lrm_resource_operations_count }});
 				foreach my $lrm_rsc_op_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}})
 				{
 					my $type      = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{type};
 					my $class     = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{class};
 					my $operation = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{operation};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						lrm_resource_operations_count => $lrm_resource_operations_count,
-						type                          => $type,
-						class                         => $class, 
-						operation                     => $operation, 
-						lrm_rsc_op_id                 => $lrm_rsc_op_id,
+						's1:lrm_rsc_op_id' => $lrm_rsc_op_id,
+						's2:type'          => $type,
+						's3:class'         => $class, 
+						's4:operation'     => $operation, 
 					}});
 					
 					# Skip unless it's a server.
@@ -3568,6 +3702,76 @@ sub parse_cib
 							"cib::parsed::data::server::${lrm_resource_id}::orphaned"  => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{orphaned},
 							"cib::parsed::data::server::${lrm_resource_id}::role"      => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{role},
 						}});
+					}
+					
+					# Do we have a DRBD fence rule?
+					$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{'exists'} = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"cib::parsed::data::server::${lrm_resource_id}::drbd_fence_rule::exists" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{'exists'},
+					}});
+					foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{constraints}{location}})
+					{
+						my $node     = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node};
+						my $resource = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource};
+						my $score    = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:id"       => $id,
+							"s2:node"     => $node,
+							"s3:resource" => $resource,
+							"s4:score"    => $score,
+						}});
+						
+						# Is this the server?
+						next if $resource ne $lrm_resource_id;
+						next if not exists $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint};
+						foreach my $constraint_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}})
+						{
+							my $score = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{score};
+							foreach my $attribute (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}})
+							{
+								my $operation = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}{$attribute}{operation};
+								my $value     = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{constraint}{$constraint_id}{attribute}{$attribute}{value};
+								my $test_key  = "location-".$resource."-rule";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									's1:constraint_id' => $constraint_id, 
+									's2:score'         => $score,
+									's3:attribute'     => $attribute, 
+									's4:operation'     => $operation, 
+									's5:value'         => $value, 
+									's6:test_key'      => $test_key, 
+								}});
+								
+								if ($constraint_id eq $test_key)
+								{
+									$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{'exists'}  = 1;
+									$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{attribute} = $attribute;
+									$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{operation} = $operation;
+									$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{value}     = $value;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+										"s1:cib::parsed::data::server::${lrm_resource_id}::drbd_fence_rule::exists"    => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{'exists'},
+										"s2:cib::parsed::data::server::${lrm_resource_id}::drbd_fence_rule::attribute" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{attribute},
+										"s3:cib::parsed::data::server::${lrm_resource_id}::drbd_fence_rule::operation" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{operation},
+										"s4:cib::parsed::data::server::${lrm_resource_id}::drbd_fence_rule::value"     => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{value},
+									}});
+									
+									# Is this refereneced by any node attributes?
+									foreach my $node_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{node_state}})
+									{
+										my $node_name = $anvil->data->{cib}{parsed}{configuration}{nodes}{$node_id}{uname};
+										my $value     = defined $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$attribute} ? $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$attribute} : "";
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+											"s1:node_id"   => $node_id,
+											"s2:node_name" => $node_name, 
+											"s3:value"     => $value,
+										}});
+									}
+								}
+							}
+							last if $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{'exists'};
+						}
+						
+						# Did we find it?
+						last if $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_rule}{'exists'};
 					}
 				}
 			}

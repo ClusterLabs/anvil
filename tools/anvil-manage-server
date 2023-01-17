@@ -123,6 +123,17 @@ sub process_interactive
 	$anvil->data->{old_config}{ram}{'bytes'} = "";
 	
 	# Did they specify an Anvil! system?
+	if (not $anvil->data->{switches}{anvil})
+	{
+		# Is this machine in an Anvil!?
+		$anvil->Database->get_hosts();
+		my $host_uuid                      = $anvil->Get->host_uuid();
+		my $anvil->data->{switches}{anvil} = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_uuid         => $host_uuid,
+			"switches::anvil" => $anvil->data->{switches}{anvil},
+		}});
+	}
 	if ($anvil->data->{switches}{anvil})
 	{
 		$anvil->Get->anvil_from_switch({anvil => $anvil->data->{switches}{anvil}});
@@ -142,8 +153,14 @@ sub process_interactive
 		}});
 	}
 	
-	if (not $anvil->data->{target_server}{anvil_uuid})
+	# If we don't habe a server, show the list of servers.
+	if (not $anvil->data->{switches}{server})
 	{
+		# If we've got an Anvil!, show the VMs on it. Otherwise, show all VMs.
+		if ($anvil->data->{switches}{anvil_name})
+		{
+			
+		}
 	}
 	
 	return(0);
