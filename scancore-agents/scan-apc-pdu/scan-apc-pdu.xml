@@ -81,7 +81,7 @@ A new PDU: [#!variable!name!#] has been found
 		<key name="scan_apc_pdu_message_0038">- Phase: [#!variable!phase!#] current amperage draw: [#!variable!amps!#].</key>
 		<key name="scan_apc_pdu_message_0039">- Outlet: [#!variable!outlet!#], on phase: [#!variable!on_phase!#] is: [#!variable!state!#] (name: [#!variable!name!#]).</key>
 		<key name="scan_apc_pdu_message_0040">The PDU model: [#!variable!model!#] at the IP address: [#!variable!ip_address!#] has vanished! Did the network cable come unplugged?</key>
-		<key name="scan_apc_pdu_message_0041">APC PDUs only allow one connection at a time. To avoid contention, only Striker dashboards scan APC PDUs. If you want this to run, you can use '--force'. Exiting.</key>
+		<key name="scan_apc_pdu_message_0041">APC PDUs only allow one connection at a time. To avoid contention, only the Striker dashboards which is also the active database is allowed to run this agent. If you want this to run, you can use '--force'. Exiting.</key>
 		
 		<!-- Units -->
 		<key name="scan_apc_pdu_unit_0001">Unknown</key>
