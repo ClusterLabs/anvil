@@ -999,6 +999,12 @@ sub human_readable_to_bytes
 		type   => $type,
 	}});
 	
+	# If we were passed nothing, return nothing.
+	if ($size eq "")
+	{
+		return("");
+	}
+
 	# Start cleaning up the variables.
 	my $value  =  $size;
 	   $size   =~ s/ //g;

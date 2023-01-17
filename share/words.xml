@@ -1484,6 +1484,38 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0434">Waiting for up to a minute to see if the peer connects before provisioning the server.</key>
 		<key name="job_0435">One or more peer disk state or roles are 'unknown', waiting: [#!variable!waiting!#] seconds longer.</key>
 		<key name="job_0436">Peer disk state or role still unknown after one minute, proceeding without it.</key>
+		<key name="job_0437"><![CDATA[Missing '--anvil <name_or_uuid>'.]]></key>
+		<key name="job_0438"><![CDATA[Missing '--name <server_name>'.]]></key>
+		<key name="job_0439"><![CDATA[Missing '--os <os_variant>'. Valid options match 'virt-install --os-variant' (run: 'osinfo-query os' and reference the 'Short ID' column).]]></key>
+		<key name="job_0440"><![CDATA[The OS: [#!variable!os!#] was not found. If you're sure the OS is valid, please run 'striker-parse-os-list --xml --new' and add the output to 'words.xml'.]]></key>
+		<key name="job_0441"><![CDATA[Missing '--cpu <1 ~ #!variable!threads!#>'.]]></key>
+		<key name="job_0442"><![CDATA[The number of CPU cores: [#!variable!cores!#] is invalid. Must be between 1 and #!variable!threads!#.]]></key>
+		<key name="job_0443"><![CDATA[Missing '--ram <bytes or human readable, min is 64KiB, max is #!variable!max_ram!#>'.]]></key>
+		<key name="job_0444"><![CDATA[The requested RAM: [#!variable!ram!#] is not valid. Must be between: [64KiB] and: [#!variable!max_ram!#].]]></key>
+		<key name="job_0445"><![CDATA[Missing '--storage-group <name or uuid>'. Valid options are:]]></key>
+		<key name="job_0446"><![CDATA[- Name: [#!variable!name!#], UUID: [#!variable!uuid!#].]]></key>
+		<key name="job_0447"><![CDATA[- The requested storage group: [#!variable!storage_group!#] does not appear to be valid. Valid options are:]]></key>
+		<key name="job_0448"><![CDATA[Missing '--storage-size <bytes or human readable>'. Max is: [#!variable!storage_group_size!#].]]></key>
+		<key name="job_0449"><![CDATA[Missing '--storage-size <bytes or human readable>'. Max will depend on selected --storage-group.]]></key>
+		<key name="job_0450"><![CDATA[The requested disk size: [#!variable!storage_size!#] is not valid. Must be between: [10MiB] and: [#!variable!max_size!#].]]></key>
+		<key name="job_0451"><![CDATA[Missing '--install-media <file_name or file_uuid>'. Valid options are:]]></key>
+		<key name="job_0452"><![CDATA[- File name: [#!variable!name!#], file UUID: [#!variable!uuid!#].]]></key>
+		<key name="job_0453"><![CDATA[The install file: [#!variable!file!#] is not an ISO, so it can't be used to install.]]></key>
+		<key name="job_0454"><![CDATA[The install file: [#!variable!file!#] was not found on this Anvil!. Valid options are:]]></key>
+		<key name="job_0455"><![CDATA[Is it in '/mnt/shared/files/' and are the daemons running?]]></key>
+		<key name="job_0456"><![CDATA[The driver file: [#!variable!file!#] is not an ISO, so it can't be used as an optical disc.]]></key>
+		<key name="job_0457"><![CDATA[The driver file: [#!variable!file!#] was not found on this Anvil!. Valid options are:]]></key>
+		<key name="job_0458"><![CDATA[Available options
+ --name          - Alphanumeric, 1~16 characters long.
+ --os            - Run: 'osinfo-query os' and reference the 'Short ID' column for valid options.
+ --cpu           - 1 ~ #!varaible!threads!#
+ --ram           - Bytes or human readable, min is 64KiB, max is #!variable!max_ram.
+ --storage-group - Name or UUID. Valid options are:]]></key>
+		<key name="job_0459"><![CDATA[                     - Name: [#!variable!name!#], UUID: [#!variable!uuid!#], free space: [#!variable!free_space!#]]]></key>
+		<key name="job_0460"><![CDATA[ --storage-size  - Disk size, see above for space available
+ --install-media - File name or file UUID. Available discs are:]]></key>
+		<key name="job_0461"><![CDATA[                     - File name: [#!variable!name!#], file UUID: [#!variable!uuid!#], size: [#!variable!size!#]]]></key>
+		<key name="job_0462"><![CDATA[ --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.]]></key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
