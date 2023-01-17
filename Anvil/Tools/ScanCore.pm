@@ -2243,7 +2243,7 @@ sub post_scan_analysis_node
 						});
 					}
 					
-					my $shell_call = $anvil->data->{path}{exe}{'anvil-server'}." --target local --server all".$anvil->Log->switches;
+					my $shell_call = $anvil->data->{path}{exe}{'anvil-migrate-server'}." --target local --server all".$anvil->Log->switches;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0011", variables => { shell_call => $shell_call }});
 					$anvil->System->call({shell_call => $shell_call});
 					
