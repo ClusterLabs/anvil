@@ -1739,19 +1739,29 @@ sub connect
 				"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
 			}});
 			
-			# Set the first ID to be the one I read from later. Alternatively, if this host is 
-			# local, use it.
-			if (($is_local) or (not $anvil->data->{sys}{database}{read_uuid}))
+			# We always use the first DB we connect to, even if we're a DB ourselves. This helps
+			# with consistency and leaves second (or third...) as backups.
+			if (not $anvil->data->{sys}{database}{read_uuid})
 			{
-				$anvil->data->{sys}{database}{read_uuid}  = $uuid;
+				$anvil->data->{sys}{database}{read_uuid} = $uuid;
 				$anvil->Database->read({set => $anvil->data->{cache}{database_handle}{$uuid}});
 				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::read_uuid"  => $anvil->data->{sys}{database}{read_uuid}, 
-					'anvil->Database->read'     => $anvil->Database->read(), 
+					"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
+					'anvil->Database->read'    => $anvil->Database->read(),
 				}});
 			}
-			
+
+			# Only the first database to connect will be "Active". What this means will expand
+			# over time. As of now, only the active DB will do resyncs.
+			if (not $anvil->data->{sys}{database}{active_uuid})
+			{
+				$anvil->data->{sys}{database}{active_uuid} = $uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+					"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
+				}});
+			}
+
 			# Get a time stamp for this run, if not yet gotten.
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
@@ -1773,14 +1783,6 @@ sub connect
 			# Record this as successful
 			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
-		}
-		
-		# We always use the first DB we connect to, even if we're a DB ourselves. This helps with 
-		# consistency and leaves second (or third...) as backups.
-		if (not $anvil->data->{sys}{database}{read_uuid})
-		{
-			$anvil->data->{sys}{database}{read_uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
@@ -1842,7 +1844,8 @@ sub connect
 				
 				# Delete the information about this database. We'll try again on next
 				# ->connect().
-				$anvil->data->{sys}{database}{read_uuid} = "" if $anvil->data->{sys}{database}{read_uuid} eq $uuid;
+				$anvil->data->{sys}{database}{active_uuid} = "" if $anvil->data->{sys}{database}{read_active} eq $uuid;
+				$anvil->data->{sys}{database}{read_uuid}   = "" if $anvil->data->{sys}{database}{read_uuid}   eq $uuid;
 				$anvil->data->{sys}{database}{connections}--;
 				delete $anvil->data->{database}{$uuid};
 				next;
@@ -1850,7 +1853,7 @@ sub connect
 		}
 	}
 	
-	# If we're a striker and no connections were found, start our database.
+	# If we're a striker, no connections were found, and we have peers, start our database.
 	my $configured_databases = keys %{$anvil->data->{database}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		local_host_type              => $local_host_type,
@@ -2186,11 +2189,16 @@ sub connect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 	}
 	
+	# Check for behind databases only if there are 2+ DBs, we're the active DB, and we're set to do so.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+		"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
+		"sys::host_uuid"             => $anvil->data->{sys}{host_uuid},
 		check_for_resync             => $check_for_resync, 
 	}});
-	if (($anvil->data->{sys}{database}{connections} > 1) && ($check_for_resync))
+	if (($anvil->data->{sys}{database}{connections} > 1)                               &&
+	    ($anvil->data->{sys}{database}{active_uuid} eq $anvil->data->{sys}{host_uuid}) &&
+	    ($check_for_resync))
 	{
 		$anvil->Database->_find_behind_databases({
 			debug  => $debug, 
