@@ -2855,7 +2855,7 @@ sub interactive_ask_server_confirm
 		if (not $anvil->data->{new_server}{anvil_uuid})
 		{
 			# Instantly fatal
-			print "Missing '--anvil <name_or_uuid>'\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0437"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
@@ -2876,12 +2876,14 @@ sub interactive_ask_server_confirm
 		my $problem = 0;
 		if (not $anvil->data->{switches}{name})
 		{
-			print "Missing '--name <server_name>'\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0438"});
 			$problem = 1;
 		}
 		if (not $anvil->data->{switches}{os})
 		{
-			print "Missing '--os <os_variant>', valid options match 'virt-install --os-variant' (run: 'osinfo-query os' and reference the 'Short ID' column).\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0439"});
 			$problem = 1;
 		}
 		else
@@ -2895,18 +2897,28 @@ sub interactive_ask_server_confirm
 			}});
 			if ($os_name =~ /#!not_found/)
 			{
-				print "The OS: [".$anvil->data->{switches}{os}."] was not found. If you're sure the OS is valid, please run 'striker-parse-os-list --xml --new' and add the output to 'words.xml'.\n" if not $anvil->data->{switches}{options};
+				my $print = $anvil->data->{switches}{options} ? 0 : 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0440", variables => {
+					os => $anvil->data->{switches}{os},
+				}});
 				$problem = 1;
 			}
 		}
 		if (not $anvil->data->{switches}{cpu})
 		{
-			print "Missing '--cpu <1 ~ ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}.">'\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0441", variables => {
+				threads => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+			}});
 			$problem = 1;
 		}
 		elsif (($anvil->data->{switches}{cpu} =~ /\D/) or ($anvil->data->{switches}{cpu} > $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}) or ($anvil->data->{switches}{cpu} < 1))
 		{
-			print "The number of CPU cores: [".$anvil->data->{switches}{cpu}."] is invalid. Must be between 1 and ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}.".\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0442", variables => {
+				cores   => $anvil->data->{switches}{cpu},
+				threads => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+			}});
 			$problem = 1;
 		}
 		
@@ -2923,7 +2935,10 @@ sub interactive_ask_server_confirm
 		}});
 		if (not $anvil->data->{switches}{ram})
 		{
-			print "Missing '--ram <bytes or human readable, min is 64KiB, max is ".$say_max_ram.">'\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0443", variables => {
+				max_ram => $say_max_ram,
+			}});
 			$problem = 1;
 		}
 		elsif (($requested_ram eq "!!error!!") or 
@@ -2932,7 +2947,11 @@ sub interactive_ask_server_confirm
 		       ($requested_ram > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}))
 		{
 			# Invalid
-			print "The requested RAM: [".$anvil->data->{switches}{ram}."] is not valid. Must be between: [64KiB] and: [".$say_max_ram."]\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0444", variables => {
+				ram     => $anvil->data->{switches}{ram},
+				max_ram => $say_max_ram,
+			}});
 			$problem = 1;
 		}
 		
@@ -2940,10 +2959,14 @@ sub interactive_ask_server_confirm
 		my $storage_group_uuid     = "";
 		if (not $anvil->data->{switches}{'storage-group'})
 		{
-			print "Missing '--storage-group <name or uuid>. Valid options are:'\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0445"});
 			foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 			{
-				print "- Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."]\n" if not $anvil->data->{switches}{options};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0446", variables => {
+					name => $storage_group_name,
+					uuid => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+				}});
 			}
 			$problem = 1;
 		}
@@ -2972,10 +2995,16 @@ sub interactive_ask_server_confirm
 			else
 			{
 				# Invalid
-				print "- The requested storage group: [".$storage_group."] does not appear to be valid. Valid options are;\n" if not $anvil->data->{switches}{options};
+				my $print = $anvil->data->{switches}{options} ? 0 : 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0447", variables => {
+					storage_group => $storage_group,
+				}});
 				foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 				{
-					print "- Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."]\n" if not $anvil->data->{switches}{options};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0446", variables => {
+						name => $storage_group_name,
+						uuid => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+					}});
 				}
 				$problem = 1;
 			}
@@ -2983,13 +3012,16 @@ sub interactive_ask_server_confirm
 		my $say_max_storage_group_size = $max_storage_group_size ? $anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size}) : "";
 		if (not $anvil->data->{switches}{'storage-size'})
 		{
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
 			if ($max_storage_group_size)
 			{
-				print "Missing '--storage-size <bytes or human readable. max is ".$say_max_storage_group_size.">'\n" if not $anvil->data->{switches}{options};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0448", variables => {
+					storage_group_size => $say_max_storage_group_size,
+				}});
 			}
 			else
 			{
-				print "Missing '--storage-size <bytes or human readable>. Max will depend on selected --storage-group.'\n" if not $anvil->data->{switches}{options};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0449"});
 			}
 			$problem = 1;
 		}
@@ -3005,7 +3037,11 @@ sub interactive_ask_server_confirm
 			    ($requested_disk > $max_storage_group_size))
 			{
 				# Invalid
-				print "The requested disk size: [".$anvil->data->{switches}{'storage-size'}."] is not valid. Must be between: [10MiB] and: [".$say_max_storage_group_size."]\n" if not $anvil->data->{switches}{options};
+				my $print = $anvil->data->{switches}{options} ? 0 : 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0450", variables => {
+					storage_size => $anvil->data->{switches}{'storage-size'},
+					max_size     => $say_max_storage_group_size,
+				}});
 				$problem = 1;
 			}
 		}
@@ -3018,7 +3054,18 @@ sub interactive_ask_server_confirm
 		}
 		if (not $anvil->data->{switches}{'install-media'})
 		{
-			print "Missing '--install-media <file name or file_uuid>'\n" if not $anvil->data->{switches}{options};
+			my $print = $anvil->data->{switches}{options} ? 0 : 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0451"});
+			foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+			{
+				my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+				my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+				next if $file_type ne "iso";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0452", variables => {
+					name => $file_name,
+					uuid => $file_uuid,
+				}});
+			}
 			$problem = 1;
 		}
 		else
@@ -3030,7 +3077,8 @@ sub interactive_ask_server_confirm
 				my $file_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
 				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
 				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
-				if ($file_name eq $anvil->data->{switches}{'install-media'})
+				if (($file_name eq $anvil->data->{switches}{'install-media'}) or
+				    ($file_uuid eq $anvil->data->{switches}{'install-media'}))
 				{
 					# Found it.
 					$found = 1;
@@ -3045,7 +3093,10 @@ sub interactive_ask_server_confirm
 					else
 					{
 						# Not an ISO.
-						print "The install file: [".$anvil->data->{switches}{'install-media'}."] is not an ISO, so it can't be used to install.\n" if not $anvil->data->{switches}{options};
+						my $print = $anvil->data->{switches}{options} ? 0 : 1;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0453", variables => {
+							file => $anvil->data->{switches}{'install-media'},
+						}});
 						$problem = 1;
 					}
 				}
@@ -3053,8 +3104,24 @@ sub interactive_ask_server_confirm
 			}
 			if (not $found)
 			{
-				print "The install file: [".$anvil->data->{switches}{'install-media'}."] was not found on this Anvil!.\n" if not $anvil->data->{switches}{options};
-				print "Is it in '/mnt/shared/files/' and are the daemons running?\n" if not $anvil->data->{switches}{options};
+				if (not $anvil->data->{switches}{options})
+				{
+					my $print = $anvil->data->{switches}{options} ? 0 : 1;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0454", variables => {
+						file => $anvil->data->{switches}{'install-media'},
+					}});
+					foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+					{
+						my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+						my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+						next if $file_type ne "iso";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0452", variables => {
+							name => $file_name,
+							uuid => $file_uuid,
+						}});
+					}
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0455"});
+				}
 				$problem = 1;
 			}
 		}
@@ -3067,7 +3134,8 @@ sub interactive_ask_server_confirm
 				my $file_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
 				my $file_type      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
 				my $file_directory = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory};
-				if ($file_name eq $anvil->data->{switches}{'driver-disc'})
+				if (($file_name eq $anvil->data->{switches}{'driver-disc'}) or
+				    ($file_uuid eq $anvil->data->{switches}{'driver-disc'}))
 				{
 					# Found it.
 					$found = 1;
@@ -3082,7 +3150,10 @@ sub interactive_ask_server_confirm
 					else
 					{
 						# Not an ISO.
-						print "The driver file: [".$anvil->data->{switches}{'driver-disc'}."] is not an ISO, so it can't be used as an optical disc.\n" if not $anvil->data->{switches}{options};
+						my $print = $anvil->data->{switches}{options} ? 0 : 1;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0456", variables => {
+							file => $anvil->data->{switches}{'driver-disc'},
+						}});
 						$problem = 1;
 					}
 				}
@@ -3090,8 +3161,24 @@ sub interactive_ask_server_confirm
 			}
 			if (not $found)
 			{
-				print "The driver file: [".$anvil->data->{switches}{'driver-disc'}."] was not found on this Anvil!.\n" if not $anvil->data->{switches}{options};
-				print "Is it in '/mnt/shared/files/' and are the daemons running?\n" if not $anvil->data->{switches}{options};
+				if (not $anvil->data->{switches}{options})
+				{
+					my $print = $anvil->data->{switches}{options} ? 0 : 1;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0457", variables => {
+						file => $anvil->data->{switches}{'driver-disc'},
+					}});
+					foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+					{
+						my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+						my $file_type = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type};
+						next if $file_type ne "iso";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0452", variables => {
+							name => $file_name,
+							uuid => $file_uuid,
+						}});
+					}
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0455"});
+				}
 				$problem = 1;
 			}
 		}
@@ -3127,21 +3214,22 @@ sub interactive_ask_server_confirm
 			else
 			{
 				# Show valid options to build a VM in a machine-parsable way.
-				print "Available options
- --name          - alphanumeric, 1~16 characters long.
- --os            - Valid options; run: 'osinfo-query os' and reference the 'Short ID' column.
- --cpu           - 1 ~ ".$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}."
- --ram           - bytes or human readable, min is 64KiB, max is ".$say_max_ram."
- --storage-group - name or uuid. Valid options are:\n";
+				print $anvil->Words->string({key => "job_0458", variables => {
+					threads => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+					max_ram => $say_max_ram,
+				}})."\n";
 				foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 				{
 					my $storage_group_uuid         = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
 					my $max_storage_group_size     = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 					my $say_max_storage_group_size = $anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size});
-					print "                 - Name: [".$storage_group_name."], UUID: [".$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid}."], free space: [".$say_max_storage_group_size."]\n";
+					print $anvil->Words->string({key => "job_0459", variables => {
+						name       => $storage_group_name,
+						uuid       => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+						free_space => $say_max_storage_group_size,
+					}})."\n";
 				}
-				print " --storage-size  - Disk size, see above for space available
- --install-media - file name or file UUID. Available discs are:\n";
+				print $anvil->Words->string({key => "job_0460"})."\n";
 				foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
 				{
 					my $file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
@@ -3149,9 +3237,13 @@ sub interactive_ask_server_confirm
 					my $file_size = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size};
 					next if $file_type ne "iso";
 					my $say_size = $anvil->Convert->bytes_to_human_readable({"bytes" => $file_size});
-					print "                 - File name: [".$file_name."], file UUID: [".$file_uuid."], size: [".$say_size."]\n";
+					print $anvil->Words->string({key => "job_0461", variables => {
+						name => $file_name,
+						uuid => $file_uuid,
+						size => $say_max_storage_group_size,
+					}})."\n";
 				}
-				print " --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.\n";
+				print $anvil->Words->string({key => "job_0462"})."\n";
 			}
 			$anvil->nice_exit({exit_code => 0});
 		}
