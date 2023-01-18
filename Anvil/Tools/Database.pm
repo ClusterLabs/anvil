@@ -1739,9 +1739,10 @@ sub connect
 				"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
 			}});
 			
-			# We always use the first DB we connect to, even if we're a DB ourselves. This helps
-			# with consistency and leaves second (or third...) as backups.
-			if (not $anvil->data->{sys}{database}{read_uuid})
+			# We always use the first DB we connect to, unless we've got a local DB. We always
+			# prefer local as there could be data locally that hasn't yet been sync'ed with the
+			# peer.
+			if (($is_local) or (not $anvil->data->{sys}{database}{read_uuid}))
 			{
 				$anvil->data->{sys}{database}{read_uuid} = $uuid;
 				$anvil->Database->read({set => $anvil->data->{cache}{database_handle}{$uuid}});
