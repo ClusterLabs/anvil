@@ -1614,17 +1614,26 @@ sub connect
 			}});
 			
 			# Set this database handle as the one to use for reading, if no handle is yet set.
-			if (not $anvil->Database->read)
-			{
-				$anvil->Database->read({set => $dbh});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'anvil->Database->read' => $anvil->Database->read }});
-			}
-			if (not $anvil->data->{sys}{database}{read_uuid})
+			if (($is_local) or (not $anvil->data->{sys}{database}{read_uuid}) or (not $anvil->Database->read))
 			{
 				$anvil->data->{sys}{database}{read_uuid} = $uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+				$anvil->Database->read({set => $dbh});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+					'anvil->Database->read'    => $anvil->Database->read,
+					"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
+				}});
 			}
-			
+
+			# Only the first database to connect will be "Active". What this means will expand
+			# over time. As of now, only the active DB will do resyncs.
+			if (not $anvil->data->{sys}{database}{active_uuid})
+			{
+				$anvil->data->{sys}{database}{active_uuid} = $uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+					"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
+				}});
+			}
+
 			# Read the DB identifier and then check that we've not already connected to this DB.
 			my $query      = "SELECT system_identifier FROM pg_control_system();";
 			my $identifier = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -1738,30 +1747,6 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
 			}});
-			
-			# We always use the first DB we connect to, unless we've got a local DB. We always
-			# prefer local as there could be data locally that hasn't yet been sync'ed with the
-			# peer.
-			if (($is_local) or (not $anvil->data->{sys}{database}{read_uuid}))
-			{
-				$anvil->data->{sys}{database}{read_uuid} = $uuid;
-				$anvil->Database->read({set => $anvil->data->{cache}{database_handle}{$uuid}});
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
-					'anvil->Database->read'    => $anvil->Database->read(),
-				}});
-			}
-
-			# Only the first database to connect will be "Active". What this means will expand
-			# over time. As of now, only the active DB will do resyncs.
-			if (not $anvil->data->{sys}{database}{active_uuid})
-			{
-				$anvil->data->{sys}{database}{active_uuid} = $uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-					"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
-				}});
-			}
 
 			# Get a time stamp for this run, if not yet gotten.
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

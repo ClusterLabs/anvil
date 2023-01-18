@@ -2417,6 +2417,7 @@ sub switches
 		foreach my $set_switch (sort {$a cmp $b} keys %{$anvil->data->{switches}})
 		{
 			next if $set_switch eq "?";
+			next if $set_switch eq "age-out-database";
 			next if $set_switch eq "h";
 			next if $set_switch eq "help";
 			next if $set_switch eq "job-uuid";
