@@ -50,7 +50,6 @@ my $conf = {
 			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
 			pcs		=>	"/usr/sbin/pcs",
-			stonith_admin	=>	"/usr/sbin/stonith_admin",
 		},
 	},
 	# The script will set this.

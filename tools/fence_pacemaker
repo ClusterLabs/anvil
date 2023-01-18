@@ -82,7 +82,6 @@ my $conf = {
 			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
 			pcs		=>	"/usr/sbin/pcs",
-			stonith_admin	=>	"/usr/sbin/stonith_admin",
 		},
 	},
 	# The script will set this.
@@ -738,7 +737,7 @@ sub kill_target
 	my ($conf) = @_;
 
 	# Variables
-	my $shell_call = $conf->{path}{exe}{stonith_admin}." --fence ".$conf->{cluster}{target_node}." --reboot --verbose; RC=\$?; ".$conf->{path}{exe}{crm_error}." \$RC; ".$conf->{path}{exe}{echo}." rc:\$RC";
+	my $shell_call = $conf->{path}{exe}{pcs}." stonith fence ".$conf->{cluster}{target_node}."; ".$conf->{path}{exe}{echo}." rc:\$?";
 	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
