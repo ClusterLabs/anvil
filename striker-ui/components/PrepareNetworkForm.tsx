@@ -78,7 +78,7 @@ const PrepareNetworkForm = withRouter(
     }, [dataHostDetail, fatalErrorMessage, isLoading, panelHeaderElement]);
 
     useEffect(() => {
-      if (isReady) {
+      if (isReady && !fatalErrorMessage) {
         if (queryHostUUID) {
           api
             .get<APIHostDetail>(
@@ -102,7 +102,7 @@ const PrepareNetworkForm = withRouter(
             .finally(() => {
               setIsLoading(false);
             });
-        } else if (!fatalErrorMessage) {
+        } else {
           setFatalErrorMessage({
             children: `No host UUID provided; cannot continue.`,
             type: 'error',
