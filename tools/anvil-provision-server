@@ -32,8 +32,7 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
-# passed directly, it will be used. Otherwise, the password will be read from the database.
+# Read switches
 $anvil->Get->switches({list => [
 	"anvil", 
 	"anvil-name", 
