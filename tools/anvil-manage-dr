@@ -93,7 +93,7 @@ sub sanity_check
 		host_type  => $host_type,
 		anvil_uuid => $anvil_uuid, 
 	}});
-	
+
 	# If we're (dis}connecting, is the server being protected in the first place?
 	if (($anvil->data->{switches}{'connect'}) or ($anvil->data->{switches}{'disconnect'}))
 	{
