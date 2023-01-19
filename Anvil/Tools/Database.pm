@@ -1329,8 +1329,8 @@ sub connect
 	# We need the host_uuid before we connect.
 	if (not $anvil->data->{sys}{host_uuid})
 	{
-		$anvil->data->{sys}{host_uuid} = $anvil->Get->host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
+		$anvil->data->{sys}{host_uuid} = $anvil->Get->host_uuid({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	}
 	
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
@@ -17723,7 +17723,7 @@ sub _age_out_data
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_age_out_data()" }});
-	
+
 	# Get a lock.
 	$anvil->Database->locking({debug => $debug, request => 1});
 	
@@ -17742,7 +17742,26 @@ sub _age_out_data
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-	
+
+		# Before I proceed, see when the last age-out happened. If it's less than 24 hours ago, don't
+		# bother. Of course, if we've been specfiically asked to age out data, proceed.
+		if (not $anvil->data->{switches}{"age-out-database"})
+		{
+			my ($last_age_out, undef, undef) = $anvil->Database->read_variable({
+				debug         => $debug,
+				variable_name => "database::".$uuid."::aged-out",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_age_out => $last_age_out }});
+
+			if (($last_age_out) && ($last_age_out =~ /^\d+$/))
+			{
+				my $age = time - $last_age_out;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+
+				next of $age < 86400;
+			}
+		}
+
 		my $queries = [];
 		my $query   = "SELECT job_uuid FROM jobs WHERE modified_date <= '".$old_timestamp."' AND job_progress = 100;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -17775,7 +17794,18 @@ sub _age_out_data
 			# Commit the DELETEs.
 			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
-		
+
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			variable_name         => "database::".$uuid."::aged-out",
+			variable_value        => time,
+			variable_default      => "0",
+			variable_description  => "striker_0199",
+			variable_section      => "database",
+			variable_source_uuid  => "NULL",
+			variable_source_table => "",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+
 		$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	

@@ -3085,7 +3085,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0196">Recipient's Email</key>
 		<key name="striker_0197">The email that alerts are sent to.</key>
 		<key name="striker_0198">The language the user will receive alerts in.</key>
-		<key name="striker_0199"></key>	<!-- free -->
+		<key name="striker_0199">This records when the database was last "aged out". That is to say; When did that last purge of old records happen. Normally, aging out only runs once per day. An age-out can be forced from any command line tool with '--age-out-database'.</key>
 		<key name="striker_0200">The alert level used for new (and existing) #!string!brand_0006!# systems.</key>
 		<key name="striker_0201">Existing alert recipients:</key>
 		<key name="striker_0202">This puts the host into network mapping mode. In this most, most functions are disabled and the link status of network interfaces are closely monitored.</key>
