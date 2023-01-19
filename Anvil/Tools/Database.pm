@@ -17758,7 +17758,7 @@ sub _age_out_data
 				my $age = time - $last_age_out;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
 
-				next of $age < 86400;
+				next if $age < 86400;
 			}
 		}
 
