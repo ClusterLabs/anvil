@@ -1327,6 +1327,7 @@ sub connect
 	$anvil->data->{sys}{database}{timestamp} = "" if not defined $anvil->data->{sys}{database}{timestamp};
 	
 	# We need the host_uuid before we connect.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	if (not $anvil->data->{sys}{host_uuid})
 	{
 		$anvil->data->{sys}{host_uuid} = $anvil->Get->host_uuid({debug => 2});
@@ -2182,9 +2183,9 @@ sub connect
 		"sys::host_uuid"             => $anvil->data->{sys}{host_uuid},
 		check_for_resync             => $check_for_resync, 
 	}});
-	if (($anvil->data->{sys}{database}{connections} > 1)                               &&
-	    ($anvil->data->{sys}{database}{active_uuid} eq $anvil->data->{sys}{host_uuid}) &&
-	    ($check_for_resync))
+	if (($anvil->data->{sys}{database}{connections} > 1)                                &&
+	    (($anvil->data->{sys}{database}{active_uuid} eq $anvil->data->{sys}{host_uuid}) or
+	    ($check_for_resync)))
 	{
 		$anvil->Database->_find_behind_databases({
 			debug  => $debug, 
@@ -17597,7 +17598,7 @@ sub write
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
 					query    => (not $secure) ? $query : $anvil->Log->is_secure($query), 
-					server   => $say_server,
+					server   => $say_server." (".$uuid.")",
 					db_error => $DBI::errstr, 
 				}});
 				if (($count) or ($transaction))
