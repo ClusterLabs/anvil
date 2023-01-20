@@ -537,52 +537,13 @@ sub sanity_check
 	# Does this Anvil! have at least one DR node? If there's only one, use it. If more than one, we need
 	# a '--dr-host' switch.
 	my $dr_host_uuid = "";
-	my $dr_host_name = "";
 	if ($anvil->data->{switches}{'dr-host'})
 	{
-		my $found   = 0;
-		my $dr_host = $anvil->data->{switches}{'dr-host'};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_uuid => $dr_host }});
-		if ($anvil->data->{hosts}{host_uuid}{$dr_host})
+		$dr_host_uuid = $anvil->Database->get_host_uuid_from_string({string => $anvil->data->{switches}{'dr-host'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_uuid => $dr_host_uuid }});
+		if (not $dr_host_uuid)
 		{
-			$dr_host_uuid = $dr_host;
-			$dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
-			$found        = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				dr_host_uuid => $dr_host_uuid,
-				dr_host_name => $dr_host_name,
-				found        => $found,
-			}});
-		}
-		else
-		{
-			foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
-			{
-				my $host_name       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
-				my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-					host_uuid       => $host_uuid,
-					host_name       => $host_name,
-					short_host_name => $short_host_name,
-				}});
-				if (($dr_host eq $host_name) or ($dr_host eq $short_host_name))
-				{
-					# Found it.
-					$dr_host_uuid = $host_uuid;
-					$dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
-					$found        = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-						dr_host_uuid => $dr_host_uuid,
-						dr_host_name => $dr_host_name,
-						found        => $found,
-					}});
-					last;
-				}
-			}
-		}
-
-		if (not $found)
-		{
+			# Bad host.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0400", variables => {
 				dr_host => $anvil->data->{switches}{'dr-host'},
 			}});
@@ -595,52 +556,33 @@ sub sanity_check
 		}
 	}
 
-	# If I have a dr_host_uuid, make sure it's linked to this anvil.
-	if (($dr_host_uuid) && (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}{$dr_host_uuid}))
-	{
-		# Bad requested DR host.
-		my $dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_name => $dr_host_name }});
-
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0401", variables => {
-			dr_host => $dr_host_name,
-		}});
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0401,!!dr_host!".$dr_host_name."!!",
-			job_status => "failed",
-		});
-		$anvil->nice_exit({exit_code => 1});
-	}
-
 	# If I don't have a dr_host_uuid yet, see which are available. If only one, use it. If two or more, tell the user they need to specify which.
-	my $dr_count = keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		anvil_uuid => $anvil_uuid,
-		dr_count   => $dr_count,
-	}});
+	if (not $dr_host_uuid)
+	{
+		my $dr_count = keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			anvil_uuid => $anvil_uuid,
+			dr_count   => $dr_count,
+		}});
 
-	if (not $dr_count)
-	{
-		print $anvil->Words->string({key => "error_0333"})."\n";
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0333",
-			job_status => "failed",
-		});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	if ($dr_count eq "1")
-	{
-		# Only one, use it.
-		foreach my $host_uuid (keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}})
+		if (not $dr_count)
 		{
-			$dr_host_uuid = $host_uuid;
-			$dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				dr_host_uuid => $dr_host_uuid,
-				dr_host_name => $dr_host_name,
-			}});
+			print $anvil->Words->string({key => "error_0333"})."\n";
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0333",
+				job_status => "failed",
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if ($dr_count eq "1")
+		{
+			# Only one, use it.
+			foreach my $host_uuid (keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}})
+			{
+				$dr_host_uuid = $host_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_uuid => $dr_host_uuid }});
+			}
 		}
 	}
 
@@ -669,11 +611,36 @@ sub sanity_check
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	$anvil->data->{sys}{dr_host_uuid} = $dr_host_uuid;
-	$anvil->data->{sys}{dr_host_name} = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+
+	my $dr_host_name       = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+	my $dr_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		"sys::dr_host_uuid" => $anvil->data->{sys}{dr_host_uuid},
-		"sys::dr_host_name" => $anvil->data->{sys}{dr_host_name},
+		dr_host_name       => $dr_host_name,
+		dr_short_host_name => $dr_short_host_name,
+	}});
+
+	# Last check, we've got a dr_host_uuid, is it associated with this Anvil! node?
+	if (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$dr_host_uuid})
+	{
+		# Bad requested DR host.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0401", variables => {
+			dr_host => $dr_host_name,
+		}});
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0401,!!dr_host!".$dr_host_name."!!",
+			job_status => "failed",
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	$anvil->data->{sys}{dr_host_uuid}       = $dr_host_uuid;
+	$anvil->data->{sys}{dr_host_name}       = $dr_host_name;
+	$anvil->data->{sys}{dr_short_host_name} = $dr_short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		"sys::dr_host_uuid"       => $anvil->data->{sys}{dr_host_uuid},
+		"sys::dr_host_name"       => $anvil->data->{sys}{dr_host_name},
+		"sys::dr_short_host_name" => $anvil->data->{sys}{dr_short_host_name},
 	}});
 
 	# Can we access DR, if we're not the DR host?
@@ -683,14 +650,12 @@ sub sanity_check
 		debug => 2,
 		host  => $dr_host_name,
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		password => $anvil->Log->is_secure($password),
+		dr_ip    => $dr_ip,
+	}});
 	if ($dr_host_uuid ne $anvil->Get->host_uuid)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			password     => $anvil->Log->is_secure($password),
-			dr_host_uuid => $dr_host_uuid,
-			dr_host_name => $dr_host_name,
-			dr_ip        => $dr_ip,
-		}});
 		if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
 		{
 			# Failed to find an IP we can access the DR host. Has it been configured? Is it running? Exiting.
