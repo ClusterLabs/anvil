@@ -267,7 +267,10 @@ sub sanity_check
 		progress => 10,
 		message  => "job_0358", 
 	});
-	
+
+	# Somehow, duplicate entries are being created in dr_links. Look for and purge them.
+	check_for_duplicate_dr_links($anvil);
+
 	# Are we a node or DR?
 	my $host_type  = $anvil->Get->host_type();
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
@@ -289,111 +292,93 @@ sub sanity_check
 		$anvil->nice_exit({exit_code => 1});
 	}
 
-	# Somehow, duplicate entries are being created in dr_links. Look for and purge them.
-	if (1)
+	# If we're protecting, removing, connecting, disconnecting, or update, we need to have a server.
+	$anvil->Database->get_servers();
+	my $server_name = "";
+	my $server_uuid = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		'switches::connect'    => $anvil->data->{switches}{'connect'},
+		'switches::disconnect' => $anvil->data->{switches}{'disconnect'},
+		'switches::protect'    => $anvil->data->{switches}{protect},
+		'switches::remove'     => $anvil->data->{switches}{remove},
+		'switches::update'     => $anvil->data->{switches}{update},
+	}});
+	if (($anvil->data->{switches}{'connect'})    or
+	    ($anvil->data->{switches}{'disconnect'}) or
+	    ($anvil->data->{switches}{protect})      or
+	    ($anvil->data->{switches}{remove})       or
+	    ($anvil->data->{switches}{update}))
 	{
-		if (exists $anvil->data->{dr_links})
+		# Were we given a server?
+		if (not $anvil->data->{switches}{server})
 		{
-			delete $anvil->data->{dr_links};
+			# Please specify the server to manager using '--server <name or uuid>'.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0340"});
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0340",
+				job_status => "failed",
+			});
+
+			# Show the servers on this anvil and exit.
+			show_servers($anvil, $anvil_uuid);
+			$anvil->nice_exit({exit_code => 1});
 		}
-		my $query = "
-SELECT
-    dr_link_uuid,
-    dr_link_host_uuid,
-    dr_link_anvil_uuid,
-    dr_link_note
-FROM
-    dr_links
-ORDER BY
-    modified_date DESC;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
+		$server_uuid = $anvil->Database->get_server_uuid_from_string({
+			debug  => 2,
+			string => $anvil->data->{switches}{server},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+		if (not $server_uuid)
+		{
+			my $variables = { server => $anvil->data->{switches}{server} };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0411", variables => $variables});
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0411",
+				variables  => $variables,
+				job_status => "failed",
+			});
+
+			# Show the servers on this anvil and exit.
+			show_servers($anvil, $anvil_uuid);
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		# Lastly, is this server on this Anvil! node?
+		   $server_name     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		my $host_anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			results => $results,
-			count   => $count,
+			server_name     => $server_name,
+			host_anvil_uuid => $host_anvil_uuid." (".$anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name}.")",
 		}});
-		foreach my $row (@{$results})
+
+		if ($anvil_uuid ne $host_anvil_uuid)
 		{
-			my $dr_link_uuid       = $row->[0];
-			my $dr_link_host_uuid  = $row->[1];
-			my $dr_link_anvil_uuid = $row->[2];
-			my $dr_link_note       = $row->[3];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				dr_link_uuid       => $dr_link_uuid,
-				dr_link_host_uuid  => $dr_link_host_uuid,
-				dr_link_anvil_uuid => $dr_link_anvil_uuid,
-				dr_link_note       => $dr_link_note,
-			}});
+			# Server isn't here.
+			my $variables = {
+				server     => $server_name,
+				this_anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+				on_anvil   => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0412", variables => $variables});
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0412",
+				variables  => $variables,
+				job_status => "failed",
+			});
 
-			if (exists $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note})
-			{
-				# Duplicate!
-				my $previous_note = $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note};
-				my $this_note     = $dr_link_note;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-					previous_note => $previous_note,
-					this_note     => $this_note,
-				}});
-
-				# If the previous note was "DELETED", delete it. Otherwise we'll delete this one.
-				if ($previous_note eq "DELETED")
-				{
-					# Delete the previous one.
-					my $old_dr_link_uuid = $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_dr_link_uuid => $old_dr_link_uuid }});
-
-					my $queries = [];
-					push @{$queries}, "DELETE FROM history.dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($old_dr_link_uuid).";";
-					push @{$queries}, "DELETE FROM dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($old_dr_link_uuid).";";
-					foreach my $query (@{$queries})
-					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					}
-					$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
-
-					# Update the local record to store this one.
-					$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
-					$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note} = $dr_link_note;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-						"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid},
-						"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_note" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note},
-					}});
-				}
-				else
-				{
-					# Delete this one.
-					my $queries = [];
-					push @{$queries}, "DELETE FROM history.dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($dr_link_uuid).";";
-					push @{$queries}, "DELETE FROM dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($dr_link_uuid).";";
-					foreach my $query (@{$queries})
-					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					}
-					$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
-				}
-			}
-			else
-			{
-				$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
-				$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note} = $dr_link_note;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-					"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid},
-					"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_note" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note},
-				}});
-			}
+			# Show the servers on this anvil and exit.
+			show_servers($anvil, $anvil_uuid);
+			$anvil->nice_exit({exit_code => 1});
 		}
-
-		# Done, reload dr_links.
-		delete $anvil->data->{dr_links};
-		$anvil->Database->get_dr_links();
 	}
 
 	# If we're (dis}connecting, is the server being protected in the first place?
 	if (($anvil->data->{switches}{'connect'}) or ($anvil->data->{switches}{'disconnect'}))
 	{
 		# Is this server configured to be protected?
-		my $server_name = $anvil->data->{switches}{server};
 		my $config_file = $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_file => $config_file }});
 		if (not -e $config_file)
@@ -413,13 +398,13 @@ ORDER BY
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
-	
+
 	# If we're doing a --protect or --remove, make sure we're a node, the cluster is up, and both nodes 
 	# are ready.
 	if (($anvil->data->{switches}{protect}) or ($anvil->data->{switches}{remove}))
 	{
-		# Make sure we're in an Anvil! (Node or DR Host)
-		if (not $anvil_uuid)
+		# Make sure we're in an Anvil! if we're a node (DR link will be checked later).
+		if (($host_type eq "node") && (not $anvil_uuid))
 		{
 			# This must be run on a node active in the cluster  hosting the server being managed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0332"});
@@ -439,13 +424,13 @@ ORDER BY
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 			if ($problem)
 			{
+				# No. Clear the job,
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0336"});
 				$anvil->Job->update_progress({
 					progress   => 0,
 					message    => "error_0336", 
 					job_status => "failed", 
 				});
-				$anvil->nice_exit({exit_code => 1});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			
@@ -549,8 +534,8 @@ ORDER BY
 	$anvil->Database->get_storage_group_data();
 	$anvil->Database->get_dr_links({debug => 2});
 
-	# Does this Anvil! have a DR node? If there's only one, use it. If more than one, we need a
-	# '--dr-host' switch.
+	# Does this Anvil! have at least one DR node? If there's only one, use it. If more than one, we need
+	# a '--dr-host' switch.
 	my $dr_host_uuid = "";
 	my $dr_host_name = "";
 	if ($anvil->data->{switches}{'dr-host'})
@@ -779,21 +764,12 @@ ORDER BY
 	$anvil->data->{server}{'anvil-uuid'}  = $anvil_uuid;
 	if (not $anvil->data->{switches}{server})
 	{
-		# Please specify the server to manager using '--server <name or uuid>'.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0340"});
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0340", 
-			job_status => "failed", 
-		});
-		$anvil->nice_exit({exit_code => 1});
 	}
 	else
 	{
 		my $server = $anvil->data->{switches}{server};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server => $server }});
 		
-		$anvil->Database->get_servers();
 		if (exists $anvil->data->{servers}{server_uuid}{$server})
 		{
 			$anvil->data->{server}{'server-uuid'} = $server;
@@ -3511,4 +3487,123 @@ sub load_job
 	print "Job loaded successfully.\n\n";
 	
 	return(0);
+}
+
+sub check_for_duplicate_dr_links
+{
+	my ($anvil) = @_;
+
+	if (exists $anvil->data->{dr_links})
+	{
+		delete $anvil->data->{dr_links};
+	}
+	my $query = "
+SELECT
+    dr_link_uuid,
+    dr_link_host_uuid,
+    dr_link_anvil_uuid,
+    dr_link_note
+FROM
+    dr_links
+ORDER BY
+    modified_date DESC;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		results => $results,
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $dr_link_uuid       = $row->[0];
+		my $dr_link_host_uuid  = $row->[1];
+		my $dr_link_anvil_uuid = $row->[2];
+		my $dr_link_note       = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			dr_link_uuid       => $dr_link_uuid,
+			dr_link_host_uuid  => $dr_link_host_uuid,
+			dr_link_anvil_uuid => $dr_link_anvil_uuid,
+			dr_link_note       => $dr_link_note,
+		}});
+
+		if (exists $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note})
+		{
+			# Duplicate!
+			my $previous_note = $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note};
+			my $this_note     = $dr_link_note;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				previous_note => $previous_note,
+				this_note     => $this_note,
+			}});
+
+			# If the previous note was "DELETED", delete it. Otherwise we'll delete this one.
+			if ($previous_note eq "DELETED")
+			{
+				# Delete the previous one.
+				my $old_dr_link_uuid = $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_dr_link_uuid => $old_dr_link_uuid }});
+
+				my $queries = [];
+				push @{$queries}, "DELETE FROM history.dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($old_dr_link_uuid).";";
+				push @{$queries}, "DELETE FROM dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($old_dr_link_uuid).";";
+				foreach my $query (@{$queries})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				}
+				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+
+				# Update the local record to store this one.
+				$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
+				$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note} = $dr_link_note;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid},
+					"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_note" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note},
+				}});
+			}
+			else
+			{
+				# Delete this one.
+				my $queries = [];
+				push @{$queries}, "DELETE FROM history.dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($dr_link_uuid).";";
+				push @{$queries}, "DELETE FROM dr_links WHERE dr_link_uuid = ".$anvil->Database->quote($dr_link_uuid).";";
+				foreach my $query (@{$queries})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				}
+				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+		else
+		{
+			$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
+			$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note} = $dr_link_note;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid},
+				"dr_links::host_uuid::${dr_link_host_uuid}::${dr_link_anvil_uuid}::dr_link_note" => $anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_note},
+			}});
+		}
+	}
+
+	# Done, reload dr_links.
+	delete $anvil->data->{dr_links};
+	$anvil->Database->get_dr_links();
+}
+
+sub show_servers
+{
+	my ($anvil, $anvil_uuid) = @_;
+
+	my $server_count = keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
+	if ($server_count > 0)
+	{
+		print $anvil->Words->string({key => "error_0413"})."\n";
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+		{
+			my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			print "- ".$server_name." (".$server_uuid.")\n";
+		}
+		print "\n";
+	}
 }

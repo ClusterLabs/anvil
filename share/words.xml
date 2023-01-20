@@ -583,6 +583,9 @@ The definition data passed in was:
 		<key name="error_0408"><![CDATA[The requested host: [#!variable!host!#] is not a DR host. Specify with '--dr-host <name or UUID>'. Valid options are:]]></key>
 		<key name="error_0409"><![CDATA[You need to specify a DR host to (un)link. Valid options are:]]></key>
 		<key name="error_0410"><![CDATA[Existing Anvil! <-> DR links:]]></key>
+		<key name="error_0411"><![CDATA[The server: [#!variable!server!#] was not found. Exiting.]]></key>
+		<key name="error_0412"><![CDATA[The server: [#!variable!server!#] is on the Anvil! node: [#!variable!on_anvil!#], and this is: [#!variable!this_anvil!#]. Exiting.]]></key>
+		<key name="error_0413"><![CDATA[You need to specify the server with '--server <name or uuid>'. Available servers are;]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
