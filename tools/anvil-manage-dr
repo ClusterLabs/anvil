@@ -32,7 +32,21 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->Get->switches({list => ["connect", "disconnect", "job-uuid", "license-file", "protect", "protocol", "remove", "server", "update", "Yes"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"anvil",
+	"connect",
+	"disconnect",
+	"dr-host",
+	"job-uuid",
+	"license-file",
+	"link",
+	"protect",
+	"protocol",
+	"remove",
+	"server",
+	"unlink",
+	"update",
+	"Yes"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -45,6 +59,12 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0306"});
 	sleep 10;
 	$anvil->nice_exit({exit_code => 1});
+}
+
+# Are we linking or unlinking?
+if (($anvil->data->{switches}{'link'}) or ($anvil->data->{switches}{'unlink'}))
+{
+	handle_links($anvil);
 }
 
 # If we've got a job UUID, load the job details.
@@ -76,6 +96,168 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+sub handle_links
+{
+	my ($anvil) = @_;
+
+	# Get a list of DR hosts.
+	$anvil->Database->get_dr_links();
+
+	# Do we habe an Anvil! and a DR host?
+	my $anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({string => $anvil->data->{switches}{anvil}});
+	my $host_uuid  = $anvil->Database->get_host_uuid_from_string({string => $anvil->data->{switches}{'dr-host'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		anvil_uuid => $anvil_uuid,
+		host_uuid  => $host_uuid,
+	}});
+
+	my $problem = 0;
+	if (not $anvil_uuid)
+	{
+		$problem = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($anvil->data->{switches}{anvil})
+		{
+			print $anvil->Words->string({key => "error_0405", variables => { anvil => $anvil->data->{switches}{anvil} }})."\n";
+		}
+		else
+		{
+			print $anvil->Words->string({key => "error_0406"})."\n";
+		}
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+			print "- ".$anvil_name." - ".$anvil_description."\n";
+		}
+	}
+
+	my $show_hosts = 0;
+	if ($host_uuid)
+	{
+		# Is it a DR host.
+		my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		if ($host_type ne "dr")
+		{
+			$show_hosts = 1;
+			$problem    = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				show_hosts => $show_hosts,
+				problem    => $problem,
+			}});
+			print $anvil->Words->string({key => "error_0408", variables => { host => $anvil->data->{switches}{'dr-host'} }})."\n";
+		}
+	}
+	else
+	{
+		$show_hosts = 1;
+		$problem    = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			show_hosts => $show_hosts,
+			problem    => $problem,
+		}});
+		if ($anvil->data->{switches}{anvil})
+		{
+			print "\n".$anvil->Words->string({key => "error_0407", variables => { host => $anvil->data->{switches}{'dr-host'} }})."\n";
+		}
+		else
+		{
+			print "\n".$anvil->Words->string({key => "error_0409"})."\n";
+		}
+	}
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { show_hosts => $show_hosts }});
+	if ($show_hosts)
+	{
+		$anvil->Database->get_hosts();
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+			my $this_host_uuid  = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+			my $short_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+			my $host_type       = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{host_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				this_host_uuid  => $this_host_uuid,
+				host_name       => $host_name,
+				short_host_name => $short_host_name,
+				host_type       => $host_type,
+			}});
+			next if $host_type ne "dr";
+			print "- ".$short_host_name."\n";
+		}
+	}
+
+	if ($problem)
+	{
+		print "\n".$anvil->Words->string({key => "error_0410"})."\n";
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			my $this_anvil_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+			print "- ".$anvil_name." - ".$anvil_description."\n";
+
+			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$this_anvil_uuid}{dr_link_host_name}})
+			{
+				my $dr_link_uuid = $anvil->data->{dr_links}{by_anvil_uuid}{$this_anvil_uuid}{dr_link_host_name}{$host_name}{dr_link_uuid};
+				print " ^-> ".$host_name."\n";
+			}
+		}
+		print "\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	# Still alivee? Update!
+	my $dr_link_uuid = "";
+	if (exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid})
+	{
+		$dr_link_uuid = $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_link_uuid => $dr_link_uuid }});
+	}
+
+	if ($anvil->data->{switches}{'link'})
+	{
+		my $returned_dr_link_uuid = $anvil->Database->insert_or_update_dr_links({
+			debug => 2,
+			dr_link_host_uuid  => $host_uuid,
+			dr_link_anvil_uuid => $anvil_uuid,
+			dr_link_note       => "user-created",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { returned_dr_link_uuid => $returned_dr_link_uuid }});
+		print "\n".$anvil->Words->string({key => "log_0734", variables => {
+			host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name},
+			anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+		}})."\n";
+	}
+	elsif ($anvil->data->{switches}{'unlink'})
+	{
+		if ($dr_link_uuid)
+		{
+			# Delete
+			$anvil->Database->insert_or_update_dr_links({
+				debug        => 2,
+				dr_link_uuid => $dr_link_uuid,
+				'delete'     => 1,
+			});
+			print "\n".$anvil->Words->string({key => "log_0735", variables => {
+				host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{shost_host_name},
+				anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+			}})."\n";
+		}
+		else
+		{
+			# Link didn't exist, nothing to unlink.
+			print "\n".$anvil->Words->string({key => "log_0736", variables => {
+				host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{shost_host_name},
+				anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+			}})."\n";
+		}
+	}
+	$anvil->nice_exit({exit_code => 0});
+
+	return(0);
+}
+
 sub sanity_check
 {
 	my ($anvil, $terminal) = @_;
@@ -93,6 +275,19 @@ sub sanity_check
 		host_type  => $host_type,
 		anvil_uuid => $anvil_uuid, 
 	}});
+
+	if ($host_type eq "striker")
+	{
+		# This has to be run on an Anvil! sub-node. (For now at least. We need to make a menu to let
+		# the user select a VM interactively).
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0404"});
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0404",
+			job_status => "failed",
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 
 	# Somehow, duplicate entries are being created in dr_links. Look for and purge them.
 	if (1)
@@ -188,6 +383,10 @@ ORDER BY
 				}});
 			}
 		}
+
+		# Done, reload dr_links.
+		delete $anvil->data->{dr_links};
+		$anvil->Database->get_dr_links();
 	}
 
 	# If we're (dis}connecting, is the server being protected in the first place?
@@ -348,44 +547,172 @@ ORDER BY
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
 	$anvil->Database->get_storage_group_data();
-	
-	# Does this Anvil! have a DR node?
-	if (not $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
+	$anvil->Database->get_dr_links({debug => 2});
+
+	# Does this Anvil! have a DR node? If there's only one, use it. If more than one, we need a
+	# '--dr-host' switch.
+	my $dr_host_uuid = "";
+	my $dr_host_name = "";
+	if ($anvil->data->{switches}{'dr-host'})
 	{
-		# This Anvil! does not seem to have a DR host. Exiting.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0333"});
+		my $found   = 0;
+		my $dr_host = $anvil->data->{switches}{'dr-host'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_uuid => $dr_host }});
+		if ($anvil->data->{hosts}{host_uuid}{$dr_host})
+		{
+			$dr_host_uuid = $dr_host;
+			$dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+			$found        = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				dr_host_uuid => $dr_host_uuid,
+				dr_host_name => $dr_host_name,
+				found        => $found,
+			}});
+		}
+		else
+		{
+			foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+			{
+				my $host_name       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+				my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					host_uuid       => $host_uuid,
+					host_name       => $host_name,
+					short_host_name => $short_host_name,
+				}});
+				if (($dr_host eq $host_name) or ($dr_host eq $short_host_name))
+				{
+					# Found it.
+					$dr_host_uuid = $host_uuid;
+					$dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+					$found        = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+						dr_host_uuid => $dr_host_uuid,
+						dr_host_name => $dr_host_name,
+						found        => $found,
+					}});
+					last;
+				}
+			}
+		}
+
+		if (not $found)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0400", variables => {
+				dr_host => $anvil->data->{switches}{'dr-host'},
+			}});
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0400,!!dr_host!".$anvil->data->{switches}{'dr-host'}."!!",
+				job_status => "failed",
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+
+	# If I have a dr_host_uuid, make sure it's linked to this anvil.
+	if (($dr_host_uuid) && (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}{$dr_host_uuid}))
+	{
+		# Bad requested DR host.
+		my $dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_name => $dr_host_name }});
+
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0401", variables => {
+			dr_host => $dr_host_name,
+		}});
 		$anvil->Job->update_progress({
 			progress   => 100,
-			message    => "error_0333", 
-			job_status => "failed", 
+			message    => "error_0401,!!dr_host!".$dr_host_name."!!",
+			job_status => "failed",
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	
+
+	# If I don't have a dr_host_uuid yet, see which are available. If only one, use it. If two or more, tell the user they need to specify which.
+	my $dr_count = keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		anvil_uuid => $anvil_uuid,
+		dr_count   => $dr_count,
+	}});
+
+	if (not $dr_count)
+	{
+		print $anvil->Words->string({key => "error_0333"})."\n";
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0333",
+			job_status => "failed",
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ($dr_count eq "1")
+	{
+		# Only one, use it.
+		foreach my $host_uuid (keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}})
+		{
+			$dr_host_uuid = $host_uuid;
+			$dr_host_name = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				dr_host_uuid => $dr_host_uuid,
+				dr_host_name => $dr_host_name,
+			}});
+		}
+	}
+
+	# If I still don't have a DR host, fail out.
+	if (not $dr_host_uuid)
+	{
+		print $anvil->Words->string({key => "error_0402"})."\n";
+		foreach my $dr_link_host_name (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}})
+		{
+			my $dr_link_uuid      = $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}{$dr_link_host_name}{dr_link_uuid};
+			my $dr_link_host_uuid = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				dr_link_host_name => $dr_link_host_name,
+				dr_link_uuid      => $dr_link_uuid,
+				dr_link_host_uuid => $dr_link_host_uuid,
+			}});
+			print $anvil->Words->string({key => "error_0403", variables => {
+				host_name => $dr_link_host_name,
+				host_uuid => $dr_link_host_uuid,
+			}})."\n";
+		}
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0402",
+			job_status => "failed",
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	$anvil->data->{sys}{dr_host_uuid} = $dr_host_uuid;
+	$anvil->data->{sys}{dr_host_name} = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		"sys::dr_host_uuid" => $anvil->data->{sys}{dr_host_uuid},
+		"sys::dr_host_name" => $anvil->data->{sys}{dr_host_name},
+	}});
+
 	# Can we access DR, if we're not the DR host?
 	$anvil->Database->get_ip_addresses({debug => 2});
-	my $password      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	my $dr1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr1_host_name = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr_ip         = $anvil->System->find_matching_ip({
+	my $password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $dr_ip    = $anvil->System->find_matching_ip({
 		debug => 2,
-		host  => $dr1_host_name,
+		host  => $dr_host_name,
 	});
-	if ($dr1_host_uuid ne $anvil->Get->host_uuid)
+	if ($dr_host_uuid ne $anvil->Get->host_uuid)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			password      => $anvil->Log->is_secure($password),
-			dr1_host_uuid => $dr1_host_uuid,
-			dr1_host_name => $dr1_host_name, 
-			dr_ip         => $dr_ip, 
+			password     => $anvil->Log->is_secure($password),
+			dr_host_uuid => $dr_host_uuid,
+			dr_host_name => $dr_host_name,
+			dr_ip        => $dr_ip,
 		}});
 		if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
 		{
 			# Failed to find an IP we can access the DR host. Has it been configured? Is it running? Exiting.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0334", variables => { host_name => $dr1_host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0334", variables => { host_name => $dr_host_name }});
 			$anvil->Job->update_progress({
 				progress   => 0,
-				message    => "error_0334,!!host_name!".$dr1_host_name."!!", 
+				message    => "error_0334,!!host_name!".$dr_host_name."!!",
 				job_status => "failed", 
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -401,12 +728,12 @@ ORDER BY
 		{
 			# Failed to access the DR host. Is it running? Exiting.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0335", variables => { 
-				host_name  => $dr1_host_name,
+				host_name  => $dr_host_name,
 				ip_address => $dr_ip, 
 			}});
 			$anvil->Job->update_progress({
 				progress   => 0,
-				message    => "error_0335,!!host_name!".$dr1_host_name."!!,!!ip_address!".$dr_ip."!!", 
+				message    => "error_0335,!!host_name!".$dr_host_name."!!,!!ip_address!".$dr_ip."!!",
 				job_status => "failed", 
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -541,14 +868,14 @@ ORDER BY
 			my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 			my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 			my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-			my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+			my $dr_host_uuid    = $anvil->data->{sys}{dr_host_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				password        => $anvil->Log->is_secure($password),
 				node1_host_uuid => $node1_host_uuid,
 				node2_host_uuid => $node2_host_uuid, 
-				dr1_host_uuid   => $dr1_host_uuid, 
+				dr_host_uuid    => $dr_host_uuid,
 			}});
-			foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+			foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 			{
 				next if $this_host_uuid eq $anvil->Get->host_uuid();
 				my $this_host_name = $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid});
@@ -661,9 +988,9 @@ sub process_update
 	my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-	my $dr1_host_uuid         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr1_host_name         = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr1_short_host_name   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+	my $dr_host_uuid          = $anvil->data->{sys}{dr_host_uuid};
+	my $dr_host_name          = $anvil->data->{sys}{dr_host_name};
+	my $dr_short_host_name    = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
 	my $server_name           = $anvil->data->{server}{'server-name'};
 	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -675,9 +1002,9 @@ sub process_update
 		node2_host_uuid       => $node2_host_uuid, 
 		node2_host_name       => $node2_host_name, 
 		node2_short_host_name => $node2_short_host_name, 
-		dr1_host_uuid         => $dr1_host_uuid, 
-		dr1_host_name         => $dr1_host_name, 
-		dr1_short_host_name   => $dr1_short_host_name, 
+		dr_host_uuid          => $dr_host_uuid,
+		dr_host_name          => $dr_host_name,
+		dr_short_host_name    => $dr_short_host_name,
 		server_name           => $server_name, 
 		server_uuid           => $server_uuid, 
 	}});
@@ -734,7 +1061,7 @@ sub process_update
 			job_title       => "job_0384", 
 			job_description => "job_0385", 
 			job_progress    => 0,
-			job_host_uuid   => $dr1_host_uuid, 
+			job_host_uuid   => $dr_host_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
@@ -767,7 +1094,7 @@ sub process_update
 		progress => 60,
 		message  => "job_0388", 
 	});
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either/both nodes
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -933,9 +1260,9 @@ sub process_disconnect
 	my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-	my $dr1_host_uuid         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr1_host_name         = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr1_short_host_name   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+	my $dr_host_uuid          = $anvil->data->{sys}{dr_host_uuid};
+	my $dr_host_name          = $anvil->data->{sys}{dr_host_name};
+	my $dr_short_host_name    = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
 	my $server_name           = $anvil->data->{server}{'server-name'};
 	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -947,9 +1274,9 @@ sub process_disconnect
 		node2_host_uuid       => $node2_host_uuid, 
 		node2_host_name       => $node2_host_name, 
 		node2_short_host_name => $node2_short_host_name, 
-		dr1_host_uuid         => $dr1_host_uuid, 
-		dr1_host_name         => $dr1_host_name, 
-		dr1_short_host_name   => $dr1_short_host_name, 
+		dr_host_uuid          => $dr_host_uuid,
+		dr_host_name          => $dr_host_name,
+		dr_short_host_name    => $dr_short_host_name,
 		server_name           => $server_name, 
 		server_uuid           => $server_uuid, 
 	}});
@@ -1006,7 +1333,7 @@ sub process_disconnect
 			job_title       => "job_0384", 
 			job_description => "job_0385", 
 			job_progress    => 0,
-			job_host_uuid   => $dr1_host_uuid, 
+			job_host_uuid   => $dr_host_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
@@ -1061,9 +1388,9 @@ sub process_connect
 	my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-	my $dr1_host_uuid         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr1_host_name         = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr1_short_host_name   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+	my $dr_host_uuid          = $anvil->data->{sys}{dr_host_uuid};
+	my $dr_host_name          = $anvil->data->{sys}{dr_host_name};
+	my $dr_short_host_name    = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
 	my $server_name           = $anvil->data->{server}{'server-name'};
 	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1075,9 +1402,9 @@ sub process_connect
 		node2_host_uuid       => $node2_host_uuid, 
 		node2_host_name       => $node2_host_name, 
 		node2_short_host_name => $node2_short_host_name, 
-		dr1_host_uuid         => $dr1_host_uuid, 
-		dr1_host_name         => $dr1_host_name, 
-		dr1_short_host_name   => $dr1_short_host_name, 
+		dr_host_uuid          => $dr_host_uuid,
+		dr_host_name          => $dr_host_name,
+		dr_short_host_name    => $dr_short_host_name,
 		server_name           => $server_name, 
 		server_uuid           => $server_uuid, 
 	}});
@@ -1134,7 +1461,7 @@ sub process_connect
 			job_title       => "job_0384", 
 			job_description => "job_0385", 
 			job_progress    => 0,
-			job_host_uuid   => $dr1_host_uuid, 
+			job_host_uuid   => $dr_host_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
@@ -1185,7 +1512,7 @@ sub process_connect
 		progress => 60,
 		message  => "job_0388", 
 	});
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either/both nodes
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -1307,9 +1634,9 @@ sub process_remove
 	my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-	my $dr1_host_uuid         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr1_host_name         = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr1_short_host_name   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+	my $dr_host_uuid          = $anvil->data->{sys}{dr_host_uuid};
+	my $dr_host_name          = $anvil->data->{sys}{dr_host_name};
+	my $dr_short_host_name    = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
 	my $server_name           = $anvil->data->{server}{'server-name'};
 	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
 	my $short_host_name       = $anvil->Get->short_host_name();
@@ -1323,9 +1650,9 @@ sub process_remove
 		node2_host_uuid       => $node2_host_uuid, 
 		node2_host_name       => $node2_host_name, 
 		node2_short_host_name => $node2_short_host_name, 
-		dr1_host_uuid         => $dr1_host_uuid, 
-		dr1_host_name         => $dr1_host_name, 
-		dr1_short_host_name   => $dr1_short_host_name, 
+		dr_host_uuid          => $dr_host_uuid,
+		dr_host_name          => $dr_host_name,
+		dr_short_host_name    => $dr_short_host_name,
 		server_name           => $server_name, 
 		server_uuid           => $server_uuid, 
 		server_definition_xml => $server_definition_xml, 
@@ -1384,7 +1711,7 @@ sub process_remove
 			job_title       => "job_0384", 
 			job_description => "job_0385", 
 			job_progress    => 0,
-			job_host_uuid   => $dr1_host_uuid, 
+			job_host_uuid   => $dr_host_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
@@ -1468,7 +1795,7 @@ sub process_remove
 	my $progress = "50";
 	foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{volume}})
 	{
-		my $local_lv = $anvil->data->{new}{resource}{$server_name}{host}{$dr1_short_host_name}{volume}{$volume}{backing_disk};
+		my $local_lv = $anvil->data->{new}{resource}{$server_name}{host}{$dr_short_host_name}{volume}{$volume}{backing_disk};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			volume   => $volume,
 			local_lv => $local_lv, 
@@ -1782,7 +2109,7 @@ sub process_remove
 		output      => $output,
 		return_code => $return_code, 
 	}});
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -1865,9 +2192,9 @@ sub process_protect
 	my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name       = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
-	my $dr1_host_uuid         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	my $dr1_host_name         = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};
-	my $dr1_short_host_name   = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{short_host_name};
+	my $dr_host_uuid          = $anvil->data->{sys}{dr_host_uuid};
+	my $dr_host_name          = $anvil->data->{sys}{dr_host_name};
+	my $dr_short_host_name    = $anvil->data->{hosts}{host_uuid}{$dr_host_uuid}{short_host_name};
 	my $server_name           = $anvil->data->{server}{'server-name'};
 	my $server_uuid           = $anvil->data->{server}{'server-uuid'};
 	my $short_host_name       = $anvil->Get->short_host_name();
@@ -1881,9 +2208,9 @@ sub process_protect
 		node2_host_uuid       => $node2_host_uuid, 
 		node2_host_name       => $node2_host_name, 
 		node2_short_host_name => $node2_short_host_name, 
-		dr1_host_uuid         => $dr1_host_uuid, 
-		dr1_host_name         => $dr1_host_name, 
-		dr1_short_host_name   => $dr1_short_host_name, 
+		dr_host_uuid          => $dr_host_uuid,
+		dr_host_name          => $dr_host_name,
+		dr_short_host_name    => $dr_short_host_name,
 		server_name           => $server_name, 
 		server_uuid           => $server_uuid, 
 		server_definition_xml => $server_definition_xml, 
@@ -2045,16 +2372,16 @@ sub process_protect
 		}});
 		
 		# First, is this SG on DR?
-		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid})
+		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid})
 		{
 			# The DR host doesn't appear to be storage group.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0343", variables => { 
-				host_name     => $dr1_host_name,
-				storage_group => $$storage_group_name, 
+				host_name     => $dr_host_name,
+				storage_group => $storage_group_name,
 			}});
 			$anvil->Job->update_progress({
 				progress => 100,
-				message  => "error_0343,!!host_name!".$dr1_host_name."!!,!!storage_group!".$$storage_group_name."!!", 
+				message  => "error_0343,!!host_name!".$dr_host_name."!!,!!storage_group!".$storage_group_name."!!",
 			});
 			$problem = 1;
 		}
@@ -2078,7 +2405,7 @@ sub process_protect
 		}
 		
 		# Is there enough space on DR?
-		my $space_on_dr = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_free};
+		my $space_on_dr = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_free};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			space_on_dr  => $anvil->Convert->add_commas({number => $space_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}).")", 
 			space_needed => $anvil->Convert->add_commas({number => $space_needed})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}).")", 
@@ -2119,7 +2446,7 @@ sub process_protect
 		foreach my $host2_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{host1_to_host2}{$host1_name}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host2_name => $host2_name }});
-			next if (($host1_name ne $dr1_short_host_name) && ($host2_name ne $dr1_short_host_name));
+			next if (($host1_name ne $dr_short_host_name) && ($host2_name ne $dr_short_host_name));
 			
 			if (($host1_name eq $node1_short_host_name) or ($host2_name eq $node1_short_host_name))
 			{
@@ -2240,10 +2567,10 @@ sub process_protect
 			my $dr_vg_name         = $anvil->Storage->get_vg_name({
 				debug              => 3, 
 				storage_group_uuid => $storage_group_uuid, 
-				host_uuid          => $dr1_host_uuid,
+				host_uuid          => $dr_host_uuid,
 			});
 			my $dr_lv_path         = "/dev/".$dr_vg_name."/".$dr_lv_name;
-			my $extent_size        = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr1_host_uuid}{vg_extent_size};
+			my $extent_size        = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_extent_size};
 			my $extent_count       = int($lv_size / $extent_size);
 			my $shell_call         = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$dr_lv_name." ".$dr_vg_name." -y";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -2357,7 +2684,7 @@ sub process_protect
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
-		my $dr1_seen = 0;
+		my $dr_seen = 0;
 		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_host_name => $this_host_name }});
@@ -2388,13 +2715,13 @@ sub process_protect
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodes_tcp_port => $nodes_tcp_port }});
 				}
 			}
-			elsif (($this_host_name eq $dr1_short_host_name) or ($this_host_name eq $dr1_host_name))
+			elsif (($this_host_name eq $dr_short_host_name) or ($this_host_name eq $dr_host_name))
 			{
-				$node_id  = 2;
-				$dr1_seen = 1;
+				$node_id = 2;
+				$dr_seen = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					node_id  => $node_id,
-					dr1_seen => $dr1_seen, 
+					node_id => $node_id,
+					dr_seen => $dr_seen,
 				}});
 			}
 			my $volumes = "";
@@ -2433,7 +2760,7 @@ sub process_protect
 				volumes         => $volumes,
 			}});
 		}
-		if (not $dr1_seen)
+		if (not $dr_seen)
 		{
 			# Inject the DR.
 			my $volumes = "";
@@ -2458,7 +2785,7 @@ sub process_protect
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volumes => $volumes }});
 			}
 			$hosts .= $anvil->Words->string({key => "file_0003", variables => {
-				short_host_name => $dr1_short_host_name, 
+				short_host_name => $dr_short_host_name,
 				node_id         => "2", 
 				volumes         => $volumes,
 			}});
@@ -2470,17 +2797,17 @@ sub process_protect
 	
 	# The connections. Node 1 to 2 always uses the BCN, Either node to DR needs 
 	my $storage_network = "sn1";
-	my $dr_network      = $anvil->data->{lookup}{host_uuid}{$dr1_host_uuid}{network}{use_network};
-	my $dr1_ip          = $anvil->data->{lookup}{host_uuid}{$dr1_host_uuid}{network}{use_ip};
+	my $dr_network      = $anvil->data->{lookup}{host_uuid}{$dr_host_uuid}{network}{use_network};
+	my $dr_ip           = $anvil->data->{lookup}{host_uuid}{$dr_host_uuid}{network}{use_ip};
 	my $node1_sn_ip     = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{network}{$storage_network}{ip_address};
 	my $node1_dr_ip     = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{network}{$dr_network}{ip_address};
 	my $node2_sn_ip     = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{network}{$storage_network}{ip_address};
 	my $node2_dr_ip     = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{network}{$dr_network}{ip_address};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's01:storage_network' => $storage_network,
-		's02:dr1_host_uuid'   => $dr1_host_uuid, 
+		's02:dr_host_uuid'    => $dr_host_uuid,
 		's03:dr_network'      => $dr_network, 
-		's04:dr1_ip'          => $dr1_ip, 
+		's04:dr_ip'           => $dr_ip,
 		's05:node1_host_uuid' => $node1_host_uuid, 
 		's06:node1_sn_ip'     => $node1_sn_ip,
 		's07:node1_dr_ip'     => $node1_dr_ip,
@@ -2538,8 +2865,8 @@ sub process_protect
 	$connections .= $anvil->Words->string({key => $file_key, variables => {
 		host1_short_name => $node1_short_host_name, 
 		host1_ip         => $node1_dr_ip, 
-		host2_short_name => $dr1_short_host_name, 
-		host2_ip         => $dr1_ip, 
+		host2_short_name => $dr_short_host_name,
+		host2_ip         => $dr_ip,
 		tcp_port         => $node1_to_dr_port, 
 		inside_tcp_port  => $node1_to_dr_port_inside,
 		outside_tcp_port => $node1_to_dr_port_outside,
@@ -2553,8 +2880,8 @@ sub process_protect
 	$connections .= $anvil->Words->string({key => $file_key, variables => {
 		host1_short_name => $node2_short_host_name, 
 		host1_ip         => $node2_dr_ip, 
-		host2_short_name => $dr1_short_host_name, 
-		host2_ip         => $dr1_ip, 
+		host2_short_name => $dr_short_host_name,
+		host2_ip         => $dr_ip,
 		tcp_port         => $node2_to_dr_port, 
 		inside_tcp_port  => $node2_to_dr_port_inside,
 		outside_tcp_port => $node2_to_dr_port_outside,
@@ -2735,7 +3062,7 @@ sub process_protect
 		message  => "job_0368", 
 	});
 	
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host. It's not uncommon for the DR host to 
 		# not have a connection over the SN or even the BCN. So we'll use the IFN1 to move files.
@@ -2820,7 +3147,7 @@ sub process_protect
 		output      => $output,
 		return_code => $return_code, 
 	}});
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -2860,11 +3187,11 @@ sub process_protect
 	my $create_md = 0;
 	foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server}{drbd}{$server_name}})
 	{
-		my $dr1_ip  = $anvil->data->{lookup}{host_uuid}{$dr1_host_uuid}{network}{use_ip};
+		my $dr_ip   = $anvil->data->{lookup}{host_uuid}{$dr_host_uuid}{network}{use_ip};
 		my $lv_path = $anvil->data->{server}{dr}{volumes}{$server_name}{$volume}{lv_path};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:volume'  => $volume,
-			's2:dr1_ip'  => $dr1_ip, 
+			's2:dr_ip'   => $dr_ip,
 			's3:lv_path' => $lv_path, 
 		}});
 		
@@ -2888,7 +3215,7 @@ else
 fi";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lv_check_call => $lv_check_call }});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			target     => $dr1_ip, 
+			target     => $dr_ip,
 			password   => $anvil_password,
 			shell_call => $lv_check_call,
 		});
@@ -2913,7 +3240,7 @@ fi";
 		my $lvcreate_call = $anvil->data->{server}{dr}{volumes}{$server_name}{$volume}{lvcreate_call};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lvcreate_call => $lvcreate_call }});
 		($output, $error, $return_code) = $anvil->Remote->call({
-			target     => $dr1_ip, 
+			target     => $dr_ip,
 			password   => $anvil_password,
 			shell_call => $lvcreate_call,
 		});
@@ -2926,7 +3253,7 @@ fi";
 		sleep 1;
 		# Does it exist now?
 		($output, $error, $return_code) = $anvil->Remote->call({
-			target     => $dr1_ip, 
+			target     => $dr_ip,
 			password   => $anvil_password,
 			shell_call => $lv_check_call,
 		});
@@ -2954,14 +3281,14 @@ fi";
 	
 	if ($create_md)
 	{
-		my $dr1_ip       = $anvil->data->{lookup}{host_uuid}{$dr1_host_uuid}{network}{use_ip};
+		my $dr_ip        = $anvil->data->{lookup}{host_uuid}{$dr_host_uuid}{network}{use_ip};
 		my $drbd_md_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$server_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:dr1_ip'       => $dr1_ip, 
+			's1:dr_ip'        => $dr_ip,
 			's2:drbd_md_call' => $drbd_md_call, 
 		}});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			target     => $dr1_ip, 
+			target     => $dr_ip,
 			password   => $anvil_password,
 			shell_call => $drbd_md_call,
 		});
@@ -2985,7 +3312,7 @@ fi";
 		output      => $output,
 		return_code => $return_code, 
 	}});
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -3034,7 +3361,7 @@ fi";
 		output      => $output, 
 		return_code => $return_code, 
 	}});
-	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr1_host_uuid)
+	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -3081,12 +3408,12 @@ fi";
 		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{volume}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volume => $volume }});
-			if (exists $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name})
+			if (exists $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr_short_host_name})
 			{
-				my $local_role       = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{local_role};
-				my $local_disk_state = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{local_disk_state};
-				my $peer_role        = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{peer_role};
-				my $peer_disk_state  = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr1_short_host_name}{peer_disk_state}; 
+				my $local_role       = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr_short_host_name}{local_role};
+				my $local_disk_state = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr_short_host_name}{local_disk_state};
+				my $peer_role        = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr_short_host_name}{peer_role};
+				my $peer_disk_state  = $anvil->data->{new}{resource}{$server_name}{volume}{$volume}{peer}{$dr_short_host_name}{peer_disk_state};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					local_role       => $local_role,
 					local_disk_state => $local_disk_state, 

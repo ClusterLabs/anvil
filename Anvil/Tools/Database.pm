@@ -26,6 +26,7 @@ my $THIS_FILE = "Database.pm";
 # disconnect
 # find_host_uuid_columns
 # get_alert_overrides
+# get_anvil_uuid_from_string
 # get_alerts
 # get_anvils
 # get_bridges
@@ -34,6 +35,7 @@ my $THIS_FILE = "Database.pm";
 # get_file_locations
 # get_files
 # get_host_from_uuid
+# get_host_uuid_from_string
 # get_hosts
 # get_hosts_info
 # get_ip_addresses
@@ -43,6 +45,7 @@ my $THIS_FILE = "Database.pm";
 # get_mail_servers
 # get_manifests
 # get_recipients
+# get_server_uuid_from_string
 # get_servers
 # get_storage_group_data
 # get_ssh_keys
@@ -1842,7 +1845,7 @@ sub connect
 	
 	# If we're a striker, no connections were found, and we have peers, start our database.
 	my $configured_databases = keys %{$anvil->data->{database}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		local_host_type              => $local_host_type,
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
 		configured_databases         => $configured_databases,
@@ -2177,7 +2180,7 @@ sub connect
 	}
 	
 	# Check for behind databases only if there are 2+ DBs, we're the active DB, and we're set to do so.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
 		"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
 		"sys::host_uuid"             => $anvil->data->{sys}{host_uuid},
@@ -2365,6 +2368,58 @@ sub find_host_uuid_columns
 	};
 
 	return($anvil->data->{sys}{database}{uuid_tables});
+}
+
+
+=head2 get_anvil_uuid_from_string
+
+This takes a string and uses it to look for an Anvil! node. This string can being either a UUID or the name of the Anvil!. The matched C<< anvil_uuid >> is returned, if found. If no match is found, and empty string is returned.
+
+This is meant to handle '--anvil' switches.
+
+Parameters;
+
+=head3 string
+
+This is the string to search for.
+
+=cut
+sub get_anvil_uuid_from_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_anvil_uuid_from_string()" }});
+
+	my $string = defined $parameter->{string} ? $parameter->{string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		string => $string,
+	}});
+
+	# Nothing to do unless we were called with a string.
+	if (not $string)
+	{
+		return("");
+	}
+
+	$anvil->Database->get_anvils({debug => $debug});
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			anvil_name => $anvil_name,
+			anvil_uuid => $anvil_uuid,
+		}});
+
+		if (($string eq $anvil_uuid) or
+		    ($string eq $anvil_name))
+		{
+			return($anvil_uuid);
+		}
+	}
+
+	return("");
 }
 
 
@@ -2646,10 +2701,7 @@ sub get_anvils
 	# Get the list of files so we can track what's on each Anvil!.
 	$anvil->Database->get_files({debug => $debug});
 	$anvil->Database->get_file_locations({debug => $debug});
-	
-	# Also pull in DRs so we can link them.
-	$anvil->Database->get_dr_links({debug => $debug});
-	
+
 	my $query = "
 SELECT 
     anvil_uuid, 
@@ -2991,12 +3043,10 @@ sub get_dr_links
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		include_deleted => $include_deleted, 
 	}});
-	
-	if (exists $anvil->data->{dr_links})
-	{
-		delete $anvil->data->{dr_links};
-	}
-	
+
+	# Hosts loads anvils.
+	$anvil->Database->get_hosts({debug => $debug});
+
 	my $query = "
 SELECT 
     dr_link_uuid, 
@@ -3048,11 +3098,22 @@ WHERE
 			"dr_links::dr_link_uuid::${dr_link_uuid}::modified_date"      => $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{modified_date}, 
 		}});
 		
+		my $dr_link_host_name  = $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{short_host_name};
+		my $dr_link_anvil_name = $anvil->data->{anvils}{anvil_uuid}{$dr_link_anvil_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			dr_link_host_name  => $dr_link_host_name,
+			dr_link_anvil_name => $dr_link_anvil_name,
+		}});
+
 		$anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid} = $dr_link_uuid;
+		$anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_name}{$dr_link_host_name}{dr_link_uuid} = $dr_link_uuid;
 		$anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_uuid::${dr_link_host_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid}, 
-			"dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_uuid::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid}, 
+		$anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_name}{$dr_link_anvil_name}{dr_link_uuid} = $dr_link_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			"s1:dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_uuid::${dr_link_host_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid},
+			"s2:dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_name::${dr_link_host_name}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_name}{$dr_link_host_name}{dr_link_uuid},
+			"s3:dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_uuid::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid},
+			"s4:dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_name::${dr_link_anvil_name}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_name}{$dr_link_anvil_name}{dr_link_uuid},
 		}});
 	}
 
@@ -3495,6 +3556,61 @@ AND
 	{
 		return($anvil->data->{host_from_uuid}{$host_uuid}{full});
 	}
+}
+
+
+=head2 get_host_uuid_from_string
+
+This takes a string and uses it to look for a host UUID. This string can being either a UUID, short or full host name. The matched C<< host_uuid >> is returned, if found. If no match is found, and empty string is returned.
+
+This is meant to handle '--host' switches.
+
+Parameters;
+
+=head3 string
+
+This is the string to search for.
+
+=cut
+sub get_host_uuid_from_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_uuid_from_string()" }});
+
+	my $string = defined $parameter->{string} ? $parameter->{string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		string => $string,
+	}});
+
+	# Nothing to do unless we were called with a string.
+	if (not $string)
+	{
+		return("");
+	}
+
+	$anvil->Database->get_hosts({debug => $debug});
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			host_uuid       => $host_uuid,
+			host_name       => $host_name,
+			short_host_name => $short_host_name,
+		}});
+		if (($string eq $host_uuid) or
+		    ($string eq $host_name) or
+		    ($string eq $short_host_name))
+		{
+			# Found it.
+			return($host_uuid);
+		}
+	}
+
+	return("");
 }
 
 
@@ -4810,6 +4926,58 @@ WHERE
 	}
 	
 	return(0);
+}
+
+
+=head2 get_server_uuid_from_string
+
+This takes a string and uses it to look for an server UUID. This string can being either a UUID or the server's name. The matched C<< server_uuid >> is returned, if found. If no match is found, and empty string is returned.
+
+This is meant to handle '--server' switches.
+
+Parameters;
+
+=head3 string
+
+This is the string to search for.
+
+=cut
+sub get_server_uuid_from_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_server_uuid_from_string()" }});
+
+	my $string = defined $parameter->{string} ? $parameter->{string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		string => $string,
+	}});
+
+	# Nothing to do unless we were called with a string.
+	if (not $string)
+	{
+		return("");
+	}
+
+	$anvil->Database->get_servers({debug => $debug});
+	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
+	{
+		my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			server_uuid => $server_uuid,
+			server_name => $server_name,
+		}});
+
+		if (($string eq $server_uuid) or
+		    ($string eq $server_name))
+		{
+			return($server_uuid);
+		}
+	}
+
+	return("");
 }
 
 
@@ -7364,6 +7532,7 @@ sub insert_or_update_dr_links
 		uuid               => $uuid, 
 		file               => $file, 
 		line               => $line, 
+		dr_link_uuid       => $dr_link_uuid,
 		dr_link_host_uuid  => $dr_link_host_uuid, 
 		dr_link_anvil_uuid => $dr_link_anvil_uuid, 
 		dr_link_note       => $dr_link_note, 
@@ -7371,7 +7540,10 @@ sub insert_or_update_dr_links
 	
 	# Make sure that the UUIDs are valid.
 	$anvil->Database->get_hosts({deubg => $debug});
-	$anvil->Database->get_dr_links({debug => $debug});
+	$anvil->Database->get_dr_links({
+		debug           => $debug,
+		include_deleted => 1,
+	});
 	
 	# If deleting, and if we have a valid 'dr_link_uuid' UUID, delete now and be done, 
 	if ($delete)
@@ -7394,7 +7566,7 @@ sub insert_or_update_dr_links
 UPDATE 
     dr_links 
 SET 
-    dr_link_node  = 'DELETED', 
+    dr_link_note  = 'DELETED',
     modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     dr_link_uuid  = ".$anvil->Database->quote($dr_link_uuid)."
@@ -8560,7 +8732,7 @@ sub insert_or_update_hosts
 	my $host_type   = defined $parameter->{host_type}   ? $parameter->{host_type}   : $anvil->Get->host_type;
 	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : $anvil->Get->host_uuid;
 	my $host_status = defined $parameter->{host_status} ? $parameter->{host_status} : "no_change";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid        => $uuid, 
 		file        => $file, 
 		line        => $line, 
@@ -12687,7 +12859,7 @@ sub insert_or_update_states
 	my $state_name      = defined $parameter->{state_name}      ? $parameter->{state_name}      : "";
 	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid            => $uuid, 
 		file            => $file, 
 		line            => $line, 
@@ -12752,7 +12924,7 @@ sub insert_or_update_states
 	foreach my $db_uuid (@{$db_uuids})
 	{
 		my $count = $anvil->Database->query({uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			's2:db_uuid' => $db_uuid, 
 			's2:count'   => $count,
 		}});
@@ -12808,24 +12980,20 @@ AND
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts({debug => $debug});
-		my $found = 0;
-		foreach my $hash_ref (@{$hosts})
+		foreach my $db_uuid (@{$db_uuids})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
-				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
-			}});
-			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { db_uuid => $db_uuid }});
+
+			my $query = "SELECT COUNT(*) FROM hosts WHERE host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+
+			my $count = $anvil->Database->query({query => $query, uuid => $db_uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+			if (not $count)
 			{
-				$found = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+				# We're out.
+				return("");
 			}
-		}
-		if (not $found)
-		{
-			# We're out.
-			return("");
 		}
 		
 		# INSERT
@@ -15804,7 +15972,7 @@ sub mark_active
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
 		my $state_name = "db_in_use::".$uuid."::".$$."::".$caller;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			set        => $set,
 			state_name => $state_name,
 		}});
@@ -18447,7 +18615,7 @@ sub _find_behind_databases
 	}});
 	
 	# If we're not a striker, return.
-	my $host_type = $anvil->Get->host_type();
+	my $host_type = $anvil->Get->host_type({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	if ($host_type ne "striker")
 	{
@@ -18587,7 +18755,7 @@ ORDER BY
 	# Are being asked to trigger a resync?
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			"switches::resync-db" => $anvil->data->{switches}{'resync-db'},
 			uuid                  => $uuid, 
 		}});
