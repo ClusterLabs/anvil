@@ -124,6 +124,7 @@ const Preview: FC<PreviewProps> = ({
         sx={{
           display: 'flex',
           width: '100%',
+          justifyContent: 'center',
 
           '& > :not(:last-child)': {
             marginRight: '1em',
