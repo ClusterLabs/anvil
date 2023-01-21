@@ -1261,7 +1261,6 @@ sub _set_paths
 				'ssh-keygen'			=>	"/usr/bin/ssh-keygen",
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
 				'stat'				=>	"/usr/bin/stat",
-				stonith_admin			=>	"/usr/sbin/stonith_admin",
 				storcli64			=>	"/opt/MegaRAID/storcli/storcli64",
 				strings				=>	"/usr/bin/strings",
 				'striker-auto-initialize-all'	=>	"/usr/sbin/striker-auto-initialize-all",

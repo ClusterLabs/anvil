@@ -26,6 +26,7 @@ my $THIS_FILE = "Database.pm";
 # disconnect
 # find_host_uuid_columns
 # get_alert_overrides
+# get_anvil_uuid_from_string
 # get_alerts
 # get_anvils
 # get_bridges
@@ -34,6 +35,7 @@ my $THIS_FILE = "Database.pm";
 # get_file_locations
 # get_files
 # get_host_from_uuid
+# get_host_uuid_from_string
 # get_hosts
 # get_hosts_info
 # get_ip_addresses
@@ -43,6 +45,7 @@ my $THIS_FILE = "Database.pm";
 # get_mail_servers
 # get_manifests
 # get_recipients
+# get_server_uuid_from_string
 # get_servers
 # get_storage_group_data
 # get_ssh_keys
@@ -1327,10 +1330,11 @@ sub connect
 	$anvil->data->{sys}{database}{timestamp} = "" if not defined $anvil->data->{sys}{database}{timestamp};
 	
 	# We need the host_uuid before we connect.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	if (not $anvil->data->{sys}{host_uuid})
 	{
-		$anvil->data->{sys}{host_uuid} = $anvil->Get->host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
+		$anvil->data->{sys}{host_uuid} = $anvil->Get->host_uuid({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	}
 	
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
@@ -1614,17 +1618,26 @@ sub connect
 			}});
 			
 			# Set this database handle as the one to use for reading, if no handle is yet set.
-			if (not $anvil->Database->read)
-			{
-				$anvil->Database->read({set => $dbh});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'anvil->Database->read' => $anvil->Database->read }});
-			}
-			if (not $anvil->data->{sys}{database}{read_uuid})
+			if (($is_local) or (not $anvil->data->{sys}{database}{read_uuid}) or (not $anvil->Database->read))
 			{
 				$anvil->data->{sys}{database}{read_uuid} = $uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+				$anvil->Database->read({set => $dbh});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+					'anvil->Database->read'    => $anvil->Database->read,
+					"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
+				}});
 			}
-			
+
+			# Only the first database to connect will be "Active". What this means will expand
+			# over time. As of now, only the active DB will do resyncs.
+			if (not $anvil->data->{sys}{database}{active_uuid})
+			{
+				$anvil->data->{sys}{database}{active_uuid} = $uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+					"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
+				}});
+			}
+
 			# Read the DB identifier and then check that we've not already connected to this DB.
 			my $query      = "SELECT system_identifier FROM pg_control_system();";
 			my $identifier = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -1738,20 +1751,7 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"db_status::${uuid}::active" => $anvil->data->{db_status}{$uuid}{active},
 			}});
-			
-			# Set the first ID to be the one I read from later. Alternatively, if this host is 
-			# local, use it.
-			if (($is_local) or (not $anvil->data->{sys}{database}{read_uuid}))
-			{
-				$anvil->data->{sys}{database}{read_uuid}  = $uuid;
-				$anvil->Database->read({set => $anvil->data->{cache}{database_handle}{$uuid}});
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::read_uuid"  => $anvil->data->{sys}{database}{read_uuid}, 
-					'anvil->Database->read'     => $anvil->Database->read(), 
-				}});
-			}
-			
+
 			# Get a time stamp for this run, if not yet gotten.
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
@@ -1773,14 +1773,6 @@ sub connect
 			# Record this as successful
 			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
-		}
-		
-		# We always use the first DB we connect to, even if we're a DB ourselves. This helps with 
-		# consistency and leaves second (or third...) as backups.
-		if (not $anvil->data->{sys}{database}{read_uuid})
-		{
-			$anvil->data->{sys}{database}{read_uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
@@ -1842,7 +1834,8 @@ sub connect
 				
 				# Delete the information about this database. We'll try again on next
 				# ->connect().
-				$anvil->data->{sys}{database}{read_uuid} = "" if $anvil->data->{sys}{database}{read_uuid} eq $uuid;
+				$anvil->data->{sys}{database}{active_uuid} = "" if $anvil->data->{sys}{database}{read_active} eq $uuid;
+				$anvil->data->{sys}{database}{read_uuid}   = "" if $anvil->data->{sys}{database}{read_uuid}   eq $uuid;
 				$anvil->data->{sys}{database}{connections}--;
 				delete $anvil->data->{database}{$uuid};
 				next;
@@ -1850,9 +1843,9 @@ sub connect
 		}
 	}
 	
-	# If we're a striker and no connections were found, start our database.
+	# If we're a striker, no connections were found, and we have peers, start our database.
 	my $configured_databases = keys %{$anvil->data->{database}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		local_host_type              => $local_host_type,
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
 		configured_databases         => $configured_databases,
@@ -2186,11 +2179,16 @@ sub connect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	# Check for behind databases only if there are 2+ DBs, we're the active DB, and we're set to do so.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+		"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
+		"sys::host_uuid"             => $anvil->data->{sys}{host_uuid},
 		check_for_resync             => $check_for_resync, 
 	}});
-	if (($anvil->data->{sys}{database}{connections} > 1) && ($check_for_resync))
+	if (($anvil->data->{sys}{database}{connections} > 1)                                &&
+	    (($anvil->data->{sys}{database}{active_uuid} eq $anvil->data->{sys}{host_uuid}) or
+	    ($check_for_resync)))
 	{
 		$anvil->Database->_find_behind_databases({
 			debug  => $debug, 
@@ -2370,6 +2368,58 @@ sub find_host_uuid_columns
 	};
 
 	return($anvil->data->{sys}{database}{uuid_tables});
+}
+
+
+=head2 get_anvil_uuid_from_string
+
+This takes a string and uses it to look for an Anvil! node. This string can being either a UUID or the name of the Anvil!. The matched C<< anvil_uuid >> is returned, if found. If no match is found, and empty string is returned.
+
+This is meant to handle '--anvil' switches.
+
+Parameters;
+
+=head3 string
+
+This is the string to search for.
+
+=cut
+sub get_anvil_uuid_from_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_anvil_uuid_from_string()" }});
+
+	my $string = defined $parameter->{string} ? $parameter->{string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		string => $string,
+	}});
+
+	# Nothing to do unless we were called with a string.
+	if (not $string)
+	{
+		return("");
+	}
+
+	$anvil->Database->get_anvils({debug => $debug});
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			anvil_name => $anvil_name,
+			anvil_uuid => $anvil_uuid,
+		}});
+
+		if (($string eq $anvil_uuid) or
+		    ($string eq $anvil_name))
+		{
+			return($anvil_uuid);
+		}
+	}
+
+	return("");
 }
 
 
@@ -2651,10 +2701,7 @@ sub get_anvils
 	# Get the list of files so we can track what's on each Anvil!.
 	$anvil->Database->get_files({debug => $debug});
 	$anvil->Database->get_file_locations({debug => $debug});
-	
-	# Also pull in DRs so we can link them.
-	$anvil->Database->get_dr_links({debug => $debug});
-	
+
 	my $query = "
 SELECT 
     anvil_uuid, 
@@ -2996,12 +3043,10 @@ sub get_dr_links
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		include_deleted => $include_deleted, 
 	}});
-	
-	if (exists $anvil->data->{dr_links})
-	{
-		delete $anvil->data->{dr_links};
-	}
-	
+
+	# Hosts loads anvils.
+	$anvil->Database->get_hosts({debug => $debug});
+
 	my $query = "
 SELECT 
     dr_link_uuid, 
@@ -3053,11 +3098,22 @@ WHERE
 			"dr_links::dr_link_uuid::${dr_link_uuid}::modified_date"      => $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{modified_date}, 
 		}});
 		
+		my $dr_link_host_name  = $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{short_host_name};
+		my $dr_link_anvil_name = $anvil->data->{anvils}{anvil_uuid}{$dr_link_anvil_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			dr_link_host_name  => $dr_link_host_name,
+			dr_link_anvil_name => $dr_link_anvil_name,
+		}});
+
 		$anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid} = $dr_link_uuid;
+		$anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_name}{$dr_link_host_name}{dr_link_uuid} = $dr_link_uuid;
 		$anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_uuid::${dr_link_host_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid}, 
-			"dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_uuid::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid}, 
+		$anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_name}{$dr_link_anvil_name}{dr_link_uuid} = $dr_link_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			"s1:dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_uuid::${dr_link_host_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid},
+			"s2:dr_links::by_anvil_uuid::${dr_link_anvil_uuid}::dr_link_host_name::${dr_link_host_name}::dr_link_uuid" => $anvil->data->{dr_links}{by_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_host_name}{$dr_link_host_name}{dr_link_uuid},
+			"s3:dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_uuid::${dr_link_anvil_uuid}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_uuid}{$dr_link_anvil_uuid}{dr_link_uuid},
+			"s4:dr_links::by_host_uuid::${dr_link_host_uuid}::dr_link_anvil_name::${dr_link_anvil_name}::dr_link_uuid" => $anvil->data->{dr_links}{by_host_uuid}{$dr_link_host_uuid}{dr_link_anvil_name}{$dr_link_anvil_name}{dr_link_uuid},
 		}});
 	}
 
@@ -3500,6 +3556,61 @@ AND
 	{
 		return($anvil->data->{host_from_uuid}{$host_uuid}{full});
 	}
+}
+
+
+=head2 get_host_uuid_from_string
+
+This takes a string and uses it to look for a host UUID. This string can being either a UUID, short or full host name. The matched C<< host_uuid >> is returned, if found. If no match is found, and empty string is returned.
+
+This is meant to handle '--host' switches.
+
+Parameters;
+
+=head3 string
+
+This is the string to search for.
+
+=cut
+sub get_host_uuid_from_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_uuid_from_string()" }});
+
+	my $string = defined $parameter->{string} ? $parameter->{string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		string => $string,
+	}});
+
+	# Nothing to do unless we were called with a string.
+	if (not $string)
+	{
+		return("");
+	}
+
+	$anvil->Database->get_hosts({debug => $debug});
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			host_uuid       => $host_uuid,
+			host_name       => $host_name,
+			short_host_name => $short_host_name,
+		}});
+		if (($string eq $host_uuid) or
+		    ($string eq $host_name) or
+		    ($string eq $short_host_name))
+		{
+			# Found it.
+			return($host_uuid);
+		}
+	}
+
+	return("");
 }
 
 
@@ -4818,6 +4929,58 @@ WHERE
 }
 
 
+=head2 get_server_uuid_from_string
+
+This takes a string and uses it to look for an server UUID. This string can being either a UUID or the server's name. The matched C<< server_uuid >> is returned, if found. If no match is found, and empty string is returned.
+
+This is meant to handle '--server' switches.
+
+Parameters;
+
+=head3 string
+
+This is the string to search for.
+
+=cut
+sub get_server_uuid_from_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_server_uuid_from_string()" }});
+
+	my $string = defined $parameter->{string} ? $parameter->{string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		string => $string,
+	}});
+
+	# Nothing to do unless we were called with a string.
+	if (not $string)
+	{
+		return("");
+	}
+
+	$anvil->Database->get_servers({debug => $debug});
+	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
+	{
+		my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			server_uuid => $server_uuid,
+			server_name => $server_name,
+		}});
+
+		if (($string eq $server_uuid) or
+		    ($string eq $server_name))
+		{
+			return($server_uuid);
+		}
+	}
+
+	return("");
+}
+
+
 =head2 get_servers
 
 This loads all known servers from the database, including the corresponding C<< server_definition_xml >> from the C<< server_definitions >> table. 
@@ -5142,7 +5305,8 @@ SELECT
     a.storage_group_name,  
     b.storage_group_member_uuid, 
     b.storage_group_member_host_uuid, 
-    b.storage_group_member_vg_uuid 
+    b.storage_group_member_vg_uuid,
+    b.storage_group_member_note
 FROM 
     storage_groups a, 
     storage_group_members b 
@@ -5167,6 +5331,8 @@ ORDER BY
 		my $storage_group_member_uuid      = $row->[3];
 		my $storage_group_member_host_uuid = $row->[4];
 		my $storage_group_member_vg_uuid   = $row->[5];		# This is the VG's internal UUID
+		my $storage_group_member_note      = $row->[6];		# If this is 'DELETED', the link isn't used anymore
+		my $storage_group_member_host_name = $anvil->data->{hosts}{host_uuid}{$storage_group_member_host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			storage_group_uuid             => $storage_group_uuid, 
 			storage_group_anvil_uuid       => $storage_group_anvil_uuid, 
@@ -5174,21 +5340,27 @@ ORDER BY
 			storage_group_member_uuid      => $storage_group_member_uuid, 
 			storage_group_member_host_uuid => $storage_group_member_host_uuid, 
 			storage_group_member_vg_uuid   => $storage_group_member_vg_uuid, 
+			storage_group_member_note      => $storage_group_member_note,
+			storage_group_member_host_name => $storage_group_member_host_name,
 		}});
 		
 		# Store the data
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name}                                                            = $storage_group_name;
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}{$storage_group_member_host_name}{host_uuid}           = $storage_group_member_host_uuid;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_uuid} = $storage_group_member_uuid;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_internal_uuid}          = $storage_group_member_vg_uuid;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}                   = 0;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}                   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_note} = $storage_group_member_note;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::group_name"                                                              => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name}, 
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::short_host_name::${storage_group_member_host_name}::host_uuid"           => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}{$storage_group_member_host_name}{host_uuid},
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::storage_group_member_uuid" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_uuid},
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_size"                   => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}}).")",
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_free"                   => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}}).")",
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::storage_group_member_note" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_note},
 		}});
-		
+
 		# Make it easier to use the VG UUID to find the storage_group_uuid.
 		$anvil->data->{storage_groups}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -7369,6 +7541,7 @@ sub insert_or_update_dr_links
 		uuid               => $uuid, 
 		file               => $file, 
 		line               => $line, 
+		dr_link_uuid       => $dr_link_uuid,
 		dr_link_host_uuid  => $dr_link_host_uuid, 
 		dr_link_anvil_uuid => $dr_link_anvil_uuid, 
 		dr_link_note       => $dr_link_note, 
@@ -7376,7 +7549,10 @@ sub insert_or_update_dr_links
 	
 	# Make sure that the UUIDs are valid.
 	$anvil->Database->get_hosts({deubg => $debug});
-	$anvil->Database->get_dr_links({debug => $debug});
+	$anvil->Database->get_dr_links({
+		debug           => $debug,
+		include_deleted => 1,
+	});
 	
 	# If deleting, and if we have a valid 'dr_link_uuid' UUID, delete now and be done, 
 	if ($delete)
@@ -7399,7 +7575,7 @@ sub insert_or_update_dr_links
 UPDATE 
     dr_links 
 SET 
-    dr_link_node  = 'DELETED', 
+    dr_link_note  = 'DELETED',
     modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE 
     dr_link_uuid  = ".$anvil->Database->quote($dr_link_uuid)."
@@ -8565,7 +8741,7 @@ sub insert_or_update_hosts
 	my $host_type   = defined $parameter->{host_type}   ? $parameter->{host_type}   : $anvil->Get->host_type;
 	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : $anvil->Get->host_uuid;
 	my $host_status = defined $parameter->{host_status} ? $parameter->{host_status} : "no_change";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid        => $uuid, 
 		file        => $file, 
 		line        => $line, 
@@ -12692,7 +12868,7 @@ sub insert_or_update_states
 	my $state_name      = defined $parameter->{state_name}      ? $parameter->{state_name}      : "";
 	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid            => $uuid, 
 		file            => $file, 
 		line            => $line, 
@@ -12757,7 +12933,7 @@ sub insert_or_update_states
 	foreach my $db_uuid (@{$db_uuids})
 	{
 		my $count = $anvil->Database->query({uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			's2:db_uuid' => $db_uuid, 
 			's2:count'   => $count,
 		}});
@@ -12813,24 +12989,20 @@ AND
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts({debug => $debug});
-		my $found = 0;
-		foreach my $hash_ref (@{$hosts})
+		foreach my $db_uuid (@{$db_uuids})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
-				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
-			}});
-			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { db_uuid => $db_uuid }});
+
+			my $query = "SELECT COUNT(*) FROM hosts WHERE host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+
+			my $count = $anvil->Database->query({query => $query, uuid => $db_uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+			if (not $count)
 			{
-				$found = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+				# We're out.
+				return("");
 			}
-		}
-		if (not $found)
-		{
-			# We're out.
-			return("");
 		}
 		
 		# INSERT
@@ -12894,6 +13066,8 @@ This is the Anvil! UUID that the storage group belongs to.
 =head3 storage_group_name (optional)
 
 This is the name of the new storage group, as shown to the user when they provision servers. If this is not set, the word string 'striker_0280' is used with increasing integer until a unique name is found.
+
+This is set to C<< DELETED >> if the group is deleted.
 
 If this is set and the given name is already in use, C<< !!error!! >> is returned.
 
@@ -13109,6 +13283,10 @@ This will remove the VG from the storage group.
 
 If set, C<< storage_group_member_uuid >> is required and it is the only required attribute. 
 
+=head3 storage_group_member_note (optional)
+
+This is a note that can be placed about this member. When the member is deleted, this is set to C<< DELETED >>.
+
 =head3 storage_group_member_uuid (optional)
 
 If set, a specific storage group member is updated or deleted. 
@@ -13123,7 +13301,7 @@ This is the host UUID this VG is on.
 
 =head3 storage_group_member_vg_uuid (required, unless delete is set)
 
-This is the volume group's B<< internal >> UUID (which, to be clear, isn't a valid UUID formatted string, so it's treated as a string internally). 
+This is the volume group's B<< internal >> UUID (which, to be clear, isn't a valid UUID formatted string, so it's treated as a string internally).
 
 =cut
 sub insert_or_update_storage_group_members
@@ -13143,13 +13321,15 @@ sub insert_or_update_storage_group_members
 	my $storage_group_member_storage_group_uuid = defined $parameter->{storage_group_member_storage_group_uuid} ? $parameter->{storage_group_member_storage_group_uuid} : "";
 	my $storage_group_member_host_uuid          = defined $parameter->{storage_group_member_host_uuid}          ? $parameter->{storage_group_member_host_uuid}          : "";
 	my $storage_group_member_vg_uuid            = defined $parameter->{storage_group_member_vg_uuid}            ? $parameter->{storage_group_member_vg_uuid}            : "";
+	my $storage_group_member_note               = defined $parameter->{storage_group_member_note}               ? $parameter->{storage_group_member_note}               : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid                                    => $uuid, 
 		file                                    => $file, 
 		line                                    => $line, 
 		'delete'                                => $delete, 
-		storage_group_member_uuid               => $storage_group_member_uuid, 
-		storage_group_member_storage_group_uuid => $storage_group_member_storage_group_uuid, 
+		storage_group_member_uuid               => $storage_group_member_uuid,
+		storage_group_member_note               => $storage_group_member_note,
+		storage_group_member_storage_group_uuid => $storage_group_member_storage_group_uuid,
 		storage_group_member_host_uuid          => $storage_group_member_host_uuid, 
 		storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
 	}});
@@ -13167,10 +13347,10 @@ sub insert_or_update_storage_group_members
 UPDATE 
     storage_group_members 
 SET 
-    storage_group_member_vg_uuid = 'DELETED', 
-    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+    storage_group_member_note = 'DELETED',
+    modified_date             = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE  
-    storage_group_member_uuid    = ".$anvil->Database->quote($storage_group_member_uuid)."
+    storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -13239,13 +13419,15 @@ INSERT INTO
     storage_group_member_uuid, 
     storage_group_member_storage_group_uuid, 
     storage_group_member_host_uuid, 
-    storage_group_member_vg_uuid, 
+    storage_group_member_vg_uuid,
+    storage_group_member_note,
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($storage_group_member_uuid).", 
     ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
     ".$anvil->Database->quote($storage_group_member_host_uuid).", 
-    ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
+    ".$anvil->Database->quote($storage_group_member_vg_uuid).",
+    ".$anvil->Database->quote($storage_group_member_note).",
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -13258,8 +13440,9 @@ INSERT INTO
 SELECT 
     storage_group_member_storage_group_uuid, 
     storage_group_member_host_uuid, 
-    storage_group_member_vg_uuid 
-FROM 
+    storage_group_member_vg_uuid,
+    storage_group_member_note
+FROM
     storage_group_members 
 WHERE 
     storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid)."
@@ -13273,15 +13456,18 @@ WHERE
 		my $old_storage_group_member_storage_group_uuid = $results->[0]->[0];
 		my $old_storage_group_member_host_uuid          = $results->[0]->[1];
 		my $old_storage_group_member_vg_uuid            = $results->[0]->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		my $old_storage_group_member_note               = $results->[0]->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			old_storage_group_member_storage_group_uuid => $old_storage_group_member_storage_group_uuid, 
 			old_storage_group_member_host_uuid          => $old_storage_group_member_host_uuid, 
-			old_storage_group_member_vg_uuid            => $old_storage_group_member_vg_uuid, 
+			old_storage_group_member_vg_uuid            => $old_storage_group_member_vg_uuid,
+			old_storage_group_member_note               => $old_storage_group_member_note,
 		}});
 		
 		if (($old_storage_group_member_storage_group_uuid ne $storage_group_member_storage_group_uuid) or 
 		    ($old_storage_group_member_host_uuid          ne $storage_group_member_host_uuid)          or 
-		    ($old_storage_group_member_vg_uuid            ne $storage_group_member_vg_uuid))
+		    ($old_storage_group_member_vg_uuid            ne $storage_group_member_vg_uuid)            or
+		    ($old_storage_group_member_note               ne $storage_group_member_note))
 		{
 			# Something changed, UPDATE
 			my $query = "
@@ -13290,8 +13476,9 @@ UPDATE
 SET 
     storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
     storage_group_member_host_uuid          = ".$anvil->Database->quote($storage_group_member_host_uuid).", 
-    storage_group_member_vg_uuid            = ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
-    modified_date                           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+    storage_group_member_vg_uuid            = ".$anvil->Database->quote($storage_group_member_vg_uuid).",
+    storage_group_member_note               = ".$anvil->Database->quote($storage_group_member_note).",
+    modified_date                           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     storage_group_member_uuid               = ".$anvil->Database->quote($storage_group_member_uuid)."
 ;";
@@ -15809,7 +15996,7 @@ sub mark_active
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
 		my $state_name = "db_in_use::".$uuid."::".$$."::".$caller;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			set        => $set,
 			state_name => $state_name,
 		}});
@@ -17603,7 +17790,7 @@ sub write
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
 					query    => (not $secure) ? $query : $anvil->Log->is_secure($query), 
-					server   => $say_server,
+					server   => $say_server." (".$uuid.")",
 					db_error => $DBI::errstr, 
 				}});
 				if (($count) or ($transaction))
@@ -17729,7 +17916,7 @@ sub _age_out_data
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_age_out_data()" }});
-	
+
 	# Get a lock.
 	$anvil->Database->locking({debug => $debug, request => 1});
 	
@@ -17748,7 +17935,26 @@ sub _age_out_data
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-	
+
+		# Before I proceed, see when the last age-out happened. If it's less than 24 hours ago, don't
+		# bother. Of course, if we've been specfiically asked to age out data, proceed.
+		if (not $anvil->data->{switches}{"age-out-database"})
+		{
+			my ($last_age_out, undef, undef) = $anvil->Database->read_variable({
+				debug         => $debug,
+				variable_name => "database::".$uuid."::aged-out",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_age_out => $last_age_out }});
+
+			if (($last_age_out) && ($last_age_out =~ /^\d+$/))
+			{
+				my $age = time - $last_age_out;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+
+				next if $age < 86400;
+			}
+		}
+
 		my $queries = [];
 		my $query   = "SELECT job_uuid FROM jobs WHERE modified_date <= '".$old_timestamp."' AND job_progress = 100;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -17781,7 +17987,18 @@ sub _age_out_data
 			# Commit the DELETEs.
 			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
-		
+
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			variable_name         => "database::".$uuid."::aged-out",
+			variable_value        => time,
+			variable_default      => "0",
+			variable_description  => "striker_0199",
+			variable_section      => "database",
+			variable_source_uuid  => "NULL",
+			variable_source_table => "",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+
 		$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
@@ -18422,7 +18639,7 @@ sub _find_behind_databases
 	}});
 	
 	# If we're not a striker, return.
-	my $host_type = $anvil->Get->host_type();
+	my $host_type = $anvil->Get->host_type({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	if ($host_type ne "striker")
 	{
@@ -18562,7 +18779,7 @@ ORDER BY
 	# Are being asked to trigger a resync?
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			"switches::resync-db" => $anvil->data->{switches}{'resync-db'},
 			uuid                  => $uuid, 
 		}});
