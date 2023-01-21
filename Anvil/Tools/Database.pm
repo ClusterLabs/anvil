@@ -5305,7 +5305,8 @@ SELECT
     a.storage_group_name,  
     b.storage_group_member_uuid, 
     b.storage_group_member_host_uuid, 
-    b.storage_group_member_vg_uuid 
+    b.storage_group_member_vg_uuid,
+    b.storage_group_member_note
 FROM 
     storage_groups a, 
     storage_group_members b 
@@ -5330,6 +5331,8 @@ ORDER BY
 		my $storage_group_member_uuid      = $row->[3];
 		my $storage_group_member_host_uuid = $row->[4];
 		my $storage_group_member_vg_uuid   = $row->[5];		# This is the VG's internal UUID
+		my $storage_group_member_note      = $row->[6];		# If this is 'DELETED', the link isn't used anymore
+		my $storage_group_member_host_name = $anvil->data->{hosts}{host_uuid}{$storage_group_member_host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			storage_group_uuid             => $storage_group_uuid, 
 			storage_group_anvil_uuid       => $storage_group_anvil_uuid, 
@@ -5337,21 +5340,27 @@ ORDER BY
 			storage_group_member_uuid      => $storage_group_member_uuid, 
 			storage_group_member_host_uuid => $storage_group_member_host_uuid, 
 			storage_group_member_vg_uuid   => $storage_group_member_vg_uuid, 
+			storage_group_member_note      => $storage_group_member_note,
+			storage_group_member_host_name => $storage_group_member_host_name,
 		}});
 		
 		# Store the data
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name}                                                            = $storage_group_name;
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}{$storage_group_member_host_name}{host_uuid}           = $storage_group_member_host_uuid;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_uuid} = $storage_group_member_uuid;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_internal_uuid}          = $storage_group_member_vg_uuid;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}                   = 0;
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}                   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_note} = $storage_group_member_note;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::group_name"                                                              => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name}, 
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::short_host_name::${storage_group_member_host_name}::host_uuid"           => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}{$storage_group_member_host_name}{host_uuid},
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::storage_group_member_uuid" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_uuid},
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_size"                   => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}}).")",
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_free"                   => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}}).")",
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::storage_group_member_note" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_note},
 		}});
-		
+
 		# Make it easier to use the VG UUID to find the storage_group_uuid.
 		$anvil->data->{storage_groups}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -13058,6 +13067,8 @@ This is the Anvil! UUID that the storage group belongs to.
 
 This is the name of the new storage group, as shown to the user when they provision servers. If this is not set, the word string 'striker_0280' is used with increasing integer until a unique name is found.
 
+This is set to C<< DELETED >> if the group is deleted.
+
 If this is set and the given name is already in use, C<< !!error!! >> is returned.
 
 =head3 storage_group_uuid (optional)
@@ -13272,6 +13283,10 @@ This will remove the VG from the storage group.
 
 If set, C<< storage_group_member_uuid >> is required and it is the only required attribute. 
 
+=head3 storage_group_member_note (optional)
+
+This is a note that can be placed about this member. When the member is deleted, this is set to C<< DELETED >>.
+
 =head3 storage_group_member_uuid (optional)
 
 If set, a specific storage group member is updated or deleted. 
@@ -13286,7 +13301,7 @@ This is the host UUID this VG is on.
 
 =head3 storage_group_member_vg_uuid (required, unless delete is set)
 
-This is the volume group's B<< internal >> UUID (which, to be clear, isn't a valid UUID formatted string, so it's treated as a string internally). 
+This is the volume group's B<< internal >> UUID (which, to be clear, isn't a valid UUID formatted string, so it's treated as a string internally).
 
 =cut
 sub insert_or_update_storage_group_members
@@ -13306,13 +13321,15 @@ sub insert_or_update_storage_group_members
 	my $storage_group_member_storage_group_uuid = defined $parameter->{storage_group_member_storage_group_uuid} ? $parameter->{storage_group_member_storage_group_uuid} : "";
 	my $storage_group_member_host_uuid          = defined $parameter->{storage_group_member_host_uuid}          ? $parameter->{storage_group_member_host_uuid}          : "";
 	my $storage_group_member_vg_uuid            = defined $parameter->{storage_group_member_vg_uuid}            ? $parameter->{storage_group_member_vg_uuid}            : "";
+	my $storage_group_member_note               = defined $parameter->{storage_group_member_note}               ? $parameter->{storage_group_member_note}               : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid                                    => $uuid, 
 		file                                    => $file, 
 		line                                    => $line, 
 		'delete'                                => $delete, 
-		storage_group_member_uuid               => $storage_group_member_uuid, 
-		storage_group_member_storage_group_uuid => $storage_group_member_storage_group_uuid, 
+		storage_group_member_uuid               => $storage_group_member_uuid,
+		storage_group_member_note               => $storage_group_member_note,
+		storage_group_member_storage_group_uuid => $storage_group_member_storage_group_uuid,
 		storage_group_member_host_uuid          => $storage_group_member_host_uuid, 
 		storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
 	}});
@@ -13330,10 +13347,10 @@ sub insert_or_update_storage_group_members
 UPDATE 
     storage_group_members 
 SET 
-    storage_group_member_vg_uuid = 'DELETED', 
-    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+    storage_group_member_note = 'DELETED',
+    modified_date             = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE  
-    storage_group_member_uuid    = ".$anvil->Database->quote($storage_group_member_uuid)."
+    storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -13402,13 +13419,15 @@ INSERT INTO
     storage_group_member_uuid, 
     storage_group_member_storage_group_uuid, 
     storage_group_member_host_uuid, 
-    storage_group_member_vg_uuid, 
+    storage_group_member_vg_uuid,
+    storage_group_member_note,
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($storage_group_member_uuid).", 
     ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
     ".$anvil->Database->quote($storage_group_member_host_uuid).", 
-    ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
+    ".$anvil->Database->quote($storage_group_member_vg_uuid).",
+    ".$anvil->Database->quote($storage_group_member_note).",
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -13421,8 +13440,9 @@ INSERT INTO
 SELECT 
     storage_group_member_storage_group_uuid, 
     storage_group_member_host_uuid, 
-    storage_group_member_vg_uuid 
-FROM 
+    storage_group_member_vg_uuid,
+    storage_group_member_note
+FROM
     storage_group_members 
 WHERE 
     storage_group_member_uuid = ".$anvil->Database->quote($storage_group_member_uuid)."
@@ -13436,15 +13456,18 @@ WHERE
 		my $old_storage_group_member_storage_group_uuid = $results->[0]->[0];
 		my $old_storage_group_member_host_uuid          = $results->[0]->[1];
 		my $old_storage_group_member_vg_uuid            = $results->[0]->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		my $old_storage_group_member_note               = $results->[0]->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			old_storage_group_member_storage_group_uuid => $old_storage_group_member_storage_group_uuid, 
 			old_storage_group_member_host_uuid          => $old_storage_group_member_host_uuid, 
-			old_storage_group_member_vg_uuid            => $old_storage_group_member_vg_uuid, 
+			old_storage_group_member_vg_uuid            => $old_storage_group_member_vg_uuid,
+			old_storage_group_member_note               => $old_storage_group_member_note,
 		}});
 		
 		if (($old_storage_group_member_storage_group_uuid ne $storage_group_member_storage_group_uuid) or 
 		    ($old_storage_group_member_host_uuid          ne $storage_group_member_host_uuid)          or 
-		    ($old_storage_group_member_vg_uuid            ne $storage_group_member_vg_uuid))
+		    ($old_storage_group_member_vg_uuid            ne $storage_group_member_vg_uuid)            or
+		    ($old_storage_group_member_note               ne $storage_group_member_note))
 		{
 			# Something changed, UPDATE
 			my $query = "
@@ -13453,8 +13476,9 @@ UPDATE
 SET 
     storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_member_storage_group_uuid).", 
     storage_group_member_host_uuid          = ".$anvil->Database->quote($storage_group_member_host_uuid).", 
-    storage_group_member_vg_uuid            = ".$anvil->Database->quote($storage_group_member_vg_uuid).", 
-    modified_date                           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+    storage_group_member_vg_uuid            = ".$anvil->Database->quote($storage_group_member_vg_uuid).",
+    storage_group_member_note               = ".$anvil->Database->quote($storage_group_member_note).",
+    modified_date                           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 WHERE
     storage_group_member_uuid               = ".$anvil->Database->quote($storage_group_member_uuid)."
 ;";

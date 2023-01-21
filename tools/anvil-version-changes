@@ -65,7 +65,10 @@ sub striker_checks
 	
 	# This converts the old/broken 'notifications' tables with the more appropriately named 'alert-override'
 	update_notifications($anvil);
-	
+
+	# This adds notes to storage_group_members
+	update_storage_group_members($anvil);
+
 	### NOTE: Disabled until review complete
 	# This checks to make sure that the 'audits' table exists (added late into M3.0 pre-release)
 	#update_audits($anvil);
@@ -301,6 +304,64 @@ CREATE TRIGGER trigger_audits
 		}
 	}
 	
+	return(0);
+}
+
+sub update_storage_group_members
+{
+	my ($anvil) = @_;
+
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'storage_group_members' AND column_name = 'storage_group_member_note';";
+		$anvil->Log->variables({source => $THIS_FILE, uuid => $uuid, line => __LINE__, level => 2, list => { query => $query }});
+
+		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+
+		if (not $count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.storage_group_members ADD COLUMN storage_group_member_note text not null DEFAULT '';";
+			push @{$queries}, "ALTER TABLE history.storage_group_members ADD COLUMN storage_group_member_note text not null DEFAULT '';";
+			push @{$queries}, "DROP FUNCTION history_storage_group_members() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_storage_group_members() RETURNS trigger
+AS $$
+DECLARE
+    history_storage_group_members RECORD;
+BEGIN
+    SELECT INTO history_storage_group_members * FROM storage_group_members WHERE storage_group_member_uuid = new.storage_group_member_uuid;
+    INSERT INTO history.storage_group_members
+        (storage_group_member_uuid,
+         storage_group_member_storage_group_uuid,
+         storage_group_member_host_uuid,
+         storage_group_member_vg_uuid,
+         storage_group_member_note,
+         modified_date)
+    VALUES
+        (history_storage_group_members.storage_group_member_uuid,
+	 history_storage_group_members.storage_group_member_storage_group_uuid,
+         history_storage_group_members.storage_group_member_host_uuid,
+         history_storage_group_members.storage_group_member_vg_uuid,
+         history_storage_group_members.storage_group_member_note,
+         history_storage_group_members.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_storage_group_members() OWNER TO admin;
+
+CREATE TRIGGER trigger_storage_group_members
+    AFTER INSERT OR UPDATE ON storage_group_members
+    FOR EACH ROW EXECUTE PROCEDURE history_storage_group_members();|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+
 	return(0);
 }
 
