@@ -60,6 +60,7 @@ Requires:       kernel-core
 Requires:       kernel-devel
 Requires:       kernel-headers
 Requires:       lsscsi
+Requires:       lsof
 Requires:       mailx
 Requires:       mlocate 
 Requires:       net-snmp-utils
@@ -101,6 +102,7 @@ Requires:       postgresql-plperl
 Requires:       rsync 
 Requires:       screen
 Requires:       smartmontools
+Requires:       strace
 Requires:       syslinux
 Requires:       tar
 Requires:       tcpdump
@@ -238,15 +240,13 @@ sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 setenforce 0
 # Enable and start the anvil-daemon
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
-systemctl enable chronyd.service 
-systemctl start chronyd.service 
-systemctl enable anvil-daemon.service
-systemctl restart anvil-daemon.service
-systemctl enable scancore.service
-systemctl restart scancore.service
-systemctl enable striker-ui-api.service
+systemctl enable --now chronyd.service
+systemctl enable --now anvil-daemon.service
+systemctl enable --now scancore.service
+systemctl enable --now striker-ui-api.service
 systemctl restart striker-ui-api.service
-
+echo "Running 'anvil-version-changes' to update Anvil! systems
+anvil-version-changes -vv
 
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
