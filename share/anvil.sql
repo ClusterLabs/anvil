@@ -1742,7 +1742,8 @@ CREATE TABLE storage_group_members (
     storage_group_member_storage_group_uuid    uuid                        not null, 
     storage_group_member_host_uuid             uuid                        not null,                -- The host this VG comes from.
     storage_group_member_vg_uuid               text                        not null,                -- This is the VG's internal "uuid". It's not a valid UUID string format, but it's what LVM calls a 'uuid'.
-    modified_date                              timestamp with time zone    not null, 
+    storage_group_member_note                  text                        not null,                -- This is set to DELETED when the link is removed.
+    modified_date                              timestamp with time zone    not null,
     
     FOREIGN KEY(storage_group_member_storage_group_uuid) REFERENCES storage_groups(storage_group_uuid), 
     FOREIGN KEY(storage_group_member_host_uuid) REFERENCES hosts(host_uuid) 
@@ -1755,7 +1756,8 @@ CREATE TABLE history.storage_group_members (
     storage_group_member_storage_group_uuid    uuid, 
     storage_group_member_host_uuid             uuid, 
     storage_group_member_vg_uuid               text, 
-    modified_date                              timestamp with time zone    not null 
+    storage_group_member_note                  text,
+    modified_date                              timestamp with time zone    not null
 );
 ALTER TABLE history.storage_group_members OWNER TO admin;
 
@@ -1770,12 +1772,14 @@ BEGIN
          storage_group_member_storage_group_uuid, 
          storage_group_member_host_uuid, 
          storage_group_member_vg_uuid, 
+         storage_group_member_note,
          modified_date)
     VALUES
         (history_storage_group_members.storage_group_member_uuid, 
 	 history_storage_group_members.storage_group_member_storage_group_uuid, 
          history_storage_group_members.storage_group_member_host_uuid, 
          history_storage_group_members.storage_group_member_vg_uuid, 
+         history_storage_group_members.storage_group_member_note,
          history_storage_group_members.modified_date);
     RETURN NULL;
 END;

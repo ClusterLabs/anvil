@@ -1,0 +1,604 @@
+#!/usr/bin/perl
+#
+# This allows users to link volume groups across machines into storage groups.
+#
+# NOTE: This will be expanded on much more later. For now, it's "enough".
+#
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Any problem that causes an early exit.
+#
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+use Term::Cap;
+use Text::Diff;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->Get->switches({list => [
+	"add",
+	"anvil",
+	"remove",
+	"rename",
+	"group",
+	"host",
+	"member",
+	"new-name",
+	"show",
+	"vg"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0306"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->Database->get_hosts({include_deleted => 1});
+$anvil->Database->get_anvils();
+$anvil->Database->get_storage_group_data();
+get_vg_data($anvil);
+get_storage_data($anvil);
+
+if ($anvil->data->{switches}{show})
+{
+	show_data($anvil);
+	$anvil->nice_exit({exit_code => 0});
+}
+
+if ($anvil->data->{switches}{member})
+{
+	manage_group_member($anvil);
+}
+
+if ($anvil->data->{switches}{group})
+{
+	manage_group($anvil);
+}
+
+show_data($anvil);
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub manage_group
+{
+	my ($anvil) = @_;
+
+	my $group    = $anvil->data->{switches}{group};
+	my $new_name = $anvil->data->{switches}{'new-name'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		group    => $group,
+		new_name => $new_name
+	}});
+	if ($group eq "#!SET!#")
+	{
+		print "When adding, removing or renaming a group, '--group' needs to be set to the (new) group name.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	# If both are set, what?
+	if ((($anvil->data->{switches}{add}) && ($anvil->data->{switches}{remove}))   or
+	    (($anvil->data->{switches}{add}) && ($anvil->data->{switches}{'rename'})) or
+	    (($anvil->data->{switches}{remove}) && ($anvil->data->{switches}{'rename'})))
+	{
+		print "You can only use '--add', '--remove' or '--rename', please use only one at a time.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	my $anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({string => $anvil->data->{switches}{anvil}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	if (not $anvil_uuid)
+	{
+		if ($anvil->data->{switches}{anvil})
+		{
+			print "The Anvil! node: [".$anvil->data->{switches}{anvil}."] was not found.\n";
+		}
+		else
+		{
+			print "When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.\n";
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	my $anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_name => $anvil_name }});
+
+	# If the group is 'DELETED', um, what the fuck?
+	if (($group eq "DELETED") or ($new_name eq "DELETED"))
+	{
+		print "You want to name your group 'DELETED'? Well that's cheaky... Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	my $storage_group_uuid = "";
+	my $storage_group_name = "";
+	if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$group})
+	{
+		$storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$group}{storage_group_uuid};
+		$storage_group_name = $group;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			storage_group_uuid => $storage_group_uuid,
+			storage_group_name => $storage_group_name,
+		}});
+	}
+	elsif (exists $anvil->data->{storage_groups}{storage_group_uuid}{$group})
+	{
+		$storage_group_uuid = $group;
+		$storage_group_name = $anvil->data->{storage_groups}{storage_group_uuid}{$group}{anvil_uuid}{$anvil_uuid}{storage_group_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			storage_group_uuid => $storage_group_uuid,
+			storage_group_name => $storage_group_name,
+		}});
+	}
+
+	if ($anvil->data->{switches}{add})
+	{
+		# Does it already exist?
+		if ($storage_group_uuid)
+		{
+			print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] already exists, nothing to do.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+
+		# Add it.
+		$storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
+			debug                    => 2,
+			storage_group_anvil_uuid => $anvil_uuid,
+			storage_group_name       => $storage_group_name,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
+		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been created with the UUID: [".$storage_group_uuid."].\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{remove})
+	{
+		# Does it exist?
+		if (not $storage_group_uuid)
+		{
+			print "The storage group: [".$group."] wasn't found on the Anvil! node: [".$anvil_name."], nothing to do.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+
+		# Remove it.
+		$storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
+			debug                    => 2,
+			storage_group_anvil_uuid => $anvil_uuid,
+			storage_group_name       => "DELETED",
+			storage_group_name       => $storage_group_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
+		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been deleted.\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	elsif ($anvil->data->{switches}{'rename'})
+	{
+		# Do we have a new name?
+		if (not $new_name)
+		{
+			print "The storage group: [".$storage_group_name."] exists on the Anvil! node: [".$anvil_name."], but no new name was given via '--new-name <name>' nothing to do.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		# Has the name changed?
+		if (($storage_group_name) eq ($new_name))
+		{
+			print "The storage group: [".$new_name."] already has the desired name on the: [".$anvil_name."], nothing to do.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+
+		# Rename it.
+		$storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
+			debug                    => 2,
+			storage_group_uuid       => $storage_group_uuid,
+			storage_group_anvil_uuid => $anvil_uuid,
+			storage_group_name       => $new_name,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
+		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been renamed to: [".$new_name."].\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+
+	return(0);
+}
+
+sub manage_group_member
+{
+	my ($anvil) = @_;
+
+	my $group      = $anvil->data->{switches}{group};
+	my $anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({string => $anvil->data->{switches}{anvil}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	if (not $anvil_uuid)
+	{
+		if ($anvil->data->{switches}{anvil})
+		{
+			print "The Anvil! node: [".$anvil->data->{switches}{anvil}."] was not found.\n";
+		}
+		else
+		{
+			print "When managing a storage group members, '--anvil <name or UUID>' is required as storage group names are not globally unique.\n";
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	my $anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_name => $anvil_name }});
+
+	my $storage_group_uuid = "";
+	my $storage_group_name = "";
+	foreach my $this_storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+	{
+		my $this_storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$this_storage_group_name}{storage_group_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			this_storage_group_name => $this_storage_group_name,
+			this_storage_group_uuid => $this_storage_group_uuid,
+		}});
+
+		if (($group eq $this_storage_group_name) or ($group eq $this_storage_group_uuid))
+		{
+			# Found it.
+			$storage_group_uuid = $this_storage_group_uuid;
+			$storage_group_name = $this_storage_group_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				storage_group_uuid => $storage_group_uuid,
+				storage_group_name => $storage_group_name,
+			}});
+			last;
+		}
+	}
+
+	if (not $storage_group_uuid)
+	{
+		# Group not found.
+		print "The storage group: [".$group."] was not found on the Anvil! node: [".$anvil_name."].\n";
+		print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+
+	my $internal_vg_uuid = "";
+	my $host_uuid        = "";
+	my $short_host_name  = "";
+	my $lvm_vg_name      = "";
+	if (($anvil->data->{switches}{add}) or ($anvil->data->{switches}{remove}))
+	{
+		# If both are set, what?
+		if (($anvil->data->{switches}{add}) && ($anvil->data->{switches}{remove}))
+		{
+			print "Both '--add' and '--remove' specified, please use only one at a time.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		# These need to be valid VG internal UUID
+		my $member_vg_uuid = $anvil->data->{switches}{member};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { member_vg_uuid => $member_vg_uuid }});
+
+		# Find the VG internal UUID.
+		if (not exists $anvil->data->{vgs}{scan_lvm_vg_internal_uuid}{$member_vg_uuid})
+		{
+			print "The volume group with the internal UUID: [".$member_vg_uuid."] was not found.\n";
+			print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		# Now that we have an VG internal UUID, is it a node in the Anvil!, or a DR host?
+		   $internal_vg_uuid = $member_vg_uuid;
+		   $host_uuid        = $anvil->data->{vgs}{scan_lvm_vg_internal_uuid}{$member_vg_uuid}{host_uuid};
+		my $host_type        = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $host_name        = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+		   $short_host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		my $host_key         = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key};
+		my $host_anvil_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+		my $host_anvil_uuid  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+		   $lvm_vg_name      = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$internal_vg_uuid}{scan_lvm_vg_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			internal_vg_uuid => $internal_vg_uuid,
+			lvm_vg_name      => $lvm_vg_name,
+			host_uuid        => $host_uuid,
+			host_type        => $host_type,
+			short_host_name  => $short_host_name,
+			host_key         => $host_key,
+			host_anvil_name  => $host_anvil_name,
+			host_anvil_uuid  => $host_anvil_uuid,
+		}});
+		if ($host_key eq "DELETED")
+		{
+			print "The volume group: [".$lvm_vg_name."] is on the deleted host: [".$host_name."]\n";
+			print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		if ($host_type eq "striker")
+		{
+			print "The volume group: [".$lvm_vg_name."] is on the Striker dashboard: [".$host_name."].\n";
+			print "There's no point in a Striker being part of a storage group.\n";
+			print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+
+		if (($host_type eq "node") && ($anvil_uuid ne $host_anvil_uuid))
+		{
+			print "The volume group: [".$lvm_vg_name."] is on the sub node: [".$host_name."]. This is part of\n";
+			print "the Anvil! node: [".$host_anvil_name."], but: [".$anvil_name."] was specified with '--anvil'.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+
+	# Add needs to be the internal UUID
+	if ($anvil->data->{switches}{add})
+	{
+		# Add the VG, if needed.
+		if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid})
+		{
+			# If the note is not 'DELETED', we don't need to add it.
+			my $storage_group_member_note = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_member_note => $storage_group_member_note }});
+
+			if ($storage_group_member_note ne "DELETED")
+			{
+				# Nothing to do.
+				print "The volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] is already a member of the storage group: [".$storage_group_name."]. Nothing to do.\n";
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+
+		# Still here? Add or update!
+		my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
+			debug                                   => 2,
+			storage_group_member_storage_group_uuid => $storage_group_uuid,
+			storage_group_member_host_uuid          => $host_uuid,
+			storage_group_member_vg_uuid            => $internal_vg_uuid,
+			storage_group_member_note               => "user-created",
+		});
+		print "Added the volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] to the storage group: [".$storage_group_name."]. The new member UUID is: [".$storage_group_member_uuid."].\n";
+	}
+	else
+	{
+		# If there's no existing entry, there's nothing to remove.
+		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid})
+		{
+			# Nothing to do.
+			print "The volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has never been a member of the storage group: [".$storage_group_name."]. Nothing to do.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+
+		# If the note is not 'DELETED', we don't need to add it.
+		if ($anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note} eq "DELETED")
+		{
+			# Nothing to do.
+			print "The volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has already been removed from the storage group: [".$storage_group_name."]. Nothing to do.\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+
+		# Still here? update!
+		my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
+			debug                                   => 2,
+			storage_group_member_storage_group_uuid => $storage_group_uuid,
+			storage_group_member_host_uuid          => $host_uuid,
+			storage_group_member_vg_uuid            => $internal_vg_uuid,
+			storage_group_member_note               => "DELETED",
+		});
+		print "Added the volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has been removed from storage group: [".$storage_group_name."].\n";
+	}
+
+	return(0);
+}
+
+sub show_data
+{
+	my ($anvil) = @_;
+
+	my $show_anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({string => $anvil->data->{switches}{anvil}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { show_anvil_uuid => $show_anvil_uuid }});
+
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_description     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
+		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+		if (($show_anvil_uuid) && ($anvil_uuid ne $show_anvil_uuid))
+		{
+			next;
+		}
+
+		print "Anvil: [".$anvil_name."] - ".$anvil_description."\n";
+		foreach my $node_host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
+		{
+			my $node_host_name = $anvil->data->{hosts}{host_uuid}{$node_host_uuid}{short_host_name};
+			print "- Node: [".$node_host_name."] volume groups;\n";
+			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}})
+			{
+				my $scan_lvm_vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
+				my $scan_lvm_vg_size          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size};
+				my $scan_lvm_vg_free          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free};
+				my $say_size_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size});
+				my $say_free_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free});
+				print "  ^- [".$scan_lvm_vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$scan_lvm_vg_internal_uuid."]\n";
+			}
+		}
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+		{
+			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+			print "- Storage group: [".$storage_group_name."], UUID: [".$storage_group_uuid."]\n";
+			foreach my $member_short_host_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}})
+			{
+				my $member_host_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}{$member_short_host_name}{host_uuid};
+				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_uuid};
+				my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{vg_internal_uuid};
+				my $vg_name                   = $anvil->data->{vgs}{host_uuid}{$member_host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
+				print " ^- [".$member_short_host_name."]:[".$vg_name."]\n";
+			}
+		}
+
+		print "\n";
+	}
+
+	# Show DR hosts and their VGs
+	print "Disaster Recovery Hosts:\n";
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			host_uuid       => $host_uuid,
+			host_name       => $host_name,
+			host_type       => $host_type,
+			short_host_name => $short_host_name,
+		}});
+		next if $host_type ne "dr";
+
+		print "- DR Host: [".$short_host_name."] VGs:\n";
+		foreach my $vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}})
+		{
+			my $vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}{$vg_name}{scan_lvm_vg_internal_uuid};
+			my $vg_size          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_size};
+			my $vg_free          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_free};
+			my $say_size_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size});
+			my $say_free_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
+			print " ^- [".$vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$vg_internal_uuid."]\n";
+		}
+	}
+	print "\n";
+
+	return(0);
+}
+
+sub get_vg_data
+{
+	my ($anvil) = @_;
+
+	my $query = "
+SELECT
+    scan_lvm_vg_uuid,
+    scan_lvm_vg_host_uuid,
+    scan_lvm_vg_internal_uuid,
+    scan_lvm_vg_name,
+    scan_lvm_vg_attributes,
+    scan_lvm_vg_extent_size,
+    scan_lvm_vg_size,
+    scan_lvm_vg_free
+FROM
+    scan_lvm_vgs
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+		results => $results,
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_lvm_vg_uuid          = $row->[0];
+		my $scan_lvm_vg_host_uuid     = $row->[1];
+		my $scan_lvm_vg_internal_uuid = $row->[2];
+		my $scan_lvm_vg_name          = $row->[3];
+		my $scan_lvm_vg_attributes    = $row->[4];
+		my $scan_lvm_vg_extent_size   = $row->[5];
+		my $scan_lvm_vg_size          = $row->[6];
+		my $scan_lvm_vg_free          = $row->[7];
+		my $host_name                 = $anvil->data->{hosts}{host_uuid}{$scan_lvm_vg_host_uuid}{host_name};
+		my $host_type                 = $anvil->data->{hosts}{host_uuid}{$scan_lvm_vg_host_uuid}{host_type};
+		my $host_key                  = $anvil->data->{hosts}{host_uuid}{$scan_lvm_vg_host_uuid}{host_key};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+			scan_lvm_vg_uuid          => $scan_lvm_vg_uuid,
+			scan_lvm_vg_host_uuid     => $scan_lvm_vg_host_uuid,
+			scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid,
+			scan_lvm_vg_name          => $scan_lvm_vg_name,
+			scan_lvm_vg_attributes    => $scan_lvm_vg_attributes,
+			scan_lvm_vg_extent_size   => $scan_lvm_vg_extent_size,
+			scan_lvm_vg_size          => $scan_lvm_vg_size,
+			scan_lvm_vg_free          => $scan_lvm_vg_free,
+			host_name                 => $host_name,
+			host_type                 => $host_type,
+			host_key                  => $host_type,
+		}});
+		next if $host_key eq "DELETED";
+		next if $host_type eq "striker";
+
+		$anvil->data->{vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{host_uuid}                                                  = $scan_lvm_vg_host_uuid;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid}                 = $scan_lvm_vg_internal_uuid;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid}        = $scan_lvm_vg_uuid;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name}        = $scan_lvm_vg_name;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_attributes}  = $scan_lvm_vg_attributes;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_extent_size} = $scan_lvm_vg_extent_size;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size}        = $scan_lvm_vg_size;
+		$anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free}        = $scan_lvm_vg_free;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+			"vgs::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::host_uuid"                                                    => $anvil->data->{vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{host_uuid},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_name::${scan_lvm_vg_name}::scan_lvm_vg_internal_uuid"                 => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_uuid"        => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_name"        => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_attributes"  => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_attributes},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_extent_size" => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_extent_size},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_size"        => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size},
+			"vgs::host_uuid::${scan_lvm_vg_host_uuid}::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_free"        => $anvil->data->{vgs}{host_uuid}{$scan_lvm_vg_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free},
+		}});
+	}
+}
+
+sub get_storage_data
+{
+	my ($anvil) = @_;
+
+	my $query = "
+SELECT
+    storage_group_uuid,
+    storage_group_anvil_uuid,
+    storage_group_name
+FROM
+    storage_groups
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+		results => $results,
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $storage_group_uuid       = $row->[0];
+		my $storage_group_anvil_uuid = $row->[1];
+		my $storage_group_name       = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+			storage_group_uuid       => $storage_group_uuid,
+			storage_group_anvil_uuid => $storage_group_anvil_uuid,
+			storage_group_name       => $storage_group_name,
+		}});
+
+		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name} = $storage_group_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid"               => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::storage_group_anvil_uuid::${storage_group_anvil_uuid}::storage_group_name" => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name},
+		}});
+	}
+
+	return(0);
+}
