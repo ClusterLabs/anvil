@@ -21,14 +21,23 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
-\fB\-\-connect\fR 
+\fB\-\-connect\fR
 Connect a server already on DR to it's DR copy, update the data there if needed and begin streaming replication.
 .TP
-\fB\-\-disconnect\fR 
-Disconnect a server from the DR image. This will end streaming replication. 
+\fB\-\-disconnect\fR
+Disconnect a server from the DR image. This will end streaming replication.
+.TP
+\fB\-\-dr-host\fR
+This is the host name or host UUID for the DR to use. It is optional if only one DR host is connected to this Anvil! node, but required if two or more are defined.
+.TP
+\fB\-\-license-file\fR
+This is the path to the license file, needed when setting up "long-throw" DR for the first time.
+.TP
+\fB\-\-link\fR
+This takes an --anvil and a --dr-host to enable using the DR host as a target for the Anvil! node.
 .TP
 \fB\-\-protect\fR
-The sets up the server to be imaged on DR, if it isn't already protected. 
+The sets up the server to be imaged on DR, if it isn't already protected.
 .TP
 Notes: If the server is not running, the DRBD resource volume(s) will be brought up. Both nodes need to be online and in the cluster.
 .TP
@@ -72,6 +81,9 @@ This removes the DR image from the DR host for the server, freeing up space on D
 .TP
 \fB\-\-server\fB <server name or uuid> (required)
 This is the name or UUID of the server being worked on.
+.TP
+\fB\-\-unlink\fR
+This takes an --anvil and a --dr-host to disable using the DR host as a target for the Anvil! node.
 .TP
 \fB\-\-update\fB
 This tells the DR to be connected and sync, Once the volume(s) on DR are 'UpToDate', the connection is closed. This provides a point in time update of the server's image on DR.

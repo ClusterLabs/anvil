@@ -32,8 +32,7 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
-# passed directly, it will be used. Otherwise, the password will be read from the database.
+# Read switches
 $anvil->Get->switches({list => [
 	"anvil", 
 	"anvil-name", 
@@ -2742,7 +2741,7 @@ sub interactive_ask_server_os
 		}
 	}
 	
-	$anvil->Get->virsh_list_os({debug => 2});
+	$anvil->Get->virsh_list_os();
 	foreach my $os_code (split/,/, $anvil->data->{sys}{servers}{os_short_list})
 	{
 		$os_code =~ s/ //g;
@@ -2842,7 +2841,8 @@ sub interactive_ask_server_confirm
 	$anvil->Database->get_anvils();
 	$anvil->Database->get_files();
 	$anvil->Database->get_file_locations();
-	
+	$anvil->Get->virsh_list_os();
+
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
 		"switches::ci-test"      => $anvil->data->{switches}{'ci-test'},

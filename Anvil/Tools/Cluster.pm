@@ -461,7 +461,8 @@ ORDER BY
 					debug                                   => 2, 
 					storage_group_member_storage_group_uuid => $storage_group_uuid, 
 					storage_group_member_host_uuid          => $host_uuid, 
-					storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
+					storage_group_member_vg_uuid            => $storage_group_member_vg_uuid,
+					storage_group_member_note               => "auto-created",
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 				
@@ -525,6 +526,7 @@ ORDER BY
 				storage_group_member_storage_group_uuid => $storage_group_uuid, 
 				storage_group_member_host_uuid          => $host_uuid, 
 				storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
+				storage_group_member_note               => "auto-created",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 			
@@ -537,6 +539,11 @@ ORDER BY
 	if ($reload_storage_groups)
 	{
 		$anvil->Database->get_storage_group_data({debug => $debug});
+		my $storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
+			debug                    => 2,
+			storage_group_anvil_uuid => $anvil_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
 	}
 	
 	return(0);

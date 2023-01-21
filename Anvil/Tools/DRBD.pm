@@ -602,7 +602,7 @@ sub delete_resource
 	
 	# Wipe the DRBD MDs from each backing LV
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0590", variables => { resource => $resource }});
-	my $shell_call = $anvil->data->{path}{exe}{echo}." yes | ".$anvil->data->{path}{exe}{drbdadm}." wipe-md ".$resource;
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force wipe-md ".$resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
