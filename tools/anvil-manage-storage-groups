@@ -8,6 +8,10 @@
 # 0 = Normal exit.
 # 1 = Any problem that causes an early exit.
 #
+# Examples;
+#  - TODO: Write the man page!
+# - anvil-manage-storage-groups -vv --log-secure --anvil mk-anvil-07 --rename --group "Storage group 2" --new-name "HDD Group 1"
+# - anvil-manage-storage-groups -vv --log-secure --anvil mk-anvil-07 --add --group "HDD Group 1" --member xidRiS-KT4K-cmVN-MRbK-tI2c-jhK6-VCCLau
 
 use strict;
 use warnings;
