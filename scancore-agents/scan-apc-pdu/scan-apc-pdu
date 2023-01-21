@@ -160,7 +160,7 @@ $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches;
+$anvil->Get->switches({debug => 3, list => ["force", "purge"]});
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
@@ -169,13 +169,17 @@ if ($problem)
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# The PDUs don't allow multiple connections at the same time. This causes a lot of false alerts when many 
-# machines try to scan. As such, only Striker dashboards watch APC PDUs.
-my $host_type = $anvil->Get->host_type();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-if (($host_type ne "striker") && (not $anvil->data->{switches}{force}))
+# The APC PDUs only allow one connection at a time. As such, we only run on the striker that is also the
+# active DB.
+my $host_uuid = $anvil->Get->host_uuid();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+	host_uuid                    => $host_uuid,
+	"sys::database::active_uuid" => $anvil->data->{sys}{database}{active_uuid},
+	"switches::force"            => $anvil->data->{switches}{force},
+}});
+if ((not $anvil->data->{switches}{force}) && ($anvil->data->{sys}{database}{active_uuid} ne $host_uuid))
 {
-	# Exit.
+	# Don't run.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_pdu_message_0041", variables => { program => $THIS_FILE }});
 	$anvil->nice_exit({exit_code => 0});
 }

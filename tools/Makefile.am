@@ -26,6 +26,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-keys \
 			  anvil-manage-power \
 			  anvil-manage-server \
+			  anvil-manage-storage-groups \
 			  anvil-migrate-server \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \

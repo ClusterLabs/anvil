@@ -630,6 +630,7 @@ sub check_if_configured
 				{
 					# Write the database entry.
 					my $variable_uuid = $anvil->Database->insert_or_update_variables({
+						debug                 => 2,
 						variable_name         => "system::configured", 
 						variable_value        => 1, 
 						variable_default      => "", 

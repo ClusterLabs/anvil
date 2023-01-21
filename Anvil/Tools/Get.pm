@@ -1629,7 +1629,7 @@ sub host_type
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_type()" }});
 	
 	my $host_type = "";
-	my $host_name = $anvil->Get->short_host_name;
+	my $host_name = $anvil->Get->short_host_name();
 	   $host_type = "unknown";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_type        => $host_type,
@@ -2417,6 +2417,7 @@ sub switches
 		foreach my $set_switch (sort {$a cmp $b} keys %{$anvil->data->{switches}})
 		{
 			next if $set_switch eq "?";
+			next if $set_switch eq "age-out-database";
 			next if $set_switch eq "h";
 			next if $set_switch eq "help";
 			next if $set_switch eq "job-uuid";
