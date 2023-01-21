@@ -2587,6 +2587,7 @@ sub process_protect
 	{
 		my $job_data =  "server=".$anvil->data->{switches}{server}."\n";
 		   $job_data .= "protect=1\n";
+		   $job_data .= "dr-host=".$anvil->data->{sys}{dr_host_name}."\n";
 		   $job_data .= "protocol=".$anvil->data->{switches}{protocol}."\n";
 		
 		# We always record the job against node 1, as it has to use cluster info to run this, so we 
