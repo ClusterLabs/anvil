@@ -245,8 +245,12 @@ systemctl enable --now anvil-daemon.service
 systemctl enable --now scancore.service
 systemctl enable --now striker-ui-api.service
 systemctl restart striker-ui-api.service
-echo "Running 'anvil-version-changes' to update Anvil! systems
-anvil-version-changes -vv
+# run only on updates
+# https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/#Syntax
+if [ $1 -gt 1 ] ; then
+    echo "Running 'anvil-version-changes' to update Anvil! systems"
+    anvil-version-changes -vv
+fi
 
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
