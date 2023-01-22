@@ -3220,7 +3220,12 @@ sub interactive_ask_server_confirm
 				}})."\n";
 				foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}})
 				{
-					my $storage_group_uuid         = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+					# Make sure the group UUID really exists Autovivication could create
+					# false groups.
+					my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
+					next if not $storage_group_uuid;
+
 					my $max_storage_group_size     = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 					my $say_max_storage_group_size = $anvil->Convert->bytes_to_human_readable({"bytes" => $max_storage_group_size});
 					print $anvil->Words->string({key => "job_0459", variables => {
