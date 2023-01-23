@@ -245,8 +245,6 @@ systemctl enable --now anvil-daemon.service
 systemctl enable --now scancore.service
 systemctl enable --now striker-ui-api.service
 systemctl restart striker-ui-api.service
-echo "Running 'anvil-version-changes' to update Anvil! systems
-anvil-version-changes -vv
 
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
