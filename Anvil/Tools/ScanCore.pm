@@ -1666,7 +1666,7 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "warning", message => "warning_0082", set_by => "ScanCore", variables => $variables});
 				$anvil->Email->send_alerts();
 				
-				if (!$action_log_disabled) {
+				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
 						node_name => $node_name,
@@ -1706,7 +1706,7 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "warning", message => "warning_0083", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 				
-				if (!$action_log_disabled) {
+				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
 						node_name => $node_name,
@@ -1742,7 +1742,7 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "notice", message => "warning_0087", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 
-				if (!$action_log_disabled) {
+				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
 						node_name => $node_name,
@@ -1764,7 +1764,7 @@ sub post_scan_analysis_node
 				$anvil->Alert->register({alert_level => "notice", message => "warning_0088", set_by => "ScanCore"});
 				$anvil->Email->send_alerts();
 
-				if (!$action_log_disabled) {
+				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
 						node_name => $node_name,
@@ -1842,7 +1842,7 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0091", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
 								node_name => $node_name,
@@ -1889,7 +1889,7 @@ sub post_scan_analysis_node
 					$anvil->Alert->register({alert_level => "notice", message => "warning_0094", set_by => "ScanCore", variables => $variables});
 					$anvil->Email->send_alerts();
 
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_assume({
 							debug          => $debug,
 							node_name      => $node_name,
@@ -1929,7 +1929,7 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0097", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
 								node_name => $node_name,
@@ -1951,7 +1951,7 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0096", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
 								node_name => $node_name,
@@ -1986,7 +1986,7 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0099", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 						
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
 								node_name => $node_name,
@@ -2008,7 +2008,7 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0100", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
 								node_name => $node_name,
@@ -2049,7 +2049,7 @@ sub post_scan_analysis_node
 					$anvil->Alert->register({alert_level => "notice", message => "warning_0102", set_by => "ScanCore", variables => $variables});
 					$anvil->Email->send_alerts();
 
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_assume({
 							debug          => $debug,
 							node_name      => $node_name,
@@ -2083,7 +2083,7 @@ sub post_scan_analysis_node
 					$anvil->Alert->register({alert_level => "notice", message => "warning_0106", set_by => "ScanCore"});
 					$anvil->Email->send_alerts();
 
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_down({
 							debug     => $debug,
 							node_name => $node_name,
@@ -2107,7 +2107,7 @@ sub post_scan_analysis_node
 						$anvil->Alert->register({alert_level => "notice", message => "warning_0104", set_by => "ScanCore"});
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
 								node_name => $node_name,
@@ -2171,7 +2171,7 @@ sub post_scan_analysis_node
 							$anvil->Alert->register({alert_level => "warning", message => "warning_0085", set_by => "ScanCore", variables => $variables});
 							$anvil->Email->send_alerts();
 
-							if (!$action_log_disabled) {
+							if (not $action_log_disabled) {
 								$anvil->Actions->insert_action_node_assume({
 									debug          => $debug,
 									node_name      => $node_name,
@@ -2235,7 +2235,7 @@ sub post_scan_analysis_node
 					}
 					$anvil->Email->send_alerts();
 
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_assume({
 							debug          => $debug,
 							node_name      => $node_name,
@@ -2276,7 +2276,7 @@ sub post_scan_analysis_node
 					}
 					$anvil->Email->send_alerts();
 
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_down({
 							debug     => $debug,
 							node_name => $node_name,
@@ -2313,7 +2313,7 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_assume({
 								debug          => $debug,
 								node_name      => $node_name,
@@ -2356,7 +2356,7 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_assume({
 								debug          => $debug,
 								node_name      => $node_name,
@@ -2416,7 +2416,7 @@ sub post_scan_analysis_node
 						}
 						$anvil->Email->send_alerts();
 
-						if (!$action_log_disabled) {
+						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_assume({
 								debug          => $debug,
 								node_name      => $node_name,
@@ -2878,7 +2878,7 @@ LIMIT 1;";
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_up({
 							debug     => $debug,
 							node_name => $anvil_role,
@@ -2935,7 +2935,7 @@ LIMIT 1;";
 					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 					
-					if (!$action_log_disabled) {
+					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_up({
 							debug     => $debug,
 							node_name => $anvil_role,
@@ -2977,7 +2977,7 @@ LIMIT 1;";
 				my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 				
-				if (!$action_log_disabled) {
+				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_up({
 						debug     => $debug,
 						node_name => $anvil_role,
