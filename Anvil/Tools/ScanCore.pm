@@ -1507,9 +1507,11 @@ sub post_scan_analysis_node
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->post_scan_analysis_node()" }});
 	
 	my $host_name       = $anvil->Get->host_name;
+    my $host_uuid       = $anvil->Get->host_name;
 	my $short_host_name = $anvil->Get->short_host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name       => $host_name,
+        host_uuid       => $host_uuid,
 		short_host_name => $short_host_name, 
 	}});
 	
@@ -1535,14 +1537,6 @@ sub post_scan_analysis_node
 		's1:peer_is'        => $peer_is,
 		's2:peer_host_name' => $peer_host_name, 
 		's3:peer_host_uuid' => $peer_host_uuid, 
-	}});
-
-	# What is our name and name of our peer?
-	my $node_name =  $anvil->data->{sys}{anvil}{i_am};
-	my $peer_node_name = $peer_is;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		node_name      => $node_name,
-		peer_node_name => $peer_node_name
 	}});
 	
 	### The higher this number, the sicker a node is.
@@ -1669,7 +1663,7 @@ sub post_scan_analysis_node
 				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
-						node_name => $node_name,
+						node_uuid => $host_uuid,
 					});
 				}
 
@@ -1709,7 +1703,7 @@ sub post_scan_analysis_node
 				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
-						node_name => $node_name,
+						node_uuid => $host_uuid,
 					});
 				}
 
@@ -1745,7 +1739,7 @@ sub post_scan_analysis_node
 				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
-						node_name => $node_name,
+						node_uuid => $host_uuid,
 					});
 				}
 				
@@ -1767,7 +1761,7 @@ sub post_scan_analysis_node
 				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_down({
 						debug     => $debug,
-						node_name => $node_name,
+						node_uuid => $host_uuid,
 					});
 				}
 				
@@ -1845,7 +1839,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
-								node_name => $node_name,
+								node_uuid => $host_uuid,
 							});
 						}
 						
@@ -1892,8 +1886,7 @@ sub post_scan_analysis_node
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_assume({
 							debug          => $debug,
-							node_name      => $node_name,
-							peer_node_name => $peer_node_name,
+							node_uuid      => $host_uuid,
 						});
 					}
 					
@@ -1932,7 +1925,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
-								node_name => $node_name,
+								node_uuid => $host_uuid,
 							});
 						}
 						
@@ -1954,7 +1947,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
-								node_name => $node_name,
+								node_uuid => $host_uuid,
 							});
 						}
 						
@@ -1989,7 +1982,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
-								node_name => $node_name,
+								node_uuid => $host_uuid,
 							});
 						}
 						
@@ -2011,7 +2004,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
-								node_name => $node_name,
+								node_uuid => $host_uuid,
 							});
 						}
 						
@@ -2052,8 +2045,7 @@ sub post_scan_analysis_node
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_assume({
 							debug          => $debug,
-							node_name      => $node_name,
-							peer_node_name => $peer_node_name,
+							node_uuid      => $host_uuid,
 						});
 					}
 					
@@ -2086,7 +2078,7 @@ sub post_scan_analysis_node
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_down({
 							debug     => $debug,
-							node_name => $node_name,
+							node_uuid => $host_uuid,
 						});
 					}
 
@@ -2110,7 +2102,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_down({
 								debug     => $debug,
-								node_name => $node_name,
+								node_uuid => $host_uuid,
 							});
 						}
 
@@ -2174,8 +2166,7 @@ sub post_scan_analysis_node
 							if (not $action_log_disabled) {
 								$anvil->Actions->insert_action_node_assume({
 									debug          => $debug,
-									node_name      => $node_name,
-									peer_node_name => $peer_node_name,
+									node_uuid      => $host_uuid,
 								});
 							}
 
@@ -2238,8 +2229,7 @@ sub post_scan_analysis_node
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_assume({
 							debug          => $debug,
-							node_name      => $node_name,
-							peer_node_name => $peer_node_name,
+							node_uuid      => $host_uuid,
 						});
 					}
 					
@@ -2279,7 +2269,7 @@ sub post_scan_analysis_node
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_down({
 							debug     => $debug,
-							node_name => $node_name,
+							node_uuid => $host_uuid,
 						});
 					}
 					
@@ -2316,8 +2306,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_assume({
 								debug          => $debug,
-								node_name      => $node_name,
-								peer_node_name => $peer_node_name,
+								node_uuid      => $host_uuid,
 							});
 						}
 						
@@ -2359,8 +2348,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_assume({
 								debug          => $debug,
-								node_name      => $node_name,
-								peer_node_name => $peer_node_name,
+								node_uuid      => $host_uuid,
 							});
 						}
 
@@ -2419,8 +2407,7 @@ sub post_scan_analysis_node
 						if (not $action_log_disabled) {
 							$anvil->Actions->insert_action_node_assume({
 								debug          => $debug,
-								node_name      => $node_name,
-								peer_node_name => $peer_node_name,
+								node_uuid      => $host_uuid,
 							});
 						}
 
@@ -2881,7 +2868,7 @@ LIMIT 1;";
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_up({
 							debug     => $debug,
-							node_name => $anvil_role,
+							node_uuid => $host_uuid,
 						});
 					}
 
@@ -2938,7 +2925,7 @@ LIMIT 1;";
 					if (not $action_log_disabled) {
 						$anvil->Actions->insert_action_node_up({
 							debug     => $debug,
-							node_name => $anvil_role,
+							node_uuid => $host_uuid,
 						});
 					}
 
@@ -2980,7 +2967,7 @@ LIMIT 1;";
 				if (not $action_log_disabled) {
 					$anvil->Actions->insert_action_node_up({
 						debug     => $debug,
-						node_name => $anvil_role,
+						node_uuid => $host_uuid,
 					});
 				}
 				

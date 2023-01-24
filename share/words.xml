@@ -3566,7 +3566,7 @@ The error was:
 		</key>
 		<key name="warning_0147">[ Warning ] - The interface: [#!variable!interface!#] appears to be down (state: [#!variable!state!#]). The system uptime is: [#!variable!uptime!#], so it might be a problem where the interface didn't start on boot as it should have. So we're going to bring the interface up.</key>
 		<key name="warning_0148">[ Warning ] - The IPMI stonith resource: [#!variable!resource!#] is in the role: [#!variable!role!#] (should be 'Started'). Will check the IPMI config now.</key>
-		<key name="warning_0149">[ Warning ] - The method: [#!variable!method!#] was called but the: [#!variable!parameter!#] parameter should include a node number which must be either '1' or '2'.</key>
+		<key name="warning_0149">[ Warning ] - The method: [#!variable!method!#] was called but the: [#!variable!parameter!#] UUID could not be converted to the node number '1' or '2'.</key>
 
 	</language>
 	<!-- 日本語 -->

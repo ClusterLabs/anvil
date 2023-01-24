@@ -77,20 +77,16 @@ sub parent
 
 =head2 insert_action_node_assume
 
-This method inserts "1" into "scancore::actions::node::{number}::assume" variable's value where number is parsed from node_name. 
-This method also updates "scancore::actions::node::{number}::assume" variable's value to "0" where number is parsed from peer_node_name. This insures that there is only one assume action, two assumes do not make sense.
+This method inserts "1" into "scancore::actions::node::{number}::assume" variable's value where number is determined by node_uuid. 
+This method also updates "scancore::actions::node::{number}::assume" variable's value to "0" where number is the peer node. This insures that there is only one assume action, two assumes do not make sense.
 
 If there is an error, C<< !!error!! >> is returned.
 
 Parameters;
 
-=head3 node_name (required)
+=head3 node_uuid (required)
 
-This is the name/number of the node on which assume action was executed by ScanCore. Must include the node number that is either "1" or "2". Example: C<< node1 >> or C<< 2 >>
-
-=head3 peer_node_name (required)
-
-This is the name/number of the peer node to unset its assume variable. Must include the node number that is either "1" or "2". Example: C<< node1 >> or C<< 2 >>
+This is the UUID of the node on which assume action was executed by ScanCore.
 
 =cut
 sub insert_action_node_assume {
@@ -100,36 +96,33 @@ sub insert_action_node_assume {
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Actions->insert_action_node_assume()" }});
 
-	my $node_name      = defined $parameter->{node_name} ? $parameter->{node_name} : "";
-	my $peer_node_name = defined $parameter->{peer_node_name} ? $parameter->{peer_node_name} : "";
+	my $node_uuid      = defined $parameter->{node_uuid} ? $parameter->{node_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		node_name      => $node_name,
-		peer_node_name => $peer_node_name,
+		node_uuid      => $node_uuid,
 	}});
 
-	if (not $node_name)
+	if (not $node_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_assume()", parameter => "node_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_assume()", parameter => "node_uuid" }});
 		return("!!error!!");
 	}
 
-	if (not $peer_node_name)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_assume()", parameter => "peer_node_name" }});
-		return("!!error!!");
+	# Can we parse a node/peer_node number from node_uuid?
+	$anvil->Database->get_anvils()
+
+	my $node_number;
+	my $peer_node_number;
+	if ($node_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}) {
+		$node_number = 1;
+		$peer_node_number = 2;
+	} elsif ($node_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}) {
+		$node_number = 2;
+		$peer_node_number = 1;
 	}
 
-	# Can we parse a node number from node_name or peer_node_name
-	my ($node_number) = $node_name =~ /(\d)/;
 	if ((not $node_number) or (($node_number ne "1") and ($node_number ne "2")))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_assume()", parameter => "node_name" }});
-		return("!!error!!");
-	}
-	my ($peer_node_number) = $peer_node_name =~ /(\d)/;
-	if ((not $peer_node_number) or (($peer_node_number ne "1") and ($peer_node_number ne "2")))
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_assume()", parameter => "peer_node_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_assume()", parameter => "node_uuid" }});
 		return("!!error!!");
 	}
 
@@ -160,14 +153,14 @@ sub insert_action_node_assume {
 
 =head2 insert_action_node_down
 
-This method inserts "1" into "scancore::actions::node::{number}::down" variable's value where number is parsed from node_name. 
-This method also updates "scancore::actions::node::{number}::up" variable's value to "0" where number is parsed from node_name. This insures that there is either up or down actions on the node, both actions do not make sense.
+This method inserts "1" into "scancore::actions::node::{number}::down" variable's value where number is determined by node_uuid. 
+This method also updates "scancore::actions::node::{number}::up" variable's value to "0" where number is the same. This insures that there is either up or down actions on the node, both actions do not make sense.
 
 If there is an error, C<< !!error!! >> is returned.
 
 Parameters;
 
-=head3 node_name (required)
+=head3 node_uuid (required)
 
 This is the name/number of the node on which action was executed by ScanCore. Must include the node number that is either "1" or "2". Example: C<< node1 >> or C<< 2 >>
 
@@ -179,22 +172,30 @@ sub insert_action_node_down {
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Actions->insert_action_node_down()" }});
 
-	my $node_name = defined $parameter->{node_name} ? $parameter->{node_name} : "";
+	my $node_uuid = defined $parameter->{node_uuid} ? $parameter->{node_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		node_name => $node_name,
+		node_uuid => $node_uuid,
 	}});
 
-	if (not $node_name)
+	if (not $node_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_down()", parameter => "node_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_down()", parameter => "node_uuid" }});
 		return("!!error!!");
 	}
 
-	# Can we parse a node number from node_name
-	my ($node_number) = $node_name =~ /(\d)/;
+	# Can we parse a node number from node_uuid
+    $anvil->Database->get_anvils()
+	
+	my $node_number;
+	if ($node_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}) {
+		$node_number = 1;
+	} elsif ($node_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}) {
+		$node_number = 2;
+	}
+
 	if ((not $node_number) or (($node_number ne "1") and ($node_number ne "2")))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_down()", parameter => "node_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_down()", parameter => "node_uuid" }});
 		return("!!error!!");
 	}
 
@@ -224,16 +225,16 @@ sub insert_action_node_down {
 
 =head2 insert_action_node_up
 
-this method inserts "1" into "scancore::actions::node::{number}::up" variable's value where number is parsed from node_name. 
-This method also updates "scancore::actions::node::{number}::down" variable's value to "0" where number is parsed from node_name. This insures that there is either up or down actions on the node, both actions do not make sense.
+this method inserts "1" into "scancore::actions::node::{number}::up" variable's value where number is determined by node_uuid.
+This method also updates "scancore::actions::node::{number}::down" variable's value to "0" where number is the same. This insures that there is either up or down actions on the node, both actions do not make sense.
 
 If there is an error, C<< !!error!! >> is returned.
 
 Parameters;
 
-=head3 node_name (required)
+=head3 node_uuid (required)
 
-This is the name/number of the node on which action was executed by ScanCore. Must include the node number that is either "1" or "2". Example: C<< node1 >> or C<< 2 >>
+This is the uuid of the node on which action was executed by ScanCore. Must include the node number that is either "1" or "2". Example: C<< node1 >> or C<< 2 >>
 
 =cut
 sub insert_action_node_up {
@@ -243,22 +244,30 @@ sub insert_action_node_up {
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Actions->insert_action_node_up()" }});
 	
-	my $node_name = defined $parameter->{node_name} ? $parameter->{node_name} : "";
+	my $node_uuid = defined $parameter->{node_uuid} ? $parameter->{node_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		node_name => $node_name,
+		node_uuid => $node_uuid,
 	}});
 
-	if (not $node_name)
+	if (not $node_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_up()", parameter => "node_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Actions->insert_action_node_up()", parameter => "node_uuid" }});
 		return("!!error!!");
 	}
 
-	# Can we parse a node number from node_name
-	my ($node_number) = $node_name =~ /(\d)/;
+	# Can we parse a node number from node_uuid
+	$anvil->Database->get_anvils()
+
+	my $node_number;
+	if ($node_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}) {
+		$node_number = 1;
+	} elsif ($node_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}) {
+		$node_number = 2;
+	}
+
 	if ((not $node_number) or (($node_number ne "1") and ($node_number ne "2")))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_down()", parameter => "node_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0149", variables => { method => "Actions->insert_action_node_down()", parameter => "node_uuid" }});
 		return("!!error!!");
 	}
 
