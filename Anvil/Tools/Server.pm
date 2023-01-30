@@ -1832,8 +1832,10 @@ sub parse_definition
 			my $on_lv    = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       : "";
 			my $resource = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				on_lv    => $on_lv,
-				resource => $resource, 
+				's1:host'        => $host, 
+				's2:device_path' => $device_path, 
+				's3:on_lv'       => $on_lv,
+				's4:resource'    => $resource, 
 			}});
 			if ((not $resource) && ($anvil->data->{drbd}{config}{$host}{'by-res'}{$device_path}{resource}))
 			{

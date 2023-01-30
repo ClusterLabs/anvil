@@ -2859,6 +2859,7 @@ Proceed? [y/N]</key>
 Proceed? [y/N]</key>
 		<key name="message_0306">This is a test alert message sent at alert level: [#!variable!level!#].</key>
 		<key name="message_0307">Failed to send a test alert at level: [#!variable!level!#]. Is anyone listening at that level? Is the mail server configured?</key>
+		<key name="message_0308">The DRBD config file was not found. A protect job needs to be run from the Anvil! node hosting the server to be protected.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
