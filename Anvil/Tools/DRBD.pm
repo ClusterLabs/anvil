@@ -1492,7 +1492,7 @@ LIMIT 1
 				my $value    = $option_ref->{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					variable => $variable,
-					value    => $variable, 
+					value    => $value, 
 				}});
 				if ($variable eq "auto-promote")
 				{
@@ -1581,10 +1581,14 @@ LIMIT 1
 				
 				if (($anvil->data->{drbd}{config}{$host}{host}) && ($anvil->data->{drbd}{config}{$host}{host} eq $this_host))
 				{
+					$anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{on}             = $lv_path;
+					$anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{resource}       = $this_resource;
 					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on}       = $lv_path;
 					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource} = $this_resource;
 					$anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under}        = $drbd_path;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+						"drbd::config::${host}::by_res::${by_res}::on"             => $anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{on},
+						"drbd::config::${host}::by_res::${by_res}::resource"       => $anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{resource},
 						"drbd::config::${host}::drbd_path::${drbd_path}::on"       => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on},
 						"drbd::config::${host}::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource},
 						"drbd::config::${host}::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under},
