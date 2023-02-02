@@ -200,3 +200,5 @@ else
 {
 	$anvil->Job->update_progress({ progress => 100, message => "message_0266" });
 }
+
+$anvil->nice_exit({ exit_code => 0 });
