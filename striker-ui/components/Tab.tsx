@@ -27,6 +27,7 @@ const Tab: FC<MUITabProps> = ({ label: originalLabel, ...restTabProps }) => {
       sx={{
         borderRadius: BORDER_RADIUS,
         color: GREY,
+        padding: '.4em .8em',
         textTransform: 'none',
 
         [`&.${muiTabClasses.selected}`]: {
