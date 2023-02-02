@@ -1,3 +1,4 @@
+import { Box } from '@mui/material';
 import { ReactElement, useMemo } from 'react';
 
 const TabContent = <T,>({
@@ -9,8 +10,12 @@ const TabContent = <T,>({
     () => changingTabId === tabId,
     [changingTabId, tabId],
   );
+  const displayValue = useMemo(
+    () => (isTabIdMatch ? 'initial' : 'none'),
+    [isTabIdMatch],
+  );
 
-  return <>{isTabIdMatch && children}</>;
+  return <Box sx={{ display: displayValue }}>{children}</Box>;
 };
 
 export default TabContent;
