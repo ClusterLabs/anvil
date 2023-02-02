@@ -5297,6 +5297,12 @@ sub get_storage_group_data
 		$scan_lvm_exists = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan_lvm_exists => $scan_lvm_exists }});
 	}
+	
+	# Loads hosts, if it hasn't been before.
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
 
 	$query     = "
 SELECT 
@@ -13409,7 +13415,7 @@ AND
 	if (not $storage_group_member_uuid)
 	{
 		# INSERT
-		my $storage_group_member_uuid = $anvil->Get->uuid();
+		$storage_group_member_uuid = $anvil->Get->uuid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 		
 		my $query = "
