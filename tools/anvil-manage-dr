@@ -6,6 +6,8 @@
 #       This behaviour is likely to change later as it's not ideal.
 # 
 # TODO: --remove is not yet implemented, this needs to be done. Use anvil-delete-server for methods to delete.
+# EXAMPLES:
+# - anvil-manage-dr --link --dr-host vm-a01dr02 --anvil vm-anvil-01
 # 
 # Exit codes;
 # 0 = Normal exit.
