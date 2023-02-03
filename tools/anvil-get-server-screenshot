@@ -183,15 +183,15 @@ if ($server_uuid)
 
 	if ($request_host_uuid)
 	{
+		my $request_host_ip_address = get_remote_call_requirements({ debug => $debug, host_uuid => $request_host_uuid });
+		my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' >".$anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot_".$out_file_id;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { request_host_ip_address => $request_host_ip_address } });
+
+		remote_call({ debug => $debug, shell_call => $remote_shell_call, target => $request_host_ip_address });
+
 		if (length($encoded_image))
 		{
-			my $request_host_ip_address = get_remote_call_requirements({ debug => $debug, host_uuid => $request_host_uuid });
-			my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' >".$anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot_".$out_file_id;
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { request_host_ip_address => $request_host_ip_address } });
-
-			remote_call({ debug => $debug, shell_call => $remote_shell_call, target => $request_host_ip_address });
-
 			$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
 		}
 		else
