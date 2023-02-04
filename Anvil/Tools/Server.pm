@@ -1385,7 +1385,7 @@ sub parse_definition
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
-	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->Get->short_host_name;
+	my $host       = defined $parameter->{host}       ? $parameter->{host}       : "";
 	my $target     = $anvil->Get->short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid => $anvil_uuid, 
@@ -1394,6 +1394,12 @@ sub parse_definition
 		definition => $definition, 
 		host       => $host, 
 	}});
+	
+	if (not $target)
+	{
+		$target = $anvil->Get->short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	}
 	
 	if (not $server)
 	{
@@ -1804,6 +1810,16 @@ sub parse_definition
 			"server::${target}::${server}::${source}::device::${device}::target::${device_target}::driver::type"  => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{type},
 			"server::${target}::${server}::${source}::device::${device}::target::${device_target}::type"          => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{type},
 		}});
+		
+		if (($boot_order) && ($boot_order =~ /^\d+$/))
+		{
+			$anvil->data->{server}{$target}{$server}{$source}{boot_order}{$boot_order}{device_target} = $device_target;
+			$anvil->data->{server}{$target}{$server}{$source}{boot_order}{$boot_order}{device_type}   = $device;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"server::${target}::${server}::${source}::boot_order::${boot_order}::device_target" => $anvil->data->{server}{$target}{$server}{$source}{boot_order}{$boot_order}{device_target},
+				"server::${target}::${server}::${source}::boot_order::${boot_order}::device_type"   => $anvil->data->{server}{$target}{$server}{$source}{boot_order}{$boot_order}{device_type},
+			}});
+		}
 		
 		# Record type-specific data
 		if ($device eq "disk")
