@@ -26,6 +26,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-keys \
 			  anvil-manage-power \
 			  anvil-manage-server \
+			  anvil-manage-server-storage \
 			  anvil-manage-storage-groups \
 			  anvil-migrate-server \
 			  anvil-network-profiler \
@@ -76,4 +77,3 @@ sharedir		= ${datarootdir}/anvil
 
 dist_share_DATA		= striker-auto-initialize-all.example
 
-# -rwxr-xr-x.  1 digimer digimer  34K Feb  1  2020 tool-fio-tester

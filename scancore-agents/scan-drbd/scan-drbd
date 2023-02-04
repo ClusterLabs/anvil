@@ -914,6 +914,16 @@ sub process_volumes
 				"s4:old_scan_drbd_volume_size"         => $old_scan_drbd_volume_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_drbd_volume_size}).")",
 			}});
 			
+			# If the $new_scan_drbd_volume_size is '0', the device is down. Don't update it so we can 
+			# recall the last known size.
+			if ($new_scan_drbd_volume_size == 0)
+			{
+				$new_scan_drbd_volume_size = $old_scan_drbd_volume_size;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					new_scan_drbd_volume_size => $new_scan_drbd_volume_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_drbd_volume_size}).")",
+				}});
+			}
+			
 			my $update = 0;
 			if ($new_scan_drbd_volume_device_path ne $old_scan_drbd_volume_device_path)
 			{

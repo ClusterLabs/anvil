@@ -766,7 +766,7 @@ sub check_db_in_use_states
 	my ($anvil) = @_;
 	
 	# We only reap db_in_use entries for us.
-	$anvil->System->pids();
+	$anvil->System->pids({debug => 2});
 	my $query =  "
 SELECT 
     state_uuid, 

@@ -643,7 +643,7 @@ WHERE
 		
 		# How many cores?
 		if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}) or 
-			($scan_hardware_cpu_cores < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}))
+		    ($scan_hardware_cpu_cores < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}))
 		{
 			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores} = $scan_hardware_cpu_cores;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -651,15 +651,25 @@ WHERE
 			}});
 		}
 		if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}) or 
-			($scan_hardware_cpu_threads < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}))
+		    ($scan_hardware_cpu_threads < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}))
 		{
 			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} = $scan_hardware_cpu_threads;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvil_resources::${anvil_uuid}::cpu::threads" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
 			}});
 		}
+		
+		# If there are less threads than cores, set the cores to be equal to threads.
+		if ($anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} < $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores})
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::cpu::threads" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+			}});
+		}
+		
 		if ((not $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}) or 
-			($scan_hardware_ram_total < $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
+		    ($scan_hardware_ram_total < $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
 		{
 			$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = $scan_hardware_ram_total;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2114,9 +2124,9 @@ sub server_from_switch
 		server_string => $server_string,
 	}});
 	
-	if ((not $server_string) && ($anvil->data->{switches}{'anvil'}))
+	if ((not $server_string) && ($anvil->data->{switches}{'server'}))
 	{
-		$server_string = $anvil->data->{switches}{'anvil'};
+		$server_string = $anvil->data->{switches}{'server'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_string => $server_string }});
 	}
 	if (not $server_string)
@@ -2125,10 +2135,16 @@ sub server_from_switch
 		return("!!error!!", "");
 	}
 	
+	$anvil->Database->get_anvils({debug => $debug});
 	$anvil->Database->get_servers({debug => $debug});
 	$anvil->data->{switches}{server_name} = "" if not exists $anvil->data->{switches}{server_name};
 	$anvil->data->{switches}{server_uuid} = "" if not exists $anvil->data->{switches}{server_uuid};
-	if (exists $anvil->data->{servers}{server_uuid}{$server_string}{server_name})
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server_string           => $server_string, 
+		"switches::server_name" => $anvil->data->{switches}{server_name},
+		"switches::server_uuid" => $anvil->data->{switches}{server_uuid}, 
+	}});
+	if (exists $anvil->data->{servers}{server_uuid}{$server_string})
 	{
 		# Found it by UUID.
 		$anvil->data->{switches}{server_name} = $anvil->data->{anvils}{server_uuid}{$server_string}{server_name};
@@ -2138,14 +2154,33 @@ sub server_from_switch
 			"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
 		}});
 	}
-	elsif (exists $anvil->data->{anvils}{server_uuid}{$server_string})
+	else
 	{
-		$anvil->data->{switches}{server_name} = $server_string;
-		$anvil->data->{switches}{server_uuid} = $anvil->data->{anvils}{server_uuid}{$server_string}{server_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"switches::server_name" => $anvil->data->{switches}{server_name},
-			"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
-		}});
+		# If we have an anvil_uuid, see if the server exists there.
+		foreach my $this_anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			my $this_anvil_uuid = $anvil->data->{anvils}{anvil_name}{$this_anvil_name}{anvil_uuid};
+			if (($anvil_uuid) && ($anvil_uuid ne $this_anvil_uuid))
+			{
+				next;
+			}
+			foreach my $this_server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$this_anvil_uuid}{server_name}})
+			{
+				my $this_server_uuid = $anvil->data->{servers}{anvil_uuid}{$this_anvil_uuid}{server_name}{$this_server_name}{server_uuid};
+				if (($server_string eq $this_server_name) or 
+				    ($server_string eq $this_server_uuid))
+				{
+					# Found it 
+					$anvil->data->{switches}{server_name} = $this_server_name;
+					$anvil->data->{switches}{server_uuid} = $this_server_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"switches::server_name" => $anvil->data->{switches}{server_name},
+						"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+					}});
+					last;
+				}
+			}
+		}
 	}
 	
 	return($anvil->data->{switches}{server_name}, $anvil->data->{switches}{server_uuid});
