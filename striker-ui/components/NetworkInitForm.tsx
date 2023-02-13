@@ -112,6 +112,11 @@ const NETWORK_TYPES: Record<string, string> = {
   sn: 'Storage Network',
 };
 
+const NODE_NETWORK_TYPES: Record<string, string> = {
+  ...NETWORK_TYPES,
+  mn: 'Migration Network',
+};
+
 const STRIKER_REQUIRED_NETWORKS: NetworkInput[] = [
   {
     inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
@@ -275,6 +280,7 @@ const NetworkForm: FC<{
   hostDetail?: APIHostDetail;
   networkIndex: number;
   networkInput: NetworkInput;
+  networkInterfaceCount: number;
   networkInterfaceInputMap: NetworkInterfaceInputMap;
   removeNetwork: (index: number) => void;
   setMessageRe: (re: RegExp, message?: Message) => void;
@@ -290,6 +296,7 @@ const NetworkForm: FC<{
   hostDetail: { hostType } = {},
   networkIndex,
   networkInput,
+  networkInterfaceCount,
   networkInterfaceInputMap,
   removeNetwork,
   setMessageRe,
@@ -336,12 +343,16 @@ const NetworkForm: FC<{
     [inputTestPrefix],
   );
 
+  const isNode = useMemo(() => hostType === 'node', [hostType]);
   const netIfTemplate = useMemo(
     () =>
-      hostType !== 'node' && Object.keys(networkInterfaceInputMap).length <= 2
-        ? [1]
-        : NETWORK_INTERFACE_TEMPLATE,
-    [hostType, networkInterfaceInputMap],
+      !isNode && networkInterfaceCount <= 2 ? [1] : NETWORK_INTERFACE_TEMPLATE,
+    [isNode, networkInterfaceCount],
+  );
+  const netTypeList = useMemo(
+    () =>
+      isNode && networkInterfaceCount >= 8 ? NODE_NETWORK_TYPES : NETWORK_TYPES,
+    [isNode, networkInterfaceCount],
   );
 
   useEffect(() => {
@@ -364,7 +375,7 @@ const NetworkForm: FC<{
           isReadOnly={isRequired}
           inputLabelProps={{ isNotifyRequired: true }}
           label="Network name"
-          selectItems={Object.entries(NETWORK_TYPES).map(
+          selectItems={Object.entries(netTypeList).map(
             ([networkType, networkTypeName]) => {
               let count = getNetworkTypeCount(networkType, {
                 lastIndex: networkIndex,
@@ -575,7 +586,7 @@ const NetworkInitForm = forwardRef<
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
 >(({ hostDetail, toggleSubmitDisabled }, ref) => {
-  const { hostType, hostUUID = 'local' } = hostDetail ?? {};
+  const { hostType, hostUUID = 'local' } = hostDetail ?? ({} as APIHostDetail);
 
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
@@ -619,8 +630,9 @@ const NetworkInitForm = forwardRef<
       networkInputs.length >= networkInterfaces.length ||
       Object.values(networkInterfaceInputMap).every(
         ({ isApplied }) => isApplied,
-      ),
-    [networkInputs, networkInterfaces, networkInterfaceInputMap],
+      ) ||
+      (hostType === 'node' && networkInterfaces.length <= 6),
+    [hostType, networkInputs, networkInterfaces, networkInterfaceInputMap],
   );
 
   const setMessage = useCallback(
@@ -1277,6 +1289,7 @@ const NetworkInitForm = forwardRef<
                     hostDetail,
                     networkIndex,
                     networkInput,
+                    networkInterfaceCount: networkInterfaces.length,
                     networkInterfaceInputMap,
                     removeNetwork,
                     setMessageRe,
