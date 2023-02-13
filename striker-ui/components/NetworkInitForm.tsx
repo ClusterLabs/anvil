@@ -1245,12 +1245,6 @@ const NetworkInitForm = forwardRef<
             },
           }}
         >
-          <IconButton
-            disabled={isDisableAddNetworkButton}
-            onClick={createNetwork}
-          >
-            <MUIAddIcon />
-          </IconButton>
           <MUIBox
             sx={{
               alignItems: 'strech',
@@ -1299,15 +1293,20 @@ const NetworkInitForm = forwardRef<
         <FlexBox
           sm="row"
           sx={{
-            marginLeft: { sm: '3.8em' },
             marginTop: '.2em',
 
-            '& > *': {
+            '& > :not(button)': {
               minWidth: networkInputMinWidth,
               width: { sm: networkInputWidth },
             },
           }}
         >
+          <IconButton
+            disabled={isDisableAddNetworkButton}
+            onClick={createNetwork}
+          >
+            <MUIAddIcon />
+          </IconButton>
           <InputWithRef
             input={
               <OutlinedInputWithLabel
