@@ -681,6 +681,7 @@ const NetworkInitForm = forwardRef<
 
       try {
         subnet = new Netmask(`${ip}/${mask}`);
+        // TODO: find a way to express the netmask creation error
         // eslint-disable-next-line no-empty
       } catch (netmaskError) {}
 
@@ -702,6 +703,7 @@ const NetworkInitForm = forwardRef<
 
           isMatch = match(otherSubnet, { b: subnet, bIP: ip });
 
+          // TODO: find a way to express the netmask creation error
           // eslint-disable-next-line no-empty
         } catch (netmaskError) {}
 
