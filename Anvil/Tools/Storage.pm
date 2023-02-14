@@ -5246,7 +5246,7 @@ Parameters;
 
 This is the full path to the file. If the file is not found, C<< !!error!! >> is returned.
 
-=head3 delay (optional, default '2')
+=head3 delay (optional, default '10')
 
 This is how long to wait before checking to see if the file has changed.
 

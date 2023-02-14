@@ -567,7 +567,7 @@ sub check_incoming
 		my $file_md5sum =  $recorded_md5sum;
 		if ((not $file_uuid) or ($file_size != $recorded_size))
 		{
-			# It's possible the file is still uploading, so sleep for 2 seconds and see if the 
+			# It's possible the file is still uploading, so sleep for a bit and see if the 
 			# size is still changing.
 			my $last_size = $file_size;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

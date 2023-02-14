@@ -1230,24 +1230,24 @@ CREATE TRIGGER trigger_files
 
 -- This tracks which files on Strikers should be on Anvils!
 CREATE TABLE file_locations (
-    file_location_uuid          uuid                        not null    primary key,
-    file_location_file_uuid     uuid                        not null,                   -- This is file to be moved to (or restored to) this machine.
-    file_location_anvil_uuid    uuid                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
-    file_location_active        boolean                     not null    default TRUE,   -- This is set to true when the file should be on Anvil! machines, triggering rsyncs when needed. When set to false, the file will be deleted from members, if they exist.
-    modified_date               timestamp with time zone    not null,
+    file_location_uuid         uuid                        not null    primary key,
+    file_location_file_uuid    uuid                        not null,                   -- This is file to be moved to (or restored to) this machine.
+    file_location_host_uuid    uuid                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
+    file_location_active       boolean                     not null    default TRUE,   -- This is set to true when the file should be on Anvil! machines, triggering rsyncs when needed. When set to false, the file will be deleted from members, if they exist.
+    modified_date              timestamp with time zone    not null,
     
     FOREIGN KEY(file_location_file_uuid) REFERENCES files(file_uuid), 
-    FOREIGN KEY(file_location_anvil_uuid) REFERENCES anvils(anvil_uuid)
+    FOREIGN KEY(file_location_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE file_locations OWNER TO admin;
 
 CREATE TABLE history.file_locations (
-    history_id                  bigserial,
-    file_location_uuid          uuid,
-    file_location_file_uuid     text,
-    file_location_anvil_uuid    uuid,
-    file_location_active        boolean,
-    modified_date               timestamp with time zone    not null
+    history_id                 bigserial,
+    file_location_uuid         uuid,
+    file_location_file_uuid    text,
+    file_location_host_uuid    uuid,
+    file_location_active       boolean,
+    modified_date              timestamp with time zone    not null
 );
 ALTER TABLE history.file_locations OWNER TO admin;
 
@@ -1260,13 +1260,13 @@ BEGIN
     INSERT INTO history.file_locations
         (file_location_uuid,
          file_location_file_uuid,
-         file_location_anvil_uuid, 
+         file_location_host_uuid, 
          file_location_active, 
          modified_date)
     VALUES
         (history_file_locations.file_location_uuid, 
          history_file_locations.file_location_file_uuid,
-         history_file_locations.file_location_anvil_uuid, 
+         history_file_locations.file_location_host_uuid, 
          history_file_locations.file_location_active, 
          history_file_locations.modified_date);
     RETURN NULL;
