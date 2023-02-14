@@ -40,6 +40,8 @@ type APIHostOverviewList = {
 };
 
 type APIHostDetail = APIHostOverview & {
+  dns: string;
+  gateway: string;
   installTarget: APIHostInstallTarget;
 };
 
