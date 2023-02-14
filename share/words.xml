@@ -586,6 +586,7 @@ The definition data passed in was:
 		<key name="error_0411"><![CDATA[The server: [#!variable!server!#] was not found. Exiting.]]></key>
 		<key name="error_0412"><![CDATA[The server: [#!variable!server!#] is on the Anvil! node: [#!variable!on_anvil!#], and this is: [#!variable!this_anvil!#]. Exiting.]]></key>
 		<key name="error_0413"><![CDATA[You need to specify the server with '--server <name or uuid>'. Available servers are;]]></key>
+		<key name="error_0414"><![CDATA[The target host: [#!variable!target!#] was not found in the database.]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2236,7 +2237,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0610">We're online as: [#!variable!node_name!#], but we're not quorate yet. Continuing to wait.</key>
 		<key name="log_0611">We're online as: [#!variable!node_name!#] and quorate!</key>
 		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
-		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the Anvil! [#!variable!anvil_name!#] yet. Registering it now as not sync'ed to this Anvil! system.</key>
+		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the host [#!variable!host_name!#] yet. Registering it now as not sync'ed to this system.</key>
 		<key name="log_0614">Asking 'anvil-boot-server' to boot the servers now.</key>
 		<key name="log_0615">We were asked to delete the file: [#!variable!file!#], but it doesn't exist, so nothing to do.</key>
 		<key name="log_0616">The file: [#!variable!file!#] has been successfully removed.</key>
@@ -2657,8 +2658,11 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0192">Moving the file: [#!variable!file!#] to: [#!data!path::directories::shared::files!#].</key>
 		<key name="message_0193">Calculating the md5sum. This can take a little while for large files, please be patient.</key>
 		<key name="message_0194">The md5sum is: [#!variable!md5sum!#]. Storing details in the database.</key>
-		<key name="message_0195">Copying the file over to: [#!variable!host!#]. Please be patient, this could take a bit for large files.</key>
-		<key name="message_0196">Registering the file to be downloaded to the Anvil!: [#!variable!anvil_name!#]. Anvil! members will sync this file shortly. Member machines that are not online will sync the file when they do return.</key>
+		<key name="message_0195">
+Copying the file: [#!variable!source_file!#] over to: [#!variable!host!#:#!variable!target_directory!#] using: [#!variable!ip_address!# (#!variable!network!#)]. 
+The file size is: [#!variable!size!#], and the link speed appears to be: [#!variable!link_speed!#], for an estimated copy time of about: [#!variable!eta_copy_time!#].
+Please be patient, this could take a bit for large files.</key>
+		<key name="message_0196">Registering the file to be downloaded to host: [#!variable!host!#]. Hosts that are not online will sync the file when they do return.</key>
 		<key name="message_0197">Upload is complete!</key>
 		<key name="message_0198">Processing the pull of a file from Striker.</key>
 		<key name="message_0199">We're a DR host and there are: [#!variable!strikers!#] dashboards, so we will wait to pull the file until after the nodes are done. We're currently waiting on; Node 1? [#!variable!node1_waiting!#], Node 2? [#!variable!node2_waiting!#]. We'll check again at: [#!variable!wait_until!#].</key>
@@ -2860,6 +2864,8 @@ Proceed? [y/N]</key>
 		<key name="message_0306">This is a test alert message sent at alert level: [#!variable!level!#].</key>
 		<key name="message_0307">Failed to send a test alert at level: [#!variable!level!#]. Is anyone listening at that level? Is the mail server configured?</key>
 		<key name="message_0308">The DRBD config file was not found. A protect job needs to be run from the Anvil! node hosting the server to be protected.</key>
+		<key name="message_0309">Waiting a bit to make sure the file: [#!variable!file!#] is done uploading...</key>
+		<key name="message_0310">Upload complete.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3264,6 +3270,15 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="suffix_0055">Zbps</key>		<!-- Short suffix for 'zettabits per second' (1,000,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0056">Ybps</key>		<!-- Short suffix for 'yotabits per second' (1,000,000,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0057">Bytes</key>
+		<key name="suffix_0058">Bytes/sec</key>
+		<key name="suffix_0059">KiB/sec</key>		<!-- Short suffix for 'kibibyte/sec' transfer rate. -->
+		<key name="suffix_0060">MiB/sec</key>		<!-- Short suffix for 'mebibyte/sec' transfer rate. -->
+		<key name="suffix_0061">GiB/sec</key>		<!-- Short suffix for 'gibibyte/sec' transfer rate. -->
+		<key name="suffix_0062">TiB/sec</key>		<!-- Short suffix for 'tebibyte/sec' transfer rate. -->
+		<key name="suffix_0063">PiB/sec</key>		<!-- Short suffix for 'pebibyte/sec' transfer rate. -->
+		<key name="suffix_0064">EiB/sec</key>		<!-- Short suffix for 'exbibyte/sec' transfer rate. -->
+		<key name="suffix_0065">ZiB/sec</key>		<!-- Short suffix for 'zebibyte/sec' transfer rate. -->
+		<key name="suffix_0066">YiB/sec</key>		<!-- Short suffix for 'yobibyte/sec' transfer rate. -->
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

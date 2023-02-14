@@ -18,6 +18,7 @@ my $THIS_FILE = "Network.pm";
 # check_network
 # check_internet
 # download
+# find_access
 # find_matches
 # find_target_ip
 # get_company_from_mac
@@ -1184,6 +1185,169 @@ sub download
 	
 	return($save_to);
 }
+
+
+=head2 find_access
+
+This takes a host's UUID or name, and finds networks that this host can reach it on. If the target is not found in the database, C<< !!error!! >> is returned. Otherwise, the number of matches found is returned.
+
+B<< Note >>: This requires that the target has recorded it's network in the database. 
+
+It was written to be a saner version of C<< Network->find_matches() >>
+
+Matches will be stored as:
+
+* network_access::<network_name>::local_ip_address   = <local_ip_address>
+* network_access::<network_name>::local_subnet_mask  = <local_subnet_mask>
+* network_access::<network_name>::local_interface    = <local_interface_with_ip>
+* network_access::<network_name>::local_speed        = <speed_in_Mbps>
+* network_access::<network_name>::target_ip_address  = <target_ip_address>
+* network_access::<network_name>::target_subnet_mask = <target_subnet_mask>
+* network_access::<network_name>::target_interface   = <target_interface_with_ip>
+* network_access::<network_name>::target_speed       = <speed_in_Mbps>
+
+Where C<< network_name >> will be C<< bcnX >>, C<< ifnX >>, etc.
+
+Paramters;
+
+=head3 target (required)
+
+This is the host we're looking for connection options with.
+
+=cut
+sub find_access
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_access()" }});
+	
+	my $target = defined $parameter->{target} ? $parameter->{target} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		target => $target, 
+	}});
+	
+	if (not $target)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_access()", parameter => "target" }});
+		return("!!error!!");
+	}
+	
+	# Take the target and find the host_uuid and host_name.
+	my $target_host_uuid = $anvil->Database->get_host_uuid_from_string({debug => $debug, string => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_host_uuid => $target_host_uuid }});
+	
+	if (not $target_host_uuid)
+	{
+		# Bad target. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0414", variables => { target => $target }});
+		return("!!error!!");
+	}
+	
+	my $host_uuid              = $anvil->Get->host_uuid;
+	my $short_host_name        = $anvil->Get->short_host_name;
+	my $target_short_host_name = $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid              => $host_uuid, 
+		short_host_name        => $short_host_name, 
+		target_short_host_name => $target_short_host_name, 
+	}});
+	
+	# Load our IPs
+	$anvil->Network->load_ips({
+		debug => $debug, 
+		host  => $short_host_name,
+	});
+	# Load our target's IPs.
+	$anvil->Network->load_ips({
+		debug     => $debug, 
+		host      => $target_short_host_name,
+		host_uuid => $target_host_uuid, 
+	});
+	
+	# Loop through the first, and on each interface with an IP/subnet mask, look for a match in the second.
+	foreach my $local_interface (sort {$b cmp $a} keys %{$anvil->data->{network}{$short_host_name}{interface}})
+	{
+		my $local_ip          = $anvil->data->{network}{$short_host_name}{interface}{$local_interface}{ip};
+		my $local_subnet_mask = $anvil->data->{network}{$short_host_name}{interface}{$local_interface}{subnet_mask};
+		my $local_speed       = $anvil->data->{network}{$short_host_name}{interface}{$local_interface}{speed}; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			local_interface   => $local_interface,
+			local_ip          => $local_ip,
+			local_subnet_mask => $local_subnet_mask,  
+			local_speed       => $local_speed, 
+		}});
+		
+		if (($local_ip) && ($local_subnet_mask))
+		{
+			# Look for a match.
+			my $local_network = $anvil->Network->get_network({
+				debug       => $debug, 
+				ip          => $local_ip, 
+				subnet_mask => $local_subnet_mask,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_network => $local_network }});
+			
+			foreach my $target_interface (sort {$b cmp $a} keys %{$anvil->data->{network}{$target_short_host_name}{interface}})
+			{
+				my $target_ip          = $anvil->data->{network}{$target_short_host_name}{interface}{$target_interface}{ip};
+				my $target_subnet_mask = $anvil->data->{network}{$target_short_host_name}{interface}{$target_interface}{subnet_mask};
+				my $target_speed       = $anvil->data->{network}{$target_short_host_name}{interface}{$target_interface}{speed}; 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					target_interface   => $target_interface,
+					target_ip          => $target_ip,
+					target_subnet_mask => $target_subnet_mask,  
+					target_speed       => $target_speed,  
+				}});
+				if (($target_ip) && ($target_subnet_mask))
+				{
+					# Do we have a match?
+					my $target_network = $anvil->Network->get_network({
+						debug       => $debug, 
+						ip          => $target_ip, 
+						subnet_mask => $target_subnet_mask,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						local_network  => $local_network,
+						target_network => $target_network,
+					}});
+					
+					if ($local_network eq $target_network)
+					{
+						# Match!
+						my $network_name =  $target_interface;
+						   $network_name =~ s/^(\w+\d+)_.*$/$1/;
+						   
+						$anvil->data->{network_access}{$network_name}{local_interface}    = $local_interface;
+						$anvil->data->{network_access}{$network_name}{local_speed}        = $local_speed;
+						$anvil->data->{network_access}{$network_name}{local_ip_address}   = $local_ip;
+						$anvil->data->{network_access}{$network_name}{local_subnet_mask}  = $local_subnet_mask;
+						$anvil->data->{network_access}{$network_name}{target_interface}   = $target_interface;
+						$anvil->data->{network_access}{$network_name}{target_speed}       = $target_speed;
+						$anvil->data->{network_access}{$network_name}{target_ip_address}  = $target_ip;
+						$anvil->data->{network_access}{$network_name}{target_subnet_mask} = $target_subnet_mask;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:network_access::${network_name}::local_interface"    => $anvil->data->{network_access}{$network_name}{local_interface},
+							"s2:network_access::${network_name}::local_speed"        => $anvil->data->{network_access}{$network_name}{local_speed},
+							"s3:network_access::${network_name}::local_ip_address"   => $anvil->data->{network_access}{$network_name}{local_ip_address},
+							"s4:network_access::${network_name}::local_subnet_mask"  => $anvil->data->{network_access}{$network_name}{local_subnet_mask},
+							"s5:network_access::${network_name}::target_interface"   => $anvil->data->{network_access}{$network_name}{target_interface},
+							"s6:network_access::${network_name}::target_speed"       => $anvil->data->{network_access}{$network_name}{target_speed},
+							"s7:network_access::${network_name}::target_ip_address"  => $anvil->data->{network_access}{$network_name}{target_ip_address},
+							"s8:network_access::${network_name}::target_subnet_mask" => $anvil->data->{network_access}{$network_name}{target_subnet_mask},
+						}});
+					}
+				}
+			}
+		}
+	}
+	
+	my $matches = keys %{$anvil->data->{network_access}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { matches => $matches }});
+	return($matches);
+}
+
 
 
 =head2 find_matches
@@ -2763,7 +2927,7 @@ sub load_ips
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_ips()" }});
 	
 	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
 	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		clear     => $clear, 
@@ -2773,8 +2937,8 @@ sub load_ips
 	
 	if (not $host_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_ips()", parameter => "ip" }});
-		return("");
+		$host_uuid = $anvil->Get->host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	}
 	
 	if (not $host)
@@ -2832,9 +2996,41 @@ AND
 			ip_address_on_uuid         => $ip_address_on_uuid,
 		}});
 		
-		my $interface_name = "";
-		my $interface_mac  = "";
+		my $interface_name         = "";
+		my $interface_mac          = "";
+		my $network_interface_uuid = "";
 		if ($ip_address_on_type eq "interface")
+		{
+			$network_interface_uuid = $ip_address_on_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
+		}
+		else
+		{
+			my $query = "";
+			if ($ip_address_on_type eq "bridge")
+			{
+				# What's the bridge UUID?
+				$query = "SELECT bond_active_interface FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+			}
+			else
+			{
+				$query = "SELECT bond_active_interface FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $active_interface = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_interface => $active_interface }});
+			
+			if ($active_interface)
+			{
+				my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)." AND network_interface_name = ".$anvil->Database->quote($active_interface).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				
+				$network_interface_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_interface => $active_interface }});
+			}
+		}
+		
+		if ($network_interface_uuid)
 		{
 			my $query = "
 SELECT 
@@ -2852,7 +3048,7 @@ SELECT
 FROM 
     network_interfaces 
 WHERE 
-    network_interface_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
+    network_interface_uuid        =  ".$anvil->Database->quote($network_interface_uuid)."
 AND 
     network_interface_operational != 'DELETED'
 ;";
@@ -2872,22 +3068,22 @@ AND
 				interface_mac  => $interface_mac, 
 			}});
 			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} = $results->[0]->[0];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            = $interface_mac;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}            = $ip_address_subnet_mask;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}        = $ip_address_default_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                = $ip_address_gateway;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    = $ip_address_dns;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   = $ip_address_on_type;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  = $results->[0]->[3];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    = $results->[0]->[4];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             = $results->[0]->[5];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            = $results->[0]->[6];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 = $results->[0]->[7];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 = $results->[0]->[8];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = $results->[0]->[9];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = $results->[0]->[10];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} =         $results->[0]->[0];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            =         $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     =         $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}            =         $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}        =         $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                =         $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    =         $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   =         $ip_address_on_type;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  =         $results->[0]->[3];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    =         $results->[0]->[4];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             =         $results->[0]->[5];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            =         $results->[0]->[6];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 =         $results->[0]->[7];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 =         $results->[0]->[8];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = defined $results->[0]->[9]  ? $results->[0]->[9]  : "";
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = defined $results->[0]->[10] ? $results->[0]->[10] : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::network_interface_uuid" => $anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid}, 
 				"network::${host}::interface::${interface_name}::mac_address"            => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
