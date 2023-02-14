@@ -586,7 +586,12 @@ const NetworkInitForm = forwardRef<
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
 >(({ hostDetail, toggleSubmitDisabled }, ref) => {
-  const { hostType, hostUUID = 'local' } = hostDetail ?? ({} as APIHostDetail);
+  const {
+    dns: xDns,
+    gateway: xGateway,
+    hostType,
+    hostUUID = 'local',
+  }: APIHostDetail = hostDetail ?? ({} as APIHostDetail);
 
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
@@ -1339,6 +1344,7 @@ const NetworkInitForm = forwardRef<
                   setGatewayInputMessage();
                 }}
                 label="Gateway"
+                value={xGateway}
               />
             }
             ref={gatewayInputRef}
@@ -1360,6 +1366,7 @@ const NetworkInitForm = forwardRef<
                   setDomainNameServerCSVInputMessage();
                 }}
                 label="Domain name server(s)"
+                value={xDns}
               />
             }
             ref={dnsCSVInputRef}
