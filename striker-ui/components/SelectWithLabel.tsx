@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import {
   Checkbox as MUICheckbox,
   FormControl as MUIFormControl,
@@ -28,7 +28,7 @@ type SelectWithLabelOptionalProps = {
 
 type SelectWithLabelProps = SelectWithLabelOptionalProps & {
   id: string;
-  selectItems: SelectItem[];
+  selectItems: Array<SelectItem | string>;
 };
 
 const SELECT_WITH_LABEL_DEFAULT_PROPS: Required<SelectWithLabelOptionalProps> =
@@ -54,51 +54,86 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   inputLabelProps,
   isReadOnly,
   messageBoxProps,
-  selectProps,
+  selectProps = {},
   isCheckableItems = selectProps?.multiple,
-}) => (
-  <MUIFormControl>
-    {label && (
-      <OutlinedInputLabel {...{ htmlFor: id, ...inputLabelProps }}>
-        {label}
-      </OutlinedInputLabel>
-    )}
-    <Select
-      {...{
-        id,
-        input: <OutlinedInput {...{ label }} />,
-        readOnly: isReadOnly,
-        ...selectProps,
-        sx: isReadOnly
-          ? {
-              [`& .${muiSelectClasses.icon}`]: {
-                visibility: 'hidden',
-              },
+}) => {
+  const { sx: selectSx } = selectProps;
 
-              ...selectProps?.sx,
-            }
-          : selectProps?.sx,
-      }}
-    >
-      {selectItems.map(({ value, displayValue = value }) => (
-        <MenuItem
-          disabled={disableItem?.call(null, value)}
-          key={`${id}-${value}`}
-          sx={{
-            display: hideItem?.call(null, value) ? 'none' : undefined,
-          }}
-          value={value}
-        >
-          {isCheckableItems && (
-            <MUICheckbox checked={checkItem?.call(null, value)} />
-          )}
-          {displayValue}
-        </MenuItem>
-      ))}
-    </Select>
-    <InputMessageBox {...messageBoxProps} />
-  </MUIFormControl>
-);
+  const combinedSx = useMemo(
+    () =>
+      isReadOnly
+        ? {
+            [`& .${muiSelectClasses.icon}`]: {
+              visibility: 'hidden',
+            },
+
+            ...selectSx,
+          }
+        : selectSx,
+    [isReadOnly, selectSx],
+  );
+
+  const createCheckbox = useCallback(
+    (value) =>
+      isCheckableItems && (
+        <MUICheckbox checked={checkItem?.call(null, value)} />
+      ),
+    [checkItem, isCheckableItems],
+  );
+  const createMenuItem = useCallback(
+    (value, displayValue) => (
+      <MenuItem
+        disabled={disableItem?.call(null, value)}
+        key={`${id}-${value}`}
+        sx={{
+          display: hideItem?.call(null, value) ? 'none' : undefined,
+        }}
+        value={value}
+      >
+        {createCheckbox(value)}
+        {displayValue}
+      </MenuItem>
+    ),
+    [createCheckbox, disableItem, hideItem, id],
+  );
+
+  const inputElement = useMemo(() => <OutlinedInput label={label} />, [label]);
+  const labelElement = useMemo(
+    () =>
+      label && (
+        <OutlinedInputLabel htmlFor={id} {...inputLabelProps}>
+          {label}
+        </OutlinedInputLabel>
+      ),
+    [id, inputLabelProps, label],
+  );
+  const menuItemElements = useMemo(
+    () =>
+      selectItems.map((item) => {
+        const { value, displayValue = value }: SelectItem =
+          typeof item === 'string' ? { value: item } : item;
+
+        return createMenuItem(value, displayValue);
+      }),
+    [createMenuItem, selectItems],
+  );
+
+  return (
+    <MUIFormControl>
+      {labelElement}
+      <Select
+        id={id}
+        input={inputElement}
+        readOnly={isReadOnly}
+        {...selectProps}
+        sx={combinedSx}
+      >
+        {menuItemElements}
+      </Select>
+      <InputMessageBox {...messageBoxProps} />
+    </MUIFormControl>
+  );
+};
 
 SelectWithLabel.defaultProps = SELECT_WITH_LABEL_DEFAULT_PROPS;
 
