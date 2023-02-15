@@ -85,10 +85,7 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
 
   return (
     <>
-      <ExpandablePanel
-        header={<BodyText>Manage changed SSH keys</BodyText>}
-        loading={isLoading}
-      >
+      <ExpandablePanel header="Manage changed SSH keys" loading={isLoading}>
         <FlexBox spacing=".2em">
           <BodyText>
             The identity of the following targets have unexpectedly changed.

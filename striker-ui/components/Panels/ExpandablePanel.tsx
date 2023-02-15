@@ -12,6 +12,7 @@ import InnerPanel from './InnerPanel';
 import InnerPanelBody from './InnerPanelBody';
 import InnerPanelHeader from './InnerPanelHeader';
 import Spinner from '../Spinner';
+import { BodyText } from '../Text';
 
 type ExpandablePanelOptionalProps = {
   expandInitially?: boolean;
@@ -46,6 +47,10 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
     [isExpand],
   );
   const contentHeight = useMemo(() => (isExpand ? 'auto' : '.2em'), [isExpand]);
+  const headerElement = useMemo(
+    () => (typeof header === 'string' ? <BodyText>{header}</BodyText> : header),
+    [header],
+  );
   const headerSpinner = useMemo(
     () =>
       isShowHeaderSpinner && !isExpand && isLoading ? (
@@ -74,7 +79,7 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
     <InnerPanel>
       <InnerPanelHeader>
         <FlexBox row>
-          {header}
+          {headerElement}
           {headerSpinner}
         </FlexBox>
         <IconButton

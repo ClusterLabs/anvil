@@ -36,10 +36,7 @@ const ManageUsersForm: FC = () => {
   }, [setListMessage, setUsers, users]);
 
   return (
-    <ExpandablePanel
-      header={<BodyText>Manage users</BodyText>}
-      loading={!users}
-    >
+    <ExpandablePanel header="Manage users" loading={!users}>
       <List
         allowEdit={false}
         listEmpty={<MessageBox {...listMessage} />}
