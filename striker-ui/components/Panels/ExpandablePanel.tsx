@@ -3,7 +3,7 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
-import { FC, ReactNode, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -14,31 +14,15 @@ import InnerPanelHeader from './InnerPanelHeader';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 
-type ExpandablePanelOptionalProps = {
-  expandInitially?: boolean;
-  loading?: boolean;
-  showHeaderSpinner?: boolean;
-};
-
-type ExpandablePanelProps = ExpandablePanelOptionalProps & {
-  header: ReactNode;
-};
-
-const EXPANDABLE_PANEL_DEFAULT_PROPS: Required<ExpandablePanelOptionalProps> = {
-  expandInitially: false,
-  loading: false,
-  showHeaderSpinner: false,
-};
 const HEADER_SPINNER_LENGTH = '1.2em';
 
 const ExpandablePanel: FC<ExpandablePanelProps> = ({
   children,
-  expandInitially:
-    isExpandInitially = EXPANDABLE_PANEL_DEFAULT_PROPS.expandInitially,
+  expandInitially: isExpandInitially = false,
   header,
-  loading: isLoading = EXPANDABLE_PANEL_DEFAULT_PROPS.loading,
-  showHeaderSpinner:
-    isShowHeaderSpinner = EXPANDABLE_PANEL_DEFAULT_PROPS.showHeaderSpinner,
+  loading: isLoading = false,
+  panelProps,
+  showHeaderSpinner: isShowHeaderSpinner = false,
 }) => {
   const [isExpand, setIsExpand] = useState<boolean>(isExpandInitially);
 
@@ -76,7 +60,7 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
   );
 
   return (
-    <InnerPanel>
+    <InnerPanel {...panelProps}>
       <InnerPanelHeader>
         <FlexBox row>
           {headerElement}
@@ -95,7 +79,5 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
     </InnerPanel>
   );
 };
-
-ExpandablePanel.defaultProps = EXPANDABLE_PANEL_DEFAULT_PROPS;
 
 export default ExpandablePanel;
