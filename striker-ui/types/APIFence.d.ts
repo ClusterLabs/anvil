@@ -1,11 +1,18 @@
+type FenceParameterType =
+  | 'boolean'
+  | 'integer'
+  | 'second'
+  | 'select'
+  | 'string';
+
 type APIFenceTemplate = {
   [fenceId: string]: {
     actions: string[];
     description: string;
     parameters: {
       [parameterId: string]: {
-        content_type: 'boolean' | 'integer' | 'second' | 'select' | 'string';
-        default: string;
+        content_type: FenceParameterType;
+        default?: string;
         deprecated: number;
         description: string;
         obsoletes: number;
