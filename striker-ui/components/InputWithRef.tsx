@@ -20,6 +20,7 @@ type InputWithRefOptionalPropsWithDefault<
 > = {
   createInputOnChangeHandlerOptions?: CreateInputOnChangeHandlerOptions<TypeName>;
   required?: boolean;
+  valueKey?: string;
   valueType?: TypeName;
 };
 type InputWithRefOptionalPropsWithoutDefault = {
@@ -57,6 +58,7 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
   InputWithRefOptionalPropsWithoutDefault = {
   createInputOnChangeHandlerOptions: {},
   required: false,
+  valueKey: 'value',
   valueType: 'string',
 };
 
@@ -71,6 +73,7 @@ const InputWithRef = forwardRef(
       inputTestBatch,
       onFirstRender,
       required: isRequired = INPUT_WITH_REF_DEFAULT_PROPS.required,
+      valueKey = INPUT_WITH_REF_DEFAULT_PROPS.valueKey,
       valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType as TypeName,
     }: InputWithRefProps<TypeName, InputComponent>,
     ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
@@ -123,6 +126,26 @@ const InputWithRef = forwardRef(
           })),
       [initOnBlur, testInput],
     );
+    const onChange = useMemo(
+      () =>
+        createInputOnChangeHandler<TypeName>({
+          postSet: (...args) => {
+            setIsChangedByUser(true);
+            initOnChange?.call(null, ...args);
+            postSetAppend?.call(null, ...args);
+          },
+          set: setValue,
+          setType: valueType,
+          ...restCreateInputOnChangeHandlerOptions,
+        }),
+      [
+        initOnChange,
+        postSetAppend,
+        restCreateInputOnChangeHandlerOptions,
+        setValue,
+        valueType,
+      ],
+    );
     const onFocus = useMemo<InputBaseProps['onFocus']>(
       () =>
         initOnFocus ??
@@ -132,17 +155,6 @@ const InputWithRef = forwardRef(
           })),
       [initOnFocus, inputTestBatch],
     );
-
-    const onChange = createInputOnChangeHandler<TypeName>({
-      postSet: (...args) => {
-        setIsChangedByUser(true);
-        initOnChange?.call(null, ...args);
-        postSetAppend?.call(null, ...args);
-      },
-      set: setValue,
-      setType: valueType,
-      ...restCreateInputOnChangeHandlerOptions,
-    });
 
     useEffect(() => {
       if (isFirstRender) {
@@ -167,7 +179,7 @@ const InputWithRef = forwardRef(
       onChange,
       onFocus,
       required: isRequired,
-      value: inputValue,
+      [valueKey]: inputValue,
     });
   },
 );
