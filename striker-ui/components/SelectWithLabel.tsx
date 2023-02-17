@@ -1,48 +1,15 @@
-import { FC, useCallback, useMemo } from 'react';
 import {
   Checkbox as MUICheckbox,
   FormControl as MUIFormControl,
   selectClasses as muiSelectClasses,
 } from '@mui/material';
+import { FC, useCallback, useMemo } from 'react';
 
 import InputMessageBox from './InputMessageBox';
 import MenuItem from './MenuItem';
-import { MessageBoxProps } from './MessageBox';
 import OutlinedInput from './OutlinedInput';
-import OutlinedInputLabel, {
-  OutlinedInputLabelProps,
-} from './OutlinedInputLabel';
-import Select, { SelectProps } from './Select';
-
-type SelectWithLabelOptionalProps = {
-  checkItem?: ((value: string) => boolean) | null;
-  disableItem?: ((value: string) => boolean) | null;
-  hideItem?: ((value: string) => boolean) | null;
-  isCheckableItems?: boolean;
-  isReadOnly?: boolean;
-  inputLabelProps?: Partial<OutlinedInputLabelProps>;
-  label?: string | null;
-  messageBoxProps?: Partial<MessageBoxProps>;
-  selectProps?: Partial<SelectProps>;
-};
-
-type SelectWithLabelProps = SelectWithLabelOptionalProps & {
-  id: string;
-  selectItems: Array<SelectItem | string>;
-};
-
-const SELECT_WITH_LABEL_DEFAULT_PROPS: Required<SelectWithLabelOptionalProps> =
-  {
-    checkItem: null,
-    disableItem: null,
-    hideItem: null,
-    isReadOnly: false,
-    isCheckableItems: false,
-    inputLabelProps: {},
-    label: null,
-    messageBoxProps: {},
-    selectProps: {},
-  };
+import OutlinedInputLabel from './OutlinedInputLabel';
+import Select from './Select';
 
 const SelectWithLabel: FC<SelectWithLabelProps> = ({
   id,
@@ -51,14 +18,19 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   checkItem,
   disableItem,
   hideItem,
-  inputLabelProps,
-  isReadOnly,
-  messageBoxProps,
-  selectProps = {},
-  isCheckableItems = selectProps?.multiple,
+  inputLabelProps = {},
+  isReadOnly = false,
+  messageBoxProps = {},
+  onChange,
+  selectProps: {
+    multiple: selectMultiple,
+    sx: selectSx,
+    ...restSelectProps
+  } = {},
+  value: selectValue,
+  // Props with initial value that depend on others.
+  isCheckableItems = selectMultiple,
 }) => {
-  const { sx: selectSx } = selectProps;
-
   const combinedSx = useMemo(
     () =>
       isReadOnly
@@ -124,8 +96,11 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
       <Select
         id={id}
         input={inputElement}
+        multiple={selectMultiple}
+        onChange={onChange}
         readOnly={isReadOnly}
-        {...selectProps}
+        value={selectValue}
+        {...restSelectProps}
         sx={combinedSx}
       >
         {menuItemElements}
@@ -134,9 +109,5 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
     </MUIFormControl>
   );
 };
-
-SelectWithLabel.defaultProps = SELECT_WITH_LABEL_DEFAULT_PROPS;
-
-export type { SelectWithLabelProps };
 
 export default SelectWithLabel;
