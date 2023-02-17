@@ -1,4 +1,4 @@
-import { InputProps as MUIInputProps } from '@mui/material';
+import { ChangeEventHandler } from 'react';
 
 import MAP_TO_VALUE_CONVERTER from './consts/MAP_TO_VALUE_CONVERTER';
 
@@ -8,10 +8,11 @@ const createInputOnChangeHandler =
     preSet,
     set,
     setType = 'string' as TypeName,
-  }: CreateInputOnChangeHandlerOptions<TypeName> = {}): MUIInputProps['onChange'] =>
+    valueKey = 'value',
+  }: CreateInputOnChangeHandlerOptions<TypeName> = {}): ChangeEventHandler<HTMLInputElement> =>
   (event) => {
     const {
-      target: { value },
+      target: { [valueKey]: value },
     } = event;
     const postConvertValue = MAP_TO_VALUE_CONVERTER[setType](
       value,
