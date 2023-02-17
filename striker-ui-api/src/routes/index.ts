@@ -3,6 +3,7 @@ import { Router } from 'express';
 import anvilRouter from './anvil';
 import commandRouter from './command';
 import echoRouter from './echo';
+import fenceRouter from './fence';
 import fileRouter from './file';
 import hostRouter from './host';
 import jobRouter from './job';
@@ -15,6 +16,7 @@ const routes: Readonly<Record<string, Router>> = {
   anvil: anvilRouter,
   command: commandRouter,
   echo: echoRouter,
+  fence: fenceRouter,
   file: fileRouter,
   host: hostRouter,
   job: jobRouter,
