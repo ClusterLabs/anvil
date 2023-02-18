@@ -14,6 +14,8 @@ type MapToInputBuilder = Partial<
 type CommonFenceInputGroupOptionalProps = {
   fenceId?: string;
   fenceTemplate?: APIFenceTemplate;
+  previousFenceName?: string;
+  previousFenceParameters?: FenceParameters;
 };
 
 type CommonFenceInputGroupProps = CommonFenceInputGroupOptionalProps;

@@ -5,6 +5,19 @@ type FenceParameterType =
   | 'select'
   | 'string';
 
+type FenceParameters = {
+  [parameterId: string]: string;
+};
+
+type APIFenceOverview = {
+  [fenceUUID: string]: {
+    fenceAgent: string;
+    fenceParameters: FenceParameters;
+    fenceName: string;
+    fenceUUID: string;
+  };
+};
+
 type APIFenceTemplate = {
   [fenceId: string]: {
     actions: string[];
