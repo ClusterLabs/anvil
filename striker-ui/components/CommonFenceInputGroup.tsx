@@ -82,34 +82,40 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
                 {
                   content_type: contentType,
                   default: parameterDefault,
+                  deprecated: rawDeprecated,
                   options: parameterSelectOptions,
-                  required: isRequired,
+                  required: rawRequired,
                 },
               ],
             ) => {
-              const { optional, required } = previous;
-              const buildInput =
-                MAP_TO_INPUT_BUILDER[contentType] ??
-                MAP_TO_INPUT_BUILDER.string;
+              const isParameterDeprecated = String(rawDeprecated) === '1';
 
-              const fenceJoinParameterId = combineIds(fenceId, parameterId);
-              const initialValue =
-                mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
-                parameterDefault;
-              const parameterIsRequired = isRequired === '1';
-              const parameterInput = buildInput({
-                id: fenceJoinParameterId,
-                isChecked: CHECKED_STATES.includes(initialValue),
-                isRequired: parameterIsRequired,
-                label: parameterId,
-                selectOptions: parameterSelectOptions,
-                value: initialValue,
-              });
+              if (!isParameterDeprecated) {
+                const { optional, required } = previous;
+                const buildInput =
+                  MAP_TO_INPUT_BUILDER[contentType] ??
+                  MAP_TO_INPUT_BUILDER.string;
+                const fenceJoinParameterId = combineIds(fenceId, parameterId);
 
-              if (parameterIsRequired) {
-                required.push(parameterInput);
-              } else {
-                optional.push(parameterInput);
+                const initialValue =
+                  mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
+                  parameterDefault;
+                const isParameterRequired = String(rawRequired) === '1';
+
+                const parameterInput = buildInput({
+                  id: fenceJoinParameterId,
+                  isChecked: CHECKED_STATES.includes(initialValue),
+                  isRequired: isParameterRequired,
+                  label: parameterId,
+                  selectOptions: parameterSelectOptions,
+                  value: initialValue,
+                });
+
+                if (isParameterRequired) {
+                  required.push(parameterInput);
+                } else {
+                  optional.push(parameterInput);
+                }
               }
 
               return previous;
