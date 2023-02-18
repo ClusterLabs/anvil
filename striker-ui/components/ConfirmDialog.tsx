@@ -1,5 +1,14 @@
-import { Box, Dialog } from '@mui/material';
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { Dialog as MUIDialog } from '@mui/material';
+import {
+  ButtonHTMLAttributes,
+  ElementType,
+  FormEventHandler,
+  forwardRef,
+  MouseEventHandler,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 
 import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 
@@ -25,6 +34,7 @@ const ConfirmDialog = forwardRef<
     {
       actionCancelText = 'Cancel',
       actionProceedText,
+      contentContainerProps = {},
       closeOnProceed: isCloseOnProceed = false,
       content,
       dialogProps: {
@@ -32,10 +42,12 @@ const ConfirmDialog = forwardRef<
         PaperProps: paperProps = {},
         ...restDialogProps
       } = {},
+      formContent: isFormContent,
       loadingAction: isLoadingAction = false,
       onActionAppend,
       onCancelAppend,
       onProceedAppend,
+      onSubmitAppend,
       openInitially = false,
       proceedButtonProps = {},
       proceedColour: proceedColourKey = 'blue',
@@ -59,6 +71,54 @@ const ConfirmDialog = forwardRef<
       () => MAP_TO_COLOUR[proceedColourKey],
       [proceedColourKey],
     );
+    const {
+      contentContainerComponent,
+      contentContainerSubmitEventHandler,
+      proceedButtonClickEventHandler,
+      proceedButtonType,
+    } = useMemo(() => {
+      let ccComponent: ElementType | undefined;
+      let ccSubmitEventHandler: FormEventHandler<HTMLDivElement> | undefined;
+      let pbClickEventHandler:
+        | MouseEventHandler<HTMLButtonElement>
+        | undefined = (...args) => {
+        if (isCloseOnProceed) {
+          setIsOpen(false);
+        }
+
+        onActionAppend?.call(null, ...args);
+        onProceedAppend?.call(null, ...args);
+      };
+      let pbType: ButtonHTMLAttributes<HTMLButtonElement>['type'] | undefined;
+
+      if (isFormContent) {
+        ccComponent = 'form';
+        ccSubmitEventHandler = (event, ...restArgs) => {
+          event.preventDefault();
+
+          if (isCloseOnProceed) {
+            setIsOpen(false);
+          }
+
+          onSubmitAppend?.call(null, event, ...restArgs);
+        };
+        pbClickEventHandler = undefined;
+        pbType = 'submit';
+      }
+
+      return {
+        contentContainerComponent: ccComponent,
+        contentContainerSubmitEventHandler: ccSubmitEventHandler,
+        proceedButtonClickEventHandler: pbClickEventHandler,
+        proceedButtonType: pbType,
+      };
+    }, [
+      isCloseOnProceed,
+      isFormContent,
+      onActionAppend,
+      onProceedAppend,
+      onSubmitAppend,
+    ]);
 
     const cancelButtonElement = useMemo(
       () => (
@@ -78,14 +138,8 @@ const ConfirmDialog = forwardRef<
     const proceedButtonElement = useMemo(
       () => (
         <ContainedButton
-          onClick={(...args) => {
-            if (isCloseOnProceed) {
-              setIsOpen(false);
-            }
-
-            onActionAppend?.call(null, ...args);
-            onProceedAppend?.call(null, ...args);
-          }}
+          onClick={proceedButtonClickEventHandler}
+          type={proceedButtonType}
           {...restProceedButtonProps}
           sx={{
             backgroundColor: proceedColour,
@@ -101,10 +155,9 @@ const ConfirmDialog = forwardRef<
       ),
       [
         actionProceedText,
-        isCloseOnProceed,
-        onActionAppend,
-        onProceedAppend,
+        proceedButtonClickEventHandler,
         proceedButtonSx,
+        proceedButtonType,
         proceedColour,
         restProceedButtonProps,
       ],
@@ -125,6 +178,11 @@ const ConfirmDialog = forwardRef<
         ),
       [cancelButtonElement, isLoadingAction, proceedButtonElement],
     );
+    const contentElement = useMemo(
+      () =>
+        typeof content === 'string' ? <BodyText text={content} /> : content,
+      [content],
+    );
 
     useImperativeHandle(
       ref,
@@ -135,7 +193,7 @@ const ConfirmDialog = forwardRef<
     );
 
     return (
-      <Dialog
+      <MUIDialog
         open={open}
         PaperComponent={Panel}
         PaperProps={{
@@ -147,11 +205,15 @@ const ConfirmDialog = forwardRef<
         <PanelHeader>
           <HeaderText text={titleText} />
         </PanelHeader>
-        <Box sx={{ marginBottom: '1em' }}>
-          {typeof content === 'string' ? <BodyText text={content} /> : content}
-        </Box>
-        {actionAreaElement}
-      </Dialog>
+        <FlexBox
+          component={contentContainerComponent}
+          onSubmit={contentContainerSubmitEventHandler}
+          {...contentContainerProps}
+        >
+          {contentElement}
+          {actionAreaElement}
+        </FlexBox>
+      </MUIDialog>
     );
   },
 );
