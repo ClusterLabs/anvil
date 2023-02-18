@@ -69,60 +69,63 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
       }
 
       const { optional: optionalInputs, required: requiredInputs } =
-        Object.entries(fenceParameters).reduce<{
-          optional: ReactElement[];
-          required: ReactElement[];
-        }>(
-          (
-            previous,
-            [
-              parameterId,
-              {
-                content_type: contentType,
-                default: parameterDefault,
-                options: parameterSelectOptions,
-                required: isRequired,
-              },
-            ],
-          ) => {
-            const { optional, required } = previous;
-            const buildInput =
-              MAP_TO_INPUT_BUILDER[contentType] ?? MAP_TO_INPUT_BUILDER.string;
+        Object.entries(fenceParameters)
+          .sort(([a], [b]) => (a > b ? 1 : -1))
+          .reduce<{
+            optional: ReactElement[];
+            required: ReactElement[];
+          }>(
+            (
+              previous,
+              [
+                parameterId,
+                {
+                  content_type: contentType,
+                  default: parameterDefault,
+                  options: parameterSelectOptions,
+                  required: isRequired,
+                },
+              ],
+            ) => {
+              const { optional, required } = previous;
+              const buildInput =
+                MAP_TO_INPUT_BUILDER[contentType] ??
+                MAP_TO_INPUT_BUILDER.string;
 
-            const fenceJoinParameterId = combineIds(fenceId, parameterId);
-            const initialValue =
-              mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
-              parameterDefault;
-            const parameterIsRequired = isRequired === '1';
-            const parameterInput = buildInput({
-              id: fenceJoinParameterId,
-              isChecked: CHECKED_STATES.includes(initialValue),
-              isRequired: parameterIsRequired,
-              label: parameterId,
-              selectOptions: parameterSelectOptions,
-              value: initialValue,
-            });
+              const fenceJoinParameterId = combineIds(fenceId, parameterId);
+              const initialValue =
+                mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
+                parameterDefault;
+              const parameterIsRequired = isRequired === '1';
+              const parameterInput = buildInput({
+                id: fenceJoinParameterId,
+                isChecked: CHECKED_STATES.includes(initialValue),
+                isRequired: parameterIsRequired,
+                label: parameterId,
+                selectOptions: parameterSelectOptions,
+                value: initialValue,
+              });
 
-            if (parameterIsRequired) {
-              required.push(parameterInput);
-            } else {
-              optional.push(parameterInput);
-            }
+              if (parameterIsRequired) {
+                required.push(parameterInput);
+              } else {
+                optional.push(parameterInput);
+              }
 
-            return previous;
-          },
-          {
-            optional: [],
-            required: [
-              MAP_TO_INPUT_BUILDER.string({
-                id: combineIds(fenceId, 'name'),
-                isRequired: true,
-                label: 'Fence device name',
-                value: previousFenceName,
-              }),
-            ],
-          },
-        );
+              return previous;
+            },
+            {
+              optional: [],
+              required: [
+                MAP_TO_INPUT_BUILDER.string({
+                  id: combineIds(fenceId, 'name'),
+                  isRequired: true,
+                  label: 'Fence device name',
+                  value: previousFenceName,
+                }),
+              ],
+            },
+          );
 
       result = (
         <FlexBox
