@@ -40,19 +40,18 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
   ),
 };
 
-const EditFenceDeviceInputGroup: FC<EditFenceDeviceInputGroupProps> = ({
-  fenceDeviceId,
-  fenceDeviceTemplate,
+const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
+  fenceId,
+  fenceTemplate,
 }) => {
   const fenceParameterElements = useMemo(() => {
     let result: ReactNode;
 
-    if (fenceDeviceTemplate && fenceDeviceId) {
-      const { parameters: fenceDeviceParameters } =
-        fenceDeviceTemplate[fenceDeviceId];
+    if (fenceTemplate && fenceId) {
+      const { parameters: fenceParameters } = fenceTemplate[fenceId];
 
       const { optional: optionalInputs, required: requiredInputs } =
-        Object.entries(fenceDeviceParameters).reduce<{
+        Object.entries(fenceParameters).reduce<{
           optional: ReactElement[];
           required: ReactElement[];
         }>(
@@ -72,7 +71,7 @@ const EditFenceDeviceInputGroup: FC<EditFenceDeviceInputGroupProps> = ({
             const buildInput =
               MAP_TO_INPUT_BUILDER[contentType] ?? MAP_TO_INPUT_BUILDER.string;
 
-            const fenceJoinParameterId = `${fenceDeviceId}-${parameterId}`;
+            const fenceJoinParameterId = `${fenceId}-${parameterId}`;
             const parameterIsRequired = isRequired === '1';
             const parameterInput = buildInput({
               id: fenceJoinParameterId,
@@ -95,7 +94,7 @@ const EditFenceDeviceInputGroup: FC<EditFenceDeviceInputGroupProps> = ({
             optional: [],
             required: [
               MAP_TO_INPUT_BUILDER.string({
-                id: `${fenceDeviceId}-name`,
+                id: `${fenceId}-name`,
                 isRequired: true,
                 label: 'Fence device name',
               }),
@@ -116,9 +115,9 @@ const EditFenceDeviceInputGroup: FC<EditFenceDeviceInputGroupProps> = ({
     }
 
     return result;
-  }, [fenceDeviceId, fenceDeviceTemplate]);
+  }, [fenceId, fenceTemplate]);
 
   return <>{fenceParameterElements}</>;
 };
 
-export default EditFenceDeviceInputGroup;
+export default CommonFenceInputGroup;

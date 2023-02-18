@@ -3,8 +3,7 @@ import { FC, useMemo, useState } from 'react';
 
 import api from '../lib/api';
 import Autocomplete from './Autocomplete';
-import ContainedButton from './ContainedButton';
-import EditFenceDeviceInputGroup from './EditFenceDeviceInputGroup';
+import CommonFenceInputGroup from './CommonFenceInputGroup';
 import FlexBox from './FlexBox';
 import handleAPIError from '../lib/handleAPIError';
 import Spinner from './Spinner';
@@ -12,27 +11,27 @@ import { BodyText } from './Text';
 import useIsFirstRender from '../hooks/useIsFirstRender';
 import useProtectedState from '../hooks/useProtectedState';
 
-type FenceDeviceAutocompleteOption = {
-  fenceDeviceDescription: string;
-  fenceDeviceId: string;
+type FenceAutocompleteOption = {
+  fenceDescription: string;
+  fenceId: string;
   label: string;
 };
 
-const AddFenceDeviceForm: FC = () => {
+const AddFenceInputGroup: FC = () => {
   const isFirstRender = useIsFirstRender();
 
-  const [fenceDeviceTemplate, setFenceDeviceTemplate] = useProtectedState<
+  const [fenceTemplate, setFenceTemplate] = useProtectedState<
     APIFenceTemplate | undefined
   >(undefined);
-  const [fenceDeviceTypeValue, setInputFenceDeviceTypeValue] =
-    useState<FenceDeviceAutocompleteOption | null>(null);
+  const [fenceTypeValue, setInputFenceTypeValue] =
+    useState<FenceAutocompleteOption | null>(null);
   const [isLoadingTemplate, setIsLoadingTemplate] =
     useProtectedState<boolean>(true);
 
-  const fenceDeviceTypeOptions = useMemo<FenceDeviceAutocompleteOption[]>(
+  const fenceTypeOptions = useMemo<FenceAutocompleteOption[]>(
     () =>
-      fenceDeviceTemplate
-        ? Object.entries(fenceDeviceTemplate).map(
+      fenceTemplate
+        ? Object.entries(fenceTemplate).map(
             ([id, { description: rawDescription }]) => {
               const description =
                 typeof rawDescription === 'string'
@@ -40,34 +39,30 @@ const AddFenceDeviceForm: FC = () => {
                   : 'No description.';
 
               return {
-                fenceDeviceDescription: description,
-                fenceDeviceId: id,
+                fenceDescription: description,
+                fenceId: id,
                 label: id,
               };
             },
           )
         : [],
-    [fenceDeviceTemplate],
+    [fenceTemplate],
   );
 
-  const fenceDeviceTypeElement = useMemo(
+  const fenceTypeElement = useMemo(
     () => (
       <Autocomplete
-        id="add-fence-device-pick-type"
+        id="add-fence-select-type"
         isOptionEqualToValue={(option, value) =>
-          option.fenceDeviceId === value.fenceDeviceId
+          option.fenceId === value.fenceId
         }
         label="Fence device type"
-        onChange={(event, newFenceDeviceType) => {
-          setInputFenceDeviceTypeValue(newFenceDeviceType);
+        onChange={(event, newFenceType) => {
+          setInputFenceTypeValue(newFenceType);
         }}
         openOnFocus
-        options={fenceDeviceTypeOptions}
-        renderOption={(
-          props,
-          { fenceDeviceDescription, fenceDeviceId },
-          { selected },
-        ) => (
+        options={fenceTypeOptions}
+        renderOption={(props, { fenceDescription, fenceId }, { selected }) => (
           <Box
             component="li"
             sx={{
@@ -87,24 +82,24 @@ const AddFenceDeviceForm: FC = () => {
                 fontWeight: selected ? 400 : undefined,
               }}
             >
-              {fenceDeviceId}
+              {fenceId}
             </BodyText>
-            <BodyText selected={false}>{fenceDeviceDescription}</BodyText>
+            <BodyText selected={false}>{fenceDescription}</BodyText>
           </Box>
         )}
-        value={fenceDeviceTypeValue}
+        value={fenceTypeValue}
       />
     ),
-    [fenceDeviceTypeOptions, fenceDeviceTypeValue],
+    [fenceTypeOptions, fenceTypeValue],
   );
   const fenceParameterElements = useMemo(
     () => (
-      <EditFenceDeviceInputGroup
-        fenceDeviceId={fenceDeviceTypeValue?.fenceDeviceId}
-        fenceDeviceTemplate={fenceDeviceTemplate}
+      <CommonFenceInputGroup
+        fenceId={fenceTypeValue?.fenceId}
+        fenceTemplate={fenceTemplate}
       />
     ),
-    [fenceDeviceTemplate, fenceDeviceTypeValue],
+    [fenceTemplate, fenceTypeValue],
   );
 
   const formContent = useMemo(
@@ -112,28 +107,19 @@ const AddFenceDeviceForm: FC = () => {
       isLoadingTemplate ? (
         <Spinner mt={0} />
       ) : (
-        <FlexBox
-          component="form"
-          onSubmit={(event) => {
-            event.preventDefault();
-          }}
-          sx={{ '& > div': { marginBottom: 0 } }}
-        >
-          {fenceDeviceTypeElement}
+        <FlexBox sx={{ '& > div': { marginBottom: 0 } }}>
+          {fenceTypeElement}
           {fenceParameterElements}
-          <FlexBox row justifyContent="flex-end">
-            <ContainedButton type="submit">Add fence device</ContainedButton>
-          </FlexBox>
         </FlexBox>
       ),
-    [fenceDeviceTypeElement, fenceParameterElements, isLoadingTemplate],
+    [fenceTypeElement, fenceParameterElements, isLoadingTemplate],
   );
 
   if (isFirstRender) {
     api
       .get<APIFenceTemplate>(`/fence/template`)
       .then(({ data }) => {
-        setFenceDeviceTemplate(data);
+        setFenceTemplate(data);
       })
       .catch((error) => {
         handleAPIError(error);
@@ -146,4 +132,4 @@ const AddFenceDeviceForm: FC = () => {
   return <>{formContent}</>;
 };
 
-export default AddFenceDeviceForm;
+export default AddFenceInputGroup;
