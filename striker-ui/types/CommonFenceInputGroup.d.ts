@@ -11,7 +11,9 @@ type MapToInputBuilder = Partial<
   Record<Exclude<FenceParameterType, 'string'>, FenceParameterInputBuilder>
 > & { string: FenceParameterInputBuilder };
 
-type EditFenceDeviceInputGroupProps = {
-  fenceDeviceId?: string;
-  fenceDeviceTemplate?: APIFenceTemplate;
+type CommonFenceInputGroupOptionalProps = {
+  fenceId?: string;
+  fenceTemplate?: APIFenceTemplate;
 };
+
+type CommonFenceInputGroupProps = CommonFenceInputGroupOptionalProps;
