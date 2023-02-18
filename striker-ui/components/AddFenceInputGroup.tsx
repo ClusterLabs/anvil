@@ -1,38 +1,25 @@
 import { Box } from '@mui/material';
 import { FC, useMemo, useState } from 'react';
 
-import api from '../lib/api';
 import Autocomplete from './Autocomplete';
 import CommonFenceInputGroup from './CommonFenceInputGroup';
 import FlexBox from './FlexBox';
-import handleAPIError from '../lib/handleAPIError';
 import Spinner from './Spinner';
 import { BodyText } from './Text';
-import useIsFirstRender from '../hooks/useIsFirstRender';
-import useProtectedState from '../hooks/useProtectedState';
 
-type FenceAutocompleteOption = {
-  fenceDescription: string;
-  fenceId: string;
-  label: string;
-};
-
-const AddFenceInputGroup: FC = () => {
-  const isFirstRender = useIsFirstRender();
-
-  const [fenceTemplate, setFenceTemplate] = useProtectedState<
-    APIFenceTemplate | undefined
-  >(undefined);
+const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
+  fenceTemplate: externalFenceTemplate,
+  loading: isExternalLoading,
+}) => {
   const [fenceTypeValue, setInputFenceTypeValue] =
     useState<FenceAutocompleteOption | null>(null);
-  const [isLoadingTemplate, setIsLoadingTemplate] =
-    useProtectedState<boolean>(true);
 
   const fenceTypeOptions = useMemo<FenceAutocompleteOption[]>(
     () =>
-      fenceTemplate
-        ? Object.entries(fenceTemplate).map(
-            ([id, { description: rawDescription }]) => {
+      externalFenceTemplate
+        ? Object.entries(externalFenceTemplate)
+            .sort(([a], [b]) => (a > b ? 1 : -1))
+            .map(([id, { description: rawDescription }]) => {
               const description =
                 typeof rawDescription === 'string'
                   ? rawDescription
@@ -43,10 +30,9 @@ const AddFenceInputGroup: FC = () => {
                 fenceId: id,
                 label: id,
               };
-            },
-          )
+            })
         : [],
-    [fenceTemplate],
+    [externalFenceTemplate],
   );
 
   const fenceTypeElement = useMemo(
@@ -96,40 +82,26 @@ const AddFenceInputGroup: FC = () => {
     () => (
       <CommonFenceInputGroup
         fenceId={fenceTypeValue?.fenceId}
-        fenceTemplate={fenceTemplate}
+        fenceTemplate={externalFenceTemplate}
       />
     ),
-    [fenceTemplate, fenceTypeValue],
+    [externalFenceTemplate, fenceTypeValue],
   );
 
-  const formContent = useMemo(
+  const content = useMemo(
     () =>
-      isLoadingTemplate ? (
-        <Spinner mt={0} />
+      isExternalLoading ? (
+        <Spinner />
       ) : (
-        <FlexBox sx={{ '& > div': { marginBottom: 0 } }}>
+        <FlexBox>
           {fenceTypeElement}
           {fenceParameterElements}
         </FlexBox>
       ),
-    [fenceTypeElement, fenceParameterElements, isLoadingTemplate],
+    [fenceTypeElement, fenceParameterElements, isExternalLoading],
   );
 
-  if (isFirstRender) {
-    api
-      .get<APIFenceTemplate>(`/fence/template`)
-      .then(({ data }) => {
-        setFenceTemplate(data);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      })
-      .finally(() => {
-        setIsLoadingTemplate(false);
-      });
-  }
-
-  return <>{formContent}</>;
+  return <>{content}</>;
 };
 
 export default AddFenceInputGroup;
