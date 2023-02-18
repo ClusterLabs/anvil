@@ -12,6 +12,8 @@ type ConfirmDialogOptionalProps = {
   openInitially?: boolean;
   proceedButtonProps?: ContainedButtonProps;
   proceedColour?: 'blue' | 'red';
+  scrollContent?: boolean;
+  scrollBoxProps?: import('@mui/material').BoxProps;
 };
 
 type ConfirmDialogProps = ConfirmDialogOptionalProps & {

@@ -1,4 +1,4 @@
-import { Dialog as MUIDialog } from '@mui/material';
+import { Box, Dialog as MUIDialog, SxProps, Theme } from '@mui/material';
 import {
   ButtonHTMLAttributes,
   ElementType,
@@ -51,6 +51,8 @@ const ConfirmDialog = forwardRef<
       openInitially = false,
       proceedButtonProps = {},
       proceedColour: proceedColourKey = 'blue',
+      scrollContent: isScrollContent = false,
+      scrollBoxProps: { sx: scrollBoxSx, ...restScrollBoxProps } = {},
       titleText,
     },
     ref,
@@ -183,6 +185,18 @@ const ConfirmDialog = forwardRef<
         typeof content === 'string' ? <BodyText text={content} /> : content,
       [content],
     );
+    const combinedScrollBoxSx = useMemo<SxProps<Theme> | undefined>(
+      () =>
+        isScrollContent
+          ? {
+              maxHeight: '60vh',
+              overflowY: 'scroll',
+              padding: '.2em .4em',
+              ...scrollBoxSx,
+            }
+          : undefined,
+      [isScrollContent, scrollBoxSx],
+    );
 
     useImperativeHandle(
       ref,
@@ -210,7 +224,9 @@ const ConfirmDialog = forwardRef<
           onSubmit={contentContainerSubmitEventHandler}
           {...contentContainerProps}
         >
-          {contentElement}
+          <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
+            {contentElement}
+          </Box>
           {actionAreaElement}
         </FlexBox>
       </MUIDialog>
