@@ -12,7 +12,7 @@ import List from './List';
 import { Panel, PanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import Spinner from './Spinner';
-import { BodyText, HeaderText } from './Text';
+import { BodyText, HeaderText, InlineMonoText } from './Text';
 import useIsFirstRender from '../hooks/useIsFirstRender';
 import useProtectedState from '../hooks/useProtectedState';
 
@@ -70,7 +70,13 @@ const ManageFencesPanel: FC = () => {
                 previousFenceParameters={fenceParameters}
               />
             ),
-            titleText: `Update fence ${fenceName} parameters`,
+            titleText: (
+              <HeaderText>
+                Update fence device{' '}
+                <InlineMonoText variant="h4">{fenceName}</InlineMonoText>{' '}
+                parameters
+              </HeaderText>
+            ),
           });
 
           confirmDialogRef.current.setOpen?.call(null, true);
@@ -131,6 +137,7 @@ const ManageFencesPanel: FC = () => {
           PaperProps: { sx: { minWidth: { xs: '90%', md: '50em' } } },
         }}
         formContent
+        scrollContent
         {...confirmDialogProps}
         ref={confirmDialogRef}
       />
