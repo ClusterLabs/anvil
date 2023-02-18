@@ -140,36 +140,36 @@ const List = forwardRef(
       isEdit,
       onAllCheckboxChange,
     ]);
-    const headerElement = useMemo(
-      () =>
-        isInsertHeader && header ? (
-          <FlexBox row spacing={headerSpacing} sx={{ height: '2.4em' }}>
-            {checkAllElement}
-            {typeof header === 'string' ? (
-              <>
-                <BodyText>{header}</BodyText>
-                <Divider sx={{ flexGrow: 1 }} />
-              </>
-            ) : (
-              header
-            )}
-            {deleteItemButton}
-            {editItemButton}
-            {addItemButton}
-          </FlexBox>
-        ) : (
-          header
-        ),
-      [
-        addItemButton,
-        checkAllElement,
-        deleteItemButton,
-        editItemButton,
-        header,
-        headerSpacing,
-        isInsertHeader,
-      ],
-    );
+    const headerElement = useMemo(() => {
+      const headerType = typeof header;
+
+      return isInsertHeader && header ? (
+        <FlexBox row spacing={headerSpacing} sx={{ height: '2.4em' }}>
+          {checkAllElement}
+          {['boolean', 'string'].includes(headerType) ? (
+            <>
+              {headerType === 'string' && <BodyText>{header}</BodyText>}
+              <Divider sx={{ flexGrow: 1 }} />
+            </>
+          ) : (
+            header
+          )}
+          {deleteItemButton}
+          {editItemButton}
+          {addItemButton}
+        </FlexBox>
+      ) : (
+        header
+      );
+    }, [
+      addItemButton,
+      checkAllElement,
+      deleteItemButton,
+      editItemButton,
+      header,
+      headerSpacing,
+      isInsertHeader,
+    ]);
     const listEmptyElement = useMemo(
       () =>
         typeof listEmpty === 'string' ? (
