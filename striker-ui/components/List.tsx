@@ -8,6 +8,7 @@ import {
   Box as MUIBox,
   List as MUIList,
   ListItem as MUIListItem,
+  ListItemButton,
   ListItemIcon as MUIListItemIcon,
   SxProps,
   Theme,
@@ -23,7 +24,7 @@ import {
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BLUE, GREY, RED } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, BORDER_RADIUS, GREY, RED } from '../lib/consts/DEFAULT_THEME';
 
 import Checkbox from './Checkbox';
 import Divider from './Divider';
@@ -36,6 +37,7 @@ const List = forwardRef(
     {
       allowCheckAll: isAllowCheckAll = false,
       allowEdit: isAllowEdit = false,
+      allowItemButton: isAllowItemButton = false,
       edit: isEdit = false,
       flexBoxProps,
       header,
@@ -53,6 +55,7 @@ const List = forwardRef(
       onEdit,
       onAllCheckboxChange,
       onItemCheckboxChange,
+      onItemClick,
       renderListItem = (key) => <BodyText>{key}</BodyText>,
       renderListItemCheckboxState,
       scroll: isScroll = false,
@@ -203,32 +206,49 @@ const List = forwardRef(
         const entries = Object.entries(listItems);
 
         if (entries.length > 0) {
-          result = entries.map(([key, value]) => (
-            <MUIListItem
-              {...restListItemProps}
-              key={`${listItemKeyPrefix}-${key}`}
-              sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
-            >
-              {listItemCheckbox(
-                key,
-                renderListItemCheckboxState?.call(null, key, value),
-              )}
-              {renderListItem(key, value)}
-            </MUIListItem>
-          ));
+          result = entries.map(([key, value]) => {
+            const listItem = renderListItem(key, value);
+
+            return (
+              <MUIListItem
+                {...restListItemProps}
+                key={`${listItemKeyPrefix}-${key}`}
+                sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
+              >
+                {listItemCheckbox(
+                  key,
+                  renderListItemCheckboxState?.call(null, key, value),
+                )}
+                {isAllowItemButton ? (
+                  <ListItemButton
+                    onClick={(...args) => {
+                      onItemClick?.call(null, value, key, ...args);
+                    }}
+                    sx={{ borderRadius: BORDER_RADIUS }}
+                  >
+                    {listItem}
+                  </ListItemButton>
+                ) : (
+                  listItem
+                )}
+              </MUIListItem>
+            );
+          });
         }
       }
 
       return result;
     }, [
       listEmptyElement,
-      listItemCheckbox,
-      listItemKeyPrefix,
       listItems,
-      listItemSx,
       renderListItem,
-      renderListItemCheckboxState,
       restListItemProps,
+      listItemKeyPrefix,
+      listItemSx,
+      listItemCheckbox,
+      renderListItemCheckboxState,
+      isAllowItemButton,
+      onItemClick,
     ]);
     const listScrollSx: SxProps<Theme> | undefined = useMemo(
       () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
