@@ -164,6 +164,7 @@ const ConfirmDialog = forwardRef<
         restProceedButtonProps,
       ],
     );
+
     const actionAreaElement = useMemo(
       () =>
         isLoadingAction ? (
@@ -184,6 +185,15 @@ const ConfirmDialog = forwardRef<
       () =>
         typeof content === 'string' ? <BodyText text={content} /> : content,
       [content],
+    );
+    const headerElement = useMemo(
+      () =>
+        typeof titleText === 'string' ? (
+          <HeaderText>{titleText}</HeaderText>
+        ) : (
+          titleText
+        ),
+      [titleText],
     );
     const combinedScrollBoxSx = useMemo<SxProps<Theme> | undefined>(
       () =>
@@ -216,9 +226,7 @@ const ConfirmDialog = forwardRef<
         }}
         {...restDialogProps}
       >
-        <PanelHeader>
-          <HeaderText text={titleText} />
-        </PanelHeader>
+        <PanelHeader>{headerElement}</PanelHeader>
         <FlexBox
           component={contentContainerComponent}
           onSubmit={contentContainerSubmitEventHandler}

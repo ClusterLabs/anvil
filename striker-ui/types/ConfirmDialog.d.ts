@@ -18,8 +18,8 @@ type ConfirmDialogOptionalProps = {
 
 type ConfirmDialogProps = ConfirmDialogOptionalProps & {
   actionProceedText: string;
-  content: import('@mui/material').ReactNode;
-  titleText: string;
+  content: import('react').ReactNode;
+  titleText: import('react').ReactNode;
 };
 
 type ConfirmDialogForwardedRefContent = {
