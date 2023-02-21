@@ -201,7 +201,7 @@ const ConfirmDialog = forwardRef<
           ? {
               maxHeight: '60vh',
               overflowY: 'scroll',
-              padding: '.2em .4em',
+              padding: '.3em .5em',
               ...scrollBoxSx,
             }
           : undefined,
