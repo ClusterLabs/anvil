@@ -21,6 +21,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   inputLabelProps = {},
   isReadOnly = false,
   messageBoxProps = {},
+  name,
   onChange,
   selectProps: {
     multiple: selectMultiple,
@@ -97,6 +98,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
         id={id}
         input={inputElement}
         multiple={selectMultiple}
+        name={name}
         onChange={onChange}
         readOnly={isReadOnly}
         value={selectValue}
