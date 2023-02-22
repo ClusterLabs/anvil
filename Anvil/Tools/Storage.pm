@@ -3531,7 +3531,7 @@ sub push_file
 		}
 	}
 	
-	if (not $file_uuid)
+	if ((not $file_uuid) or (not $file_size))
 	{
 		$file_size = (stat($file))[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -3624,6 +3624,7 @@ sub push_file
 							's4:adjusted_byptes_sec' => $anvil->Convert->add_commas({number => $adjusted_byptes_sec})." ".$anvil->Words->string({string => "#!string!suffix_0060!#"}),
 							's5:copy_seconds'        => $anvil->Convert->add_commas({number => $copy_seconds})." ".$anvil->Words->string({string => "#!string!suffix_0007!#"}),
 							's6:say_copy_time'       => $say_copy_time, 
+							's7:file_size'           => $anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}),
 						}});
 						
 						my $variables = {
@@ -3699,12 +3700,13 @@ sub push_file
 				}
 				
 				# Mark the file as being on this host
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { do_host_type => $do_host_type }});
 				if ($do_host_type ne "striker")
 				{
 					my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
 						debug                   => 2, 
 						file_location_file_uuid => $file_uuid, 
-						file_location_host_uuid => $host_uuid, 
+						file_location_host_uuid => $target_host_uuid, 
 						file_location_active    => 1, 
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
