@@ -1,9 +1,10 @@
-import { FC, useMemo, useRef, useState } from 'react';
+import { FC, FormEventHandler, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
 import AddFenceInputGroup from './AddFenceInputGroup';
 import api from '../lib/api';
+import { ID_SEPARATOR } from './CommonFenceInputGroup';
 import ConfirmDialog from './ConfirmDialog';
 import EditFenceInputGroup from './EditFenceInputGroup';
 import FlexBox from './FlexBox';
@@ -15,6 +16,55 @@ import Spinner from './Spinner';
 import { BodyText, HeaderText, InlineMonoText } from './Text';
 import useIsFirstRender from '../hooks/useIsFirstRender';
 import useProtectedState from '../hooks/useProtectedState';
+
+const fenceParameterBooleanToString = (value: boolean) => (value ? '1' : '0');
+
+const getFormFenceParameters = (
+  fenceTemplate: APIFenceTemplate,
+  ...[{ target }]: Parameters<FormEventHandler<HTMLDivElement>>
+) => {
+  const { elements } = target as HTMLFormElement;
+
+  return Object.values(elements).reduce<{
+    fenceAgent: string;
+    parameters: {
+      [parameterId: string]: { type: string; value: string };
+    };
+  }>(
+    (previous, formElement) => {
+      const { id: inputId } = formElement;
+      const reExtract = new RegExp(`^(fence[^-]+)${ID_SEPARATOR}([^\\s]+)$`);
+      const matched = inputId.match(reExtract);
+
+      if (matched) {
+        const [, fenceId, parameterId] = matched;
+
+        previous.fenceAgent = fenceId;
+
+        const inputElement = formElement as HTMLInputElement;
+        const { checked, value } = inputElement;
+        const {
+          [fenceId]: {
+            parameters: {
+              [parameterId]: { content_type: parameterType = 'string' } = {},
+            },
+          },
+        } = fenceTemplate;
+
+        previous.parameters[parameterId] = {
+          type: parameterType,
+          value:
+            parameterType === 'boolean'
+              ? fenceParameterBooleanToString(checked)
+              : value,
+        };
+      }
+
+      return previous;
+    },
+    { fenceAgent: '', parameters: {} },
+  );
+};
 
 const ManageFencesPanel: FC = () => {
   const isFirstRender = useIsFirstRender();
@@ -51,6 +101,13 @@ const ManageFencesPanel: FC = () => {
           setConfirmDialogProps({
             actionProceedText: 'Add',
             content: <AddFenceInputGroup fenceTemplate={fenceTemplate} />,
+            onSubmitAppend: (event) => {
+              if (!fenceTemplate) {
+                return;
+              }
+
+              getFormFenceParameters(fenceTemplate, event);
+            },
             titleText: 'Add a fence device',
           });
 
@@ -70,6 +127,13 @@ const ManageFencesPanel: FC = () => {
                 previousFenceParameters={fenceParameters}
               />
             ),
+            onSubmitAppend: (event) => {
+              if (!fenceTemplate) {
+                return;
+              }
+
+              getFormFenceParameters(fenceTemplate, event);
+            },
             titleText: (
               <HeaderText>
                 Update fence device{' '}
