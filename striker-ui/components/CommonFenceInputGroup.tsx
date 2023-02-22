@@ -8,22 +8,38 @@ import SelectWithLabel from './SelectWithLabel';
 import SwitchWithLabel from './SwitchWithLabel';
 
 const CHECKED_STATES: Array<string | undefined> = ['1', 'on'];
+const ID_SEPARATOR = '-';
 
 const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
-  boolean: ({ id, isChecked = false, label }) => (
+  boolean: ({ id, isChecked = false, label, name = id }) => (
     <InputWithRef
       key={`${id}-wrapper`}
-      input={<SwitchWithLabel id={id} label={label} checked={isChecked} />}
+      input={
+        <SwitchWithLabel
+          checked={isChecked}
+          id={id}
+          label={label}
+          name={name}
+        />
+      }
       valueType="boolean"
     />
   ),
-  select: ({ id, isRequired, label, selectOptions = [], value = '' }) => (
+  select: ({
+    id,
+    isRequired,
+    label,
+    name = id,
+    selectOptions = [],
+    value = '',
+  }) => (
     <InputWithRef
       key={`${id}-wrapper`}
       input={
         <SelectWithLabel
           id={id}
           label={label}
+          name={name}
           selectItems={selectOptions}
           value={value}
         />
@@ -31,16 +47,23 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
       required={isRequired}
     />
   ),
-  string: ({ id, isRequired, label = '', value }) => (
+  string: ({ id, isRequired, label = '', name = id, value }) => (
     <InputWithRef
       key={`${id}-wrapper`}
-      input={<OutlinedInputWithLabel id={id} label={label} value={value} />}
+      input={
+        <OutlinedInputWithLabel
+          id={id}
+          label={label}
+          name={name}
+          value={value}
+        />
+      }
       required={isRequired}
     />
   ),
 };
 
-const combineIds = (...pieces: string[]) => pieces.join('-');
+const combineIds = (...pieces: string[]) => pieces.join(ID_SEPARATOR);
 
 const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
   fenceId,
@@ -155,5 +178,7 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
 
   return <>{fenceParameterElements}</>;
 };
+
+export { ID_SEPARATOR };
 
 export default CommonFenceInputGroup;

@@ -3,6 +3,7 @@ type FenceParameterInputBuilder = (args: {
   isChecked?: boolean;
   isRequired?: boolean;
   label?: string;
+  name?: string;
   selectOptions?: string[];
   value?: string;
 }) => ReactElement;
