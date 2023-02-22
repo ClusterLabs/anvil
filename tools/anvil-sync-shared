@@ -576,7 +576,7 @@ sub process_incoming_file
 	# Any hosts not currently online will have a job registered.
 	$anvil->Storage->push_file({
 		debug     => 2, 
-		file      => $file,
+		file      => $target_file,
 		file_uuid => $file_uuid,
 	});
 	
