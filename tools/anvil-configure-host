@@ -174,21 +174,48 @@ sub update_passwords
 		}
 		else
 		{
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches });
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
-			foreach my $line (split/\n/, $output)
+			my $wait_until = time + 120;
+			my $waiting    = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				waiting    => $waiting, 
+				wait_until => $wait_until,
+			}});
+			while ($waiting)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				my $shell_call = $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 2, timeout => 15, shell_call => $shell_call });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+				foreach my $line (split/\n/, $output)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				}
+				
+				if ($return_code)
+				{
+					# Something went wrong
+					if (time > $wait_until)
+					{
+						# Give up.
+						$waiting = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					}
+					else
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0011", variables => { return_code => $return_code }});
+					}
+				}
+				else
+				{
+					# Success
+					$waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				}
 			}
 			
 			# Unlink the temp file.
 			unlink $temp_file;
-			
-			if ($return_code)
-			{
-				# Something went wrong
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0011", variables => { return_code => $return_code }});
-			}
 		}
 	}
 	
@@ -408,7 +435,7 @@ ORDER BY
 		}});
 
 		# An undefined interface will have the MAC address value set to '1', ignore those.
-		next if $variable_value = 1;
+		next if $variable_value == 1;
 		
 		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
 		{
