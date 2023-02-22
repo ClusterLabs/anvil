@@ -564,7 +564,8 @@ sub check_incoming
 		}});
 		
 		# Calculate the md5sum?
-		my $file_md5sum =  $recorded_md5sum;
+		my $added_to_db = 0;
+		my $file_md5sum = $recorded_md5sum;
 		if ((not $file_uuid) or ($file_size != $recorded_size))
 		{
 			# It's possible the file is still uploading, so sleep for a bit and see if the 
@@ -608,7 +609,7 @@ sub check_incoming
 			
 			# Insert or update the files entry.
 			($file_uuid) = $anvil->Database->insert_or_update_files({
-				debug          => 3,
+				debug          => 2,
 				file_uuid      => $file_uuid, 
 				file_name      => $file_name, 
 				file_directory => $file_directory, 
@@ -617,15 +618,21 @@ sub check_incoming
 				file_mtime     => $file_mtime, 
 				file_type      => $say_mimetype, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+			
+			if ($file_uuid)
+			{
+				$added_to_db = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { added_to_db => $added_to_db }});
+			}
 		}
 		
 		# If we still don't have a file UUID for some reason, skip this file.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
 		next if not $file_uuid;
 		
 		# Are we in the incoming directory? If so, move the file.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			full_path          => $full_path,
 			incoming_directory => $incoming_directory, 
 		}});
@@ -640,28 +647,34 @@ sub check_incoming
 			my $target =  $say_mimetype eq "definition" ? $anvil->data->{path}{directories}{shared}{definitions} : $anvil->data->{path}{directories}{shared}{files};
 			   $target .= "/";
 			   $target =~ s/\/\//\//g;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { target => $target }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0268", variables => { 
 				file   => $full_path,
 				target => $target, 
 			}});
 			
-			# Wait in case it's still being uploaded.
-			$anvil->Storage->_wait_if_changing({
-				file      => $full_path,
-				last_size => $file_size, 
-			});
-			
-			$anvil->Storage->move_file({
-				debug       => 3,
+			my $problem = $anvil->Storage->move_file({
+				debug       => 2,
 				source_file => $full_path, 
 				target_file => $target,
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if (not $problem)
+			{
+				$full_path      = $target."/".$file_name;
+				$file_directory = $target;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					file_directory => $file_directory, 
+					full_path      => $full_path,
+				}});
+			}
 			
 			# Update the file_directory.
-			($file_uuid) = $anvil->Database->insert_or_update_files({
-				debug          => 3,
+			$target =~ s/\/$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+			($file_uuid) =  $anvil->Database->insert_or_update_files({
+				debug          => 2,
 				file_uuid      => $file_uuid, 
 				file_name      => $file_name, 
 				file_directory => $target, 
@@ -670,7 +683,20 @@ sub check_incoming
 				file_mtime     => $file_mtime, 
 				file_type      => $say_mimetype, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+		}
+		
+		if ($added_to_db)
+		{
+			# Push it to all other hosts now.
+			$anvil->Storage->push_file({
+				debug     => 2, 
+				file      => $full_path,
+				file_uuid => $file_uuid, 
+			});
+			
+			# Call track_files, it'll make sure the file_locations are setup.
+			$anvil->Database->track_files({debug => 2});
 		}
 	}
 	
@@ -729,6 +755,7 @@ WHERE
 	{
 		$query .= "    file_name = ".$anvil->Database->quote($file_name)."\n";
 	}
+	$query .= ";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};

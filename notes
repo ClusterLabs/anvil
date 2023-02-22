@@ -1,4 +1,9 @@
 
+Common queries;
+* SELECT a.job_uuid, b.host_name, a.job_command, a.job_data, a.job_progress, a.job_status FROM jobs a, hosts b WHERE a.job_host_uuid = b.host_uuid AND a.job_progress != 100;
+* SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;
+* SELECT a.dr_link_uuid, b.host_name, c.anvil_name, a.dr_link_note FROM dr_links a, hosts b, anvils c WHERE a.dr_link_host_uuid = b.host_uuid AND a.dr_link_anvil_uuid = c.anvil_uuid ORDER BY c.anvil_name ASC, b.host_name ASC;
+
 
 When pairing Striker, make sure new config goes to all known nodes!
 
