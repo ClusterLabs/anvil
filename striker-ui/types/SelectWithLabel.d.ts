@@ -23,7 +23,7 @@ type SelectWithLabelOptionalProps = {
 };
 
 type SelectWithLabelProps = SelectWithLabelOptionalProps &
-  Pick<SelectProps, 'onChange' | 'value'> & {
+  Pick<SelectProps, 'name' | 'onChange' | 'value'> & {
     id: string;
     selectItems: Array<SelectItem | string>;
   };
