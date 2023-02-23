@@ -73,6 +73,7 @@ const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
             <BodyText selected={false}>{fenceDescription}</BodyText>
           </Box>
         )}
+        sx={{ marginTop: '.3em' }}
         value={fenceTypeValue}
       />
     ),
