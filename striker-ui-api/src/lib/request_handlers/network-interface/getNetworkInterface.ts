@@ -1,10 +1,10 @@
-import { getLocalHostUUID } from '../../accessModule';
+import { toHostUUID } from '../../convertHostUUID';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 
 export const getNetworkInterface = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
-    const localHostUUID: string = getLocalHostUUID();
+  ({ params: { hostUUID: rawHostUUID } }, buildQueryOptions) => {
+    const hostUUID = toHostUUID(rawHostUUID ?? 'local');
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {
@@ -48,7 +48,7 @@ export const getNetworkInterface = buildGetRequestHandler(
         network_interface_speed,
         ROW_NUMBER() OVER(ORDER BY modified_date ASC) AS network_interface_order
       FROM network_interfaces
-      WHERE network_interface_operational != 'DELETE'
-        AND network_interface_host_uuid = '${localHostUUID}';`;
+      WHERE network_interface_operational != 'DELETED'
+        AND network_interface_host_uuid = '${hostUUID}';`;
   },
 );

@@ -5,6 +5,7 @@ import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 import api from '../../lib/api';
 import buildMapToMessageSetter from '../../lib/buildMapToMessageSetter';
 import buildNumberTestBatch from '../../lib/test_input/buildNumberTestBatch';
+import buildObjectStateSetterCallback from '../../lib/buildObjectStateSetterCallback';
 import CheckboxWithLabel from '../CheckboxWithLabel';
 import ConfirmDialog from '../ConfirmDialog';
 import FlexBox from '../FlexBox';
@@ -58,26 +59,18 @@ const AddPeerDialog = forwardRef<
   const [isSubmittingAddPeer, setIsSubmittingAddPeer] =
     useProtectedState<boolean>(false, protect);
 
-  const buildFormValiditySetterCallback = useCallback(
-    (key: string, value: boolean) =>
-      ({ [key]: toReplace, ...restPrevious }) => ({
-        ...restPrevious,
-        [key]: value,
-      }),
-    [],
-  );
   const buildInputFirstRenderFunction = useCallback(
     (key: string) =>
       ({ isRequired }: { isRequired: boolean }) => {
-        setFormValidity(buildFormValiditySetterCallback(key, !isRequired));
+        setFormValidity(buildObjectStateSetterCallback(key, !isRequired));
       },
-    [buildFormValiditySetterCallback],
+    [],
   );
   const buildFinishInputTestBatchFunction = useCallback(
     (key: string) => (result: boolean) => {
-      setFormValidity(buildFormValiditySetterCallback(key, result));
+      setFormValidity(buildObjectStateSetterCallback(key, result));
     },
-    [buildFormValiditySetterCallback],
+    [],
   );
   const setAPIMessage = useCallback((message?: Message) => {
     messageGroupRef.current.setMessage?.call(null, 'api', message);

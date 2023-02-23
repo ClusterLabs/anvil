@@ -1,4 +1,4 @@
-import { FC, ReactNode } from 'react';
+import { FC } from 'react';
 import {
   Checkbox as MUICheckbox,
   FormControl as MUIFormControl,
@@ -13,14 +13,6 @@ import OutlinedInputLabel, {
   OutlinedInputLabelProps,
 } from './OutlinedInputLabel';
 import Select, { SelectProps } from './Select';
-
-type SelectItem<
-  ValueType = string,
-  DisplayValueType = ValueType | ReactNode,
-> = {
-  displayValue?: DisplayValueType;
-  value: ValueType;
-};
 
 type SelectWithLabelOptionalProps = {
   checkItem?: ((value: string) => boolean) | null;
@@ -110,6 +102,6 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
 
 SelectWithLabel.defaultProps = SELECT_WITH_LABEL_DEFAULT_PROPS;
 
-export type { SelectItem, SelectWithLabelProps };
+export type { SelectWithLabelProps };
 
 export default SelectWithLabel;
