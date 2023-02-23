@@ -132,6 +132,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
 
   return (
     <MUIFormControl
+      fullWidth
       {...restFormControlProps}
       sx={{ width: formControlWidth, ...formControlSx }}
     >
