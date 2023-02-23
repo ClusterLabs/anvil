@@ -48,10 +48,11 @@ if (not $anvil->data->{switches}{'job-uuid'})
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
 }
 
-# If we still don't have a job-uuid, go into interactive mode.
+# If we have a job-uuid, process it.
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
+	$anvil->Database->get_anvils({debug => 3});
 	$anvil->Job->get_job_details({debug => 3});
 	$anvil->Job->clear({debug => 3});
 	
@@ -440,21 +441,31 @@ sub process_incoming_file
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
+	# Make sure the file actually done uploading.
+	$anvil->data->{sys}{progress} = 5;
+	$anvil->Job->update_progress({
+		progress => $anvil->data->{sys}{progress}, 
+		message  => "message_0309,!!file!".$file."!!", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0309", variables => { file => $file }});
+	$anvil->Storage->_wait_if_changing({
+		debug => 2, 
+		file  => $file,
+	});
+	
 	# Move it over to files.
-	$anvil->data->{sys}{progress} = 10;
+	$anvil->data->{sys}{progress} = 5;
 	$anvil->Job->update_progress({
 		progress => $anvil->data->{sys}{progress}, 
 		message  => "message_0192,!!file!".$file."!!", 
 	});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0192", variables => { file => $file }});
-	
 	$anvil->Storage->move_file({
 		debug       => 2,
 		overwrite   => 1, 
 		source_file => $file,
 		target_file => $anvil->data->{path}{directories}{shared}{files}."/", 
 	});
-
 	
 	my $file_name   = ($file =~ /\/.*\/(.*?)$/)[0];
 	my $target_file = $anvil->data->{path}{directories}{shared}{files}."/".$file_name;
@@ -561,90 +572,16 @@ sub process_incoming_file
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
 	
-	# Now copy this to our peers.
-	foreach my $host_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
-	{
-		# Periodically, autovivication causes and empty key to appear.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
-		next if ((not $host_uuid) or (not $anvil->Validate->uuid({uuid => $host_uuid})));
-		next if $host_uuid eq $anvil->Get->host_uuid;
-		
-		my $host     = $anvil->data->{database}{$host_uuid}{host};
-		my $password = $anvil->data->{database}{$host_uuid}{password};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host     => $host,
-			password => $anvil->Log->is_secure($password), 
-		}});
-		
-		my $striker_name = $anvil->Get->host_name_from_uuid({host_uuid => $host_uuid});
-		my $say_host     = $striker_name." (".$host.")";
-		
-		# Rsync the file.
-		$anvil->data->{sys}{progress} += 10;
-		$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
-		$anvil->Job->update_progress({
-			progress => $anvil->data->{sys}{progress}, 
-			message  => "message_0195,!!host!".$say_host."!!", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0195", variables => { host => $say_host }});
-		
-		$anvil->Storage->rsync({
-			debug       => 2, 
-			source      => $target_file, 
-			destination => "root\@".$host.":".$anvil->data->{path}{directories}{shared}{files}."/", 
-			try_again   => 1, 
-		});
-	}
+	# Now copy this to our peers. We're going to do this serially so that we don't overwhelm the system,
+	# Any hosts not currently online will have a job registered.
+	$anvil->Storage->push_file({
+		debug     => 2, 
+		file      => $target_file,
+		file_uuid => $file_uuid,
+	});
 	
-	# Tell other Anvil! systems to download this file.
-	$anvil->Database->get_anvils({debug => 2});
-	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
-	{
-		my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
-		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
-		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
-		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			anvil_uuid            => $anvil_uuid, 
-			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
-			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
-			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
-		}});
-		
-		$anvil->data->{sys}{progress} += 5;
-		$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
-		$anvil->Job->update_progress({
-			progress => $anvil->data->{sys}{progress}, 
-			message  => "message_0196,!!anvil_name!".$anvil_name."!!", 
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0196", variables => { anvil_name => $anvil_name }});
-		
-		my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
-			debug                    => 2, 
-			file_location_file_uuid  => $file_uuid, 
-			file_location_anvil_uuid => $anvil_uuid, 
-			file_location_active     => 1, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
-		
-		# Register a job to call anvil-sync-shared 
-		foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid, $anvil_dr1_host_uuid)
-		{
-			next if not $host_uuid;
-			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				file            => $THIS_FILE, 
-				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
-				job_data        => "file_uuid=".$file_uuid, 
-				job_name        => "storage::pull_file", 
-				job_title       => "job_0132", 
-				job_description => "job_0133", 
-				job_progress    => 0,
-				job_host_uuid   => $host_uuid,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-		}
-	}
+	# Call track_files, it'll make sure the file_locations are setup.
+	$anvil->Database->track_files({debug => 2});
 	
 	# Done!
 	$anvil->Job->update_progress({

@@ -6,6 +6,8 @@
 #       This behaviour is likely to change later as it's not ideal.
 # 
 # TODO: --remove is not yet implemented, this needs to be done. Use anvil-delete-server for methods to delete.
+# EXAMPLES:
+# - anvil-manage-dr --link --dr-host vm-a01dr02 --anvil vm-anvil-01
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -2174,7 +2176,7 @@ sub process_protect
 	});
 	
 	$anvil->DRBD->gather_data({debug => 2});
-
+	
 	my $server_ram = $anvil->data->{server}{$short_host_name}{$server_name}{'from_db'}{memory};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server_ram => $anvil->Convert->add_commas({number => $server_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram}).")",
@@ -2182,6 +2184,7 @@ sub process_protect
 	
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
 	{
+		next if $resource eq "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
 		
 		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{host}})
@@ -2559,6 +2562,15 @@ sub process_protect
 	my $record_job = 0;
 	if (not $anvil->data->{switches}{Yes})
 	{
+		# If there's no config file, this might be being run from DR which doesn't have info about 
+		# the resource yet.
+		if ((not $config_file) && (not $anvil->data->{switches}{'job-uuid'}))
+		{
+			# Bail out.
+			print $anvil->Words->string({key => "message_0308"})."\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
 		# Ask the user to confirm.
 		print "\n".$anvil->Words->string({key => "message_0021"})."\n";
 		my $answer = <STDIN>;
