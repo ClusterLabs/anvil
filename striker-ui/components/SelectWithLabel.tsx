@@ -17,6 +17,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   selectItems,
   checkItem,
   disableItem,
+  formControlProps,
   hideItem,
   inputLabelProps = {},
   isReadOnly = false,
@@ -92,7 +93,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   );
 
   return (
-    <MUIFormControl>
+    <MUIFormControl fullWidth {...formControlProps}>
       {labelElement}
       <Select
         id={id}
