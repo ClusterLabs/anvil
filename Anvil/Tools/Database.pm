@@ -97,6 +97,7 @@ my $THIS_FILE = "Database.pm";
 # refresh_timestamp
 # resync_databases
 # shutdown
+# track_files
 # update_host_status
 # write
 # _add_to_local_config
@@ -386,7 +387,7 @@ sub backup_database
 
 =head2 check_file_locations
 
-This method checks to see that there is a corresponding entry in C<< file_locations >> for all Anvil! systems and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< true >>.
+This method checks to see that there is a corresponding entry in C<< file_locations >> for all hosts and files in the database. Any that are found to be missing will be set to C<< file_location_active >> -> c<< true >>.
 
 This method takes no parameters.
 
@@ -400,32 +401,32 @@ sub check_file_locations
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_file_locations()" }});
 	
 	# Get all the Anvil! systems we know of.
-	$anvil->Database->get_anvils({debug => $debug});
-	$anvil->Database->get_files({debug => $debug});
-	$anvil->Database->get_file_locations({debug => $debug});
+	$anvil->Database->get_hosts({debug => $debug});
+	#$anvil->Database->get_files({debug => $debug});
+	#$anvil->Database->get_file_locations({debug => $debug});
 	
-	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_name}})
 	{
-		my $anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $host_uuid = $anvil->data->{hosts}{host_name}{$host_name}{host_uuid};
 		
 		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
 		{
 			my $file_uuid = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
 			
 			# Does this file exist for this Anvil! system?
-			if (not exists $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid})
+			if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid})
 			{
 				# Add this entry.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0613", variables => { 
-					anvil_name => $anvil_name,
-					file_name  => $file_name, 
+					host_name => $host_name,
+					file_name => $file_name, 
 				}});
 				
 				my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
-					debug                    => $debug, 
-					file_location_file_uuid  => $file_uuid, 
-					file_location_anvil_uuid => $anvil_uuid, 
-					file_location_active     => 1, 
+					debug                   => $debug, 
+					file_location_file_uuid => $file_uuid, 
+					file_location_host_uuid => $host_uuid, 
+					file_location_active    => 1, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 			}
@@ -2710,7 +2711,6 @@ SELECT
     anvil_password, 
     anvil_node1_host_uuid, 
     anvil_node2_host_uuid, 
-    anvil_dr1_host_uuid, 
     modified_date  
 FROM 
     anvils ";
@@ -2737,8 +2737,7 @@ WHERE
 		my $anvil_password        =         $row->[3]; 
 		my $anvil_node1_host_uuid = defined $row->[4] ? $row->[4] : ""; 
 		my $anvil_node2_host_uuid = defined $row->[5] ? $row->[5] : ""; 
-		my $anvil_dr1_host_uuid   = defined $row->[6] ? $row->[6] : ""; 
-		my $modified_date         =         $row->[7];
+		my $modified_date         =         $row->[6];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_uuid            => $anvil_uuid, 
 			anvil_name            => $anvil_name, 
@@ -2746,7 +2745,6 @@ WHERE
 			anvil_password        => $anvil->Log->is_secure($anvil_password), 
 			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
-			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
 			modified_date         => $modified_date, 
 		}});
 		
@@ -2756,7 +2754,6 @@ WHERE
 		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}        = $anvil_password;
 		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid} = $anvil_node1_host_uuid;
 		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
-		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
 		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{modified_date}         = $modified_date;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"anvils::anvil_uuid::${anvil_uuid}::anvil_name"            => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}, 
@@ -2764,7 +2761,6 @@ WHERE
 			"anvils::anvil_uuid::${anvil_uuid}::anvil_password"        => $anvil->Log->is_secure($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}), 
 			"anvils::anvil_uuid::${anvil_uuid}::anvil_node1_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}, 
 			"anvils::anvil_uuid::${anvil_uuid}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}, 
-			"anvils::anvil_uuid::${anvil_uuid}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}, 
 			"anvils::anvil_uuid::${anvil_uuid}::modified_date"         => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{modified_date}, 
 		}});
 		
@@ -2775,7 +2771,6 @@ WHERE
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_password}        = $anvil_password;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid} = $anvil_node1_host_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
-		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}         = $modified_date;
 		$anvil->data->{anvils}{anvil_name}{$anvil_name}{query_time}            = time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2784,7 +2779,6 @@ WHERE
 			"anvils::anvil_name::${anvil_name}::anvil_password"        => $anvil->Log->is_secure($anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_password}), 
 			"anvils::anvil_name::${anvil_name}::anvil_node1_host_uuid" => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid}, 
 			"anvils::anvil_name::${anvil_name}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid}, 
-			"anvils::anvil_name::${anvil_name}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}, 
 			"anvils::anvil_name::${anvil_name}::modified_date"         => $anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}, 
 			"anvils::anvil_name::${anvil_name}::query_time"            => $anvil->data->{anvils}{anvil_name}{$anvil_name}{query_time}, 
 		}});
@@ -2809,60 +2803,6 @@ WHERE
 				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name}, 
 				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_uuid}, 
 				"anvils::host_uuid::${anvil_node2_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{role}, 
-			}});
-		}
-		### TODO: Remove this once the switch over to 'dr_links' is done.
-		if ($anvil_dr1_host_uuid)
-		{
-			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name} = $anvil_name;
-			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid} = $anvil_uuid;
-			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{role}       = "dr1";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name}, 
-				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid}, 
-				"anvils::host_uuid::${anvil_dr1_host_uuid}::role"       => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{role}, 
-			}});
-		}
-		
-		# Track the files on this Anvil!
-		foreach my $file_location_uuid (keys %{$anvil->data->{file_locations}{file_location_uuid}})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"file_locations::file_location_uuid::${file_location_uuid}::file_location_anvil_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid}, 
-				"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"     => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
-			}});
-			next if $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} ne $anvil_uuid;
-			next if not $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
-			
-			my $file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
-			
-			next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
-			
-			my $file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				file_uuid => $file_uuid,
-				file_name => $file_name, 
-			}});
-			
-			# If the file was deleted, this won't exist
-			next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}      = $file_name;
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory} = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}, 
-				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory}, 
-				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
-				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}, 
-				"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}, 
-			}});
-			
-			# Make it so that we can list the files by name.
-			$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid} = $file_uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
 			}});
 		}
 		
@@ -3238,7 +3178,7 @@ WHERE
 This loads the known install file_locations into the C<< anvil::data >> hash at:
 
 * file_locations::file_location_uuid::<file_location_uuid>::file_location_file_uuid
-* file_locations::file_location_uuid::<file_location_uuid>::file_location_anvil_uuid
+* file_locations::file_location_uuid::<file_location_uuid>::file_location_host_uuid
 * file_locations::file_location_uuid::<file_location_uuid>::file_location_active
 * file_locations::file_location_uuid::<file_location_uuid>::modified_date
 
@@ -3264,7 +3204,7 @@ sub get_file_locations
 SELECT 
     file_location_uuid, 
     file_location_file_uuid, 
-    file_location_anvil_uuid, 
+    file_location_host_uuid, 
     file_location_active, 
     modified_date 
 FROM 
@@ -3279,35 +3219,47 @@ FROM
 	}});
 	foreach my $row (@{$results})
 	{
-		my $file_location_uuid       = $row->[0];
-		my $file_location_file_uuid  = $row->[1];
-		my $file_location_anvil_uuid = $row->[2];
-		my $file_location_active     = $row->[3]; 
-		my $modified_date            = $row->[4];
+		my $file_location_uuid      = $row->[0];
+		my $file_location_file_uuid = $row->[1];
+		my $file_location_host_uuid = $row->[2];
+		my $file_location_active    = $row->[3]; 
+		my $modified_date           = $row->[4];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			file_location_uuid       => $file_location_uuid, 
-			file_location_file_uuid  => $file_location_file_uuid, 
-			file_location_anvil_uuid => $file_location_anvil_uuid, 
-			file_location_active     => $file_location_active, 
-			modified_date            => $modified_date, 
+			file_location_uuid      => $file_location_uuid, 
+			file_location_file_uuid => $file_location_file_uuid, 
+			file_location_host_uuid => $file_location_host_uuid, 
+			file_location_active    => $file_location_active, 
+			modified_date           => $modified_date, 
 		}});
 		
 		# Record the data in the hash, too.
-		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid}  = $file_location_file_uuid;
-		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} = $file_location_anvil_uuid;
-		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}     = $file_location_active;
-		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}            = $modified_date;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid} = $file_location_file_uuid;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_host_uuid} = $file_location_host_uuid;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}    = $file_location_active;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}           = $modified_date;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"file_locations::file_location_uuid::${file_location_uuid}::file_location_file_uuid"  => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid}, 
-			"file_locations::file_location_uuid::${file_location_uuid}::file_location_anvil_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid}, 
-			"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"     => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
-			"file_locations::file_location_uuid::${file_location_uuid}::modified_date"            => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_file_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_host_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_host_uuid}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"    => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::modified_date"           => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}, 
 		}});
 		
+		### TODO: Remove this when the WebUI is updated.
+		# If this host is a node in an Anvil!, set the old 'file_location_anvil_uuid' to maintain 
+		# backwards compatibility.
+		if ((exists $anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}) && 
+		    ($anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}{anvil_uuid}))
+		{
+			$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} = $anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}{anvil_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"file_locations::file_location_uuid::${file_location_uuid}::file_location_anvil_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid}, 
+			}});
+		}
+		
 		# Make it easy to find files by anvil and file UUID.
-		$anvil->data->{file_locations}{anvil_uuid}{$file_location_anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid} = $file_location_uuid;
+		$anvil->data->{file_locations}{host_uuid}{$file_location_host_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid} = $file_location_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"file_locations::anvil_uuid::${file_location_anvil_uuid}::file_uuid::${file_location_file_uuid}::file_location_uuid" => $anvil->data->{file_locations}{anvil_uuid}{$file_location_anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid},
+			"file_locations::host_uuid::${file_location_host_uuid}::file_uuid::${file_location_file_uuid}::file_location_uuid" => $anvil->data->{file_locations}{host_uuid}{$file_location_host_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid},
 		}});
 	}
 
@@ -5296,6 +5248,12 @@ sub get_storage_group_data
 	{
 		$scan_lvm_exists = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan_lvm_exists => $scan_lvm_exists }});
+	}
+	
+	# Loads hosts, if it hasn't been before.
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
 	}
 
 	$query     = "
@@ -7918,7 +7876,7 @@ INSERT INTO
 
 This updates (or inserts) a record in the 'file_locations' table. The C<< file_location_uuid >> referencing the database row will be returned.
 
-This table is used to track which files on Striker dashboards need to be on given Anvil! members.
+This table is used to track which files on Striker dashboards need to be on given Anvil! members and DR hosts.
 
 If there is an error, an empty string is returned.
 
@@ -7928,13 +7886,19 @@ Parameters;
 
 If not passed, a check will be made to see if an existing entry is found for C<< file_location_file_uuid >>. If found, that entry will be updated. If not found, a new record will be inserted.
 
+=head3 file_location_anvil_uuid (required)
+
+This is the C<< anvils >> -> C<< anvil_uuid >> being referenced. This works by figuring out which hosts are a member of the Anvil! node, and which DR hosts are linked, and makes a recursive call to this method for each of their C<< hosts >> -> C<< host_uuid >>. 
+
+B<< Note >>: When this is used, a comma-separated list of C<< host_uuid=file_location_uuid >> is returned.
+
 =head3 file_location_file_uuid (required)
 
 This is the C<< files >> -> C<< file_uuid >> being referenced.
 
-=head3 file_location_anvil_uuid (required)
+=head3 file_location_host_uuid (required)
 
-This is the C<< anvils >> -> C<< anvil_uuid >> being referenced.
+This is the C<< hosts >> -> C<< host_uuid >> being referenced.
 
 =head3 file_location_active (required)
 
@@ -7955,16 +7919,18 @@ sub insert_or_update_file_locations
 	my $file                     = defined $parameter->{file}                     ? $parameter->{file}                     : "";
 	my $line                     = defined $parameter->{line}                     ? $parameter->{line}                     : "";
 	my $file_location_uuid       = defined $parameter->{file_location_uuid}       ? $parameter->{file_location_uuid}       : "";
-	my $file_location_file_uuid  = defined $parameter->{file_location_file_uuid}  ? $parameter->{file_location_file_uuid}  : "";
 	my $file_location_anvil_uuid = defined $parameter->{file_location_anvil_uuid} ? $parameter->{file_location_anvil_uuid} : "";
+	my $file_location_file_uuid  = defined $parameter->{file_location_file_uuid}  ? $parameter->{file_location_file_uuid}  : "";
+	my $file_location_host_uuid  = defined $parameter->{file_location_host_uuid}  ? $parameter->{file_location_host_uuid}  : "";
 	my $file_location_active     = defined $parameter->{file_location_active}     ? $parameter->{file_location_active}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                     => $uuid, 
 		file                     => $file,
 		line                     => $line,
 		file_location_uuid       => $file_location_uuid, 
-		file_location_file_uuid  => $file_location_file_uuid, 
 		file_location_anvil_uuid => $file_location_anvil_uuid, 
+		file_location_file_uuid  => $file_location_file_uuid, 
+		file_location_host_uuid  => $file_location_host_uuid, 
 		file_location_active     => $file_location_active, 
 	}});
 	
@@ -7974,10 +7940,10 @@ sub insert_or_update_file_locations
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_file_uuid" }});
 		return("");
 	}
-	if (not $file_location_anvil_uuid)
+	if (not $file_location_host_uuid)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_anvil_uuid" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_host_uuid" }});
 		return("");
 	}
 	if (($file_location_active ne "0") && ($file_location_active ne "1"))
@@ -7985,6 +7951,59 @@ sub insert_or_update_file_locations
 		# Throw an error and exit.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_active" }});
 		return("");
+	}
+	
+	# If we've got an Anvil! uuid, find out the hosts and DR links connected to the Anvil! are found and 
+	# this method is recursively called for each host.
+	if ($file_location_anvil_uuid)
+	{
+		$anvil->Database->get_anvils({debug => $debug});
+		if (not exists $anvil->data->{anvils}{anvil_uuid}{$file_location_anvil_uuid})
+		{
+			# Bad Anvil! UUID.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0169", variables => { anvil_uuid => $file_location_anvil_uuid }});
+			return("");
+		}
+		my $hosts = ();
+		push @{$hosts}, $anvil->data->{anvils}{anvil_uuid}{$file_location_anvil_uuid}{anvil_node1_host_uuid};
+		push @{$hosts}, $anvil->data->{anvils}{anvil_uuid}{$file_location_anvil_uuid}{anvil_node2_host_uuid};
+		if (exists $anvil->data->{dr_links}{by_anvil_uuid}{$file_location_anvil_uuid})
+		{
+			foreach my $dr_link_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$file_location_anvil_uuid}{dr_link_host_uuid}})
+			{
+				my $dr_link_uuid            = $anvil->data->{dr_links}{by_anvil_uuid}{$file_location_anvil_uuid}{dr_link_host_uuid}{$dr_link_host_uuid}{dr_link_uuid};
+				my $dr_link_note            = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note};
+				my $dr_link_short_host_name = $anvil->data->{hosts}{host_uuid}{$dr_link_host_uuid}{short_host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:dr_link_host_uuid"       => $dr_link_host_uuid, 
+					"s2:dr_link_uuid"            => $dr_link_uuid, 
+					"s3:dr_link_note"            => $dr_link_note, 
+					"s4:dr_link_short_host_name" => $dr_link_short_host_name, 
+				}});
+				
+				next if $dr_link_note eq "DELETED";
+				push @{$hosts}, $dr_link_host_uuid; 
+			}
+		}
+		my $file_location_uuids = "";
+		foreach my $host_uuid (@{$hosts})
+		{
+			my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
+				debug                    => $debug, 
+				file_location_file_uuid  => $file_location_file_uuid, 
+				file_location_host_uuid  => $host_uuid, 
+				file_location_active     => $file_location_active, 
+			});
+			$file_location_uuids .= $host_uuid."=".$file_location_uuid.",";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				file_location_uuid  => $file_location_uuid,
+				file_location_uuids => $file_location_uuids, 
+			}});
+		}
+		$file_location_uuids =~ s/,$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuids => $file_location_uuids }});
+		
+		return($file_location_uuids);
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given md5sum.
@@ -7996,9 +8015,9 @@ SELECT
 FROM 
     file_locations 
 WHERE 
-    file_location_file_uuid  = ".$anvil->Database->quote($file_location_file_uuid)." 
+    file_location_file_uuid = ".$anvil->Database->quote($file_location_file_uuid)." 
 AND 
-    file_location_anvil_uuid = ".$anvil->Database->quote($file_location_anvil_uuid)." 
+    file_location_host_uuid = ".$anvil->Database->quote($file_location_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -8029,15 +8048,15 @@ INSERT INTO
 (
     file_location_uuid, 
     file_location_file_uuid, 
-    file_location_anvil_uuid, 
+    file_location_host_uuid, 
     file_location_active, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($file_location_uuid).", 
     ".$anvil->Database->quote($file_location_file_uuid).", 
-    ".$anvil->Database->quote($file_location_anvil_uuid).", 
+    ".$anvil->Database->quote($file_location_host_uuid).", 
     ".$anvil->Database->quote($file_location_active).", 
-   ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -8049,8 +8068,8 @@ INSERT INTO
 		my $query = "
 SELECT 
     file_location_file_uuid, 
-    file_location_anvil_uuid, 
-    file_location_active, 
+    file_location_host_uuid, 
+    file_location_active 
 FROM 
     file_locations 
 WHERE 
@@ -8072,31 +8091,31 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_file_location_file_uuid  = $row->[0];
-			my $old_file_location_anvil_uuid = $row->[1];
-			my $old_file_location_active     = $row->[2];
+			my $old_file_location_file_uuid = $row->[0];
+			my $old_file_location_host_uuid = $row->[1];
+			my $old_file_location_active    = $row->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_file_location_file_uuid  => $old_file_location_file_uuid, 
-				old_file_location_anvil_uuid => $old_file_location_anvil_uuid, 
-				old_file_location_active     => $old_file_location_active, 
+				old_file_location_file_uuid => $old_file_location_file_uuid, 
+				old_file_location_host_uuid => $old_file_location_host_uuid, 
+				old_file_location_active    => $old_file_location_active, 
 			}});
 			
 			# Anything change?
-			if (($old_file_location_file_uuid  ne $file_location_file_uuid)      or 
-			    ($old_file_location_anvil_uuid ne $file_location_anvil_uuid) or 
-			    ($old_file_location_active     ne $file_location_active))
+			if (($old_file_location_file_uuid ne $file_location_file_uuid) or 
+			    ($old_file_location_host_uuid ne $file_location_host_uuid) or 
+			    ($old_file_location_active    ne $file_location_active))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
     file_locations 
 SET 
-    file_location_file_uuid  = ".$anvil->Database->quote($file_location_file_uuid).", 
-    file_location_anvil_uuid = ".$anvil->Database->quote($file_location_anvil_uuid).", 
-    file_location_active     = ".$anvil->Database->quote($file_location_active).", 
-    modified_date            = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+    file_location_file_uuid = ".$anvil->Database->quote($file_location_file_uuid).", 
+    file_location_host_uuid = ".$anvil->Database->quote($file_location_host_uuid).", 
+    file_location_active    = ".$anvil->Database->quote($file_location_active).", 
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
-    file_location_uuid       = ".$anvil->Database->quote($file_location_uuid)." 
+    file_location_uuid      = ".$anvil->Database->quote($file_location_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -13409,7 +13428,7 @@ AND
 	if (not $storage_group_member_uuid)
 	{
 		# INSERT
-		my $storage_group_member_uuid = $anvil->Get->uuid();
+		$storage_group_member_uuid = $anvil->Get->uuid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 		
 		my $query = "
@@ -17496,6 +17515,237 @@ AND
 	# Reconnect
 	$anvil->refresh();
 	$anvil->Database->connect({debug => $debug});
+	
+	return(0);
+}
+
+
+=head2 track_file
+
+This looks at all files in the database, and then for all Anvil! systems and linked DR hosts, ensures that there's a corresponding C<< file_locations >> entry.
+
+This method takes no parameters.
+
+=cut
+sub track_files
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->track_files()" }});
+	
+	my $anvils = keys %{$anvil->data->{anvils}{anvil_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvils => $anvils }});
+	if (not $anvils)
+	{
+		$anvil->Database->get_anvils({debug => $debug});
+	}
+	
+	my $files = keys %{$anvil->data->{files}{file_uuid}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { files => $files }});
+	if (not $files)
+	{
+		$anvil->Database->get_files({debug => $debug});
+	}
+	
+	my $file_locations = keys %{$anvil->data->{file_locations}{file_location_uuid}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_locations => $file_locations }});
+	if (not $file_locations)
+	{
+		$anvil->Database->get_file_locations({debug => $debug});
+	}
+	
+	my $dr_link_uuid = keys %{$anvil->data->{dr_links}{dr_link_uuid}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dr_link_uuid => $dr_link_uuid }});
+	if (not $dr_link_uuid)
+	{
+		$anvil->Database->get_dr_links({debug => $debug});
+	}
+
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid            = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_description     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
+		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:anvil_name'            => $anvil_name,
+			's2:anvil_uuid'            => $anvil_uuid,
+			's3:anvil_description'     => $anvil_description, 
+			's4:anvil_node1_host_uuid' => $anvil_node1_host_uuid, 
+			's5:anvil_node2_host_uuid' => $anvil_node2_host_uuid, 
+		}});
+		
+		# Loop through all files and see if there's a corresponding file_location for each sub-node.
+		my $reload = 0;
+		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
+		{
+			my $file_uuid = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:file_name' => $file_name,
+				's2:file_uuid' => $file_uuid, 
+			}});
+			
+			foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+				
+				if ((not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}) or 
+				    ($anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid}))
+				{
+					# Add it
+					    $reload              = 1;
+					my ($file_location_uuid) = $anvil->Database->insert_or_update_file_locations({
+						debug                   => $debug,
+						file_location_file_uuid => $file_uuid,
+						file_location_host_uuid => $host_uuid,
+						file_location_active    => 1,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						reload             => $reload,
+						file_location_uuid => $file_location_uuid,
+					}});
+				}
+			}
+		}
+		if ($reload)
+		{
+			$anvil->Database->get_file_locations({debug => $debug});
+		}
+		
+		# Track the files on this Anvil!
+		foreach my $file_location_uuid (keys %{$anvil->data->{file_locations}{file_location_uuid}})
+		{
+			my $file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
+			my $file_type = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+			my $file_name = $anvil->data->{files}{file_uuid}{$file_uuid}{file_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				file_location_uuid => $file_location_uuid,
+				file_uuid          => $file_uuid, 
+				file_type          => $file_type, 
+				file_name          => $file_name, 
+			}});
+			next if $file_type eq "DELETED";
+			
+			### TODO - Left off here, not adding DR links.
+			my $anvil_needs_file = 0;
+			foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+				
+				if ((exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}) && 
+				    ($anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid}))
+				{
+					my $file_location_uuid   = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+					my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						file_location_uuid   => $file_location_uuid,
+						file_location_active => $file_location_active, 
+					}});
+					
+					if ($file_location_active)
+					{
+						$anvil_needs_file = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_needs_file => $anvil_needs_file }});
+					}
+				}
+			}
+			
+			# If either node wanted the file, both nodes and all linked DRs need it.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_needs_file => $anvil_needs_file }});
+			if ($anvil_needs_file)
+			{
+				# Update the hosts
+				foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+					
+					my ($file_location_uuid) = $anvil->Database->insert_or_update_file_locations({
+						debug                   => $debug,
+						file_location_file_uuid => $file_uuid,
+						file_location_host_uuid => $host_uuid,
+						file_location_active    => 1,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+				}
+				
+				# Make sure linked DR hosts have this file, also.
+				foreach my $host_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}})
+				{
+					my $file_location_uuid   = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+					my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+					
+					if (not $file_location_active)
+					{
+						my ($file_location_uuid) = $anvil->Database->insert_or_update_file_locations({
+							debug                   => $debug,
+							file_location_file_uuid => $file_uuid,
+							file_location_host_uuid => $host_uuid,
+							file_location_active    => 1,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+					}
+				}
+				
+				# If the file was deleted, this won't exist
+				next if not exists $anvil->data->{files}{file_uuid}{$file_uuid};
+				
+				# Record that this Anvil! node has this file.
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}      = $file_name;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory} = $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory};
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_size};
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}    = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}      = $anvil->data->{files}{file_uuid}{$file_uuid}{file_type};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_name}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_directory}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_size"      => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}})." (".$anvil->Convert->add_commas({number => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_size}}).")", 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_md5sum}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_type}, 
+				}});
+				
+				# Make it so that we can list the files by name.
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid} = $file_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
+				}});
+				
+				# Make sure linked DR hosts have this file, also.
+				foreach my $host_uuid (keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}})
+				{
+					my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						host_name => $host_name, 
+						host_uuid => $host_uuid, 
+					}});
+					
+					my $file_location_uuid   = "";
+					my $file_location_active = 0;
+					if (exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
+					{
+						$file_location_uuid   = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+						$file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						file_location_uuid   => $file_location_uuid, 
+						file_location_active => $file_location_active, 
+					}});
+					
+					if (not $file_location_active)
+					{
+						my ($file_location_uuid) = $anvil->Database->insert_or_update_file_locations({
+							debug                   => $debug,
+							file_location_file_uuid => $file_uuid,
+							file_location_host_uuid => $host_uuid,
+							file_location_active    => 1,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+					}
+				}
+			}
+		}
+	}
 	
 	return(0);
 }

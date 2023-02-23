@@ -281,18 +281,9 @@ WHERE
 			}
 		}
 		
-		# If deleting an Anvil!, we need to clear any Anvil! references from file_locations and storage groups.
+		# If deleting an Anvil!, we need to clear any Anvil! references from storage groups.
 		if (($table eq "anvils") && ($anvil->data->{purge}{anvil_uuid}))
 		{
-			# 
-			my $query = "DELETE FROM history.file_locations WHERE file_location_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid}).";";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-			push @{$queries}, $query;
-			
-			$query = "DELETE FROM file_locations WHERE file_location_anvil_uuid = ".$anvil->Database->quote($anvil->data->{purge}{anvil_uuid}).";";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-			push @{$queries}, $query;
-			
 			# Storage groups
 			$query = "
 SELECT 
