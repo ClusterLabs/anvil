@@ -2747,7 +2747,7 @@ AND
 			"network::${host}::interface::${bond_name}::down_delay"           => $anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}, 
 			"network::${host}::interface::${bond_name}::mac_address"          => $anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}, 
 			"network::${host}::interface::${bond_name}::operational"          => $anvil->data->{network}{$host}{interface}{$bond_name}{operational}, 
-			"network::${host}::interface::${bond_name}::bridge_uuid"          => $anvil->data->{network}{$host}{interface}{$bond_name}{bridge}, 
+			"network::${host}::interface::${bond_name}::bridge_uuid"          => $anvil->data->{network}{$host}{interface}{$bond_name}{bridge_uuid}, 
 			"network::${host}::interface::${bond_name}::type"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{type}, 
 		}});
 	}
@@ -2996,6 +2996,8 @@ AND
 			ip_address_on_uuid         => $ip_address_on_uuid,
 		}});
 		
+		my $bridge_name            = "";
+		my $bond_name              = "";
 		my $interface_name         = "";
 		my $interface_mac          = "";
 		my $network_interface_uuid = "";
@@ -3010,15 +3012,28 @@ AND
 			if ($ip_address_on_type eq "bridge")
 			{
 				# What's the bridge UUID?
-				$query = "SELECT bond_active_interface FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+				$query = "SELECT bond_name, bond_active_interface FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+				
+				# Get the bridge name, also.
+				if (1)
+				{
+					my $query       = "SELECT bridge_name FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+					   $bridge_name = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_name => $bridge_name }});
+				}
 			}
 			else
 			{
-				$query = "SELECT bond_active_interface FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+				$query = "SELECT bond_name, bond_active_interface FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
 			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			my $active_interface = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_interface => $active_interface }});
+			my $results          = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			   $bond_name        = $results->[0]->[0];
+			my $active_interface = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name   => $interface_name, 
+				active_interface => $active_interface,
+			}});
 			
 			if ($active_interface)
 			{
@@ -3067,6 +3082,18 @@ AND
 				interface_name => $interface_name, 
 				interface_mac  => $interface_mac, 
 			}});
+			
+			# If this is a bridge or a bond, use that name for the interface.
+			if ($bridge_name)
+			{
+				$interface_name = $bridge_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
+			if ($bond_name)
+			{
+				$interface_name = $bond_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
 			
 			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} =         $results->[0]->[0];
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            =         $interface_mac;
