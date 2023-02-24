@@ -1,19 +1,21 @@
-import { FC, ReactNode, useEffect, useState } from 'react';
+import {
+  DesktopWindows as DesktopWindowsIcon,
+  PowerOffOutlined as PowerOffOutlinedIcon,
+} from '@mui/icons-material';
 import {
   Box,
   IconButton as MUIIconButton,
   IconButtonProps as MUIIconButtonProps,
 } from '@mui/material';
-import {
-  DesktopWindows as DesktopWindowsIcon,
-  PowerOffOutlined as PowerOffOutlinedIcon,
-} from '@mui/icons-material';
+import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
+import FlexBox from '../FlexBox';
 import IconButton, { IconButtonProps } from '../IconButton';
 import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
+import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 
 type PreviewOptionalProps = {
@@ -85,8 +87,34 @@ const Preview: FC<PreviewProps> = ({
   serverUUID,
   onClickConnectButton: connectButtonClickHandle = previewClickHandler,
 }) => {
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(true);
   const [isPreviewStale, setIsPreviewStale] = useState<boolean>(false);
   const [preview, setPreview] = useState<string>('');
+
+  const previewButtonContent = useMemo(
+    () =>
+      preview ? (
+        <Box
+          alt=""
+          component="img"
+          src={`data:image/png;base64,${preview}`}
+          sx={{
+            height: '100%',
+            opacity: isPreviewStale ? '0.4' : '1',
+            padding: isUseInnerPanel ? '.2em' : 0,
+            width: '100%',
+          }}
+        />
+      ) : (
+        <PowerOffOutlinedIcon
+          sx={{
+            height: '100%',
+            width: '100%',
+          }}
+        />
+      ),
+    [isPreviewStale, isUseInnerPanel, preview],
+  );
 
   useEffect(() => {
     if (isFetchPreview) {
@@ -107,11 +135,14 @@ const Preview: FC<PreviewProps> = ({
           setIsPreviewStale(false);
         } catch {
           setIsPreviewStale(true);
+        } finally {
+          setIsPreviewLoading(false);
         }
       })();
     } else if (externalPreview) {
       setPreview(externalPreview);
       setIsPreviewStale(isExternalPreviewStale);
+      setIsPreviewLoading(false);
     }
   }, [externalPreview, isExternalPreviewStale, isFetchPreview, serverUUID]);
 
@@ -120,56 +151,33 @@ const Preview: FC<PreviewProps> = ({
       <PreviewPanelHeader isUseInnerPanel={isUseInnerPanel} text={serverName}>
         {headerEndAdornment}
       </PreviewPanelHeader>
-      <Box
-        sx={{
-          display: 'flex',
-          width: '100%',
-
-          '& > :not(:last-child)': {
-            marginRight: '1em',
-          },
-        }}
-      >
+      <FlexBox row sx={{ '& > :first-child': { flexGrow: 1 } }}>
+        {/* Box wrapper below is required to keep external preview size sane. */}
         <Box>
-          <MUIIconButton
-            component="span"
-            onClick={previewClickHandler}
-            sx={{
-              borderRadius: BORDER_RADIUS,
-              color: GREY,
-              padding: 0,
-            }}
-          >
-            {preview ? (
-              <Box
-                alt=""
-                component="img"
-                src={`data:image/png;base64,${preview}`}
-                sx={{
-                  height: '100%',
-                  opacity: isPreviewStale ? '0.4' : '1',
-                  padding: isUseInnerPanel ? '.2em' : 0,
-                  width: '100%',
-                }}
-              />
-            ) : (
-              <PowerOffOutlinedIcon
-                sx={{
-                  height: '100%',
-                  width: '100%',
-                }}
-              />
-            )}
-          </MUIIconButton>
+          {isPreviewLoading ? (
+            <Spinner mt="1em" mb="1em" />
+          ) : (
+            <MUIIconButton
+              component="span"
+              onClick={previewClickHandler}
+              sx={{
+                borderRadius: BORDER_RADIUS,
+                color: GREY,
+                padding: 0,
+              }}
+            >
+              {previewButtonContent}
+            </MUIIconButton>
+          )}
         </Box>
         {isShowControls && (
-          <Box>
+          <FlexBox>
             <IconButton onClick={connectButtonClickHandle}>
               <DesktopWindowsIcon />
             </IconButton>
-          </Box>
+          </FlexBox>
         )}
-      </Box>
+      </FlexBox>
     </PreviewPanel>
   );
 };

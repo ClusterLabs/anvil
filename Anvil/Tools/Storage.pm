@@ -35,6 +35,7 @@ my $THIS_FILE = "Storage.pm";
 # move_file
 # parse_df
 # parse_lsblk
+# push_file
 # read_config
 # read_file
 # read_mode
@@ -3451,6 +3452,273 @@ sub parse_lsblk
 }
 
 
+=head2 push_file
+
+This takes a file and pushes it to all other machines in the cluster, serially. For machines that can't be accessed, a job is registered to pull the file.
+
+If C<< switches::job-uuid >> is set, the corresponding job will be updated. The progress assumes that C<< sys::progress >> is set.
+
+Parameters;
+
+=head3 file (required)
+
+This is the source file to copy from locally and push it to all peers' C<< /mnt/shared/files/ >> directory.
+
+=cut
+sub push_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->push_file()" }});
+	
+	# Setup default values
+	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $file_uuid = defined $parameter->{file_uuid} ? $parameter->{file_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file      => $file,
+		file_uuid => $file_uuid,
+	}});
+	
+	if (not $file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->push_file()", parameter => "file" }});
+		return("!!error!!");
+	}
+	if (not -f $file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0105", variables => { file => $file }});
+		return("!!error!!");
+	}
+	
+	$anvil->Database->get_files({debug => $debug});
+	my $file_size                    =  0;
+	my ($file_directory, $file_name) =  ($file =~ /^(.*)\/(.*?)$/);
+	   $file_directory               =~ s/\/$//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:file_directory' => $file_directory, 
+		's2:file_name'      => $file_name,
+	}});
+	if (not $file_uuid)
+	{
+		# Can we find the file?
+		foreach my $this_file_uuid (keys %{$anvil->data->{files}{file_uuid}})
+		{
+			my $this_file_name      =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_name};
+			my $this_file_directory =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_directory};
+			   $this_file_directory =~ s/\/$//g;
+			my $this_file_size      =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_size};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				this_file_uuid      => $this_file_uuid, 
+				this_file_directory => $this_file_directory, 
+				this_file_name      => $this_file_name,
+				this_file_size      => $this_file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_file_size}).")", 
+			}});
+			
+			if (($file_name      eq $this_file_name) && 
+			    ($file_directory eq $this_file_directory))
+			{
+				# Found it.
+				$file_uuid = $this_file_uuid;
+				$file_size = $this_file_size;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					file_uuid => $file_uuid, 
+					file_size => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+				}});
+				last;
+			}
+		}
+	}
+	
+	if ((not $file_uuid) or (not $file_size))
+	{
+		$file_size = (stat($file))[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			file_size => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+		}});
+	}
+	
+	# Now copy this to our peers. We're going to do this serially so that we don't overwhelm the system,
+	# Any hosts not currently online will have a job registered.
+	$anvil->Database->get_hosts;
+	my $host_uuid        = $anvil->Get->host_uuid();
+	my $host_name        = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+	my $target_directory = $anvil->data->{path}{directories}{shared}{files}."/";
+	foreach my $do_host_type ("striker", "node", "dr")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { do_host_type => $do_host_type }});
+		foreach my $target_host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+		{
+			my $target_host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$target_host_name};
+			my $target_host_type       = $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{host_type};
+			my $target_short_host_name = $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{short_host_name};
+			next if $target_host_uuid eq $host_uuid;
+			next if $target_host_type ne $do_host_type;
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:target_host_name'       => $target_host_name, 
+				's2:target_host_uuid'       => $target_host_uuid,
+				's3:target_host_type'       => $target_host_type,
+				's4:target_short_host_name' => $target_short_host_name, 
+			}});
+			
+			my $matches = $anvil->Network->find_access({
+				debug  => 2,
+				target => $target_short_host_name, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
+			next if not $matches;
+			next if $matches =~ /\D/;
+			
+			# Find a matching IP.
+			# We prefer to use least to most used networks, with the IFN being the last choice.
+			my $copied = 0;
+			foreach my $network ("mn", "bcn", "sn", "ifn")
+			{
+				next if $copied;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+				foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
+				{
+					next if $copied;
+					next if $network_name !~ /^$network/i;
+					my $local_interface    = $anvil->data->{network_access}{$network_name}{local_interface};
+					my $local_speed        = $anvil->data->{network_access}{$network_name}{local_speed};
+					my $local_ip_address   = $anvil->data->{network_access}{$network_name}{local_ip_address};
+					my $local_subnet_mask  = $anvil->data->{network_access}{$network_name}{local_subnet_mask};
+					my $target_interface   = $anvil->data->{network_access}{$network_name}{target_interface};
+					my $target_speed       = $anvil->data->{network_access}{$network_name}{target_speed};
+					my $target_ip_address  = $anvil->data->{network_access}{$network_name}{target_ip_address};
+					my $target_subnet_mask = $anvil->data->{network_access}{$network_name}{target_subnet_mask};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:local_interface'    => $local_interface, 
+						's2:local_speed'        => $local_speed, 
+						's3:local_ip_address'   => $local_ip_address,
+						's4:local_subnet_mask'  => $local_subnet_mask, 
+						's5:target_interface'   => $target_interface, 
+						's6:target_speed'       => $target_speed, 
+						's7:target_ip_address'  => $target_ip_address,
+						's8:target_subnet_mask' => $target_subnet_mask, 
+					}});
+					
+					my $access = $anvil->Remote->test_access({target => $target_ip_address});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+					
+					if ($access)
+					{
+						### Rsync!
+						# Estimate how long this will take. First, get the speed in 
+						# Mbps and turn it into bytes per second, then into bytes per
+						# second. We'll take 10% off, then calculate how many seconds
+						# the copy will take.
+						my $link_mbps           = $target_speed > $local_speed ? $target_speed : $local_speed;
+						my $link_bps            = $link_mbps * 1000000;
+						my $link_bytes_sec      = int($link_bps / 8);
+						my $adjusted_byptes_sec = int($link_bytes_sec * 0.9);
+						my $copy_seconds        = int($file_size / $adjusted_byptes_sec);
+						my $say_copy_time       = $anvil->Convert->time({'time' => $copy_seconds, translate => 1});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:link_mbps'           => $anvil->Convert->add_commas({number => $link_mbps})." ".$anvil->Words->string({string => "#!string!suffix_0050!#"}),
+							's2:link_bps'            => $anvil->Convert->add_commas({number => $link_bps})." ".$anvil->Words->string({string => "#!string!suffix_0048!#"}),
+							's3:link_bytes_sec'      => $anvil->Convert->add_commas({number => $link_bytes_sec})." ".$anvil->Words->string({string => "#!string!suffix_0060!#"}),
+							's4:adjusted_byptes_sec' => $anvil->Convert->add_commas({number => $adjusted_byptes_sec})." ".$anvil->Words->string({string => "#!string!suffix_0060!#"}),
+							's5:copy_seconds'        => $anvil->Convert->add_commas({number => $copy_seconds})." ".$anvil->Words->string({string => "#!string!suffix_0007!#"}),
+							's6:say_copy_time'       => $say_copy_time, 
+							's7:file_size'           => $anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}),
+						}});
+						
+						my $variables = {
+							host             => $target_short_host_name,
+							network          => $network_name, 
+							ip_address       => $target_ip_address, 
+							source_file      => $file,
+							target_directory => $target_directory, 
+							size             => $anvil->Convert->bytes_to_human_readable({"bytes" => $file_size}),
+							link_speed       => $anvil->Convert->add_commas({number => $link_mbps})." ".$anvil->Words->string({string => "#!string!suffix_0050!#"}), 
+							eta_copy_time    => $say_copy_time, 
+						};
+						$anvil->data->{sys}{progress} += 2;
+						$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
+						$anvil->Job->update_progress({
+							progress  => $anvil->data->{sys}{progress}, 
+							message   => "message_0195", 
+				   			variables => $variables,
+						});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0195", variables => $variables});
+						my $problem = $anvil->Storage->rsync({
+							debug       => 2, 
+							source      => $file, 
+							destination => "root\@".$target_ip_address.":".$target_directory, 
+							try_again   => 1, 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+						if (not $problem)
+						{
+							$copied = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { copied => $copied }});
+							
+							$anvil->data->{sys}{progress} += 5;
+							$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
+							$anvil->Job->update_progress({
+								progress => $anvil->data->{sys}{progress}, 
+								message  => "message_0310", 
+							});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0310"});
+						}
+					}
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+			if ($file_uuid)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { copied => $copied }});
+				if (not $copied)
+				{
+					# Failed to connect, register a job instead.
+					my $variables = { host => $target_host_name };
+					$anvil->data->{sys}{progress} += 5;
+					$anvil->data->{sys}{progress} = 90 if $anvil->data->{sys}{progress} > 90;
+					$anvil->Job->update_progress({
+						progress  => $anvil->data->{sys}{progress}, 
+						message   => "message_0196", 
+						variables => $variables, 
+					});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0196", variables => $variables});
+					my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+						file            => $THIS_FILE, 
+						line            => __LINE__, 
+						job_command     => $anvil->data->{path}{exe}{'anvil-sync-shared'}.$anvil->Log->switches, 
+						job_data        => "file_uuid=".$file_uuid, 
+						job_name        => "storage::pull_file", 
+						job_title       => "job_0132", 
+						job_description => "job_0133", 
+						job_progress    => 0,
+						job_host_uuid   => $target_host_uuid,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+				}
+				
+				# Mark the file as being on this host
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { do_host_type => $do_host_type }});
+				if ($do_host_type ne "striker")
+				{
+					my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
+						debug                   => 2, 
+						file_location_file_uuid => $file_uuid, 
+						file_location_host_uuid => $target_host_uuid, 
+						file_location_active    => 1, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 read_config
 
 This method is used to read 'Anvil::Tools' style configuration files. These configuration files are in the format:
@@ -5246,7 +5514,7 @@ Parameters;
 
 This is the full path to the file. If the file is not found, C<< !!error!! >> is returned.
 
-=head3 delay (optional, default '2')
+=head3 delay (optional, default '10')
 
 This is how long to wait before checking to see if the file has changed.
 

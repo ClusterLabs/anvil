@@ -1,4 +1,6 @@
-import { Dispatch, SetStateAction, useState } from 'react';
+import { Dispatch, SetStateAction, useMemo, useState } from 'react';
+
+import useProtect from './useProtect';
 
 type SetStateFunction<S> = Dispatch<SetStateAction<S>>;
 
@@ -8,17 +10,24 @@ type SetStateReturnType<S> = ReturnType<SetStateFunction<S>>;
 
 const useProtectedState = <S>(
   initialState: S | (() => S),
-  protect: (
+  protect?: (
     fn: SetStateFunction<S>,
     ...args: SetStateParameters<S>
   ) => SetStateReturnType<S>,
 ): [S, SetStateFunction<S>] => {
+  const { protect: defaultProtect } = useProtect();
+
   const [state, setState] = useState<S>(initialState);
+
+  const pfn = useMemo(
+    () => protect ?? defaultProtect,
+    [defaultProtect, protect],
+  );
 
   return [
     state,
     (...args: SetStateParameters<S>): SetStateReturnType<S> =>
-      protect(setState, ...args),
+      pfn(setState, ...args),
   ];
 };
 

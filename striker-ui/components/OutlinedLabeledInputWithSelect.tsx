@@ -12,10 +12,7 @@ import { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel, {
   OutlinedInputWithLabelProps,
 } from './OutlinedInputWithLabel';
-import SelectWithLabel, {
-  SelectItem,
-  SelectWithLabelProps,
-} from './SelectWithLabel';
+import SelectWithLabel, { SelectWithLabelProps } from './SelectWithLabel';
 
 type OutlinedLabeledInputWithSelectOptionalProps = {
   inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;

@@ -22,7 +22,7 @@ const buildIDCondition = (
 export const buildUnknownIDCondition = (
   keys: unknown,
   conditionPrefix: string,
-  { onFallback }: { onFallback?: () => string },
+  { onFallback }: { onFallback?: () => string } = {},
 ): { after: string; before: string[] } => {
   const before = sanitize(keys, 'string[]', {
     modifierType: 'sql',

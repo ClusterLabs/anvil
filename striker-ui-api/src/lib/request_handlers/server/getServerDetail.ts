@@ -8,7 +8,15 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { dbQuery, getLocalHostUUID, job } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { mkfifo, rm } from '../../shell';
+import { mkfifo, rm, stderr, stdout } from '../../shell';
+
+const rmfifo = (path: string) => {
+  try {
+    rm(path);
+  } catch (rmfifoError) {
+    stderr(`Failed to clean up named pipe; CAUSE: ${rmfifoError}`);
+  }
+};
 
 export const getServerDetail: RequestHandler = (request, response) => {
   const { serverUUID } = request.params;
@@ -17,7 +25,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
   const epoch = Date.now();
   const isScreenshot = sanitize(ss, 'boolean');
 
-  console.log(
+  stdout(
     `serverUUID=[${serverUUID}],epoch=[${epoch}],isScreenshot=[${isScreenshot}]`,
   );
 
@@ -27,7 +35,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
       `Server UUID must be a valid UUID; got [${serverUUID}]`,
     );
   } catch (assertError) {
-    console.log(
+    stderr(
       `Failed to assert value when trying to get server detail; CAUSE: ${assertError}.`,
     );
 
@@ -42,14 +50,14 @@ export const getServerDetail: RequestHandler = (request, response) => {
     try {
       requestHostUUID = getLocalHostUUID();
     } catch (subError) {
-      console.log(subError);
+      stderr(String(subError));
 
       response.status(500).send();
 
       return;
     }
 
-    console.log(`requestHostUUID=[${requestHostUUID}]`);
+    stdout(`requestHostUUID=[${requestHostUUID}]`);
 
     try {
       [[serverHostUUID]] = dbQuery(`
@@ -57,14 +65,14 @@ export const getServerDetail: RequestHandler = (request, response) => {
           FROM servers
           WHERE server_uuid = '${serverUUID}';`).stdout;
     } catch (queryError) {
-      console.log(`Failed to get server host UUID; CAUSE: ${queryError}`);
+      stderr(`Failed to get server host UUID; CAUSE: ${queryError}`);
 
       response.status(500).send();
 
       return;
     }
 
-    console.log(`serverHostUUID=[${serverHostUUID}]`);
+    stdout(`serverHostUUID=[${serverHostUUID}]`);
 
     const imageFileName = `${serverUUID}_screenshot_${epoch}`;
     const imageFilePath = path.join(SERVER_PATHS.tmp.self, imageFileName);
@@ -79,39 +87,45 @@ export const getServerDetail: RequestHandler = (request, response) => {
 
       let imageData = '';
 
-      namedPipeReadStream.once('close', () => {
-        console.log(`On close; removing named pipe at ${imageFilePath}.`);
-
-        try {
-          rm(imageFilePath);
-        } catch (cleanPipeError) {
-          console.log(
-            `Failed to clean up named pipe; CAUSE: ${cleanPipeError}`,
-          );
-        }
+      namedPipeReadStream.once('error', (readError) => {
+        stderr(`Failed to read from named pipe; CAUSE: ${readError}`);
       });
 
-      namedPipeReadStream.once('end', () => {
+      namedPipeReadStream.once('close', () => {
+        stdout(`On close; removing named pipe at ${imageFilePath}.`);
+
         response.status(200).send({ screenshot: imageData });
+
+        rmfifo(imageFilePath);
       });
 
       namedPipeReadStream.on('data', (data) => {
         const imageChunk = data.toString().trim();
-        const chunkLogLength = 10;
+        const peekLength = 10;
 
-        console.log(
-          `${serverUUID} image chunk: ${imageChunk.substring(
-            0,
-            chunkLogLength,
-          )}...${imageChunk.substring(imageChunk.length - chunkLogLength - 1)}`,
+        stdout(
+          `${serverUUID} image chunk: ${
+            imageChunk.length > 0
+              ? `${imageChunk.substring(
+                  0,
+                  peekLength,
+                )}...${imageChunk.substring(
+                  imageChunk.length - peekLength - 1,
+                )}`
+              : 'empty'
+          }`,
         );
 
         imageData += imageChunk;
       });
     } catch (prepPipeError) {
-      console.log(`Failed to prepare named pipe; CAUSE: ${prepPipeError}`);
+      stderr(
+        `Failed to prepare named pipe and/or receive image data; CAUSE: ${prepPipeError}`,
+      );
 
       response.status(500).send();
+
+      rmfifo(imageFilePath);
 
       return;
     }
@@ -136,9 +150,7 @@ out-file-id=${epoch}`,
         job_host_uuid: serverHostUUID,
       });
     } catch (subError) {
-      console.log(
-        `Failed to queue fetch server screenshot job; CAUSE: ${subError}`,
-      );
+      stderr(`Failed to queue fetch server screenshot job; CAUSE: ${subError}`);
 
       response.status(500).send();
 

@@ -24,6 +24,7 @@ my $THIS_FILE = "DRBD.pm";
 # get_next_resource
 # get_status
 # manage_resource
+# parse_resource
 # reload_defaults
 # remove_backing_lv
 # resource_uuid
@@ -1492,7 +1493,7 @@ LIMIT 1
 				my $value    = $option_ref->{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					variable => $variable,
-					value    => $variable, 
+					value    => $value, 
 				}});
 				if ($variable eq "auto-promote")
 				{
@@ -1581,10 +1582,14 @@ LIMIT 1
 				
 				if (($anvil->data->{drbd}{config}{$host}{host}) && ($anvil->data->{drbd}{config}{$host}{host} eq $this_host))
 				{
+					$anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{on}             = $lv_path;
+					$anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{resource}       = $this_resource;
 					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on}       = $lv_path;
 					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource} = $this_resource;
 					$anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under}        = $drbd_path;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+						"drbd::config::${host}::by_res::${by_res}::on"             => $anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{on},
+						"drbd::config::${host}::by_res::${by_res}::resource"       => $anvil->data->{drbd}{config}{$host}{by_res}{$by_res}{resource},
 						"drbd::config::${host}::drbd_path::${drbd_path}::on"       => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on},
 						"drbd::config::${host}::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource},
 						"drbd::config::${host}::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under},
@@ -2356,6 +2361,253 @@ sub manage_resource
 	
 	return($return_code);
 }
+
+
+=head2 parse_resource
+
+This takes the XML from a specific DRBD resource and parses it.
+
+Parameters;
+
+=head3 xml (required)
+
+This is the XML to parse, generally as stored in the C<< scan_drbd_resources >> -> C<< scan_drbd_resource_xml >>.
+
+=cut
+sub parse_resource
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->parse_resource()" }});
+	
+	my $xml = defined $parameter->{xml} ? $parameter->{xml} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		xml => $xml, 
+	}});
+	
+	if (not $xml)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->parse_resource()", parameter => "xml" }});
+		return("!!error!!");
+	}
+	
+	local $@;
+	my $dom = eval { XML::LibXML->load_xml(string => $xml); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0253", variables => { 
+			xml   => $xml,
+			error => $@,
+		}});
+		return(1);
+	}
+	else
+	{
+		# Successful parse!
+=cut
+<resource name="srv01-fs37" conf-file-line="/etc/drbd.d/srv01-fs37.res:2">
+        <host name="vm-a01n01">
+            <volume vnr="0">
+                <device minor="0">/dev/drbd_srv01-fs37_0</device>
+                <disk>/dev/cs_vm-a01n01/srv01-fs37_0</disk>
+                <meta-disk>internal</meta-disk>
+            </volume>
+            <volume vnr="1">
+                <device minor="1">/dev/drbd_srv01-fs37_1</device>
+                <disk>/dev/cs_vm-a01n01/srv01-fs37_1</disk>
+                <meta-disk>internal</meta-disk>
+            </volume>
+            <address family="(null)" port="(null)">(null)</address>
+        </host>
+        <host name="vm-a01n02">
+            <volume vnr="0">
+                <device minor="0">/dev/drbd_srv01-fs37_0</device>
+                <disk>/dev/cs_vm-a01n02/srv01-fs37_0</disk>
+                <meta-disk>internal</meta-disk>
+            </volume>
+            <volume vnr="1">
+                <device minor="1">/dev/drbd_srv01-fs37_1</device>
+                <disk>/dev/cs_vm-a01n02/srv01-fs37_1</disk>
+                <meta-disk>internal</meta-disk>
+            </volume>
+            <address family="(null)" port="(null)">(null)</address>
+        </host>
+        <host name="vm-a01dr01">
+            <volume vnr="0">
+                <device minor="0">/dev/drbd_srv01-fs37_0</device>
+                <disk>/dev/cs_vm-a01dr01/srv01-fs37_0</disk>
+                <meta-disk>internal</meta-disk>
+            </volume>
+            <volume vnr="1">
+                <device minor="1">/dev/drbd_srv01-fs37_1</device>
+                <disk>/dev/cs_vm-a01dr01/srv01-fs37_1</disk>
+                <meta-disk>internal</meta-disk>
+            </volume>
+            <address family="(null)" port="(null)">(null)</address>
+        </host>
+        <connection>
+            <host name="vm-a01n01"><address family="ipv4" port="7788">10.101.10.1</address></host>
+            <host name="vm-a01n02"><address family="ipv4" port="7788">10.101.10.2</address></host>
+            <section name="net">
+                <option name="protocol" value="C"/>
+                <option name="verify-alg" value="md5"/>
+                <option name="fencing" value="resource-and-stonith"/>
+            </section>
+            <section name="disk">
+                <option name="c-max-rate" value="500M"/>
+            </section>
+        </connection>
+        <connection>
+            <host name="vm-a01n01"><address family="ipv4" port="7789">10.201.10.1</address></host>
+            <host name="vm-a01dr01"><address family="ipv4" port="7789">10.201.10.3</address></host>
+            <section name="net">
+                <option name="protocol" value="A"/>
+                <option name="verify-alg" value="md5"/>
+                <option name="fencing" value="dont-care"/>
+            </section>
+            <section name="disk">
+                <option name="c-max-rate" value="500M"/>
+            </section>
+        </connection>
+        <connection>
+            <host name="vm-a01n02"><address family="ipv4" port="7790">10.201.10.2</address></host>
+            <host name="vm-a01dr01"><address family="ipv4" port="7790">10.201.10.3</address></host>
+            <section name="net">
+                <option name="protocol" value="A"/>
+                <option name="verify-alg" value="md5"/>
+                <option name="fencing" value="dont-care"/>
+            </section>
+            <section name="disk">
+                <option name="c-max-rate" value="500M"/>
+            </section>
+        </connection>
+</resource>
+=cut
+		foreach my $name ($dom->findnodes('/resource'))
+		{
+			my $resource = $name->{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+			
+			foreach my $host ($name->findnodes('./host'))
+			{
+				my $this_host_name = $host->{name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
+				
+				# Record the details under the hosts
+				foreach my $volume_vnr ($host->findnodes('./volume'))
+				{
+					my $volume    = $volume_vnr->{vnr};
+					my $meta_disk = $volume_vnr->findvalue('./meta-disk');
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:volume'    => $volume,
+						's2:meta_disk' => $meta_disk, 
+					}});
+					
+					my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+					
+					$anvil->data->{new}{resource}{$resource}{host_name}{$this_host_name}{host_uuid}                = $host_uuid;
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk}    = $meta_disk;
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{size}         = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:new::resource::${resource}::host_name::${this_host_name}::host_uuid"                  => $anvil->data->{new}{resource}{$resource}{host_name}{$this_host_name}{host_uuid},
+						"s2:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path},
+						"s3:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk},
+						"s4:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor},
+						"s5:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::meta_disk"    => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk},
+					}});
+				}
+			}
+			foreach my $connection ($name->findnodes('./connection'))
+			{
+				my $host1_name       = "";
+				my $host1_ip_address = "";
+				my $host1_tcp_port   = "";
+				my $host2_name       = "";
+				my $host2_ip_address = "";
+				my $host2_tcp_port   = "";
+				my $peer             = "";
+				foreach my $host ($connection->findnodes('./host'))
+				{
+					my $this_host_name = $host->{name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_host_name => $this_host_name }});
+					if (not $host1_name)
+					{
+						$host1_name       = $this_host_name;
+						$host1_ip_address = $host->findvalue('./address');
+						$host1_tcp_port   = $host->findvalue('./address/@port');
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							host1_name       => $host1_name,
+							host1_ip_address => $host1_ip_address, 
+							host1_tcp_port   => $host1_tcp_port, 
+						}});
+					}
+					else
+					{
+						$host2_name       = $this_host_name;
+						$host2_ip_address = $host->findvalue('./address');
+						$host2_tcp_port   = $host->findvalue('./address/@port');
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							host2_name       => $host2_name,
+							host2_ip_address => $host2_ip_address, 
+							host2_tcp_port   => $host2_tcp_port, 
+						}});
+						
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address} = $host1_ip_address;
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port}   = $host1_tcp_port;
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address} = $host2_ip_address;
+						$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port}   = $host2_tcp_port;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host1_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_ip_address},
+							"s2:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host1_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host1_tcp_port},
+							"s3:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_ip_address},
+							"s4:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_tcp_port},
+						}});
+						
+						foreach my $proxy ($host->findnodes('./proxy'))
+						{
+							my $host_name = $proxy->{hostname};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+							
+							# This should always be the target, but lets be safe/careful
+							next if $host_name ne $host2_name;
+							
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_ip_address}  = $proxy->findvalue('./inside');
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port}    = $proxy->findvalue('./inside/@port');
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_ip_address} = $proxy->findvalue('./outside');
+							$anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port}   = $proxy->findvalue('./outside/@port');
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"s1:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_inside_ip_address"  => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_ip_address},
+								"s2:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_inside_tcp_port"    => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_inside_tcp_port},
+								"s3:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_outside_ip_address" => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_ip_address},
+								"s4:new::resource::${resource}::host1_to_host2::${host1_name}::${host2_name}::host2_outside_tcp_port"   => $anvil->data->{new}{resource}{$resource}{host1_to_host2}{$host1_name}{$host2_name}{host2_outside_tcp_port},
+							}});
+							
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{ip_address}  = $proxy->findvalue('./inside');
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{tcp_port}    = $proxy->findvalue('./inside/@port');
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{ip_address} = $proxy->findvalue('./outside');
+							$anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{tcp_port}   = $proxy->findvalue('./outside/@port');
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"new::resource::${resource}::proxy::${host_name}::inside::ip_address"  => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{ip_address},
+								"new::resource::${resource}::proxy::${host_name}::inside::tcp_port"    => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{inside}{tcp_port},
+								"new::resource::${resource}::proxy::${host_name}::outside::ip_address" => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{ip_address},
+								"new::resource::${resource}::proxy::${host_name}::outside::tcp_port"   => $anvil->data->{new}{resource}{$resource}{proxy}{$host_name}{outside}{tcp_port},
+							}});
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 reload_defaults
 

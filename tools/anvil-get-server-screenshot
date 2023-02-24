@@ -82,6 +82,14 @@ sub get_server_screenshot
 
 	my $resize_args = defined $parameters->{resize_args} ? $parameters->{resize_args} : '';
 
+	my $sh_domstate = $anvil->data->{path}{exe}{virsh}." domstate --domain ".$server_uuid;
+	my ($sh_domstate_output, $sh_domstate_return_code) = system_call({ debug => $debug, shell_call => $sh_domstate });
+
+	if ( ($sh_domstate_return_code != 0) || ($sh_domstate_output ne "running") )
+	{
+		return "";
+	}
+
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." --quiet screenshot --domain ".$server_uuid." --file ".$anvil->data->{path}{devices}{stdout};
 
 	if ($resize_args =~ /^\d+x\d+$/)
@@ -95,7 +103,7 @@ sub get_server_screenshot
 
 	my ($output, $return_code) = system_call({ debug => $debug, shell_call => $shell_call });
 
-	return $return_code == 0 ? $output : undef;
+	return $return_code == 0 ? $output : "";
 }
 
 $anvil->Get->switches;
@@ -175,20 +183,22 @@ if ($server_uuid)
 
 	if ($request_host_uuid)
 	{
-		if (defined $encoded_image)
+		my $request_host_ip_address = get_remote_call_requirements({ debug => $debug, host_uuid => $request_host_uuid });
+		my $out_file_path           = $anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot_".$out_file_id;
+		my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' 1<>'".$out_file_path."' >'".$out_file_path."'";
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { request_host_ip_address => $request_host_ip_address } });
+
+		remote_call({ debug => $debug, shell_call => $remote_shell_call, target => $request_host_ip_address });
+
+		if (length($encoded_image))
 		{
-			my $request_host_ip_address = get_remote_call_requirements({ debug => $debug, host_uuid => $request_host_uuid });
-			my $remote_shell_call       = $anvil->data->{path}{exe}{echo}." '".$encoded_image."' >".$anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot_".$out_file_id;
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { request_host_ip_address => $request_host_ip_address } });
-
-			remote_call({ debug => $debug, shell_call => $remote_shell_call, target => $request_host_ip_address });
-
 			$anvil->Job->update_progress({ progress => 100, message => "message_0264" });
 		}
 		else
 		{
 			$anvil->Job->update_progress({ progress => 100, message => "message_0265" });
+			$anvil->nice_exit({ exit_code => 1 });
 		}
 	}
 	else
@@ -199,4 +209,7 @@ if ($server_uuid)
 else
 {
 	$anvil->Job->update_progress({ progress => 100, message => "message_0266" });
+	$anvil->nice_exit({ exit_code => 1 });
 }
+
+$anvil->nice_exit({ exit_code => 0 });

@@ -23,7 +23,7 @@ import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 import { Panel, PanelHeader } from './Panels';
-import SelectWithLabel, { SelectItem } from './SelectWithLabel';
+import SelectWithLabel from './SelectWithLabel';
 import Slider, { SliderProps } from './Slider';
 import Spinner from './Spinner';
 import {
