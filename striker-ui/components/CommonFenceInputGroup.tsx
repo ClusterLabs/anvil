@@ -1,4 +1,7 @@
+import { Box, styled, Tooltip } from '@mui/material';
 import { FC, ReactElement, ReactNode, useMemo } from 'react';
+
+import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 
 import FlexBox from './FlexBox';
 import InputWithRef from './InputWithRef';
@@ -6,67 +9,97 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { ExpandablePanel } from './Panels';
 import SelectWithLabel from './SelectWithLabel';
 import SwitchWithLabel from './SwitchWithLabel';
+import { BodyText } from './Text';
 
 const CHECKED_STATES: Array<string | undefined> = ['1', 'on'];
 const ID_SEPARATOR = '-';
 
 const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
-  boolean: ({ id, isChecked = false, label, name = id }) => (
-    <InputWithRef
-      key={`${id}-wrapper`}
-      input={
-        <SwitchWithLabel
-          checked={isChecked}
-          id={id}
-          label={label}
-          name={name}
-        />
-      }
-      valueType="boolean"
-    />
-  ),
-  select: ({
-    id,
-    isRequired,
-    label,
-    name = id,
-    selectOptions = [],
-    value = '',
-  }) => (
-    <InputWithRef
-      key={`${id}-wrapper`}
-      input={
-        <SelectWithLabel
-          id={id}
-          label={label}
-          name={name}
-          selectItems={selectOptions}
-          value={value}
-        />
-      }
-      required={isRequired}
-    />
-  ),
-  string: ({ id, isRequired, label = '', name = id, value }) => (
-    <InputWithRef
-      key={`${id}-wrapper`}
-      input={
-        <OutlinedInputWithLabel
-          id={id}
-          label={label}
-          name={name}
-          value={value}
-        />
-      }
-      required={isRequired}
-    />
-  ),
+  boolean: (args) => {
+    const { id, isChecked = false, label, name = id } = args;
+
+    return (
+      <InputWithRef
+        key={`${id}-wrapper`}
+        input={
+          <SwitchWithLabel
+            checked={isChecked}
+            flexBoxProps={{ width: '100%' }}
+            id={id}
+            label={label}
+            name={name}
+          />
+        }
+        valueType="boolean"
+      />
+    );
+  },
+  select: (args) => {
+    const {
+      id,
+      isRequired,
+      label,
+      name = id,
+      selectOptions = [],
+      value = '',
+    } = args;
+
+    return (
+      <InputWithRef
+        key={`${id}-wrapper`}
+        input={
+          <SelectWithLabel
+            id={id}
+            label={label}
+            name={name}
+            selectItems={selectOptions}
+            value={value}
+          />
+        }
+        required={isRequired}
+      />
+    );
+  },
+  string: (args) => {
+    const {
+      id,
+      isRequired,
+      isSensitive = false,
+      label = '',
+      name = id,
+      value,
+    } = args;
+
+    return (
+      <InputWithRef
+        key={`${id}-wrapper`}
+        input={
+          <OutlinedInputWithLabel
+            id={id}
+            inputProps={{
+              inputProps: { 'data-sensitive': isSensitive },
+            }}
+            label={label}
+            name={name}
+            value={value}
+            type={isSensitive ? INPUT_TYPES.password : undefined}
+          />
+        }
+        required={isRequired}
+      />
+    );
+  },
 };
 
 const combineIds = (...pieces: string[]) => pieces.join(ID_SEPARATOR);
 
+const FenceInputWrapper = styled(FlexBox)({
+  margin: '.4em 0',
+});
+
 const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
   fenceId,
+  fenceParameterTooltipProps,
   fenceTemplate,
   previousFenceName,
   previousFenceParameters,
@@ -103,41 +136,64 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
               [
                 parameterId,
                 {
-                  content_type: contentType,
+                  content_type: parameterType,
                   default: parameterDefault,
-                  deprecated: rawDeprecated,
+                  deprecated: rawParameterDeprecated,
+                  description: parameterDescription,
                   options: parameterSelectOptions,
-                  required: rawRequired,
+                  required: rawParameterRequired,
                 },
               ],
             ) => {
-              const isParameterDeprecated = String(rawDeprecated) === '1';
+              const isParameterDeprecated =
+                String(rawParameterDeprecated) === '1';
 
               if (!isParameterDeprecated) {
                 const { optional, required } = previous;
                 const buildInput =
-                  MAP_TO_INPUT_BUILDER[contentType] ??
+                  MAP_TO_INPUT_BUILDER[parameterType] ??
                   MAP_TO_INPUT_BUILDER.string;
                 const fenceJoinParameterId = combineIds(fenceId, parameterId);
 
                 const initialValue =
                   mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
                   parameterDefault;
-                const isParameterRequired = String(rawRequired) === '1';
+                const isParameterRequired =
+                  String(rawParameterRequired) === '1';
+                const isParameterSensitive = /passw/i.test(parameterId);
 
                 const parameterInput = buildInput({
                   id: fenceJoinParameterId,
                   isChecked: CHECKED_STATES.includes(initialValue),
                   isRequired: isParameterRequired,
+                  isSensitive: isParameterSensitive,
                   label: parameterId,
                   selectOptions: parameterSelectOptions,
                   value: initialValue,
                 });
+                const parameterInputWithTooltip = (
+                  <Tooltip
+                    componentsProps={{
+                      tooltip: {
+                        sx: {
+                          maxWidth: { md: '62.6em' },
+                        },
+                      },
+                    }}
+                    disableInteractive
+                    key={`${fenceJoinParameterId}-tooltip`}
+                    placement="top-start"
+                    title={<BodyText>{parameterDescription}</BodyText>}
+                    {...fenceParameterTooltipProps}
+                  >
+                    <Box>{parameterInput}</Box>
+                  </Tooltip>
+                );
 
                 if (isParameterRequired) {
-                  required.push(parameterInput);
+                  required.push(parameterInputWithTooltip);
                 } else {
-                  optional.push(parameterInput);
+                  optional.push(parameterInputWithTooltip);
                 }
               }
 
@@ -164,17 +220,23 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
           }}
         >
           <ExpandablePanel expandInitially header="Required parameters">
-            <FlexBox margin=".4em 0">{requiredInputs}</FlexBox>
+            <FenceInputWrapper>{requiredInputs}</FenceInputWrapper>
           </ExpandablePanel>
           <ExpandablePanel header="Optional parameters">
-            <FlexBox margin=".4em 0">{optionalInputs}</FlexBox>
+            <FenceInputWrapper>{optionalInputs}</FenceInputWrapper>
           </ExpandablePanel>
         </FlexBox>
       );
     }
 
     return result;
-  }, [fenceId, fenceTemplate, previousFenceName, previousFenceParameters]);
+  }, [
+    fenceId,
+    fenceParameterTooltipProps,
+    fenceTemplate,
+    previousFenceName,
+    previousFenceParameters,
+  ]);
 
   return <>{fenceParameterElements}</>;
 };

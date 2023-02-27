@@ -1,12 +1,17 @@
-type FenceParameterInputBuilder = (args: {
+type FenceParameterInputBuilderParameters = {
   id: string;
   isChecked?: boolean;
   isRequired?: boolean;
+  isSensitive?: boolean;
   label?: string;
   name?: string;
   selectOptions?: string[];
   value?: string;
-}) => ReactElement;
+};
+
+type FenceParameterInputBuilder = (
+  args: FenceParameterInputBuilderParameters,
+) => ReactElement;
 
 type MapToInputBuilder = Partial<
   Record<Exclude<FenceParameterType, 'string'>, FenceParameterInputBuilder>
@@ -17,6 +22,7 @@ type CommonFenceInputGroupOptionalProps = {
   fenceTemplate?: APIFenceTemplate;
   previousFenceName?: string;
   previousFenceParameters?: FenceParameters;
+  fenceParameterTooltipProps?: import('@mui/material').TooltipProps;
 };
 
 type CommonFenceInputGroupProps = CommonFenceInputGroupOptionalProps;
