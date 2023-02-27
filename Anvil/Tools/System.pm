@@ -2725,7 +2725,7 @@ sub generate_state_json
 	$anvil->Network->load_ips({
 		debug     => $debug,
 		host      => $anvil->Get->short_host_name(),
-		host_uuid => $anvil->data->{sys}{host_uuid},
+		host_uuid => $anvil->Get->host_uuid,
 	});
 	
 	$anvil->data->{json}{all_systems}{hosts} = [];

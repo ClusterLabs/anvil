@@ -2996,6 +2996,7 @@ AND
 			ip_address_on_uuid         => $ip_address_on_uuid,
 		}});
 		
+		my $device_type_with_ip    = $ip_address_on_type;
 		my $bridge_name            = "";
 		my $bond_name              = "";
 		my $interface_name         = "";
@@ -3031,7 +3032,7 @@ AND
 			   $bond_name        = $results->[0]->[0];
 			my $active_interface = $results->[0]->[1];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				interface_name   => $interface_name, 
+				bond_name        => $bond_name, 
 				active_interface => $active_interface,
 			}});
 			
@@ -3043,6 +3044,18 @@ AND
 				$network_interface_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_interface => $active_interface }});
 			}
+		}
+		
+		my $device_name_with_ip = "";
+		if ($ip_address_on_type eq "bridge")
+		{
+			$device_name_with_ip = $bridge_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device_name_with_ip => $device_name_with_ip }});
+		}
+		elsif ($ip_address_on_type eq "bond")
+		{
+			$device_name_with_ip = $bond_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device_name_with_ip => $device_name_with_ip }});
 		}
 		
 		if ($network_interface_uuid)
@@ -3083,18 +3096,6 @@ AND
 				interface_mac  => $interface_mac, 
 			}});
 			
-			# If this is a bridge or a bond, use that name for the interface.
-			if ($bridge_name)
-			{
-				$interface_name = $bridge_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
-			}
-			if ($bond_name)
-			{
-				$interface_name = $bond_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
-			}
-			
 			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} =         $results->[0]->[0];
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            =         $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     =         $ip_address_address;
@@ -3102,7 +3103,7 @@ AND
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}        =         $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                =         $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    =         $ip_address_dns;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   =         $ip_address_on_type;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   =         "interface";
 			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  =         $results->[0]->[3];
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    =         $results->[0]->[4];
 			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             =         $results->[0]->[5];
@@ -3129,6 +3130,12 @@ AND
 				"network::${host}::interface::${interface_name}::bond_uuid"              => $anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}, 
 				"network::${host}::interface::${interface_name}::bridge_uuid"            => $anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}, 
 			}});
+			
+			if (not $device_name_with_ip)
+			{
+				$device_name_with_ip = $interface_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device_name_with_ip => $device_name_with_ip }});
+			}
 		}
 		elsif ($ip_address_on_type eq "bond")
 		{
