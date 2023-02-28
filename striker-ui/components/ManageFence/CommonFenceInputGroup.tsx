@@ -1,15 +1,15 @@
 import { Box, styled, Tooltip } from '@mui/material';
 import { FC, ReactElement, ReactNode, useMemo } from 'react';
 
-import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
+import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
-import FlexBox from './FlexBox';
-import InputWithRef from './InputWithRef';
-import OutlinedInputWithLabel from './OutlinedInputWithLabel';
-import { ExpandablePanel } from './Panels';
-import SelectWithLabel from './SelectWithLabel';
-import SwitchWithLabel from './SwitchWithLabel';
-import { BodyText } from './Text';
+import FlexBox from '../FlexBox';
+import InputWithRef from '../InputWithRef';
+import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import { ExpandablePanel } from '../Panels';
+import SelectWithLabel from '../SelectWithLabel';
+import SwitchWithLabel from '../SwitchWithLabel';
+import { BodyText } from '../Text';
 
 const CHECKED_STATES: Array<string | undefined> = ['1', 'on'];
 const ID_SEPARATOR = '-';
