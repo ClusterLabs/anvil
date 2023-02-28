@@ -17,7 +17,6 @@ import {
   BORDER_RADIUS,
   DISABLED,
   GREY,
-  TEXT,
 } from '../../lib/consts/DEFAULT_THEME';
 
 type IconButtonProps = IconButtonOptionalProps & MUIIconButtonProps;
@@ -28,7 +27,7 @@ const ContainedIconButton = styled(MUIIconButton)({
   color: BLACK,
 
   '&:hover': {
-    backgroundColor: TEXT,
+    backgroundColor: `${GREY}F0`,
   },
 
   [`&.${muiInputClasses.disabled}`]: {
