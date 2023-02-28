@@ -3,6 +3,7 @@ import {
   FC,
   FormEventHandler,
   ReactElement,
+  ReactNode,
   useMemo,
   useRef,
   useState,
@@ -267,9 +268,28 @@ const ManageFencePanel: FC = () => {
           <FlexBox row>
             <BodyText>{fenceName}</BodyText>
             <BodyText>
-              {Object.entries(fenceParameters).reduce<string>(
-                (previous, [parameterId, parameterValue]) =>
-                  `${previous} ${parameterId}="${parameterValue}"`,
+              {Object.entries(fenceParameters).reduce<ReactNode>(
+                (previous, [parameterId, parameterValue]) => {
+                  let current: ReactNode = <>{parameterId}=&quot;</>;
+
+                  current = /passw/i.test(parameterId) ? (
+                    <>
+                      {current}
+                      <SensitiveText inline>{parameterValue}</SensitiveText>
+                    </>
+                  ) : (
+                    <>
+                      {current}
+                      {parameterValue}
+                    </>
+                  );
+
+                  return (
+                    <>
+                      {previous} {current}&quot;
+                    </>
+                  );
+                },
                 fenceAgent,
               )}
             </BodyText>
