@@ -8,6 +8,7 @@ import { BLACK, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
 type BodyTextOptionalProps = {
   inheritColour?: boolean;
+  inline?: boolean;
   inverted?: boolean;
   monospaced?: boolean;
   selected?: boolean;
@@ -20,6 +21,7 @@ const BODY_TEXT_CLASS_PREFIX = 'BodyText';
 
 const BODY_TEXT_DEFAULT_PROPS: Required<BodyTextOptionalProps> = {
   inheritColour: false,
+  inline: false,
   inverted: false,
   monospaced: false,
   selected: true,
@@ -68,6 +70,7 @@ const BodyText: FC<BodyTextProps> = ({
   children,
   className,
   inheritColour: isInheritColour = BODY_TEXT_DEFAULT_PROPS.inheritColour,
+  inline: isInline = BODY_TEXT_DEFAULT_PROPS.inline,
   inverted: isInvert = BODY_TEXT_DEFAULT_PROPS.inverted,
   monospaced: isMonospace = BODY_TEXT_DEFAULT_PROPS.monospaced,
   selected: isSelect = BODY_TEXT_DEFAULT_PROPS.selected,
@@ -75,6 +78,11 @@ const BodyText: FC<BodyTextProps> = ({
   text = BODY_TEXT_DEFAULT_PROPS.text,
   ...muiTypographyRestProps
 }) => {
+  const sxDisplay = useMemo<string | undefined>(
+    () => (isInline ? 'inline' : undefined),
+    [isInline],
+  );
+
   const baseClassName = useMemo(
     () =>
       buildBodyTextClasses({
@@ -89,30 +97,30 @@ const BodyText: FC<BodyTextProps> = ({
 
   return (
     <MUITypography
-      {...{
-        className: `${baseClassName} ${className}`,
-        variant: 'subtitle1',
-        ...muiTypographyRestProps,
-        sx: {
-          [`&.${BODY_TEXT_CLASSES.inverted}`]: {
-            color: BLACK,
-          },
+      className={`${baseClassName} ${className}`}
+      variant="subtitle1"
+      {...muiTypographyRestProps}
+      sx={{
+        display: sxDisplay,
 
-          [`&.${BODY_TEXT_CLASSES.monospaced}`]: {
-            fontFamily: 'Source Code Pro',
-            fontWeight: 400,
-          },
-
-          [`&.${BODY_TEXT_CLASSES.selected}`]: {
-            color: TEXT,
-          },
-
-          [`&.${BODY_TEXT_CLASSES.unselected}`]: {
-            color: UNSELECTED,
-          },
-
-          ...sx,
+        [`&.${BODY_TEXT_CLASSES.inverted}`]: {
+          color: BLACK,
         },
+
+        [`&.${BODY_TEXT_CLASSES.monospaced}`]: {
+          fontFamily: 'Source Code Pro',
+          fontWeight: 400,
+        },
+
+        [`&.${BODY_TEXT_CLASSES.selected}`]: {
+          color: TEXT,
+        },
+
+        [`&.${BODY_TEXT_CLASSES.unselected}`]: {
+          color: UNSELECTED,
+        },
+
+        ...sx,
       }}
     >
       {content}
