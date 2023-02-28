@@ -134,10 +134,10 @@ const dbWrite = (query: string, options?: SpawnSyncOptions) => {
   return execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
 };
 
-const getAnvilData = (
+const getAnvilData = <HashType>(
   dataStruct: AnvilDataStruct,
   { predata, ...spawnSyncOptions }: GetAnvilDataOptions = {},
-) =>
+): HashType =>
   execAnvilAccessModule(
     [
       '--predata',

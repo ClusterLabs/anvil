@@ -7,7 +7,7 @@ import { stdout } from '../../shell';
 
 const buildHostConnections = (
   fromHostUUID: string,
-  databaseHash: DatabaseHash,
+  databaseHash: AnvilDataDatabaseHash,
   {
     defaultPort = 5432,
     defaultUser = 'admin',
@@ -42,7 +42,7 @@ export const getHostConnection = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { hostUUIDs: rawHostUUIDs } = request.query;
 
-    let rawDatabaseData: DatabaseHash;
+    let rawDatabaseData: AnvilDataDatabaseHash;
 
     const hostUUIDField = 'ip_add.ip_address_host_uuid';
     const localHostUUID: string = getLocalHostUUID();
@@ -59,7 +59,9 @@ export const getHostConnection = buildGetRequestHandler(
     stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
     try {
-      ({ database: rawDatabaseData } = getAnvilData({ database: true }));
+      ({ database: rawDatabaseData } = getAnvilData<{ database: AnvilDataDatabaseHash }>(
+        { database: true },
+      ));
     } catch (subError) {
       throw new Error(`Failed to get anvil data; CAUSE: ${subError}`);
     }
