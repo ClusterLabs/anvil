@@ -10,6 +10,7 @@ import jobRouter from './job';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
 import sshKeyRouter from './ssh-key';
+import upsRouter from './ups';
 import userRouter from './user';
 
 const routes: Readonly<Record<string, Router>> = {
@@ -23,6 +24,7 @@ const routes: Readonly<Record<string, Router>> = {
   'network-interface': networkInterfaceRouter,
   server: serverRouter,
   'ssh-key': sshKeyRouter,
+  ups: upsRouter,
   user: userRouter,
 };
 
