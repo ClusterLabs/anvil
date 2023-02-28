@@ -3,12 +3,7 @@ import { FC } from 'react';
 import { BodyTextProps } from './BodyText';
 import SmallText from './SmallText';
 
-type InlineMonoTextProps = BodyTextProps;
-
-const InlineMonoText: FC<InlineMonoTextProps> = ({
-  sx,
-  ...bodyTextRestProps
-}) => (
+const InlineMonoText: FC<BodyTextProps> = ({ sx, ...bodyTextRestProps }) => (
   <SmallText
     {...{
       ...bodyTextRestProps,
@@ -22,7 +17,5 @@ const InlineMonoText: FC<InlineMonoTextProps> = ({
     }}
   />
 );
-
-export type { InlineMonoTextProps };
 
 export default InlineMonoText;
