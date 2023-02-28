@@ -1,17 +1,50 @@
-import { createElement, FC, ReactNode, useMemo, useState } from 'react';
+import { Button, styled } from '@mui/material';
+import {
+  createElement,
+  FC,
+  ReactElement,
+  ReactNode,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
+
+import { BORDER_RADIUS, EERIE_BLACK } from '../../lib/consts/DEFAULT_THEME';
 
 import BodyText from './BodyText';
 import FlexBox from '../FlexBox';
 import IconButton from '../IconButton';
 import MonoText from './MonoText';
 
+const InlineButton = styled(Button)({
+  backgroundColor: EERIE_BLACK,
+  borderRadius: BORDER_RADIUS,
+  minWidth: 'initial',
+  padding: '0 .6em',
+  textTransform: 'none',
+
+  ':hover': {
+    backgroundColor: `${EERIE_BLACK}F0`,
+  },
+});
+
 const SensitiveText: FC<SensitiveTextProps> = ({
   children,
+  inline: isInline = false,
   monospaced: isMonospaced = false,
   revealInitially: isRevealInitially = false,
   textProps,
 }) => {
   const [isReveal, setIsReveal] = useState<boolean>(isRevealInitially);
+
+  const clickEventHandler = useCallback(() => {
+    setIsReveal((previous) => !previous);
+  }, []);
+
+  const textSxLineHeight = useMemo<number | string | undefined>(
+    () => (isInline ? undefined : 2.8),
+    [isInline],
+  );
 
   const textElementType = useMemo(
     () => (isMonospaced ? MonoText : BodyText),
@@ -27,7 +60,7 @@ const SensitiveText: FC<SensitiveTextProps> = ({
               textElementType,
               {
                 sx: {
-                  lineHeight: 2.8,
+                  lineHeight: textSxLineHeight,
                   maxWidth: '20em',
                   overflowY: 'scroll',
                   whiteSpace: 'nowrap',
@@ -38,27 +71,43 @@ const SensitiveText: FC<SensitiveTextProps> = ({
             )
           : children;
     } else {
-      content = createElement(textElementType, textProps, '*****');
+      content = createElement(
+        textElementType,
+        {
+          sx: {
+            lineHeight: textSxLineHeight,
+          },
+          ...textProps,
+        },
+        '*****',
+      );
     }
 
     return content;
-  }, [children, isReveal, textElementType, textProps]);
-
-  return (
-    <FlexBox row spacing=".5em">
-      {contentElement}
-      <IconButton
-        edge="end"
-        mapPreset="visibility"
-        onClick={() => {
-          setIsReveal((previous) => !previous);
-        }}
-        state={String(isReveal)}
-        sx={{ marginRight: '-.2em', padding: '.2em' }}
-        variant="normal"
-      />
-    </FlexBox>
+  }, [children, isReveal, textElementType, textProps, textSxLineHeight]);
+  const rootElement = useMemo<ReactElement>(
+    () =>
+      isInline ? (
+        <InlineButton onClick={clickEventHandler}>
+          {contentElement}
+        </InlineButton>
+      ) : (
+        <FlexBox row spacing=".5em">
+          {contentElement}
+          <IconButton
+            edge="end"
+            mapPreset="visibility"
+            onClick={clickEventHandler}
+            state={String(isReveal)}
+            sx={{ marginRight: '-.2em', padding: '.2em' }}
+            variant="normal"
+          />
+        </FlexBox>
+      ),
+    [clickEventHandler, contentElement, isInline, isReveal],
   );
+
+  return rootElement;
 };
 
 export default SensitiveText;
