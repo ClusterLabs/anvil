@@ -1,11 +1,11 @@
 import { Box } from '@mui/material';
 import { FC, useMemo, useState } from 'react';
 
-import Autocomplete from './Autocomplete';
+import Autocomplete from '../Autocomplete';
 import CommonFenceInputGroup from './CommonFenceInputGroup';
-import FlexBox from './FlexBox';
-import Spinner from './Spinner';
-import { BodyText } from './Text';
+import FlexBox from '../FlexBox';
+import Spinner from '../Spinner';
+import { BodyText } from '../Text';
 
 const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
   fenceTemplate: externalFenceTemplate,

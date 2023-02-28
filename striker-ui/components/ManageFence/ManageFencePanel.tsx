@@ -8,29 +8,29 @@ import {
   useState,
 } from 'react';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
 import AddFenceInputGroup from './AddFenceInputGroup';
-import api from '../lib/api';
+import api from '../../lib/api';
 import { ID_SEPARATOR } from './CommonFenceInputGroup';
-import ConfirmDialog from './ConfirmDialog';
+import ConfirmDialog from '../ConfirmDialog';
 import EditFenceInputGroup from './EditFenceInputGroup';
-import FlexBox from './FlexBox';
-import handleAPIError from '../lib/handleAPIError';
-import List from './List';
-import { Panel, PanelHeader } from './Panels';
-import periodicFetch from '../lib/fetchers/periodicFetch';
-import Spinner from './Spinner';
+import FlexBox from '../FlexBox';
+import handleAPIError from '../../lib/handleAPIError';
+import List from '../List';
+import { Panel, PanelHeader } from '../Panels';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
+import Spinner from '../Spinner';
 import {
   BodyText,
   HeaderText,
   InlineMonoText,
   MonoText,
+  SensitiveText,
   SmallText,
-} from './Text';
-import useIsFirstRender from '../hooks/useIsFirstRender';
-import useProtectedState from '../hooks/useProtectedState';
-import SensitiveText from './Text/SensitiveText';
+} from '../Text';
+import useIsFirstRender from '../../hooks/useIsFirstRender';
+import useProtectedState from '../../hooks/useProtectedState';
 
 type FormFenceParameterData = {
   fenceAgent: string;
@@ -143,7 +143,7 @@ const buildConfirmFenceParameters = (
   />
 );
 
-const ManageFencesPanel: FC = () => {
+const ManageFencePanel: FC = () => {
   const isFirstRender = useIsFirstRender();
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
@@ -333,4 +333,4 @@ const ManageFencesPanel: FC = () => {
   );
 };
 
-export default ManageFencesPanel;
+export default ManageFencePanel;

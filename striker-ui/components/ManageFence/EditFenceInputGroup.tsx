@@ -1,7 +1,7 @@
 import { FC, useMemo } from 'react';
 
 import CommonFenceInputGroup from './CommonFenceInputGroup';
-import Spinner from './Spinner';
+import Spinner from '../Spinner';
 
 const EditFenceInputGroup: FC<EditFenceInputGroupProps> = ({
   fenceId,
