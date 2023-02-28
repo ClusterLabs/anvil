@@ -6,7 +6,7 @@ export const getFenceTemplate: RequestHandler = (request, response) => {
   let rawFenceData;
 
   try {
-    ({ fence_data: rawFenceData } = getAnvilData(
+    ({ fence_data: rawFenceData } = getAnvilData<{ fence_data: unknown }>(
       { fence_data: true },
       { predata: [['Striker->get_fence_data']] },
     ));
