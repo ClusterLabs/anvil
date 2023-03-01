@@ -176,7 +176,7 @@ const List = forwardRef(
     const listEmptyElement = useMemo(
       () =>
         typeof listEmpty === 'string' ? (
-          <BodyText>{listEmpty}</BodyText>
+          <BodyText align="center">{listEmpty}</BodyText>
         ) : (
           listEmpty
         ),
