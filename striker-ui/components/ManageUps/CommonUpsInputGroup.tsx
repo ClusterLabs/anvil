@@ -5,11 +5,7 @@ import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 
 const CommonUpsInputGroup: FC<CommonUpsInputGroupProps> = ({
-  previous: {
-    hostName: previousHostName,
-    ipAddress: previousIpAddress,
-    upsName: previousUpsName,
-  } = {},
+  previous: { upsIPAddress: previousIpAddress, upsName: previousUpsName } = {},
 }) => (
   <>
     <Grid
@@ -22,7 +18,7 @@ const CommonUpsInputGroup: FC<CommonUpsInputGroupProps> = ({
                 <OutlinedInputWithLabel
                   id="common-ups-input-host-name"
                   label="Host name"
-                  value={previousHostName}
+                  value={previousUpsName}
                 />
               }
               required
@@ -45,12 +41,6 @@ const CommonUpsInputGroup: FC<CommonUpsInputGroupProps> = ({
         },
       }}
       spacing="1em"
-    />
-    <input
-      hidden
-      id="common-ups-input-ups-name"
-      readOnly
-      value={previousUpsName}
     />
   </>
 );

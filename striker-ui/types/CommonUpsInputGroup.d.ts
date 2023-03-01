@@ -1,7 +1,6 @@
 type CommonUpsInputGroupOptionalProps = {
   previous?: {
-    hostName?: string;
-    ipAddress?: string;
+    upsIPAddress?: string;
     upsName?: string;
   };
 };
