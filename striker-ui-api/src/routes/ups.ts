@@ -1,9 +1,9 @@
 import express from 'express';
 
-import { getUPSTemplate } from '../lib/request_handlers/ups';
+import { getUPS, getUPSTemplate } from '../lib/request_handlers/ups';
 
 const router = express.Router();
 
-router.get('/template', getUPSTemplate);
+router.get('/', getUPS).get('/template', getUPSTemplate);
 
 export default router;
