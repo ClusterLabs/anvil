@@ -71,15 +71,20 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
     [createCheckbox, disableItem, hideItem, id],
   );
 
-  const inputElement = useMemo(() => <OutlinedInput label={label} />, [label]);
+  const selectId = useMemo(() => `${id}-select-element`, [id]);
+
+  const inputElement = useMemo(
+    () => <OutlinedInput id={id} label={label} />,
+    [id, label],
+  );
   const labelElement = useMemo(
     () =>
       label && (
-        <OutlinedInputLabel htmlFor={id} {...inputLabelProps}>
+        <OutlinedInputLabel htmlFor={selectId} {...inputLabelProps}>
           {label}
         </OutlinedInputLabel>
       ),
-    [id, inputLabelProps, label],
+    [inputLabelProps, label, selectId],
   );
   const menuItemElements = useMemo(
     () =>
@@ -96,7 +101,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
     <MUIFormControl fullWidth {...formControlProps}>
       {labelElement}
       <Select
-        id={id}
+        id={selectId}
         input={inputElement}
         multiple={selectMultiple}
         name={name}
