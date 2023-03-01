@@ -4,7 +4,7 @@ import { getAnvilData } from '../../accessModule';
 import { stderr } from '../../shell';
 
 export const getUPSTemplate: RequestHandler = (request, response) => {
-  let rawUPSData;
+  let rawUPSData: AnvilDataUPSHash;
 
   try {
     ({ ups_data: rawUPSData } = getAnvilData<{ ups_data: AnvilDataUPSHash }>(
@@ -19,5 +19,17 @@ export const getUPSTemplate: RequestHandler = (request, response) => {
     return;
   }
 
-  response.status(200).send(rawUPSData);
+  const upsData: AnvilDataUPSHash = Object.entries(
+    rawUPSData,
+  ).reduce<AnvilDataUPSHash>((previous, [upsTypeId, value]) => {
+    const { brand } = value;
+
+    if (/apc/i.test(brand)) {
+      previous[upsTypeId] = value;
+    }
+
+    return previous;
+  }, {});
+
+  response.status(200).send(upsData);
 };
