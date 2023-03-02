@@ -24,6 +24,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   messageBoxProps = {},
   name,
   onChange,
+  required: isRequired,
   selectProps: {
     multiple: selectMultiple,
     sx: selectSx,
@@ -80,11 +81,15 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   const labelElement = useMemo(
     () =>
       label && (
-        <OutlinedInputLabel htmlFor={selectId} {...inputLabelProps}>
+        <OutlinedInputLabel
+          htmlFor={selectId}
+          isNotifyRequired={isRequired}
+          {...inputLabelProps}
+        >
           {label}
         </OutlinedInputLabel>
       ),
-    [inputLabelProps, label, selectId],
+    [inputLabelProps, isRequired, label, selectId],
   );
   const menuItemElements = useMemo(
     () =>
