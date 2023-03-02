@@ -1,7 +1,10 @@
-import { FC, ReactElement, useMemo, useState } from 'react';
+import { FC, ReactElement, ReactNode, useMemo, useState } from 'react';
+
+import { BLACK } from '../../lib/consts/DEFAULT_THEME';
 
 import CommonUpsInputGroup from './CommonUpsInputGroup';
 import FlexBox from '../FlexBox';
+import Link from '../Link';
 import SelectWithLabel from '../SelectWithLabel';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
@@ -22,15 +25,46 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
     () =>
       upsTemplate
         ? Object.entries(upsTemplate).map<SelectItem>(
-            ([upsTypeId, { brand, description }]) => ({
-              displayValue: (
-                <FlexBox spacing={0}>
-                  <BodyText inverted>{brand}</BodyText>
-                  <BodyText inverted>{description}</BodyText>
-                </FlexBox>
-              ),
-              value: upsTypeId,
-            }),
+            ([
+              upsTypeId,
+              {
+                brand,
+                description,
+                links: { 0: link },
+              },
+            ]) => {
+              let linkElement: ReactNode;
+
+              if (link) {
+                const { linkHref, linkLabel } = link;
+
+                linkElement = (
+                  <Link
+                    href={linkHref}
+                    onClick={(event) => {
+                      // Don't trigger the (parent) item selection event.
+                      event.stopPropagation();
+                    }}
+                    sx={{ display: 'inline-flex', color: BLACK }}
+                    target="_blank"
+                  >
+                    {linkLabel}
+                  </Link>
+                );
+              }
+
+              return {
+                displayValue: (
+                  <FlexBox spacing={0}>
+                    <BodyText inverted>{brand}</BodyText>
+                    <BodyText inverted>
+                      {description} ({linkElement})
+                    </BodyText>
+                  </FlexBox>
+                ),
+                value: upsTypeId,
+              };
+            },
           )
         : [],
     [upsTemplate],

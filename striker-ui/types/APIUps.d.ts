@@ -3,6 +3,12 @@ type APIUpsTemplate = {
     agent: string;
     brand: string;
     description: string;
+    links: {
+      [linkId: string]: {
+        linkHref: string;
+        linkLabel: string;
+      };
+    };
   };
 };
 
