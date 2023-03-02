@@ -3,4 +3,6 @@ type EditUpsInputGroupOptionalProps = {
 };
 
 type EditUpsInputGroupProps = EditUpsInputGroupOptionalProps &
-  Pick<CommonUpsInputGroupProps, 'previous'> & { upsUUID: string };
+  Pick<AddUpsInputGroupProps, 'previous' | 'upsTemplate'> & {
+    upsUUID: string;
+  };
