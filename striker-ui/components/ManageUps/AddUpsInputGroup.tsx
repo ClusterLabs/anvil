@@ -82,6 +82,7 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
 
             setInputUpsTypeIdValue(newValue);
           }}
+          required
           selectItems={upsTypeOptions}
           selectProps={{
             onClearIndicatorClick: () => {
