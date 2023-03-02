@@ -6,13 +6,19 @@ import SelectWithLabel from '../SelectWithLabel';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 
+const INPUT_ID_UPS_TYPE_ID = 'add-ups-select-ups-type-id';
+
 const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
   loading: isExternalLoading,
+  previous = {},
   upsTemplate,
 }) => {
-  const [inputUpsAgentValue, setInputUpsAgentValue] = useState<string>('');
+  const { upsTypeId: previousUpsTypeId = '' } = previous;
 
-  const upsAgentOptions = useMemo<SelectItem[]>(
+  const [inputUpsTypeIdValue, setInputUpsTypeIdValue] =
+    useState<string>(previousUpsTypeId);
+
+  const upsTypeOptions = useMemo<SelectItem[]>(
     () =>
       upsTemplate
         ? Object.entries(upsTemplate).map<SelectItem>(
@@ -30,22 +36,22 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
     [upsTemplate],
   );
 
-  const pickUpsAgentElement = useMemo(
+  const pickUpsTypeElement = useMemo(
     () =>
       upsTemplate && (
         <SelectWithLabel
           formControlProps={{ sx: { marginTop: '.3em' } }}
-          id="add-ups-select-agent"
+          id={INPUT_ID_UPS_TYPE_ID}
           label="UPS type"
           onChange={({ target: { value: rawNewValue } }) => {
             const newValue = String(rawNewValue);
 
-            setInputUpsAgentValue(newValue);
+            setInputUpsTypeIdValue(newValue);
           }}
-          selectItems={upsAgentOptions}
+          selectItems={upsTypeOptions}
           selectProps={{
             onClearIndicatorClick: () => {
-              setInputUpsAgentValue('');
+              setInputUpsTypeIdValue('');
             },
             renderValue: (rawValue) => {
               const upsTypeId = String(rawValue);
@@ -54,10 +60,10 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
               return brand;
             },
           }}
-          value={inputUpsAgentValue}
+          value={inputUpsTypeIdValue}
         />
       ),
-    [inputUpsAgentValue, upsAgentOptions, upsTemplate],
+    [inputUpsTypeIdValue, upsTypeOptions, upsTemplate],
   );
   const content = useMemo<ReactElement>(
     () =>
@@ -65,14 +71,16 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
         <Spinner />
       ) : (
         <FlexBox>
-          {pickUpsAgentElement}
-          {inputUpsAgentValue && <CommonUpsInputGroup />}
+          {pickUpsTypeElement}
+          {inputUpsTypeIdValue && <CommonUpsInputGroup previous={previous} />}
         </FlexBox>
       ),
-    [inputUpsAgentValue, isExternalLoading, pickUpsAgentElement],
+    [inputUpsTypeIdValue, isExternalLoading, pickUpsTypeElement, previous],
   );
 
   return content;
 };
+
+export { INPUT_ID_UPS_TYPE_ID };
 
 export default AddUpsInputGroup;
