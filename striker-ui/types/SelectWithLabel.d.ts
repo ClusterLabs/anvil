@@ -20,6 +20,7 @@ type SelectWithLabelOptionalProps = {
   >;
   label?: string;
   messageBoxProps?: Partial<import('../components/MessageBox').MessageBoxProps>;
+  required?: boolean;
   selectProps?: Partial<SelectProps>;
 };
 
