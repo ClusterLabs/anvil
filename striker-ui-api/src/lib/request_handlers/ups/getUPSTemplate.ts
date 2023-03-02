@@ -21,11 +21,28 @@ export const getUPSTemplate: RequestHandler = (request, response) => {
 
   const upsData: AnvilDataUPSHash = Object.entries(
     rawUPSData,
-  ).reduce<AnvilDataUPSHash>((previous, [upsTypeId, value]) => {
-    const { brand } = value;
+  ).reduce<UPSTemplate>((previous, [upsTypeId, value]) => {
+    const { brand, description: rawDescription, ...rest } = value;
+
+    const matched = rawDescription.match(
+      /^(.+)\s+[-]\s+[<][^>]+href=[\\"]+([^\s]+)[\\"]+.+[>]([^<]+)[<]/,
+    );
+    const result: UPSTemplate[string] = {
+      ...rest,
+      brand,
+      description: rawDescription,
+      links: {},
+    };
+
+    if (matched) {
+      const [, description, linkHref, linkLabel] = matched;
+
+      result.description = description;
+      result.links[0] = { linkHref, linkLabel };
+    }
 
     if (/apc/i.test(brand)) {
-      previous[upsTypeId] = value;
+      previous[upsTypeId] = result;
     }
 
     return previous;
