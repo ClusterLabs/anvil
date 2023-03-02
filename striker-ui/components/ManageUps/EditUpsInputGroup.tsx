@@ -1,11 +1,14 @@
 import { FC, ReactElement, useMemo } from 'react';
 
-import CommonUpsInputGroup from './CommonUpsInputGroup';
+import AddUpsInputGroup from './AddUpsInputGroup';
 import Spinner from '../Spinner';
+
+const INPUT_ID_UPS_UUID = 'edit-ups-input-ups-uuid';
 
 const EditUpsInputGroup: FC<EditUpsInputGroupProps> = ({
   loading: isExternalLoading,
   previous,
+  upsTemplate,
   upsUUID,
 }) => {
   const content = useMemo<ReactElement>(
@@ -14,14 +17,16 @@ const EditUpsInputGroup: FC<EditUpsInputGroupProps> = ({
         <Spinner />
       ) : (
         <>
-          <CommonUpsInputGroup previous={previous} />
-          <input hidden id="edit-ups-input-ups-uuid" readOnly value={upsUUID} />
+          <AddUpsInputGroup previous={previous} upsTemplate={upsTemplate} />
+          <input hidden id={INPUT_ID_UPS_UUID} readOnly value={upsUUID} />
         </>
       ),
-    [isExternalLoading, previous, upsUUID],
+    [isExternalLoading, previous, upsTemplate, upsUUID],
   );
 
   return content;
 };
+
+export { INPUT_ID_UPS_UUID };
 
 export default EditUpsInputGroup;
