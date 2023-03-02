@@ -5,3 +5,12 @@ type APIUpsTemplate = {
     description: string;
   };
 };
+
+type APIUpsOverview = {
+  [upsUUID: string]: {
+    upsAgent: string;
+    upsIPAddress: string;
+    upsName: string;
+    upsUUID: string;
+  };
+};
