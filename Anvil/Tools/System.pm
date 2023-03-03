@@ -241,6 +241,8 @@ sub call
 		redirect_stderr => $redirect_stderr, 
 		stderr_file     => $stderr_file, 
 		stdout_file     => $stdout_file, 
+		source          => $source,
+		line            => $line, 
 	}});
 	
 	my $return_code = 9999;
@@ -248,6 +250,13 @@ sub call
 	if (not $shell_call)
 	{
 		# wat?
+		$anvil->Log->variables({source => $source, line => $line, level => 1, secure => $secure, list => { 
+			background      => $background, 
+			shell_call      => $shell_call,
+			redirect        => $redirect, 
+			stderr_file     => $stderr_file, 
+			stdout_file     => $stdout_file, 
+		}});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0043"});
 	}
 	else

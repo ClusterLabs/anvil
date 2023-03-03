@@ -4202,7 +4202,7 @@ sub _get_server_ports
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_get_server_ports()" }});
 	
-	my $shell_call = $anvil->data->{path}{exe}{virsh}." list --name";
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --name";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
 	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
@@ -4223,7 +4223,7 @@ sub _get_server_ports
 	
 	foreach my $server (sort {$a cmp $b} @{$servers})
 	{
-		my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});

@@ -128,7 +128,7 @@ sub process_interactive
 		# Is this machine in an Anvil!?
 		$anvil->Database->get_hosts();
 		my $host_uuid                      = $anvil->Get->host_uuid();
-		my $anvil->data->{switches}{anvil} = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}
+		   $anvil->data->{switches}{anvil} = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host_uuid         => $host_uuid,
 			"switches::anvil" => $anvil->data->{switches}{anvil},
@@ -1163,6 +1163,7 @@ sub interactive_configure_optical_disk
 		my $device_bus = $anvil->data->{optical_drives}{$index}{device_bus};
 		my $boot_order = $anvil->data->{optical_drives}{$index}{boot_order};
 		my $iso        = $anvil->data->{optical_drives}{$index}{iso};
+		my $changes    = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:target"     => $target,
 			"s2:device_bus" => $device_bus,
