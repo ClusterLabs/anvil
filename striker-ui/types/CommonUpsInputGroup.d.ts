@@ -5,4 +5,7 @@ type CommonUpsInputGroupOptionalProps = {
   };
 };
 
-type CommonUpsInputGroupProps = CommonUpsInputGroupOptionalProps;
+type CommonUpsInputGroupProps<M extends MapToInputTestID> =
+  CommonUpsInputGroupOptionalProps & {
+    formUtils: FormUtils<M>;
+  };
