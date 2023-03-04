@@ -1,19 +1,8 @@
-import {
-  Dispatch,
-  MutableRefObject,
-  SetStateAction,
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+import { MutableRefObject, useCallback, useMemo, useState } from 'react';
 
 import buildMapToMessageSetter from '../lib/buildMapToMessageSetter';
 import buildObjectStateSetterCallback from '../lib/buildObjectStateSetterCallback';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
-
-type FormValidity<T> = {
-  [K in keyof T]?: boolean;
-};
 
 const useFormUtils = <
   U extends string,
@@ -22,37 +11,28 @@ const useFormUtils = <
 >(
   ids: I,
   messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
-): {
-  buildFinishInputTestBatchFunction: (
-    key: keyof M,
-  ) => (result: boolean) => void;
-  buildInputFirstRenderFunction: (
-    key: keyof M,
-  ) => ({ isRequired }: { isRequired: boolean }) => void;
-  formValidity: FormValidity<M>;
-  isFormInvalid: boolean;
-  msgSetters: MapToMessageSetter<M>;
-  setFormValidity: Dispatch<SetStateAction<FormValidity<M>>>;
-} => {
+): FormUtils<M> => {
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
+
+  const setValidity = useCallback((key: keyof M, value: boolean) => {
+    setFormValidity(
+      buildObjectStateSetterCallback<FormValidity<M>>(key, value),
+    );
+  }, []);
 
   const buildFinishInputTestBatchFunction = useCallback(
     (key: keyof M) => (result: boolean) => {
-      setFormValidity(
-        buildObjectStateSetterCallback<FormValidity<M>>(key, result),
-      );
+      setValidity(key, result);
     },
-    [],
+    [setValidity],
   );
 
   const buildInputFirstRenderFunction = useCallback(
     (key: keyof M) =>
-      ({ isRequired }: { isRequired: boolean }) => {
-        setFormValidity(
-          buildObjectStateSetterCallback<FormValidity<M>>(key, !isRequired),
-        );
+      ({ isValid }: InputFirstRenderFunctionArgs) => {
+        setValidity(key, isValid);
       },
-    [],
+    [setValidity],
   );
 
   const isFormInvalid = useMemo(
@@ -72,6 +52,7 @@ const useFormUtils = <
     isFormInvalid,
     msgSetters,
     setFormValidity,
+    setValidity,
   };
 };
 
