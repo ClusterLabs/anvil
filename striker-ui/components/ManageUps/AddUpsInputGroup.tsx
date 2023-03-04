@@ -1,22 +1,40 @@
-import { FC, ReactElement, ReactNode, useMemo, useState } from 'react';
+import { ReactElement, ReactNode, useMemo, useState } from 'react';
 
 import { BLACK } from '../../lib/consts/DEFAULT_THEME';
 
-import CommonUpsInputGroup from './CommonUpsInputGroup';
+import CommonUpsInputGroup, {
+  INPUT_ID_UPS_IP,
+  INPUT_ID_UPS_NAME,
+} from './CommonUpsInputGroup';
 import FlexBox from '../FlexBox';
 import Link from '../Link';
 import SelectWithLabel from '../SelectWithLabel';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
+import useIsFirstRender from '../../hooks/useIsFirstRender';
 
-const INPUT_ID_UPS_TYPE_ID = 'add-ups-select-ups-type-id';
+const INPUT_ID_UPS_TYPE = 'add-ups-select-ups-type-id';
 
-const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
+const INPUT_LABEL_UPS_TYPE = 'UPS type';
+
+const AddUpsInputGroup = <
+  M extends {
+    [K in
+      | typeof INPUT_ID_UPS_IP
+      | typeof INPUT_ID_UPS_NAME
+      | typeof INPUT_ID_UPS_TYPE]: string;
+  },
+>({
+  formUtils,
   loading: isExternalLoading,
   previous = {},
   upsTemplate,
-}) => {
+}: AddUpsInputGroupProps<M>): ReactElement => {
+  const { buildInputFirstRenderFunction, setValidity } = formUtils;
+
   const { upsTypeId: previousUpsTypeId = '' } = previous;
+
+  const isFirstRender = useIsFirstRender();
 
   const [inputUpsTypeIdValue, setInputUpsTypeIdValue] =
     useState<string>(previousUpsTypeId);
@@ -75,17 +93,19 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
       upsTemplate && (
         <SelectWithLabel
           formControlProps={{ sx: { marginTop: '.3em' } }}
-          id={INPUT_ID_UPS_TYPE_ID}
-          label="UPS type"
+          id={INPUT_ID_UPS_TYPE}
+          label={INPUT_LABEL_UPS_TYPE}
           onChange={({ target: { value: rawNewValue } }) => {
             const newValue = String(rawNewValue);
 
+            setValidity(INPUT_ID_UPS_TYPE, true);
             setInputUpsTypeIdValue(newValue);
           }}
           required
           selectItems={upsTypeOptions}
           selectProps={{
             onClearIndicatorClick: () => {
+              setValidity(INPUT_ID_UPS_TYPE, false);
               setInputUpsTypeIdValue('');
             },
             renderValue: (rawValue) => {
@@ -98,8 +118,9 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
           value={inputUpsTypeIdValue}
         />
       ),
-    [inputUpsTypeIdValue, upsTypeOptions, upsTemplate],
+    [upsTemplate, upsTypeOptions, inputUpsTypeIdValue, setValidity],
   );
+
   const content = useMemo<ReactElement>(
     () =>
       isExternalLoading ? (
@@ -107,15 +128,29 @@ const AddUpsInputGroup: FC<AddUpsInputGroupProps> = ({
       ) : (
         <FlexBox>
           {pickUpsTypeElement}
-          {inputUpsTypeIdValue && <CommonUpsInputGroup previous={previous} />}
+          {inputUpsTypeIdValue && (
+            <CommonUpsInputGroup formUtils={formUtils} previous={previous} />
+          )}
         </FlexBox>
       ),
-    [inputUpsTypeIdValue, isExternalLoading, pickUpsTypeElement, previous],
+    [
+      formUtils,
+      inputUpsTypeIdValue,
+      isExternalLoading,
+      pickUpsTypeElement,
+      previous,
+    ],
   );
+
+  if (isFirstRender) {
+    buildInputFirstRenderFunction(INPUT_ID_UPS_TYPE)({
+      isValid: Boolean(inputUpsTypeIdValue),
+    });
+  }
 
   return content;
 };
 
-export { INPUT_ID_UPS_TYPE_ID };
+export { INPUT_ID_UPS_TYPE, INPUT_LABEL_UPS_TYPE };
 
 export default AddUpsInputGroup;

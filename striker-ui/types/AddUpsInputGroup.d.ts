@@ -1,7 +1,11 @@
 type AddUpsInputGroupOptionalProps = {
   loading?: boolean;
-  previous?: CommonUpsInputGroupProps['previous'] & { upsTypeId?: string };
+  previous?: CommonUpsInputGroupOptionalProps['previous'] & {
+    upsTypeId?: string;
+  };
   upsTemplate?: APIUpsTemplate;
 };
 
-type AddUpsInputGroupProps = AddUpsInputGroupOptionalProps;
+type AddUpsInputGroupProps<M extends MapToInputTestID> =
+  AddUpsInputGroupOptionalProps &
+    Pick<CommonUpsInputGroupProps<M>, 'formUtils'>;
