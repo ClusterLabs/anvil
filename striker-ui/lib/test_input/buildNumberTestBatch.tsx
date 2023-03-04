@@ -4,7 +4,7 @@ import toNumber from '../toNumber';
 const buildNumberTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
-  { onFinishBatch, ...defaults } = {},
+  { isRequired, onFinishBatch, ...defaults } = {},
   onIntTestFailure?,
   onFloatTestFailure?,
   onRangeTestFailure?,
@@ -48,6 +48,7 @@ const buildNumberTestBatch: BuildInputTestBatchFunction = (
 
   return {
     defaults: { ...defaults, onSuccess },
+    isRequired,
     onFinishBatch,
     tests,
   };
