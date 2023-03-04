@@ -9,7 +9,7 @@ import {
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
-import AddUpsInputGroup, { INPUT_ID_UPS_TYPE_ID } from './AddUpsInputGroup';
+import AddUpsInputGroup, { INPUT_ID_UPS_TYPE } from './AddUpsInputGroup';
 import api from '../../lib/api';
 import { INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME } from './CommonUpsInputGroup';
 import ConfirmDialog from '../ConfirmDialog';
@@ -18,11 +18,13 @@ import FlexBox from '../FlexBox';
 import FormDialog from '../FormDialog';
 import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
+import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from '../Text';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
@@ -48,7 +50,7 @@ const getUpsFormData = (
     INPUT_ID_UPS_IP,
   ) as HTMLInputElement;
 
-  const inputUpsTypeId = elements.namedItem(INPUT_ID_UPS_TYPE_ID);
+  const inputUpsTypeId = elements.namedItem(INPUT_ID_UPS_TYPE);
 
   let upsAgent = '';
   let upsBrand = '';
@@ -101,6 +103,7 @@ const ManageUpsPanel: FC = () => {
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const formDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
+  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
@@ -115,6 +118,12 @@ const ManageUpsPanel: FC = () => {
     periodicFetch<APIUpsOverview>(`${API_BASE_URL}/ups`, {
       refreshInterval: 60000,
     });
+
+  const formUtils = useFormUtils(
+    [INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME, INPUT_ID_UPS_TYPE],
+    messageGroupRef,
+  );
+  const { isFormInvalid } = formUtils;
 
   const buildEditUpsFormDialogProps = useCallback<
     (args: APIUpsOverview[string]) => ConfirmDialogProps
@@ -131,6 +140,7 @@ const ManageUpsPanel: FC = () => {
         actionProceedText: 'Update',
         content: (
           <EditUpsInputGroup
+            formUtils={formUtils}
             previous={{
               upsIPAddress,
               upsName,
@@ -170,13 +180,15 @@ const ManageUpsPanel: FC = () => {
         ),
       };
     },
-    [setConfirmDialogProps, upsTemplate],
+    [formUtils, setConfirmDialogProps, upsTemplate],
   );
 
   const addUpsFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
       actionProceedText: 'Add',
-      content: <AddUpsInputGroup upsTemplate={upsTemplate} />,
+      content: (
+        <AddUpsInputGroup formUtils={formUtils} upsTemplate={upsTemplate} />
+      ),
       onSubmitAppend: (event) => {
         if (!upsTemplate) {
           return;
@@ -201,7 +213,7 @@ const ManageUpsPanel: FC = () => {
       },
       titleText: 'Add a UPS',
     }),
-    [setConfirmDialogProps, upsTemplate],
+    [formUtils, setConfirmDialogProps, upsTemplate],
   );
 
   const listElement = useMemo(
@@ -269,7 +281,18 @@ const ManageUpsPanel: FC = () => {
         </PanelHeader>
         {panelContent}
       </Panel>
-      <FormDialog {...formDialogProps} ref={formDialogRef} />
+      <FormDialog
+        {...formDialogProps}
+        ref={formDialogRef}
+        preActionArea={
+          <MessageGroup
+            count={1}
+            defaultMessageType="warning"
+            ref={messageGroupRef}
+          />
+        }
+        proceedButtonProps={{ disabled: isFormInvalid }}
+      />
       <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
     </>
   );
