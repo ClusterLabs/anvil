@@ -65,7 +65,8 @@ type InputTestBatch = {
 type BuildInputTestBatchFunction = (
   inputName: string,
   onSuccess: InputTestSuccessCallback,
-  options?: InputTestBatch['defaults'] & Pick<InputTestBatch, 'onFinishBatch'>,
+  options?: InputTestBatch['defaults'] &
+    Pick<InputTestBatch, 'isRequired' | 'onFinishBatch'>,
   ...onFailureAppends: InputTestFailureAppendCallback[]
 ) => InputTestBatch;
 

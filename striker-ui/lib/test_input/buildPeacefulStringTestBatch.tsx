@@ -6,10 +6,11 @@ import { InlineMonoText } from '../../components/Text';
 const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
-  { onFinishBatch, ...defaults } = {},
+  { isRequired, onFinishBatch, ...defaults } = {},
   onTestPeacefulStringFailureAppend,
 ) => ({
   defaults: { ...defaults, onSuccess },
+  isRequired,
   onFinishBatch,
   tests: [
     {
