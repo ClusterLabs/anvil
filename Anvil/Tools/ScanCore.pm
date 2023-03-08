@@ -1505,7 +1505,7 @@ sub post_scan_analysis_node
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->post_scan_analysis_node()" }});
 	
 	my $host_name       = $anvil->Get->host_name;
-    my $host_uuid       = $anvil->Get->host_name;
+    my $host_uuid       = $anvil->Get->host_uuid;
 	my $short_host_name = $anvil->Get->short_host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name       => $host_name,
