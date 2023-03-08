@@ -1509,7 +1509,7 @@ sub post_scan_analysis_node
 	my $short_host_name = $anvil->Get->short_host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name       => $host_name,
-        host_uuid       => $host_uuid,
+		host_uuid       => $host_uuid,
 		short_host_name => $short_host_name, 
 	}});
 	
