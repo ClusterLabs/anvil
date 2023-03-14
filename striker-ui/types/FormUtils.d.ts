@@ -23,5 +23,10 @@ type FormUtils<M extends MapToInputTestID> = {
   setFormValidity: import('react').Dispatch<
     import('react').SetStateAction<FormValidity<M>>
   >;
+  setMsgSetter: (
+    id: keyof M,
+    setter?: MessageSetterFunction,
+    isOverwrite?: boolean,
+  ) => void;
   setValidity: (key: keyof M, value: boolean) => void;
 };

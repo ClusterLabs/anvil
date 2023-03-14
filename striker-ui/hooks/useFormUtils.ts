@@ -1,6 +1,8 @@
 import { MutableRefObject, useCallback, useMemo, useState } from 'react';
 
-import buildMapToMessageSetter from '../lib/buildMapToMessageSetter';
+import buildMapToMessageSetter, {
+  buildMessageSetter,
+} from '../lib/buildMapToMessageSetter';
 import buildObjectStateSetterCallback from '../lib/buildObjectStateSetterCallback';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
 
@@ -45,6 +47,16 @@ const useFormUtils = <
     [ids, messageGroupRef],
   );
 
+  const setMsgSetter = useCallback(
+    (id: keyof M, setter?: MessageSetterFunction, isOverwrite?: boolean) => {
+      if (!msgSetters[id] || isOverwrite) {
+        msgSetters[id] =
+          setter ?? buildMessageSetter<M>(String(id), messageGroupRef);
+      }
+    },
+    [messageGroupRef, msgSetters],
+  );
+
   return {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
@@ -52,6 +64,7 @@ const useFormUtils = <
     isFormInvalid,
     msgSetters,
     setFormValidity,
+    setMsgSetter,
     setValidity,
   };
 };
