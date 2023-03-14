@@ -47,4 +47,6 @@ const buildMapToMessageSetter = <
   return result;
 };
 
+export { buildMessageSetter };
+
 export default buildMapToMessageSetter;
