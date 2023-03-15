@@ -1,4 +1,6 @@
 import {
+  Add as MUIAddIcon,
+  Close as MUICloseIcon,
   Done as MUIDoneIcon,
   Edit as MUIEditIcon,
   Visibility as MUIVisibilityIcon,
@@ -40,9 +42,12 @@ const NormalIconButton = styled(MUIIconButton)({
   color: GREY,
 });
 
-const MAP_TO_VISIBILITY_ICON: IconButtonMapToStateIconBundle = {
-  false: { iconType: MUIVisibilityIcon },
-  true: { iconType: MUIVisibilityOffIcon },
+const MAP_TO_ADD_ICON: IconButtonMapToStateIconBundle = {
+  none: { iconType: MUIAddIcon },
+};
+
+const MAP_TO_CLOSE_ICON: IconButtonMapToStateIconBundle = {
+  none: { iconType: MUICloseIcon },
 };
 
 const MAP_TO_EDIT_ICON: IconButtonMapToStateIconBundle = {
@@ -50,10 +55,17 @@ const MAP_TO_EDIT_ICON: IconButtonMapToStateIconBundle = {
   true: { iconType: MUIDoneIcon, iconProps: { sx: { color: BLUE } } },
 };
 
+const MAP_TO_VISIBILITY_ICON: IconButtonMapToStateIconBundle = {
+  false: { iconType: MUIVisibilityIcon },
+  true: { iconType: MUIVisibilityOffIcon },
+};
+
 const MAP_TO_MAP_PRESET: Record<
   IconButtonPresetMapToStateIconBundle,
   IconButtonMapToStateIconBundle
 > = {
+  add: MAP_TO_ADD_ICON,
+  close: MAP_TO_CLOSE_ICON,
   edit: MAP_TO_EDIT_ICON,
   visibility: MAP_TO_VISIBILITY_ICON,
 };
@@ -69,7 +81,7 @@ const IconButton: FC<IconButtonProps> = ({
   iconProps,
   mapPreset,
   mapToIcon: externalMapToIcon,
-  state,
+  state = 'none',
   variant = 'contained',
   ...restIconButtonProps
 }) => {
@@ -78,18 +90,13 @@ const IconButton: FC<IconButtonProps> = ({
     [externalMapToIcon, mapPreset],
   );
 
-  const defaultIconBundle = useMemo<Partial<IconButtonStateIconBundle>>(
-    () => ({ iconType: defaultIcon }),
-    [defaultIcon],
-  );
-
   const iconButtonContent = useMemo(() => {
     let result: ReactNode;
 
     if (mapToIcon) {
-      const { iconType, iconProps: presetIconProps } = state
-        ? mapToIcon[state] ?? defaultIconBundle
-        : defaultIconBundle;
+      const { iconType, iconProps: presetIconProps } = mapToIcon[state] ?? {
+        iconType: defaultIcon,
+      };
 
       if (iconType) {
         result = createElement(iconType, {
@@ -102,7 +109,7 @@ const IconButton: FC<IconButtonProps> = ({
     }
 
     return result;
-  }, [mapToIcon, state, defaultIconBundle, iconProps, children]);
+  }, [mapToIcon, state, defaultIcon, iconProps, children]);
   const iconButtonElementType = useMemo(
     () => MAP_TO_VARIANT[variant],
     [variant],

@@ -1,6 +1,10 @@
 type CreatableComponent = Parameters<typeof import('react').createElement>[0];
 
-type IconButtonPresetMapToStateIconBundle = 'edit' | 'visibility';
+type IconButtonPresetMapToStateIconBundle =
+  | 'add'
+  | 'close'
+  | 'edit'
+  | 'visibility';
 
 type IconButtonStateIconBundle = {
   iconType: CreatableComponent;
