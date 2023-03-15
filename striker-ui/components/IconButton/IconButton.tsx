@@ -14,6 +14,7 @@ import { createElement, FC, ReactNode, useMemo } from 'react';
 
 import {
   BLACK,
+  BLUE,
   BORDER_RADIUS,
   DISABLED,
   GREY,
@@ -39,19 +40,19 @@ const NormalIconButton = styled(MUIIconButton)({
   color: GREY,
 });
 
-const MAP_TO_VISIBILITY_ICON: IconButtonMapToStateIcon = {
-  false: MUIVisibilityIcon,
-  true: MUIVisibilityOffIcon,
+const MAP_TO_VISIBILITY_ICON: IconButtonMapToStateIconBundle = {
+  false: { iconType: MUIVisibilityIcon },
+  true: { iconType: MUIVisibilityOffIcon },
 };
 
-const MAP_TO_EDIT_ICON: IconButtonMapToStateIcon = {
-  false: MUIEditIcon,
-  true: MUIDoneIcon,
+const MAP_TO_EDIT_ICON: IconButtonMapToStateIconBundle = {
+  false: { iconType: MUIEditIcon },
+  true: { iconType: MUIDoneIcon, iconProps: { sx: { color: BLUE } } },
 };
 
 const MAP_TO_MAP_PRESET: Record<
-  IconButtonPresetMapToStateIcon,
-  IconButtonMapToStateIcon
+  IconButtonPresetMapToStateIconBundle,
+  IconButtonMapToStateIconBundle
 > = {
   edit: MAP_TO_EDIT_ICON,
   visibility: MAP_TO_VISIBILITY_ICON,
@@ -72,28 +73,36 @@ const IconButton: FC<IconButtonProps> = ({
   variant = 'contained',
   ...restIconButtonProps
 }) => {
-  const mapToIcon = useMemo<IconButtonMapToStateIcon | undefined>(
+  const mapToIcon = useMemo<IconButtonMapToStateIconBundle | undefined>(
     () => externalMapToIcon ?? (mapPreset && MAP_TO_MAP_PRESET[mapPreset]),
     [externalMapToIcon, mapPreset],
+  );
+
+  const defaultIconBundle = useMemo<Partial<IconButtonStateIconBundle>>(
+    () => ({ iconType: defaultIcon }),
+    [defaultIcon],
   );
 
   const iconButtonContent = useMemo(() => {
     let result: ReactNode;
 
     if (mapToIcon) {
-      const iconElementType: CreatableComponent | undefined = state
-        ? mapToIcon[state] ?? defaultIcon
-        : defaultIcon;
+      const { iconType, iconProps: presetIconProps } = state
+        ? mapToIcon[state] ?? defaultIconBundle
+        : defaultIconBundle;
 
-      if (iconElementType) {
-        result = createElement(iconElementType, iconProps);
+      if (iconType) {
+        result = createElement(iconType, {
+          ...presetIconProps,
+          ...iconProps,
+        });
       }
     } else {
       result = children;
     }
 
     return result;
-  }, [children, mapToIcon, state, defaultIcon, iconProps]);
+  }, [mapToIcon, state, defaultIconBundle, iconProps, children]);
   const iconButtonElementType = useMemo(
     () => MAP_TO_VARIANT[variant],
     [variant],
