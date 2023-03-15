@@ -5,6 +5,7 @@ import {
   forwardRef,
   ReactElement,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -166,15 +167,24 @@ const InputWithRef = forwardRef(
       [initOnFocus, inputTestBatch],
     );
 
-    if (isFirstRender) {
-      const isValid =
-        testInput?.call(null, {
-          inputs: { [INPUT_TEST_ID]: { value: inputValue } },
-          isIgnoreOnCallbacks: true,
-        }) ?? false;
+    /**
+     * Using any setState function synchronously in the render function
+     * directly will trigger the 'cannot update a component while readering a
+     * different component' warning. This can be solved by wrapping the
+     * setState call(s) in a useEffect hook because it executes **after** the
+     * render function completes.
+     */
+    useEffect(() => {
+      if (isFirstRender) {
+        const isValid =
+          testInput?.call(null, {
+            inputs: { [INPUT_TEST_ID]: { value: inputValue } },
+            isIgnoreOnCallbacks: true,
+          }) ?? false;
 
-      onFirstRender?.call(null, { isValid });
-    }
+        onFirstRender?.call(null, { isValid });
+      }
+    }, [input.props.id, inputValue, isFirstRender, onFirstRender, testInput]);
 
     useImperativeHandle(
       ref,
