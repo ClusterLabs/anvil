@@ -1,5 +1,7 @@
 import { ReactElement, ReactNode, useEffect, useMemo } from 'react';
 
+import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
+
 import Grid from '../Grid';
 import IconButton from '../IconButton';
 import InputWithRef from '../InputWithRef';
@@ -22,14 +24,23 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   inputMinIpLabel = 'IP address',
   inputSubnetMaskId,
   inputSubnetMaskLabel = 'Subnet mask',
-  networkName,
+  networkId,
+  networkNumber,
+  networkType,
+  onClose,
   previous: {
     gateway: previousGateway,
     minIp: previousIpAddress,
     subnetMask: previousSubnetMask,
   } = {},
+  showCloseButton: isShowCloseButton,
   showGateway: isShowGateway,
 }: AnvilNetworkInputGroupProps<M>): ReactElement => {
+  const networkName = useMemo(
+    () => `${NETWORK_TYPES[networkType]} ${networkNumber}`,
+    [networkNumber, networkType],
+  );
+
   const inputCellGatewayId = useMemo(
     () => `${idPrefix}-input-cell-gateway`,
     [idPrefix],
@@ -43,6 +54,26 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   const inputCellGatewayDisplay = useMemo(
     () => (isShowGateway ? undefined : 'none'),
     [isShowGateway],
+  );
+
+  const closeButtonElement = useMemo<ReactNode>(
+    () =>
+      isShowCloseButton && (
+        <IconButton
+          mapPreset="close"
+          iconProps={{ fontSize: 'small' }}
+          onClick={(...args) => {
+            onClose?.call(null, { networkId, networkType }, ...args);
+          }}
+          sx={{
+            padding: '.2em',
+            position: 'absolute',
+            right: '-.6rem',
+            top: '-.2rem',
+          }}
+        />
+      ),
+    [isShowCloseButton, networkId, networkType, onClose],
   );
 
   const inputGatewayElement = useMemo<ReactNode>(() => {
@@ -74,6 +105,7 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
               });
             },
           )}
+          onFirstRender={buildInputFirstRenderFunction(inputGatewayId)}
           required={isShowGateway}
         />
       );
@@ -88,6 +120,7 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
     previousGateway,
     networkName,
     buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
     msgSetters,
   ]);
 
@@ -100,18 +133,8 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
     <InnerPanel mv={0}>
       <InnerPanelHeader>
         <BodyText>{networkName}</BodyText>
-        <IconButton
-          mapPreset="close"
-          iconProps={{ fontSize: 'small' }}
-          sx={{
-            padding: '.2em',
-            position: 'absolute',
-            right: '-.6rem',
-            top: '-.2rem',
-          }}
-        />
+        {closeButtonElement}
       </InnerPanelHeader>
-
       <InnerPanelBody>
         <Grid
           layout={{

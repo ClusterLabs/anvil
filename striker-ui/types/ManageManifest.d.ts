@@ -11,16 +11,35 @@ type AnvilIdInputGroupProps<M extends MapToInputTestID> =
     formUtils: FormUtils<M>;
   };
 
+type AnvilNetworkConfigNetwork = {
+  networkGateway?: string;
+  networkMinIp: string;
+  networkNumber: number;
+  networkSubnetMask: string;
+  networkType: string;
+};
+
+type AnvilNetworkConfigNetworkList = {
+  [networkId: string]: AnvilNetworkConfigNetwork;
+};
+
+type AnvilNetworkCloseHandler = (
+  args: { networkId: string } & Pick<AnvilNetworkConfigNetwork, 'networkType'>,
+  ...handlerArgs: Parameters<IconButtonMouseEventHandler>
+) => ReturnType<IconButtonMouseEventHandler>;
+
 type AnvilNetworkInputGroupOptionalProps = {
   inputGatewayId?: string;
   inputGatewayLabel?: string;
   inputMinIpLabel?: string;
   inputSubnetMaskLabel?: string;
+  onClose?: AnvilNetworkCloseHandler;
   previous?: {
     gateway?: string;
     minIp?: string;
     subnetMask?: string;
   };
+  showCloseButton?: boolean;
   showGateway?: boolean;
 };
 
@@ -30,7 +49,9 @@ type AnvilNetworkInputGroupProps<M extends MapToInputTestID> =
     idPrefix: string;
     inputMinIpId: string;
     inputSubnetMaskId: string;
-    networkName: string;
+    networkId: string;
+    networkNumber: number;
+    networkType: string;
   };
 
 type AnvilHostInputGroupOptionalProps = {
@@ -64,22 +85,12 @@ type AnvilHostInputGroupProps<M extends MapToInputTestID> =
     idPrefix: string;
   };
 
-type AnvilNetworkConfigNetwork = {
-  networkGateway?: string;
-  networkMinIp: string;
-  networkNumber: number;
-  networkSubnetMask: string;
-  networkType: string;
-};
-
 type AnvilNetworkConfigInputGroupOptionalProps = {
   previous?: {
     dnsCsv?: string;
     /** Max Transmission Unit (MTU); unit: bytes */
     mtu?: number;
-    networks?: {
-      [networkId: string]: AnvilNetworkConfigNetwork;
-    };
+    networks?: AnvilNetworkConfigNetworkList;
     ntpCsv?: string;
   };
 };
