@@ -244,6 +244,10 @@ const AnvilNetworkConfigInputGroup = <
               }}
             />
           ),
+          display: 'flex',
+          justifyContent: 'center',
+          md: 3,
+          sm: 2,
         },
         'anvil-network-config-input-cell-dns': {
           children: (
