@@ -12,7 +12,7 @@ import AnvilNetworkConfigInputGroup, {
 } from './AnvilNetworkConfigInputGroup';
 import FlexBox from '../FlexBox';
 
-const DEFAULT_NETWORKS: AnvilNetworkConfigNetworkList = {
+const DEFAULT_NETWORKS: ManifestNetworkList = {
   bcn1: {
     networkMinIp: '',
     networkNumber: 1,
@@ -51,7 +51,7 @@ const AddManifestInputGroup = <
     previousNetworkConfig;
 
   const [networkList, setNetworkList] =
-    useState<AnvilNetworkConfigNetworkList>(previousNetworkList);
+    useState<ManifestNetworkList>(previousNetworkList);
 
   return (
     <FlexBox>

@@ -11,7 +11,7 @@ type AnvilIdInputGroupProps<M extends MapToInputTestID> =
     formUtils: FormUtils<M>;
   };
 
-type AnvilNetworkConfigNetwork = {
+type ManifestNetwork = {
   networkGateway?: string;
   networkMinIp: string;
   networkNumber: number;
@@ -19,17 +19,21 @@ type AnvilNetworkConfigNetwork = {
   networkType: string;
 };
 
-type AnvilNetworkConfigNetworkList = {
-  [networkId: string]: AnvilNetworkConfigNetwork;
+type ManifestNetworkList = {
+  [networkId: string]: ManifestNetwork;
 };
 
-type AnvilNetworkCloseHandler = (
-  args: { networkId: string } & Pick<AnvilNetworkConfigNetwork, 'networkType'>,
+type AnvilNetworkEventHandlerPreviousArgs = {
+  networkId: string;
+} & Pick<ManifestNetwork, 'networkType'>;
+
+type AnvilNetworkCloseEventHandler = (
+  args: AnvilNetworkEventHandlerPreviousArgs,
   ...handlerArgs: Parameters<IconButtonMouseEventHandler>
 ) => ReturnType<IconButtonMouseEventHandler>;
 
-type AnvilNetworkTypeChangeHandler = (
-  args: { networkId: string } & Pick<AnvilNetworkConfigNetwork, 'networkType'>,
+type AnvilNetworkTypeChangeEventHandler = (
+  args: AnvilNetworkEventHandlerPreviousArgs,
   ...handlerArgs: Parameters<SelectChangeEventHandler>
 ) => ReturnType<SelectChangeEventHandler>;
 
@@ -38,8 +42,8 @@ type AnvilNetworkInputGroupOptionalProps = {
   inputGatewayLabel?: string;
   inputMinIpLabel?: string;
   inputSubnetMaskLabel?: string;
-  onClose?: AnvilNetworkCloseHandler;
-  onNetworkTypeChange?: AnvilNetworkTypeChangeHandler;
+  onClose?: AnvilNetworkCloseEventHandler;
+  onNetworkTypeChange?: AnvilNetworkTypeChangeEventHandler;
   previous?: {
     gateway?: string;
     minIp?: string;
@@ -99,7 +103,7 @@ type AnvilNetworkConfigInputGroupOptionalProps = {
     dnsCsv?: string;
     /** Max Transmission Unit (MTU); unit: bytes */
     mtu?: number;
-    networks?: AnvilNetworkConfigNetworkList;
+    networks?: ManifestNetworkList;
     ntpCsv?: string;
   };
 };
@@ -107,9 +111,9 @@ type AnvilNetworkConfigInputGroupOptionalProps = {
 type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
   AnvilNetworkConfigInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
-    networkList: AnvilNetworkConfigNetworkList;
+    networkList: ManifestNetworkList;
     setNetworkList: import('react').Dispatch<
-      import('react').SetStateAction<AnvilNetworkConfigNetworkList>
+      import('react').SetStateAction<ManifestNetworkList>
     >;
   };
 

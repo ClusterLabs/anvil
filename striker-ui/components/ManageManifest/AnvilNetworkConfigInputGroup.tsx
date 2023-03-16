@@ -63,7 +63,7 @@ const AnvilNetworkConfigInputGroup = <
         input = networkListEntries,
         end = networkListEntries.length,
       }: {
-        input?: Array<[string, AnvilNetworkConfigNetwork]>;
+        input?: Array<[string, ManifestNetwork]>;
         end?: number;
       } = {},
     ) => {
@@ -101,8 +101,8 @@ const AnvilNetworkConfigInputGroup = <
       // Params that depend on others.
       networkGateway = assertIfn(networkType) ? '' : undefined,
       networkNumber = getNetworkNumber(networkType) + 1,
-    }: Partial<AnvilNetworkConfigNetwork> = {}): {
-      network: AnvilNetworkConfigNetwork;
+    }: Partial<ManifestNetwork> = {}): {
+      network: ManifestNetwork;
       networkId: string;
     } => ({
       network: {
@@ -118,72 +118,73 @@ const AnvilNetworkConfigInputGroup = <
   );
 
   const setNetwork = useCallback(
-    (key: string, value?: AnvilNetworkConfigNetwork) =>
+    (key: string, value?: ManifestNetwork) =>
       setNetworkList(buildObjectStateSetterCallback(key, value)),
     [setNetworkList],
   );
 
-  const handleNetworkTypeChange = useCallback<AnvilNetworkTypeChangeHandler>(
-    (
-      { networkId: targetId, networkType: previousType },
-      { target: { value } },
-    ) => {
-      const newType = String(value);
+  const handleNetworkTypeChange =
+    useCallback<AnvilNetworkTypeChangeEventHandler>(
+      (
+        { networkId: targetId, networkType: previousType },
+        { target: { value } },
+      ) => {
+        const newType = String(value);
 
-      let isIdMatch = false;
-      let newTypeNumber = 0;
+        let isIdMatch = false;
+        let newTypeNumber = 0;
 
-      const newList = networkListEntries.reduce<AnvilNetworkConfigNetworkList>(
-        (previous, [networkId, networkValue]) => {
-          const { networkNumber: initnn, networkType: initnt } = networkValue;
+        const newList = networkListEntries.reduce<ManifestNetworkList>(
+          (previous, [networkId, networkValue]) => {
+            const { networkNumber: initnn, networkType: initnt } = networkValue;
 
-          let networkNumber = initnn;
-          let networkType = initnt;
+            let networkNumber = initnn;
+            let networkType = initnt;
 
-          if (networkId === targetId) {
-            isIdMatch = true;
+            if (networkId === targetId) {
+              isIdMatch = true;
 
-            networkType = newType;
-          }
-
-          const isTypeMatch = networkType === newType;
-
-          if (isTypeMatch) {
-            newTypeNumber += 1;
-          }
-
-          if (isIdMatch) {
-            if (isTypeMatch) {
-              networkNumber = newTypeNumber;
-            } else if (networkType === previousType) {
-              networkNumber -= 1;
+              networkType = newType;
             }
 
-            previous[networkId] = {
-              ...networkValue,
-              networkNumber,
-              networkType,
-            };
-          } else {
-            previous[networkId] = networkValue;
-          }
+            const isTypeMatch = networkType === newType;
 
-          return previous;
-        },
-        {},
-      );
+            if (isTypeMatch) {
+              newTypeNumber += 1;
+            }
 
-      setNetworkList(newList);
-    },
-    [networkListEntries, setNetworkList],
-  );
+            if (isIdMatch) {
+              if (isTypeMatch) {
+                networkNumber = newTypeNumber;
+              } else if (networkType === previousType) {
+                networkNumber -= 1;
+              }
 
-  const handleNetworkRemove = useCallback<AnvilNetworkCloseHandler>(
+              previous[networkId] = {
+                ...networkValue,
+                networkNumber,
+                networkType,
+              };
+            } else {
+              previous[networkId] = networkValue;
+            }
+
+            return previous;
+          },
+          {},
+        );
+
+        setNetworkList(newList);
+      },
+      [networkListEntries, setNetworkList],
+    );
+
+  const handleNetworkRemove = useCallback<AnvilNetworkCloseEventHandler>(
     ({ networkId: rmId, networkType: rmType }) => {
       let isIdMatch = false;
       let networkNumber = 0;
 
-      const newList = networkListEntries.reduce<AnvilNetworkConfigNetworkList>(
+      const newList = networkListEntries.reduce<ManifestNetworkList>(
         (previous, [networkId, networkValue]) => {
           if (networkId === rmId) {
             isIdMatch = true;
