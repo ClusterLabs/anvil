@@ -3,7 +3,7 @@ import { FC, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
-import AddAnvilManifestInputGroup from './AddAnvilManifestInputGroup';
+import AddManifestInputGroup from './AddManifestInputGroup';
 import {
   INPUT_ID_ANVIL_ID_DOMAIN,
   INPUT_ID_ANVIL_ID_PREFIX,
@@ -58,7 +58,7 @@ const ManageManifestPanel: FC = () => {
   const addAnvilManifestFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
       actionProceedText: 'Add',
-      content: <AddAnvilManifestInputGroup formUtils={formUtils} />,
+      content: <AddManifestInputGroup formUtils={formUtils} />,
       titleText: 'Add a Anvil! manifest',
     }),
     [formUtils],

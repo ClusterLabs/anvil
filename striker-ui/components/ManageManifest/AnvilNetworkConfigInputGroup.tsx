@@ -1,4 +1,4 @@
-import { ReactElement, useCallback, useMemo, useState } from 'react';
+import { ReactElement, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
@@ -25,27 +25,6 @@ const INPUT_LABEL_ANVIL_NETWORK_CONFIG_NTP = 'NTP';
 
 const NETWORK_TYPE_ENTRIES = Object.entries(NETWORK_TYPES);
 
-const DEFAULT_NETWORKS: AnvilNetworkConfigNetworkList = {
-  bcn1: {
-    networkMinIp: '',
-    networkNumber: 1,
-    networkSubnetMask: '',
-    networkType: 'bcn',
-  },
-  sn1: {
-    networkMinIp: '',
-    networkNumber: 1,
-    networkSubnetMask: '',
-    networkType: 'sn',
-  },
-  ifn1: {
-    networkMinIp: '',
-    networkNumber: 1,
-    networkSubnetMask: '',
-    networkType: 'ifn',
-  },
-};
-
 const assertIfn = (type: string) => type === 'ifn';
 const assertMn = (type: string) => type === 'mn';
 
@@ -58,21 +37,19 @@ const AnvilNetworkConfigInputGroup = <
   },
 >({
   formUtils,
+  networkList,
   previous: {
     dnsCsv: previousDnsCsv,
     mtu: previousMtu,
-    networks: previousNetworks = DEFAULT_NETWORKS,
     ntpCsv: previousNtpCsv,
   } = {},
+  setNetworkList,
 }: AnvilNetworkConfigInputGroupProps<M>): ReactElement => {
   const {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     msgSetters,
   } = formUtils;
-
-  const [networkList, setNetworkList] =
-    useState<AnvilNetworkConfigNetworkList>(previousNetworks);
 
   const networkListEntries = useMemo(
     () => Object.entries(networkList),
@@ -143,7 +120,7 @@ const AnvilNetworkConfigInputGroup = <
   const setNetwork = useCallback(
     (key: string, value?: AnvilNetworkConfigNetwork) =>
       setNetworkList(buildObjectStateSetterCallback(key, value)),
-    [],
+    [setNetworkList],
   );
 
   const handleNetworkTypeChange = useCallback<AnvilNetworkTypeChangeHandler>(
@@ -198,7 +175,7 @@ const AnvilNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListEntries],
+    [networkListEntries, setNetworkList],
   );
 
   const handleNetworkRemove = useCallback<AnvilNetworkCloseHandler>(
@@ -229,7 +206,7 @@ const AnvilNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListEntries],
+    [networkListEntries, setNetworkList],
   );
 
   const networksGridLayout = useMemo<GridLayout>(() => {

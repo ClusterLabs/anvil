@@ -107,8 +107,19 @@ type AnvilNetworkConfigInputGroupOptionalProps = {
 type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
   AnvilNetworkConfigInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
+    networkList: AnvilNetworkConfigNetworkList;
+    setNetworkList: import('react').Dispatch<
+      import('react').SetStateAction<AnvilNetworkConfigNetworkList>
+    >;
   };
 
-type AddAnvilInputGroupProps<M extends MapToInputTestID> = {
-  formUtils: FormUtils<M>;
+type AddManifestInputGroupOptionalProps = {
+  previous?: {
+    networkConfig?: AnvilNetworkConfigInputGroupOptionalProps['previous'];
+  };
 };
+
+type AddManifestInputGroupProps<M extends MapToInputTestID> =
+  AddManifestInputGroupOptionalProps & {
+    formUtils: FormUtils<M>;
+  };
