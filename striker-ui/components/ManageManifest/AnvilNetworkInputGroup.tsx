@@ -7,8 +7,8 @@ import IconButton from '../IconButton';
 import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
+import SelectWithLabel from '../SelectWithLabel';
 import { buildIPAddressTestBatch } from '../../lib/test_input';
-import { BodyText } from '../Text';
 
 const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   formUtils: {
@@ -22,17 +22,21 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   inputGatewayLabel = 'Gateway',
   inputMinIpId,
   inputMinIpLabel = 'IP address',
+  inputNetworkTypeId,
   inputSubnetMaskId,
   inputSubnetMaskLabel = 'Subnet mask',
   networkId,
   networkNumber,
   networkType,
+  networkTypeOptions,
   onClose,
+  onNetworkTypeChange,
   previous: {
     gateway: previousGateway,
     minIp: previousIpAddress,
     subnetMask: previousSubnetMask,
   } = {},
+  readonlyNetworkName: isReadonlyNetworkName,
   showCloseButton: isShowCloseButton,
   showGateway: isShowGateway,
 }: AnvilNetworkInputGroupProps<M>): ReactElement => {
@@ -132,7 +136,26 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   return (
     <InnerPanel mv={0}>
       <InnerPanelHeader>
-        <BodyText>{networkName}</BodyText>
+        <InputWithRef
+          input={
+            <SelectWithLabel
+              id={inputNetworkTypeId}
+              isReadOnly={isReadonlyNetworkName}
+              onChange={(...args) => {
+                onNetworkTypeChange?.call(
+                  null,
+                  { networkId, networkType },
+                  ...args,
+                );
+              }}
+              selectItems={networkTypeOptions}
+              selectProps={{
+                renderValue: () => networkName,
+              }}
+              value={networkType}
+            />
+          }
+        />
         {closeButtonElement}
       </InnerPanelHeader>
       <InnerPanelBody>

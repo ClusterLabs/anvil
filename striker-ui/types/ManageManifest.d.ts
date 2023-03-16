@@ -28,17 +28,24 @@ type AnvilNetworkCloseHandler = (
   ...handlerArgs: Parameters<IconButtonMouseEventHandler>
 ) => ReturnType<IconButtonMouseEventHandler>;
 
+type AnvilNetworkTypeChangeHandler = (
+  args: { networkId: string } & Pick<AnvilNetworkConfigNetwork, 'networkType'>,
+  ...handlerArgs: Parameters<SelectChangeEventHandler>
+) => ReturnType<SelectChangeEventHandler>;
+
 type AnvilNetworkInputGroupOptionalProps = {
   inputGatewayId?: string;
   inputGatewayLabel?: string;
   inputMinIpLabel?: string;
   inputSubnetMaskLabel?: string;
   onClose?: AnvilNetworkCloseHandler;
+  onNetworkTypeChange?: AnvilNetworkTypeChangeHandler;
   previous?: {
     gateway?: string;
     minIp?: string;
     subnetMask?: string;
   };
+  readonlyNetworkName?: boolean;
   showCloseButton?: boolean;
   showGateway?: boolean;
 };
@@ -48,10 +55,12 @@ type AnvilNetworkInputGroupProps<M extends MapToInputTestID> =
     formUtils: FormUtils<M>;
     idPrefix: string;
     inputMinIpId: string;
+    inputNetworkTypeId: string;
     inputSubnetMaskId: string;
     networkId: string;
     networkNumber: number;
     networkType: string;
+    networkTypeOptions: SelectItem[];
   };
 
 type AnvilHostInputGroupOptionalProps = {

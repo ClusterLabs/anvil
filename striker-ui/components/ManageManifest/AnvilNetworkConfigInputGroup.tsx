@@ -1,6 +1,8 @@
 import { ReactElement, useCallback, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
+import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
+
 import AnvilNetworkInputGroup from './AnvilNetworkInputGroup';
 import buildObjectStateSetterCallback from '../../lib/buildObjectStateSetterCallback';
 import Grid from '../Grid';
@@ -20,6 +22,8 @@ const INPUT_ID_ANVIL_NETWORK_CONFIG_NTP = 'anvil-network-config-input-ntp';
 const INPUT_LABEL_ANVIL_NETWORK_CONFIG_DNS = 'DNS';
 const INPUT_LABEL_ANVIL_NETWORK_CONFIG_MTU = 'MTU';
 const INPUT_LABEL_ANVIL_NETWORK_CONFIG_NTP = 'NTP';
+
+const NETWORK_TYPE_ENTRIES = Object.entries(NETWORK_TYPES);
 
 const DEFAULT_NETWORKS: AnvilNetworkConfigNetworkList = {
   bcn1: {
@@ -42,7 +46,8 @@ const DEFAULT_NETWORKS: AnvilNetworkConfigNetworkList = {
   },
 };
 
-const isIfn = (type: string) => type === 'ifn';
+const assertIfn = (type: string) => type === 'ifn';
+const assertMn = (type: string) => type === 'mn';
 
 const AnvilNetworkConfigInputGroup = <
   M extends MapToInputTestID & {
@@ -69,7 +74,7 @@ const AnvilNetworkConfigInputGroup = <
   const [networkList, setNetworkList] =
     useState<AnvilNetworkConfigNetworkList>(previousNetworks);
 
-  const networkListArray = useMemo(
+  const networkListEntries = useMemo(
     () => Object.entries(networkList),
     [networkList],
   );
@@ -78,13 +83,15 @@ const AnvilNetworkConfigInputGroup = <
     (
       type: string,
       {
-        input = networkListArray,
-        end = networkListArray.length,
+        input = networkListEntries,
+        end = networkListEntries.length,
       }: {
         input?: Array<[string, AnvilNetworkConfigNetwork]>;
         end?: number;
       } = {},
     ) => {
+      const limit = end - 1;
+
       let netNum = 0;
 
       input.every(([, { networkType }], networkIndex) => {
@@ -92,12 +99,21 @@ const AnvilNetworkConfigInputGroup = <
           netNum += 1;
         }
 
-        return networkIndex < end;
+        return networkIndex < limit;
       });
 
       return netNum;
     },
-    [networkListArray],
+    [networkListEntries],
+  );
+
+  const networkTypeOptions = useMemo<SelectItem[]>(
+    () =>
+      NETWORK_TYPE_ENTRIES.map(([key, value]) => ({
+        displayValue: value,
+        value: key,
+      })),
+    [],
   );
 
   const buildNetwork = useCallback(
@@ -106,7 +122,7 @@ const AnvilNetworkConfigInputGroup = <
       networkSubnetMask = '',
       networkType = 'ifn',
       // Params that depend on others.
-      networkGateway = isIfn(networkType) ? '' : undefined,
+      networkGateway = assertIfn(networkType) ? '' : undefined,
       networkNumber = getNetworkNumber(networkType) + 1,
     }: Partial<AnvilNetworkConfigNetwork> = {}): {
       network: AnvilNetworkConfigNetwork;
@@ -130,30 +146,49 @@ const AnvilNetworkConfigInputGroup = <
     [],
   );
 
-  const removeNetwork = useCallback<AnvilNetworkCloseHandler>(
-    ({ networkId: rmId, networkType: rmType }) => {
+  const handleNetworkTypeChange = useCallback<AnvilNetworkTypeChangeHandler>(
+    (
+      { networkId: targetId, networkType: previousType },
+      { target: { value } },
+    ) => {
+      const newType = String(value);
+
       let isIdMatch = false;
-      let networkNumber = 0;
+      let newTypeNumber = 0;
 
-      const newList = networkListArray.reduce<AnvilNetworkConfigNetworkList>(
+      const newList = networkListEntries.reduce<AnvilNetworkConfigNetworkList>(
         (previous, [networkId, networkValue]) => {
-          const { networkType } = networkValue;
+          const { networkNumber: initnn, networkType: initnt } = networkValue;
 
-          if (networkId === rmId) {
+          let networkNumber = initnn;
+          let networkType = initnt;
+
+          if (networkId === targetId) {
             isIdMatch = true;
-          } else {
-            if (networkType === rmType) {
-              networkNumber += 1;
+
+            networkType = newType;
+          }
+
+          const isTypeMatch = networkType === newType;
+
+          if (isTypeMatch) {
+            newTypeNumber += 1;
+          }
+
+          if (isIdMatch) {
+            if (isTypeMatch) {
+              networkNumber = newTypeNumber;
+            } else if (networkType === previousType) {
+              networkNumber -= 1;
             }
 
-            if (isIdMatch) {
-              previous[networkId] = {
-                ...networkValue,
-                networkNumber,
-              };
-            } else {
-              previous[networkId] = networkValue;
-            }
+            previous[networkId] = {
+              ...networkValue,
+              networkNumber,
+              networkType,
+            };
+          } else {
+            previous[networkId] = networkValue;
           }
 
           return previous;
@@ -163,13 +198,44 @@ const AnvilNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListArray],
+    [networkListEntries],
+  );
+
+  const handleNetworkRemove = useCallback<AnvilNetworkCloseHandler>(
+    ({ networkId: rmId, networkType: rmType }) => {
+      let isIdMatch = false;
+      let networkNumber = 0;
+
+      const newList = networkListEntries.reduce<AnvilNetworkConfigNetworkList>(
+        (previous, [networkId, networkValue]) => {
+          if (networkId === rmId) {
+            isIdMatch = true;
+          } else {
+            const { networkType } = networkValue;
+
+            if (networkType === rmType) {
+              networkNumber += 1;
+            }
+
+            previous[networkId] = isIdMatch
+              ? { ...networkValue, networkNumber }
+              : networkValue;
+          }
+
+          return previous;
+        },
+        {},
+      );
+
+      setNetworkList(newList);
+    },
+    [networkListEntries],
   );
 
   const networksGridLayout = useMemo<GridLayout>(() => {
     let result: GridLayout = {};
 
-    result = networkListArray.reduce<GridLayout>(
+    result = networkListEntries.reduce<GridLayout>(
       (
         previous,
         [
@@ -190,10 +256,13 @@ const AnvilNetworkConfigInputGroup = <
         const inputIdPrefix = `${INPUT_ID_PREFIX_ANVIL_NETWORK_CONFIG}-${networkId}`;
         const inputGatewayId = `${inputIdPrefix}-gateway`;
         const inputMinIpId = `${inputIdPrefix}-min-ip`;
+        const inputNetworkTypeId = `${inputIdPrefix}-network-type`;
         const inputSubnetMaskId = `${inputIdPrefix}-subnet-mask`;
 
         const isFirstNetwork = networkNumber === 1;
-        const isShowGateway = isIfn(networkType);
+        const isIfn = assertIfn(networkType);
+        const isMn = assertMn(networkType);
+        const isOptional = isMn || !isFirstNetwork;
 
         previous[cellId] = {
           children: (
@@ -202,18 +271,22 @@ const AnvilNetworkConfigInputGroup = <
               idPrefix={idPrefix}
               inputGatewayId={inputGatewayId}
               inputMinIpId={inputMinIpId}
+              inputNetworkTypeId={inputNetworkTypeId}
               inputSubnetMaskId={inputSubnetMaskId}
               networkId={networkId}
               networkNumber={networkNumber}
               networkType={networkType}
-              onClose={removeNetwork}
+              networkTypeOptions={networkTypeOptions}
+              onClose={handleNetworkRemove}
+              onNetworkTypeChange={handleNetworkTypeChange}
               previous={{
                 gateway: networkGateway,
                 minIp: networkMinIp,
                 subnetMask: networkSubnetMask,
               }}
-              showCloseButton={!isFirstNetwork}
-              showGateway={isShowGateway}
+              readonlyNetworkName={!isOptional}
+              showCloseButton={isOptional}
+              showGateway={isIfn}
             />
           ),
           md: 3,
@@ -226,7 +299,13 @@ const AnvilNetworkConfigInputGroup = <
     );
 
     return result;
-  }, [formUtils, networkListArray, removeNetwork]);
+  }, [
+    formUtils,
+    networkListEntries,
+    networkTypeOptions,
+    handleNetworkRemove,
+    handleNetworkTypeChange,
+  ]);
 
   return (
     <Grid
