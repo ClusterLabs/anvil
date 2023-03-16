@@ -15,6 +15,9 @@ type IconButtonMapToStateIconBundle = Record<string, IconButtonStateIconBundle>;
 
 type IconButtonVariant = 'contained' | 'normal';
 
+type IconButtonMouseEventHandler =
+  import('@mui/material').IconButtonProps['onClick'];
+
 type IconButtonOptionalProps = {
   defaultIcon?: CreatableComponent;
   iconProps?: import('@mui/material').SvgIconProps;
