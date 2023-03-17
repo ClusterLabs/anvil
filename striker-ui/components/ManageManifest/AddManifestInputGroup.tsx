@@ -1,5 +1,6 @@
-import { ReactElement, useState } from 'react';
+import { ReactElement, useMemo, useState } from 'react';
 
+import AnvilHostConfigInputGroup from './AnvilHostConfigInputGroup';
 import AnvilIdInputGroup, {
   INPUT_ID_ANVIL_ID_DOMAIN,
   INPUT_ID_ANVIL_ID_PREFIX,
@@ -12,7 +13,7 @@ import AnvilNetworkConfigInputGroup, {
 } from './AnvilNetworkConfigInputGroup';
 import FlexBox from '../FlexBox';
 
-const DEFAULT_NETWORKS: ManifestNetworkList = {
+const DEFAULT_NETWORK_LIST: ManifestNetworkList = {
   bcn1: {
     networkMinIp: '',
     networkNumber: 1,
@@ -45,22 +46,35 @@ const AddManifestInputGroup = <
   },
 >({
   formUtils,
-  previous: { networkConfig: previousNetworkConfig = {} } = {},
+  previous: {
+    hostConfig: previousHostConfig = {},
+    networkConfig: previousNetworkConfig = {},
+  } = {},
 }: AddManifestInputGroupProps<M>): ReactElement => {
-  const { networks: previousNetworkList = DEFAULT_NETWORKS } =
+  const { networks: previousNetworkList = DEFAULT_NETWORK_LIST } =
     previousNetworkConfig;
 
   const [networkList, setNetworkList] =
     useState<ManifestNetworkList>(previousNetworkList);
+
+  const networkListEntries = useMemo(
+    () => Object.entries(networkList),
+    [networkList],
+  );
 
   return (
     <FlexBox>
       <AnvilIdInputGroup formUtils={formUtils} />
       <AnvilNetworkConfigInputGroup
         formUtils={formUtils}
-        networkList={networkList}
+        networkListEntries={networkListEntries}
         previous={previousNetworkConfig}
         setNetworkList={setNetworkList}
+      />
+      <AnvilHostConfigInputGroup
+        formUtils={formUtils}
+        networkListEntries={networkListEntries}
+        previous={previousHostConfig}
       />
     </FlexBox>
   );

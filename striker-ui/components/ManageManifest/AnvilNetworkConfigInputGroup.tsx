@@ -37,7 +37,7 @@ const AnvilNetworkConfigInputGroup = <
   },
 >({
   formUtils,
-  networkList,
+  networkListEntries,
   previous: {
     dnsCsv: previousDnsCsv,
     mtu: previousMtu,
@@ -50,11 +50,6 @@ const AnvilNetworkConfigInputGroup = <
     buildInputFirstRenderFunction,
     msgSetters,
   } = formUtils;
-
-  const networkListEntries = useMemo(
-    () => Object.entries(networkList),
-    [networkList],
-  );
 
   const getNetworkNumber = useCallback(
     (
