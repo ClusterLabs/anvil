@@ -69,7 +69,7 @@ type ManifestDetail = {
     ntpCsv: string;
   };
   prefix: string;
-  sequence: string;
+  sequence: number;
 };
 
 type ManifestTemplate = {

@@ -235,16 +235,8 @@ export const getManifestDetail: RequestHandler = (request, response) => {
       ntpCsv,
     },
     prefix,
-    sequence,
+    sequence: Number.parseInt(sequence),
   };
-
-  stdout(
-    `Extracted install manifest data:\n${JSON.stringify(
-      manifestData,
-      null,
-      2,
-    )}`,
-  );
 
   response.status(200).send(manifestData);
 };
