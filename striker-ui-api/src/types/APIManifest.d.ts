@@ -71,3 +71,21 @@ type ManifestDetail = {
   prefix: string;
   sequence: string;
 };
+
+type ManifestTemplate = {
+  domain: string;
+  fences: {
+    [fenceUUID: string]: {
+      fenceName: string;
+      fenceUUID: string;
+    };
+  };
+  prefix: string;
+  sequence: number;
+  upses: {
+    [upsUUID: string]: {
+      upsName: string;
+      upsUUID: string;
+    };
+  };
+};
