@@ -28,6 +28,15 @@ const handleSortEntries = <T extends [string, unknown]>(
   return result;
 };
 
+/**
+ * This handler sorts networks in ascending order. But, it groups IFNs at the
+ * end of the list in ascending order.
+ *
+ * When the sort callback returns:
+ * - positive, element `a` will get a higher index than element `b`
+ * - negative, element `a` will get a lower index than element `b`
+ * - zero, elements' index will remain unchanged
+ */
 const handleSortNetworks = <T extends [string, unknown]>(
   [aId]: T,
   [bId]: T,
