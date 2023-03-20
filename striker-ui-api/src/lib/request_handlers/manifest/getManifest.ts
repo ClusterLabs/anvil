@@ -10,6 +10,7 @@ export const getManifest: RequestHandler = buildGetRequestHandler(
         manifest_uuid,
         manifest_name
       FROM manifests
+      WHERE manifest_note != 'DELETED'
       ORDER BY manifest_name ASC;`;
     const afterQueryReturn: QueryResultModifierFunction | undefined =
       buildQueryResultReducer<{ [manifestUUID: string]: ManifestOverview }>(
