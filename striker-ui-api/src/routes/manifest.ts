@@ -1,6 +1,7 @@
 import express from 'express';
 
 import {
+  deleteManifest,
   getManifest,
   getManifestDetail,
   getManifestTemplate,
@@ -11,6 +12,8 @@ const router = express.Router();
 router
   .get('/', getManifest)
   .get('/template', getManifestTemplate)
-  .get('/:manifestUUID', getManifestDetail);
+  .get('/:manifestUUID', getManifestDetail)
+  .delete('/', deleteManifest)
+  .delete('/manifestUuid', deleteManifest);
 
 export default router;
