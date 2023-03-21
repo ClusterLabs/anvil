@@ -72,6 +72,8 @@ type ManifestDetail = {
   sequence: number;
 };
 
+type BuildManifestRequestBody = Omit<ManifestDetail, 'name'>;
+
 type ManifestTemplate = {
   domain: string;
   fences: {
