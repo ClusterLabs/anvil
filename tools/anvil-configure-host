@@ -1412,7 +1412,7 @@ ORDER BY
 	
 	# If any virtio bridges exist, remove it/them.
 	my $start                   = 0;
-	my ($bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
+	my ($bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-list"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges, return_code => $return_code }});
 	if ($return_code)
 	{
@@ -1475,15 +1475,15 @@ ORDER BY
 		foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
 		{
 			# Destroy (stop) it.
-			my ($destroy, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
+			my ($destroy, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { destroy => $destroy, return_code => $return_code }});
 			
 			# Disable it from auto-start.
-			(my $disable, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
+			(my $disable, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disable => $disable, return_code => $return_code }});
 			
 			# Undefine (delete)
-			(my $undefine, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
+			(my $undefine, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine, return_code => $return_code }});
 		}
 	}

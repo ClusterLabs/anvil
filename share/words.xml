@@ -1523,13 +1523,13 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0458"><![CDATA[Available options
  --name          - Alphanumeric, 1~16 characters long.
  --os            - Run: 'osinfo-query os' and reference the 'Short ID' column for valid options.
- --cpu           - 1 ~ #!varaible!threads!#
- --ram           - Bytes or human readable, min is 64KiB, max is #!variable!max_ram.
+ --cpu           - 1 ~ #!variable!threads!#
+ --ram           - Bytes or human readable, min is 64KiB, max is #!variable!max_ram!#.
  --storage-group - Name or UUID. Valid options are:]]></key>
-		<key name="job_0459"><![CDATA[                     - Name: [#!variable!name!#], UUID: [#!variable!uuid!#], free space: [#!variable!free_space!#]]]></key>
+		<key name="job_0459"><![CDATA[                 > Name: [#!variable!name!#], UUID: [#!variable!uuid!#], free space: [#!variable!free_space!#]]]></key>
 		<key name="job_0460"><![CDATA[ --storage-size  - Disk size, see above for space available
  --install-media - File name or file UUID. Available discs are:]]></key>
-		<key name="job_0461"><![CDATA[                     - File name: [#!variable!name!#], file UUID: [#!variable!uuid!#], size: [#!variable!size!#]]]></key>
+		<key name="job_0461"><![CDATA[                 > File name: [#!variable!name!#], file UUID: [#!variable!uuid!#], size: [#!variable!size!#]]]></key>
 		<key name="job_0462"><![CDATA[ --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.]]></key>
 
 		<!-- Log entries -->

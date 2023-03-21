@@ -147,7 +147,7 @@ sub update_network
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if (($host_type eq "node") or ($host_type eq "dr"))
 	{
-		my $shell_call = $anvil->data->{path}{exe}{virsh}." net-list --all --name";
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-list --all --name";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -168,7 +168,7 @@ sub update_network
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "striker_0287", variables => { bridge => $line }});
 				
-				my $shell_call = $anvil->data->{path}{exe}{virsh}." net-destroy ".$line;
+				my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-destroy ".$line;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -176,7 +176,7 @@ sub update_network
 					return_code => $return_code, 
 				}});
 				
-				$shell_call = $anvil->data->{path}{exe}{virsh}." net-undefine ".$line;
+				$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-undefine ".$line;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
