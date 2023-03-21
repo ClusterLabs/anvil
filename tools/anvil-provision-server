@@ -590,7 +590,7 @@ sub provision_server
 	my $status     = "";
 	while($waiting)
 	{
-		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code,
@@ -611,7 +611,7 @@ sub provision_server
 				elsif ($status eq "shut off")
 				{
 					# Try to boot it.
-					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." start ".$server});
+					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." start ".$server});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code,
@@ -641,7 +641,7 @@ sub provision_server
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0201"});
 	
 	# Dump the server's XML.
-	(my $server_definition_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server});
+	(my $server_definition_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml ".$server});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server_definition_xml => $server_definition_xml,
 		return_code           => $return_code,
@@ -699,7 +699,7 @@ sub provision_server
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
 	
 	# Undefine the server
-	(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." undefine ".$server});
+	(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code,
@@ -2838,11 +2838,12 @@ sub interactive_ask_server_confirm
 	# terminal isn't set with --ci-test set.
 	check_anvil($anvil);
 	
-	$anvil->Database->get_anvils();
-	$anvil->Database->get_files();
-	$anvil->Database->get_file_locations();
-	$anvil->Get->virsh_list_os();
-
+	$anvil->Database->get_hosts({debug => 3});
+	$anvil->Database->get_anvils({debug => 3});
+	$anvil->Database->get_files({debug => 2});
+	$anvil->Database->get_file_locations({debug => 2});
+	$anvil->Get->virsh_list_os({debug => 3});
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
 		"switches::ci-test"      => $anvil->data->{switches}{'ci-test'},
@@ -3234,6 +3235,7 @@ sub interactive_ask_server_confirm
 						free_space => $say_max_storage_group_size,
 					}})."\n";
 				}
+				
 				print $anvil->Words->string({key => "job_0460"})."\n";
 				foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
 				{
@@ -3245,7 +3247,7 @@ sub interactive_ask_server_confirm
 					print $anvil->Words->string({key => "job_0461", variables => {
 						name => $file_name,
 						uuid => $file_uuid,
-						size => $say_max_storage_group_size,
+						size => $say_size,
 					}})."\n";
 				}
 				print $anvil->Words->string({key => "job_0462"})."\n";

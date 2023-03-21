@@ -2056,8 +2056,8 @@ sub check_local_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0085"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0085");
 		
-		$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy default"});
-		$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine default "});
+		$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-destroy default"});
+		$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-undefine default "});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0034"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0034");

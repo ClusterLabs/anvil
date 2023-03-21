@@ -9,6 +9,15 @@
 # 
 # TODO: 
 # 
+# USAGE:
+# - Show
+#   - anvil-manage-server-storage --server srv01-fs37
+# - ISO
+#   - anvil-manage-server-storage --server srv01-fs37 --optical sda --insert /mnt/shared/files/CentOS-5.11-x86_64-bin-DVD-1of2.iso
+#   - anvil-manage-server-storage --server srv01-fs37 --optical sda --eject
+# - Disk
+#   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10GiB,150GiB}
+# 
 
 use strict;
 use warnings;
@@ -38,9 +47,13 @@ $anvil->Log->secure({set => 1});
 $anvil->Get->switches({list => [
 	"add",
 	"anvil", 
+	"disk", 
+	"eject", 
 	"grow",
+	"insert", 
+	"optical", 
 	"server",
-       	], man => $THIS_FILE});
+	], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -86,7 +99,21 @@ if (not $anvil->data->{switches}{server})
 	print "\nPlease specify which server you want to modify using '--server <name or uuid>'.\n\n";
 	$anvil->nice_exit({exit_code => 0});
 }
-manage_server($anvil);
+
+validate_server($anvil);
+
+if ($anvil->data->{switches}{optical})
+{
+	manage_optical($anvil);
+}
+elsif ($anvil->data->{switches}{disk})
+{
+	manage_disk($anvil);
+}
+else
+{
+	show_server_details($anvil);
+}
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -95,58 +122,312 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub manage_server
+sub manage_disk
 {
 	my ($anvil) = @_;
 	
-	$anvil->Get->server_from_switch({
-		debug      => 2, 
-		string     => $anvil->data->{switches}{server},
-		anvil_uuid => $anvil->data->{switches}{anvil_uuid},
-	});
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"switches::server_name" => $anvil->data->{switches}{server_name},
-		"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+		short_host_name => $short_host_name,
+		server_name     => $server_name, 
+		from_source     => $from_source, 
+	}});
+	if (not $anvil->data->{switches}{disk})
+	{
+		# If there's only one optical drive, select it automatically
+		my $count = keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		if ($count == 1)
+		{
+			foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}})
+			{
+				$anvil->data->{switches}{disk} = $device_target;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"switches::drive" => $anvil->data->{switches}{disk},
+				}});
+				last;
+			}
+		}
+		
+		if (not $anvil->data->{switches}{disk})
+		{
+			# Can't proceed.
+			print "\n[ Error ] - Please indicate the disk drive to work with using '--disk --drive <target_device>'.\n\n";
+			show_server_details($anvil);
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	my $device_target = $anvil->data->{switches}{disk};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
+
+	my $device           = "disk";
+	my $alias            = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{alias};
+	my $boot_order       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{boot_order};
+	my $say_boot         = $boot_order eq "99" ? "--" : sprintf("%02d", $boot_order);
+	my $type             = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{type};
+	my $address_type     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{type};
+	my $address_bus      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{bus};
+	my $driver_name      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{name};
+	my $device_bus       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{device_bus};
+	my $driver_type      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{type};
+	my $address_domain   = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{domain};
+	my $address_slot     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{slot};
+	my $address_function = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{function};
+	my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+	my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{io};
+	my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{cache};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's01:device_target'    => $device_target,
+		's02:alias'            => $alias, 
+		's03:boot_order'       => $boot_order,
+		's04:say_boot'         => $say_boot, 
+		's05:type'             => $type, 
+		's06:address_type'     => $address_type, 
+		's07:address_bus'      => $address_bus, 
+		's08:driver_name'      => $driver_name, 
+		's09:device_bus'       => $device_bus, 
+		's10:driver_type'      => $driver_type, 
+		's11:address_domain'   => $address_domain,
+		's12:address_slot'     => $address_slot, 
+		's13:address_function' => $address_function, 
+		's14:device_path'      => $device_path, 
+		's15:driver_io'        => $driver_io, 
+		's16:driver_cache'     => $driver_cache, 
+	}});
+	print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
+	
+	my $volume = "";
+	
+	print "Sub-Nodes:\n";
+	my $drbd_resource = "";
+	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
+	{
+		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
+		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:device_path'   => $device_path, 
+			's2:on_lv'         => $on_lv,
+			's3:drbd_resource' => $drbd_resource, 
+			's4:device_target' => $device_target, 
+		}});
+	}
+	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+		
+		# Get the DRBD volume data
+		load_drbd_data($anvil, $drbd_resource);
+	}
+	foreach my $host_type ("node", "dr")
+	{
+		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
+		{
+			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+			}});
+			print " |- Name: [".$short_host_name."], UUID: [".$host_uuid."]\n";
+			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
+			{
+				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
+				my $device_minor = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_minor};
+				my $volume_size  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{volume_size};
+				my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{backing_disk};
+				my $meta_disk    = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{meta_disk};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:volume_number' => $volume_number,
+					's2:device_path'   => $device_path, 
+					's3:device_minor'  => $device_minor, 
+					's4:volume_size'   => $volume_size, 
+					's5:backing_disk'  => $backing_disk, 
+					's6:meta_disk'     => $meta_disk, 
+				}});
+				print "   ^- Volume: [".$volume_number."], backing device: [".$backing_disk."], DRBD minor: [".$device_minor."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."]\n";
+			}
+		}
+	}
+	
+	# What are we doing?
+	if ($anvil->data->{switches}{grow})
+	{
+		### TODO: Make this work without the peer node being online.
+		# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
+		# needs to be online.
+		
+		# Process the DRBD config to get the backing LVs.
+	}
+	
+	return(0);
+}
+
+sub manage_optical
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	my $from_source     = get_definition_source($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		short_host_name => $short_host_name,
+		server_name     => $server_name, 
+		from_source     => $from_source, 
 	}});
 	
-	if (not $anvil->data->{switches}{server_uuid})
+	if (not $anvil->data->{switches}{optical})
 	{
-		show_server_list($anvil);
-		if ($anvil->data->{switches}{anvil_uuid})
+		# If there's only one optical drive, select it automatically
+		my $count = keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		if ($count == 1)
 		{
-			# Not found on the requested Anvil! node.
-			print "\nThe server: [".$anvil->data->{switches}{server}."] was not found on the Anvil! node: [".$anvil->data->{switches}{anvil_name}."]. Valid servers are above.\n\n";
+			foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}})
+			{
+				$anvil->data->{switches}{optical} = $device_target;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"switches::drive" => $anvil->data->{switches}{optical},
+				}});
+				last;
+			}
+		}
+		
+		if (not $anvil->data->{switches}{optical})
+		{
+			# Can't proceed.
+			print "\n[ Error ] - Please indicate the optical drive to work with using '--optical <target_device>'.\n\n";
+			show_server_details($anvil);
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	my $device_target = $anvil->data->{switches}{optical};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
+	
+	my $eject_first        = 0;
+	my $alias              = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{alias};
+	my $boot_order         = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{boot_order};
+	my $say_boot           = $boot_order eq "99" ? "--" : sprintf("%02d", $boot_order);
+	my $type               = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{type};
+	my $address_type       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{address}{type};
+	my $address_bus        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{address}{bus};
+	my $driver_name        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{driver}{name};
+	my $device_bus         = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{device_bus};
+	my $driver_type        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{driver}{type};
+	my $address_controller = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{address}{controller};
+	my $address_unit       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{address}{unit};
+	my $address_target     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{address}{target};
+	my $device_path        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{path};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's01:device_target'      => $device_target,
+		's02:alias'              => $alias, 
+		's03:boot_order'         => $boot_order,
+		's04:say_boot'           => $say_boot, 
+		's05:type'               => $type, 
+		's06:address_type'       => $address_type, 
+		's07:address_bus'        => $address_bus, 
+		's08:driver_name'        => $driver_name, 
+		's09:device_bus'         => $device_bus, 
+		's10:driver_type'        => $driver_type, 
+		's11:address_controller' => $address_controller,
+		's12:address_unit'       => $address_unit, 
+		's13:address_target'     => $address_target, 
+		's14:device_path'        => $device_path, 
+	}});
+	
+	# Without a --source, the result is an eject.
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." change-media ".$server_name." --path ".$device_target." --update --live --config";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	if ($anvil->data->{switches}{insert})
+	{
+		# Make sure the new target exists.
+		my $iso = $anvil->data->{switches}{insert};
+		if (not -f $iso)
+		{
+			print "[ Error ] - The target: [".$iso."] doesn't exist, can't insert it into the optical drive.\n";
+			update_definition($anvil, "undefine");
+			$anvil->nice_exit({exit_code => 1});
 		}
 		else
 		{
-			# Not found at all.
-			print "\nThe server: [".$anvil->data->{switches}{server}."] was not found. Valid servers are above.\n\n";
+			$shell_call .= " --source ".$anvil->data->{switches}{insert};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		}
-		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	print "Working with the server: [".$anvil->data->{switches}{server_name}."], UUID: [".$anvil->data->{switches}{server_uuid}."]\n";
-	my $short_host_name   = $anvil->Get->short_host_name;
-	my $server_name       = $anvil->data->{switches}{server_name};
-	my $server_uuid       = $anvil->data->{switches}{server_uuid};
-	my $server_definition = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+	# If the server is running, update the on-disk and in-DB definition.
+	print "Defining the server: [".$server_name."] to prepare for 'virsh' modification of the server.\n";
+	update_definition($anvil, "define");
+	
+	# Now we can modify the server using virsh.
+	if ($anvil->data->{switches}{insert})
+	{
+		print "- Inserting: [".$anvil->data->{switches}{insert}."] into the drive: [".$device_target."].\n";
+	}
+	else
+	{
+		print "- Ejecting: [".$anvil->data->{switches}{insert}."] from: [".$device_target."].\n";
+	}
+	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:short_host_name'   => $short_host_name, 
-		's2:server_name'       => $server_name, 
-		's3:server_uuid'       => $server_uuid, 
-		's4:server_definition' => $server_definition,
+		's1:output'      => $output,
+		's2:return_code' => $return_code, 
+	}});
+	print "'virsh' Output: [".$output."]\n";
+	
+	print "Updating the stored definition and undefining the server now:\n";
+	update_definition($anvil, "undefine");
+	print "Done!\n";
+	
+	return(0);
+}
+
+sub get_definition_source
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	my $from_source     = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		short_host_name => $short_host_name,
+		server_name     => $server_name, 
+		from_source     => $from_source, 
+	}});
+	if (exists $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh})
+	{
+		$from_source = "from_virsh";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
+	}
+	elsif (exists $anvil->data->{server}{$short_host_name}{$server_name}{from_disk})
+	{
+		$from_source = "from_disk";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
+	}
+	else
+	{
+		$from_source = "from_db";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
+	}
+
+	return($from_source);
+}
+
+sub show_server_details
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name' => $short_host_name,
+		's2:server_name'     => $server_name, 
 	}});
 	
-	# Parse the definition.
-	$anvil->Server->parse_definition({
-		debug      => 3,
-		host       => $short_host_name,
-		server     => $server_name, 
-		source     => "from_virsh",
-		definition => $server_definition, 
-	});
-	
-	#$anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{boot_order}
+	my $from_source = get_definition_source($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
 	foreach my $device ("disk", "cdrom")
 	{
 		if ($device eq "disk")
@@ -159,17 +440,17 @@ sub manage_server
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
 		next if $device ne "cdrom" &&  $device ne "disk";
-		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}})
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}})
 		{
-			my $alias        = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{alias};
-			my $boot_order   = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{boot_order};
+			my $alias        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{alias};
+			my $boot_order   = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{boot_order};
 			my $say_boot     = $boot_order eq "99" ? "--" : sprintf("%02d", $boot_order);
-			my $type         = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{type};
-			my $address_type = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{type};
-			my $address_bus  = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{bus};
-			my $driver_name  = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{driver}{name};
-			my $device_bus   = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{device_bus};
-			my $driver_type  = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{driver}{type};
+			my $type         = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{type};
+			my $address_type = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{type};
+			my $address_bus  = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{bus};
+			my $driver_name  = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{name};
+			my $device_bus   = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{device_bus};
+			my $driver_type  = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{type};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's01:device_target' => $device_target,
 				's02:alias'         => $alias, 
@@ -184,12 +465,12 @@ sub manage_server
 			}});
 			if ($device eq "disk")
 			{
-				my $address_domain   = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{domain};
-				my $address_slot     = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{slot};
-				my $address_function = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{function};
-				my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{path};
-				my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{driver}{io};
-				my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{driver}{cache};
+				my $address_domain   = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{domain};
+				my $address_slot     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{slot};
+				my $address_function = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{function};
+				my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+				my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{io};
+				my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{cache};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:address_domain'   => $address_domain,
 					's2:address_slot'     => $address_slot, 
@@ -202,10 +483,14 @@ sub manage_server
 			}
 			else
 			{
-				my $address_controller = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{controller};
-				my $address_unit       = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{unit};
-				my $address_target     = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{address}{target};
-				my $device_path        = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{device}{$device}{target}{$device_target}{path};
+				my $address_controller = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{controller};
+				my $address_unit       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{unit};
+				my $address_target     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{target};
+				my $device_path        = "<empty>";
+				if (defined $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path})
+				{
+					$device_path = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:address_controller' => $address_controller,
 					's2:address_unit'       => $address_unit, 
@@ -234,10 +519,29 @@ sub manage_server
 	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+		
+		# Get the DRBD volume data
+		load_drbd_data($anvil, $drbd_resource);
 	}
 	
-	# Get the DRBD volume data
-	# Get the DRBD volume data
+	print "Sub-Nodes:\n";
+	show_volume($anvil, $drbd_resource, "node");
+	
+	my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
+	if ($dr_count)
+	{
+		print "DR Hosts:\n";
+		show_volume($anvil, $drbd_resource, "dr");
+	}
+	
+	return(0);
+}
+
+sub load_drbd_data
+{
+	my ($anvil, $drbd_resource) = @_;
+	
 	my $query = "
 SELECT 
     a.host_uuid, 
@@ -302,17 +606,6 @@ AND
 		}
 	}
 	
-	print "Sub-Nodes:\n";
-	show_volume($anvil, $drbd_resource, "node");
-	
-	my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
-	if ($dr_count)
-	{
-		print "DR Hosts:\n";
-		show_volume($anvil, $drbd_resource, "dr");
-	}
-	
 	return(0);
 }
 
@@ -345,6 +638,272 @@ sub show_volume
 			}});
 			print "   ^- Volume: [".$volume_number."], backing device: [".$backing_disk."], DRBD minor: [".$device_minor."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."]\n";
 		}
+	}
+	
+	return(0);
+}
+
+sub validate_server
+{
+	my ($anvil) = @_;
+	
+	$anvil->Get->server_from_switch({
+		debug      => 2, 
+		string     => $anvil->data->{switches}{server},
+		anvil_uuid => $anvil->data->{switches}{anvil_uuid},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::server_name" => $anvil->data->{switches}{server_name},
+		"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+	}});
+	
+	if (not $anvil->data->{switches}{server_uuid})
+	{
+		show_server_list($anvil);
+		if ($anvil->data->{switches}{anvil_uuid})
+		{
+			# Not found on the requested Anvil! node.
+			print "\nThe server: [".$anvil->data->{switches}{server}."] was not found on the Anvil! node: [".$anvil->data->{switches}{anvil_name}."]. Valid servers are above.\n\n";
+		}
+		else
+		{
+			# Not found at all.
+			print "\nThe server: [".$anvil->data->{switches}{server}."] was not found. Valid servers are above.\n\n";
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	print "Working with the server: [".$anvil->data->{switches}{server_name}."], UUID: [".$anvil->data->{switches}{server_uuid}."]\n";
+	my $short_host_name   = $anvil->Get->short_host_name;
+	my $server_name       = $anvil->data->{switches}{server_name};
+	my $server_uuid       = $anvil->data->{switches}{server_uuid};
+	my $server_definition = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+	my $server_host_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name'   => $short_host_name, 
+		's2:server_name'       => $server_name, 
+		's3:server_uuid'       => $server_uuid, 
+		's4:server_definition' => $server_definition,
+		's5:server_host_uuid'  => $server_host_uuid, 
+		's6:server_state'      => $server_state, 
+	}});
+	
+	# Parse the definition.
+	$anvil->Server->parse_definition({
+		debug      => 3,
+		host       => $short_host_name,
+		server     => $server_name, 
+		source     => "from_db",
+		definition => $server_definition, 
+	});
+	
+	# Can we read the XML definition?
+	$anvil->Server->get_status({
+		debug  => 2,
+		server => $server_name,
+		host   => $short_host_name,
+	});
+	
+	if (not $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml})
+	{
+		# The server isn't actually running... Not here anyway.
+		if ($server_state eq "running")
+		{
+			my $server_host_name = $anvil->Get->get_host_from_uuid({
+				short     => 1,
+				host_uuid => $server_host_uuid,
+			});
+			
+			print "The server: [".$server_name."] appears to be running on: [".$server_host_name."], please run this on that host.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	return(0);
+}
+
+# Update the definition on disk and in the DB, and define or undefine if requested.
+sub update_definition
+{
+	my ($anvil, $task) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
+	
+	my $short_host_name     = $anvil->Get->short_host_name;
+	my $server_name         = $anvil->data->{switches}{server_name};
+	my $server_uuid         = $anvil->data->{switches}{server_uuid};
+	my $server_definition   = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+	my $server_host_uuid    = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_state        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	my $definition_file     = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
+	my $server_running_here = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name'   => $short_host_name, 
+		's2:server_name'       => $server_name, 
+		's3:server_uuid'       => $server_uuid, 
+		's4:server_definition' => $server_definition,
+		's5:server_host_uuid'  => $server_host_uuid, 
+		's6:server_state'      => $server_state, 
+		's7:definition_file'   => $definition_file, 
+	}});
+	
+	# See if the server is running locally
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --name";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:output'      => $output,
+		's2:return_code' => $return_code, 
+	}});
+	foreach my $this_server (split/\n/, $output)
+	{
+		$this_server = $anvil->Words->clean_spaces({string => $this_server});
+		next if not $this_server;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_server => $this_server }});
+		
+		if ($this_server eq $server_name)
+		{
+			$server_running_here = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_running_here => $server_running_here }});
+			last;
+		}
+	}
+	
+	my $disk_definition  = $anvil->data->{server}{$short_host_name}{$server_name}{from_disk}{xml}  ? $anvil->data->{server}{$short_host_name}{$server_name}{from_disk}{xml}  : "";
+	my $virsh_definition = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml} ? $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml} : "";
+	my $use_definition   = "";
+	if (($server_running_here) or (($server_state eq "running") && ($virsh_definition)))
+	{
+		# Get the live definition
+		if ($server_running_here)
+		{
+			my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($live_virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				live_virsh_definition => $live_virsh_definition, 
+				return_code           => $return_code,
+			}});
+			
+			my ($problem) = $anvil->Server->parse_definition({
+				server     => $server_name,
+				source     => "from_virsh", 
+				definition => $live_virsh_definition, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if (not $problem)
+			{
+				$use_definition = $live_virsh_definition;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+				
+				$anvil->Server->parse_definition({
+					debug      => 3,
+					host       => $short_host_name,
+					server     => $server_name, 
+					source     => "from_virsh",
+					definition => $live_virsh_definition, 
+				});
+			}
+			else
+			{
+				$use_definition = $virsh_definition;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+				
+				$anvil->Server->parse_definition({
+					debug      => 3,
+					host       => $short_host_name,
+					server     => $server_name, 
+					source     => "from_virsh",
+					definition => $virsh_definition, 
+				});
+			}
+		}
+		else
+		{
+			$use_definition = $virsh_definition;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+			
+			$anvil->Server->parse_definition({
+				debug      => 3,
+				host       => $short_host_name,
+				server     => $server_name, 
+				source     => "from_virsh",
+				definition => $virsh_definition, 
+			});
+		}
+	}
+	else
+	{
+		$use_definition = $disk_definition;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+		
+		$anvil->Server->parse_definition({
+			debug      => 3,
+			host       => $short_host_name,
+			server     => $server_name, 
+			source     => "from_disk",
+			definition => $virsh_definition, 
+		});
+	}
+	
+	if (not $use_definition)
+	{
+		# What?!
+		print "[ Error ] - Failed to find an on disk or from virsh definition for the server: [".$server_name."]. Unable to proceed.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Update the stored definition
+	$anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml} = $use_definition;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"servers::server_uuid::${server_uuid}::server_definition_xml" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml},
+	}});
+	
+	# Update the on-disk definition
+	my ($failed) = $anvil->Storage->write_file({
+		secure    => 1, 
+		file      => $definition_file, 
+		body      => $use_definition, 
+		overwrite => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+	my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
+		debug                         => 2,
+		server_definition_xml         => $use_definition,  
+		server_definition_server_uuid => $server_uuid, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_definition_uuid => $server_definition_uuid }});
+	
+	if ($task eq "define")
+	{
+		# Define the server.
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." define ".$definition_file,
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+	}
+	elsif ($task eq "undefine")
+	{
+		# Undefine the server.
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server_name,
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({
+			debug      => 2,
+			shell_call => $shell_call, 
+			source     => $THIS_FILE, 
+			line       => __LINE__,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
 	}
 	
 	return(0);

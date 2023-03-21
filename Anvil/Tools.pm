@@ -1121,6 +1121,7 @@ sub _set_paths
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				journald			=>	"/var/log/journal", 
+				libvirtd_definitions		=>	"/etc/libvirt/qemu/",
 				pgsql				=>	"/var/lib/pgsql/",
 				resource_status			=>	"/sys/kernel/debug/drbd/resources",
 				scan_agents			=>	"/usr/sbin/scancore-agents",

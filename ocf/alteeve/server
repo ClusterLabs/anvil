@@ -1212,7 +1212,7 @@ sub server_status
 		{
 			   $loop       = 0;
 			my $found      = 0;
-			my $shell_call = $anvil->data->{path}{exe}{virsh}." list --all";
+			my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});

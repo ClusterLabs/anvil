@@ -613,6 +613,7 @@ sub get_runtime
 	return($runtime);
 }
 
+
 =head2 get_status
 
 This reads in a server's XML definition file from disk, if available, and from memory, if the server is running. The XML is analyzed and data is stored under C<< server::<target>::<server_name>::from_disk::x >> for data from the on-disk XML and C<< server::<target>>::<server_name>::from_virsh::x >>. 
