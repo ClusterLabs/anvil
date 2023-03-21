@@ -802,6 +802,10 @@ ORDER BY
 		}});
 	}
 	
+	# This re-connects files available on each Anvil! node.
+	$anvil->Database->get_files({debug => 2});
+	$anvil->Database->get_file_locations({debug => 2});
+	
 	return(0);
 }
 

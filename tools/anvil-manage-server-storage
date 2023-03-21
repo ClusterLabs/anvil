@@ -9,6 +9,15 @@
 # 
 # TODO: 
 # 
+# USAGE:
+# - Show
+#   - anvil-manage-server-storage --server srv01-fs37
+# - ISO
+#   - anvil-manage-server-storage --server srv01-fs37 --optical sda --insert /mnt/shared/files/CentOS-5.11-x86_64-bin-DVD-1of2.iso
+#   - anvil-manage-server-storage --server srv01-fs37 --optical sda --eject
+# - Disk
+#   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10GiB,150GiB}
+# 
 
 use strict;
 use warnings;
@@ -38,7 +47,7 @@ $anvil->Log->secure({set => 1});
 $anvil->Get->switches({list => [
 	"add",
 	"anvil", 
-	"drive", 
+	"disk", 
 	"eject", 
 	"grow",
 	"insert", 
@@ -97,6 +106,10 @@ if ($anvil->data->{switches}{optical})
 {
 	manage_optical($anvil);
 }
+elsif ($anvil->data->{switches}{disk})
+{
+	manage_disk($anvil);
+}
 else
 {
 	show_server_details($anvil);
@@ -108,6 +121,149 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub manage_disk
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	my $from_source     = get_definition_source($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		short_host_name => $short_host_name,
+		server_name     => $server_name, 
+		from_source     => $from_source, 
+	}});
+	if (not $anvil->data->{switches}{disk})
+	{
+		# If there's only one optical drive, select it automatically
+		my $count = keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		if ($count == 1)
+		{
+			foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}})
+			{
+				$anvil->data->{switches}{disk} = $device_target;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"switches::drive" => $anvil->data->{switches}{disk},
+				}});
+				last;
+			}
+		}
+		
+		if (not $anvil->data->{switches}{disk})
+		{
+			# Can't proceed.
+			print "\n[ Error ] - Please indicate the disk drive to work with using '--disk --drive <target_device>'.\n\n";
+			show_server_details($anvil);
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	my $device_target = $anvil->data->{switches}{disk};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
+
+	my $device           = "disk";
+	my $alias            = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{alias};
+	my $boot_order       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{boot_order};
+	my $say_boot         = $boot_order eq "99" ? "--" : sprintf("%02d", $boot_order);
+	my $type             = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{type};
+	my $address_type     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{type};
+	my $address_bus      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{bus};
+	my $driver_name      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{name};
+	my $device_bus       = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{device_bus};
+	my $driver_type      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{type};
+	my $address_domain   = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{domain};
+	my $address_slot     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{slot};
+	my $address_function = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{address}{function};
+	my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+	my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{io};
+	my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{cache};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's01:device_target'    => $device_target,
+		's02:alias'            => $alias, 
+		's03:boot_order'       => $boot_order,
+		's04:say_boot'         => $say_boot, 
+		's05:type'             => $type, 
+		's06:address_type'     => $address_type, 
+		's07:address_bus'      => $address_bus, 
+		's08:driver_name'      => $driver_name, 
+		's09:device_bus'       => $device_bus, 
+		's10:driver_type'      => $driver_type, 
+		's11:address_domain'   => $address_domain,
+		's12:address_slot'     => $address_slot, 
+		's13:address_function' => $address_function, 
+		's14:device_path'      => $device_path, 
+		's15:driver_io'        => $driver_io, 
+		's16:driver_cache'     => $driver_cache, 
+	}});
+	print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
+	
+	my $volume = "";
+	
+	print "Sub-Nodes:\n";
+	my $drbd_resource = "";
+	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
+	{
+		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
+		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:device_path'   => $device_path, 
+			's2:on_lv'         => $on_lv,
+			's3:drbd_resource' => $drbd_resource, 
+			's4:device_target' => $device_target, 
+		}});
+	}
+	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+		
+		# Get the DRBD volume data
+		load_drbd_data($anvil, $drbd_resource);
+	}
+	foreach my $host_type ("node", "dr")
+	{
+		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
+		{
+			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+			}});
+			print " |- Name: [".$short_host_name."], UUID: [".$host_uuid."]\n";
+			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
+			{
+				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
+				my $device_minor = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_minor};
+				my $volume_size  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{volume_size};
+				my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{backing_disk};
+				my $meta_disk    = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{meta_disk};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:volume_number' => $volume_number,
+					's2:device_path'   => $device_path, 
+					's3:device_minor'  => $device_minor, 
+					's4:volume_size'   => $volume_size, 
+					's5:backing_disk'  => $backing_disk, 
+					's6:meta_disk'     => $meta_disk, 
+				}});
+				print "   ^- Volume: [".$volume_number."], backing device: [".$backing_disk."], DRBD minor: [".$device_minor."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."]\n";
+			}
+		}
+	}
+	
+	# What are we doing?
+	if ($anvil->data->{switches}{grow})
+	{
+		### TODO: Make this work without the peer node being online.
+		# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
+		# needs to be online.
+		
+		# Process the DRBD config to get the backing LVs.
+	}
+	
+	return(0);
+}
 
 sub manage_optical
 {
@@ -122,7 +278,7 @@ sub manage_optical
 		from_source     => $from_source, 
 	}});
 	
-	if (not $anvil->data->{switches}{drive})
+	if (not $anvil->data->{switches}{optical})
 	{
 		# If there's only one optical drive, select it automatically
 		my $count = keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}};
@@ -131,15 +287,15 @@ sub manage_optical
 		{
 			foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}})
 			{
-				$anvil->data->{switches}{drive} = $device_target;
+				$anvil->data->{switches}{optical} = $device_target;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"switches::drive" => $anvil->data->{switches}{drive},
+					"switches::drive" => $anvil->data->{switches}{optical},
 				}});
 				last;
 			}
 		}
 		
-		if (not $anvil->data->{switches}{drive})
+		if (not $anvil->data->{switches}{optical})
 		{
 			# Can't proceed.
 			print "\n[ Error ] - Please indicate the optical drive to work with using '--optical <target_device>'.\n\n";
@@ -147,7 +303,7 @@ sub manage_optical
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
-	my $device_target = $anvil->data->{switches}{drive};
+	my $device_target = $anvil->data->{switches}{optical};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
 	
 	my $eject_first        = 0;
@@ -363,10 +519,29 @@ sub show_server_details
 	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+		
+		# Get the DRBD volume data
+		load_drbd_data($anvil, $drbd_resource);
 	}
 	
-	# Get the DRBD volume data
-	# Get the DRBD volume data
+	print "Sub-Nodes:\n";
+	show_volume($anvil, $drbd_resource, "node");
+	
+	my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
+	if ($dr_count)
+	{
+		print "DR Hosts:\n";
+		show_volume($anvil, $drbd_resource, "dr");
+	}
+	
+	return(0);
+}
+
+sub load_drbd_data
+{
+	my ($anvil, $drbd_resource) = @_;
+	
 	my $query = "
 SELECT 
     a.host_uuid, 
@@ -429,17 +604,6 @@ AND
 				xml   => $anvil->data->{drbd_resource}{$drbd_resource}{xml}, 
 			});
 		}
-	}
-	
-	print "Sub-Nodes:\n";
-	show_volume($anvil, $drbd_resource, "node");
-	
-	my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
-	if ($dr_count)
-	{
-		print "DR Hosts:\n";
-		show_volume($anvil, $drbd_resource, "dr");
 	}
 	
 	return(0);
