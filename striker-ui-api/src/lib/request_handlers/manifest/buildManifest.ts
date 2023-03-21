@@ -73,8 +73,6 @@ export const buildManifest = (
     `Sequence must be an integer; got [${sequence}]`,
   );
 
-  let buildResult: [manifestUuid: string, anvilName: string] | undefined;
-
   const { counts: networkCountContainer, networks: networkContainer } =
     Object.values(networkList).reduce<{
       counts: Record<string, number>;
@@ -253,8 +251,10 @@ export const buildManifest = (
     {},
   );
 
+  let result: { name: string; uuid: string } | undefined;
+
   try {
-    buildResult = sub('generate_manifest', {
+    const [uuid, name] = sub('generate_manifest', {
       subModuleName: 'Striker',
       subParams: {
         dns,
@@ -268,10 +268,12 @@ export const buildManifest = (
         ...networkContainer,
         ...hostContainer,
       },
-    }).stdout;
+    }).stdout as [manifestUuid: string, anvilName: string];
+
+    result = { name, uuid };
   } catch (subError) {
     throw new Error(`Failed to generate manifest; CAUSE: ${subError}`);
   }
 
-  return buildResult;
+  return result;
 };
