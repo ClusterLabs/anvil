@@ -82,7 +82,7 @@ sub get_server_screenshot
 
 	my $resize_args = defined $parameters->{resize_args} ? $parameters->{resize_args} : '';
 
-	my $sh_domstate = $anvil->data->{path}{exe}{virsh}." domstate --domain ".$server_uuid;
+	my $sh_domstate = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." domstate --domain ".$server_uuid;
 	my ($sh_domstate_output, $sh_domstate_return_code) = system_call({ debug => $debug, shell_call => $sh_domstate });
 
 	if ( ($sh_domstate_return_code != 0) || ($sh_domstate_output ne "running") )
@@ -90,7 +90,7 @@ sub get_server_screenshot
 		return "";
 	}
 
-	my $shell_call = $anvil->data->{path}{exe}{virsh}." --quiet screenshot --domain ".$server_uuid." --file ".$anvil->data->{path}{devices}{stdout};
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." --quiet screenshot --domain ".$server_uuid." --file ".$anvil->data->{path}{devices}{stdout};
 
 	if ($resize_args =~ /^\d+x\d+$/)
 	{

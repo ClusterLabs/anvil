@@ -3244,16 +3244,62 @@ FROM
 			"file_locations::file_location_uuid::${file_location_uuid}::modified_date"           => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}, 
 		}});
 		
-		### TODO: Remove this when the WebUI is updated.
+		my $file_name      = "";
+		my $file_directory = "";
+		my $file_size      = "";
+		my $file_md5sum    = "";
+		my $file_type      = "";
+		my $file_mtime     = "";
+		if (exists $anvil->data->{files}{file_uuid}{$file_location_file_uuid})
+		{
+			$file_name      = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_name};
+			$file_directory = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_directory};
+			$file_size      = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_size}; 
+			$file_md5sum    = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_md5sum};
+			$file_type      = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_type};
+			$file_mtime     = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_mtime};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				file_name      => $file_name, 
+				file_directory => $file_directory, 
+				file_size      => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+				file_md5sum    => $file_md5sum, 
+				file_type      => $file_type, 
+				file_mtime     => $file_mtime,
+			}});
+		}
+		
 		# If this host is a node in an Anvil!, set the old 'file_location_anvil_uuid' to maintain 
 		# backwards compatibility.
 		if ((exists $anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}) && 
 		    ($anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}{anvil_uuid}))
 		{
-			$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} = $anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}{anvil_uuid};
+			my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}{anvil_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+			
+			$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid} = $anvil_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"file_locations::file_location_uuid::${file_location_uuid}::file_location_anvil_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_anvil_uuid}, 
 			}});
+			
+			if ($file_name)
+			{
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}                    = $file_location_file_uuid;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_name}      = $file_name;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory} = $file_directory;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}      = $file_size;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum}    = $file_md5sum;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type}      = $file_type;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_mtime}     = $file_mtime;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid"                    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_name}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_size"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}}).")", 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_mtime"     => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_mtime}, 
+				}});
+			}
 		}
 		
 		# Make it easy to find files by anvil and file UUID.

@@ -132,7 +132,7 @@ sub wait_for_server
 	}});
 	while($waiting)
 	{
-		my $shell_call = $anvil->data->{path}{exe}{virsh}." list --name";
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --name";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});

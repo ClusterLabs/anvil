@@ -5,6 +5,10 @@ Common queries;
 * SELECT a.dr_link_uuid, b.host_name, c.anvil_name, a.dr_link_note FROM dr_links a, hosts b, anvils c WHERE a.dr_link_host_uuid = b.host_uuid AND a.dr_link_anvil_uuid = c.anvil_uuid ORDER BY c.anvil_name ASC, b.host_name ASC;
 
 
+uname -r; grubby --default-kernel; lsinitrd -m /boot/initramfs-4.18.0-448.el8.x86_64.img | grep lvm; systemctl is-enabled scancore.service; 
+dnf -y update; systemctl disable --now anvil-daemon; systemctl disable --now scancore
+
+
 When pairing Striker, make sure new config goes to all known nodes!
 
 
