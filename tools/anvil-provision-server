@@ -532,7 +532,7 @@ sub provision_server
 	{
 		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
 	}
-	$shell_call .= " --noautoconsole --wait -1 > /var/log/anvil-server_".$server.".log\n";
+	$shell_call .= " --noautoconsole > /var/log/anvil-server_".$server.".log\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	$anvil->Job->update_progress({
