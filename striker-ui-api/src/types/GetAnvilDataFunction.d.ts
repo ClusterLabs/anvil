@@ -13,6 +13,21 @@ type AnvilDataDatabaseHash = {
   };
 };
 
+type AnvilDataHostListHash = {
+  host_uuid: {
+    [hostUuid: string]: {
+      anvil_name?: string;
+      anvil_uuid?: string;
+      host_ipmi: string;
+      host_key: string;
+      host_name: string;
+      host_status: string;
+      host_type: string;
+      short_host_name: string;
+    };
+  };
+};
+
 type AnvilDataManifestListHash = {
   manifest_uuid: {
     [manifestUUID: string]: {
@@ -80,6 +95,13 @@ type AnvilDataManifestListHash = {
     manifest_xml: string;
   }
 >;
+
+type AnvilDataSysHash = {
+  hosts?: {
+    by_uuid: { [hostUuid: string]: string };
+    by_name: { [hostName: string]: string };
+  };
+};
 
 type AnvilDataUPSHash = {
   [upsName: string]: {

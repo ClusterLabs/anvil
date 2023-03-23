@@ -72,7 +72,19 @@ type ManifestDetail = {
   sequence: number;
 };
 
-type BuildManifestRequestBody = Omit<ManifestDetail, 'name'>;
+type ManifestExecutionHost = {
+  anName?: string;
+  anUuid?: string;
+  hostId?: string;
+  hostName?: string;
+  hostNumber: number;
+  hostType: string;
+  hostUuid: string;
+};
+
+type ManifestExecutionHostList = {
+  [hostId: string]: ManifestExecutionHost;
+};
 
 type ManifestTemplate = {
   domain: string;
@@ -90,4 +102,13 @@ type ManifestTemplate = {
       upsUUID: string;
     };
   };
+};
+
+type BuildManifestRequestBody = Omit<ManifestDetail, 'name'>;
+
+type RunManifestRequestBody = {
+  debug?: number;
+  description: string;
+  hosts: ManifestExecutionHostList;
+  password: string;
 };
