@@ -42,6 +42,7 @@ my $THIS_FILE = "Database.pm";
 # get_job_details
 # get_jobs
 # get_local_uuid
+# get_lvm_data
 # get_mail_servers
 # get_manifests
 # get_recipients
@@ -4549,6 +4550,264 @@ sub get_local_uuid
 }
 
 
+=head2 get_lvm_data
+
+This loads all of the LVM data into the following hashes;
+
+
+This method takes no parameters.
+
+=cut
+sub get_lvm_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_lvm_data()" }});
+	
+	# Load Storage Group data
+	$anvil->Database->get_storage_group_data({debug => $debug});
+	
+	# Load PVs
+	my $query = "
+SELECT 
+    scan_lvm_pv_uuid, 
+    scan_lvm_pv_host_uuid, 
+    scan_lvm_pv_internal_uuid, 
+    scan_lvm_pv_name, 
+    scan_lvm_pv_used_by_vg, 
+    scan_lvm_pv_attributes, 
+    scan_lvm_pv_size, 
+    scan_lvm_pv_free, 
+    scan_lvm_pv_sector_size 
+FROM 
+    scan_lvm_pvs
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_lvm_pv_uuid          = $row->[0]; 
+		my $scan_lvm_pv_host_uuid     = $row->[1]; 
+		my $scan_lvm_pv_internal_uuid = $row->[2]; 
+		my $scan_lvm_pv_name          = $row->[3]; 
+		my $scan_lvm_pv_used_by_vg    = $row->[4]; 
+		my $scan_lvm_pv_attributes    = $row->[5]; 
+		my $scan_lvm_pv_size          = $row->[6]; 
+		my $scan_lvm_pv_free          = $row->[7]; 
+		my $scan_lvm_pv_sector_size   = $row->[8]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_lvm_pv_uuid          => $scan_lvm_pv_uuid, 
+			scan_lvm_pv_host_uuid     => $scan_lvm_pv_host_uuid, 
+			scan_lvm_pv_internal_uuid => $scan_lvm_pv_internal_uuid, 
+			scan_lvm_pv_name          => $scan_lvm_pv_name, 
+			scan_lvm_pv_used_by_vg    => $scan_lvm_pv_used_by_vg, 
+			scan_lvm_pv_attributes    => $scan_lvm_pv_attributes, 
+			scan_lvm_pv_size          => $scan_lvm_pv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}).")", 
+			scan_lvm_pv_free          => $scan_lvm_pv_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}).")", 
+			scan_lvm_pv_sector_size   => $scan_lvm_pv_sector_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_sector_size}).")", 
+		}});
+		
+		if (not exists $anvil->data->{hosts}{host_uuid}{$scan_lvm_pv_host_uuid})
+		{
+			$anvil->Database->get_hosts({debug => $debug});
+		}
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$scan_lvm_pv_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
+		
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_uuid}          = $scan_lvm_pv_uuid;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_internal_uuid} = $scan_lvm_pv_internal_uuid;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_used_by_vg}    = $scan_lvm_pv_used_by_vg;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_attributes}    = $scan_lvm_pv_attributes;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_size}          = $scan_lvm_pv_size;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_free}          = $scan_lvm_pv_free;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_sector_size}   = $scan_lvm_pv_sector_size;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_uuid"          => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_uuid},
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_internal_uuid" => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_internal_uuid},
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_used_by_vg"    => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_used_by_vg},
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_attributes"    => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_attributes},
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_size"          => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_size}}).")",
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_free"          => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_free}}).")",
+			"lvm::host_name::${short_host_name}::pv::${scan_lvm_pv_name}::scan_lvm_pv_sector_size"   => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_sector_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_sector_size}}).")",
+		}});
+	}
+	
+	# Load VGs
+	$query = "
+SELECT 
+    scan_lvm_vg_uuid, 
+    scan_lvm_vg_host_uuid, 
+    scan_lvm_vg_internal_uuid, 
+    scan_lvm_vg_name, 
+    scan_lvm_vg_attributes, 
+    scan_lvm_vg_extent_size,
+    scan_lvm_vg_size,
+    scan_lvm_vg_free 
+FROM 
+    scan_lvm_vgs
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_lvm_vg_uuid          = $row->[0]; 
+		my $scan_lvm_vg_host_uuid     = $row->[1]; 
+		my $scan_lvm_vg_internal_uuid = $row->[2]; 
+		my $scan_lvm_vg_name          = $row->[3]; 
+		my $scan_lvm_vg_attributes    = $row->[4]; 
+		my $scan_lvm_vg_extent_size   = $row->[5]; 
+		my $scan_lvm_vg_size          = $row->[6]; 
+		my $scan_lvm_vg_free          = $row->[7]; 
+		my $short_host_name           = $anvil->data->{hosts}{host_uuid}{$scan_lvm_vg_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_lvm_vg_uuid          => $scan_lvm_vg_uuid, 
+			scan_lvm_vg_host_uuid     => $scan_lvm_vg_host_uuid, 
+			scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
+			scan_lvm_vg_name          => $scan_lvm_vg_name, 
+			scan_lvm_vg_attributes    => $scan_lvm_vg_attributes, 
+			scan_lvm_vg_extent_size   => $scan_lvm_vg_extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_extent_size}).")", 
+			scan_lvm_vg_size          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+			scan_lvm_vg_free          => $scan_lvm_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free}).")", 
+			short_host_name           => $short_host_name,
+		}});
+		
+		my $storage_group_uuid = "";
+		if (exists $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid})
+		{
+			$storage_group_uuid = $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
+		
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_uuid}          = $scan_lvm_vg_uuid;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid} = $scan_lvm_vg_internal_uuid;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_attributes}    = $scan_lvm_vg_attributes;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_extent_size}   = $scan_lvm_vg_extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_extent_size}).")";
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size}          = $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")";
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_free}          = $scan_lvm_vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free}).")";
+		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid}        = $storage_group_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_uuid"          => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_uuid}, 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_internal_uuid" => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid}, 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_attributes"    => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_attributes}, 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_extent_size"   => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_extent_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_extent_size}}).")", 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_size"          => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size}}).")", 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_free"          => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_free}}).")", 
+			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::storage_group_uuid"        => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid}, 
+		}});
+	}
+	
+	# LVs
+	$query = "
+SELECT 
+    scan_lvm_lv_uuid, 
+    scan_lvm_lv_host_uuid, 
+    scan_lvm_lv_internal_uuid, 
+    scan_lvm_lv_name, 
+    scan_lvm_lv_attributes, 
+    scan_lvm_lv_on_vg,
+    scan_lvm_lv_size,
+    scan_lvm_lv_path,
+    scan_lvm_lv_on_pvs
+FROM 
+    scan_lvm_lvs
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_lvm_lv_uuid          = $row->[0]; 
+		my $scan_lvm_lv_host_uuid     = $row->[1]; 
+		my $scan_lvm_lv_internal_uuid = $row->[2]; 
+		my $scan_lvm_lv_name          = $row->[3]; 
+		my $scan_lvm_lv_attributes    = $row->[4]; 
+		my $scan_lvm_lv_on_vg         = $row->[5]; 
+		my $scan_lvm_lv_size          = $row->[6]; 
+		my $scan_lvm_lv_path          = $row->[7]; 
+		my $scan_lvm_lv_on_pvs        = $row->[8]; 
+		my $short_host_name           = $anvil->data->{hosts}{host_uuid}{$scan_lvm_lv_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_lvm_lv_uuid          => $scan_lvm_lv_uuid, 
+			scan_lvm_lv_host_uuid     => $scan_lvm_lv_host_uuid, 
+			scan_lvm_lv_internal_uuid => $scan_lvm_lv_internal_uuid, 
+			scan_lvm_lv_name          => $scan_lvm_lv_name, 
+			scan_lvm_lv_attributes    => $scan_lvm_lv_attributes, 
+			scan_lvm_lv_on_vg         => $scan_lvm_lv_on_vg, 
+			scan_lvm_lv_size          => $scan_lvm_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_lv_size}).")",  
+			scan_lvm_lv_path          => $scan_lvm_lv_path,
+			scan_lvm_lv_on_pvs        => $scan_lvm_lv_on_pvs, 
+			short_host_name           => $short_host_name,
+		}});
+		
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_uuid}          = $scan_lvm_lv_uuid;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_internal_uuid} = $scan_lvm_lv_internal_uuid;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_attributes}    = $scan_lvm_lv_attributes;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_vg}         = $scan_lvm_lv_on_vg;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_size}          = $scan_lvm_lv_size;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_path}          = $scan_lvm_lv_path;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_pvs}        = $scan_lvm_lv_on_pvs;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_uuid"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_uuid}, 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_internal_uuid" => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_internal_uuid}, 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_attributes"    => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_attributes}, 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_on_vg"         => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_vg}, 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_size"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_size}}).")", 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_path"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_path}, 
+			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_on_pvs"        => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_pvs}, 
+		}});
+	}
+	
+	# Map LVs to Storage groups
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid  = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:host_name"  => $host_name, 
+			"s2:host_uuid"  => $host_uuid, 
+			"s3:anvil_uuid" => $anvil_uuid, 
+		}});
+		next if not $anvil_uuid;
+		
+		foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
+		{
+			my $storage_group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:storage_group_uuid" => $storage_group_uuid, 
+				"s2:storage_group_name" => $storage_group_name, 
+			}});
+			
+			my $storage_group_member_uuid    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_uuid};
+			my $storage_group_member_vg_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
+			my $vg_size                      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size};
+			my $vg_free                      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free};
+			my $storage_group_member_note    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note};
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 get_mail_servers
 
 This gets the list of configured mail servers.
@@ -5426,12 +5685,10 @@ WHERE
 		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}; 
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_name      => $anvil_name, 
 			node1_host_uuid => $node1_host_uuid, 
 			node2_host_uuid => $node2_host_uuid, 
-			dr1_host_uuid   => $dr1_host_uuid, 
 		}});
 		foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
 		{
@@ -5444,7 +5701,6 @@ WHERE
 			my $size_to_match = 0;
 			my $node1_seen    = 0;
 			my $node2_seen    = 0;
-			my $dr1_seen      = $dr1_host_uuid ? 0 : 1;	# Only set to '0' if DR exists.
 			foreach my $this_host_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}})
 			{
 				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{storage_group_member_uuid};
@@ -5477,11 +5733,6 @@ WHERE
 					$node2_seen = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_seen => $node2_seen }});
 				}
-				elsif (($dr1_host_uuid) && ($this_host_uuid eq $dr1_host_uuid))
-				{
-					$dr1_seen = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dr1_seen => $dr1_seen }});
-				}
 				else
 				{
 					# This host doesn't belong in this group anymore. Delete it.
@@ -5502,15 +5753,9 @@ WHERE
 			}
 			
 			if ((not $node1_seen) or 
-			    (not $node2_seen) or 
-			    (not $dr1_seen))
+			    (not $node2_seen))
 			{
-				my $hosts = [$node1_host_uuid, $node2_host_uuid];
-				if ($dr1_host_uuid)
-				{
-					push @{$hosts}, $dr1_host_uuid;
-				}
-				
+				my $hosts  = [$node1_host_uuid, $node2_host_uuid];
 				my $reload = 0;
 				foreach my $this_host_uuid (@{$hosts})
 				{

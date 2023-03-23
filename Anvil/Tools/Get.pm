@@ -795,8 +795,8 @@ ORDER BY
 		}});
 		
 		# Make it easy to sort by group name
-		my $storage_group_name = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		my $storage_group_name                                                                                       = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+		   $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"anvil_resources::${anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 		}});
