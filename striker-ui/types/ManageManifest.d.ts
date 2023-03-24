@@ -23,6 +23,13 @@ type ManifestNetworkList = {
   [networkId: string]: ManifestNetwork;
 };
 
+type ManifestHostFenceList = {
+  [fenceId: string]: {
+    fenceName: string;
+    fencePort: string;
+  };
+};
+
 type ManifestHostNetworkList = {
   [networkId: string]: {
     networkIp: string;
@@ -31,22 +38,19 @@ type ManifestHostNetworkList = {
   };
 };
 
-type ManifestHost = {
-  fences?: {
-    [fenceId: string]: {
-      fenceName: string;
-      fencePort: number;
-    };
+type ManifestHostUpsList = {
+  [upsId: string]: {
+    isUsed: boolean;
+    upsName: string;
   };
+};
+
+type ManifestHost = {
+  fences?: ManifestHostFenceList;
   hostNumber: number;
   hostType: string;
   networks?: ManifestHostNetworkList;
-  upses?: {
-    [upsId: string]: {
-      isPowerHost: boolean;
-      upsName: string;
-    };
-  };
+  upses?: ManifestHostUpsList;
 };
 
 type ManifestHostList = {
@@ -127,6 +131,8 @@ type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
   };
 
 type AnvilHostConfigInputGroupOptionalProps = {
+  knownFences?: APIManifestTemplateFenceList;
+  knownUpses?: APIManifestTemplateUpsList;
   previous?: {
     hosts?: ManifestHostList;
   };
@@ -138,8 +144,12 @@ type AnvilHostConfigInputGroupProps<M extends MapToInputTestID> =
     networkListEntries: Array<[string, ManifestNetwork]>;
   };
 
-type AddManifestInputGroupOptionalProps = {
+type AddManifestInputGroupOptionalProps = Pick<
+  AnvilHostConfigInputGroupOptionalProps,
+  'knownFences' | 'knownUpses'
+> & {
   previous?: {
+    anId?: AnvilIdInputGroupOptionalProps['previous'];
     networkConfig?: AnvilNetworkConfigInputGroupOptionalProps['previous'];
     hostConfig?: AnvilHostConfigInputGroupOptionalProps['previous'];
   };
