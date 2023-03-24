@@ -18,6 +18,8 @@ const INPUT_ID_PREFIX_ANVIL_HOST = 'anvil-host-input';
 
 const INPUT_CELL_ID_PREFIX_ANVIL_HOST = `${INPUT_ID_PREFIX_ANVIL_HOST}-cell`;
 
+const GRID_SPACING = '1em';
+
 const AnvilHostInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
@@ -36,13 +38,24 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
     () => Object.entries(fenceList),
     [fenceList],
   );
-
   const networkListEntries = useMemo(
     () => Object.entries(networkList),
     [networkList],
   );
-
   const upsListEntries = useMemo(() => Object.entries(upsList), [upsList]);
+
+  const isShowFenceListGrid = useMemo(
+    () => Boolean(fenceListEntries.length),
+    [fenceListEntries.length],
+  );
+  const isShowUpsListGrid = useMemo(
+    () => Boolean(upsListEntries.length),
+    [upsListEntries.length],
+  );
+  const isShowFenceAndUpsListGrid = useMemo(
+    () => isShowFenceListGrid || isShowUpsListGrid,
+    [isShowFenceListGrid, isShowUpsListGrid],
+  );
 
   const fenceListGridLayout = useMemo(
     () =>
@@ -53,7 +66,7 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
           const cellId = `${INPUT_CELL_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
 
           const inputId = `${INPUT_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
-          const inputLabel = fenceName;
+          const inputLabel = `Port on ${fenceName}`;
 
           setMsgSetter(inputId);
 
@@ -63,7 +76,7 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
                 input={
                   <OutlinedInputWithLabel
                     id={inputId}
-                    label={fenceName}
+                    label={inputLabel}
                     value={fencePort}
                   />
                 }
@@ -81,7 +94,6 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
                 required
-                valueType="number"
               />
             ),
           };
@@ -156,7 +168,7 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
   const upsListGridLayout = useMemo(
     () =>
       upsListEntries.reduce<GridLayout>(
-        (previous, [upsId, { isPowerHost, upsName }]) => {
+        (previous, [upsId, { isUsed, upsName }]) => {
           const idPostfix = `${upsId}-power-host`;
 
           const cellId = `${INPUT_CELL_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
@@ -168,9 +180,10 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
               <InputWithRef
                 input={
                   <SwitchWithLabel
+                    checked={isUsed}
                     id={inputId}
-                    label={upsName}
-                    checked={isPowerHost}
+                    label={`Uses ${upsName}`}
+                    flexBoxProps={{ height: '3.5em' }}
                   />
                 }
                 valueType="boolean"
@@ -195,17 +208,32 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
           <Grid
             columns={{ xs: 1, sm: 2, md: 3 }}
             layout={networkListGridLayout}
-            spacing="1em"
+            spacing={GRID_SPACING}
           />
-          {Boolean(fenceListEntries.length || upsListEntries.length) && (
+          {isShowFenceAndUpsListGrid && (
             <Grid
-              alignItems="center"
-              columns={{ xs: 1, sm: 2, md: 4 }}
+              columns={{ xs: 1, sm: 2 }}
               layout={{
-                ...fenceListGridLayout,
-                ...upsListGridLayout,
+                'an-host-fence-input-group': {
+                  children: (
+                    <Grid
+                      columns={{ xs: 1, md: 2 }}
+                      layout={fenceListGridLayout}
+                      spacing={GRID_SPACING}
+                    />
+                  ),
+                },
+                'an-host-ups-input-group': {
+                  children: (
+                    <Grid
+                      columns={{ xs: 1, md: 2 }}
+                      layout={upsListGridLayout}
+                      spacing={GRID_SPACING}
+                    />
+                  ),
+                },
               }}
-              spacing="1em"
+              spacing={GRID_SPACING}
             />
           )}
         </FlexBox>
