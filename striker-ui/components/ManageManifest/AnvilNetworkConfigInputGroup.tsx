@@ -23,6 +23,8 @@ const INPUT_LABEL_ANVIL_NETWORK_CONFIG_DNS = 'DNS';
 const INPUT_LABEL_ANVIL_NETWORK_CONFIG_MTU = 'MTU';
 const INPUT_LABEL_ANVIL_NETWORK_CONFIG_NTP = 'NTP';
 
+const DEFAULT_DNS_CSV = '8.8.8.8, 8.8.4.4';
+
 const NETWORK_TYPE_ENTRIES = Object.entries(NETWORK_TYPES);
 
 const assertIfn = (type: string) => type === 'ifn';
@@ -39,7 +41,7 @@ const AnvilNetworkConfigInputGroup = <
   formUtils,
   networkListEntries,
   previous: {
-    dnsCsv: previousDnsCsv,
+    dnsCsv: previousDnsCsv = DEFAULT_DNS_CSV,
     mtu: previousMtu,
     ntpCsv: previousNtpCsv,
   } = {},
