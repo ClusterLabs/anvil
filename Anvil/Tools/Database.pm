@@ -31,6 +31,7 @@ my $THIS_FILE = "Database.pm";
 # get_anvils
 # get_bridges
 # get_dr_links
+# get_drbd_data
 # get_fences
 # get_file_locations
 # get_files
@@ -3062,6 +3063,317 @@ WHERE
 }
 
 
+=head2 get_drbd_data
+
+This loads all of the LVM data into the following hashes;
+
+* drbd::host_name::<short_host_name>::scan_drbd_uuid::<scan_drbd_uuid>::scan_drbd_common_xml
+* drbd::host_name::<short_host_name>::scan_drbd_uuid::<scan_drbd_uuid>::scan_drbd_flush_disk
+* drbd::host_name::<short_host_name>::scan_drbd_uuid::<scan_drbd_uuid>::scan_drbd_flush_md
+* drbd::host_name::<short_host_name>::scan_drbd_uuid::<scan_drbd_uuid>::scan_drbd_timeout
+* drbd::host_name::<short_host_name>::scan_drbd_uuid::<scan_drbd_uuid>::scan_drbd_total_sync_speed
+
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::resource_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::up
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::xml
+
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::volume_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::resource_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::device_path
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::device_minor
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::volume_size
+* drbd::volume_uuid::<volume_uuid>::volume_number
+* drbd::volume_uuid::<volume_uuid>::resource_name
+* drbd::volume_uuid::<volume_uuid>::resource_uuid
+
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::peer_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::peer_host_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::volume_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::resource_uuid
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::connection_state
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::local_disk_state
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::peer_disk_state
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::local_role
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::peer_role
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::out_of_sync_size
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::replication_speed
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::estimated_time_to_sync
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::peer_ip_address
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::peer_tcp_port
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::protocol
+* drbd::host_name::<short_host_name>::resource_name::<resource_name>::volume::<volume_number>::peer_name::<peer_host_name>::fencing
+
+For more information on what the data is that is stored in these hashes, please see C<< scan-drbd >>.
+
+This method takes no parameters.
+
+=cut
+sub get_drbd_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_drbd_data()" }});
+	
+	if (not ref($anvil->data->{hosts}{host_uuid}) eq "HASH")
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	
+	# This calls up the entry for this host. There will only be one.
+	my $query = "
+SELECT 
+    scan_drbd_uuid, 
+    scan_drbd_host_uuid, 
+    scan_drbd_common_xml, 
+    scan_drbd_flush_disk, 
+    scan_drbd_flush_md, 
+    scan_drbd_timeout, 
+    scan_drbd_total_sync_speed 
+FROM 
+    scan_drbd 
+WHERE 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_uuid      = $row->[0]; 
+		my $scan_drbd_host_uuid = $row->[1];
+		my $short_host_name     = $anvil->data->{hosts}{host_uuid}{$scan_drbd_host_uuid}{short_host_name};
+		
+		# Store the old data now.
+		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml}       = $row->[2];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_disk}       = $row->[3];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md}         = $row->[4];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_timeout}          = $row->[5];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_total_sync_speed} = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_common_xml"       => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml},
+			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_flush_disk"       => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_disk},
+			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_flush_md"         => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md},
+			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_timeout"          => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_timeout},
+			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_total_sync_speed" => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_total_sync_speed},
+		}});
+	}
+	undef $count;
+	undef $results;
+
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_drbd_resource_uuid, 
+    scan_drbd_resource_host_uuid, 
+    scan_drbd_resource_name, 
+    scan_drbd_resource_up, 
+    scan_drbd_resource_xml
+FROM 
+    scan_drbd_resources 
+WHERE 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd_resources' table, so now we'll look for data in the node and 
+		# services tables.
+		my $resource_uuid                = $row->[0]; 
+		my $scan_drbd_resource_host_uuid = $row->[1];
+		my $scan_drbd_resource_name      = $row->[2]; 
+		my $short_host_name              = $anvil->data->{hosts}{host_uuid}{$scan_drbd_resource_name}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			resource_uuid                => $resource_uuid, 
+			scan_drbd_resource_host_uuid => $scan_drbd_resource_host_uuid, 
+			scan_drbd_resource_name      => $scan_drbd_resource_name,
+			short_host_name              => $short_host_name, 
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$scan_drbd_resource_name}{resource_uuid} = $row->[0]; 
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$scan_drbd_resource_name}{up}            = $row->[3]; 
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$scan_drbd_resource_name}{xml}           = $row->[4]; 
+		$anvil->data->{drbd}{resource_uuid}{$resource_uuid}{resource_name}                                        = $scan_drbd_resource_name; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:drbd::host_name::${short_host_name}::resource_name::${scan_drbd_resource_name}::resource_uuid" => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$scan_drbd_resource_name}{resource_uuid}, 
+			"s2:drbd::host_name::${short_host_name}::resource_name::${scan_drbd_resource_name}::up"            => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$scan_drbd_resource_name}{up}, 
+			"s3:drbd::host_name::${short_host_name}::resource_name::${scan_drbd_resource_name}::xml"           => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$scan_drbd_resource_name}{xml}, 
+			"s4:drbd::resource_uuid::${resource_uuid}::resource_name"                                          => $anvil->data->{drbd}{resource_uuid}{$resource_uuid}{resource_name}, 
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_drbd_volume_uuid, 
+    scan_drbd_volume_host_uuid, 
+    scan_drbd_volume_scan_drbd_resource_uuid, 
+    scan_drbd_volume_number, 
+    scan_drbd_volume_device_path, 
+    scan_drbd_volume_device_minor, 
+    scan_drbd_volume_size
+FROM 
+    scan_drbd_volumes 
+WHERE 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd_volumes' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_volume_uuid                    = $row->[0];
+		my $scan_drbd_volume_host_uuid               = $row->[1]; 
+		my $scan_drbd_volume_scan_drbd_resource_uuid = $row->[2]; 
+		my $scan_drbd_volume_number                  = $row->[3];
+		my $resource_name                            = $anvil->data->{drbd}{resource_uuid}{$scan_drbd_volume_scan_drbd_resource_uuid}{resource_name};
+		my $short_host_name                          = $anvil->data->{hosts}{host_uuid}{$scan_drbd_volume_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_drbd_volume_host_uuid               => $scan_drbd_volume_host_uuid, 
+			scan_drbd_volume_scan_drbd_resource_uuid => $scan_drbd_volume_scan_drbd_resource_uuid,
+			scan_drbd_volume_number                  => $scan_drbd_volume_number, 
+			short_host_name                          => $short_host_name, 
+		}});
+		
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{volume_uuid}   = $row->[0]; 
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{resource_uuid} = $scan_drbd_volume_scan_drbd_resource_uuid; 
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{device_path}   = $row->[4];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{device_minor}  = $row->[5]; 
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{volume_size}   = $row->[6]; 
+		$anvil->data->{drbd}{volume_uuid}{$scan_drbd_volume_uuid}{volume_number}                                                          = $scan_drbd_volume_number;
+		$anvil->data->{drbd}{volume_uuid}{$scan_drbd_volume_uuid}{resource_name}                                                          = $resource_name;
+		$anvil->data->{drbd}{volume_uuid}{$scan_drbd_volume_uuid}{resource_uuid}                                                          = $scan_drbd_volume_scan_drbd_resource_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${scan_drbd_volume_number}::volume_uuid"   => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{volume_uuid},
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${scan_drbd_volume_number}::resource_uuid" => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{resource_uuid},
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${scan_drbd_volume_number}::device_path"   => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{device_path},
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${scan_drbd_volume_number}::device_minor"  => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{device_minor},
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${scan_drbd_volume_number}::volume_size"   => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{volume_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{volume_size}}).")",
+			"drbd::volume_uuid::${scan_drbd_volume_uuid}::volume_number"                                                              => $anvil->data->{drbd}{volume_uuid}{$scan_drbd_volume_uuid}{volume_number}, 
+			"drbd::volume_uuid::${scan_drbd_volume_uuid}::resource_name"                                                              => $anvil->data->{drbd}{volume_uuid}{$scan_drbd_volume_uuid}{resource_name}, 
+			"drbd::volume_uuid::${scan_drbd_volume_uuid}::resource_uuid"                                                              => $anvil->data->{drbd}{volume_uuid}{$scan_drbd_volume_uuid}{resource_uuid}, 
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_drbd_peer_uuid, 
+    scan_drbd_peer_host_uuid, 
+    scan_drbd_peer_scan_drbd_volume_uuid, 
+    scan_drbd_peer_host_name, 
+    scan_drbd_peer_connection_state, 
+    scan_drbd_peer_local_disk_state, 
+    scan_drbd_peer_disk_state, 
+    scan_drbd_peer_local_role, 
+    scan_drbd_peer_role, 
+    scan_drbd_peer_out_of_sync_size, 
+    scan_drbd_peer_replication_speed, 
+    scan_drbd_peer_estimated_time_to_sync, 
+    scan_drbd_peer_ip_address, 
+    scan_drbd_peer_tcp_port, 
+    scan_drbd_peer_protocol, 
+    scan_drbd_peer_fencing 
+FROM 
+    scan_drbd_peers 
+WHERE 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_drbd_peers' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_drbd_peer_host_uuid             = $row->[1];
+		my $scan_drbd_peer_scan_drbd_volume_uuid = $row->[2]; 
+		my $scan_drbd_peer_host_name             = $row->[3];
+		my $short_host_name                      = $anvil->data->{hosts}{host_uuid}{$scan_drbd_peer_host_uuid}{short_host_name};
+		my $resource_uuid                        = $anvil->data->{drbd}{volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{resource_uuid};
+		my $resource_name                        = $anvil->data->{drbd}{volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{resource_name}; 
+		my $volume_number                        = $anvil->data->{drbd}{volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{volume_number};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_drbd_peer_host_uuid             => $scan_drbd_peer_host_uuid, 
+			scan_drbd_peer_scan_drbd_volume_uuid => $scan_drbd_peer_scan_drbd_volume_uuid,
+			scan_drbd_peer_host_name             => $scan_drbd_peer_host_name, 
+			short_host_name                      => $short_host_name, 
+			resource_uuid                        => $resource_uuid, 
+			resource_name                        => $resource_name, 
+			volume_number                        => $volume_number, 
+		}});
+		
+		# Store
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_uuid}              = $row->[0];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_host_uuid}         = $anvil->Database->get_host_uuid_from_string({debug => $debug, string => $scan_drbd_peer_host_name});
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{volume_uuid}            = $scan_drbd_peer_scan_drbd_volume_uuid;
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{resource_uuid}          = $resource_uuid;
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{connection_state}       = $row->[4];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{local_disk_state}       = $row->[5];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_disk_state}        = $row->[6];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{local_role}             = $row->[7];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_role}              = $row->[8];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{out_of_sync_size}       = $row->[9];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{replication_speed}      = $row->[10];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{estimated_time_to_sync} = $row->[11];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_ip_address}        = $row->[12];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_tcp_port}          = $row->[13];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{protocol}               = $row->[14];
+		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{fencing}                = $row->[15];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::peer_uuid"              => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_uuid}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::peer_host_uuid"         => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_host_uuid}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::volume_uuid"            => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{volume_uuid}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::resource_uuid"          => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{resource_uuid}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::connection_state"       => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{connection_state}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::local_disk_state"       => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{local_disk_state}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::peer_disk_state"        => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_disk_state}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::local_role"             => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{local_role}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::peer_role"              => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_role}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::out_of_sync_size"       => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{out_of_sync_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{out_of_sync_size}}).")", 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::replication_speed"      => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{replication_speed}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{replication_speed}}).")", 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::estimated_time_to_sync" => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{estimated_time_to_sync}." (".$anvil->Convert->time({'time' => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{estimated_time_to_sync}, long => 1, translate => 1}).")",
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::peer_ip_address"        => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_ip_address}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::peer_tcp_port"          => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{peer_tcp_port}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::protocol"               => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{protocol}, 
+			"drbd::host_name::${short_host_name}::resource_name::${resource_name}::volume::${volume_number}::peer_name::${scan_drbd_peer_host_name}::fencing"                => $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$volume_number}{peer_name}{$scan_drbd_peer_host_name}{fencing}, 
+		}});
+	}
+	
+	
+	return(0);
+}
+
+
+
 =head2 get_fences
 
 This loads the known fence devices into the C<< anvil::data >> hash at:
@@ -4554,6 +4866,29 @@ sub get_local_uuid
 
 This loads all of the LVM data into the following hashes;
 
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_uuid
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_internal_uuid
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_used_by_vg
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_attributes
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_size
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_free
+* lvm::host_name::<short_host_name>::pv::<scan_lvm_pv_name>::scan_lvm_pv_sector_size
+* 
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::scan_lvm_vg_uuid
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::scan_lvm_vg_internal_uuid
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::scan_lvm_vg_attributes
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::scan_lvm_vg_extent_size
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::scan_lvm_vg_size
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::scan_lvm_vg_free
+* lvm::host_name::<short_host_name>::vg::<scan_lvm_vg_name>::storage_group_uuid
+* 
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_uuid
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_internal_uuid
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_attributes
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_on_vg
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_size
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_path
+* lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_on_pvs
 
 This method takes no parameters.
 
@@ -4774,34 +5109,6 @@ FROM
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_path"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_path}, 
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_on_pvs"        => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_pvs}, 
 		}});
-	}
-	
-	# Map LVs to Storage groups
-	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
-	{
-		my $host_uuid  = $anvil->data->{sys}{hosts}{by_name}{$host_name};
-		my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"s1:host_name"  => $host_name, 
-			"s2:host_uuid"  => $host_uuid, 
-			"s3:anvil_uuid" => $anvil_uuid, 
-		}});
-		next if not $anvil_uuid;
-		
-		foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
-		{
-			my $storage_group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:storage_group_uuid" => $storage_group_uuid, 
-				"s2:storage_group_name" => $storage_group_name, 
-			}});
-			
-			my $storage_group_member_uuid    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_uuid};
-			my $storage_group_member_vg_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
-			my $vg_size                      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size};
-			my $vg_free                      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free};
-			my $storage_group_member_note    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note};
-		}
 	}
 	
 	return(0);

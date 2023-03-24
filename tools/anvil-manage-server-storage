@@ -122,6 +122,50 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+sub load_storage
+{
+	my ($anvil) = @_;
+	
+	# Host and server
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	
+	# We need to know which volume groups the disks are on so that we can report how much free space is 
+	# available for either growing or adding a disk.
+	$anvil->Get->available_resources({
+		debug      => 2,
+		anvil_uuid => $anvil->data->{switches}{anvil_uuid},
+	});
+	
+	# Load LVM and Storage Group data
+	$anvil->Database->get_lvm_data({debug => 2});
+	
+	# Load DRBD resource data so that we can map DRBD resources / volumes to volume groups.
+	my $drbd_resource = "";
+	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
+	{
+		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
+		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:device_path'   => $device_path, 
+			's2:on_lv'         => $on_lv,
+			's3:drbd_resource' => $drbd_resource, 
+			's4:device_target' => $device_target, 
+		}});
+	}
+	# There should only ever be one, but it's not impossible for there to be multiple.
+	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+		
+		# Get the DRBD volume data
+		load_drbd_data($anvil, $drbd_resource);
+	}
+	
+	return($drbd_resource);
+}
+
 sub manage_disk
 {
 	my ($anvil) = @_;
@@ -160,30 +204,8 @@ sub manage_disk
 		}
 	}
 	
-	$anvil->Database->get_lvm_data({debug => 2});
-	
-	# Load DRBD resource data so that we can map DRBD resources / volumes to volume groups.
-	my $drbd_resource = "";
-	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
-	{
-		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
-		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
-		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:device_path'   => $device_path, 
-			's2:on_lv'         => $on_lv,
-			's3:drbd_resource' => $drbd_resource, 
-			's4:device_target' => $device_target, 
-		}});
-	}
-	# There should only ever be one, but it's not impossible for there to be multiple.
-	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
-		
-		# Get the DRBD volume data
-		load_drbd_data($anvil, $drbd_resource);
-	}
+	my $drbd_resource = load_storage($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
@@ -520,21 +542,16 @@ sub show_server_details
 	my ($anvil) = @_;
 	
 	my $short_host_name = $anvil->Get->short_host_name;
+	my $host_uuid       = $anvil->Get->host_uuid;
 	my $server_name     = $anvil->data->{switches}{server_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:short_host_name' => $short_host_name,
+		's2:host_uuid'       => $host_uuid,
 		's2:server_name'     => $server_name, 
 	}});
 	
-	# We need to know which volume groups the disks are on so that we can report how much free space is 
-	# available for either growing or adding a disk.
-	$anvil->Get->available_resources({
-		debug      => 2,
-		anvil_uuid => $anvil->data->{switches}{anvil_uuid},
-	});
-	
-	# Load LVM and Storage Group data
-	$anvil->Database->get_lvm_data({debug => 2});
+	# Load storage data
+	my $drbd_resource = load_storage($anvil);
 	
 	my $from_source = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
@@ -581,6 +598,10 @@ sub show_server_details
 				my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
 				my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{io};
 				my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{cache};
+				my $on_lv            = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+				my $drbd_resource    = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
+				my $drbd_volume      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{drbd}{volume};
+				my $volume_size      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{drbd}{volume};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:address_domain'   => $address_domain,
 					's2:address_slot'     => $address_slot, 
@@ -588,8 +609,12 @@ sub show_server_details
 					's4:device_path'      => $device_path, 
 					's5:driver_io'        => $driver_io, 
 					's6:driver_cache'     => $driver_cache, 
+					's7:on_lv'            => $on_lv, 
+					's8:drbd_resource'    => $drbd_resource, 
+					's9:drbd_volume'      => $drbd_volume, 
 				}});
-				print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
+				print "- Target: [".$device_target."], boot: [".$say_boot."], replication resource: [".$drbd_resource."/".$drbd_volume."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."] (".$anvil->Convert->add_commas({number => $volume_size})." Bytes)\n";
+				print "  - Replcation path: [".$device_path."], backed by: [".$on_lv."], cache: [".$driver_cache."]\n";
 				
 				# Get the backing LV from the DRBD resource.
 				
@@ -617,27 +642,6 @@ sub show_server_details
 		}
 	}
 	print "\n";
-	
-	my $drbd_resource = "";
-	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
-	{
-		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
-		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
-		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:device_path'   => $device_path, 
-			's2:on_lv'         => $on_lv,
-			's3:drbd_resource' => $drbd_resource, 
-			's4:device_target' => $device_target, 
-		}});
-	}
-	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
-		
-		# Get the DRBD volume data
-		load_drbd_data($anvil, $drbd_resource);
-	}
 	
 	print "Sub-Nodes:\n";
 	show_volume($anvil, $drbd_resource, "node");

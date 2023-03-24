@@ -2433,14 +2433,16 @@ sub parse_resource
 					
 					my $host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
 					my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+					my $backing_disk    = $volume_vnr->findvalue('./disk');
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						host_uuid       => $host_uuid,
 						short_host_name => $short_host_name, 
+						backing_disk    => $backing_disk, 
 					}});
 					
 					$anvil->data->{new}{resource}{$resource}{host_name}{$this_host_name}{host_uuid}                             = $host_uuid;
 					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path}        = $volume_vnr->findvalue('./device');
-					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk}       = $volume_vnr->findvalue('./disk');
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk}       = $backing_disk;
 					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor}       = $volume_vnr->findvalue('./device/@minor');
 					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk}          = $meta_disk;
 					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{size}               = 0;
@@ -2468,6 +2470,14 @@ sub parse_resource
 						}});
 						if ($anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk} eq $this_scan_lvm_lv_path)
 						{
+							# While we're here, make it easy to go from LV -> DRBD resource and volume.
+							$anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{resource} = $resource;
+							$anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{volume}   = $volume;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"s1:lvm::host_name::${short_host_name}::lv_path::${backing_disk}::drbd::resource" => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{resource}, 
+								"s2:lvm::host_name::${short_host_name}::lv_path::${backing_disk}::drbd::volume"   => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{volume}, 
+							}});
+							
 							# What's the VG's UUID? 
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 								's1:short_host_name'        => $short_host_name, 
