@@ -1,15 +1,8 @@
-type AnvilIdInputGroupOptionalProps = {
-  previous?: {
-    anvilIdPrefix?: string;
-    anvilIdDomain?: string;
-    anvilIdSequence?: number;
-  };
+type ManifestAnId = {
+  domain: string;
+  prefix: string;
+  sequence: number;
 };
-
-type AnvilIdInputGroupProps<M extends MapToInputTestID> =
-  AnvilIdInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-  };
 
 type ManifestNetwork = {
   networkGateway?: string;
@@ -21,6 +14,14 @@ type ManifestNetwork = {
 
 type ManifestNetworkList = {
   [networkId: string]: ManifestNetwork;
+};
+
+type ManifestNetworkConfig = {
+  dnsCsv: string;
+  /** Max Transmission Unit (MTU); unit: bytes */
+  mtu: number;
+  networks: ManifestNetworkList;
+  ntpCsv: string;
 };
 
 type ManifestHostFenceList = {
@@ -56,6 +57,19 @@ type ManifestHost = {
 type ManifestHostList = {
   [hostId: string]: ManifestHost;
 };
+
+type ManifestHostConfig = {
+  hosts: ManifestHostList;
+};
+
+type AnvilIdInputGroupOptionalProps = {
+  previous?: Partial<ManifestAnId>;
+};
+
+type AnvilIdInputGroupProps<M extends MapToInputTestID> =
+  AnvilIdInputGroupOptionalProps & {
+    formUtils: FormUtils<M>;
+  };
 
 type AnvilNetworkEventHandlerPreviousArgs = {
   networkId: string;
@@ -112,13 +126,7 @@ type AnvilHostInputGroupProps<M extends MapToInputTestID> =
   };
 
 type AnvilNetworkConfigInputGroupOptionalProps = {
-  previous?: {
-    dnsCsv?: string;
-    /** Max Transmission Unit (MTU); unit: bytes */
-    mtu?: number;
-    networks?: ManifestNetworkList;
-    ntpCsv?: string;
-  };
+  previous?: Partial<ManifestNetworkConfig>;
 };
 
 type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
@@ -133,9 +141,7 @@ type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
 type AnvilHostConfigInputGroupOptionalProps = {
   knownFences?: APIManifestTemplateFenceList;
   knownUpses?: APIManifestTemplateUpsList;
-  previous?: {
-    hosts?: ManifestHostList;
-  };
+  previous?: Partial<ManifestHostConfig>;
 };
 
 type AnvilHostConfigInputGroupProps<M extends MapToInputTestID> =
@@ -148,10 +154,9 @@ type AddManifestInputGroupOptionalProps = Pick<
   AnvilHostConfigInputGroupOptionalProps,
   'knownFences' | 'knownUpses'
 > & {
-  previous?: {
-    anId?: AnvilIdInputGroupOptionalProps['previous'];
-    networkConfig?: AnvilNetworkConfigInputGroupOptionalProps['previous'];
-    hostConfig?: AnvilHostConfigInputGroupOptionalProps['previous'];
+  previous?: Partial<ManifestAnId> & {
+    hostConfig?: Partial<ManifestHostConfig>;
+    networkConfig?: Partial<ManifestNetworkConfig>;
   };
 };
 
@@ -159,3 +164,6 @@ type AddManifestInputGroupProps<M extends MapToInputTestID> =
   AddManifestInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
   };
+
+type EditManifestInputGroupProps<M extends MapToInputTestID> =
+  AddManifestInputGroupProps<M>;

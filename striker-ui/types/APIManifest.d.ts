@@ -7,6 +7,13 @@ type APIManifestOverviewList = {
   [manifestUUID: string]: APIManifestOverview;
 };
 
+type APIManifestDetail = ManifestAnId & {
+  hostConfig: ManifestHostConfig;
+  name: string;
+  networkConfig: ManifestNetworkConfig;
+  uuid?: string;
+};
+
 type APIManifestTemplateFence = {
   fenceName: string;
   fenceUUID: string;

@@ -39,23 +39,6 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
     [knownUpses],
   );
 
-  const hostNetworkList = useMemo(
-    () =>
-      networkListEntries.reduce<ManifestHostNetworkList>(
-        (previous, [networkId, { networkNumber, networkType }]) => {
-          previous[networkId] = {
-            networkIp: '',
-            networkNumber,
-            networkType,
-          };
-
-          return previous;
-        },
-        {},
-      ),
-    [networkListEntries],
-  );
-
   const hostListGridLayout = useMemo<GridLayout>(
     () =>
       hostListEntries.reduce<GridLayout>(
@@ -64,7 +47,7 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
             fences: previousFenceList = {},
             hostNumber,
             hostType,
-            networks = hostNetworkList,
+            networks: previousNetworkList = {},
             upses: previousUpsList = {},
           }: ManifestHost = previousHostArgs;
 
@@ -72,12 +55,23 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
             (fenceList, { fenceName }) => {
               const { fencePort = '' } = previousFenceList[fenceName] ?? {};
 
-              fenceList[fenceName] = {
-                fenceName,
-                fencePort,
-              };
+              fenceList[fenceName] = { fenceName, fencePort };
 
               return fenceList;
+            },
+            {},
+          );
+          const networks = networkListEntries.reduce<ManifestHostNetworkList>(
+            (networkList, [networkId, { networkNumber, networkType }]) => {
+              const { networkIp = '' } = previousNetworkList[networkId] ?? {};
+
+              networkList[networkId] = {
+                networkIp,
+                networkNumber,
+                networkType,
+              };
+
+              return networkList;
             },
             {},
           );
@@ -85,10 +79,7 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
             (upsList, { upsName }) => {
               const { isUsed = true } = previousUpsList[upsName] ?? {};
 
-              upsList[upsName] = {
-                isUsed,
-                upsName,
-              };
+              upsList[upsName] = { isUsed, upsName };
 
               return upsList;
             },
@@ -117,9 +108,9 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
     [
       formUtils,
       hostListEntries,
-      hostNetworkList,
       knownFenceListValues,
       knownUpsListValues,
+      networkListEntries,
     ],
   );
 

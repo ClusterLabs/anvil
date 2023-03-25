@@ -30,9 +30,9 @@ const AnvilIdInputGroup = <
     msgSetters,
   },
   previous: {
-    anvilIdDomain: previousDomain,
-    anvilIdPrefix: previousPrefix,
-    anvilIdSequence: previousSequence,
+    domain: previousDomain,
+    prefix: previousPrefix,
+    sequence: previousSequence,
   } = {},
 }: AnvilIdInputGroupProps<M>): ReactElement => (
   <Grid

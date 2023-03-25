@@ -15,15 +15,15 @@ import FlexBox from '../FlexBox';
 
 const DEFAULT_NETWORK_LIST: ManifestNetworkList = {
   bcn1: {
-    networkMinIp: '',
+    networkMinIp: '10.201.0.0',
     networkNumber: 1,
-    networkSubnetMask: '',
+    networkSubnetMask: '255.255.0.0',
     networkType: 'bcn',
   },
   sn1: {
-    networkMinIp: '',
+    networkMinIp: '10.101.0.0',
     networkNumber: 1,
-    networkSubnetMask: '',
+    networkSubnetMask: '255.255.0.0',
     networkType: 'sn',
   },
   ifn1: {
@@ -46,9 +46,12 @@ const AddManifestInputGroup = <
   },
 >({
   formUtils,
+  knownFences,
+  knownUpses,
   previous: {
-    hostConfig: previousHostConfig = {},
+    hostConfig: previousHostConfig,
     networkConfig: previousNetworkConfig = {},
+    ...previousAnId
   } = {},
 }: AddManifestInputGroupProps<M>): ReactElement => {
   const { networks: previousNetworkList = DEFAULT_NETWORK_LIST } =
@@ -64,7 +67,7 @@ const AddManifestInputGroup = <
 
   return (
     <FlexBox>
-      <AnvilIdInputGroup formUtils={formUtils} />
+      <AnvilIdInputGroup formUtils={formUtils} previous={previousAnId} />
       <AnvilNetworkConfigInputGroup
         formUtils={formUtils}
         networkListEntries={networkListEntries}
@@ -73,6 +76,8 @@ const AddManifestInputGroup = <
       />
       <AnvilHostConfigInputGroup
         formUtils={formUtils}
+        knownFences={knownFences}
+        knownUpses={knownUpses}
         networkListEntries={networkListEntries}
         previous={previousHostConfig}
       />
