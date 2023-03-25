@@ -3,6 +3,7 @@ type ConfirmDialogOptionalProps = {
   closeOnProceed?: boolean;
   contentContainerProps?: import('../components/FlexBox').FlexBoxProps;
   dialogProps?: Partial<import('@mui/material').DialogProps>;
+  disableProceed?: boolean;
   formContent?: boolean;
   loading?: boolean;
   loadingAction?: boolean;

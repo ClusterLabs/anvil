@@ -42,6 +42,7 @@ const ConfirmDialog = forwardRef<
         PaperProps: paperProps = {},
         ...restDialogProps
       } = {},
+      disableProceed: isDisableProceed,
       formContent: isFormContent,
       loading: isLoading = false,
       loadingAction: isLoadingAction = false,
@@ -60,8 +61,11 @@ const ConfirmDialog = forwardRef<
     ref,
   ) => {
     const { sx: paperSx, ...restPaperProps } = paperProps;
-    const { sx: proceedButtonSx, ...restProceedButtonProps } =
-      proceedButtonProps;
+    const {
+      disabled: proceedButtonDisabled = isDisableProceed,
+      sx: proceedButtonSx,
+      ...restProceedButtonProps
+    } = proceedButtonProps;
 
     const [isOpen, setIsOpen] = useState<boolean>(openInitially);
 
@@ -142,6 +146,7 @@ const ConfirmDialog = forwardRef<
     const proceedButtonElement = useMemo(
       () => (
         <ContainedButton
+          disabled={proceedButtonDisabled}
           onClick={proceedButtonClickEventHandler}
           type={proceedButtonType}
           {...restProceedButtonProps}
@@ -160,6 +165,7 @@ const ConfirmDialog = forwardRef<
       [
         actionProceedText,
         proceedButtonClickEventHandler,
+        proceedButtonDisabled,
         proceedButtonSx,
         proceedButtonType,
         proceedColour,
