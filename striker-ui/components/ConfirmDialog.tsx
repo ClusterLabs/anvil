@@ -203,17 +203,30 @@ const ConfirmDialog = forwardRef<
         ),
       [titleText],
     );
-    const combinedScrollBoxSx = useMemo<SxProps<Theme> | undefined>(
-      () =>
-        isScrollContent
-          ? {
-              maxHeight: '60vh',
-              overflowY: 'scroll',
-              ...scrollBoxSx,
-            }
-          : undefined,
-      [isScrollContent, scrollBoxSx],
-    );
+    const combinedScrollBoxSx = useMemo(() => {
+      let result: SxProps<Theme> | undefined;
+
+      if (isScrollContent) {
+        let overflowX: 'hidden' | undefined;
+        let paddingTop: string | undefined;
+
+        if (isFormContent) {
+          overflowX = 'hidden';
+          paddingTop = '.6em';
+        }
+
+        result = {
+          maxHeight: '60vh',
+          overflowX,
+          overflowY: 'scroll',
+          paddingRight: '.4em',
+          paddingTop,
+          ...scrollBoxSx,
+        };
+      }
+
+      return result;
+    }, [isFormContent, isScrollContent, scrollBoxSx]);
 
     const contentAreaElement = useMemo(
       () =>
