@@ -43,6 +43,7 @@ const ConfirmDialog = forwardRef<
         ...restDialogProps
       } = {},
       formContent: isFormContent,
+      loading: isLoading = false,
       loadingAction: isLoadingAction = false,
       onActionAppend,
       onCancelAppend,
@@ -208,6 +209,29 @@ const ConfirmDialog = forwardRef<
       [isScrollContent, scrollBoxSx],
     );
 
+    const contentAreaElement = useMemo(
+      () =>
+        isLoading ? (
+          <Spinner />
+        ) : (
+          <>
+            <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
+              {contentElement}
+            </Box>
+            {preActionArea}
+            {actionAreaElement}
+          </>
+        ),
+      [
+        actionAreaElement,
+        combinedScrollBoxSx,
+        contentElement,
+        isLoading,
+        preActionArea,
+        restScrollBoxProps,
+      ],
+    );
+
     useImperativeHandle(
       ref,
       () => ({
@@ -232,11 +256,7 @@ const ConfirmDialog = forwardRef<
           onSubmit={contentContainerSubmitEventHandler}
           {...contentContainerProps}
         >
-          <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
-            {contentElement}
-          </Box>
-          {preActionArea}
-          {actionAreaElement}
+          {contentAreaElement}
         </FlexBox>
       </MUIDialog>
     );

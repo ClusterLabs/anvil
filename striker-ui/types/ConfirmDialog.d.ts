@@ -4,6 +4,7 @@ type ConfirmDialogOptionalProps = {
   contentContainerProps?: import('../components/FlexBox').FlexBoxProps;
   dialogProps?: Partial<import('@mui/material').DialogProps>;
   formContent?: boolean;
+  loading?: boolean;
   loadingAction?: boolean;
   onActionAppend?: ContainedButtonProps['onClick'];
   onProceedAppend?: ContainedButtonProps['onClick'];
