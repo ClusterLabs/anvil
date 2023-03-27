@@ -5866,7 +5866,7 @@ sub get_storage_group_data
 		$anvil->Database->get_hosts({debug => $debug});
 	}
 
-	$query     = "
+	$query = "
 SELECT 
     a.storage_group_uuid, 
     a.storage_group_anvil_uuid,
@@ -6012,12 +6012,14 @@ WHERE
 				my $internal_vg_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_internal_uuid};
 				my $vg_size                   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_size};
 				my $vg_name                   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_name};
+				my $host_type                 = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{host_type};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					this_host_uuid            => $this_host_uuid, 
 					storage_group_member_uuid => $storage_group_member_uuid, 
 					internal_vg_uuid          => $internal_vg_uuid, 
 					vg_size                   => $anvil->Convert->add_commas({number => $vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
 					vg_name                   => $vg_name, 
+					host_type                 => $host_type, 
 				}});
 				
 				if ($vg_size > $size_to_match)
@@ -6038,9 +6040,10 @@ WHERE
 					$node2_seen = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { node2_seen => $node2_seen }});
 				}
-				else
+				elsif ($host_type eq "node")
 				{
-					# This host doesn't belong in this group anymore. Delete it.
+					# This host is a node that isn't in the Anvil!, so it doesn't belong 
+					# in this group anymore. Delete it.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0130", variables => { 
 						storage_group_name => $group_name,
 						host_name          => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
