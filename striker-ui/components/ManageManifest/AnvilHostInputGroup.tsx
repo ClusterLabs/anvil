@@ -10,7 +10,7 @@ import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SwitchWithLabel from '../SwitchWithLabel';
 import {
   buildIPAddressTestBatch,
-  buildNumberTestBatch,
+  buildPeacefulStringTestBatch,
 } from '../../lib/test_input';
 import { BodyText } from '../Text';
 
@@ -80,16 +80,14 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
                     value={fencePort}
                   />
                 }
-                inputTestBatch={buildNumberTestBatch(
+                inputTestBatch={buildPeacefulStringTestBatch(
                   inputLabel,
                   () => {
                     msgSetters[inputId]();
                   },
                   { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
                   (message) => {
-                    msgSetters[inputId]({
-                      children: message,
-                    });
+                    msgSetters[inputId]({ children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
@@ -141,9 +139,7 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
                   },
                   { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
                   (message) => {
-                    msgSetters[inputId]({
-                      children: message,
-                    });
+                    msgSetters[inputId]({ children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
