@@ -511,44 +511,19 @@ sub available_resources
 		delete $anvil->data->{anvil_resources}{$anvil_uuid};
 	}
 	
-	# Get the node UUIDs for this anvil.
-	my $query = "
-SELECT 
-    anvil_name, 
-    anvil_node1_host_uuid, 
-    anvil_node2_host_uuid 
-FROM 
-    anvils 
-WHERE 
-    anvil_uuid = ".$anvil->Database->quote($anvil_uuid)."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	if (not $count)
-	{
-		# Not found.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0169", variables => { anvil_uuid => $anvil_uuid }});
-		return("!!error!!");
-	}
+	# Load hosts and network bridges. This loads Anvil! data as well
+	$anvil->Database->get_hosts({debug => $debug});
+	$anvil->Database->get_bridges({debug => $debug});
 	
 	# Get the details.
-	my $anvil_name      = $results->[0]->[0];
-	my $node1_host_uuid = $results->[0]->[1];
-	my $node2_host_uuid = $results->[0]->[2];
+	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_name      => $anvil_name,
 		node1_host_uuid => $node1_host_uuid, 
 		node2_host_uuid => $node2_host_uuid, 
 	}});
-	
-	# Load hosts and network bridges
-	$anvil->Database->get_hosts({debug => $debug});
-	$anvil->Database->get_bridges({debug => $debug});
 	
 	# This both loads storage group data and assembles ungrouped VGs into storage groups, when possible.
 	$anvil->Cluster->assemble_storage_groups({
@@ -560,7 +535,6 @@ WHERE
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}  = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = 0;
-
 	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
 	{
 		my $this_is = "node1";
@@ -682,7 +656,7 @@ WHERE
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated} =  0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}  = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
 	
-	$query = "
+	my $query = "
 SELECT 
     server_name, 
     server_ram_in_use 
@@ -693,8 +667,8 @@ WHERE
 ORDER BY 
     server_name ASC;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count, 
@@ -795,8 +769,8 @@ ORDER BY
 		}});
 		
 		# Make it easy to sort by group name
-		my $storage_group_name = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		my $storage_group_name                                                                                       = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+		   $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"anvil_resources::${anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 		}});
