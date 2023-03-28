@@ -148,6 +148,11 @@ export const getManifestDetail: RequestHandler = (request, response) => {
 
             stdout(`host=${hostType},n=${hostNumber}`);
 
+            // Only include node-type host(s).
+            if (hostType !== 'node') {
+              return previous;
+            }
+
             previous[hostId] = {
               fences: Object.entries(fence)
                 .sort(handleSortEntries)
