@@ -21,7 +21,7 @@ import FormDialog from '../FormDialog';
 import handleAPIError from '../../lib/handleAPIError';
 import IconButton from '../IconButton';
 import List from '../List';
-import { MessageGroupForwardedRefContent } from '../MessageGroup';
+import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import RunManifestInputGroup, {
@@ -258,6 +258,17 @@ const ManageManifestPanel: FC = () => {
     ],
   );
 
+  const messageArea = useMemo(
+    () => (
+      <MessageGroup
+        count={1}
+        defaultMessageType="warning"
+        ref={messageGroupRef}
+      />
+    ),
+    [],
+  );
+
   if (isFirstRender) {
     api
       .get<APIManifestTemplate>('/manifest/template')
@@ -295,18 +306,21 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...addManifestFormDialogProps}
         disableProceed={isFormInvalid}
+        preActionArea={messageArea}
         ref={addManifestFormDialogRef}
         scrollContent
       />
       <FormDialog
         {...editManifestFormDialogProps}
         disableProceed={isFormInvalid}
+        preActionArea={messageArea}
         ref={editManifestFormDialogRef}
         scrollContent
       />
       <FormDialog
         {...runManifestFormDialogProps}
         disableProceed={isRunFormInvalid}
+        preActionArea={messageArea}
         ref={runManifestFormDialogRef}
         scrollContent
       />
