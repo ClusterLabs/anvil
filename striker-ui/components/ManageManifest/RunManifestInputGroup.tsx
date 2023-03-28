@@ -1,12 +1,14 @@
 import { styled } from '@mui/material';
 import { ReactElement, useMemo } from 'react';
-import { buildPeacefulStringTestBatch } from '../../lib/test_input';
+
+import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
 import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import SelectWithLabel from '../SelectWithLabel';
+import { buildPeacefulStringTestBatch } from '../../lib/test_input';
 import { BodyText, MonoText } from '../Text';
 
 const INPUT_ID_PREFIX_RUN_MANIFEST = 'run-manifest-input';
@@ -316,6 +318,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                   <OutlinedInputWithLabel
                     id={INPUT_ID_RM_AN_PASSWORD}
                     label={INPUT_LABEL_RM_AN_PASSWORD}
+                    type={INPUT_TYPES.password}
                   />
                 }
                 inputTestBatch={buildPeacefulStringTestBatch(
@@ -346,6 +349,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                   <OutlinedInputWithLabel
                     id={INPUT_ID_RM_AN_CONFIRM_PASSWORD}
                     label={INPUT_LABEL_RM_AN_CONFIRM_PASSWORD}
+                    type={INPUT_TYPES.password}
                   />
                 }
                 required
