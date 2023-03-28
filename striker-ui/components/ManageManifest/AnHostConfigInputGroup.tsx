@@ -1,31 +1,33 @@
 import { ReactElement, useMemo } from 'react';
 
-import AnvilHostInputGroup from './AnvilHostInputGroup';
+import AnHostInputGroup from './AnHostInputGroup';
 import Grid from '../Grid';
 
-const INPUT_ID_PREFIX_ANVIL_HOST_CONFIG = 'anvil-host-config-input';
+const INPUT_ID_PREFIX_AN_HOST_CONFIG = 'an-host-config-input';
 
-const INPUT_GROUP_ID_PREFIX_ANVIL_HOST_CONFIG = `${INPUT_ID_PREFIX_ANVIL_HOST_CONFIG}-group`;
-const INPUT_GROUP_CELL_ID_PREFIX_ANVIL_HOST_CONFIG = `${INPUT_GROUP_ID_PREFIX_ANVIL_HOST_CONFIG}-cell`;
+const INPUT_GROUP_ID_PREFIX_AHC = `${INPUT_ID_PREFIX_AN_HOST_CONFIG}-group`;
+const INPUT_GROUP_CELL_ID_PREFIX_AHC = `${INPUT_GROUP_ID_PREFIX_AHC}-cell`;
 
 const DEFAULT_HOST_LIST: ManifestHostList = {
   node1: {
+    hostName: '',
     hostNumber: 1,
     hostType: 'node',
   },
   node2: {
+    hostName: '',
     hostNumber: 2,
     hostType: 'node',
   },
 };
 
-const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
+const AnHostConfigInputGroup = <M extends MapToInputTestID>({
   formUtils,
   knownFences = {},
   knownUpses = {},
   networkListEntries,
   previous: { hosts: previousHostList = DEFAULT_HOST_LIST } = {},
-}: AnvilHostConfigInputGroupProps<M>): ReactElement => {
+}: AnHostConfigInputGroupProps<M>): ReactElement => {
   const hostListEntries = useMemo(
     () => Object.entries(previousHostList),
     [previousHostList],
@@ -86,12 +88,12 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
             {},
           );
 
-          const cellId = `${INPUT_GROUP_CELL_ID_PREFIX_ANVIL_HOST_CONFIG}-${hostId}`;
+          const cellId = `${INPUT_GROUP_CELL_ID_PREFIX_AHC}-${hostId}`;
           const hostLabel = `${hostType} ${hostNumber}`;
 
           previous[cellId] = {
             children: (
-              <AnvilHostInputGroup
+              <AnHostInputGroup
                 formUtils={formUtils}
                 hostLabel={hostLabel}
                 previous={{ fences, networks, upses }}
@@ -123,4 +125,4 @@ const AnvilHostConfigInputGroup = <M extends MapToInputTestID>({
   );
 };
 
-export default AnvilHostConfigInputGroup;
+export default AnHostConfigInputGroup;

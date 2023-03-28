@@ -10,15 +10,15 @@ import SelectWithLabel from '../SelectWithLabel';
 import { BodyText, MonoText } from '../Text';
 
 const INPUT_ID_PREFIX_RUN_MANIFEST = 'run-manifest-input';
-const INPUT_ID_PREFIX_HOST = `${INPUT_ID_PREFIX_RUN_MANIFEST}-host`;
+const INPUT_ID_PREFIX_RM_HOST = `${INPUT_ID_PREFIX_RUN_MANIFEST}-host`;
 
-const INPUT_ID_AN_DESCRIPTION = `${INPUT_ID_PREFIX_RUN_MANIFEST}-an-description`;
-const INPUT_ID_AN_PASSWORD = `${INPUT_ID_PREFIX_RUN_MANIFEST}-an-password`;
-const INPUT_ID_AN_CONFIRM_PASSWORD = `${INPUT_ID_PREFIX_RUN_MANIFEST}-an-confirm-password`;
+const INPUT_ID_RM_AN_DESCRIPTION = `${INPUT_ID_PREFIX_RUN_MANIFEST}-an-description`;
+const INPUT_ID_RM_AN_PASSWORD = `${INPUT_ID_PREFIX_RUN_MANIFEST}-an-password`;
+const INPUT_ID_RM_AN_CONFIRM_PASSWORD = `${INPUT_ID_PREFIX_RUN_MANIFEST}-an-confirm-password`;
 
-const INPUT_LABEL_AN_DESCRIPTION = 'Description';
-const INPUT_LABEL_AN_PASSWORD = 'Password';
-const INPUT_LABEL_AN_CONFIRM_PASSWORD = 'Confirm password';
+const INPUT_LABEL_RM_AN_DESCRIPTION = 'Description';
+const INPUT_LABEL_RM_AN_PASSWORD = 'Password';
+const INPUT_LABEL_RM_AN_CONFIRM_PASSWORD = 'Confirm password';
 
 const MANIFEST_PARAM_NONE = '--';
 
@@ -96,7 +96,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
             children: <BodyText>{prettyId}</BodyText>,
           };
 
-          const inputId = `${INPUT_ID_PREFIX_HOST}-${hostId}`;
+          const inputId = `${INPUT_ID_PREFIX_RM_HOST}-${hostId}`;
           const inputLabel = `${prettyId} host`;
 
           setMsgSetter(inputId);
@@ -276,73 +276,76 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
       <Grid
         columns={{ xs: 1, sm: 2 }}
         layout={{
-          'anvil-description-input-cell': {
+          'run-manifest-input-cell-an-description': {
             children: (
               <InputWithRef
                 input={
                   <OutlinedInputWithLabel
-                    id={INPUT_ID_AN_DESCRIPTION}
-                    label={INPUT_LABEL_AN_DESCRIPTION}
+                    id={INPUT_ID_RM_AN_DESCRIPTION}
+                    label={INPUT_LABEL_RM_AN_DESCRIPTION}
                   />
                 }
                 inputTestBatch={buildPeacefulStringTestBatch(
-                  INPUT_LABEL_AN_DESCRIPTION,
+                  INPUT_LABEL_RM_AN_DESCRIPTION,
                   () => {
-                    msgSetters[INPUT_ID_AN_DESCRIPTION]();
+                    msgSetters[INPUT_ID_RM_AN_DESCRIPTION]();
                   },
                   {
                     onFinishBatch: buildFinishInputTestBatchFunction(
-                      INPUT_ID_AN_DESCRIPTION,
+                      INPUT_ID_RM_AN_DESCRIPTION,
                     ),
                   },
                   (message) => {
-                    msgSetters[INPUT_ID_AN_DESCRIPTION]({ children: message });
+                    msgSetters[INPUT_ID_RM_AN_DESCRIPTION]({
+                      children: message,
+                    });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(
-                  INPUT_ID_AN_DESCRIPTION,
+                  INPUT_ID_RM_AN_DESCRIPTION,
                 )}
                 required
               />
             ),
             sm: 2,
           },
-          'anvil-password-input-cell': {
+          'run-manifest-input-cell-an-password': {
             children: (
               <InputWithRef
                 input={
                   <OutlinedInputWithLabel
-                    id={INPUT_ID_AN_PASSWORD}
-                    label={INPUT_LABEL_AN_PASSWORD}
+                    id={INPUT_ID_RM_AN_PASSWORD}
+                    label={INPUT_LABEL_RM_AN_PASSWORD}
                   />
                 }
                 inputTestBatch={buildPeacefulStringTestBatch(
-                  INPUT_LABEL_AN_PASSWORD,
+                  INPUT_LABEL_RM_AN_PASSWORD,
                   () => {
-                    msgSetters[INPUT_ID_AN_PASSWORD]();
+                    msgSetters[INPUT_ID_RM_AN_PASSWORD]();
                   },
                   {
-                    onFinishBatch:
-                      buildFinishInputTestBatchFunction(INPUT_ID_AN_PASSWORD),
+                    onFinishBatch: buildFinishInputTestBatchFunction(
+                      INPUT_ID_RM_AN_PASSWORD,
+                    ),
                   },
                   (message) => {
-                    msgSetters[INPUT_ID_AN_PASSWORD]({ children: message });
+                    msgSetters[INPUT_ID_RM_AN_PASSWORD]({ children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(
-                  INPUT_ID_AN_PASSWORD,
+                  INPUT_ID_RM_AN_PASSWORD,
                 )}
                 required
               />
             ),
           },
-          'anvil-confirm-password-input-cell': {
+          'run-manifest-input-cell-an-confirm-password': {
             children: (
               <InputWithRef
                 input={
                   <OutlinedInputWithLabel
-                    id={INPUT_ID_AN_CONFIRM_PASSWORD}
-                    label={INPUT_LABEL_AN_CONFIRM_PASSWORD}
+                    id={INPUT_ID_RM_AN_CONFIRM_PASSWORD}
+                    label={INPUT_LABEL_RM_AN_CONFIRM_PASSWORD}
                   />
                 }
                 required
@@ -396,9 +399,9 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
 };
 
 export {
-  INPUT_ID_AN_CONFIRM_PASSWORD,
-  INPUT_ID_AN_DESCRIPTION,
-  INPUT_ID_AN_PASSWORD,
+  INPUT_ID_RM_AN_CONFIRM_PASSWORD,
+  INPUT_ID_RM_AN_DESCRIPTION,
+  INPUT_ID_RM_AN_PASSWORD,
 };
 
 export default RunManifestInputGroup;

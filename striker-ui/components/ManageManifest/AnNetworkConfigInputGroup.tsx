@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
-import AnvilNetworkInputGroup from './AnvilNetworkInputGroup';
+import AnNetworkInputGroup from './AnNetworkInputGroup';
 import buildObjectStateSetterCallback from '../../lib/buildObjectStateSetterCallback';
 import Grid from '../Grid';
 import IconButton from '../IconButton';
@@ -11,31 +11,31 @@ import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { buildNumberTestBatch } from '../../lib/test_input';
 
-const INPUT_ID_PREFIX_ANVIL_NETWORK_CONFIG = 'anvil-network-config-input';
+const INPUT_ID_PREFIX_AN_NETWORK_CONFIG = 'an-network-config-input';
 
-const INPUT_CELL_ID_PREFIX_ANVIL_NETWORK_CONFIG = `${INPUT_ID_PREFIX_ANVIL_NETWORK_CONFIG}-cell`;
+const INPUT_CELL_ID_PREFIX_ANC = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-cell`;
 
-const INPUT_ID_ANVIL_NETWORK_CONFIG_DNS = 'anvil-network-config-input-dns';
-const INPUT_ID_ANVIL_NETWORK_CONFIG_MTU = 'anvil-network-config-input-mtu';
-const INPUT_ID_ANVIL_NETWORK_CONFIG_NTP = 'anvil-network-config-input-ntp';
+const INPUT_ID_ANC_DNS = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-dns`;
+const INPUT_ID_ANC_MTU = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-mtu`;
+const INPUT_ID_ANC_NTP = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-ntp`;
 
-const INPUT_LABEL_ANVIL_NETWORK_CONFIG_DNS = 'DNS';
-const INPUT_LABEL_ANVIL_NETWORK_CONFIG_MTU = 'MTU';
-const INPUT_LABEL_ANVIL_NETWORK_CONFIG_NTP = 'NTP';
+const INPUT_LABEL_ANC_DNS = 'DNS';
+const INPUT_LABEL_ANC_MTU = 'MTU';
+const INPUT_LABEL_ANC_NTP = 'NTP';
 
-const DEFAULT_DNS_CSV = '8.8.8.8, 8.8.4.4';
+const DEFAULT_DNS_CSV = '8.8.8.8,8.8.4.4';
 
 const NETWORK_TYPE_ENTRIES = Object.entries(NETWORK_TYPES);
 
 const assertIfn = (type: string) => type === 'ifn';
 const assertMn = (type: string) => type === 'mn';
 
-const AnvilNetworkConfigInputGroup = <
+const AnNetworkConfigInputGroup = <
   M extends MapToInputTestID & {
     [K in
-      | typeof INPUT_ID_ANVIL_NETWORK_CONFIG_DNS
-      | typeof INPUT_ID_ANVIL_NETWORK_CONFIG_MTU
-      | typeof INPUT_ID_ANVIL_NETWORK_CONFIG_NTP]: string;
+      | typeof INPUT_ID_ANC_DNS
+      | typeof INPUT_ID_ANC_MTU
+      | typeof INPUT_ID_ANC_NTP]: string;
   },
 >({
   formUtils,
@@ -46,7 +46,7 @@ const AnvilNetworkConfigInputGroup = <
     ntpCsv: previousNtpCsv,
   } = {},
   setNetworkList,
-}: AnvilNetworkConfigInputGroupProps<M>): ReactElement => {
+}: AnNetworkConfigInputGroupProps<M>): ReactElement => {
   const {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
@@ -120,63 +120,62 @@ const AnvilNetworkConfigInputGroup = <
     [setNetworkList],
   );
 
-  const handleNetworkTypeChange =
-    useCallback<AnvilNetworkTypeChangeEventHandler>(
-      (
-        { networkId: targetId, networkType: previousType },
-        { target: { value } },
-      ) => {
-        const newType = String(value);
+  const handleNetworkTypeChange = useCallback<AnNetworkTypeChangeEventHandler>(
+    (
+      { networkId: targetId, networkType: previousType },
+      { target: { value } },
+    ) => {
+      const newType = String(value);
 
-        let isIdMatch = false;
-        let newTypeNumber = 0;
+      let isIdMatch = false;
+      let newTypeNumber = 0;
 
-        const newList = networkListEntries.reduce<ManifestNetworkList>(
-          (previous, [networkId, networkValue]) => {
-            const { networkNumber: initnn, networkType: initnt } = networkValue;
+      const newList = networkListEntries.reduce<ManifestNetworkList>(
+        (previous, [networkId, networkValue]) => {
+          const { networkNumber: initnn, networkType: initnt } = networkValue;
 
-            let networkNumber = initnn;
-            let networkType = initnt;
+          let networkNumber = initnn;
+          let networkType = initnt;
 
-            if (networkId === targetId) {
-              isIdMatch = true;
+          if (networkId === targetId) {
+            isIdMatch = true;
 
-              networkType = newType;
-            }
+            networkType = newType;
+          }
 
-            const isTypeMatch = networkType === newType;
+          const isTypeMatch = networkType === newType;
 
+          if (isTypeMatch) {
+            newTypeNumber += 1;
+          }
+
+          if (isIdMatch) {
             if (isTypeMatch) {
-              newTypeNumber += 1;
+              networkNumber = newTypeNumber;
+            } else if (networkType === previousType) {
+              networkNumber -= 1;
             }
 
-            if (isIdMatch) {
-              if (isTypeMatch) {
-                networkNumber = newTypeNumber;
-              } else if (networkType === previousType) {
-                networkNumber -= 1;
-              }
+            previous[networkId] = {
+              ...networkValue,
+              networkNumber,
+              networkType,
+            };
+          } else {
+            previous[networkId] = networkValue;
+          }
 
-              previous[networkId] = {
-                ...networkValue,
-                networkNumber,
-                networkType,
-              };
-            } else {
-              previous[networkId] = networkValue;
-            }
+          return previous;
+        },
+        {},
+      );
 
-            return previous;
-          },
-          {},
-        );
+      setNetworkList(newList);
+    },
+    [networkListEntries, setNetworkList],
+  );
 
-        setNetworkList(newList);
-      },
-      [networkListEntries, setNetworkList],
-    );
-
-  const handleNetworkRemove = useCallback<AnvilNetworkCloseEventHandler>(
+  const handleNetworkRemove = useCallback<AnNetworkCloseEventHandler>(
     ({ networkId: rmId, networkType: rmType }) => {
       let isIdMatch = false;
       let networkNumber = 0;
@@ -224,11 +223,11 @@ const AnvilNetworkConfigInputGroup = <
           },
         ],
       ) => {
-        const cellId = `${INPUT_CELL_ID_PREFIX_ANVIL_NETWORK_CONFIG}-${networkId}`;
+        const cellId = `${INPUT_CELL_ID_PREFIX_ANC}-${networkId}`;
 
-        const idPrefix = `anvil-network-${networkId}`;
+        const idPrefix = `an-network-${networkId}`;
 
-        const inputIdPrefix = `${INPUT_ID_PREFIX_ANVIL_NETWORK_CONFIG}-${networkId}`;
+        const inputIdPrefix = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-${networkId}`;
         const inputGatewayId = `${inputIdPrefix}-gateway`;
         const inputMinIpId = `${inputIdPrefix}-min-ip`;
         const inputNetworkTypeId = `${inputIdPrefix}-network-type`;
@@ -241,7 +240,7 @@ const AnvilNetworkConfigInputGroup = <
 
         previous[cellId] = {
           children: (
-            <AnvilNetworkInputGroup
+            <AnNetworkInputGroup
               formUtils={formUtils}
               idPrefix={idPrefix}
               inputGatewayId={inputGatewayId}
@@ -287,7 +286,7 @@ const AnvilNetworkConfigInputGroup = <
       columns={{ xs: 1, sm: 2, md: 3 }}
       layout={{
         ...networksGridLayout,
-        'anvil-network-config-cell-add-network': {
+        'an-network-config-cell-add-network': {
           children: (
             <IconButton
               mapPreset="add"
@@ -303,13 +302,13 @@ const AnvilNetworkConfigInputGroup = <
           md: 3,
           sm: 2,
         },
-        'anvil-network-config-input-cell-dns': {
+        'an-network-config-input-cell-dns': {
           children: (
             <InputWithRef
               input={
                 <OutlinedInputWithLabel
-                  id={INPUT_ID_ANVIL_NETWORK_CONFIG_DNS}
-                  label={INPUT_LABEL_ANVIL_NETWORK_CONFIG_DNS}
+                  id={INPUT_ID_ANC_DNS}
+                  label={INPUT_LABEL_ANC_DNS}
                   value={previousDnsCsv}
                 />
               }
@@ -317,49 +316,46 @@ const AnvilNetworkConfigInputGroup = <
             />
           ),
         },
-        'anvil-network-config-input-cell-ntp': {
+        'an-network-config-input-cell-ntp': {
           children: (
             <InputWithRef
               input={
                 <OutlinedInputWithLabel
-                  id={INPUT_ID_ANVIL_NETWORK_CONFIG_NTP}
-                  label={INPUT_LABEL_ANVIL_NETWORK_CONFIG_NTP}
+                  id={INPUT_ID_ANC_NTP}
+                  label={INPUT_LABEL_ANC_NTP}
                   value={previousNtpCsv}
                 />
               }
             />
           ),
         },
-        'anvil-network-config-input-cell-mtu': {
+        'an-network-config-input-cell-mtu': {
           children: (
             <InputWithRef
               input={
                 <OutlinedInputWithLabel
-                  id={INPUT_ID_ANVIL_NETWORK_CONFIG_MTU}
+                  id={INPUT_ID_ANC_MTU}
                   inputProps={{ placeholder: '1500' }}
-                  label={INPUT_LABEL_ANVIL_NETWORK_CONFIG_MTU}
+                  label={INPUT_LABEL_ANC_MTU}
                   value={previousMtu}
                 />
               }
               inputTestBatch={buildNumberTestBatch(
-                INPUT_LABEL_ANVIL_NETWORK_CONFIG_MTU,
+                INPUT_LABEL_ANC_MTU,
                 () => {
-                  msgSetters[INPUT_ID_ANVIL_NETWORK_CONFIG_MTU]();
+                  msgSetters[INPUT_ID_ANC_MTU]();
                 },
                 {
-                  onFinishBatch: buildFinishInputTestBatchFunction(
-                    INPUT_ID_ANVIL_NETWORK_CONFIG_MTU,
-                  ),
+                  onFinishBatch:
+                    buildFinishInputTestBatchFunction(INPUT_ID_ANC_MTU),
                 },
                 (message) => {
-                  msgSetters[INPUT_ID_ANVIL_NETWORK_CONFIG_MTU]({
+                  msgSetters[INPUT_ID_ANC_MTU]({
                     children: message,
                   });
                 },
               )}
-              onFirstRender={buildInputFirstRenderFunction(
-                INPUT_ID_ANVIL_NETWORK_CONFIG_MTU,
-              )}
+              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_MTU)}
               valueType="number"
             />
           ),
@@ -370,10 +366,6 @@ const AnvilNetworkConfigInputGroup = <
   );
 };
 
-export {
-  INPUT_ID_ANVIL_NETWORK_CONFIG_DNS,
-  INPUT_ID_ANVIL_NETWORK_CONFIG_MTU,
-  INPUT_ID_ANVIL_NETWORK_CONFIG_NTP,
-};
+export { INPUT_ID_ANC_DNS, INPUT_ID_ANC_MTU, INPUT_ID_ANC_NTP };
 
-export default AnvilNetworkConfigInputGroup;
+export default AnNetworkConfigInputGroup;

@@ -10,7 +10,7 @@ import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SelectWithLabel from '../SelectWithLabel';
 import { buildIPAddressTestBatch } from '../../lib/test_input';
 
-const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
+const AnNetworkInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
@@ -39,7 +39,7 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   readonlyNetworkName: isReadonlyNetworkName,
   showCloseButton: isShowCloseButton,
   showGateway: isShowGateway,
-}: AnvilNetworkInputGroupProps<M>): ReactElement => {
+}: AnNetworkInputGroupProps<M>): ReactElement => {
   const networkName = useMemo(
     () => `${NETWORK_TYPES[networkType]} ${networkNumber}`,
     [networkNumber, networkType],
@@ -217,4 +217,4 @@ const AnvilNetworkInputGroup = <M extends MapToInputTestID>({
   );
 };
 
-export default AnvilNetworkInputGroup;
+export default AnNetworkInputGroup;

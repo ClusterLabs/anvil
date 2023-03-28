@@ -14,13 +14,13 @@ import {
 } from '../../lib/test_input';
 import { BodyText } from '../Text';
 
-const INPUT_ID_PREFIX_ANVIL_HOST = 'anvil-host-input';
+const INPUT_ID_PREFIX_AN_HOST = 'an-host-input';
 
-const INPUT_CELL_ID_PREFIX_ANVIL_HOST = `${INPUT_ID_PREFIX_ANVIL_HOST}-cell`;
+const INPUT_CELL_ID_PREFIX_AN_HOST = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
 
 const GRID_SPACING = '1em';
 
-const AnvilHostInputGroup = <M extends MapToInputTestID>({
+const AnHostInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
@@ -33,7 +33,7 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
     networks: networkList = {},
     upses: upsList = {},
   } = {},
-}: AnvilHostInputGroupProps<M>): ReactElement => {
+}: AnHostInputGroupProps<M>): ReactElement => {
   const fenceListEntries = useMemo(
     () => Object.entries(fenceList),
     [fenceList],
@@ -63,9 +63,9 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
         (previous, [fenceId, { fenceName, fencePort }]) => {
           const idPostfix = `${fenceId}-port`;
 
-          const cellId = `${INPUT_CELL_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AN_HOST}-${idPostfix}`;
 
-          const inputId = `${INPUT_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
+          const inputId = `${INPUT_ID_PREFIX_AN_HOST}-${idPostfix}`;
           const inputLabel = `Port on ${fenceName}`;
 
           setMsgSetter(inputId);
@@ -115,9 +115,9 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
         (previous, [networkId, { networkIp, networkNumber, networkType }]) => {
           const idPostfix = `${networkId}-ip`;
 
-          const cellId = `${INPUT_CELL_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AN_HOST}-${idPostfix}`;
 
-          const inputId = `${INPUT_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
+          const inputId = `${INPUT_ID_PREFIX_AN_HOST}-${idPostfix}`;
           const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
 
           setMsgSetter(inputId);
@@ -167,9 +167,9 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
         (previous, [upsId, { isUsed, upsName }]) => {
           const idPostfix = `${upsId}-power-host`;
 
-          const cellId = `${INPUT_CELL_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AN_HOST}-${idPostfix}`;
 
-          const inputId = `${INPUT_ID_PREFIX_ANVIL_HOST}-${idPostfix}`;
+          const inputId = `${INPUT_ID_PREFIX_AN_HOST}-${idPostfix}`;
 
           previous[cellId] = {
             children: (
@@ -238,6 +238,6 @@ const AnvilHostInputGroup = <M extends MapToInputTestID>({
   );
 };
 
-export { INPUT_ID_PREFIX_ANVIL_HOST };
+export { INPUT_ID_PREFIX_AN_HOST };
 
-export default AnvilHostInputGroup;
+export default AnHostInputGroup;

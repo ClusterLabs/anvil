@@ -4,15 +4,15 @@ import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
 import AddManifestInputGroup from './AddManifestInputGroup';
 import {
-  INPUT_ID_ANVIL_ID_DOMAIN,
-  INPUT_ID_ANVIL_ID_PREFIX,
-  INPUT_ID_ANVIL_ID_SEQUENCE,
-} from './AnvilIdInputGroup';
+  INPUT_ID_AI_DOMAIN,
+  INPUT_ID_AI_PREFIX,
+  INPUT_ID_AI_SEQUENCE,
+} from './AnIdInputGroup';
 import {
-  INPUT_ID_ANVIL_NETWORK_CONFIG_DNS,
-  INPUT_ID_ANVIL_NETWORK_CONFIG_MTU,
-  INPUT_ID_ANVIL_NETWORK_CONFIG_NTP,
-} from './AnvilNetworkConfigInputGroup';
+  INPUT_ID_ANC_DNS,
+  INPUT_ID_ANC_MTU,
+  INPUT_ID_ANC_NTP,
+} from './AnNetworkConfigInputGroup';
 import api from '../../lib/api';
 import ConfirmDialog from '../ConfirmDialog';
 import EditManifestInputGroup from './EditManifestInputGroup';
@@ -25,9 +25,9 @@ import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import RunManifestInputGroup, {
-  INPUT_ID_AN_CONFIRM_PASSWORD,
-  INPUT_ID_AN_DESCRIPTION,
-  INPUT_ID_AN_PASSWORD,
+  INPUT_ID_RM_AN_CONFIRM_PASSWORD,
+  INPUT_ID_RM_AN_DESCRIPTION,
+  INPUT_ID_RM_AN_PASSWORD,
 } from './RunManifestInputGroup';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
@@ -73,12 +73,12 @@ const ManageManifestPanel: FC = () => {
 
   const formUtils = useFormUtils(
     [
-      INPUT_ID_ANVIL_ID_DOMAIN,
-      INPUT_ID_ANVIL_ID_PREFIX,
-      INPUT_ID_ANVIL_ID_SEQUENCE,
-      INPUT_ID_ANVIL_NETWORK_CONFIG_DNS,
-      INPUT_ID_ANVIL_NETWORK_CONFIG_MTU,
-      INPUT_ID_ANVIL_NETWORK_CONFIG_NTP,
+      INPUT_ID_AI_DOMAIN,
+      INPUT_ID_AI_PREFIX,
+      INPUT_ID_AI_SEQUENCE,
+      INPUT_ID_ANC_DNS,
+      INPUT_ID_ANC_MTU,
+      INPUT_ID_ANC_NTP,
     ],
     messageGroupRef,
   );
@@ -86,9 +86,9 @@ const ManageManifestPanel: FC = () => {
 
   const runFormUtils = useFormUtils(
     [
-      INPUT_ID_AN_CONFIRM_PASSWORD,
-      INPUT_ID_AN_DESCRIPTION,
-      INPUT_ID_AN_PASSWORD,
+      INPUT_ID_RM_AN_CONFIRM_PASSWORD,
+      INPUT_ID_RM_AN_DESCRIPTION,
+      INPUT_ID_RM_AN_PASSWORD,
     ],
     messageGroupRef,
   );

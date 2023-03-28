@@ -63,36 +63,36 @@ type ManifestHostConfig = {
   hosts: ManifestHostList;
 };
 
-type AnvilIdInputGroupOptionalProps = {
+type AnIdInputGroupOptionalProps = {
   previous?: Partial<ManifestAnId>;
 };
 
-type AnvilIdInputGroupProps<M extends MapToInputTestID> =
-  AnvilIdInputGroupOptionalProps & {
+type AnIdInputGroupProps<M extends MapToInputTestID> =
+  AnIdInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
   };
 
-type AnvilNetworkEventHandlerPreviousArgs = {
+type AnNetworkEventHandlerPreviousArgs = {
   networkId: string;
 } & Pick<ManifestNetwork, 'networkType'>;
 
-type AnvilNetworkCloseEventHandler = (
-  args: AnvilNetworkEventHandlerPreviousArgs,
+type AnNetworkCloseEventHandler = (
+  args: AnNetworkEventHandlerPreviousArgs,
   ...handlerArgs: Parameters<IconButtonMouseEventHandler>
 ) => ReturnType<IconButtonMouseEventHandler>;
 
-type AnvilNetworkTypeChangeEventHandler = (
-  args: AnvilNetworkEventHandlerPreviousArgs,
+type AnNetworkTypeChangeEventHandler = (
+  args: AnNetworkEventHandlerPreviousArgs,
   ...handlerArgs: Parameters<SelectChangeEventHandler>
 ) => ReturnType<SelectChangeEventHandler>;
 
-type AnvilNetworkInputGroupOptionalProps = {
+type AnNetworkInputGroupOptionalProps = {
   inputGatewayId?: string;
   inputGatewayLabel?: string;
   inputMinIpLabel?: string;
   inputSubnetMaskLabel?: string;
-  onClose?: AnvilNetworkCloseEventHandler;
-  onNetworkTypeChange?: AnvilNetworkTypeChangeEventHandler;
+  onClose?: AnNetworkCloseEventHandler;
+  onNetworkTypeChange?: AnNetworkTypeChangeEventHandler;
   previous?: {
     gateway?: string;
     minIp?: string;
@@ -103,8 +103,8 @@ type AnvilNetworkInputGroupOptionalProps = {
   showGateway?: boolean;
 };
 
-type AnvilNetworkInputGroupProps<M extends MapToInputTestID> =
-  AnvilNetworkInputGroupOptionalProps & {
+type AnNetworkInputGroupProps<M extends MapToInputTestID> =
+  AnNetworkInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
     idPrefix: string;
     inputMinIpId: string;
@@ -116,22 +116,22 @@ type AnvilNetworkInputGroupProps<M extends MapToInputTestID> =
     networkTypeOptions: SelectItem[];
   };
 
-type AnvilHostInputGroupOptionalProps = {
+type AnHostInputGroupOptionalProps = {
   previous?: Pick<ManifestHost, 'fences' | 'networks' | 'upses'>;
 };
 
-type AnvilHostInputGroupProps<M extends MapToInputTestID> =
-  AnvilHostInputGroupOptionalProps & {
+type AnHostInputGroupProps<M extends MapToInputTestID> =
+  AnHostInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
     hostLabel: string;
   };
 
-type AnvilNetworkConfigInputGroupOptionalProps = {
+type AnNetworkConfigInputGroupOptionalProps = {
   previous?: Partial<ManifestNetworkConfig>;
 };
 
-type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
-  AnvilNetworkConfigInputGroupOptionalProps & {
+type AnNetworkConfigInputGroupProps<M extends MapToInputTestID> =
+  AnNetworkConfigInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
     networkListEntries: Array<[string, ManifestNetwork]>;
     setNetworkList: import('react').Dispatch<
@@ -139,20 +139,20 @@ type AnvilNetworkConfigInputGroupProps<M extends MapToInputTestID> =
     >;
   };
 
-type AnvilHostConfigInputGroupOptionalProps = {
+type AnHostConfigInputGroupOptionalProps = {
   knownFences?: APIManifestTemplateFenceList;
   knownUpses?: APIManifestTemplateUpsList;
   previous?: Partial<ManifestHostConfig>;
 };
 
-type AnvilHostConfigInputGroupProps<M extends MapToInputTestID> =
-  AnvilHostConfigInputGroupOptionalProps & {
+type AnHostConfigInputGroupProps<M extends MapToInputTestID> =
+  AnHostConfigInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
     networkListEntries: Array<[string, ManifestNetwork]>;
   };
 
 type AddManifestInputGroupOptionalProps = Pick<
-  AnvilHostConfigInputGroupOptionalProps,
+  AnHostConfigInputGroupOptionalProps,
   'knownFences' | 'knownUpses'
 > & {
   previous?: Partial<ManifestAnId> & {

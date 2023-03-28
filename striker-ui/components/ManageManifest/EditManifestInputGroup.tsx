@@ -1,26 +1,26 @@
 import { ReactElement } from 'react';
 
 import {
-  INPUT_ID_ANVIL_ID_DOMAIN,
-  INPUT_ID_ANVIL_ID_PREFIX,
-  INPUT_ID_ANVIL_ID_SEQUENCE,
-} from './AnvilIdInputGroup';
+  INPUT_ID_AI_DOMAIN,
+  INPUT_ID_AI_PREFIX,
+  INPUT_ID_AI_SEQUENCE,
+} from './AnIdInputGroup';
 import {
-  INPUT_ID_ANVIL_NETWORK_CONFIG_DNS,
-  INPUT_ID_ANVIL_NETWORK_CONFIG_MTU,
-  INPUT_ID_ANVIL_NETWORK_CONFIG_NTP,
-} from './AnvilNetworkConfigInputGroup';
+  INPUT_ID_ANC_DNS,
+  INPUT_ID_ANC_MTU,
+  INPUT_ID_ANC_NTP,
+} from './AnNetworkConfigInputGroup';
 import AddManifestInputGroup from './AddManifestInputGroup';
 
 const EditManifestInputGroup = <
   M extends {
     [K in
-      | typeof INPUT_ID_ANVIL_ID_DOMAIN
-      | typeof INPUT_ID_ANVIL_ID_PREFIX
-      | typeof INPUT_ID_ANVIL_ID_SEQUENCE
-      | typeof INPUT_ID_ANVIL_NETWORK_CONFIG_DNS
-      | typeof INPUT_ID_ANVIL_NETWORK_CONFIG_MTU
-      | typeof INPUT_ID_ANVIL_NETWORK_CONFIG_NTP]: string;
+      | typeof INPUT_ID_AI_DOMAIN
+      | typeof INPUT_ID_AI_PREFIX
+      | typeof INPUT_ID_AI_SEQUENCE
+      | typeof INPUT_ID_ANC_DNS
+      | typeof INPUT_ID_ANC_MTU
+      | typeof INPUT_ID_ANC_NTP]: string;
   },
 >({
   formUtils,
