@@ -48,6 +48,7 @@ type ManifestDetailUpsList = {
 type ManifestDetailHostList = {
   [hostId: string]: {
     fences: ManifestDetailFenceList;
+    hostName: string;
     hostNumber: number;
     hostType: string;
     ipmiIp: string;

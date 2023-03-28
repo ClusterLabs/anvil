@@ -132,7 +132,16 @@ export const getManifestDetail: RequestHandler = (request, response) => {
         .reduce<ManifestDetailHostList>(
           (
             previous,
-            [hostId, { fence = {}, ipmi_ip: ipmiIp, network, ups = {} }],
+            [
+              hostId,
+              {
+                fence = {},
+                ipmi_ip: ipmiIp,
+                name: hostName,
+                network,
+                ups = {},
+              },
+            ],
           ) => {
             const { name: hostType, number: hostNumber } =
               getEntityParts(hostId);
@@ -160,6 +169,7 @@ export const getManifestDetail: RequestHandler = (request, response) => {
                   },
                   {},
                 ),
+              hostName,
               hostNumber,
               hostType,
               ipmiIp,
