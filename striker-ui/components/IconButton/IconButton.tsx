@@ -3,6 +3,7 @@ import {
   Close as MUICloseIcon,
   Done as MUIDoneIcon,
   Edit as MUIEditIcon,
+  PlayCircle as MUIPlayCircleIcon,
   Visibility as MUIVisibilityIcon,
   VisibilityOff as MUIVisibilityOffIcon,
 } from '@mui/icons-material';
@@ -55,6 +56,10 @@ const MAP_TO_EDIT_ICON: IconButtonMapToStateIconBundle = {
   true: { iconType: MUIDoneIcon, iconProps: { sx: { color: BLUE } } },
 };
 
+const MAP_TO_PLAY_ICON: IconButtonMapToStateIconBundle = {
+  none: { iconType: MUIPlayCircleIcon },
+};
+
 const MAP_TO_VISIBILITY_ICON: IconButtonMapToStateIconBundle = {
   false: { iconType: MUIVisibilityIcon },
   true: { iconType: MUIVisibilityOffIcon },
@@ -67,6 +72,7 @@ const MAP_TO_MAP_PRESET: Record<
   add: MAP_TO_ADD_ICON,
   close: MAP_TO_CLOSE_ICON,
   edit: MAP_TO_EDIT_ICON,
+  play: MAP_TO_PLAY_ICON,
   visibility: MAP_TO_VISIBILITY_ICON,
 };
 

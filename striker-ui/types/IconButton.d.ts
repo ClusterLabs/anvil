@@ -4,6 +4,7 @@ type IconButtonPresetMapToStateIconBundle =
   | 'add'
   | 'close'
   | 'edit'
+  | 'play'
   | 'visibility';
 
 type IconButtonStateIconBundle = {
