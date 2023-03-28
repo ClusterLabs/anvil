@@ -48,6 +48,7 @@ type ManifestHostUpsList = {
 
 type ManifestHost = {
   fences?: ManifestHostFenceList;
+  hostName: string;
   hostNumber: number;
   hostType: string;
   networks?: ManifestHostNetworkList;
@@ -167,3 +168,10 @@ type AddManifestInputGroupProps<M extends MapToInputTestID> =
 
 type EditManifestInputGroupProps<M extends MapToInputTestID> =
   AddManifestInputGroupProps<M>;
+
+type RunManifestInputGroupOptionalProps = {
+  knownHosts?: APIHostOverviewList;
+};
+
+type RunManifestInputGroupProps<M extends MapToInputTestID> =
+  RunManifestInputGroupOptionalProps & AddManifestInputGroupProps<M>;

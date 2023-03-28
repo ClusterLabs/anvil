@@ -1,4 +1,3 @@
-import { PlayCircle } from '@mui/icons-material';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
@@ -25,6 +24,11 @@ import List from '../List';
 import { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
+import RunManifestInputGroup, {
+  INPUT_ID_AN_CONFIRM_PASSWORD,
+  INPUT_ID_AN_DESCRIPTION,
+  INPUT_ID_AN_PASSWORD,
+} from './RunManifestInputGroup';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
@@ -40,11 +44,17 @@ const ManageManifestPanel: FC = () => {
   const editManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>(
     {},
   );
+  const runManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
   const [confirmDialogProps] = useConfirmDialogProps();
 
+  const [hostOverviews, setHostOverviews] = useProtectedState<
+    APIHostOverviewList | undefined
+  >(undefined);
   const [isEditManifests, setIsEditManifests] = useState<boolean>(false);
+  const [isLoadingHostOverviews, setIsLoadingHostOverviews] =
+    useState<boolean>(true);
   const [isLoadingManifestDetail, setIsLoadingManifestDetail] =
     useProtectedState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
@@ -74,58 +84,94 @@ const ManageManifestPanel: FC = () => {
   );
   const { isFormInvalid } = formUtils;
 
-  const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(() => {
-    let domain: string | undefined;
-    let prefix: string | undefined;
-    let sequence: number | undefined;
-    let fences: APIManifestTemplateFenceList | undefined;
-    let upses: APIManifestTemplateUpsList | undefined;
+  const runFormUtils = useFormUtils(
+    [
+      INPUT_ID_AN_CONFIRM_PASSWORD,
+      INPUT_ID_AN_DESCRIPTION,
+      INPUT_ID_AN_PASSWORD,
+    ],
+    messageGroupRef,
+  );
+  const { isFormInvalid: isRunFormInvalid } = runFormUtils;
 
-    if (manifestTemplate) {
-      ({ domain, fences, prefix, sequence, upses } = manifestTemplate);
-    }
+  const {
+    domain,
+    name: anName,
+    prefix,
+    sequence,
+  } = useMemo<Partial<APIManifestDetail>>(
+    () => manifestDetail ?? {},
+    [manifestDetail],
+  );
+  const { fences: knownFences, upses: knownUpses } = useMemo<
+    Partial<APIManifestTemplate>
+  >(() => manifestTemplate ?? {}, [manifestTemplate]);
 
-    return {
+  const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(
+    () => ({
       actionProceedText: 'Add',
       content: (
         <AddManifestInputGroup
           formUtils={formUtils}
-          knownFences={fences}
-          knownUpses={upses}
+          knownFences={knownFences}
+          knownUpses={knownUpses}
           previous={{ domain, prefix, sequence }}
         />
       ),
       titleText: 'Add an install manifest',
-    };
-  }, [formUtils, manifestTemplate]);
+    }),
+    [domain, formUtils, knownFences, knownUpses, prefix, sequence],
+  );
 
-  const editManifestFormDialogProps = useMemo<ConfirmDialogProps>(() => {
-    let fences: APIManifestTemplateFenceList | undefined;
-    let manifestName: string | undefined;
-    let upses: APIManifestTemplateUpsList | undefined;
-
-    if (manifestTemplate) {
-      ({ fences, upses } = manifestTemplate);
-    }
-
-    if (manifestDetail) {
-      ({ name: manifestName } = manifestDetail);
-    }
-
-    return {
+  const editManifestFormDialogProps = useMemo<ConfirmDialogProps>(
+    () => ({
       actionProceedText: 'Edit',
       content: (
         <EditManifestInputGroup
           formUtils={formUtils}
-          knownFences={fences}
-          knownUpses={upses}
+          knownFences={knownFences}
+          knownUpses={knownUpses}
           previous={manifestDetail}
         />
       ),
       loading: isLoadingManifestDetail,
-      titleText: `Update install manifest ${manifestName}`,
-    };
-  }, [formUtils, isLoadingManifestDetail, manifestDetail, manifestTemplate]);
+      titleText: `Update install manifest ${anName}`,
+    }),
+    [
+      formUtils,
+      isLoadingManifestDetail,
+      knownFences,
+      knownUpses,
+      anName,
+      manifestDetail,
+    ],
+  );
+
+  const runManifestFormDialogProps = useMemo<ConfirmDialogProps>(
+    () => ({
+      actionProceedText: 'Run',
+      content: (
+        <RunManifestInputGroup
+          formUtils={runFormUtils}
+          knownFences={knownFences}
+          knownHosts={hostOverviews}
+          knownUpses={knownUpses}
+          previous={manifestDetail}
+        />
+      ),
+      loading: isLoadingManifestDetail,
+      titleText: `Run install manifest ${anName}`,
+    }),
+    [
+      anName,
+      hostOverviews,
+      isLoadingManifestDetail,
+      knownFences,
+      knownUpses,
+      manifestDetail,
+      runFormUtils,
+    ],
+  );
 
   const getManifestDetail = useCallback(
     (manifestUuid: string, finallyAppend?: () => void) => {
@@ -174,9 +220,19 @@ const ManageManifestPanel: FC = () => {
         }}
         renderListItem={(manifestUUID, { manifestName }) => (
           <FlexBox fullWidth row>
-            <IconButton disabled={isEditManifests} variant="normal">
-              <PlayCircle />
-            </IconButton>
+            <IconButton
+              disabled={isEditManifests}
+              mapPreset="play"
+              onClick={() => {
+                setManifestDetail({
+                  name: manifestName,
+                  uuid: manifestUUID,
+                } as APIManifestDetail);
+                runManifestFormDialogRef.current.setOpen?.call(null, true);
+                getManifestDetail(manifestUUID);
+              }}
+              variant="normal"
+            />
             <BodyText>{manifestName}</BodyText>
           </FlexBox>
         )}
@@ -187,12 +243,19 @@ const ManageManifestPanel: FC = () => {
 
   const panelContent = useMemo(
     () =>
-      isLoadingManifestTemplate || isLoadingManifestOverviews ? (
+      isLoadingHostOverviews ||
+      isLoadingManifestTemplate ||
+      isLoadingManifestOverviews ? (
         <Spinner />
       ) : (
         listElement
       ),
-    [isLoadingManifestOverviews, isLoadingManifestTemplate, listElement],
+    [
+      isLoadingHostOverviews,
+      isLoadingManifestOverviews,
+      isLoadingManifestTemplate,
+      listElement,
+    ],
   );
 
   if (isFirstRender) {
@@ -206,6 +269,18 @@ const ManageManifestPanel: FC = () => {
       })
       .finally(() => {
         setIsLoadingManifestTemplate(false);
+      });
+
+    api
+      .get<APIHostOverviewList>('/host', { params: { types: 'node' } })
+      .then(({ data }) => {
+        setHostOverviews(data);
+      })
+      .catch((apiError) => {
+        handleAPIError(apiError);
+      })
+      .finally(() => {
+        setIsLoadingHostOverviews(false);
       });
   }
 
@@ -227,6 +302,12 @@ const ManageManifestPanel: FC = () => {
         {...editManifestFormDialogProps}
         disableProceed={isFormInvalid}
         ref={editManifestFormDialogRef}
+        scrollContent
+      />
+      <FormDialog
+        {...runManifestFormDialogProps}
+        disableProceed={isRunFormInvalid}
+        ref={runManifestFormDialogRef}
         scrollContent
       />
       <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
