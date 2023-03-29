@@ -1,55 +1,58 @@
-import { Switch, SxProps, Theme } from '@mui/material';
-import { FC, useMemo } from 'react';
+import {
+  FormControlLabel as MUIFormControlLabel,
+  styled,
+  Switch as MUISwitch,
+} from '@mui/material';
+import { FC, ReactElement, useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
-import FlexBox from './FlexBox';
 import { BodyText } from './Text';
+
+const SwitchFormControlLabel = styled(MUIFormControlLabel)({
+  height: '3.5em',
+  marginLeft: 0,
+  width: '100%',
+});
 
 const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
   checked: isChecked,
-  flexBoxProps: { sx: flexBoxSx, ...restFlexBoxProps } = {},
+  formControlLabelProps,
   id: switchId,
   label,
   name: switchName,
   onChange,
   switchProps,
 }) => {
-  const combinedFlexBoxSx = useMemo<SxProps<Theme>>(
-    () => ({
-      '& > :first-child': {
-        flexGrow: 1,
-      },
-
-      ...flexBoxSx,
-    }),
-    [flexBoxSx],
-  );
-
-  const labelElement = useMemo(
+  const labelElement = useMemo<ReactElement>(
     () =>
       typeof label === 'string' ? (
-        <BodyText inheritColour color={`${GREY}9F`}>
+        <BodyText inheritColour color={`${GREY}AF`}>
           {label}
         </BodyText>
       ) : (
-        label
+        <>{label}</>
       ),
     [label],
   );
 
   return (
-    <FlexBox row {...restFlexBoxProps} sx={combinedFlexBoxSx}>
-      {labelElement}
-      <Switch
-        checked={isChecked}
-        edge="end"
-        id={switchId}
-        name={switchName}
-        onChange={onChange}
-        {...switchProps}
-      />
-    </FlexBox>
+    <SwitchFormControlLabel
+      componentsProps={{ typography: { flexGrow: 1 } }}
+      control={
+        <MUISwitch
+          checked={isChecked}
+          edge="end"
+          id={switchId}
+          name={switchName}
+          onChange={onChange}
+          {...switchProps}
+        />
+      }
+      label={labelElement}
+      labelPlacement="start"
+      {...formControlLabelProps}
+    />
   );
 };
 

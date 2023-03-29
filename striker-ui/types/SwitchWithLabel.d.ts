@@ -1,5 +1,5 @@
 type SwitchWithLabelOptionalProps = {
-  flexBoxProps?: import('../components/FlexBox').FlexBoxProps;
+  formControlLabelProps?: import('@mui/material').FormControlLabelProps;
   switchProps?: import('@mui/material').SwitchProps;
 };
 

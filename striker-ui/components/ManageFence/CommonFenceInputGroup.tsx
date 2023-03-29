@@ -24,7 +24,6 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
         input={
           <SwitchWithLabel
             checked={isChecked}
-            flexBoxProps={{ width: '100%' }}
             id={id}
             label={label}
             name={name}
