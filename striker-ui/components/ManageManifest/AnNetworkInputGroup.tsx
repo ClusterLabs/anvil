@@ -10,6 +10,22 @@ import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SelectWithLabel from '../SelectWithLabel';
 import { buildIPAddressTestBatch } from '../../lib/test_input';
 
+const INPUT_ID_PREFIX_AN_NETWORK = 'an-network-input';
+
+const INPUT_CELL_ID_PREFIX_AN = `${INPUT_ID_PREFIX_AN_NETWORK}-cell`;
+
+const buildInputIdANGateway = (networkId: string): string =>
+  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-gateway`;
+
+const buildInputIdANMinIp = (networkId: string): string =>
+  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-min-ip`;
+
+const buildInputIdANNetworkType = (networkId: string): string =>
+  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-network-type`;
+
+const buildInputIdANSubnetMask = (networkId: string): string =>
+  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-subnet-mask`;
+
 const AnNetworkInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
@@ -17,13 +33,8 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     msgSetters,
     setMsgSetter,
   },
-  idPrefix,
-  inputGatewayId,
   inputGatewayLabel = 'Gateway',
-  inputMinIpId,
   inputMinIpLabel = 'IP address',
-  inputNetworkTypeId,
-  inputSubnetMaskId,
   inputSubnetMaskLabel = 'Subnet mask',
   networkId,
   networkNumber,
@@ -46,13 +57,33 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   );
 
   const inputCellGatewayId = useMemo(
-    () => `${idPrefix}-input-cell-gateway`,
-    [idPrefix],
+    () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-gateway`,
+    [networkId],
   );
-  const inputCellIpId = useMemo(() => `${idPrefix}-input-cell-ip`, [idPrefix]);
+  const inputCellIpId = useMemo(
+    () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-ip`,
+    [networkId],
+  );
   const inputCellSubnetMaskId = useMemo(
-    () => `${idPrefix}-input-cell-subnet-mask`,
-    [idPrefix],
+    () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-subnet-mask`,
+    [networkId],
+  );
+
+  const inputGatewayId = useMemo(
+    () => buildInputIdANGateway(networkId),
+    [networkId],
+  );
+  const inputMinIpId = useMemo(
+    () => buildInputIdANMinIp(networkId),
+    [networkId],
+  );
+  const inputNetworkTypeId = useMemo(
+    () => buildInputIdANNetworkType(networkId),
+    [networkId],
+  );
+  const inputSubnetMaskId = useMemo(
+    () => buildInputIdANSubnetMask(networkId),
+    [networkId],
   );
 
   const inputCellGatewayDisplay = useMemo(
@@ -215,6 +246,13 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
       </InnerPanelBody>
     </InnerPanel>
   );
+};
+
+export {
+  buildInputIdANGateway,
+  buildInputIdANMinIp,
+  buildInputIdANNetworkType,
+  buildInputIdANSubnetMask,
 };
 
 export default AnNetworkInputGroup;

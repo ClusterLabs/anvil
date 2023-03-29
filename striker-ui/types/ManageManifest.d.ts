@@ -87,7 +87,6 @@ type AnNetworkTypeChangeEventHandler = (
 ) => ReturnType<SelectChangeEventHandler>;
 
 type AnNetworkInputGroupOptionalProps = {
-  inputGatewayId?: string;
   inputGatewayLabel?: string;
   inputMinIpLabel?: string;
   inputSubnetMaskLabel?: string;
@@ -106,10 +105,6 @@ type AnNetworkInputGroupOptionalProps = {
 type AnNetworkInputGroupProps<M extends MapToInputTestID> =
   AnNetworkInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
-    idPrefix: string;
-    inputMinIpId: string;
-    inputNetworkTypeId: string;
-    inputSubnetMaskId: string;
     networkId: string;
     networkNumber: number;
     networkType: string;

@@ -225,14 +225,6 @@ const AnNetworkConfigInputGroup = <
       ) => {
         const cellId = `${INPUT_CELL_ID_PREFIX_ANC}-${networkId}`;
 
-        const idPrefix = `an-network-${networkId}`;
-
-        const inputIdPrefix = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-${networkId}`;
-        const inputGatewayId = `${inputIdPrefix}-gateway`;
-        const inputMinIpId = `${inputIdPrefix}-min-ip`;
-        const inputNetworkTypeId = `${inputIdPrefix}-network-type`;
-        const inputSubnetMaskId = `${inputIdPrefix}-subnet-mask`;
-
         const isFirstNetwork = networkNumber === 1;
         const isIfn = assertIfn(networkType);
         const isMn = assertMn(networkType);
@@ -242,11 +234,6 @@ const AnNetworkConfigInputGroup = <
           children: (
             <AnNetworkInputGroup
               formUtils={formUtils}
-              idPrefix={idPrefix}
-              inputGatewayId={inputGatewayId}
-              inputMinIpId={inputMinIpId}
-              inputNetworkTypeId={inputNetworkTypeId}
-              inputSubnetMaskId={inputSubnetMaskId}
               networkId={networkId}
               networkNumber={networkNumber}
               networkType={networkType}
