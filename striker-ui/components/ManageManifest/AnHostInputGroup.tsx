@@ -20,14 +20,14 @@ const INPUT_CELL_ID_PREFIX_AH = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
 
 const GRID_SPACING = '1em';
 
-const buildInputIdAHFencePort = (fenceId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${fenceId}-port`;
+const buildInputIdAHFencePort = (hostId: string, fenceId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${fenceId}-port`;
 
-const buildInputIdAHNetworkIp = (networkId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${networkId}-ip`;
+const buildInputIdAHNetworkIp = (hostId: string, networkId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${networkId}-ip`;
 
-const buildInputIdAHUpsPowerHost = (upsId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${upsId}-power-host`;
+const buildInputIdAHUpsPowerHost = (hostId: string, upsId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${upsId}-power-host`;
 
 const AnHostInputGroup = <M extends MapToInputTestID>({
   formUtils: {
@@ -36,6 +36,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     msgSetters,
     setMsgSetter,
   },
+  hostId,
   hostLabel,
   previous: {
     fences: fenceList = {},
@@ -72,7 +73,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
         (previous, [fenceId, { fenceName, fencePort }]) => {
           const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${fenceId}-port`;
 
-          const inputId = buildInputIdAHFencePort(fenceId);
+          const inputId = buildInputIdAHFencePort(hostId, fenceId);
           const inputLabel = `Port on ${fenceName}`;
 
           setMsgSetter(inputId);
@@ -111,6 +112,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
       buildFinishInputTestBatchFunction,
       buildInputFirstRenderFunction,
       fenceListEntries,
+      hostId,
       msgSetters,
       setMsgSetter,
     ],
@@ -122,7 +124,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
         (previous, [networkId, { networkIp, networkNumber, networkType }]) => {
           const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${networkId}-ip`;
 
-          const inputId = buildInputIdAHNetworkIp(networkIp);
+          const inputId = buildInputIdAHNetworkIp(hostId, networkIp);
           const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
 
           setMsgSetter(inputId);
@@ -159,6 +161,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
       ),
     [
       networkListEntries,
+      hostId,
       setMsgSetter,
       buildFinishInputTestBatchFunction,
       buildInputFirstRenderFunction,
@@ -172,7 +175,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
         (previous, [upsId, { isUsed, upsName }]) => {
           const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${upsId}-power-host`;
 
-          const inputId = buildInputIdAHUpsPowerHost(upsId);
+          const inputId = buildInputIdAHUpsPowerHost(hostId, upsId);
           const inputLabel = `Uses ${upsName}`;
 
           previous[cellId] = {
@@ -195,7 +198,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
         },
         {},
       ),
-    [upsListEntries],
+    [hostId, upsListEntries],
   );
 
   return (

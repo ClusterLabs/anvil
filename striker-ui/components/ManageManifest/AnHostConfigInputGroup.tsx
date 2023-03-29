@@ -95,6 +95,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             children: (
               <AnHostInputGroup
                 formUtils={formUtils}
+                hostId={hostId}
                 hostLabel={hostLabel}
                 previous={{ fences, networks, upses }}
               />

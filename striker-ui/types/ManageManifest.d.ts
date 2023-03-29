@@ -118,6 +118,7 @@ type AnHostInputGroupOptionalProps = {
 type AnHostInputGroupProps<M extends MapToInputTestID> =
   AnHostInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
+    hostId: string;
     hostLabel: string;
   };
 
