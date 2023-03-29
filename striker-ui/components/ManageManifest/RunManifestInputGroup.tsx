@@ -28,6 +28,9 @@ const EndMono = styled(MonoText)({
   justifyContent: 'end',
 });
 
+const buildInputIdRMHost = (hostId: string): string =>
+  `${INPUT_ID_PREFIX_RM_HOST}-${hostId}`;
+
 const RunManifestInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
@@ -98,7 +101,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
             children: <BodyText>{prettyId}</BodyText>,
           };
 
-          const inputId = `${INPUT_ID_PREFIX_RM_HOST}-${hostId}`;
+          const inputId = buildInputIdRMHost(hostId);
           const inputLabel = `${prettyId} host`;
 
           setMsgSetter(inputId);
@@ -406,6 +409,7 @@ export {
   INPUT_ID_RM_AN_CONFIRM_PASSWORD,
   INPUT_ID_RM_AN_DESCRIPTION,
   INPUT_ID_RM_AN_PASSWORD,
+  buildInputIdRMHost,
 };
 
 export default RunManifestInputGroup;
