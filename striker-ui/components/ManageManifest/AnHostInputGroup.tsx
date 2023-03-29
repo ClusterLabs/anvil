@@ -16,9 +16,18 @@ import { BodyText } from '../Text';
 
 const INPUT_ID_PREFIX_AN_HOST = 'an-host-input';
 
-const INPUT_CELL_ID_PREFIX_AN_HOST = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
+const INPUT_CELL_ID_PREFIX_AH = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
 
 const GRID_SPACING = '1em';
+
+const buildInputIdAHFencePort = (fenceId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${fenceId}-port`;
+
+const buildInputIdAHNetworkIp = (networkId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${networkId}-ip`;
+
+const buildInputIdAHUpsPowerHost = (upsId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${upsId}-power-host`;
 
 const AnHostInputGroup = <M extends MapToInputTestID>({
   formUtils: {
@@ -61,11 +70,9 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     () =>
       fenceListEntries.reduce<GridLayout>(
         (previous, [fenceId, { fenceName, fencePort }]) => {
-          const idPostfix = `${fenceId}-port`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${fenceId}-port`;
 
-          const cellId = `${INPUT_CELL_ID_PREFIX_AN_HOST}-${idPostfix}`;
-
-          const inputId = `${INPUT_ID_PREFIX_AN_HOST}-${idPostfix}`;
+          const inputId = buildInputIdAHFencePort(fenceId);
           const inputLabel = `Port on ${fenceName}`;
 
           setMsgSetter(inputId);
@@ -113,11 +120,9 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     () =>
       networkListEntries.reduce<GridLayout>(
         (previous, [networkId, { networkIp, networkNumber, networkType }]) => {
-          const idPostfix = `${networkId}-ip`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${networkId}-ip`;
 
-          const cellId = `${INPUT_CELL_ID_PREFIX_AN_HOST}-${idPostfix}`;
-
-          const inputId = `${INPUT_ID_PREFIX_AN_HOST}-${idPostfix}`;
+          const inputId = buildInputIdAHNetworkIp(networkIp);
           const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
 
           setMsgSetter(inputId);
@@ -165,11 +170,10 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     () =>
       upsListEntries.reduce<GridLayout>(
         (previous, [upsId, { isUsed, upsName }]) => {
-          const idPostfix = `${upsId}-power-host`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${upsId}-power-host`;
 
-          const cellId = `${INPUT_CELL_ID_PREFIX_AN_HOST}-${idPostfix}`;
-
-          const inputId = `${INPUT_ID_PREFIX_AN_HOST}-${idPostfix}`;
+          const inputId = buildInputIdAHUpsPowerHost(upsId);
+          const inputLabel = `Uses ${upsName}`;
 
           previous[cellId] = {
             children: (
@@ -178,7 +182,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                   <SwitchWithLabel
                     checked={isUsed}
                     id={inputId}
-                    label={`Uses ${upsName}`}
+                    label={inputLabel}
                     flexBoxProps={{ height: '3.5em' }}
                   />
                 }
@@ -238,6 +242,10 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
   );
 };
 
-export { INPUT_ID_PREFIX_AN_HOST };
+export {
+  buildInputIdAHFencePort,
+  buildInputIdAHNetworkIp,
+  buildInputIdAHUpsPowerHost,
+};
 
 export default AnHostInputGroup;
