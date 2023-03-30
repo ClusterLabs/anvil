@@ -106,15 +106,15 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     [networkNumber, networkType],
   );
 
-  const inputCellGatewayId = useMemo(
+  const inputCellIdGateway = useMemo(
     () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-gateway`,
     [networkId],
   );
-  const inputCellIpId = useMemo(
+  const inputCellIdIp = useMemo(
     () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-ip`,
     [networkId],
   );
-  const inputCellSubnetMaskId = useMemo(
+  const inputCellIdSubnetMask = useMemo(
     () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-subnet-mask`,
     [networkId],
   );
@@ -124,19 +124,19 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     [networkId],
   );
 
-  const inputGatewayId = useMemo(
+  const inputIdGateway = useMemo(
     () => buildInputIdANGateway(networkId),
     [networkId],
   );
-  const inputMinIpId = useMemo(
+  const inputIdMinIp = useMemo(
     () => buildInputIdANMinIp(networkId),
     [networkId],
   );
-  const inputNetworkTypeId = useMemo(
+  const inputIdNetworkType = useMemo(
     () => buildInputIdANNetworkType(networkId),
     [networkId],
   );
-  const inputSubnetMaskId = useMemo(
+  const inputIdSubnetMask = useMemo(
     () => buildInputIdANSubnetMask(networkId),
     [networkId],
   );
@@ -169,8 +169,8 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   const inputGatewayElement = useMemo<ReactNode>(() => {
     let result: ReactNode;
 
-    if (isShowGateway && inputGatewayId) {
-      setMsgSetter(inputGatewayId);
+    if (isShowGateway && inputIdGateway) {
+      setMsgSetter(inputIdGateway);
 
       result = (
         <InputWithRef
@@ -180,7 +180,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                 'data-handler': 'gateway',
                 'data-network-id': networkId,
               }}
-              id={inputGatewayId}
+              id={inputIdGateway}
               label={inputGatewayLabel}
               value={previousGateway}
             />
@@ -188,18 +188,18 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
           inputTestBatch={buildIPAddressTestBatch(
             `${networkName} ${inputGatewayLabel}`,
             () => {
-              msgSetters[inputGatewayId]();
+              msgSetters[inputIdGateway]();
             },
             {
-              onFinishBatch: buildFinishInputTestBatchFunction(inputGatewayId),
+              onFinishBatch: buildFinishInputTestBatchFunction(inputIdGateway),
             },
             (message) => {
-              msgSetters[inputGatewayId]({
+              msgSetters[inputIdGateway]({
                 children: message,
               });
             },
           )}
-          onFirstRender={buildInputFirstRenderFunction(inputGatewayId)}
+          onFirstRender={buildInputFirstRenderFunction(inputIdGateway)}
           required={isShowGateway}
         />
       );
@@ -208,7 +208,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     return result;
   }, [
     isShowGateway,
-    inputGatewayId,
+    inputIdGateway,
     setMsgSetter,
     networkId,
     inputGatewayLabel,
@@ -220,9 +220,9 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   ]);
 
   useEffect(() => {
-    setMsgSetter(inputMinIpId);
-    setMsgSetter(inputSubnetMaskId);
-  }, [inputMinIpId, inputSubnetMaskId, setMsgSetter]);
+    setMsgSetter(inputIdMinIp);
+    setMsgSetter(inputIdSubnetMask);
+  }, [inputIdMinIp, inputIdSubnetMask, setMsgSetter]);
 
   return (
     <InnerPanel mv={0}>
@@ -230,7 +230,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
         <InputWithRef
           input={
             <SelectWithLabel
-              id={inputNetworkTypeId}
+              id={inputIdNetworkType}
               isReadOnly={isReadonlyNetworkName}
               onChange={(...args) => {
                 onNetworkTypeChange?.call(
@@ -261,7 +261,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
         />
         <Grid
           layout={{
-            [inputCellIpId]: {
+            [inputCellIdIp]: {
               children: (
                 <InputWithRef
                   input={
@@ -270,7 +270,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                         'data-handler': 'minip',
                         'data-network-id': networkId,
                       }}
-                      id={inputMinIpId}
+                      id={inputIdMinIp}
                       label={inputMinIpLabel}
                       value={previousIpAddress}
                     />
@@ -278,24 +278,24 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                   inputTestBatch={buildIPAddressTestBatch(
                     `${networkName} ${inputMinIpLabel}`,
                     () => {
-                      msgSetters[inputMinIpId]();
+                      msgSetters[inputIdMinIp]();
                     },
                     {
                       onFinishBatch:
-                        buildFinishInputTestBatchFunction(inputMinIpId),
+                        buildFinishInputTestBatchFunction(inputIdMinIp),
                     },
                     (message) => {
-                      msgSetters[inputMinIpId]({
+                      msgSetters[inputIdMinIp]({
                         children: message,
                       });
                     },
                   )}
-                  onFirstRender={buildInputFirstRenderFunction(inputMinIpId)}
+                  onFirstRender={buildInputFirstRenderFunction(inputIdMinIp)}
                   required
                 />
               ),
             },
-            [inputCellSubnetMaskId]: {
+            [inputCellIdSubnetMask]: {
               children: (
                 <InputWithRef
                   input={
@@ -304,7 +304,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                         'data-handler': 'subnetmask',
                         'data-network-id': networkId,
                       }}
-                      id={inputSubnetMaskId}
+                      id={inputIdSubnetMask}
                       label={inputSubnetMaskLabel}
                       value={previousSubnetMask}
                     />
@@ -313,7 +313,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                 />
               ),
             },
-            [inputCellGatewayId]: {
+            [inputCellIdGateway]: {
               children: inputGatewayElement,
               display: inputCellGatewayDisplay,
             },
