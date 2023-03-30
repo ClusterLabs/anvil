@@ -1,4 +1,5 @@
 type SwitchWithLabelOptionalProps = {
+  baseInputProps?: import('@mui/material').InputBaseComponentProps;
   formControlLabelProps?: import('@mui/material').FormControlLabelProps;
   switchProps?: import('@mui/material').SwitchProps;
 };

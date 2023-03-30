@@ -16,6 +16,7 @@ const SwitchFormControlLabel = styled(MUIFormControlLabel)({
 });
 
 const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
+  baseInputProps,
   checked: isChecked,
   formControlLabelProps,
   id: switchId,
@@ -37,22 +38,30 @@ const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
   );
 
   return (
-    <SwitchFormControlLabel
-      componentsProps={{ typography: { flexGrow: 1 } }}
-      control={
-        <MUISwitch
-          checked={isChecked}
-          edge="end"
-          id={switchId}
-          name={switchName}
-          onChange={onChange}
-          {...switchProps}
-        />
-      }
-      label={labelElement}
-      labelPlacement="start"
-      {...formControlLabelProps}
-    />
+    <>
+      <SwitchFormControlLabel
+        componentsProps={{ typography: { flexGrow: 1 } }}
+        control={
+          <MUISwitch
+            checked={isChecked}
+            edge="end"
+            name={switchName}
+            onChange={onChange}
+            {...switchProps}
+          />
+        }
+        label={labelElement}
+        labelPlacement="start"
+        {...formControlLabelProps}
+      />
+      <input
+        checked={isChecked}
+        hidden
+        id={switchId}
+        readOnly
+        {...baseInputProps}
+      />
+    </>
   );
 };
 
