@@ -16,10 +16,30 @@ const useFormUtils = <
 ): FormUtils<M> => {
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
 
-  const setValidity = useCallback((key: keyof M, value: boolean) => {
+  const setValidity = useCallback((key: keyof M, value?: boolean) => {
     setFormValidity(
       buildObjectStateSetterCallback<FormValidity<M>>(key, value),
     );
+  }, []);
+
+  const setValidityRe = useCallback((re: RegExp, value?: boolean) => {
+    setFormValidity((previous) => {
+      const result: FormValidity<M> = {};
+
+      Object.keys(previous).forEach((key) => {
+        const id = key as keyof M;
+
+        if (re.test(key)) {
+          if (value !== undefined) {
+            result[id] = value;
+          }
+        } else {
+          result[id] = previous[id];
+        }
+      });
+
+      return result;
+    });
   }, []);
 
   const buildFinishInputTestBatchFunction = useCallback(
@@ -66,6 +86,7 @@ const useFormUtils = <
     setFormValidity,
     setMsgSetter,
     setValidity,
+    setValidityRe,
   };
 };
 
