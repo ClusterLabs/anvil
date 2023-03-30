@@ -68,7 +68,7 @@ const useFormUtils = <
   );
 
   const setMsgSetter = useCallback(
-    (id: keyof M, setter?: MessageSetterFunction, isOverwrite?: boolean) => {
+    (id: keyof M, setter?: MessageSetter, isOverwrite?: boolean) => {
       if (!msgSetters[id] || isOverwrite) {
         msgSetters[id] =
           setter ?? buildMessageSetter<M>(String(id), messageGroupRef);

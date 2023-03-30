@@ -25,7 +25,7 @@ type FormUtils<M extends MapToInputTestID> = {
   >;
   setMsgSetter: (
     id: keyof M,
-    setter?: MessageSetterFunction,
+    setter?: MessageSetter,
     isOverwrite?: boolean,
   ) => void;
   setValidity: (key: keyof M, value?: boolean) => void;
