@@ -147,7 +147,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     () =>
       fenceListEntries.reduce<GridLayout>(
         (previous, [fenceId, { fenceName, fencePort }]) => {
-          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${fenceId}-port`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${fenceId}-port`;
 
           const inputId = buildInputIdAHFencePort(hostId, fenceId);
           const inputLabel = `Port on ${fenceName}`;
@@ -204,7 +204,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     () =>
       networkListEntries.reduce<GridLayout>(
         (previous, [networkId, { networkIp, networkNumber, networkType }]) => {
-          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${networkId}-ip`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${networkId}-ip`;
 
           const inputId = buildInputIdAHNetworkIp(hostId, networkId);
           const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
@@ -262,7 +262,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     () =>
       upsListEntries.reduce<GridLayout>(
         (previous, [upsId, { isUsed, upsName }]) => {
-          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${upsId}-power-host`;
+          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${upsId}-power-host`;
 
           const inputId = buildInputIdAHUpsPowerHost(hostId, upsId);
           const inputLabel = `Uses ${upsName}`;
