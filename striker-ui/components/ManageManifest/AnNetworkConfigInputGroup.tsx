@@ -51,6 +51,7 @@ const AnNetworkConfigInputGroup = <
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     msgSetters,
+    setValidityRe,
   } = formUtils;
 
   const getNetworkNumber = useCallback(
@@ -184,6 +185,8 @@ const AnNetworkConfigInputGroup = <
         (previous, [networkId, networkValue]) => {
           if (networkId === rmId) {
             isIdMatch = true;
+
+            setValidityRe(RegExp(rmId));
           } else {
             const { networkType } = networkValue;
 
@@ -203,7 +206,7 @@ const AnNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListEntries, setNetworkList],
+    [networkListEntries, setNetworkList, setValidityRe],
   );
 
   const networksGridLayout = useMemo<GridLayout>(() => {
