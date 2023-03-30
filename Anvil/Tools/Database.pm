@@ -3590,21 +3590,23 @@ FROM
 			
 			if ($file_name)
 			{
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}                    = $file_location_file_uuid;
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_name}      = $file_name;
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory} = $file_directory;
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}      = $file_size;
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum}    = $file_md5sum;
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type}      = $file_type;
-				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_mtime}     = $file_mtime;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}                        = $file_location_file_uuid;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_name}          = $file_name;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory}     = $file_directory;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}          = $file_size;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum}        = $file_md5sum;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type}          = $file_type;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_mtime}         = $file_mtime;
+				$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid} = $file_location_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid"                    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
-					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_name"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_name}, 
-					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_directory" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory}, 
-					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_size"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}}).")", 
-					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_md5sum"    => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum}, 
-					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_type"      => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type}, 
-					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_mtime"     => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_mtime}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_name::${file_name}::file_uuid"                        => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_name"          => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_name}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_directory"     => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_size"          => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size}}).")", 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_md5sum"        => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_type"          => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_mtime"         => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_mtime}, 
+					"anvils::anvil_uuid::${anvil_uuid}::file_uuid::${file_location_file_uuid}::file_location_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid}, 
 				}});
 			}
 		}

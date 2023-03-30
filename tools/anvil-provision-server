@@ -2533,8 +2533,8 @@ sub interactive_ask_server_install_media
 	my $retry = 0;
 	while(1)
 	{
-		$anvil->Database->get_files();
-		$anvil->Database->get_file_locations();
+		$anvil->Database->get_files({debug => 2});
+		$anvil->Database->get_file_locations({debug => 2});
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		
@@ -2549,7 +2549,7 @@ sub interactive_ask_server_install_media
 			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
 			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
 			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid            => $file_uuid, 
@@ -2649,7 +2649,7 @@ sub interactive_ask_server_driver_disc
 			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
 			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
 			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid            => $file_uuid, 
