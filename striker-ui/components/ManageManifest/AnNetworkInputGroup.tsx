@@ -14,6 +14,56 @@ const INPUT_ID_PREFIX_AN_NETWORK = 'an-network-input';
 
 const INPUT_CELL_ID_PREFIX_AN = `${INPUT_ID_PREFIX_AN_NETWORK}-cell`;
 
+const MAP_TO_AN_INPUT_HANDLER: MapToManifestFormInputHandler = {
+  gateway: (container, input) => {
+    const {
+      dataset: { networkId = '' },
+      value,
+    } = input;
+    const {
+      networkConfig: { networks },
+    } = container;
+
+    networks[networkId].networkGateway = value;
+  },
+  minip: (container, input) => {
+    const {
+      dataset: { networkId = '' },
+      value,
+    } = input;
+    const {
+      networkConfig: { networks },
+    } = container;
+
+    networks[networkId].networkMinIp = value;
+  },
+  network: (container, input) => {
+    const {
+      dataset: { networkId = '', networkNumber: rawNn = '', networkType = '' },
+    } = input;
+    const {
+      networkConfig: { networks },
+    } = container;
+    const networkNumber = Number.parseInt(rawNn, 10);
+
+    networks[networkId] = {
+      networkNumber,
+      networkType,
+    } as ManifestNetwork;
+  },
+  subnetmask: (container, input) => {
+    const {
+      dataset: { networkId = '' },
+      value,
+    } = input;
+    const {
+      networkConfig: { networks },
+    } = container;
+
+    networks[networkId].networkSubnetMask = value;
+  },
+};
+
 const buildInputIdANGateway = (networkId: string): string =>
   `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-gateway`;
 
@@ -69,6 +119,11 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     [networkId],
   );
 
+  const inputIdANNetwork = useMemo(
+    () => `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}`,
+    [networkId],
+  );
+
   const inputGatewayId = useMemo(
     () => buildInputIdANGateway(networkId),
     [networkId],
@@ -121,6 +176,10 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
         <InputWithRef
           input={
             <OutlinedInputWithLabel
+              baseInputProps={{
+                'data-handler': 'gateway',
+                'data-network-id': networkId,
+              }}
               id={inputGatewayId}
               label={inputGatewayLabel}
               value={previousGateway}
@@ -151,6 +210,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     isShowGateway,
     inputGatewayId,
     setMsgSetter,
+    networkId,
     inputGatewayLabel,
     previousGateway,
     networkName,
@@ -190,6 +250,15 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
         {closeButtonElement}
       </InnerPanelHeader>
       <InnerPanelBody>
+        <input
+          hidden
+          id={inputIdANNetwork}
+          readOnly
+          data-handler="network"
+          data-network-id={networkId}
+          data-network-number={networkNumber}
+          data-network-type={networkType}
+        />
         <Grid
           layout={{
             [inputCellIpId]: {
@@ -197,6 +266,10 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                 <InputWithRef
                   input={
                     <OutlinedInputWithLabel
+                      baseInputProps={{
+                        'data-handler': 'minip',
+                        'data-network-id': networkId,
+                      }}
                       id={inputMinIpId}
                       label={inputMinIpLabel}
                       value={previousIpAddress}
@@ -227,6 +300,10 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                 <InputWithRef
                   input={
                     <OutlinedInputWithLabel
+                      baseInputProps={{
+                        'data-handler': 'subnetmask',
+                        'data-network-id': networkId,
+                      }}
                       id={inputSubnetMaskId}
                       label={inputSubnetMaskLabel}
                       value={previousSubnetMask}
@@ -249,6 +326,8 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
 };
 
 export {
+  INPUT_ID_PREFIX_AN_NETWORK,
+  MAP_TO_AN_INPUT_HANDLER,
   buildInputIdANGateway,
   buildInputIdANMinIp,
   buildInputIdANNetworkType,

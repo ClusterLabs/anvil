@@ -18,6 +18,82 @@ const INPUT_ID_PREFIX_AN_HOST = 'an-host-input';
 
 const INPUT_CELL_ID_PREFIX_AH = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
 
+const MAP_TO_AH_INPUT_HANDLER: MapToManifestFormInputHandler = {
+  fence: (container, input) => {
+    const {
+      dataset: { hostId = '', fenceId = '', fenceName = '' },
+      value: fencePort,
+    } = input;
+    const {
+      hostConfig: {
+        hosts: { [hostId]: host },
+      },
+    } = container;
+    const { fences = {} } = host;
+
+    fences[fenceId] = {
+      fenceName,
+      fencePort,
+    };
+    host.fences = fences;
+  },
+  host: (container, input) => {
+    const {
+      dataset: { hostId = '', hostNumber: rawHostNumber = '', hostType = '' },
+    } = input;
+    const hostNumber = Number.parseInt(rawHostNumber, 10);
+
+    container.hostConfig.hosts[hostId] = {
+      hostNumber,
+      hostType,
+    };
+  },
+  network: (container, input) => {
+    const {
+      dataset: {
+        hostId = '',
+        networkId = '',
+        networkNumber: rawNetworkNumber = '',
+        networkType = '',
+      },
+      value: networkIp,
+    } = input;
+    const {
+      hostConfig: {
+        hosts: { [hostId]: host },
+      },
+    } = container;
+    const { networks = {} } = host;
+    const networkNumber = Number.parseInt(rawNetworkNumber, 10);
+
+    networks[networkId] = {
+      networkIp,
+      networkNumber,
+      networkType,
+    };
+    host.networks = networks;
+  },
+  ups: (container, input) => {
+    const {
+      checked: isUsed,
+      dataset: { hostId = '', upsId = '', upsName = '' },
+    } = input;
+    const {
+      hostConfig: {
+        hosts: { [hostId]: host },
+      },
+    } = container;
+    const { upses = {} } = host;
+
+    upses[upsId] = {
+      isUsed,
+      upsName,
+    };
+    host.upses = upses;
+  },
+};
+
+const GRID_COLUMNS = { xs: 1, sm: 2, md: 3 };
 const GRID_SPACING = '1em';
 
 const buildInputIdAHFencePort = (hostId: string, fenceId: string): string =>
@@ -37,12 +113,15 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     setMsgSetter,
   },
   hostId,
-  hostLabel,
+  hostNumber,
+  hostType,
   previous: {
     fences: fenceList = {},
     networks: networkList = {},
     upses: upsList = {},
   } = {},
+  // Props that depend on others.
+  hostLabel = `${hostType} ${hostNumber}`,
 }: AnHostInputGroupProps<M>): ReactElement => {
   const fenceListEntries = useMemo(
     () => Object.entries(fenceList),
@@ -54,17 +133,14 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
   );
   const upsListEntries = useMemo(() => Object.entries(upsList), [upsList]);
 
-  const isShowFenceListGrid = useMemo(
-    () => Boolean(fenceListEntries.length),
-    [fenceListEntries.length],
-  );
   const isShowUpsListGrid = useMemo(
     () => Boolean(upsListEntries.length),
     [upsListEntries.length],
   );
-  const isShowFenceAndUpsListGrid = useMemo(
-    () => isShowFenceListGrid || isShowUpsListGrid,
-    [isShowFenceListGrid, isShowUpsListGrid],
+
+  const inputIdAHHost = useMemo(
+    () => `${INPUT_ID_PREFIX_AN_HOST}-${hostId}`,
+    [hostId],
   );
 
   const fenceListGridLayout = useMemo(
@@ -83,6 +159,12 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
               <InputWithRef
                 input={
                   <OutlinedInputWithLabel
+                    baseInputProps={{
+                      'data-handler': 'fence',
+                      'data-host-id': hostId,
+                      'data-fence-id': fenceId,
+                      'data-fence-name': fenceName,
+                    }}
                     id={inputId}
                     label={inputLabel}
                     value={fencePort}
@@ -124,7 +206,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
         (previous, [networkId, { networkIp, networkNumber, networkType }]) => {
           const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${networkId}-ip`;
 
-          const inputId = buildInputIdAHNetworkIp(hostId, networkIp);
+          const inputId = buildInputIdAHNetworkIp(hostId, networkId);
           const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
 
           setMsgSetter(inputId);
@@ -134,6 +216,13 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
               <InputWithRef
                 input={
                   <OutlinedInputWithLabel
+                    baseInputProps={{
+                      'data-handler': 'network',
+                      'data-host-id': hostId,
+                      'data-network-id': networkId,
+                      'data-network-number': networkNumber,
+                      'data-network-type': networkType,
+                    }}
                     id={inputId}
                     label={inputLabel}
                     value={networkIp}
@@ -183,10 +272,15 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
               <InputWithRef
                 input={
                   <SwitchWithLabel
+                    baseInputProps={{
+                      'data-handler': 'ups',
+                      'data-host-id': hostId,
+                      'data-ups-id': upsId,
+                      'data-ups-name': upsName,
+                    }}
                     checked={isUsed}
                     id={inputId}
                     label={inputLabel}
-                    flexBoxProps={{ height: '3.5em' }}
                   />
                 }
                 valueType="boolean"
@@ -201,44 +295,43 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     [hostId, upsListEntries],
   );
 
+  const upsListGrid = useMemo(
+    () =>
+      isShowUpsListGrid && (
+        <Grid
+          columns={GRID_COLUMNS}
+          layout={upsListGridLayout}
+          spacing={GRID_SPACING}
+        />
+      ),
+    [isShowUpsListGrid, upsListGridLayout],
+  );
+
   return (
     <InnerPanel mv={0}>
       <InnerPanelHeader>
         <BodyText>{hostLabel}</BodyText>
       </InnerPanelHeader>
       <InnerPanelBody>
+        <input
+          hidden
+          id={inputIdAHHost}
+          readOnly
+          data-handler="host"
+          data-host-id={hostId}
+          data-host-number={hostNumber}
+          data-host-type={hostType}
+        />
         <FlexBox>
           <Grid
-            columns={{ xs: 1, sm: 2, md: 3 }}
-            layout={networkListGridLayout}
+            columns={GRID_COLUMNS}
+            layout={{
+              ...networkListGridLayout,
+              ...fenceListGridLayout,
+            }}
             spacing={GRID_SPACING}
           />
-          {isShowFenceAndUpsListGrid && (
-            <Grid
-              columns={{ xs: 1, sm: 2 }}
-              layout={{
-                'an-host-fence-input-group': {
-                  children: (
-                    <Grid
-                      columns={{ xs: 1, md: 2 }}
-                      layout={fenceListGridLayout}
-                      spacing={GRID_SPACING}
-                    />
-                  ),
-                },
-                'an-host-ups-input-group': {
-                  children: (
-                    <Grid
-                      columns={{ xs: 1, md: 2 }}
-                      layout={upsListGridLayout}
-                      spacing={GRID_SPACING}
-                    />
-                  ),
-                },
-              }}
-              spacing={GRID_SPACING}
-            />
-          )}
+          {upsListGrid}
         </FlexBox>
       </InnerPanelBody>
     </InnerPanel>
@@ -246,6 +339,8 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
 };
 
 export {
+  INPUT_ID_PREFIX_AN_HOST,
+  MAP_TO_AH_INPUT_HANDLER,
   buildInputIdAHFencePort,
   buildInputIdAHNetworkIp,
   buildInputIdAHUpsPowerHost,

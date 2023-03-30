@@ -10,12 +10,10 @@ const INPUT_GROUP_CELL_ID_PREFIX_AHC = `${INPUT_GROUP_ID_PREFIX_AHC}-cell`;
 
 const DEFAULT_HOST_LIST: ManifestHostList = {
   node1: {
-    hostName: '',
     hostNumber: 1,
     hostType: 'node',
   },
   node2: {
-    hostName: '',
     hostNumber: 2,
     hostType: 'node',
   },
@@ -89,14 +87,14 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
           );
 
           const cellId = `${INPUT_GROUP_CELL_ID_PREFIX_AHC}-${hostId}`;
-          const hostLabel = `${hostType} ${hostNumber}`;
 
           previous[cellId] = {
             children: (
               <AnHostInputGroup
                 formUtils={formUtils}
                 hostId={hostId}
-                hostLabel={hostLabel}
+                hostNumber={hostNumber}
+                hostType={hostType}
                 previous={{ fences, networks, upses }}
               />
             ),

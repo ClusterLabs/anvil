@@ -1,3 +1,6 @@
+type DivFormEventHandler = import('react').FormEventHandler<HTMLDivElement>;
+type DivFormEventHandlerParameters = Parameters<DivFormEventHandler>;
+
 type ConfirmDialogOptionalProps = {
   actionCancelText?: string;
   closeOnProceed?: boolean;
@@ -10,7 +13,7 @@ type ConfirmDialogOptionalProps = {
   onActionAppend?: ContainedButtonProps['onClick'];
   onProceedAppend?: ContainedButtonProps['onClick'];
   onCancelAppend?: ContainedButtonProps['onClick'];
-  onSubmitAppend?: import('react').FormEventHandler<HTMLDivElement>;
+  onSubmitAppend?: DivFormEventHandler;
   openInitially?: boolean;
   preActionArea?: import('react').ReactNode;
   proceedButtonProps?: ContainedButtonProps;

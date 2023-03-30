@@ -39,3 +39,17 @@ type APIManifestTemplate = {
   sequence: number;
   upses: APIManifestTemplateUpsList;
 };
+
+type APIBuildManifestRequestBody = Omit<APIManifestDetail, 'name' | 'uuid'>;
+
+type APIRunManifestRequestBody = {
+  description: string;
+  hosts: {
+    [hostId: string]: {
+      hostNumber: number;
+      hostType: string;
+      hostUuid: string;
+    };
+  };
+  password: string;
+};

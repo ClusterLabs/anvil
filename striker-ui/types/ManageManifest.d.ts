@@ -48,7 +48,7 @@ type ManifestHostUpsList = {
 
 type ManifestHost = {
   fences?: ManifestHostFenceList;
-  hostName: string;
+  hostName?: string;
   hostNumber: number;
   hostType: string;
   networks?: ManifestHostNetworkList;
@@ -62,6 +62,15 @@ type ManifestHostList = {
 type ManifestHostConfig = {
   hosts: ManifestHostList;
 };
+
+type ManifestFormInputHandler = (
+  container: APIBuildManifestRequestBody,
+  input: HTMLInputElement,
+) => void;
+
+type MapToManifestFormInputHandler = Record<string, ManifestFormInputHandler>;
+
+/** ---------- Component types ---------- */
 
 type AnIdInputGroupOptionalProps = {
   previous?: Partial<ManifestAnId>;
@@ -112,6 +121,7 @@ type AnNetworkInputGroupProps<M extends MapToInputTestID> =
   };
 
 type AnHostInputGroupOptionalProps = {
+  hostLabel?: string;
   previous?: Pick<ManifestHost, 'fences' | 'networks' | 'upses'>;
 };
 
@@ -119,7 +129,8 @@ type AnHostInputGroupProps<M extends MapToInputTestID> =
   AnHostInputGroupOptionalProps & {
     formUtils: FormUtils<M>;
     hostId: string;
-    hostLabel: string;
+    hostNumber: number;
+    hostType: string;
   };
 
 type AnNetworkConfigInputGroupOptionalProps = {

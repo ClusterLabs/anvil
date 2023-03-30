@@ -9,6 +9,14 @@ import {
   INPUT_ID_AI_SEQUENCE,
 } from './AnIdInputGroup';
 import {
+  INPUT_ID_PREFIX_AN_HOST,
+  MAP_TO_AH_INPUT_HANDLER,
+} from './AnHostInputGroup';
+import {
+  INPUT_ID_PREFIX_AN_NETWORK,
+  MAP_TO_AN_INPUT_HANDLER,
+} from './AnNetworkInputGroup';
+import {
   INPUT_ID_ANC_DNS,
   INPUT_ID_ANC_MTU,
   INPUT_ID_ANC_NTP,
@@ -25,6 +33,7 @@ import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import RunManifestInputGroup, {
+  buildInputIdRMHost,
   INPUT_ID_RM_AN_CONFIRM_PASSWORD,
   INPUT_ID_RM_AN_DESCRIPTION,
   INPUT_ID_RM_AN_PASSWORD,
@@ -35,6 +44,99 @@ import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
+
+const getFormData = (
+  ...[{ target }]: DivFormEventHandlerParameters
+): APIBuildManifestRequestBody => {
+  const { elements } = target as HTMLFormElement;
+
+  const { value: domain } = elements.namedItem(
+    INPUT_ID_AI_DOMAIN,
+  ) as HTMLInputElement;
+  const { value: prefix } = elements.namedItem(
+    INPUT_ID_AI_PREFIX,
+  ) as HTMLInputElement;
+  const { value: rawSequence } = elements.namedItem(
+    INPUT_ID_AI_SEQUENCE,
+  ) as HTMLInputElement;
+  const { value: dnsCsv } = elements.namedItem(
+    INPUT_ID_ANC_DNS,
+  ) as HTMLInputElement;
+  const { value: rawMtu } = elements.namedItem(
+    INPUT_ID_ANC_MTU,
+  ) as HTMLInputElement;
+  const { value: ntpCsv } = elements.namedItem(
+    INPUT_ID_ANC_NTP,
+  ) as HTMLInputElement;
+
+  const mtu = Number.parseInt(rawMtu, 10);
+  const sequence = Number.parseInt(rawSequence, 10);
+
+  return Object.values(elements).reduce<APIBuildManifestRequestBody>(
+    (previous, element) => {
+      const { id: inputId } = element;
+
+      if (RegExp(`^${INPUT_ID_PREFIX_AN_HOST}`).test(inputId)) {
+        const input = element as HTMLInputElement;
+
+        const {
+          dataset: { handler: key = '' },
+        } = input;
+
+        MAP_TO_AH_INPUT_HANDLER[key]?.call(null, previous, input);
+      } else if (RegExp(`^${INPUT_ID_PREFIX_AN_NETWORK}`).test(inputId)) {
+        const input = element as HTMLInputElement;
+
+        const {
+          dataset: { handler: key = '' },
+        } = input;
+
+        MAP_TO_AN_INPUT_HANDLER[key]?.call(null, previous, input);
+      }
+
+      return previous;
+    },
+    {
+      domain,
+      hostConfig: { hosts: {} },
+      networkConfig: {
+        dnsCsv,
+        mtu,
+        networks: {},
+        ntpCsv,
+      },
+      prefix,
+      sequence,
+    },
+  );
+};
+
+const getRunFormData = (
+  mdetailHosts: ManifestHostList,
+  ...[{ target }]: DivFormEventHandlerParameters
+): APIRunManifestRequestBody => {
+  const { elements } = target as HTMLFormElement;
+
+  const { value: description } = elements.namedItem(
+    INPUT_ID_RM_AN_DESCRIPTION,
+  ) as HTMLInputElement;
+  const { value: password } = elements.namedItem(
+    INPUT_ID_RM_AN_PASSWORD,
+  ) as HTMLInputElement;
+
+  const hosts = Object.entries(mdetailHosts).reduce<
+    APIRunManifestRequestBody['hosts']
+  >((previous, [hostId, { hostNumber, hostType }]) => {
+    const inputId = buildInputIdRMHost(hostId);
+    const { value: hostUuid } = elements.namedItem(inputId) as HTMLInputElement;
+
+    previous[hostId] = { hostNumber, hostType, hostUuid };
+
+    return previous;
+  }, {});
+
+  return { description, hosts, password };
+};
 
 const ManageManifestPanel: FC = () => {
   const isFirstRender = useIsFirstRender();
@@ -95,10 +197,11 @@ const ManageManifestPanel: FC = () => {
   const { isFormInvalid: isRunFormInvalid } = runFormUtils;
 
   const {
-    domain,
-    name: anName,
-    prefix,
-    sequence,
+    domain: mdetailDomain,
+    hostConfig: { hosts: mdetailHosts = {} } = {},
+    name: mdetailName,
+    prefix: mdetailPrefix,
+    sequence: mdetailSequence,
   } = useMemo<Partial<APIManifestDetail>>(
     () => manifestDetail ?? {},
     [manifestDetail],
@@ -115,12 +218,26 @@ const ManageManifestPanel: FC = () => {
           formUtils={formUtils}
           knownFences={knownFences}
           knownUpses={knownUpses}
-          previous={{ domain, prefix, sequence }}
+          previous={{
+            domain: mdetailDomain,
+            prefix: mdetailPrefix,
+            sequence: mdetailSequence,
+          }}
         />
       ),
+      onSubmitAppend: (...args) => {
+        getFormData(...args);
+      },
       titleText: 'Add an install manifest',
     }),
-    [domain, formUtils, knownFences, knownUpses, prefix, sequence],
+    [
+      mdetailDomain,
+      formUtils,
+      knownFences,
+      knownUpses,
+      mdetailPrefix,
+      mdetailSequence,
+    ],
   );
 
   const editManifestFormDialogProps = useMemo<ConfirmDialogProps>(
@@ -134,15 +251,18 @@ const ManageManifestPanel: FC = () => {
           previous={manifestDetail}
         />
       ),
+      onSubmitAppend: (...args) => {
+        getFormData(...args);
+      },
       loading: isLoadingManifestDetail,
-      titleText: `Update install manifest ${anName}`,
+      titleText: `Update install manifest ${mdetailName}`,
     }),
     [
       formUtils,
       isLoadingManifestDetail,
       knownFences,
       knownUpses,
-      anName,
+      mdetailName,
       manifestDetail,
     ],
   );
@@ -160,11 +280,15 @@ const ManageManifestPanel: FC = () => {
         />
       ),
       loading: isLoadingManifestDetail,
-      titleText: `Run install manifest ${anName}`,
+      onSubmitAppend: (...args) => {
+        getRunFormData(mdetailHosts, ...args);
+      },
+      titleText: `Run install manifest ${mdetailName}`,
     }),
     [
-      anName,
+      mdetailName,
       hostOverviews,
+      mdetailHosts,
       isLoadingManifestDetail,
       knownFences,
       knownUpses,
