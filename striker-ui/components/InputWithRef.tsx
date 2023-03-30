@@ -184,7 +184,7 @@ const InputWithRef = forwardRef(
 
         onFirstRender?.call(null, { isValid });
       }
-    }, [input.props.id, inputValue, isFirstRender, onFirstRender, testInput]);
+    }, [inputValue, isFirstRender, onFirstRender, testInput]);
 
     useImperativeHandle(
       ref,
