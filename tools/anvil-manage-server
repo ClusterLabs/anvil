@@ -112,8 +112,6 @@ sub process_interactive
 	$anvil->data->{target_server}{anvil_node1_host_name} = "" if not exists $anvil->data->{target_server}{anvil_node1_host_name};
 	$anvil->data->{target_server}{anvil_node2_host_uuid} = "" if not exists $anvil->data->{target_server}{anvil_node2_host_uuid};
 	$anvil->data->{target_server}{anvil_node2_host_name} = "" if not exists $anvil->data->{target_server}{anvil_node2_host_name};
-	$anvil->data->{target_server}{anvil_dr1_host_uuid}   = "" if not exists $anvil->data->{target_server}{anvil_dr1_host_uuid};
-	$anvil->data->{target_server}{anvil_dr1_host_name}   = "" if not exists $anvil->data->{target_server}{anvil_dr1_host_name};
 	
 	
 	$anvil->data->{new_config}{cpu}{sockets} = "";
@@ -216,8 +214,6 @@ sub interactive_question
 	$anvil->data->{target_server}{anvil_node1_host_name} = "" if not defined $anvil->data->{target_server}{anvil_node1_host_name};
 	$anvil->data->{target_server}{anvil_node2_host_uuid} = "" if not defined $anvil->data->{target_server}{anvil_node2_host_uuid};
 	$anvil->data->{target_server}{anvil_node2_host_name} = "" if not defined $anvil->data->{target_server}{anvil_node2_host_name};
-	$anvil->data->{target_server}{anvil_dr1_host_uuid}   = "" if not defined $anvil->data->{target_server}{anvil_dr1_host_uuid};
-	$anvil->data->{target_server}{anvil_dr1_host_name}   = "" if not defined $anvil->data->{target_server}{anvil_dr1_host_name};
 	
 	### Anvil
 	# If 'switches::anvil' is set, see if it's a UUID and then set either 'anvil-uuid' or 'anvil-name'.
@@ -405,14 +401,12 @@ sub interactive_question
 			my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 			my $node1_host_uuid  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 			my $node2_host_uuid  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-			my $dr1_host_uuid    = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				anvil_uuid       => $anvil_uuid,
 				server_name      => $server_name, 
 				server_host_uuid => $server_host_uuid, 
 				node1_host_uuid  => $node1_host_uuid, 
 				node2_host_uuid  => $node2_host_uuid, 
-				dr1_host_uuid    => $dr1_host_uuid, 
 			}});
 			
 			$anvil->data->{target_server}{anvil_uuid}            = $anvil_uuid;
@@ -424,8 +418,6 @@ sub interactive_question
 			$anvil->data->{target_server}{anvil_node1_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
 			$anvil->data->{target_server}{anvil_node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 			$anvil->data->{target_server}{anvil_node2_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
-			$anvil->data->{target_server}{anvil_dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-			$anvil->data->{target_server}{anvil_dr1_host_name}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"target_server::anvil_uuid"            => $anvil->data->{target_server}{anvil_uuid},
 				"target_server::server_name"           => $anvil->data->{target_server}{server_name},
@@ -435,18 +427,7 @@ sub interactive_question
 				"target_server::anvil_node1_host_name" => $anvil->data->{target_server}{anvil_node1_host_name},
 				"target_server::anvil_node2_host_uuid" => $anvil->data->{target_server}{anvil_node2_host_uuid},
 				"target_server::anvil_node2_host_name" => $anvil->data->{target_server}{anvil_node2_host_name},
-				"target_server::anvil_dr1_host_uuid"   => $anvil->data->{target_server}{anvil_dr1_host_uuid},
-				"target_server::anvil_dr1_host_name"   => $anvil->data->{target_server}{anvil_dr1_host_name},
 			}});
-			if ($dr1_host_uuid)
-			{
-				$anvil->data->{target_server}{anvil_dr1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-				$anvil->data->{target_server}{anvil_dr1_host_name} = $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name};;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"target_server::anvil_dr1_host_uuid" => $anvil->data->{target_server}{anvil_dr1_host_uuid},
-					"target_server::anvil_dr1_host_name" => $anvil->data->{target_server}{anvil_dr1_host_name},
-				}});
-			}
 			
 			### Pull out details of the server. 
 			# How much RAM are we using and how much is configured?

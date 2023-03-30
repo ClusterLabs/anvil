@@ -1979,52 +1979,52 @@ CREATE TRIGGER trigger_temperature
     AFTER INSERT OR UPDATE ON temperature
     FOR EACH ROW EXECUTE PROCEDURE history_temperature();
 
--- -- Enable after Yan's review
+
 -- This is used to audit major events by user.
---CREATE TABLE audits (
-    --audit_uuid         uuid                        primary key,
-    --audit_user_uuid    uuid                        not null,       -- This is the users -> user_uuid the audit is tracking
-    --audit_details      text                        not null,       -- This is the information explaining the action being audited.
-    --modified_date      timestamp with time zone    not null, 
+CREATE TABLE audits (
+    audit_uuid         uuid                        primary key,
+    audit_user_uuid    uuid                        not null,       -- This is the users -> user_uuid the audit is tracking
+    audit_details      text                        not null,       -- This is the information explaining the action being audited.
+    modified_date      timestamp with time zone    not null, 
     
-    --FOREIGN KEY(audit_user_uuid) REFERENCES users(user_uuid)
---);
---ALTER TABLE audits OWNER TO admin;
+    FOREIGN KEY(audit_user_uuid) REFERENCES users(user_uuid)
+);
+ALTER TABLE audits OWNER TO admin;
 
---CREATE TABLE history.audits (
-    --history_id         bigserial,
-    --audit_uuid         uuid, 
-    --audit_user_uuid    uuid,
-    --audit_details      text,
-    --modified_date      timestamp with time zone    not null
---);
---ALTER TABLE history.audits OWNER TO admin;
+CREATE TABLE history.audits (
+    history_id         bigserial,
+    audit_uuid         uuid, 
+    audit_user_uuid    uuid,
+    audit_details      text,
+    modified_date      timestamp with time zone    not null
+);
+ALTER TABLE history.audits OWNER TO admin;
 
---CREATE FUNCTION history_audits() RETURNS trigger
---AS $$
---DECLARE
-    --history_audits RECORD;
---BEGIN
-    --SELECT INTO history_audits * FROM audits WHERE audit_uuid = new.audit_uuid;
-    --INSERT INTO history.audits
-        --(audit_uuid,
-         --audit_user_uuid, 
-         --audit_details, 
-         --modified_date)
-    --VALUES
-        --(history_audit.audit_uuid,
-         --history_audit.audit_user_uuid, 
-         --history_audit.audit_details, 
-         --history_audit.modified_date);
-    --RETURN NULL;
---END;
---$$
---LANGUAGE plpgsql;
---ALTER FUNCTION history_audits() OWNER TO admin;
+CREATE FUNCTION history_audits() RETURNS trigger
+AS $$
+DECLARE
+    history_audits RECORD;
+BEGIN
+    SELECT INTO history_audits * FROM audits WHERE audit_uuid = new.audit_uuid;
+    INSERT INTO history.audits
+        (audit_uuid,
+         audit_user_uuid, 
+         audit_details, 
+         modified_date)
+    VALUES
+        (history_audit.audit_uuid,
+         history_audit.audit_user_uuid, 
+         history_audit.audit_details, 
+         history_audit.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_audits() OWNER TO admin;
 
---CREATE TRIGGER trigger_audits
-    --AFTER INSERT OR UPDATE ON audits
-    --FOR EACH ROW EXECUTE PROCEDURE history_audits();
+CREATE TRIGGER trigger_audits
+    AFTER INSERT OR UPDATE ON audits
+    FOR EACH ROW EXECUTE PROCEDURE history_audits();
 
 
 -- ------------------------------------------------------------------------------------------------------- --

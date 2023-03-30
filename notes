@@ -1,3 +1,17 @@
+
+Tasks; 
+1. When provisioning a server;
+ - First, check if either node is SyncSource, if so use that node.
+ - Second, check which node has the most servers by RAM count, use that node.
+2. Provision;
+ - Create DRBD resource, force primary on install target
+ - Create pacemaker resource in stopped state
+ - Set location constraint to prefer target node
+ - Boot server
+
+Create "Node status" which returns "degraded" if the peer is gone
+
+
 Common queries;
 * SELECT a.job_uuid, b.host_name, a.job_command, a.job_data, a.job_progress, a.job_status FROM jobs a, hosts b WHERE a.job_host_uuid = b.host_uuid AND a.job_progress != 100;
 * SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;

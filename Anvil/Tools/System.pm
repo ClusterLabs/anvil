@@ -1960,11 +1960,8 @@ sub configure_ipmi
 		$machine = "node2";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { machine => $machine }});
 	}
-	elsif ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} eq $host_uuid)
-	{
-		$machine = "dr1";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { machine => $machine }});
-	}
+	
+	# TODO: Make sure this works on DR hosts.
 	
 	if (not $machine)
 	{

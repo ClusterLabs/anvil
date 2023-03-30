@@ -2204,17 +2204,14 @@ sub get_anvil_uuid
 		my $anvil_name            = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_name            => $anvil_name,
 			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
-			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
 		}});
 		
 		if (($host_uuid eq $anvil_node1_host_uuid) or 
-		    ($host_uuid eq $anvil_node2_host_uuid) or 
-		    ($host_uuid eq $anvil_dr1_host_uuid))
+		    ($host_uuid eq $anvil_node2_host_uuid))
 		{
 			# Found ot!
 			$member_anvil_uuid = $anvil_uuid;
@@ -2237,13 +2234,11 @@ The data is stored as;
  sys::anvil::node1::host_name 
  sys::anvil::node2::host_uuid
  sys::anvil::node2::host_name
- sys::anvil::dr1::host_uuid
- sys::anvil::dr1::host_name
 
 To assist with lookup, the following are also set;
 
- sys::anvil::i_am    = {node1,node2,dr1}
- sys::anvil::peer_is = {node1,node2}     # Not set if this host is 'dr1'
+ sys::anvil::i_am    = {node1,node2}
+ sys::anvil::peer_is = {node1,node2}
 
 This method takes no parameters.
 
@@ -2260,8 +2255,6 @@ sub get_peers
 	$anvil->data->{sys}{anvil}{node1}{host_name} = "";
 	$anvil->data->{sys}{anvil}{node2}{host_uuid} = "";
 	$anvil->data->{sys}{anvil}{node2}{host_name} = "";
-	$anvil->data->{sys}{anvil}{dr1}{host_uuid}   = "";
-	$anvil->data->{sys}{anvil}{dr1}{host_name}   = "";
 	$anvil->data->{sys}{anvil}{i_am}             = "";
 	$anvil->data->{sys}{anvil}{peer_is}          = "";
 	
@@ -2279,11 +2272,9 @@ sub get_peers
 	{
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 			anvil_node2_host_uuid => $anvil_node2_host_uuid,
-			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid,
 		}});
 		
 		if ($host_uuid eq $anvil_node1_host_uuid)
@@ -2310,27 +2301,17 @@ sub get_peers
 				"sys::anvil::peer_is" => $anvil->data->{sys}{anvil}{peer_is},
 			}});
 		}
-		elsif ($host_uuid eq $anvil_dr1_host_uuid)
-		{
-			# Found our Anvil!, and we're node 1.
-			$found = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
-		}
 		if ($found)
 		{
 			$anvil->data->{sys}{anvil}{node1}{host_uuid} = $anvil_node1_host_uuid;
 			$anvil->data->{sys}{anvil}{node1}{host_name} = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{host_name};
 			$anvil->data->{sys}{anvil}{node2}{host_uuid} = $anvil_node2_host_uuid;
 			$anvil->data->{sys}{anvil}{node2}{host_name} = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{host_name};
-			$anvil->data->{sys}{anvil}{dr1}{host_uuid}   = $anvil_dr1_host_uuid ? $anvil_dr1_host_uuid : "";
-			$anvil->data->{sys}{anvil}{dr1}{host_name}   = $anvil_dr1_host_uuid ? $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{host_name} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::anvil::node1::host_uuid" => $anvil->data->{sys}{anvil}{node1}{host_uuid}, 
 				"sys::anvil::node1::host_name" => $anvil->data->{sys}{anvil}{node1}{host_name}, 
 				"sys::anvil::node2::host_uuid" => $anvil->data->{sys}{anvil}{node2}{host_uuid}, 
 				"sys::anvil::node2::host_name" => $anvil->data->{sys}{anvil}{node2}{host_name}, 
-				"sys::anvil::dr1::host_uuid"   => $anvil->data->{sys}{anvil}{dr1}{host_uuid}, 
-				"sys::anvil::dr1::host_name"   => $anvil->data->{sys}{anvil}{dr1}{host_name}, 
 			}});
 			
 			# If this is a node, return the peer's short host name.

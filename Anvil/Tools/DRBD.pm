@@ -663,6 +663,19 @@ sub delete_resource
 		}
 	}
 	
+	# If we're DR, delete the definition file also.
+	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$resource.".xml";
+	my $host_type       = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		definition_file => $definition_file,
+		host_type       => $host_type, 
+	}});
+	if (($host_type eq "dr") && (-f $definition_file))
+	{
+		unlink $definition_file;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0134", variables => { file_path => $definition_file }});
+	}
+	
 	return(0);
 }
 
@@ -1764,11 +1777,9 @@ sub get_next_resource
 	# certain.
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node1_host_uuid => $node1_host_uuid, 
 		node2_host_uuid => $node2_host_uuid, 
-		dr1_host_uuid   => $dr1_host_uuid, 
 	}});
 	
 my $query = "
@@ -1805,14 +1816,7 @@ AND
     (
         scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)." 
     OR 
-        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." ";
-	if ($dr1_host_uuid)
-	{
-		$query .= "
-    OR 
-        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid)." ";
-	}
-	$query .= "
+        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." 
     )
 ORDER BY 
     b.scan_drbd_resource_name ASC, 

@@ -49,8 +49,7 @@ SELECT anv.anvil_password
 FROM hosts AS hos
 JOIN anvils AS anv
 ON hos.host_uuid = anv.anvil_node1_host_uuid
-	OR hos.host_uuid = anv.anvil_node2_host_uuid
-	OR hos.host_uuid = anv.anvil_dr1_host_uuid
+OR hos.host_uuid = anv.anvil_node2_host_uuid
 WHERE hos.host_name = ".$anvil->Database->quote($target)."
 ;";
 

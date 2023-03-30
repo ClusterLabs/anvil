@@ -2661,7 +2661,6 @@ Data is stored in two hashes, one sorted by C<< anvil_uuid >> and one by C<< anv
  anvils::anvil_uuid::<anvil_uuid>::anvil_password
  anvils::anvil_uuid::<anvil_uuid>::anvil_node1_host_uuid
  anvils::anvil_uuid::<anvil_uuid>::anvil_node2_host_uuid
- anvils::anvil_uuid::<anvil_uuid>::anvil_dr1_host_uuid
  anvils::anvil_uuid::<anvil_uuid>::modified_date
 
  anvils::anvil_name::<anvil_name>::anvil_uuid
@@ -2669,7 +2668,6 @@ Data is stored in two hashes, one sorted by C<< anvil_uuid >> and one by C<< anv
  anvils::anvil_name::<anvil_name>::anvil_password
  anvils::anvil_name::<anvil_name>::anvil_node1_host_uuid
  anvils::anvil_name::<anvil_name>::anvil_node2_host_uuid
- anvils::anvil_name::<anvil_name>::anvil_dr1_host_uuid
  anvils::anvil_name::<anvil_name>::modified_date
 
 When a host UUID is stored for either node or the DR host, it will be stored at:
@@ -6999,12 +6997,6 @@ If set, this is the file line number logged as the source of any INSERTs or UPDA
 
 This is a free-form description for this Anvil! system. If this is set to C<< DELETED >>, the Anvil! will be considered to be deleted and no longer used.
 
-=head3 anvil_dr1_host_uuid (optional)
-
-This is the C<< hosts >> -> C<< host_uuid >> of the machine that is used as the DR host.
-
-B<< Note >>: If set, there must be a matching C<< hosts >> -> C<< host_uuid >> in the database.
-
 =head3 anvil_name (required)
 
 This is the anvil's name. It is usually in the format C<< <prefix>-anvil-<zero-padded-sequence> >>.
@@ -7052,7 +7044,6 @@ sub insert_or_update_anvils
 	my $anvil_password        = defined $parameter->{anvil_password}        ? $parameter->{anvil_password}        : "";
 	my $anvil_node1_host_uuid = defined $parameter->{anvil_node1_host_uuid} ? $parameter->{anvil_node1_host_uuid} : "NULL";
 	my $anvil_node2_host_uuid = defined $parameter->{anvil_node2_host_uuid} ? $parameter->{anvil_node2_host_uuid} : "NULL";
-	my $anvil_dr1_host_uuid   = defined $parameter->{anvil_dr1_host_uuid}   ? $parameter->{anvil_dr1_host_uuid}   : "NULL";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                  => $uuid, 
 		file                  => $file, 
@@ -7064,7 +7055,6 @@ sub insert_or_update_anvils
 		anvil_password        => $anvil->Log->is_secure($anvil_password), 
 		anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 		anvil_node2_host_uuid => $anvil_node2_host_uuid, 
-		anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
 	}});
 	
 	if (not $delete)
@@ -7133,11 +7123,6 @@ WHERE
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0128", variables => { uuid => $anvil_node2_host_uuid, column => "anvil_node2_host_uuid" }});
 		return("");
 	}
-	if (($anvil_dr1_host_uuid) && (not $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{host_name}))
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0128", variables => { uuid => $anvil_dr1_host_uuid, column => "anvil_dr1_host_uuid" }});
-		return("");
-	}
 	
 	if ($delete)
 	{
@@ -7190,8 +7175,6 @@ WHERE
 	# NULL values can't be quoted
 	my $say_anvil_node1_host_uuid = $anvil_node1_host_uuid eq "" ? "NULL" : $anvil->Database->quote($anvil_node1_host_uuid);
 	my $say_anvil_node2_host_uuid = $anvil_node2_host_uuid eq "" ? "NULL" : $anvil->Database->quote($anvil_node2_host_uuid);
-	my $say_anvil_dr1_host_uuid   = $anvil_dr1_host_uuid   eq "" ? "NULL" : $anvil->Database->quote($anvil_dr1_host_uuid);
-
 	
 	# If I still don't have an anvil_uuid, we're INSERT'ing .
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
@@ -7211,7 +7194,6 @@ INSERT INTO
     anvil_password, 
     anvil_node1_host_uuid, 
     anvil_node2_host_uuid, 
-    anvil_dr1_host_uuid, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($anvil_uuid).", 
@@ -7220,7 +7202,6 @@ INSERT INTO
     ".$anvil->Database->quote($anvil_password).", 
     ".$say_anvil_node1_host_uuid.", 
     ".$say_anvil_node2_host_uuid.", 
-    ".$say_anvil_dr1_host_uuid.", 
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
@@ -7236,8 +7217,7 @@ SELECT
     anvil_description, 
     anvil_password, 
     anvil_node1_host_uuid, 
-    anvil_node2_host_uuid, 
-    anvil_dr1_host_uuid 
+    anvil_node2_host_uuid 
 FROM 
     anvils 
 WHERE 
@@ -7264,14 +7244,12 @@ WHERE
 			my $old_anvil_password        =         $row->[2];
 			my $old_anvil_node1_host_uuid = defined $row->[3] ? $row->[3] : "NULL";
 			my $old_anvil_node2_host_uuid = defined $row->[4] ? $row->[4] : "NULL";
-			my $old_anvil_dr1_host_uuid   = defined $row->[5] ? $row->[5] : "NULL";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_anvil_name            => $old_anvil_name, 
 				old_anvil_description     => $old_anvil_description, 
 				old_anvil_password        => $anvil->Log->is_secure($old_anvil_password),
 				old_anvil_node1_host_uuid => $old_anvil_node1_host_uuid, 
 				old_anvil_node2_host_uuid => $old_anvil_node2_host_uuid,  
-				old_anvil_dr1_host_uuid   => $old_anvil_dr1_host_uuid,  
 			}});
 			
 			# Anything change?
@@ -7279,8 +7257,7 @@ WHERE
 			    ($old_anvil_description     ne $anvil_description)     or 
 			    ($old_anvil_password        ne $anvil_password)        or 
 			    ($old_anvil_node1_host_uuid ne $anvil_node1_host_uuid) or 
-			    ($old_anvil_node2_host_uuid ne $anvil_node2_host_uuid) or 
-			    ($old_anvil_dr1_host_uuid   ne $anvil_dr1_host_uuid))
+			    ($old_anvil_node2_host_uuid ne $anvil_node2_host_uuid))
 			{
 				# Something changed, save.
 				my $query = "
@@ -7292,7 +7269,6 @@ SET
     anvil_password        = ".$anvil->Database->quote($anvil_password).", 
     anvil_node1_host_uuid = ".$say_anvil_node1_host_uuid.", 
     anvil_node2_host_uuid = ".$say_anvil_node2_host_uuid.", 
-    anvil_dr1_host_uuid   = ".$say_anvil_dr1_host_uuid.", 
     modified_date         = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     anvil_uuid            = ".$anvil->Database->quote($anvil_uuid)." 
