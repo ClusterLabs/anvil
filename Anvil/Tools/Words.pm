@@ -192,6 +192,10 @@ Parameters;
 
 This sets the string to be cleaned. If it is not passed in, or if the string is empty, then an empty string will be returned without error.
 
+=head3 merge_spaces (optional)
+
+This is a boolean value (0 or 1) that, if set, will merge multiple spaces into a single space. If not set, multiple spaces will be left as is. The default is '1'.
+
 =cut
 sub clean_spaces
 {
