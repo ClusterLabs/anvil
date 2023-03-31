@@ -26,7 +26,7 @@ type FormUtils<M extends MapToInputTestID> = {
   setMsgSetter: (
     id: keyof M,
     setter?: MessageSetter,
-    isOverwrite?: boolean,
+    options?: { isOverwrite?: boolean },
   ) => void;
   setValidity: (key: keyof M, value?: boolean) => void;
   setValidityRe: (re: RegExp, value?: boolean) => void;

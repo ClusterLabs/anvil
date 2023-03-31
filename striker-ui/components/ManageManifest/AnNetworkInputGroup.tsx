@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode, useEffect, useMemo } from 'react';
+import { ReactElement, ReactNode, useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
@@ -81,7 +81,6 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     msgSetters,
-    setMsgSetter,
   },
   inputGatewayLabel = 'Gateway',
   inputMinIpLabel = 'IP address',
@@ -170,8 +169,6 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     let result: ReactNode;
 
     if (isShowGateway && inputIdGateway) {
-      setMsgSetter(inputIdGateway);
-
       result = (
         <InputWithRef
           input={
@@ -209,7 +206,6 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   }, [
     isShowGateway,
     inputIdGateway,
-    setMsgSetter,
     networkId,
     inputGatewayLabel,
     previousGateway,
@@ -218,11 +214,6 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     buildInputFirstRenderFunction,
     msgSetters,
   ]);
-
-  useEffect(() => {
-    setMsgSetter(inputIdMinIp);
-    setMsgSetter(inputIdSubnetMask);
-  }, [inputIdMinIp, inputIdSubnetMask, setMsgSetter]);
 
   return (
     <InnerPanel mv={0}>

@@ -36,7 +36,6 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     msgSetters,
-    setMsgSetter,
   },
   knownFences = {},
   knownHosts = {},
@@ -104,8 +103,6 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
           const inputId = buildInputIdRMHost(hostId);
           const inputLabel = `${prettyId} host`;
 
-          setMsgSetter(inputId);
-
           hosts[`run-manifest-host-cell-${hostId}`] = {
             children: (
               <InputWithRef
@@ -166,7 +163,6 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
       hostListEntries,
       hostOptionList,
       msgSetters,
-      setMsgSetter,
     ],
   );
 

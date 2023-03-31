@@ -110,7 +110,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     msgSetters,
-    setMsgSetter,
   },
   hostId,
   hostNumber,
@@ -151,8 +150,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
 
           const inputId = buildInputIdAHFencePort(hostId, fenceId);
           const inputLabel = `Port on ${fenceName}`;
-
-          setMsgSetter(inputId);
 
           previous[cellId] = {
             children: (
@@ -196,7 +193,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
       fenceListEntries,
       hostId,
       msgSetters,
-      setMsgSetter,
     ],
   );
 
@@ -208,8 +204,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
 
           const inputId = buildInputIdAHNetworkIp(hostId, networkId);
           const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
-
-          setMsgSetter(inputId);
 
           previous[cellId] = {
             children: (
@@ -251,7 +245,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     [
       networkListEntries,
       hostId,
-      setMsgSetter,
       buildFinishInputTestBatchFunction,
       buildInputFirstRenderFunction,
       msgSetters,
