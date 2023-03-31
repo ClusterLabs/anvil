@@ -203,10 +203,12 @@ sub clean_spaces
 	
 	# Setup default values
 	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
-	   $string =~ s/^\s+//;
-	   $string =~ s/\s+$//;
-	   $string =~ s/\r//g;
-	   $string =~ s/\s+/ /g;
+	my $merge_spaces = defined $parameter->{merge_spaces} ? $parameter->{merge_spaces} : 1;
+
+	$string =~ s/^\s+//;
+	$string =~ s/\s+$//;
+	$string =~ s/\r//g;
+	$string =~ s/\s+/ /g if $merge_spaces;
 	
 	return($string);
 }
