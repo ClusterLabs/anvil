@@ -7,6 +7,7 @@ type ObjectStatePropGuard<S extends BaseObject> = (
 ) => boolean;
 
 type ObjectStatePropSetter<S extends BaseObject> = (
+  previous: S,
   result: S,
   key: keyof S,
   value?: S[keyof S],
