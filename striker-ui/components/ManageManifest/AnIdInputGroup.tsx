@@ -29,7 +29,7 @@ const AnIdInputGroup = <
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
+    setMessage,
   },
   previous: {
     domain: previousDomain,
@@ -53,16 +53,14 @@ const AnIdInputGroup = <
             inputTestBatch={buildPeacefulStringTestBatch(
               INPUT_LABEL_AI_PREFIX,
               () => {
-                msgSetters[INPUT_ID_AI_PREFIX]();
+                setMessage(INPUT_ID_AI_PREFIX);
               },
               {
                 onFinishBatch:
                   buildFinishInputTestBatchFunction(INPUT_ID_AI_PREFIX),
               },
               (message) => {
-                msgSetters[INPUT_ID_AI_PREFIX]({
-                  children: message,
-                });
+                setMessage(INPUT_ID_AI_PREFIX, { children: message });
               },
             )}
             onFirstRender={buildInputFirstRenderFunction(INPUT_ID_AI_PREFIX)}
@@ -83,16 +81,14 @@ const AnIdInputGroup = <
             inputTestBatch={buildPeacefulStringTestBatch(
               INPUT_LABEL_AI_DOMAIN,
               () => {
-                msgSetters[INPUT_ID_AI_DOMAIN]();
+                setMessage(INPUT_ID_AI_DOMAIN);
               },
               {
                 onFinishBatch:
                   buildFinishInputTestBatchFunction(INPUT_ID_AI_DOMAIN),
               },
               (message) => {
-                msgSetters[INPUT_ID_AI_DOMAIN]({
-                  children: message,
-                });
+                setMessage(INPUT_ID_AI_DOMAIN, { children: message });
               },
             )}
             onFirstRender={buildInputFirstRenderFunction(INPUT_ID_AI_DOMAIN)}
@@ -113,16 +109,14 @@ const AnIdInputGroup = <
             inputTestBatch={buildNumberTestBatch(
               INPUT_LABEL_AI_SEQUENCE,
               () => {
-                msgSetters[INPUT_ID_AI_SEQUENCE]();
+                setMessage(INPUT_ID_AI_SEQUENCE);
               },
               {
                 onFinishBatch:
                   buildFinishInputTestBatchFunction(INPUT_ID_AI_SEQUENCE),
               },
               (message) => {
-                msgSetters[INPUT_ID_AI_SEQUENCE]({
-                  children: message,
-                });
+                setMessage(INPUT_ID_AI_SEQUENCE, { children: message });
               },
             )}
             onFirstRender={buildInputFirstRenderFunction(INPUT_ID_AI_SEQUENCE)}

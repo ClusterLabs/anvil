@@ -109,7 +109,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
+    setMessage,
   },
   hostId,
   hostNumber,
@@ -170,11 +170,11 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                 inputTestBatch={buildPeacefulStringTestBatch(
                   inputLabel,
                   () => {
-                    msgSetters[inputId]();
+                    setMessage(inputId);
                   },
                   { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
                   (message) => {
-                    msgSetters[inputId]({ children: message });
+                    setMessage(inputId, { children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
@@ -192,7 +192,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
       buildInputFirstRenderFunction,
       fenceListEntries,
       hostId,
-      msgSetters,
+      setMessage,
     ],
   );
 
@@ -225,11 +225,11 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                 inputTestBatch={buildIPAddressTestBatch(
                   inputLabel,
                   () => {
-                    msgSetters[inputId]();
+                    setMessage(inputId);
                   },
                   { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
                   (message) => {
-                    msgSetters[inputId]({ children: message });
+                    setMessage(inputId, { children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
@@ -247,7 +247,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
       hostId,
       buildFinishInputTestBatchFunction,
       buildInputFirstRenderFunction,
-      msgSetters,
+      setMessage,
     ],
   );
 

@@ -35,7 +35,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
+    setMessage,
   },
   knownFences = {},
   knownHosts = {},
@@ -117,11 +117,11 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                 inputTestBatch={buildPeacefulStringTestBatch(
                   inputLabel,
                   () => {
-                    msgSetters[inputId]();
+                    setMessage(inputId);
                   },
                   { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
                   (message) => {
-                    msgSetters[inputId]({ children: message });
+                    setMessage(inputId, { children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
@@ -162,7 +162,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
       buildInputFirstRenderFunction,
       hostListEntries,
       hostOptionList,
-      msgSetters,
+      setMessage,
     ],
   );
 
@@ -289,7 +289,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                 inputTestBatch={buildPeacefulStringTestBatch(
                   INPUT_LABEL_RM_AN_DESCRIPTION,
                   () => {
-                    msgSetters[INPUT_ID_RM_AN_DESCRIPTION]();
+                    setMessage(INPUT_ID_RM_AN_DESCRIPTION);
                   },
                   {
                     onFinishBatch: buildFinishInputTestBatchFunction(
@@ -297,7 +297,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                     ),
                   },
                   (message) => {
-                    msgSetters[INPUT_ID_RM_AN_DESCRIPTION]({
+                    setMessage(INPUT_ID_RM_AN_DESCRIPTION, {
                       children: message,
                     });
                   },
@@ -323,7 +323,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                 inputTestBatch={buildPeacefulStringTestBatch(
                   INPUT_LABEL_RM_AN_PASSWORD,
                   () => {
-                    msgSetters[INPUT_ID_RM_AN_PASSWORD]();
+                    setMessage(INPUT_ID_RM_AN_PASSWORD);
                   },
                   {
                     onFinishBatch: buildFinishInputTestBatchFunction(
@@ -331,7 +331,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                     ),
                   },
                   (message) => {
-                    msgSetters[INPUT_ID_RM_AN_PASSWORD]({ children: message });
+                    setMessage(INPUT_ID_RM_AN_PASSWORD, { children: message });
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(

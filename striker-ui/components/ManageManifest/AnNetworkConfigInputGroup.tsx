@@ -50,8 +50,8 @@ const AnNetworkConfigInputGroup = <
   const {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
-    setValidityRe,
+    setMessage,
+    unsetKeyRe,
   } = formUtils;
 
   const getNetworkNumber = useCallback(
@@ -186,7 +186,7 @@ const AnNetworkConfigInputGroup = <
           if (networkId === rmId) {
             isIdMatch = true;
 
-            setValidityRe(RegExp(rmId));
+            unsetKeyRe(RegExp(rmId));
           } else {
             const { networkType } = networkValue;
 
@@ -206,7 +206,7 @@ const AnNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListEntries, setNetworkList, setValidityRe],
+    [networkListEntries, setNetworkList, unsetKeyRe],
   );
 
   const networksGridLayout = useMemo<GridLayout>(() => {
@@ -333,16 +333,14 @@ const AnNetworkConfigInputGroup = <
               inputTestBatch={buildNumberTestBatch(
                 INPUT_LABEL_ANC_MTU,
                 () => {
-                  msgSetters[INPUT_ID_ANC_MTU]();
+                  setMessage(INPUT_ID_ANC_MTU);
                 },
                 {
                   onFinishBatch:
                     buildFinishInputTestBatchFunction(INPUT_ID_ANC_MTU),
                 },
                 (message) => {
-                  msgSetters[INPUT_ID_ANC_MTU]({
-                    children: message,
-                  });
+                  setMessage(INPUT_ID_ANC_MTU, { children: message });
                 },
               )}
               onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_MTU)}

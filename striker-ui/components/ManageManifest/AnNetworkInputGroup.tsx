@@ -80,7 +80,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
+    setMessage,
   },
   inputGatewayLabel = 'Gateway',
   inputMinIpLabel = 'IP address',
@@ -185,15 +185,13 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
           inputTestBatch={buildIPAddressTestBatch(
             `${networkName} ${inputGatewayLabel}`,
             () => {
-              msgSetters[inputIdGateway]();
+              setMessage(inputIdGateway);
             },
             {
               onFinishBatch: buildFinishInputTestBatchFunction(inputIdGateway),
             },
             (message) => {
-              msgSetters[inputIdGateway]({
-                children: message,
-              });
+              setMessage(inputIdGateway, { children: message });
             },
           )}
           onFirstRender={buildInputFirstRenderFunction(inputIdGateway)}
@@ -212,7 +210,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     networkName,
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
+    setMessage,
   ]);
 
   return (
@@ -269,16 +267,14 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                   inputTestBatch={buildIPAddressTestBatch(
                     `${networkName} ${inputMinIpLabel}`,
                     () => {
-                      msgSetters[inputIdMinIp]();
+                      setMessage(inputIdMinIp);
                     },
                     {
                       onFinishBatch:
                         buildFinishInputTestBatchFunction(inputIdMinIp),
                     },
                     (message) => {
-                      msgSetters[inputIdMinIp]({
-                        children: message,
-                      });
+                      setMessage(inputIdMinIp, { children: message });
                     },
                   )}
                   onFirstRender={buildInputFirstRenderFunction(inputIdMinIp)}

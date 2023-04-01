@@ -19,15 +19,13 @@ type FormUtils<M extends MapToInputTestID> = {
   buildInputFirstRenderFunction: InputFirstRenderFunctionBuilder<M>;
   formValidity: FormValidity<M>;
   isFormInvalid: boolean;
-  msgSetters: MapToMessageSetter<M>;
   setFormValidity: import('react').Dispatch<
     import('react').SetStateAction<FormValidity<M>>
   >;
-  setMsgSetter: (
-    id: keyof M,
-    setter?: MessageSetter,
-    options?: { isOverwrite?: boolean },
-  ) => void;
+  setMessage: (key: keyof M, message?: Message) => void;
+  setMessageRe: (re: RegExp, message?: Message) => void;
   setValidity: (key: keyof M, value?: boolean) => void;
   setValidityRe: (re: RegExp, value?: boolean) => void;
+  unsetKey: (key: keyof M) => void;
+  unsetKeyRe: (re: RegExp) => void;
 };

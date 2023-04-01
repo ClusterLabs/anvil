@@ -1,11 +1,9 @@
 import { MutableRefObject, useCallback, useMemo, useState } from 'react';
 
-import buildMapToMessageSetter, {
-  buildMessageSetter,
-} from '../lib/buildMapToMessageSetter';
 import buildObjectStateSetterCallback, {
-  buildProtectedObjectStateSetterCallback,
+  buildRegExpObjectStateSetterCallback,
 } from '../lib/buildObjectStateSetterCallback';
+import { Message } from '../components/MessageBox';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
 
 const useFormUtils = <
@@ -17,8 +15,19 @@ const useFormUtils = <
   messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
 ): FormUtils<M> => {
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
-  const [msgSetterList, setMsgSetterList] = useState<MapToMessageSetter<M>>(
-    () => buildMapToMessageSetter<U, I, M>(ids, messageGroupRef),
+
+  const setMessage = useCallback(
+    (key: keyof M, message?: Message) => {
+      messageGroupRef.current.setMessage?.call(null, String(key), message);
+    },
+    [messageGroupRef],
+  );
+
+  const setMessageRe = useCallback(
+    (re: RegExp, message?: Message) => {
+      messageGroupRef.current.setMessageRe?.call(null, re, message);
+    },
+    [messageGroupRef],
   );
 
   const setValidity = useCallback((key: keyof M, value?: boolean) => {
@@ -28,54 +37,25 @@ const useFormUtils = <
   }, []);
 
   const setValidityRe = useCallback((re: RegExp, value?: boolean) => {
-    setFormValidity((previous) => {
-      const result: FormValidity<M> = {};
-
-      Object.keys(previous).forEach((key) => {
-        const id = key as keyof M;
-
-        if (re.test(key)) {
-          if (value !== undefined) {
-            result[id] = value;
-          }
-        } else {
-          result[id] = previous[id];
-        }
-      });
-
-      return result;
-    });
+    setFormValidity(
+      buildRegExpObjectStateSetterCallback<FormValidity<M>>(re, value),
+    );
   }, []);
 
-  const setMsgSetter = useCallback(
-    (
-      id: keyof M,
-      setter?: MessageSetter,
-      {
-        isOverwrite,
-        isUseFallback = true,
-      }: { isOverwrite?: boolean; isUseFallback?: boolean } = {},
-    ) => {
-      const fallbackSetter: ObjectStatePropSetter<MapToMessageSetter<M>> = (
-        result,
-        key,
-        value = buildMessageSetter<M>(String(id), messageGroupRef),
-      ) => {
-        result[key] = value;
-      };
-
-      setMsgSetterList(
-        buildProtectedObjectStateSetterCallback<MapToMessageSetter<M>>(
-          id,
-          setter,
-          {
-            isOverwrite,
-            set: isUseFallback ? fallbackSetter : undefined,
-          },
-        ),
-      );
+  const unsetKey = useCallback(
+    (key: keyof M) => {
+      setMessage(key);
+      setValidity(key);
     },
-    [messageGroupRef],
+    [setMessage, setValidity],
+  );
+
+  const unsetKeyRe = useCallback(
+    (re: RegExp) => {
+      setMessageRe(re);
+      setValidityRe(re);
+    },
+    [setMessageRe, setValidityRe],
   );
 
   const buildFinishInputTestBatchFunction = useCallback(
@@ -88,10 +68,9 @@ const useFormUtils = <
   const buildInputFirstRenderFunction = useCallback(
     (key: keyof M) =>
       ({ isValid }: InputFirstRenderFunctionArgs) => {
-        setMsgSetter(key);
         setValidity(key, isValid);
       },
-    [setMsgSetter, setValidity],
+    [setValidity],
   );
 
   const isFormInvalid = useMemo(
@@ -104,11 +83,13 @@ const useFormUtils = <
     buildInputFirstRenderFunction,
     formValidity,
     isFormInvalid,
-    msgSetters: msgSetterList,
     setFormValidity,
-    setMsgSetter,
+    setMessage,
+    setMessageRe,
     setValidity,
     setValidityRe,
+    unsetKey,
+    unsetKeyRe,
   };
 };
 
