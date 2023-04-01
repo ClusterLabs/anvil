@@ -80,6 +80,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
+    buildInputUnmountFunction,
     setMessage,
   },
   inputGatewayLabel = 'Gateway',
@@ -195,6 +196,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
             },
           )}
           onFirstRender={buildInputFirstRenderFunction(inputIdGateway)}
+          onUnmount={buildInputUnmountFunction(inputIdGateway)}
           required={isShowGateway}
         />
       );
@@ -210,6 +212,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     networkName,
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
+    buildInputUnmountFunction,
     setMessage,
   ]);
 
@@ -278,6 +281,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                     },
                   )}
                   onFirstRender={buildInputFirstRenderFunction(inputIdMinIp)}
+                  onUnmount={buildInputUnmountFunction(inputIdMinIp)}
                   required
                 />
               ),

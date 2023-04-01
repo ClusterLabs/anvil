@@ -51,7 +51,7 @@ const AnNetworkConfigInputGroup = <
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     setMessage,
-    unsetKeyRe,
+    setMessageRe,
   } = formUtils;
 
   const getNetworkNumber = useCallback(
@@ -140,8 +140,8 @@ const AnNetworkConfigInputGroup = <
 
           if (networkId === targetId) {
             isIdMatch = true;
-
             networkType = newType;
+            setMessageRe(RegExp(networkId));
           }
 
           const isTypeMatch = networkType === newType;
@@ -173,7 +173,7 @@ const AnNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListEntries, setNetworkList],
+    [networkListEntries, setMessageRe, setNetworkList],
   );
 
   const handleNetworkRemove = useCallback<AnNetworkCloseEventHandler>(
@@ -185,8 +185,6 @@ const AnNetworkConfigInputGroup = <
         (previous, [networkId, networkValue]) => {
           if (networkId === rmId) {
             isIdMatch = true;
-
-            unsetKeyRe(RegExp(rmId));
           } else {
             const { networkType } = networkValue;
 
@@ -206,7 +204,7 @@ const AnNetworkConfigInputGroup = <
 
       setNetworkList(newList);
     },
-    [networkListEntries, setNetworkList, unsetKeyRe],
+    [networkListEntries, setNetworkList],
   );
 
   const networksGridLayout = useMemo<GridLayout>(() => {

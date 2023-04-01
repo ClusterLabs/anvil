@@ -109,6 +109,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
+    buildInputUnmountFunction,
     setMessage,
   },
   hostId,
@@ -233,6 +234,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
+                onUnmount={buildInputUnmountFunction(inputId)}
                 required
               />
             ),
@@ -247,6 +249,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
       hostId,
       buildFinishInputTestBatchFunction,
       buildInputFirstRenderFunction,
+      buildInputUnmountFunction,
       setMessage,
     ],
   );
