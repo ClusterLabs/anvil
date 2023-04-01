@@ -18,14 +18,14 @@ const useFormUtils = <
 
   const setMessage = useCallback(
     (key: keyof M, message?: Message) => {
-      messageGroupRef.current.setMessage?.call(null, String(key), message);
+      messageGroupRef?.current?.setMessage?.call(null, String(key), message);
     },
     [messageGroupRef],
   );
 
   const setMessageRe = useCallback(
     (re: RegExp, message?: Message) => {
-      messageGroupRef.current.setMessageRe?.call(null, re, message);
+      messageGroupRef?.current?.setMessageRe?.call(null, re, message);
     },
     [messageGroupRef],
   );
@@ -73,6 +73,13 @@ const useFormUtils = <
     [setValidity],
   );
 
+  const buildInputUnmountFunction = useCallback(
+    (key: keyof M) => () => {
+      unsetKey(key);
+    },
+    [unsetKey],
+  );
+
   const isFormInvalid = useMemo(
     () => Object.values(formValidity).some((isInputValid) => !isInputValid),
     [formValidity],
@@ -81,6 +88,7 @@ const useFormUtils = <
   return {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
+    buildInputUnmountFunction,
     formValidity,
     isFormInvalid,
     setFormValidity,

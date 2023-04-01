@@ -14,9 +14,16 @@ type InputFirstRenderFunctionBuilder<M extends MapToInputTestID> = (
   key: keyof M,
 ) => InputFirstRenderFunction;
 
+type InputUnmountFunction = () => void;
+
+type InputUnmountFunctionBuilder<M extends MapToInputTestID> = (
+  key: keyof M,
+) => InputUnmountFunction;
+
 type FormUtils<M extends MapToInputTestID> = {
   buildFinishInputTestBatchFunction: InputTestBatchFinishCallbackBuilder<M>;
   buildInputFirstRenderFunction: InputFirstRenderFunctionBuilder<M>;
+  buildInputUnmountFunction: InputUnmountFunctionBuilder<M>;
   formValidity: FormValidity<M>;
   isFormInvalid: boolean;
   setFormValidity: import('react').Dispatch<
