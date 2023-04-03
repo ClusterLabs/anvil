@@ -169,7 +169,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                   />
                 }
                 inputTestBatch={buildPeacefulStringTestBatch(
-                  inputLabel,
+                  `${hostId} ${inputLabel}`,
                   () => {
                     setMessage(inputId);
                   },
@@ -224,7 +224,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                   />
                 }
                 inputTestBatch={buildIPAddressTestBatch(
-                  inputLabel,
+                  `${hostId} ${inputLabel}`,
                   () => {
                     setMessage(inputId);
                   },
