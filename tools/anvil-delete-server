@@ -194,7 +194,6 @@ sub run_jobs
 			job_status => "failed", 
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0228", variables => { resource => $server_name }});
-		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	$anvil->Job->update_progress({

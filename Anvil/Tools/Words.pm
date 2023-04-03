@@ -192,9 +192,9 @@ Parameters;
 
 This sets the string to be cleaned. If it is not passed in, or if the string is empty, then an empty string will be returned without error.
 
-=head3 merge_spaces (optional)
+=head3 merge_spaces (optional, default 1)
 
-This is a boolean value (0 or 1) that, if set, will merge multiple spaces into a single space. If not set, multiple spaces will be left as is. The default is '1'.
+This is a boolean value (0 or 1) that, if set, will merge multiple spaces into a single space. If not set, multiple spaces will be left as is. 
 
 =cut
 sub clean_spaces
@@ -206,7 +206,7 @@ sub clean_spaces
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->clean_spaces()" }});
 	
 	# Setup default values
-	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
+	my $string       = defined $parameter->{string}       ? $parameter->{string}       : "";
 	my $merge_spaces = defined $parameter->{merge_spaces} ? $parameter->{merge_spaces} : 1;
 
 	$string =~ s/^\s+//;
