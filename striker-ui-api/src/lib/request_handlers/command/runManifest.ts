@@ -85,7 +85,11 @@ export const runManifest: RequestHandler<
   let rawSysData: AnvilDataSysHash | undefined;
 
   try {
-    ({ manifests: rawManifestListData, sys: rawSysData } = getAnvilData<{
+    ({
+      hosts: rawHostListData,
+      manifests: rawManifestListData,
+      sys: rawSysData,
+    } = getAnvilData<{
       hosts?: AnvilDataHostListHash;
       manifests?: AnvilDataManifestListHash;
       sys?: AnvilDataSysHash;
@@ -149,11 +153,10 @@ export const runManifest: RequestHandler<
           debug,
           file: __filename,
           job_command: SERVER_PATHS.usr.sbin['anvil-join-anvil'].self,
-          job_data: `as_machine=${hostId},manifest_uuid=${manifestUuid},anvil_uuid=`,
+          job_data: `as_machine=${hostId},manifest_uuid=${manifestUuid}`,
           job_description: 'job_0073',
           job_host_uuid: hostUuid,
           job_name: `join_anvil::${hostId}`,
-          job_progress: 0,
           job_title: 'job_0072',
         });
 
@@ -178,7 +181,7 @@ export const runManifest: RequestHandler<
       .stdout as [string];
 
     joinAnJobs.forEach((jobParams) => {
-      jobParams.job_data += newAnUuid;
+      jobParams.job_data += `,anvil_uuid=${newAnUuid}`;
       job(jobParams);
     });
   } catch (subError) {
