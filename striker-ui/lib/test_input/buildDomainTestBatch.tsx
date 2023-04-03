@@ -1,6 +1,5 @@
 import { REP_DOMAIN } from '../consts/REG_EXP_PATTERNS';
 
-import testNotBlank from './testNotBlank';
 import { InlineMonoText } from '../../components/Text';
 
 const buildDomainTestBatch: BuildInputTestBatchFunction = (
@@ -27,7 +26,6 @@ const buildDomainTestBatch: BuildInputTestBatchFunction = (
       test: ({ compare, value }) =>
         (compare[0] as boolean) || REP_DOMAIN.test(value as string),
     },
-    { test: testNotBlank },
   ],
 });
 

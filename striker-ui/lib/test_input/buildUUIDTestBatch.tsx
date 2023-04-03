@@ -1,7 +1,5 @@
 import { REP_UUID } from '../consts/REG_EXP_PATTERNS';
 
-import testNotBlank from './testNotBlank';
-
 const buildUUIDTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
@@ -18,7 +16,6 @@ const buildUUIDTestBatch: BuildInputTestBatchFunction = (
       },
       test: ({ value }) => REP_UUID.test(value as string),
     },
-    { test: testNotBlank },
   ],
 });
 

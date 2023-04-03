@@ -1,7 +1,5 @@
 import { REP_IPV4 } from '../consts/REG_EXP_PATTERNS';
 
-import testNotBlank from './testNotBlank';
-
 const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
@@ -21,7 +19,6 @@ const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
       },
       test: ({ value }) => REP_IPV4.test(value as string),
     },
-    { test: testNotBlank },
   ],
 });
 
