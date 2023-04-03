@@ -300,6 +300,23 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
                       value={previousSubnetMask}
                     />
                   }
+                  inputTestBatch={buildIPAddressTestBatch(
+                    `${networkName} ${inputSubnetMaskLabel}`,
+                    () => {
+                      setMessage(inputIdSubnetMask);
+                    },
+                    {
+                      onFinishBatch:
+                        buildFinishInputTestBatchFunction(inputIdSubnetMask),
+                    },
+                    (message) => {
+                      setMessage(inputIdSubnetMask, { children: message });
+                    },
+                  )}
+                  onFirstRender={buildInputFirstRenderFunction(
+                    inputIdSubnetMask,
+                  )}
+                  onUnmount={buildInputUnmountFunction(inputIdSubnetMask)}
                   required
                 />
               ),
