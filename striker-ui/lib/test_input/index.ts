@@ -1,5 +1,6 @@
 import buildDomainTestBatch from './buildDomainTestBatch';
 import buildIPAddressTestBatch from './buildIPAddressTestBatch';
+import buildIpCsvTestBatch from './buildIpCsvTestBatch';
 import buildNumberTestBatch from './buildNumberTestBatch';
 import buildPeacefulStringTestBatch from './buildPeacefulStringTestBatch';
 import buildUUIDTestBatch from './buildUUIDTestBatch';
@@ -13,6 +14,7 @@ import testRange from './testRange';
 export {
   buildDomainTestBatch,
   buildIPAddressTestBatch,
+  buildIpCsvTestBatch,
   buildNumberTestBatch,
   buildPeacefulStringTestBatch,
   buildUUIDTestBatch,

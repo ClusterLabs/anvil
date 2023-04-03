@@ -9,7 +9,10 @@ import Grid from '../Grid';
 import IconButton from '../IconButton';
 import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
-import { buildNumberTestBatch } from '../../lib/test_input';
+import {
+  buildIpCsvTestBatch,
+  buildNumberTestBatch,
+} from '../../lib/test_input';
 
 const INPUT_ID_PREFIX_AN_NETWORK_CONFIG = 'an-network-config-input';
 
@@ -300,6 +303,20 @@ const AnNetworkConfigInputGroup = <
                   value={previousDnsCsv}
                 />
               }
+              inputTestBatch={buildIpCsvTestBatch(
+                INPUT_LABEL_ANC_DNS,
+                () => {
+                  setMessage(INPUT_ID_ANC_DNS);
+                },
+                {
+                  onFinishBatch:
+                    buildFinishInputTestBatchFunction(INPUT_ID_ANC_DNS),
+                },
+                (message) => {
+                  setMessage(INPUT_ID_ANC_DNS, { children: message });
+                },
+              )}
+              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_DNS)}
               required
             />
           ),
@@ -314,6 +331,20 @@ const AnNetworkConfigInputGroup = <
                   value={previousNtpCsv}
                 />
               }
+              inputTestBatch={buildIpCsvTestBatch(
+                INPUT_LABEL_ANC_NTP,
+                () => {
+                  setMessage(INPUT_ID_ANC_NTP);
+                },
+                {
+                  onFinishBatch:
+                    buildFinishInputTestBatchFunction(INPUT_ID_ANC_NTP),
+                },
+                (message) => {
+                  setMessage(INPUT_ID_ANC_NTP, { children: message });
+                },
+              )}
+              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_NTP)}
             />
           ),
         },
