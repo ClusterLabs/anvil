@@ -74,10 +74,7 @@ type ManifestDetail = {
 };
 
 type ManifestExecutionHost = {
-  anName?: string;
-  anUuid?: string;
   hostId?: string;
-  hostName?: string;
   hostNumber: number;
   hostType: string;
   hostUuid: string;
