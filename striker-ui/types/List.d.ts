@@ -1,12 +1,18 @@
-type OnCheckboxChange = Exclude<CheckboxProps['onChange'], undefined>;
+type CheckboxChangeEventHandler = Exclude<CheckboxProps['onChange'], undefined>;
+
+type ListItemButtonChangeEventHandler = Exclude<
+  import('@mui/material').ListItemButtonProps['onClick'],
+  undefined
+>;
 
 type ListOptionalProps<T extends unknown = unknown> = {
-  allowCheckAll?: boolean;
   allowAddItem?: boolean;
+  allowCheckAll?: boolean;
   allowCheckItem?: boolean;
-  allowEdit?: boolean;
   allowDelete?: boolean;
+  allowEdit?: boolean;
   allowEditItem?: boolean;
+  allowItemButton?: boolean;
   edit?: boolean;
   flexBoxProps?: import('../components/FlexBox').FlexBoxProps;
   header?: import('react').ReactNode;
@@ -22,11 +28,16 @@ type ListOptionalProps<T extends unknown = unknown> = {
   onAdd?: import('../components/IconButton').IconButtonProps['onClick'];
   onDelete?: import('../components/IconButton').IconButtonProps['onClick'];
   onEdit?: import('../components/IconButton').IconButtonProps['onClick'];
-  onAllCheckboxChange?: OnCheckboxChange;
+  onAllCheckboxChange?: CheckboxChangeEventHandler;
   onItemCheckboxChange?: (
     key: string,
-    ...onChangeParams: Parameters<OnCheckboxChange>
-  ) => ReturnType<OnCheckboxChange>;
+    ...checkboxChangeEventHandlerArgs: Parameters<CheckboxChangeEventHandler>
+  ) => ReturnType<CheckboxChangeEventHandler>;
+  onItemClick?: (
+    value: T,
+    key: string,
+    ...listItemButtonChangeEventHandlerArgs: Parameters<ListItemButtonChangeEventHandler>
+  ) => ReturnType<ListItemButtonChangeEventHandler>;
   renderListItem?: (key: string, value: T) => import('react').ReactNode;
   renderListItemCheckboxState?: (key: string, value: T) => boolean;
   scroll?: boolean;

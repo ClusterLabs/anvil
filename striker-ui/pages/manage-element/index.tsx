@@ -7,6 +7,7 @@ import getQueryParam from '../../lib/getQueryParam';
 import Grid from '../../components/Grid';
 import handleAPIError from '../../lib/handleAPIError';
 import Header from '../../components/Header';
+import ManageFencePanel from '../../components/ManageFence';
 import { Panel } from '../../components/Panels';
 import PrepareHostForm from '../../components/PrepareHostForm';
 import PrepareNetworkForm from '../../components/PrepareNetworkForm';
@@ -21,9 +22,9 @@ import useProtectedState from '../../hooks/useProtectedState';
 const MAP_TO_PAGE_TITLE: Record<string, string> = {
   'prepare-host': 'Prepare Host',
   'prepare-network': 'Prepare Network',
-  'manage-fence-devices': 'Manage Fence Devices',
-  'manage-upses': 'Manage UPSes',
-  'manage-manifests': 'Manage Manifests',
+  'manage-fence': 'Manage Fence Devices',
+  'manage-ups': 'Manage UPSes',
+  'manage-manifest': 'Manage Manifests',
 };
 const PAGE_TITLE_LOADING = 'Loading';
 const STEP_CONTENT_GRID_COLUMNS = { md: 8, sm: 6, xs: 1 };
@@ -116,6 +117,19 @@ const PrepareNetworkTabContent: FC = () => {
   );
 };
 
+const ManageFenceTabContent: FC = () => (
+  <Grid
+    columns={STEP_CONTENT_GRID_COLUMNS}
+    layout={{
+      'managefence-left-column': {},
+      'managefence-center-column': {
+        children: <ManageFencePanel />,
+        ...STEP_CONTENT_GRID_CENTER_COLUMN,
+      },
+    }}
+  />
+);
+
 const ManageElement: FC = () => {
   const {
     isReady,
@@ -162,7 +176,7 @@ const ManageElement: FC = () => {
         >
           <Tab label="Prepare host" value="prepare-host" />
           <Tab label="Prepare network" value="prepare-network" />
-          <Tab label="Manage fence devices" value="manage-fence-devices" />
+          <Tab label="Manage fence devices" value="manage-fence" />
         </Tabs>
       </Panel>
       <TabContent changingTabId={pageTabId} tabId="prepare-host">
@@ -171,8 +185,8 @@ const ManageElement: FC = () => {
       <TabContent changingTabId={pageTabId} tabId="prepare-network">
         <PrepareNetworkTabContent />
       </TabContent>
-      <TabContent changingTabId={pageTabId} tabId="manage-fence-devices">
-        {}
+      <TabContent changingTabId={pageTabId} tabId="manage-fence">
+        <ManageFenceTabContent />
       </TabContent>
     </>
   );

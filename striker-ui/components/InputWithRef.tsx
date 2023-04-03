@@ -22,14 +22,17 @@ type InputWithRefOptionalPropsWithDefault<
   required?: boolean;
   valueType?: TypeName;
 };
-type InputWithRefOptionalPropsWithoutDefault = {
+type InputWithRefOptionalPropsWithoutDefault<
+  TypeName extends keyof MapToInputType,
+> = {
   inputTestBatch?: InputTestBatch;
   onFirstRender?: (args: { isRequired: boolean }) => void;
+  valueKey?: CreateInputOnChangeHandlerOptions<TypeName>['valueKey'];
 };
 
 type InputWithRefOptionalProps<TypeName extends keyof MapToInputType> =
   InputWithRefOptionalPropsWithDefault<TypeName> &
-    InputWithRefOptionalPropsWithoutDefault;
+    InputWithRefOptionalPropsWithoutDefault<TypeName>;
 
 type InputWithRefProps<
   TypeName extends keyof MapToInputType,
@@ -47,6 +50,7 @@ type InputForwardedRefContent<TypeName extends keyof MapToInputType> = {
 
 const INPUT_TEST_ID = 'input';
 const MAP_TO_INITIAL_VALUE: MapToInputType = {
+  boolean: false,
   number: 0,
   string: '',
 };
@@ -54,7 +58,7 @@ const MAP_TO_INITIAL_VALUE: MapToInputType = {
 const INPUT_WITH_REF_DEFAULT_PROPS: Required<
   InputWithRefOptionalPropsWithDefault<'string'>
 > &
-  InputWithRefOptionalPropsWithoutDefault = {
+  InputWithRefOptionalPropsWithoutDefault<'string'> = {
   createInputOnChangeHandlerOptions: {},
   required: false,
   valueType: 'string',
@@ -63,27 +67,35 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
 const InputWithRef = forwardRef(
   <TypeName extends keyof MapToInputType, InputComponent extends ReactElement>(
     {
-      createInputOnChangeHandlerOptions: {
-        postSet: postSetAppend,
-        ...restCreateInputOnChangeHandlerOptions
-      } = INPUT_WITH_REF_DEFAULT_PROPS.createInputOnChangeHandlerOptions as CreateInputOnChangeHandlerOptions<TypeName>,
       input,
       inputTestBatch,
       onFirstRender,
       required: isRequired = INPUT_WITH_REF_DEFAULT_PROPS.required,
+      valueKey,
       valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType as TypeName,
+      // Props with initial value that depend on others.
+      createInputOnChangeHandlerOptions: {
+        postSet: postSetAppend,
+        valueKey: onChangeValueKey = valueKey,
+        ...restCreateInputOnChangeHandlerOptions
+      } = INPUT_WITH_REF_DEFAULT_PROPS.createInputOnChangeHandlerOptions as CreateInputOnChangeHandlerOptions<TypeName>,
     }: InputWithRefProps<TypeName, InputComponent>,
     ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
   ) => {
+    const { props: inputProps } = input;
+
+    const vKey = useMemo(
+      () => onChangeValueKey ?? ('checked' in inputProps ? 'checked' : 'value'),
+      [inputProps, onChangeValueKey],
+    );
+
     const {
-      props: {
-        onBlur: initOnBlur,
-        onChange: initOnChange,
-        onFocus: initOnFocus,
-        value: initValue = MAP_TO_INITIAL_VALUE[valueType],
-        ...restInitProps
-      },
-    } = input;
+      onBlur: initOnBlur,
+      onChange: initOnChange,
+      onFocus: initOnFocus,
+      [vKey]: initValue = MAP_TO_INITIAL_VALUE[valueType],
+      ...restInitProps
+    } = inputProps;
 
     const isFirstRender = useIsFirstRender();
 
@@ -123,6 +135,28 @@ const InputWithRef = forwardRef(
           })),
       [initOnBlur, testInput],
     );
+    const onChange = useMemo(
+      () =>
+        createInputOnChangeHandler<TypeName>({
+          postSet: (...args) => {
+            setIsChangedByUser(true);
+            initOnChange?.call(null, ...args);
+            postSetAppend?.call(null, ...args);
+          },
+          set: setValue,
+          setType: valueType,
+          valueKey: vKey,
+          ...restCreateInputOnChangeHandlerOptions,
+        }),
+      [
+        initOnChange,
+        postSetAppend,
+        restCreateInputOnChangeHandlerOptions,
+        setValue,
+        vKey,
+        valueType,
+      ],
+    );
     const onFocus = useMemo<InputBaseProps['onFocus']>(
       () =>
         initOnFocus ??
@@ -132,17 +166,6 @@ const InputWithRef = forwardRef(
           })),
       [initOnFocus, inputTestBatch],
     );
-
-    const onChange = createInputOnChangeHandler<TypeName>({
-      postSet: (...args) => {
-        setIsChangedByUser(true);
-        initOnChange?.call(null, ...args);
-        postSetAppend?.call(null, ...args);
-      },
-      set: setValue,
-      setType: valueType,
-      ...restCreateInputOnChangeHandlerOptions,
-    });
 
     useEffect(() => {
       if (isFirstRender) {
@@ -167,7 +190,7 @@ const InputWithRef = forwardRef(
       onChange,
       onFocus,
       required: isRequired,
-      value: inputValue,
+      [vKey]: inputValue,
     });
   },
 );
