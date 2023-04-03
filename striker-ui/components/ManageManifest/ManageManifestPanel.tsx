@@ -196,19 +196,21 @@ const ManageManifestPanel: FC = () => {
   );
   const { isFormInvalid: isRunFormInvalid } = runFormUtils;
 
+  const { hostConfig: { hosts: mdetailHosts = {} } = {}, name: mdetailName } =
+    useMemo<Partial<APIManifestDetail>>(
+      () => manifestDetail ?? {},
+      [manifestDetail],
+    );
   const {
-    domain: mdetailDomain,
-    hostConfig: { hosts: mdetailHosts = {} } = {},
-    name: mdetailName,
-    prefix: mdetailPrefix,
-    sequence: mdetailSequence,
-  } = useMemo<Partial<APIManifestDetail>>(
-    () => manifestDetail ?? {},
-    [manifestDetail],
+    domain: mtemplateDomain,
+    fences: knownFences,
+    prefix: mtemplatePrefix,
+    sequence: mtemplateSequence,
+    upses: knownUpses,
+  } = useMemo<Partial<APIManifestTemplate>>(
+    () => manifestTemplate ?? {},
+    [manifestTemplate],
   );
-  const { fences: knownFences, upses: knownUpses } = useMemo<
-    Partial<APIManifestTemplate>
-  >(() => manifestTemplate ?? {}, [manifestTemplate]);
 
   const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
@@ -219,9 +221,9 @@ const ManageManifestPanel: FC = () => {
           knownFences={knownFences}
           knownUpses={knownUpses}
           previous={{
-            domain: mdetailDomain,
-            prefix: mdetailPrefix,
-            sequence: mdetailSequence,
+            domain: mtemplateDomain,
+            prefix: mtemplatePrefix,
+            sequence: mtemplateSequence,
           }}
         />
       ),
@@ -231,12 +233,12 @@ const ManageManifestPanel: FC = () => {
       titleText: 'Add an install manifest',
     }),
     [
-      mdetailDomain,
       formUtils,
       knownFences,
       knownUpses,
-      mdetailPrefix,
-      mdetailSequence,
+      mtemplateDomain,
+      mtemplatePrefix,
+      mtemplateSequence,
     ],
   );
 
