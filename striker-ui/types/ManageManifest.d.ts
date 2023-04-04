@@ -51,6 +51,7 @@ type ManifestHost = {
   hostName?: string;
   hostNumber: number;
   hostType: string;
+  ipmiIp?: string;
   networks?: ManifestHostNetworkList;
   upses?: ManifestHostUpsList;
 };
@@ -122,7 +123,7 @@ type AnNetworkInputGroupProps<M extends MapToInputTestID> =
 
 type AnHostInputGroupOptionalProps = {
   hostLabel?: string;
-  previous?: Pick<ManifestHost, 'fences' | 'networks' | 'upses'>;
+  previous?: Pick<ManifestHost, 'fences' | 'ipmiIp' | 'networks' | 'upses'>;
 };
 
 type AnHostInputGroupProps<M extends MapToInputTestID> =

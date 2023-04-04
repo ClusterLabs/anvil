@@ -1,7 +1,5 @@
 import { ReactElement, useMemo } from 'react';
 
-import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
-
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
 import InputWithRef from '../InputWithRef';
@@ -17,6 +15,8 @@ import { BodyText } from '../Text';
 const INPUT_ID_PREFIX_AN_HOST = 'an-host-input';
 
 const INPUT_CELL_ID_PREFIX_AH = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
+
+const INPUT_LABEL_AH_IPMI_IP = 'IPMI IP';
 
 const MAP_TO_AH_INPUT_HANDLER: MapToManifestFormInputHandler = {
   fence: (container, input) => {
@@ -47,6 +47,19 @@ const MAP_TO_AH_INPUT_HANDLER: MapToManifestFormInputHandler = {
       hostNumber,
       hostType,
     };
+  },
+  ipmi: (container, input) => {
+    const {
+      dataset: { hostId = '' },
+      value: ipmiIp,
+    } = input;
+    const {
+      hostConfig: {
+        hosts: { [hostId]: host },
+      },
+    } = container;
+
+    host.ipmiIp = ipmiIp;
   },
   network: (container, input) => {
     const {
@@ -99,6 +112,9 @@ const GRID_SPACING = '1em';
 const buildInputIdAHFencePort = (hostId: string, fenceId: string): string =>
   `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${fenceId}-port`;
 
+const buildInputIdAHIpmiIp = (hostId: string): string =>
+  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-ipmi-ip`;
+
 const buildInputIdAHNetworkIp = (hostId: string, networkId: string): string =>
   `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${networkId}-ip`;
 
@@ -117,6 +133,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
   hostType,
   previous: {
     fences: fenceList = {},
+    ipmiIp: previousIpmiIp,
     networks: networkList = {},
     upses: upsList = {},
   } = {},
@@ -140,6 +157,12 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
 
   const inputIdAHHost = useMemo(
     () => `${INPUT_ID_PREFIX_AN_HOST}-${hostId}`,
+    [hostId],
+  );
+  const inputIdAHIpmiIp = useMemo(() => buildInputIdAHIpmiIp(hostId), [hostId]);
+
+  const inputCellIdAHIpmiIp = useMemo(
+    () => `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-ipmi-ip`,
     [hostId],
   );
 
@@ -204,7 +227,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
           const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${networkId}-ip`;
 
           const inputId = buildInputIdAHNetworkIp(hostId, networkId);
-          const inputLabel = `${NETWORK_TYPES[networkType]} ${networkNumber}`;
+          const inputLabel = `${networkType.toUpperCase()} ${networkNumber} IP`;
 
           previous[cellId] = {
             children: (
@@ -323,6 +346,41 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
             columns={GRID_COLUMNS}
             layout={{
               ...networkListGridLayout,
+              [inputCellIdAHIpmiIp]: {
+                children: (
+                  <InputWithRef
+                    input={
+                      <OutlinedInputWithLabel
+                        baseInputProps={{
+                          'data-handler': 'ipmi',
+                          'data-host-id': hostId,
+                        }}
+                        id={inputIdAHIpmiIp}
+                        label={INPUT_LABEL_AH_IPMI_IP}
+                        value={previousIpmiIp}
+                      />
+                    }
+                    inputTestBatch={buildIPAddressTestBatch(
+                      `${hostId} ${INPUT_LABEL_AH_IPMI_IP}`,
+                      () => {
+                        setMessage(inputIdAHIpmiIp);
+                      },
+                      {
+                        onFinishBatch:
+                          buildFinishInputTestBatchFunction(inputIdAHIpmiIp),
+                      },
+                      (message) => {
+                        setMessage(inputIdAHIpmiIp, { children: message });
+                      },
+                    )}
+                    onFirstRender={buildInputFirstRenderFunction(
+                      inputIdAHIpmiIp,
+                    )}
+                    onUnmount={buildInputUnmountFunction(inputIdAHIpmiIp)}
+                    required
+                  />
+                ),
+              },
               ...fenceListGridLayout,
             }}
             spacing={GRID_SPACING}
@@ -338,6 +396,7 @@ export {
   INPUT_ID_PREFIX_AN_HOST,
   MAP_TO_AH_INPUT_HANDLER,
   buildInputIdAHFencePort,
+  buildInputIdAHIpmiIp,
   buildInputIdAHNetworkIp,
   buildInputIdAHUpsPowerHost,
 };

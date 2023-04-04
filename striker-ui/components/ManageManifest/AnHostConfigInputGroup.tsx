@@ -47,13 +47,15 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             fences: previousFenceList = {},
             hostNumber,
             hostType,
+            ipmiIp,
             networks: previousNetworkList = {},
             upses: previousUpsList = {},
           }: ManifestHost = previousHostArgs;
 
           const fences = knownFenceListValues.reduce<ManifestHostFenceList>(
             (fenceList, { fenceName }) => {
-              const { fencePort = '' } = previousFenceList[fenceName] ?? {};
+              const { [fenceName]: { fencePort = '' } = {} } =
+                previousFenceList;
 
               fenceList[fenceName] = { fenceName, fencePort };
 
@@ -63,7 +65,8 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
           );
           const networks = networkListEntries.reduce<ManifestHostNetworkList>(
             (networkList, [networkId, { networkNumber, networkType }]) => {
-              const { networkIp = '' } = previousNetworkList[networkId] ?? {};
+              const { [networkId]: { networkIp = '' } = {} } =
+                previousNetworkList;
 
               networkList[networkId] = {
                 networkIp,
@@ -77,7 +80,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
           );
           const upses = knownUpsListValues.reduce<ManifestHostUpsList>(
             (upsList, { upsName }) => {
-              const { isUsed = true } = previousUpsList[upsName] ?? {};
+              const { [upsName]: { isUsed = true } = {} } = previousUpsList;
 
               upsList[upsName] = { isUsed, upsName };
 
@@ -95,7 +98,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
                 hostId={hostId}
                 hostNumber={hostNumber}
                 hostType={hostType}
-                previous={{ fences, networks, upses }}
+                previous={{ fences, ipmiIp, networks, upses }}
               />
             ),
             md: 3,
