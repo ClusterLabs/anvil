@@ -1,4 +1,4 @@
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import { FC, ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
@@ -44,6 +44,8 @@ import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
+
+const MSG_ID_API = 'api';
 
 const getFormData = (
   ...[{ target }]: DivFormEventHandlerParameters
@@ -161,7 +163,7 @@ const ManageManifestPanel: FC = () => {
     useProtectedState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
     useProtectedState<boolean>(true);
-  const [isSubmittingManifestExecution, setIsSubmittingManifestExecution] =
+  const [isSubmittingForm, setIsSubmittingForm] =
     useProtectedState<boolean>(false);
   const [manifestDetail, setManifestDetail] = useProtectedState<
     APIManifestDetail | undefined
@@ -186,7 +188,7 @@ const ManageManifestPanel: FC = () => {
     ],
     messageGroupRef,
   );
-  const { isFormInvalid } = formUtils;
+  const { isFormInvalid, setMessage } = formUtils;
 
   const runFormUtils = useFormUtils(
     [
@@ -217,6 +219,41 @@ const ManageManifestPanel: FC = () => {
     [manifestTemplate],
   );
 
+  const submitForm = useCallback(
+    ({
+      body,
+      getErrorMsg,
+      method,
+      successMsg,
+      url,
+    }: {
+      body: Record<string, unknown>;
+      getErrorMsg: (parentMsg: ReactNode) => ReactNode;
+      method: 'post' | 'put';
+      successMsg: ReactNode;
+      url: string;
+    }) => {
+      setIsSubmittingForm(true);
+
+      api[method](url, body)
+        .then(() => {
+          setMessage(MSG_ID_API, {
+            children: successMsg,
+          });
+        })
+        .catch((apiError) => {
+          const emsg = handleAPIError(apiError);
+
+          emsg.children = getErrorMsg(emsg.children);
+          setMessage(MSG_ID_API, emsg);
+        })
+        .finally(() => {
+          setIsSubmittingForm(false);
+        });
+    },
+    [setIsSubmittingForm, setMessage],
+  );
+
   const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
       actionProceedText: 'Add',
@@ -233,7 +270,26 @@ const ManageManifestPanel: FC = () => {
         />
       ),
       onSubmitAppend: (...args) => {
-        getFormData(...args);
+        const body = getFormData(...args);
+
+        setConfirmDialogProps({
+          actionProceedText: 'Add',
+          content: <></>,
+          onProceedAppend: () => {
+            submitForm({
+              body,
+              getErrorMsg: (parentMsg) => (
+                <>Failed to add install manifest. {parentMsg}</>
+              ),
+              method: 'post',
+              successMsg: 'Successfully added install manifest',
+              url: '/manifest',
+            });
+          },
+          titleText: `Add install manifest?`,
+        });
+
+        confirmDialogRef.current.setOpen?.call(null, true);
       },
       titleText: 'Add an install manifest',
     }),
@@ -244,6 +300,8 @@ const ManageManifestPanel: FC = () => {
       mtemplateDomain,
       mtemplatePrefix,
       mtemplateSequence,
+      setConfirmDialogProps,
+      submitForm,
     ],
   );
 
@@ -259,18 +317,40 @@ const ManageManifestPanel: FC = () => {
         />
       ),
       onSubmitAppend: (...args) => {
-        getFormData(...args);
+        const body = getFormData(...args);
+
+        setConfirmDialogProps({
+          actionProceedText: 'Edit',
+          content: <></>,
+          onProceedAppend: () => {
+            submitForm({
+              body,
+              getErrorMsg: (parentMsg) => (
+                <>Failed to update install manifest. {parentMsg}</>
+              ),
+              method: 'put',
+              successMsg: `Successfully updated install manifest ${mdetailName}`,
+              url: `/manifest/${mdetailUuid}`,
+            });
+          },
+          titleText: `Update install manifest ${mdetailName}?`,
+        });
+
+        confirmDialogRef.current.setOpen?.call(null, true);
       },
       loading: isLoadingManifestDetail,
       titleText: `Update install manifest ${mdetailName}`,
     }),
     [
       formUtils,
-      isLoadingManifestDetail,
       knownFences,
       knownUpses,
-      mdetailName,
       manifestDetail,
+      isLoadingManifestDetail,
+      mdetailName,
+      setConfirmDialogProps,
+      submitForm,
+      mdetailUuid,
     ],
   );
 
@@ -294,18 +374,17 @@ const ManageManifestPanel: FC = () => {
           actionProceedText: 'Run',
           content: <></>,
           onProceedAppend: () => {
-            setIsSubmittingManifestExecution(true);
-
-            api
-              .put(`/command/run-manifest/${mdetailUuid}`, body)
-              .catch((apiError) => {
-                handleAPIError(apiError);
-              })
-              .finally(() => {
-                setIsSubmittingManifestExecution(false);
-              });
+            submitForm({
+              body,
+              getErrorMsg: (parentMsg) => (
+                <>Failed to run install manifest. {parentMsg}</>
+              ),
+              method: 'put',
+              successMsg: `Successfully ran install manifest ${mdetailName}`,
+              url: `/command/run-manifest/${mdetailUuid}`,
+            });
           },
-          titleText: `Are you sure you want to run manifest ${mdetailName}?`,
+          titleText: `Run install manifest ${mdetailName}?`,
         });
 
         confirmDialogRef.current.setOpen?.call(null, true);
@@ -322,7 +401,7 @@ const ManageManifestPanel: FC = () => {
       mdetailName,
       mdetailHosts,
       setConfirmDialogProps,
-      setIsSubmittingManifestExecution,
+      submitForm,
       mdetailUuid,
     ],
   );
@@ -460,6 +539,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...addManifestFormDialogProps}
         disableProceed={isFormInvalid}
+        loadingAction={isSubmittingForm}
         preActionArea={messageArea}
         ref={addManifestFormDialogRef}
         scrollContent
@@ -467,6 +547,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...editManifestFormDialogProps}
         disableProceed={isFormInvalid}
+        loadingAction={isSubmittingForm}
         preActionArea={messageArea}
         ref={editManifestFormDialogRef}
         scrollContent
@@ -474,7 +555,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...runManifestFormDialogProps}
         disableProceed={isRunFormInvalid}
-        loadingAction={isSubmittingManifestExecution}
+        loadingAction={isSubmittingForm}
         preActionArea={messageArea}
         ref={runManifestFormDialogRef}
         scrollContent
