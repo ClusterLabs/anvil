@@ -1,5 +1,6 @@
 import { REP_DOMAIN } from '../consts/REG_EXP_PATTERNS';
 
+import testNotBlank from './testNotBlank';
 import { InlineMonoText } from '../../components/Text';
 
 const buildDomainTestBatch: BuildInputTestBatchFunction = (
@@ -12,6 +13,9 @@ const buildDomainTestBatch: BuildInputTestBatchFunction = (
   isRequired,
   onFinishBatch,
   tests: [
+    {
+      test: testNotBlank,
+    },
     {
       onFailure: (...args) => {
         onDomainTestFailure(

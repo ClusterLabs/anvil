@@ -1,5 +1,7 @@
 import { REP_IPV4_CSV } from '../consts/REG_EXP_PATTERNS';
 
+import testNotBlank from './testNotBlank';
+
 const buildIpCsvTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
@@ -11,9 +13,15 @@ const buildIpCsvTestBatch: BuildInputTestBatchFunction = (
   onFinishBatch,
   tests: [
     {
+      test: testNotBlank,
+    },
+    {
       onFailure: (...args) => {
         onIpCsvTestFailure(
-          `${inputName} must be one or more valid IPv4 addresses separated by comma; without trailing comma.`,
+          <>
+            {inputName} must be one or more valid IPv4 addresses separated by
+            comma(s); without trailing comma.
+          </>,
           ...args,
         );
       },

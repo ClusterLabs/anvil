@@ -1,5 +1,7 @@
 import { REP_IPV4 } from '../consts/REG_EXP_PATTERNS';
 
+import testNotBlank from './testNotBlank';
+
 const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
@@ -11,9 +13,12 @@ const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
   onFinishBatch,
   tests: [
     {
+      test: testNotBlank,
+    },
+    {
       onFailure: (...args) => {
         onIPv4TestFailure(
-          `${inputName} should be a valid IPv4 address.`,
+          <>{inputName} should be a valid IPv4 address.</>,
           ...args,
         );
       },

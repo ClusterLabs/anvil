@@ -1,5 +1,6 @@
 import { REP_PEACEFUL_STRING } from '../consts/REG_EXP_PATTERNS';
 
+import testNotBlank from './testNotBlank';
 import { InlineMonoText } from '../../components/Text';
 
 const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
@@ -12,6 +13,13 @@ const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
   isRequired,
   onFinishBatch,
   tests: [
+    {
+      /**
+       * Not-blank test ensures no unnecessary error message is provided when
+       * input is not (yet) filled.
+       */
+      test: testNotBlank,
+    },
     {
       onFailure: (...args) => {
         onTestPeacefulStringFailureAppend(
