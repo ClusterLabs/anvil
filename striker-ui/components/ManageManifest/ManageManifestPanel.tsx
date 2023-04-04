@@ -149,18 +149,20 @@ const ManageManifestPanel: FC = () => {
   const runManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-  const [confirmDialogProps] = useConfirmDialogProps();
+  const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
 
   const [hostOverviews, setHostOverviews] = useProtectedState<
     APIHostOverviewList | undefined
   >(undefined);
   const [isEditManifests, setIsEditManifests] = useState<boolean>(false);
   const [isLoadingHostOverviews, setIsLoadingHostOverviews] =
-    useState<boolean>(true);
+    useProtectedState<boolean>(true);
   const [isLoadingManifestDetail, setIsLoadingManifestDetail] =
     useProtectedState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
-    useState<boolean>(true);
+    useProtectedState<boolean>(true);
+  const [isSubmittingManifestExecution, setIsSubmittingManifestExecution] =
+    useProtectedState<boolean>(false);
   const [manifestDetail, setManifestDetail] = useProtectedState<
     APIManifestDetail | undefined
   >(undefined);
@@ -196,11 +198,14 @@ const ManageManifestPanel: FC = () => {
   );
   const { isFormInvalid: isRunFormInvalid } = runFormUtils;
 
-  const { hostConfig: { hosts: mdetailHosts = {} } = {}, name: mdetailName } =
-    useMemo<Partial<APIManifestDetail>>(
-      () => manifestDetail ?? {},
-      [manifestDetail],
-    );
+  const {
+    hostConfig: { hosts: mdetailHosts = {} } = {},
+    name: mdetailName,
+    uuid: mdetailUuid,
+  } = useMemo<Partial<APIManifestDetail>>(
+    () => manifestDetail ?? {},
+    [manifestDetail],
+  );
   const {
     domain: mtemplateDomain,
     fences: knownFences,
@@ -283,19 +288,42 @@ const ManageManifestPanel: FC = () => {
       ),
       loading: isLoadingManifestDetail,
       onSubmitAppend: (...args) => {
-        getRunFormData(mdetailHosts, ...args);
+        const body = getRunFormData(mdetailHosts, ...args);
+
+        setConfirmDialogProps({
+          actionProceedText: 'Run',
+          content: <></>,
+          onProceedAppend: () => {
+            setIsSubmittingManifestExecution(true);
+
+            api
+              .put(`/command/run-manifest/${mdetailUuid}`, body)
+              .catch((apiError) => {
+                handleAPIError(apiError);
+              })
+              .finally(() => {
+                setIsSubmittingManifestExecution(false);
+              });
+          },
+          titleText: `Are you sure you want to run manifest ${mdetailName}?`,
+        });
+
+        confirmDialogRef.current.setOpen?.call(null, true);
       },
       titleText: `Run install manifest ${mdetailName}`,
     }),
     [
-      mdetailName,
-      hostOverviews,
-      mdetailHosts,
-      isLoadingManifestDetail,
+      runFormUtils,
       knownFences,
+      hostOverviews,
       knownUpses,
       manifestDetail,
-      runFormUtils,
+      isLoadingManifestDetail,
+      mdetailName,
+      mdetailHosts,
+      setConfirmDialogProps,
+      setIsSubmittingManifestExecution,
+      mdetailUuid,
     ],
   );
 
@@ -446,11 +474,16 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...runManifestFormDialogProps}
         disableProceed={isRunFormInvalid}
+        loadingAction={isSubmittingManifestExecution}
         preActionArea={messageArea}
         ref={runManifestFormDialogRef}
         scrollContent
       />
-      <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
+      <ConfirmDialog
+        closeOnProceed
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
     </>
   );
 };
