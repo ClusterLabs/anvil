@@ -28,7 +28,7 @@ export const buildManifest = (
       hostConfig: { hosts: hostList = {} } = {},
       networkConfig: {
         dnsCsv: rawDns,
-        mtu: rawMtu,
+        mtu: rawMtu = 1500,
         networks: networkList = {},
         ntpCsv: rawNtp,
       } = {},
@@ -59,7 +59,10 @@ export const buildManifest = (
   assert(REP_INTEGER.test(String(mtu)), `MTU must be an integer; got [${mtu}]`);
 
   const ntp = sanitize(rawNtp, 'string');
-  assert(REP_IPV4_CSV.test(ntp), `NTP must be an IPv4 CSV; got [${ntp}]`);
+
+  if (ntp) {
+    assert(REP_IPV4_CSV.test(ntp), `NTP must be an IPv4 CSV; got [${ntp}]`);
+  }
 
   const prefix = sanitize(rawPrefix, 'string');
   assert(
@@ -103,10 +106,13 @@ export const buildManifest = (
         const networkId = `${networkType}${networkNumber}`;
 
         const gateway = sanitize(rawGateway, 'string');
-        assert(
-          REP_IPV4.test(gateway),
-          `Gateway of ${networkId} must be an IPv4; got [${gateway}]`,
-        );
+
+        if (networkType === 'ifn') {
+          assert(
+            REP_IPV4.test(gateway),
+            `Gateway of ${networkId} must be an IPv4; got [${gateway}]`,
+          );
+        }
 
         const minIp = sanitize(rawMinIp, 'string');
         assert(
