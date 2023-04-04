@@ -1,11 +1,11 @@
 import { styled } from '@mui/material';
-import { ReactElement, useMemo } from 'react';
+import { ReactElement, useMemo, useRef } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
-import InputWithRef from '../InputWithRef';
+import InputWithRef, { InputForwardedRefContent } from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import SelectWithLabel from '../SelectWithLabel';
 import { buildPeacefulStringTestBatch } from '../../lib/test_input';
@@ -42,6 +42,8 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
   knownUpses = {},
   previous: { domain: anDomain, hostConfig = {}, networkConfig = {} } = {},
 }: RunManifestInputGroupProps<M>): ReactElement => {
+  const passwordRef = useRef<InputForwardedRefContent<'string'>>({});
+
   const { hosts: initHostList = {} } = hostConfig;
   const {
     dnsCsv,
@@ -272,6 +274,45 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
     [hostListEntries, knownUpsListEntries],
   );
 
+  const confirmPasswordProps = useMemo(() => {
+    const inputTestBatch = buildPeacefulStringTestBatch(
+      INPUT_LABEL_RM_AN_CONFIRM_PASSWORD,
+      () => {
+        setMessage(INPUT_ID_RM_AN_CONFIRM_PASSWORD);
+      },
+      {
+        onFinishBatch: buildFinishInputTestBatchFunction(
+          INPUT_ID_RM_AN_CONFIRM_PASSWORD,
+        ),
+      },
+      (message) => {
+        setMessage(INPUT_ID_RM_AN_CONFIRM_PASSWORD, { children: message });
+      },
+    );
+
+    const onFirstRender = buildInputFirstRenderFunction(
+      INPUT_ID_RM_AN_CONFIRM_PASSWORD,
+    );
+
+    inputTestBatch.tests.push({
+      onFailure: () => {
+        setMessage(INPUT_ID_RM_AN_CONFIRM_PASSWORD, {
+          children: <>Confirm password must match password.</>,
+        });
+      },
+      test: ({ value }) => passwordRef.current.getValue?.call(null) === value,
+    });
+
+    return {
+      inputTestBatch,
+      onFirstRender,
+    };
+  }, [
+    buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
+    setMessage,
+  ]);
+
   return (
     <FlexBox>
       <Grid
@@ -337,6 +378,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                 onFirstRender={buildInputFirstRenderFunction(
                   INPUT_ID_RM_AN_PASSWORD,
                 )}
+                ref={passwordRef}
                 required
               />
             ),
@@ -352,6 +394,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
                   />
                 }
                 required
+                {...confirmPasswordProps}
               />
             ),
           },
