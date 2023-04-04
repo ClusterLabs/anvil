@@ -5,7 +5,6 @@ import {
   forwardRef,
   ReactElement,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -26,7 +25,7 @@ type InputWithRefOptionalPropsWithoutDefault<
   TypeName extends keyof MapToInputType,
 > = {
   inputTestBatch?: InputTestBatch;
-  onFirstRender?: (args: { isRequired: boolean }) => void;
+  onFirstRender?: InputFirstRenderFunction;
   valueKey?: CreateInputOnChangeHandlerOptions<TypeName>['valueKey'];
 };
 
@@ -167,11 +166,15 @@ const InputWithRef = forwardRef(
       [initOnFocus, inputTestBatch],
     );
 
-    useEffect(() => {
-      if (isFirstRender) {
-        onFirstRender?.call(null, { isRequired });
-      }
-    }, [isFirstRender, isRequired, onFirstRender]);
+    if (isFirstRender) {
+      const isValid =
+        testInput?.call(null, {
+          inputs: { [INPUT_TEST_ID]: { value: inputValue } },
+          isIgnoreOnCallbacks: true,
+        }) ?? false;
+
+      onFirstRender?.call(null, { isValid });
+    }
 
     useImperativeHandle(
       ref,

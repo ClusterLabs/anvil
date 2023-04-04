@@ -2,25 +2,49 @@ import { MutableRefObject } from 'react';
 
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
 
-type BuildMapToMessageSetterReturnType<T extends MapToInputTestID> = {
-  [MessageSetterID in keyof T]: MessageSetterFunction;
+const buildMessageSetter = <T extends MapToInputTestID>(
+  id: string,
+  messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
+  container?: MapToMessageSetter<T>,
+  key: string = id,
+): MessageSetterFunction => {
+  const setter: MessageSetterFunction = (message?) => {
+    messageGroupRef.current.setMessage?.call(null, id, message);
+  };
+
+  if (container) {
+    container[key as keyof T] = setter;
+  }
+
+  return setter;
 };
 
-const buildMapToMessageSetter = <T extends MapToInputTestID>(
-  mapToID: T,
+const buildMapToMessageSetter = <
+  U extends string,
+  I extends InputIds<U>,
+  M extends MapToInputId<U, I>,
+>(
+  ids: I,
   messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
-): BuildMapToMessageSetterReturnType<T> =>
-  Object.entries(mapToID).reduce<BuildMapToMessageSetterReturnType<T>>(
-    (previous, [key, id]) => {
-      const setter: MessageSetterFunction = (message?) => {
-        messageGroupRef.current.setMessage?.call(null, id, message);
-      };
+): MapToMessageSetter<M> => {
+  let result: MapToMessageSetter<M> = {} as MapToMessageSetter<M>;
 
-      previous[key as keyof T] = setter;
-
+  if (ids instanceof Array) {
+    result = ids.reduce<MapToMessageSetter<M>>((previous, id) => {
+      buildMessageSetter(id, messageGroupRef, previous);
       return previous;
-    },
-    {} as BuildMapToMessageSetterReturnType<T>,
-  );
+    }, result);
+  } else {
+    result = Object.entries(ids).reduce<MapToMessageSetter<M>>(
+      (previous, [key, id]) => {
+        buildMessageSetter(id, messageGroupRef, previous, key);
+        return previous;
+      },
+      result,
+    );
+  }
+
+  return result;
+};
 
 export default buildMapToMessageSetter;

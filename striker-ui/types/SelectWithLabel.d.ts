@@ -20,11 +20,12 @@ type SelectWithLabelOptionalProps = {
   >;
   label?: string;
   messageBoxProps?: Partial<import('../components/MessageBox').MessageBoxProps>;
+  required?: boolean;
   selectProps?: Partial<SelectProps>;
 };
 
 type SelectWithLabelProps = SelectWithLabelOptionalProps &
-  Pick<SelectProps, 'name' | 'onChange' | 'value'> & {
+  Pick<SelectProps, 'name' | 'onBlur' | 'onChange' | 'onFocus' | 'value'> & {
     id: string;
     selectItems: Array<SelectItem | string>;
   };

@@ -49,6 +49,7 @@ const ConfirmDialog = forwardRef<
       onProceedAppend,
       onSubmitAppend,
       openInitially = false,
+      preActionArea,
       proceedButtonProps = {},
       proceedColour: proceedColourKey = 'blue',
       scrollContent: isScrollContent = false,
@@ -234,6 +235,7 @@ const ConfirmDialog = forwardRef<
           <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
             {contentElement}
           </Box>
+          {preActionArea}
           {actionAreaElement}
         </FlexBox>
       </MUIDialog>

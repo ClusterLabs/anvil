@@ -23,7 +23,10 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   isReadOnly = false,
   messageBoxProps = {},
   name,
+  onBlur,
   onChange,
+  onFocus,
+  required: isRequired,
   selectProps: {
     multiple: selectMultiple,
     sx: selectSx,
@@ -71,15 +74,24 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
     [createCheckbox, disableItem, hideItem, id],
   );
 
-  const inputElement = useMemo(() => <OutlinedInput label={label} />, [label]);
+  const selectId = useMemo(() => `${id}-select-element`, [id]);
+
+  const inputElement = useMemo(
+    () => <OutlinedInput id={id} label={label} />,
+    [id, label],
+  );
   const labelElement = useMemo(
     () =>
       label && (
-        <OutlinedInputLabel htmlFor={id} {...inputLabelProps}>
+        <OutlinedInputLabel
+          htmlFor={selectId}
+          isNotifyRequired={isRequired}
+          {...inputLabelProps}
+        >
           {label}
         </OutlinedInputLabel>
       ),
-    [id, inputLabelProps, label],
+    [inputLabelProps, isRequired, label, selectId],
   );
   const menuItemElements = useMemo(
     () =>
@@ -96,11 +108,13 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
     <MUIFormControl fullWidth {...formControlProps}>
       {labelElement}
       <Select
-        id={id}
+        id={selectId}
         input={inputElement}
         multiple={selectMultiple}
         name={name}
+        onBlur={onBlur}
         onChange={onChange}
+        onFocus={onFocus}
         readOnly={isReadOnly}
         value={selectValue}
         {...restSelectProps}

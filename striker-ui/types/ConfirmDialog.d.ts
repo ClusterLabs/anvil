@@ -10,6 +10,7 @@ type ConfirmDialogOptionalProps = {
   onCancelAppend?: ContainedButtonProps['onClick'];
   onSubmitAppend?: import('react').FormEventHandler<HTMLDivElement>;
   openInitially?: boolean;
+  preActionArea?: import('react').ReactNode;
   proceedButtonProps?: ContainedButtonProps;
   proceedColour?: 'blue' | 'red';
   scrollContent?: boolean;

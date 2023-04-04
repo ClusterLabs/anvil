@@ -8,6 +8,7 @@ import Grid from '../../components/Grid';
 import handleAPIError from '../../lib/handleAPIError';
 import Header from '../../components/Header';
 import ManageFencePanel from '../../components/ManageFence';
+import ManageUpsPanel from '../../components/ManageUps';
 import { Panel } from '../../components/Panels';
 import PrepareHostForm from '../../components/PrepareHostForm';
 import PrepareNetworkForm from '../../components/PrepareNetworkForm';
@@ -130,6 +131,19 @@ const ManageFenceTabContent: FC = () => (
   />
 );
 
+const ManageUpsTabContent: FC = () => (
+  <Grid
+    columns={STEP_CONTENT_GRID_COLUMNS}
+    layout={{
+      'manageups-left-column': {},
+      'manageups-center-column': {
+        children: <ManageUpsPanel />,
+        ...STEP_CONTENT_GRID_CENTER_COLUMN,
+      },
+    }}
+  />
+);
+
 const ManageElement: FC = () => {
   const {
     isReady,
@@ -177,6 +191,7 @@ const ManageElement: FC = () => {
           <Tab label="Prepare host" value="prepare-host" />
           <Tab label="Prepare network" value="prepare-network" />
           <Tab label="Manage fence devices" value="manage-fence" />
+          <Tab label="Manage UPSes" value="manage-ups" />
         </Tabs>
       </Panel>
       <TabContent changingTabId={pageTabId} tabId="prepare-host">
@@ -187,6 +202,9 @@ const ManageElement: FC = () => {
       </TabContent>
       <TabContent changingTabId={pageTabId} tabId="manage-fence">
         <ManageFenceTabContent />
+      </TabContent>
+      <TabContent changingTabId={pageTabId} tabId="manage-ups">
+        <ManageUpsTabContent />
       </TabContent>
     </>
   );
