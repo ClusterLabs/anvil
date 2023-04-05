@@ -1,7 +1,6 @@
-import { SxProps, Theme } from '@mui/material';
+import { Box, BoxProps, SxProps, Theme } from '@mui/material';
 import {
   forwardRef,
-  useCallback,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -17,26 +16,22 @@ import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import Spinner from './Spinner';
-import {
-  buildPeacefulStringTestBatch,
-  createTestInputFunction,
-} from '../lib/test_input';
+import { buildPeacefulStringTestBatch } from '../lib/test_input';
+import useFormUtils from '../hooks/useFormUtils';
 
 const INPUT_ROOT_SX: SxProps<Theme> = { width: '100%' };
-const IT_IDS = {
-  identifier: 'identifier',
-  passphrase: 'passphrase',
-};
-const MESSAGE_KEY: GateFormMessageKey = {
-  accessError: 'accessError',
-  identifierInputError: 'identifierInputError',
-  passphraseInputError: 'passphraseInputError',
-};
+
+const INPUT_ID_PREFIX_GATE = 'gate-input';
+
+const INPUT_ID_GATE_ID = `${INPUT_ID_PREFIX_GATE}-credential-id`;
+const INPUT_ID_GATE_PASSPHRASE = `${INPUT_ID_PREFIX_GATE}-credential-passphrase`;
+
+const MSG_ID_GATE_ACCESS = 'access';
 
 const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
   (
     {
-      allowSubmit: isAllowSubmit = true,
+      formContainer: isFormContainer = true,
       gridProps: {
         columns: gridColumns = { xs: 1, sm: 2 },
         layout,
@@ -49,7 +44,8 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
         inputProps: identifierInputProps,
         ...restIdentifierOutlinedInputWithLabelProps
       } = {},
-      identifierInputTestBatchBuilder: overwriteIdentifierInputTestBatch,
+      identifierInputTestBatchBuilder:
+        buildIdentifierInputTestBatch = buildPeacefulStringTestBatch,
       onIdentifierBlurAppend,
       onSubmit,
       onSubmitAppend,
@@ -72,151 +68,83 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const inputPassphraseRef = useRef<InputForwardedRefContent<'string'>>({});
     const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-    const [isInputIdentifierValid, setIsInputIdentifierValid] =
-      useState<boolean>(false);
-    const [isInputPassphraseValid, setIsInputPassphraseValid] =
-      useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-    const setAccessErrorMessage: GateFormMessageSetter = useCallback(
-      (message?) => {
-        messageGroupRef.current.setMessage?.call(
-          null,
-          MESSAGE_KEY.accessError,
-          message,
-        );
-      },
-      [],
+    const formUtils = useFormUtils(
+      [INPUT_ID_GATE_ID, INPUT_ID_GATE_PASSPHRASE],
+      messageGroupRef,
     );
-    const setIdentifierInputErrorMessage: GateFormMessageSetter = useCallback(
-      (message?) => {
-        messageGroupRef.current.setMessage?.call(
-          null,
-          MESSAGE_KEY.identifierInputError,
-          message,
-        );
-      },
-      [],
-    );
-    const setPassphraseInputErrorMessage: GateFormMessageSetter = useCallback(
-      (message?) => {
-        messageGroupRef.current.setMessage?.call(
-          null,
-          MESSAGE_KEY.passphraseInputError,
-          message,
-        );
-      },
-      [],
-    );
+    const {
+      buildFinishInputTestBatchFunction,
+      buildInputFirstRenderFunction,
+      buildInputUnmountFunction,
+      isFormInvalid,
+      setMessage,
+    } = formUtils;
 
-    const messagesGroupSxDisplay = useMemo(
-      () => (isAllowSubmit ? undefined : 'none'),
-      [isAllowSubmit],
-    );
-    const identifierInputTestBatch = useMemo(
-      () =>
-        overwriteIdentifierInputTestBatch?.call(
-          null,
-          setIdentifierInputErrorMessage,
-          inputIdentifierRef.current,
-        ) ??
-        buildPeacefulStringTestBatch(
-          identifierLabel,
-          () => {
-            setIdentifierInputErrorMessage();
-          },
-          { getValue: inputIdentifierRef.current.getValue },
-          (message) => {
-            setIdentifierInputErrorMessage({
-              children: message,
-              type: 'warning',
-            });
-          },
-        ),
-      [
-        identifierLabel,
-        overwriteIdentifierInputTestBatch,
-        setIdentifierInputErrorMessage,
-      ],
-    );
-    const inputTests: InputTestBatches = useMemo(
-      () => ({
-        [IT_IDS.identifier]: identifierInputTestBatch,
-        [IT_IDS.passphrase]: buildPeacefulStringTestBatch(
-          passphraseLabel,
-          () => {
-            setPassphraseInputErrorMessage();
-          },
-          { getValue: inputPassphraseRef.current.getValue },
-          (message) => {
-            setPassphraseInputErrorMessage({
-              children: message,
-              type: 'warning',
-            });
-          },
-        ),
-      }),
-      [
-        identifierInputTestBatch,
-        passphraseLabel,
-        setPassphraseInputErrorMessage,
-      ],
-    );
-    const submitHandler: ContainedButtonProps['onClick'] = useMemo(
+    const submitHandler: DivFormEventHandler = useMemo(
       () =>
         onSubmit ??
         ((...args) => {
-          setAccessErrorMessage();
+          const { 0: event } = args;
+
+          event.preventDefault();
+
+          setMessage(MSG_ID_GATE_ACCESS);
           setIsSubmitting(true);
           onSubmitAppend?.call(
             null,
             inputIdentifierRef.current,
             inputPassphraseRef.current,
-            setAccessErrorMessage,
+            (message?) => {
+              setMessage(MSG_ID_GATE_ACCESS, message);
+            },
             setIsSubmitting,
             messageGroupRef.current,
             ...args,
           );
         }),
-      [onSubmit, onSubmitAppend, setAccessErrorMessage],
+      [onSubmit, onSubmitAppend, setMessage],
     );
+
     const submitElement = useMemo(
       () =>
         isSubmitting ? (
           <Spinner mt={0} />
         ) : (
           <FlexBox row sx={{ justifyContent: 'flex-end' }}>
-            <ContainedButton
-              disabled={!isInputIdentifierValid || !isInputPassphraseValid}
-              onClick={submitHandler}
-            >
+            <ContainedButton disabled={isFormInvalid} type="submit">
               {submitLabel}
             </ContainedButton>
           </FlexBox>
         ),
-      [
-        isInputIdentifierValid,
-        isInputPassphraseValid,
-        isSubmitting,
-        submitHandler,
-        submitLabel,
-      ],
-    );
-    const submitGrid = useMemo(
-      () =>
-        isAllowSubmit
-          ? {
-              children: submitElement,
-              sm: 2,
-            }
-          : undefined,
-      [isAllowSubmit, submitElement],
+      [isFormInvalid, isSubmitting, submitLabel],
     );
 
-    const testInput = useMemo(
-      () => createTestInputFunction(inputTests),
-      [inputTests],
-    );
+    const submitAreaGridLayout = useMemo(() => {
+      const result: GridLayout = {};
+
+      if (isFormContainer) {
+        result['gate-cell-message-group'] = {
+          children: <MessageGroup count={1} ref={messageGroupRef} />,
+          sm: 2,
+        };
+        result['gate-cell-submit'] = { children: submitElement, sm: 2 };
+      }
+
+      return result;
+    }, [isFormContainer, submitElement]);
+
+    const containerProps = useMemo(() => {
+      const result: BoxProps = {};
+
+      if (isFormContainer) {
+        result.component = 'form';
+        result.onSubmit = submitHandler;
+      }
+
+      return result;
+    }, [isFormContainer, submitHandler]);
 
     useImperativeHandle(ref, () => ({
       get: () => ({
@@ -232,90 +160,105 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     }));
 
     return (
-      <Grid
-        columns={gridColumns}
-        layout={{
-          'credential-identifier': {
-            children: (
-              <InputWithRef
-                input={
-                  <OutlinedInputWithLabel
-                    formControlProps={{
-                      ...restIdentifierFormControlProps,
-                      sx: { ...INPUT_ROOT_SX, ...identifierSx },
-                    }}
-                    id="credential-identifier-input"
-                    inputProps={{
-                      onBlur: (event) => {
-                        const {
-                          target: { value },
-                        } = event;
-
-                        const valid = testInput({
-                          inputs: { [IT_IDS.identifier]: { value } },
-                        });
-                        setIsInputIdentifierValid(valid);
-
-                        onIdentifierBlurAppend?.call(null, event);
-                      },
-                      onFocus: () => {
-                        setIdentifierInputErrorMessage();
-                      },
-                      ...identifierInputProps,
-                    }}
-                    label={identifierLabel}
-                    {...restIdentifierOutlinedInputWithLabelProps}
-                  />
-                }
-                ref={inputIdentifierRef}
-              />
-            ),
-          },
-          'credential-passphrase': {
-            children: (
-              <InputWithRef
-                input={
-                  <OutlinedInputWithLabel
-                    formControlProps={{
-                      ...restPassphraseFormControlProps,
-                      sx: { ...INPUT_ROOT_SX, ...passphraseSx },
-                    }}
-                    id="credential-passphrase-input"
-                    inputProps={{
-                      onBlur: ({ target: { value } }) => {
-                        const valid = testInput({
-                          inputs: { [IT_IDS.passphrase]: { value } },
-                        });
-                        setIsInputPassphraseValid(valid);
-                      },
-                      onFocus: () => {
-                        setPassphraseInputErrorMessage();
-                      },
-                      type: INPUT_TYPES.password,
-                      ...passphraseInputProps,
-                    }}
-                    label={passphraseLabel}
-                    {...restPassphraseOutlinedInputWithLabelProps}
-                  />
-                }
-                ref={inputPassphraseRef}
-              />
-            ),
-          },
-          'credential-message-group': {
-            children: <MessageGroup count={1} ref={messageGroupRef} />,
-            sm: 2,
-            sx: { display: messagesGroupSxDisplay },
-          },
-          'credential-submit': submitGrid,
-        }}
-        spacing={gridSpacing}
-        {...restGridProps}
-      />
+      <Box {...containerProps}>
+        <Grid
+          columns={gridColumns}
+          layout={{
+            'gate-input-cell-credential-id': {
+              children: (
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      formControlProps={{
+                        ...restIdentifierFormControlProps,
+                        sx: { ...INPUT_ROOT_SX, ...identifierSx },
+                      }}
+                      id={INPUT_ID_GATE_ID}
+                      inputProps={identifierInputProps}
+                      label={identifierLabel}
+                      {...restIdentifierOutlinedInputWithLabelProps}
+                    />
+                  }
+                  inputTestBatch={buildIdentifierInputTestBatch(
+                    identifierLabel,
+                    () => {
+                      setMessage(INPUT_ID_GATE_ID);
+                    },
+                    {
+                      onFinishBatch:
+                        buildFinishInputTestBatchFunction(INPUT_ID_GATE_ID),
+                    },
+                    (message) => {
+                      setMessage(INPUT_ID_GATE_ID, { children: message });
+                    },
+                  )}
+                  onBlurAppend={(...args) => {
+                    onIdentifierBlurAppend?.call(null, ...args);
+                  }}
+                  onFirstRender={buildInputFirstRenderFunction(
+                    INPUT_ID_GATE_ID,
+                  )}
+                  onUnmount={buildInputUnmountFunction(INPUT_ID_GATE_ID)}
+                  ref={inputIdentifierRef}
+                  required
+                />
+              ),
+            },
+            'gate-input-cell-credential-passphrase': {
+              children: (
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      formControlProps={{
+                        ...restPassphraseFormControlProps,
+                        sx: { ...INPUT_ROOT_SX, ...passphraseSx },
+                      }}
+                      id={INPUT_ID_GATE_PASSPHRASE}
+                      inputProps={passphraseInputProps}
+                      label={passphraseLabel}
+                      type={INPUT_TYPES.password}
+                      {...restPassphraseOutlinedInputWithLabelProps}
+                    />
+                  }
+                  inputTestBatch={buildPeacefulStringTestBatch(
+                    passphraseLabel,
+                    () => {
+                      setMessage(INPUT_ID_GATE_PASSPHRASE);
+                    },
+                    {
+                      onFinishBatch: buildFinishInputTestBatchFunction(
+                        INPUT_ID_GATE_PASSPHRASE,
+                      ),
+                    },
+                    (message) => {
+                      setMessage(INPUT_ID_GATE_PASSPHRASE, {
+                        children: message,
+                      });
+                    },
+                  )}
+                  onFirstRender={buildInputFirstRenderFunction(
+                    INPUT_ID_GATE_PASSPHRASE,
+                  )}
+                  onUnmount={buildInputUnmountFunction(
+                    INPUT_ID_GATE_PASSPHRASE,
+                  )}
+                  ref={inputPassphraseRef}
+                  required
+                />
+              ),
+            },
+            ...submitAreaGridLayout,
+          }}
+          spacing={gridSpacing}
+          {...restGridProps}
+        />
+      </Box>
     );
   },
 );
 
 GateForm.displayName = 'GateForm';
+
+export { INPUT_ID_GATE_ID, INPUT_ID_GATE_PASSPHRASE };
 
 export default GateForm;

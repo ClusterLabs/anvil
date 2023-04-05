@@ -58,7 +58,6 @@ const PrepareHostForm: FC = () => {
   const { protect } = useProtect();
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
-  const gateFormRef = useRef<GateFormForwardedRefContent>({});
   const inputEnterpriseKeyRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputHostNameRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputRedhatPassword = useRef<InputForwardedRefContent<'string'>>({});
@@ -199,7 +198,7 @@ const PrepareHostForm: FC = () => {
   const accessSection = useMemo(
     () => (
       <GateForm
-        allowSubmit={isShowAccessSubmit}
+        formContainer={isShowAccessSubmit}
         gridProps={{
           wrapperBoxProps: {
             sx: {
@@ -207,18 +206,7 @@ const PrepareHostForm: FC = () => {
             },
           },
         }}
-        identifierInputTestBatchBuilder={(setMessage) =>
-          buildIPAddressTestBatch(
-            HOST_IP_LABEL,
-            () => {
-              setMessage();
-            },
-            undefined,
-            (message) => {
-              setMessage({ children: message, type: 'warning' });
-            },
-          )
-        }
+        identifierInputTestBatchBuilder={buildIPAddressTestBatch}
         identifierLabel={HOST_IP_LABEL}
         onIdentifierBlurAppend={({ target: { value } }) => {
           if (connectedHostIPAddress) {
@@ -291,17 +279,16 @@ const PrepareHostForm: FC = () => {
                 }
               },
             )
-            .catch((error) => {
-              const errorMessage = handleAPIError(error);
+            .catch((apiError) => {
+              const emsg = handleAPIError(apiError);
 
-              setMessage?.call(null, errorMessage);
+              setMessage?.call(null, emsg);
             })
             .finally(() => {
               setIsSubmitting(false);
             });
         }}
         passphraseLabel="Host root password"
-        ref={gateFormRef}
         submitLabel="Test access"
       />
     ),
