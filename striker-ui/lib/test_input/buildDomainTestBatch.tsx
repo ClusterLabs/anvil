@@ -21,8 +21,8 @@ const buildDomainTestBatch: BuildInputTestBatchFunction = (
         onDomainTestFailure(
           <>
             {inputName} can only contain lowercase alphanumeric, hyphen (
-            <InlineMonoText text="-" />
-            ), and dot (<InlineMonoText text="." />) characters.
+            <InlineMonoText inheritColour text="-" />
+            ), and dot (<InlineMonoText inheritColour text="." />) characters.
           </>,
           ...args,
         );
