@@ -45,7 +45,7 @@ import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
-const MSG_ID_API = 'api';
+const MSG_ID_MANIFEST_API = 'api';
 
 const getFormData = (
   ...[{ target }]: DivFormEventHandlerParameters
@@ -237,7 +237,7 @@ const ManageManifestPanel: FC = () => {
 
       api[method](url, body)
         .then(() => {
-          setMessage(MSG_ID_API, {
+          setMessage(MSG_ID_MANIFEST_API, {
             children: successMsg,
           });
         })
@@ -245,7 +245,7 @@ const ManageManifestPanel: FC = () => {
           const emsg = handleAPIError(apiError);
 
           emsg.children = getErrorMsg(emsg.children);
-          setMessage(MSG_ID_API, emsg);
+          setMessage(MSG_ID_MANIFEST_API, emsg);
         })
         .finally(() => {
           setIsSubmittingForm(false);
