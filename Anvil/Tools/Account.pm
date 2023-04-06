@@ -253,10 +253,14 @@ sub login
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $debug    = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $password = $parameter->{password} // $anvil->data->{cgi}{password}{value};
+	my $username = $parameter->{username} // $anvil->data->{cgi}{username}{value};
+
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->login()" }});
 	
-	if ((not $anvil->data->{cgi}{username}{value}) or (not $anvil->data->{cgi}{password}{value}))
+	if ((not $username) or (not $password))
 	{
 		# The user forgot something...
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0027"}) }});
@@ -275,7 +279,7 @@ FROM
 WHERE 
     user_algorithm != 'DELETED' 
 AND 
-    user_name = ".$anvil->Database->quote($anvil->data->{cgi}{username}{value})."
+    user_name = ".$anvil->Database->quote($username)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -309,7 +313,7 @@ AND
 	# Test the passed-in password.
 	my $test_password_answer = $anvil->Account->encrypt_password({
 		debug      => 2,
-		password   => $anvil->data->{cgi}{password}{value}, 
+		password   => $password,
 		salt       => $user_salt, 
 		algorithm  => $user_algorithm, 
 		hash_count => $user_hash_count,
@@ -345,7 +349,7 @@ AND
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { session_uuid => $session_uuid }});
 
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $username }});
 			$anvil->Account->_write_cookies({
 				debug => $debug, 
 				hash  => $session_hash, 
@@ -360,7 +364,7 @@ AND
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0184", variables => { 
 			user_agent => $ENV{HTTP_USER_AGENT} ? $ENV{HTTP_USER_AGENT} : "#!string!log_0185!#", 
 			source_ip  => $ENV{REMOTE_ADDR}     ? $ENV{REMOTE_ADDR}     : "#!string!log_0185!#",
-			user       => $anvil->data->{cgi}{username}{value},
+			user       => $username,
 		}});
 		
 		# Slow them down a bit...
