@@ -10,6 +10,8 @@ type GateFormMessageSetter = (
 type GateFormSubmittingSetter = (value: boolean) => void;
 
 type GateFormSubmitHandler = (
+  identifier: string,
+  passphrase: string,
   setMessage: GateFormMessageSetter,
   setIsSubmitting: GateFormSubmittingSetter,
   ...args: Parameters<DivFormEventHandler>

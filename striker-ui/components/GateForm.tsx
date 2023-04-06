@@ -96,8 +96,21 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
 
           setMessage(MSG_ID_GATE_ACCESS);
           setIsSubmitting(true);
+
+          const { target } = event;
+          const { elements } = target as HTMLFormElement;
+
+          const { value: identifierValue } = elements.namedItem(
+            INPUT_ID_GATE_ID,
+          ) as HTMLInputElement;
+          const { value: passphraseValue } = elements.namedItem(
+            INPUT_ID_GATE_PASSPHRASE,
+          ) as HTMLInputElement;
+
           onSubmitAppend?.call(
             null,
+            identifierValue,
+            passphraseValue,
             (message?) => {
               setMessage(MSG_ID_GATE_ACCESS, message);
             },
