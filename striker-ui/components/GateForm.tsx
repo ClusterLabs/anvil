@@ -38,17 +38,19 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
         spacing: gridSpacing = '1em',
         ...restGridProps
       } = {},
+      identifierId = INPUT_ID_GATE_ID,
+      identifierInputTestBatchBuilder:
+        buildIdentifierInputTestBatch = buildPeacefulStringTestBatch,
       identifierLabel,
       identifierOutlinedInputWithLabelProps: {
         formControlProps: identifierFormControlProps = {},
         inputProps: identifierInputProps,
         ...restIdentifierOutlinedInputWithLabelProps
       } = {},
-      identifierInputTestBatchBuilder:
-        buildIdentifierInputTestBatch = buildPeacefulStringTestBatch,
       onIdentifierBlurAppend,
       onSubmit,
       onSubmitAppend,
+      passphraseId = INPUT_ID_GATE_PASSPHRASE,
       passphraseLabel,
       passphraseOutlinedInputWithLabelProps: {
         formControlProps: passphraseFormControlProps = {},
@@ -56,6 +58,8 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
         ...restPassphraseOutlinedInputWithLabelProps
       } = {},
       submitLabel,
+      // Props that depend on others.
+      allowSubmit: isAllowSubmit = isFormContainer,
     },
     ref,
   ) => {
@@ -94,13 +98,10 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           setIsSubmitting(true);
           onSubmitAppend?.call(
             null,
-            inputIdentifierRef.current,
-            inputPassphraseRef.current,
             (message?) => {
               setMessage(MSG_ID_GATE_ACCESS, message);
             },
             setIsSubmitting,
-            messageGroupRef.current,
             ...args,
           );
         }),
@@ -124,7 +125,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const submitAreaGridLayout = useMemo(() => {
       const result: GridLayout = {};
 
-      if (isFormContainer) {
+      if (isAllowSubmit) {
         result['gate-cell-message-group'] = {
           children: <MessageGroup count={1} ref={messageGroupRef} />,
           sm: 2,
@@ -133,7 +134,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
       }
 
       return result;
-    }, [isFormContainer, submitElement]);
+    }, [isAllowSubmit, submitElement]);
 
     const containerProps = useMemo(() => {
       const result: BoxProps = {};
@@ -173,7 +174,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                         ...restIdentifierFormControlProps,
                         sx: { ...INPUT_ROOT_SX, ...identifierSx },
                       }}
-                      id={INPUT_ID_GATE_ID}
+                      id={identifierId}
                       inputProps={identifierInputProps}
                       label={identifierLabel}
                       {...restIdentifierOutlinedInputWithLabelProps}
@@ -182,23 +183,21 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                   inputTestBatch={buildIdentifierInputTestBatch(
                     identifierLabel,
                     () => {
-                      setMessage(INPUT_ID_GATE_ID);
+                      setMessage(identifierId);
                     },
                     {
                       onFinishBatch:
-                        buildFinishInputTestBatchFunction(INPUT_ID_GATE_ID),
+                        buildFinishInputTestBatchFunction(identifierId),
                     },
                     (message) => {
-                      setMessage(INPUT_ID_GATE_ID, { children: message });
+                      setMessage(identifierId, { children: message });
                     },
                   )}
                   onBlurAppend={(...args) => {
                     onIdentifierBlurAppend?.call(null, ...args);
                   }}
-                  onFirstRender={buildInputFirstRenderFunction(
-                    INPUT_ID_GATE_ID,
-                  )}
-                  onUnmount={buildInputUnmountFunction(INPUT_ID_GATE_ID)}
+                  onFirstRender={buildInputFirstRenderFunction(identifierId)}
+                  onUnmount={buildInputUnmountFunction(identifierId)}
                   ref={inputIdentifierRef}
                   required
                 />
@@ -213,7 +212,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                         ...restPassphraseFormControlProps,
                         sx: { ...INPUT_ROOT_SX, ...passphraseSx },
                       }}
-                      id={INPUT_ID_GATE_PASSPHRASE}
+                      id={passphraseId}
                       inputProps={passphraseInputProps}
                       label={passphraseLabel}
                       type={INPUT_TYPES.password}
@@ -223,25 +222,20 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
                   inputTestBatch={buildPeacefulStringTestBatch(
                     passphraseLabel,
                     () => {
-                      setMessage(INPUT_ID_GATE_PASSPHRASE);
+                      setMessage(passphraseId);
                     },
                     {
-                      onFinishBatch: buildFinishInputTestBatchFunction(
-                        INPUT_ID_GATE_PASSPHRASE,
-                      ),
+                      onFinishBatch:
+                        buildFinishInputTestBatchFunction(passphraseId),
                     },
                     (message) => {
-                      setMessage(INPUT_ID_GATE_PASSPHRASE, {
+                      setMessage(passphraseId, {
                         children: message,
                       });
                     },
                   )}
-                  onFirstRender={buildInputFirstRenderFunction(
-                    INPUT_ID_GATE_PASSPHRASE,
-                  )}
-                  onUnmount={buildInputUnmountFunction(
-                    INPUT_ID_GATE_PASSPHRASE,
-                  )}
+                  onFirstRender={buildInputFirstRenderFunction(passphraseId)}
+                  onUnmount={buildInputUnmountFunction(passphraseId)}
                   ref={inputPassphraseRef}
                   required
                 />
