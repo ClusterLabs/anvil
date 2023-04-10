@@ -394,6 +394,12 @@ sub write_definition
 			$anvil->Database->get_servers();
 			$anvil->Database->get_server_definitions();
 			
+			if (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid})
+			{
+				sleep 1;
+				next;
+			}
+			
 			my $server_uuid       = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
 			my $server_definition = exists $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid} ? $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
