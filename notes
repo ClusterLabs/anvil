@@ -17,6 +17,8 @@ Common queries;
 * SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;
 * SELECT a.dr_link_uuid, b.host_name, c.anvil_name, a.dr_link_note FROM dr_links a, hosts b, anvils c WHERE a.dr_link_host_uuid = b.host_uuid AND a.dr_link_anvil_uuid = c.anvil_uuid ORDER BY c.anvil_name ASC, b.host_name ASC;
 
+# Fail a resource for testing purposes.
+crm_resource --fail --resource srv02-b -N vm-a01n01
 
 uname -r; grubby --default-kernel; lsinitrd -m /boot/initramfs-4.18.0-448.el8.x86_64.img | grep lvm; systemctl is-enabled scancore.service; 
 dnf -y update; systemctl disable --now anvil-daemon; systemctl disable --now scancore

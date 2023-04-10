@@ -863,9 +863,10 @@ sub check_node_status
 
 =head2 check_server_constraints
 
-This method checks to see if the peer node is offline, and the local node is only. If this is the case, the location constraints for servers are checked to ensure that they favour the current host. If not, the location constraint is updated.
+This checks to see if the constraints on a server are sane. Specifically;
 
-This is meant to be used to prevent servers from automatically migrating back to a node after it was fenced.
+* If the server is on a sub-node and the peer is offline, ensure that the location constraints prefer the current host. This prevents migrations back to the old host.
+* Check to see if a DRBD resource constriant was applied against a node, and the node's DRBD resource is UpToDate. If so, remove the constraint.
 
 This method takes no parameters.
 
