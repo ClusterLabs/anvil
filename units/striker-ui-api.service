@@ -4,9 +4,8 @@ Wants=network.target
 
 [Service]
 Type=simple
-# Run as apache to allow the API to access apache-owned locations; i.e., /mnt/shared.
-User=apache
-Group=apache
+User=striker-ui-api
+Group=striker-ui-api
 ExecStart=/usr/bin/node /usr/share/striker-ui-api/index.js
 ExecStop=/bin/kill -WINCH ${MAINPID}
 Restart=always

@@ -5,6 +5,7 @@
 %define debug_package %{nil}
 %define anviluser     admin
 %define anvilgroup    admin
+%define suiapi        striker-ui-api
 
 Name:           anvil
 Version:        @version@
@@ -134,7 +135,6 @@ Requires:       firefox
 Requires:       gcc
 Requires:       gdm
 Requires:       gnome-terminal
-Requires:       httpd
 Requires:       nmap
 Requires:       nodejs
 Requires:       openssh-askpass
@@ -243,14 +243,32 @@ setenforce 0
 systemctl enable --now chronyd.service
 systemctl enable --now anvil-daemon.service
 systemctl enable --now scancore.service
-systemctl enable --now striker-ui-api.service
-systemctl restart striker-ui-api.service
+
+%pre striker
+getent passwd %{suiapi} >/dev/null \
+	|| useradd \
+		--comment "Striker UI API" \
+		--home-dir %{_datadir}/%{suiapi} \
+		--shell %{_sbindir}/nologin \
+		--user-group \
+		%{suiapi}
+
+if [ $1 -gt 1 ]; then # >1=Upgrade
+	# Transfer files owned by apache to Striker UI API user.
+	chown -R --from apache  %{suiapi}: /mnt
+	chown -R --from apache %{suiapi}: %{_localstatedir}/www
+fi
 
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
-echo "Enabling and starting apache."
-systemctl enable httpd.service
-systemctl start httpd.service
+
+# Always reload to handle service file changes.
+systemctl daemon-reload
+
+systemctl enable %{suiapi}.service
+# Striker UI API needs explicit restart for changes to take effect.
+systemctl restart %{suiapi}.service
+
 restorecon -rv /%{_localstatedir}/www
 if ! $(ls -l /etc/systemd/system/default.target | grep -q graphical); 
 then 
@@ -329,6 +347,11 @@ touch /etc/anvil/type.dr
 # sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config 
 # setenforce 1
 
+%preun striker
+if [ $1 == 0 ]; then # 0=Uninstall, 1=First install, >1=Upgrade (version count)
+	systemctl disable --now %{suiapi}.service
+fi
+
 %postun striker
 ### TODO: Stopping postgres breaks the Anvil! during OS updates. Need to find a
 ###       way to run this only during uninstalls, and not during updates.
@@ -340,10 +363,12 @@ touch /etc/anvil/type.dr
 # firewall-cmd --zone=public --remove-service=postgresql
 # firewall-cmd --zone=public --remove-service=postgresql --permanent
 # echo "Disabling and stopping postgresql-9.6."
-# systemctl disable httpd.service
-# systemctl stop httpd.service
 # systemctl disable postgresql.service
 # systemctl stop postgresql.service
+
+if [ $1 == 0 ]; then # 0=Uninstall
+	systemctl daemon-reload
+fi
 
 # Remove the system type file.
 if [ -e '/etc/anvil/type.striker' ]
@@ -376,7 +401,7 @@ fi
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
-%{_datadir}/striker-ui-api/*
+%{_datadir}/%{suiapi}/*
 %{_mandir}/*
 
 %files striker
