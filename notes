@@ -20,6 +20,10 @@ Common queries;
 # Fail a resource for testing purposes.
 crm_resource --fail --resource srv02-b -N vm-a01n01
 
+# Recover without reboot
+crm_resource --resource srv01-a --refresh
+
+
 uname -r; grubby --default-kernel; lsinitrd -m /boot/initramfs-4.18.0-448.el8.x86_64.img | grep lvm; systemctl is-enabled scancore.service; 
 dnf -y update; systemctl disable --now anvil-daemon; systemctl disable --now scancore
 

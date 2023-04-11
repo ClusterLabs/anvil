@@ -35,6 +35,7 @@ my $THIS_FILE = "Cluster.pm";
 # parse_cib
 # parse_crm_mon
 # parse_quorum
+# recover_server
 # shutdown_server
 # start_cluster
 # which_node
@@ -4263,6 +4264,49 @@ sub parse_quorum
 			next;
 		}
 	}
+	
+	return(0);
+}
+
+
+=head2 recover_server
+
+This tries to recover a C<< FAILED >> resource (server).
+
+Parameters;
+
+=head3 server_ (required)
+
+This is the server (resource) name to try to recover.
+
+=cut
+sub recover_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->recover_server()" }});
+	
+	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server => $server,
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->recover_server()", parameter => "server" }});
+		return("!!error!!");
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{crm_resource}." --resource ".$server." --refresh";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }

@@ -99,6 +99,9 @@ check_config($anvil);
 # Check the fence delay
 check_fence_delay($anvil);
 
+# Check for failed resources
+check_resources($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -106,6 +109,102 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This looks for failed resource and, if found, tries to recover them.
+sub check_resources
+{
+	my ($anvil) = @_;
+
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}})
+	{
+		my $failed = exists $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed} ? $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed} : 0;
+		if ($failed eq "true")
+		{
+			$failed = 1;
+		}
+		elsif ($failed eq "false")
+		{
+			$failed = 0;
+		}
+		print "Server: [".$server."], failed? [".$failed."]\n";
+		if ($failed)
+		{
+			# Who am I and who is my peer? See if the server is running on either host.
+			print "- Checking if it's safe to recover!\n";
+			my $attempt_recovery = 0;
+			my $server_found     = 0;
+			my $both_nodes_ready = 1;
+			foreach my $target ("local", "peer")
+			{
+				my $node_ready = $anvil->data->{cib}{parsed}{$target}{ready};
+				my $node_name  = $anvil->data->{cib}{parsed}{$target}{name};
+				my $host_uuid  = $anvil->Get->host_uuid_from_name({host_name => $node_name});
+				print "- Searching node: [".$node_name." (".$host_uuid.")] which is in ready state: [".$node_ready."]\n";
+				if (not $node_ready)
+				{
+					$both_nodes_ready = 1;
+				}
+				
+				if ($host_uuid eq $anvil->Get->host_uuid)
+				{
+					# Search for the server here
+					$anvil->Server->find({debug => 2});
+					print "- Searching for the server on the local system.\n";
+				}
+				else
+				{
+					# Search for the server on the peer.
+					my $target_ip = $anvil->Network->find_target_ip({host_uuid => $host_uuid});
+					print "- Searching for the server on the peer using IP: [".$target_ip."]\n";
+					$anvil->Server->find({
+						debug  => 2,
+						target => $target_ip,
+					});
+				}
+				my $server_host   = defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "";
+				my $server_status = defined $anvil->data->{server}{location}{$server}{status}    ? $anvil->data->{server}{location}{$server}{status}    : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					server_host   => $server_host, 
+					server_status => $server_status, 
+				}});
+				print "- Host: [".$server_host."], status: [".$server_status."]\n";
+				if ($server_host)
+				{
+					$server_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_found => $server_found }});
+					if (($node_ready) && ($host_uuid eq $anvil->Get->host_uuid))
+					{
+						# Go ahead with recovery
+						print "The server is running locally and we're a full cluster member. Will attempt recover.\n";
+						$attempt_recovery = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { attempt_recovery => $attempt_recovery }});
+					}
+				}
+			}
+			
+			if ((not $server_found) && ($both_nodes_ready))
+			{
+				print "Both nodes are up and the server wasn't found anywhere. Attempting recovery.\n";
+				$attempt_recovery = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { attempt_recovery => $attempt_recovery }});
+			}
+			elsif (($server_found) && (not $attempt_recovery))
+			{
+				print "The server was found to be running, but not here (or this node is not fully in the cluster). NOT attempting recovery yet.\n";
+			}
+			elsif ($attempt_recovery)
+			{
+				print "Attempting recovery now...\n";
+				$anvil->Cluster->recover_server({
+					debug  => 2,
+					server => $server,
+				});
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # Check to see if we need to move the fence delay.
 sub check_fence_delay
