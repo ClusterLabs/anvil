@@ -37,10 +37,22 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 #!variable!difference!#
 ====
 		</key>
+		<key name="scan_cluster_alert_0013">The server: [#!variable!server!#] was found to be failed in pacemaker, but it was successfully recovered. This does NOT mean the server rebooted, but it may have. Checking the server is advised.</key>
+		<key name="scan_cluster_alert_0014">The server: [#!variable!server!#] was found to be failed in pacemaker. The attempt to recover it appears to have failed. The server might well still be running ok, checking the server is advised.</key>
+		<key name="scan_cluster_alert_0015">The server: [#!variable!server!#] had been found to be failed in pacemaker. It's now recovered. This does NOT mean the server rebooted, but it may have. Checking the server is advised.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_cluster_log_0001">Starting: [#!variable!program!#].</key>
 		<key name="scan_cluster_log_0002">This host is a: [#!variable!host_type!#], this agent is only useful on nodes. Exiting.</key>
+		<key name="scan_cluster_log_0003">[ Warning ] - The server: [#!variable!server!#] is in a FAILED state! Checking to see if it's safe to attempt recovery.</key>
+		<key name="scan_cluster_log_0004">Searching node: [#!variable!node_name!# (#!variable!host_uuid!#] which is in ready state: [#!variable!node_ready!#].</key>
+		<key name="scan_cluster_log_0005">Searching for the server on the local system.</key>
+		<key name="scan_cluster_log_0006">Searching for the server on the peer using IP: [#!variable!target_ip!#].</key>
+		<key name="scan_cluster_log_0007">The server is running locally and we're a full cluster member. Will attempt recover.</key>
+		<key name="scan_cluster_log_0008">Both nodes are up and the server wasn't found anywhere. Attempting recovery.</key>
+		<key name="scan_cluster_log_0009">The server was found to be running, but not here (or this node is not fully in the cluster). NOT attempting recovery yet.</key>
+		<key name="scan_cluster_log_0010">Attempting recovery now...</key>
+		<key name="scan_cluster_log_0011">Checking to see if the server has recovered yet...</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->
 		<key name="scan_cluster_message_0001"></key>
