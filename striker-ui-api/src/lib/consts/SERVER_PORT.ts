@@ -1,3 +1,1 @@
-const SERVER_PORT = process.env.SERVER_PORT ?? 8080;
-
-export default SERVER_PORT;
+export const PORT = process.env.PORT ?? 8080;
