@@ -11,6 +11,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
     bin: {
       date: {},
       mkfifo: {},
+      openssl: {},
       psql: {},
       rm: {},
       sed: {},

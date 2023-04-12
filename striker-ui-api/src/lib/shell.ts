@@ -35,6 +35,9 @@ export const date = (...args: string[]) =>
 export const mkfifo = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.mkfifo.self, args);
 
+export const openssl = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.bin.openssl.self, args);
+
 export const rm = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.rm.self, args);
 
