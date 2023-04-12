@@ -103,10 +103,6 @@ if ($anvil->data->{switches}{'anvil'})
 	$anvil_uuid = $anvil->data->{purge}{anvil_uuid};
 	push @{$anvil->data->{purge}{hosts}}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	push @{$anvil->data->{purge}{hosts}}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
-	{
-		push @{$anvil->data->{purge}{hosts}}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	}
 }
 elsif($anvil->data->{switches}{'host'})
 {
@@ -198,14 +194,6 @@ else
 		}});
 		
 		# DR, if set. 
-		if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
-		{
-			my $dr1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0244", variables => {
-				host_name => $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{host_name},
-				host_uuid => $dr1_host_uuid,
-			}});
-		}
 	}
 	else
 	{
@@ -260,10 +248,6 @@ foreach my $host_uuid (@{$anvil->data->{purge}{hosts}})
 			elsif ($host_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid})
 			{
 				$host_key = "anvil_node2_host_uuid";
-			}
-			elsif ($host_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
-			{
-				$host_key = "anvil_dr1_host_uuid";
 			}
 			if ($host_key)
 			{

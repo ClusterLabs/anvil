@@ -1767,16 +1767,13 @@ sub get_size_of_block_device
 	$anvil->Database->get_anvils({debug => $debug});
 	my $node1_host_uuid = "";
 	my $node2_host_uuid = "";
-	my $dr1_host_uuid   = "";
 	if ($anvil_uuid)
 	{
 		$node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		$node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		$dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			node1_host_uuid => $node1_host_uuid,
 			node1_host_uuid => $node2_host_uuid, 
-			dr1_host_uuid   => $dr1_host_uuid, 
 		}});
 	}
 	
@@ -1807,19 +1804,11 @@ AND
     (
         scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node1_host_uuid)."
     OR 
-        scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node2_host_uuid);
-			if ($dr1_host_uuid)
-			{
-				$query .= "
-    OR 
-        scan_lvm_lv_host_uuid = ".$anvil->Database->quote($dr1_host_uuid);
-			}
-			$query .= "
-    )";
-		}
-		$query .= "
+        scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node2_host_uuid)."
+    )
 LIMIT 1
 ;";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
@@ -1911,11 +1900,7 @@ LIMIT 1
 						     ($anvil_uuid) && 
 						     (
 						      ($this_host_uuid eq $node1_host_uuid) or 
-						      ($this_host_uuid eq $node2_host_uuid) or 
-						      (
-						       ($dr1_host_uuid) && 
-						       ($this_host_uuid eq $dr1_host_uuid)
-						      )
+						      ($this_host_uuid eq $node2_host_uuid)
 						     )
 						    )
 						   )
@@ -1976,14 +1961,7 @@ AND
     (
         a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)."
     OR 
-        a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid);
-			if ($dr1_host_uuid)
-			{
-				$query .= "
-    OR 
-        a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid);
-			}
-			$query .= "
+        a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)."
     )";
 		}
 		$query .= "
@@ -2222,16 +2200,13 @@ sub get_storage_group_from_path
 			$anvil->Database->get_anvils({debug => $debug});
 			my $node1_host_uuid = "";
 			my $node2_host_uuid = "";
-			my $dr1_host_uuid   = "";
 			if ($anvil_uuid)
 			{
 				$node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 				$node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-				$dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					node1_host_uuid => $node1_host_uuid,
 					node1_host_uuid => $node2_host_uuid, 
-					dr1_host_uuid   => $dr1_host_uuid, 
 				}});
 			}
 			
@@ -2272,11 +2247,7 @@ sub get_storage_group_from_path
 						     ($anvil_uuid) && 
 						     (
 						      ($this_host_uuid eq $node1_host_uuid) or 
-						      ($this_host_uuid eq $node2_host_uuid) or 
-						      (
-						       ($dr1_host_uuid) && 
-						       ($this_host_uuid eq $dr1_host_uuid)
-						      )
+						      ($this_host_uuid eq $node2_host_uuid)
 						     )
 						    )
 						   )

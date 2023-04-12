@@ -1,7 +1,27 @@
+
+Tasks; 
+1. When provisioning a server;
+ - First, check if either node is SyncSource, if so use that node.
+ - Second, check which node has the most servers by RAM count, use that node.
+2. Provision;
+ - Create DRBD resource, force primary on install target
+ - Create pacemaker resource in stopped state
+ - Set location constraint to prefer target node
+ - Boot server
+
+Create "Node status" which returns "degraded" if the peer is gone
+
+
 Common queries;
 * SELECT a.job_uuid, b.host_name, a.job_command, a.job_data, a.job_progress, a.job_status FROM jobs a, hosts b WHERE a.job_host_uuid = b.host_uuid AND a.job_progress != 100;
 * SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;
 * SELECT a.dr_link_uuid, b.host_name, c.anvil_name, a.dr_link_note FROM dr_links a, hosts b, anvils c WHERE a.dr_link_host_uuid = b.host_uuid AND a.dr_link_anvil_uuid = c.anvil_uuid ORDER BY c.anvil_name ASC, b.host_name ASC;
+
+# Fail a resource for testing purposes.
+crm_resource --fail --resource srv02-b -N vm-a01n01
+
+# Recover without reboot
+crm_resource --resource srv01-a --refresh
 
 
 uname -r; grubby --default-kernel; lsinitrd -m /boot/initramfs-4.18.0-448.el8.x86_64.img | grep lvm; systemctl is-enabled scancore.service; 

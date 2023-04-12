@@ -394,6 +394,12 @@ sub write_definition
 			$anvil->Database->get_servers();
 			$anvil->Database->get_server_definitions();
 			
+			if (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid})
+			{
+				sleep 1;
+				next;
+			}
+			
 			my $server_uuid       = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
 			my $server_definition = exists $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid} ? $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
@@ -2231,7 +2237,6 @@ sub interactive_ask_server_ram
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
 		print $anvil->Words->string({key => "job_0167", variables => { 
 			ram_available => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}, unit => "M"}).")", 
@@ -2534,8 +2539,8 @@ sub interactive_ask_server_install_media
 	my $retry = 0;
 	while(1)
 	{
-		$anvil->Database->get_files();
-		$anvil->Database->get_file_locations();
+		$anvil->Database->get_files({debug => 2});
+		$anvil->Database->get_file_locations({debug => 2});
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		
@@ -2550,7 +2555,7 @@ sub interactive_ask_server_install_media
 			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
 			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
 			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid            => $file_uuid, 
@@ -2650,7 +2655,7 @@ sub interactive_ask_server_driver_disc
 			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
 			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
 			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid            => $file_uuid, 
@@ -2690,7 +2695,6 @@ sub interactive_ask_server_driver_disc
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
 		print $anvil->Words->string({key => "job_0182"})."\n";
 		print $iso_list."\n";

@@ -2339,11 +2339,9 @@ sub load_job
 	# Load the anvil
 	$anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	$anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	$anvil->data->{sys}{dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
 		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
-		"sys::dr1_host_uuid"   => $anvil->data->{sys}{dr1_host_uuid},
 	}});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0075,!!machine!".$anvil->data->{sys}{machine}."!!,!!manifest_uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0075", variables => { 

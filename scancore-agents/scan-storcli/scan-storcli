@@ -4381,6 +4381,7 @@ INSERT INTO
 				foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{sql}{scan_storcli_variables}{scan_storcli_variable_uuid}{source_table}{'scan_storcli_cachevaults'}{source_uuid}{$cachevault_uuid}{$type}})
 				{
 					# This variable has vanished
+					next if not defined $anvil->data->{sql}{scan_storcli_variables}{scan_storcli_variable_uuid}{source_table}{'scan_storcli_cachevaults'}{source_uuid}{$cachevault_uuid}{$type}{$variable}{scan_storcli_variable_value};
 					my $old_variable_value = $anvil->data->{sql}{scan_storcli_variables}{scan_storcli_variable_uuid}{source_table}{'scan_storcli_cachevaults'}{source_uuid}{$cachevault_uuid}{$type}{$variable}{scan_storcli_variable_value};
 					my $variable_uuid      = $anvil->data->{sql}{scan_storcli_variables}{scan_storcli_variable_uuid}{source_table}{'scan_storcli_cachevaults'}{source_uuid}{$cachevault_uuid}{$type}{$variable}{scan_storcli_variable_uuid};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -9070,8 +9071,8 @@ sub get_cachevault_data
 				($variable, $value) = ($line =~ /^(.{$split_point})(.*)$/);
 				$variable =~ s/\s+$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					variable => $variable, 
-					value    => $value, 
+					's1:variable' => $variable, 
+					's2:value'    => $value, 
 				}});
 			}
 			

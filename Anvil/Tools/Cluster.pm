@@ -35,6 +35,7 @@ my $THIS_FILE = "Cluster.pm";
 # parse_cib
 # parse_crm_mon
 # parse_quorum
+# recover_server
 # shutdown_server
 # start_cluster
 # which_node
@@ -863,9 +864,10 @@ sub check_node_status
 
 =head2 check_server_constraints
 
-This method checks to see if the peer node is offline, and the local node is only. If this is the case, the location constraints for servers are checked to ensure that they favour the current host. If not, the location constraint is updated.
+This checks to see if the constraints on a server are sane. Specifically;
 
-This is meant to be used to prevent servers from automatically migrating back to a node after it was fenced.
+* If the server is on a sub-node and the peer is offline, ensure that the location constraints prefer the current host. This prevents migrations back to the old host.
+* Check to see if a DRBD resource constriant was applied against a node, and the node's DRBD resource is UpToDate. If so, remove the constraint.
 
 This method takes no parameters.
 
@@ -2204,17 +2206,14 @@ sub get_anvil_uuid
 		my $anvil_name            = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_name            => $anvil_name,
 			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
-			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
 		}});
 		
 		if (($host_uuid eq $anvil_node1_host_uuid) or 
-		    ($host_uuid eq $anvil_node2_host_uuid) or 
-		    ($host_uuid eq $anvil_dr1_host_uuid))
+		    ($host_uuid eq $anvil_node2_host_uuid))
 		{
 			# Found ot!
 			$member_anvil_uuid = $anvil_uuid;
@@ -2237,13 +2236,11 @@ The data is stored as;
  sys::anvil::node1::host_name 
  sys::anvil::node2::host_uuid
  sys::anvil::node2::host_name
- sys::anvil::dr1::host_uuid
- sys::anvil::dr1::host_name
 
 To assist with lookup, the following are also set;
 
- sys::anvil::i_am    = {node1,node2,dr1}
- sys::anvil::peer_is = {node1,node2}     # Not set if this host is 'dr1'
+ sys::anvil::i_am    = {node1,node2}
+ sys::anvil::peer_is = {node1,node2}
 
 This method takes no parameters.
 
@@ -2260,8 +2257,6 @@ sub get_peers
 	$anvil->data->{sys}{anvil}{node1}{host_name} = "";
 	$anvil->data->{sys}{anvil}{node2}{host_uuid} = "";
 	$anvil->data->{sys}{anvil}{node2}{host_name} = "";
-	$anvil->data->{sys}{anvil}{dr1}{host_uuid}   = "";
-	$anvil->data->{sys}{anvil}{dr1}{host_name}   = "";
 	$anvil->data->{sys}{anvil}{i_am}             = "";
 	$anvil->data->{sys}{anvil}{peer_is}          = "";
 	
@@ -2279,11 +2274,9 @@ sub get_peers
 	{
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 			anvil_node2_host_uuid => $anvil_node2_host_uuid,
-			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid,
 		}});
 		
 		if ($host_uuid eq $anvil_node1_host_uuid)
@@ -2310,27 +2303,17 @@ sub get_peers
 				"sys::anvil::peer_is" => $anvil->data->{sys}{anvil}{peer_is},
 			}});
 		}
-		elsif ($host_uuid eq $anvil_dr1_host_uuid)
-		{
-			# Found our Anvil!, and we're node 1.
-			$found = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
-		}
 		if ($found)
 		{
 			$anvil->data->{sys}{anvil}{node1}{host_uuid} = $anvil_node1_host_uuid;
 			$anvil->data->{sys}{anvil}{node1}{host_name} = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{host_name};
 			$anvil->data->{sys}{anvil}{node2}{host_uuid} = $anvil_node2_host_uuid;
 			$anvil->data->{sys}{anvil}{node2}{host_name} = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{host_name};
-			$anvil->data->{sys}{anvil}{dr1}{host_uuid}   = $anvil_dr1_host_uuid ? $anvil_dr1_host_uuid : "";
-			$anvil->data->{sys}{anvil}{dr1}{host_name}   = $anvil_dr1_host_uuid ? $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{host_name} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::anvil::node1::host_uuid" => $anvil->data->{sys}{anvil}{node1}{host_uuid}, 
 				"sys::anvil::node1::host_name" => $anvil->data->{sys}{anvil}{node1}{host_name}, 
 				"sys::anvil::node2::host_uuid" => $anvil->data->{sys}{anvil}{node2}{host_uuid}, 
 				"sys::anvil::node2::host_name" => $anvil->data->{sys}{anvil}{node2}{host_name}, 
-				"sys::anvil::dr1::host_uuid"   => $anvil->data->{sys}{anvil}{dr1}{host_uuid}, 
-				"sys::anvil::dr1::host_name"   => $anvil->data->{sys}{anvil}{dr1}{host_name}, 
 			}});
 			
 			# If this is a node, return the peer's short host name.
@@ -4281,6 +4264,49 @@ sub parse_quorum
 			next;
 		}
 	}
+	
+	return(0);
+}
+
+
+=head2 recover_server
+
+This tries to recover a C<< FAILED >> resource (server).
+
+Parameters;
+
+=head3 server_ (required)
+
+This is the server (resource) name to try to recover.
+
+=cut
+sub recover_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->recover_server()" }});
+	
+	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server => $server,
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->recover_server()", parameter => "server" }});
+		return("!!error!!");
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{crm_resource}." --resource ".$server." --refresh";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }

@@ -2086,8 +2086,7 @@ sub find_ipmi_targets
 SELECT 
     anvil_name, 
     anvil_node1_host_uuid, 
-    anvil_node2_host_uuid, 
-    anvil_dr1_host_uuid 
+    anvil_node2_host_uuid 
 FROM 
     anvils 
 WHERE 
@@ -2107,12 +2106,10 @@ WHERE
 		my $anvil_name            =         $row->[0]; 
 		my $anvil_node1_host_uuid =         $row->[1];
 		my $anvil_node2_host_uuid =         $row->[2];
-		my $anvil_dr1_host_uuid   = defined $row->[3] ? $row->[3] : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:anvil_name'            => $anvil_name, 
 			's2:anvil_node1_host_uuid' => $anvil_node1_host_uuid, 
 			's3:anvil_node2_host_uuid' => $anvil_node2_host_uuid,
-			's4:anvil_dr1_host_uuid'   => $anvil_dr1_host_uuid, 
 		}});
 		
 		my $query = "
@@ -2128,14 +2125,7 @@ AND
     (
         host_uuid = ".$anvil->Database->quote($anvil_node1_host_uuid)."
     OR 
-        host_uuid = ".$anvil->Database->quote($anvil_node2_host_uuid);
-		if ($anvil_dr1_host_uuid)
-		{
-			$query .= "
-    OR 
-        host_uuid = ".$anvil->Database->quote($anvil_dr1_host_uuid);
-		}
-		$query .= "
+        host_uuid = ".$anvil->Database->quote($anvil_node2_host_uuid)."
     )
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});

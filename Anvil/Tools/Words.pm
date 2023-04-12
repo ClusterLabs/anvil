@@ -206,7 +206,7 @@ sub clean_spaces
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->clean_spaces()" }});
 	
 	# Setup default values
-	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
+	my $string       = defined $parameter->{string}       ? $parameter->{string}       : "";
 	my $merge_spaces = defined $parameter->{merge_spaces} ? $parameter->{merge_spaces} : 1;
 
 	$string =~ s/^\s+//;

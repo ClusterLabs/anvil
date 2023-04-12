@@ -75,7 +75,7 @@ sub striker_checks
 
 	### NOTE: Disabled until review complete
 	# This checks to make sure that the 'audits' table exists (added late into M3.0 pre-release)
-	#update_audits($anvil);
+	update_audits($anvil);
 	
 	### NOTE: Disabled until review complete
 	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 

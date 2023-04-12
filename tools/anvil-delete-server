@@ -75,8 +75,10 @@ if ($anvil->data->{switches}{'job-uuid'})
 		message          => "message_0217", 
 	});
 
-	# Are we in an Anvil! system?
-	if (not $anvil->data->{sys}{anvil_uuid})
+	# Are we in an Anvil! system or are we a DR host?
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ((not $anvil->data->{sys}{anvil_uuid}) && ($host_type ne "dr"))
 	{
 		# We're not in an Anvil!.
 		if ($anvil->data->{switches}{'job-uuid'})
@@ -135,6 +137,32 @@ sub run_jobs
 		server_name => $server_name, 
 	}});
 	
+	# Before we start, we need to know if this server is on DR hosts. To do this, we'll parse the DRBD 
+	# config file and look for DR hosts.
+	$anvil->Database->get_hosts({debug => 2});
+	$anvil->DRBD->gather_data({debug => 2});
+	foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{peer}})
+	{
+		my $peer_host_uuid = $anvil->Database->get_host_uuid_from_string({debug => 2, string => $peer});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			peer           => $peer,
+			peer_host_uuid => $peer_host_uuid, 
+		}});
+		if (($peer_host_uuid) && (exists $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}))
+		{
+			my $host_type = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{host_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+			
+			if ($host_type eq "dr")
+			{
+				$anvil->data->{dr_hosts}{$peer_host_uuid} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"dr_hosts::${peer_host_uuid}" => $anvil->data->{dr_hosts}{$peer_host_uuid},
+				}});
+			}
+		}
+	}
+	
 	if (not $anvil->data->{job}{peer_mode})
 	{
 		# Remove the server from pacemaker (stopping it, if necessary).
@@ -166,7 +194,6 @@ sub run_jobs
 			job_status => "failed", 
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0228", variables => { resource => $server_name }});
-		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	$anvil->Job->update_progress({
@@ -360,11 +387,15 @@ sub remove_from_pacemaker
 		# We're node 2
 		push @{$peers}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}
 	}
-	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
+	
+	if (exists $anvil->data->{dr_hosts})
 	{
-		# There's a DR host.
-		push @{$peers}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+		foreach my $peer_host_uuid (keys %{$anvil->data->{dr_hosts}})
+		{
+			push @{$peers}, $peer_host_uuid;
+		}
 	}
+	
 	my $progress = 30;
 	foreach my $host_uuid (@{$peers})
 	{
