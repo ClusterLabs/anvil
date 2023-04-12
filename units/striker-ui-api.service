@@ -4,8 +4,9 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=striker-ui-api
-Group=striker-ui-api
+User=root
+Group=root
+Environment=PORT=80
 ExecStart=/usr/bin/node /usr/share/striker-ui-api/index.js
 ExecStop=/bin/kill -WINCH ${MAINPID}
 Restart=always
