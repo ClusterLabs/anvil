@@ -3,7 +3,7 @@ import express from 'express';
 import {
   dbJobAnvilSyncShared,
   dbQuery,
-  dbSubRefreshTimestamp,
+  timestamp,
   dbWrite,
 } from '../lib/accessModule';
 import getFile from '../lib/request_handlers/file/getFile';
@@ -26,7 +26,7 @@ router
         `UPDATE files
           SET
             file_type = '${FILE_TYPE_DELETED}',
-            modified_date = '${dbSubRefreshTimestamp()}'
+            modified_date = '${timestamp()}'
           WHERE file_uuid = '${fileUUID}';`,
       ).stdout;
 
@@ -77,7 +77,7 @@ router
           UPDATE files
           SET
             file_name = '${fileName}',
-            modified_date = '${dbSubRefreshTimestamp()}'
+            modified_date = '${timestamp()}'
           WHERE file_uuid = '${fileUUID}';`;
 
         anvilSyncSharedFunctions.push(() =>
@@ -97,7 +97,7 @@ router
         UPDATE files
         SET
           file_type = '${fileType}',
-          modified_date = '${dbSubRefreshTimestamp()}'
+          modified_date = '${timestamp()}'
         WHERE file_uuid = '${fileUUID}';`;
 
       anvilSyncSharedFunctions.push(() =>
@@ -136,7 +136,7 @@ router
           UPDATE file_locations
           SET
             file_location_active = '${fileLocationActive}',
-            modified_date = '${dbSubRefreshTimestamp()}'
+            modified_date = '${timestamp()}'
           WHERE file_location_uuid = '${fileLocationUUID}';`;
 
           const targetHosts = dbQuery(

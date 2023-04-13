@@ -214,7 +214,7 @@ export {
   dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
   dbQuery,
-  dbSubRefreshTimestamp,
+  dbSubRefreshTimestamp as timestamp,
   dbWrite,
   getAnvilData,
   getLocalHostName,
