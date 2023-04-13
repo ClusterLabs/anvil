@@ -15,6 +15,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       psql: {},
       rm: {},
       sed: {},
+      uuidgen: {},
     },
     sbin: {
       'anvil-access-module': {},

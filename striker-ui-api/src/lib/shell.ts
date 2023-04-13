@@ -41,6 +41,9 @@ export const openssl = (...args: string[]) =>
 export const rm = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.rm.self, args);
 
+export const uuidgen = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.bin.uuidgen.self, args);
+
 export const stderr = (message: string) => print(message, { stream: 'stderr' });
 
 export const stdout = (message: string) => print(message);
