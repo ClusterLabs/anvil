@@ -625,21 +625,29 @@ sub collect_server_data
 	$anvil->data->{longest}{ip_address}     = 0;
 	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
 	{
-		my $server_name       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
-		my $anvil_uuid        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
-		my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
-		my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
-		my $server_ram        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		my $server_name  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		my $anvil_uuid   = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		my $anvil_name   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		my $server_ram   = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram} > $server_ram)
 		{
 			$server_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
 		}
 		my $say_server_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:server_name' => $server_name,
-			's2:anvil_name'  => $anvil_name, 
-			's3:server_ram'  => $anvil->Convert->add_commas({number => $server_ram})." (".$say_server_ram.")", 
+			's1:server_uuid'  => $server_uuid,
+			's2:server_name'  => $server_name,
+			's3:anvil_uuid'   => $anvil_uuid, 
+			's4:anvil_name'   => $anvil_name, 
+			's5:server_state' => $server_state, 
+			's6:server_ram'   => $anvil->Convert->add_commas({number => $server_ram})." (".$say_server_ram.")", 
 		}});
+		
+		next if $server_state eq "DELETED";
+		
+		my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
 		
 		my $target = $anvil->Get->short_host_name;
 		my $source = "from_db";
@@ -722,6 +730,15 @@ sub collect_server_data
 		# have a matching node name.
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:node1_host_uuid' => $node1_host_uuid, 
+			's2:node2_host_uuid' => $node2_host_uuid, 
+		}});
+		
+		if (not exists $anvil->data->{hosts}{host_uuid}{$node1_host_uuid})
+		{
+			$anvil->Database->get_hosts({debug => 2});
+		}
 		
 		# Get names.
 		my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
