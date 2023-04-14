@@ -338,7 +338,7 @@ sub show_anvils
 		{
 			$first_line .= " | ".sprintf("%-${longest_ram_used}s", $ram_used_string);
 		}
-		$first_line .= " | ".sprintf("%-${longest_ram_free}s", $ram_used_string);
+		$first_line .= " | ".sprintf("%-${longest_ram_free}s", $ram_free_string);
 		$first_line .= " | ".sprintf("%-${longest_bridge_string}s", $bridge_string);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { first_line => $first_line }});
 		
