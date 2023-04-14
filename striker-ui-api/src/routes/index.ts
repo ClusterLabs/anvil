@@ -1,4 +1,5 @@
 import anvilRouter from './anvil';
+import authRouter from './auth';
 import commandRouter from './command';
 import echoRouter from './echo';
 import fenceRouter from './fence';
@@ -27,6 +28,7 @@ const routes = {
     ups: upsRouter,
     user: userRouter,
   },
+  auth: authRouter,
   echo: echoRouter,
 };
 
