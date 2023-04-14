@@ -2,12 +2,13 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 
 import { dbQuery, sub } from './lib/accessModule';
+import { sanitize } from './lib/sanitize';
 import { stdout } from './lib/shell';
 
 passport.use(
   'login',
   new LocalStrategy((username, password, done) => {
-    stdout(`Attempting passport local strategy [login] for user [${username}]`);
+    stdout(`Attempting passport local strategy "login" for user [${username}]`);
 
     let rows: [
       userUuid: string,
@@ -79,5 +80,44 @@ passport.use(
     return done(null, user);
   }),
 );
+
+passport.serializeUser((user, done) => {
+  const { name, uuid } = user as User;
+
+  stdout(`Serialize user [${name}]`);
+
+  return done(null, uuid);
+});
+
+passport.deserializeUser((id, done) => {
+  const uuid = sanitize(id, 'string', { modifierType: 'sql' });
+
+  stdout(`Deserialize user identified by ${uuid}`);
+
+  let rows: [userName: string][];
+
+  try {
+    rows = dbQuery(
+      `SELECT user_name
+        FROM users
+        WHERE user_algorithm != 'DELETED'
+          AND user_uuid = '${uuid}';`,
+    ).stdout;
+  } catch (error) {
+    return done(error);
+  }
+
+  if (!rows.length) {
+    return done(null, false);
+  }
+
+  const {
+    0: [userName],
+  } = rows;
+
+  const user: User = { name: userName, uuid };
+
+  return done(null, user);
+});
 
 export default passport;

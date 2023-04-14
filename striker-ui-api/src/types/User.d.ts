@@ -1,4 +1,4 @@
-interface User extends Express.User {
+type User = Express.User & {
   name: string;
   uuid: string;
-}
+};
