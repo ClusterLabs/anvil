@@ -6,8 +6,13 @@ export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
   request,
   response,
 ) => {
-  stdout(`session=${JSON.stringify(request.session, null, 2)}`);
-  stdout(`user=${JSON.stringify(request.user, null, 2)}`);
+  const { user } = request;
+
+  if (user) {
+    const { name: userName } = user as User;
+
+    stdout(`Successfully authenticated user [${userName}]`);
+  }
 
   response.status(200).send();
 };
