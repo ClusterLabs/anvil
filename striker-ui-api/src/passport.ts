@@ -1,3 +1,4 @@
+import { Express } from 'express';
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 
@@ -72,7 +73,7 @@ passport.use(
       return done(null, false);
     }
 
-    const user: User = {
+    const user: Express.User = {
       name: username,
       uuid: userUuid,
     };
@@ -82,7 +83,7 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  const { name, uuid } = user as User;
+  const { name, uuid } = user;
 
   stdout(`Serialize user [${name}]`);
 
@@ -115,7 +116,7 @@ passport.deserializeUser((id, done) => {
     0: [userName],
   } = rows;
 
-  const user: User = { name: userName, uuid };
+  const user: Express.User = { name: userName, uuid };
 
   return done(null, user);
 });

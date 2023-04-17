@@ -1,7 +1,7 @@
 import assert from 'assert';
 import session, {
-  SessionData as BaseSessionData,
-  Store as BaseStore,
+  SessionData,
+  Store as BaseSessionStore,
 } from 'express-session';
 
 import {
@@ -15,7 +15,7 @@ import { stdout, stdoutVar, uuidgen } from './lib/shell';
 
 const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 1000 * 60 * 60;
 
-export class SessionStore extends BaseStore {
+export class SessionStore extends BaseSessionStore {
   constructor(options = {}) {
     super(options);
   }
@@ -41,7 +41,7 @@ export class SessionStore extends BaseStore {
 
   public get(
     sid: string,
-    done: (err: unknown, session?: BaseSessionData | null | undefined) => void,
+    done: (err: unknown, session?: SessionData | null | undefined) => void,
   ): void {
     stdout(`Get session ${sid}`);
 
@@ -92,14 +92,14 @@ export class SessionStore extends BaseStore {
 
   public set(
     sid: string,
-    session: BaseSessionData,
+    session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): void {
     stdout(`Set session ${sid}; session=${JSON.stringify(session, null, 2)}`);
 
     const {
       passport: { user: userUuid },
-    } = session as SessionData;
+    } = session;
 
     try {
       const localHostUuid = getLocalHostUUID();
@@ -140,7 +140,7 @@ export class SessionStore extends BaseStore {
 
   public touch(
     sid: string,
-    session: BaseSessionData,
+    session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): void {
     stdout(

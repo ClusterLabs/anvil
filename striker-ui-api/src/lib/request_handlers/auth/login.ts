@@ -9,7 +9,7 @@ export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
   const { user } = request;
 
   if (user) {
-    const { name: userName } = user as User;
+    const { name: userName } = user;
 
     stdout(`Successfully authenticated user [${userName}]`);
   }
