@@ -1,6 +1,10 @@
 import path from 'path';
 
 const EMPTY_SERVER_PATHS: ServerPath = {
+  etc: {
+    anvil: { 'host.uuid': {} },
+    hostname: {},
+  },
   mnt: {
     shared: {
       incoming: {},

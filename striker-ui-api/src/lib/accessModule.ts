@@ -1,6 +1,7 @@
 import { spawnSync, SpawnSyncOptions } from 'child_process';
+import { readFileSync } from 'fs';
 
-import SERVER_PATHS from './consts/SERVER_PATHS';
+import { SERVER_PATHS } from './consts';
 
 import { stderr as sherr, stdout as shout } from './shell';
 
@@ -8,15 +9,18 @@ const formatQuery = (query: string) => query.replace(/\s+/g, ' ');
 
 const execAnvilAccessModule = (
   args: string[],
-  options: SpawnSyncOptions = {
-    encoding: 'utf-8',
-    timeout: 10000,
-  },
+  options: SpawnSyncOptions = {},
 ) => {
+  const {
+    encoding = 'utf-8',
+    timeout = 10000,
+    ...restSpawnSyncOptions
+  } = options;
+
   const { error, stdout, stderr } = spawnSync(
     SERVER_PATHS.usr.sbin['anvil-access-module'].self,
     args,
-    options,
+    { encoding, timeout, ...restSpawnSyncOptions },
   );
 
   if (error) {
@@ -152,9 +156,9 @@ const getLocalHostName = () => {
   let result: string;
 
   try {
-    result = execModuleSubroutine('host_name', {
-      subModuleName: 'Get',
-    }).stdout;
+    result = readFileSync(SERVER_PATHS.etc.hostname.self, {
+      encoding: 'utf-8',
+    }).trim();
   } catch (subError) {
     throw new Error(`Failed to get local host name; CAUSE: ${subError}`);
   }
@@ -168,9 +172,9 @@ const getLocalHostUUID = () => {
   let result: string;
 
   try {
-    result = execModuleSubroutine('host_uuid', {
-      subModuleName: 'Get',
-    }).stdout;
+    result = readFileSync(SERVER_PATHS.etc.anvil['host.uuid'].self, {
+      encoding: 'utf-8',
+    }).trim();
   } catch (subError) {
     throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
   }
