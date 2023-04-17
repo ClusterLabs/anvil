@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 
 import { SERVER_PATHS } from './consts';
 
-import { stderr as sherr, stdout as shout } from './shell';
+import { date, stderr as sherr, stdout as shout } from './shell';
 
 const formatQuery = (query: string) => query.replace(/\s+/g, ' ');
 
@@ -129,8 +129,19 @@ const dbQuery = (query: string, options?: SpawnSyncOptions) => {
   return execAnvilAccessModule(['--query', query], options);
 };
 
-const dbSubRefreshTimestamp = () =>
-  execModuleSubroutine('refresh_timestamp').stdout;
+const dbSubRefreshTimestamp = () => {
+  let result: string;
+
+  try {
+    result = date('--rfc-3339', 'ns').trim();
+  } catch (shError) {
+    throw new Error(
+      `Failed to get timestamp for database use; CAUSE: ${shError}`,
+    );
+  }
+
+  return result;
+};
 
 const dbWrite = (query: string, options?: SpawnSyncOptions) => {
   shout(formatQuery(query));
