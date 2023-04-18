@@ -66,6 +66,15 @@ configure_pacemaker($anvil);
 # Configure DRBD
 configure_drbd($anvil);
 
+# Enable anvil-safe-start
+if (1)
+{
+	my ($return_code) = $anvil->System->enable_daemon({daemon => "anvil-safe-start.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	update_progress($anvil, (99, "job_0094,!!daemon!anvil-safe-start.service!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "anvil-safe-start.service" }});
+}
+
 update_progress($anvil, 100, "job_0128");
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0128"});
 

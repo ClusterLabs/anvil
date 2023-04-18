@@ -1531,6 +1531,7 @@ Note: This is a permanent action! If you protect this server again later, a full
  --install-media - File name or file UUID. Available discs are:]]></key>
 		<key name="job_0461"><![CDATA[                 > File name: [#!variable!name!#], file UUID: [#!variable!uuid!#], size: [#!variable!size!#]]]></key>
 		<key name="job_0462"><![CDATA[ --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.]]></key>
+		<key name="job_0463">Enabling the enable-safe-start daemon.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

@@ -302,8 +302,6 @@ then
     rm -f /etc/anvil/type.dr
 fi
 touch /etc/anvil/type.node
-echo "Enabling anvil-safe-start"
-systemctl enable --now anvil-safe-start.service
 
 
 %pre dr
