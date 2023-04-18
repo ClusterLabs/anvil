@@ -1,3 +1,3 @@
-type MapToRouter = {
-  [uri: string]: MapToRouter | import('express').Router;
+type MapToRouter<R extends import('express').Router> = {
+  [uri: string]: MapToRouter<R> | R;
 };

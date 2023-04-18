@@ -1,12 +1,13 @@
-import { Application, Router } from 'express';
+import { Application, Handler, Router } from 'express';
 import path from 'path';
 
 import { stdout } from './shell';
 
 export const rrouters = <
   A extends Application,
-  M extends MapToRouter,
+  M extends MapToRouter<R>,
   R extends Router,
+  H extends Handler,
 >(
   app: A,
   union: Readonly<M> | R,
@@ -15,19 +16,29 @@ export const rrouters = <
     key,
     route = '/',
   }: {
-    assign?: (router: R) => R[];
+    assign?: (router: R) => Array<R | H>;
     key?: keyof M;
     route?: string;
   } = {},
 ) => {
   if ('route' in union) {
-    stdout(`Setting up route ${route}`);
-    app.use(route, ...assign(union as R));
+    const handlers = assign(union as R);
+    const { length: hcount } = handlers;
+
+    stdout(`Set up route ${route} with ${hcount} handler(s)`);
+
+    app.use(route, ...handlers);
   } else if (key) {
-    rrouters(app, union[key], { route: path.posix.join(route, String(key)) });
+    rrouters(app, union[key], {
+      assign,
+      route: path.posix.join(route, String(key)),
+    });
   } else {
     Object.entries(union).forEach(([extend, subunion]) => {
-      rrouters(app, subunion, { route: path.posix.join(route, extend) });
+      rrouters(app, subunion, {
+        assign,
+        route: path.posix.join(route, extend),
+      });
     });
   }
 };
