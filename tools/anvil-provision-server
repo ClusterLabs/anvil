@@ -2136,7 +2136,10 @@ sub interactive_ask_server_cpu
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid,
+		});
 		
 		my $default_cpu = $anvil->data->{switches}{cpu};
 		if (not $default_cpu)
@@ -2201,7 +2204,10 @@ sub interactive_ask_server_ram
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
 		}});
@@ -2299,7 +2305,10 @@ sub interactive_ask_server_storage_group
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({debug => 2, anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2, 
+			anvil_uuid => $anvil_uuid,
+		});
 		
 		# I need a list of Storage groups,
 		my $say_ram               = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}});
@@ -2409,7 +2418,10 @@ sub interactive_ask_server_storage_size
 		
 		$anvil->Database->get_anvils();
 		$anvil->Database->get_storage_group_data();
-		$anvil->Get->available_resources({debug => 2, anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2, 
+			anvil_uuid => $anvil_uuid,
+		});
 		
 		$vg_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
 		$vg_free = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
@@ -2866,7 +2878,10 @@ sub interactive_ask_server_confirm
 		
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid, debug => 2});
+		$anvil->Get->available_resources({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid, 
+		});
 		
 		$anvil->data->{new_server}{name}          = "";
 		$anvil->data->{new_server}{uuid}          = "";

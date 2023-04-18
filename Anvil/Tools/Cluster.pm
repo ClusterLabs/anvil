@@ -502,7 +502,7 @@ ORDER BY
 				}
 			}
 			my $storage_group_member_uuid = $anvil->Database->insert_or_update_storage_group_members({
-				debug                                   => $debug, 
+				debug                                   => 2, 
 				storage_group_member_storage_group_uuid => $storage_group_uuid, 
 				storage_group_member_host_uuid          => $host_uuid, 
 				storage_group_member_vg_uuid            => $storage_group_member_vg_uuid, 
