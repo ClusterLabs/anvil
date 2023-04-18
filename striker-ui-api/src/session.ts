@@ -1,19 +1,29 @@
-import assert from 'assert';
 import session, {
   SessionData,
   Store as BaseSessionStore,
 } from 'express-session';
 
 import {
+  awrite,
   dbQuery,
-  dbWrite,
   getLocalHostUUID,
   timestamp,
 } from './lib/accessModule';
 import { getSessionSecret } from './lib/getSessionSecret';
-import { stdout, stdoutVar, uuidgen } from './lib/shell';
+import { isObject } from './lib/isObject';
+import { stderr, stdout, stdoutVar, uuidgen } from './lib/shell';
 
 const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 1000 * 60 * 60;
+
+const getWriteCode = (obj: object) => {
+  let result: number | undefined;
+
+  if ('write_code' in obj) {
+    ({ write_code: result } = obj as { write_code: number });
+  }
+
+  return result;
+};
 
 export class SessionStore extends BaseSessionStore {
   constructor(options = {}) {
@@ -27,13 +37,24 @@ export class SessionStore extends BaseSessionStore {
     stdout(`Destroy session ${sid}`);
 
     try {
-      const { write_code: wcode }: { write_code: number } = dbWrite(
-        `DELETE FROM sessions WHERE session_uuid = '${sid}';`,
-      ).stdout;
+      awrite(`DELETE FROM sessions WHERE session_uuid = '${sid}';`, {
+        onClose({ stdout: s1 }) {
+          const wcode = getWriteCode(isObject(s1).obj);
 
-      assert(wcode === 0, `Delete session ${sid} failed with code ${wcode}`);
-    } catch (writeError) {
-      return done?.call(null, writeError);
+          if (wcode !== 0) {
+            stderr(
+              `SQL script failed during destroy session ${sid}; code: ${wcode}`,
+            );
+          }
+        },
+        onError(error) {
+          stderr(
+            `Failed to complete DB write in destroy session ${sid}; CAUSE: ${error}`,
+          );
+        },
+      });
+    } catch (error) {
+      return done?.call(null, error);
     }
 
     return done?.call(null);
@@ -95,7 +116,7 @@ export class SessionStore extends BaseSessionStore {
     session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): void {
-    stdout(`Set session ${sid}; session=${JSON.stringify(session, null, 2)}`);
+    stdout(`Set session ${sid}`);
 
     const {
       passport: { user: userUuid },
@@ -105,7 +126,7 @@ export class SessionStore extends BaseSessionStore {
       const localHostUuid = getLocalHostUUID();
       const modifiedDate = timestamp();
 
-      const { write_code: wcode }: { write_code: number } = dbWrite(
+      awrite(
         `INSERT INTO
             sessions (
               session_uuid,
@@ -125,11 +146,22 @@ export class SessionStore extends BaseSessionStore {
           ON CONFLICT (session_uuid)
             DO UPDATE SET session_host_uuid = '${localHostUuid}',
                           modified_date = '${modifiedDate}';`,
-      ).stdout;
+        {
+          onClose: ({ stdout: s1 }) => {
+            const wcode = getWriteCode(isObject(s1).obj);
 
-      assert(
-        wcode === 0,
-        `Insert or update session ${sid} failed with code ${wcode}`,
+            if (wcode !== 0) {
+              stderr(
+                `SQL script failed during set session ${sid}; code: ${wcode}`,
+              );
+            }
+          },
+          onError: (error) => {
+            stderr(
+              `Failed to complete DB write in set session ${sid}; CAUSE: ${error}`,
+            );
+          },
+        },
       );
     } catch (error) {
       return done?.call(null, error);
@@ -143,25 +175,30 @@ export class SessionStore extends BaseSessionStore {
     session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): void {
-    stdout(
-      `Update modified date in session ${sid}; session=${JSON.stringify(
-        session,
-        null,
-        2,
-      )}`,
-    );
+    stdout(`Touch session ${sid}`);
 
     try {
-      const { write_code: wcode }: { write_code: number } = dbWrite(
+      awrite(
         `UPDATE sessions SET modified_date = '${timestamp()}' WHERE session_uuid = '${sid}';`,
-      ).stdout;
+        {
+          onClose: ({ stdout: s1 }) => {
+            const wcode = getWriteCode(isObject(s1).obj);
 
-      assert(
-        wcode === 0,
-        `Update modified date for session ${sid} failed with code ${wcode}`,
+            if (wcode !== 0) {
+              stderr(
+                `SQL script failed during touch session ${sid}; code: ${wcode}`,
+              );
+            }
+          },
+          onError: (error) => {
+            stderr(
+              `Failed to complete DB write in touch session ${sid}; CAUSE: ${error}`,
+            );
+          },
+        },
       );
-    } catch (writeError) {
-      return done?.call(null, writeError);
+    } catch (error) {
+      return done?.call(null, error);
     }
 
     return done?.call(null);
