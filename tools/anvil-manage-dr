@@ -226,6 +226,7 @@ sub handle_links
 			dr_link_note       => "user-created",
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { returned_dr_link_uuid => $returned_dr_link_uuid }});
+		
 		print "\n".$anvil->Words->string({key => "log_0734", variables => {
 			host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name},
 			anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
