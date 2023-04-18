@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { json } from 'express';
 
+import { assertAuthentication } from './lib/assertAuthentication';
 import passport from './passport';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
@@ -19,7 +20,12 @@ app.use(sessionHandler);
 app.use(passport.initialize());
 app.use(passport.authenticate('session'));
 
-rrouters(app, routes, { key: 'api' });
+const authenticationHandler = assertAuthentication();
+
+rrouters(app, routes, {
+  assign: (router) => [authenticationHandler, router],
+  key: 'api',
+});
 rrouters(app, routes, { key: 'auth' });
 rrouters(app, routes, { key: 'echo' });
 
