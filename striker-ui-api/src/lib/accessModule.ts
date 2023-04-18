@@ -1,11 +1,58 @@
-import { spawnSync, SpawnSyncOptions } from 'child_process';
+import { spawn, spawnSync, SpawnSyncOptions } from 'child_process';
 import { readFileSync } from 'fs';
 
 import { SERVER_PATHS } from './consts';
 
+import { formatSql } from './formatSql';
 import { date, stderr as sherr, stdout as shout } from './shell';
 
-const formatQuery = (query: string) => query.replace(/\s+/g, ' ');
+const asyncAnvilAccessModule = (
+  args: string[],
+  {
+    onClose,
+    onError,
+    stdio = 'pipe',
+    timeout = 60000,
+    ...restSpawnOptions
+  }: AsyncAnvilAccessModuleOptions = {},
+) => {
+  const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
+    stdio,
+    timeout,
+    ...restSpawnOptions,
+  });
+
+  let stderr = '';
+  let stdout = '';
+
+  ps.once('close', (ecode, signal) => {
+    let output;
+
+    try {
+      output = JSON.parse(stdout);
+    } catch (stdoutParseError) {
+      output = stdout;
+
+      sherr(
+        `Failed to parse async anvil-access-module stdout; CAUSE: ${stdoutParseError}`,
+      );
+    }
+
+    onClose?.call(null, { ecode, signal, stderr, stdout: output });
+  });
+
+  ps.once('error', (...args) => {
+    onError?.call(null, ...args);
+  });
+
+  ps.stderr?.setEncoding('utf-8').on('data', (data) => {
+    stderr += data;
+  });
+
+  ps.stdout?.setEncoding('utf-8').on('data', (data) => {
+    stdout += data;
+  });
+};
 
 const execAnvilAccessModule = (
   args: string[],
@@ -17,7 +64,7 @@ const execAnvilAccessModule = (
     ...restSpawnSyncOptions
   } = options;
 
-  const { error, stdout, stderr } = spawnSync(
+  const { error, stderr, stdout } = spawnSync(
     SERVER_PATHS.usr.sbin['anvil-access-module'].self,
     args,
     { encoding, timeout, ...restSpawnSyncOptions },
@@ -39,7 +86,7 @@ const execAnvilAccessModule = (
     output = stdout;
 
     sherr(
-      `Failed to parse anvil-access-module output [${output}]; CAUSE: [${stdoutParseError}]`,
+      `Failed to parse anvil-access-module stdout; CAUSE: ${stdoutParseError}`,
     );
   }
 
@@ -124,7 +171,7 @@ const dbJobAnvilSyncShared = (
 };
 
 const dbQuery = (query: string, options?: SpawnSyncOptions) => {
-  shout(formatQuery(query));
+  shout(formatSql(query));
 
   return execAnvilAccessModule(['--query', query], options);
 };
@@ -143,10 +190,19 @@ const dbSubRefreshTimestamp = () => {
   return result;
 };
 
-const dbWrite = (query: string, options?: SpawnSyncOptions) => {
-  shout(formatQuery(query));
+const awrite = (script: string, options?: AsyncAnvilAccessModuleOptions) => {
+  shout(formatSql(script));
 
-  return execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
+  return asyncAnvilAccessModule(
+    ['--query', script, '--mode', 'write'],
+    options,
+  );
+};
+
+const dbWrite = (script: string, options?: SpawnSyncOptions) => {
+  shout(formatSql(script));
+
+  return execAnvilAccessModule(['--query', script, '--mode', 'write'], options);
 };
 
 const getAnvilData = <HashType>(
@@ -225,6 +281,7 @@ const getPeerData: GetPeerDataFunction = (
 };
 
 export {
+  awrite,
   dbInsertOrUpdateJob as job,
   dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
