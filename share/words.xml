@@ -386,6 +386,7 @@ The attempt to start the servers appears to have failed. The return code '0' was
 ====
 #!variable!output!#
 ====
+We're done waiting, exiting out.
 		</key>
 		<key name="error_0276"><![CDATA[No server specified to rename. Please use '--server <name>' or '--server-uuid <UUID>.]]></key>
 		<key name="error_0277">Could not find the server: [#!variable!server!#] on this Anvil! in the database.</key>
@@ -3587,6 +3588,14 @@ The error was:
 		<key name="warning_0150">[ Warning ] - The test "fail file": [#!variable!fail_file!#] was found. So long as this file exists, the ocf:alteeve:server RA will return 'OCF_ERR_GENERIC' (exit code 1). Delete the file to resume normal operation.</key>
 		<key name="warning_0151">[ Warning ] - The configured reserved RAM was set to: [#!variable!was!#], which appears invalid. It must be an integer value representing the amount of RAM to reserve, in MiB. The reserved RAM is being set to: [#!variable!was!#].</key>
 		<key name="warning_0152">[ Warning ] - The configured reserved RAM was set to: [#!variable!was!#], which appears invalid. It must be an integer value representing the amount of RAM to reserve, in MiB. The reserved RAM is being set to: [#!variable!was!#].</key>
+		<key name="warning_0153">
+The attempt to start the servers appears to have failed. The return code '0' was expected, but: [#!variable!return_code!#] was received. The output was:
+====
+#!variable!output!#
+====
+We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up if it keeps failing after: [#!variable!time_left!#] seconds.
+		</key>
+		
 	</language>
 	<!-- 日本語 -->
 	<language name="jp" long_name="日本語" description="Anvil! language file.">
