@@ -534,7 +534,7 @@ sub sanity_check
 	# Get the Anvil! details.
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
-	$anvil->Database->get_storage_group_data();
+	$anvil->Database->get_storage_group_data({debug => 2});
 	$anvil->Database->get_dr_links({debug => 2});
 
 	# Does this Anvil! have at least one DR node? If there's only one, use it. If more than one, we need

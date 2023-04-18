@@ -2417,7 +2417,7 @@ sub interactive_ask_server_storage_size
 		}});
 		
 		$anvil->Database->get_anvils();
-		$anvil->Database->get_storage_group_data();
+		$anvil->Database->get_storage_group_data({debug => 2});
 		$anvil->Get->available_resources({
 			debug      => 2, 
 			anvil_uuid => $anvil_uuid,

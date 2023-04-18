@@ -116,7 +116,10 @@ sub collect_anvil_data
 			}});
 		}
 		
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2, 
+			anvil_uuid => $anvil_uuid,
+		});
 		my $cpu_cores         = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores};
 		my $cpu_threads       = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
 		my $say_cpu           = $anvil->Words->string({key => "message_0289", variables => {
