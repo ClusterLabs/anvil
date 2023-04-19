@@ -5,7 +5,7 @@ import { guardApi } from './lib/assertAuthentication';
 import passport from './passport';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
-import sessionHandler from './session';
+import session from './session';
 
 const app = express();
 
@@ -15,7 +15,7 @@ app.use(cors());
 
 // Add session handler to the chain **after** adding other handlers that do
 // not depend on session(s).
-app.use(sessionHandler);
+app.use(session);
 
 app.use(passport.initialize());
 app.use(passport.authenticate('session'));

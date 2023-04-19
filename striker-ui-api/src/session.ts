@@ -1,4 +1,4 @@
-import session, {
+import expressSession, {
   SessionData,
   Store as BaseSessionStore,
 } from 'express-session';
@@ -13,7 +13,7 @@ import { getSessionSecret } from './lib/getSessionSecret';
 import { isObject } from './lib/isObject';
 import { stderr, stdout, stdoutVar, uuidgen } from './lib/shell';
 
-const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 1000 * 60 * 60;
+const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 3600000;
 
 const getWriteCode = (obj: object) => {
   let result: number | undefined;
@@ -218,7 +218,7 @@ export class SessionStore extends BaseSessionStore {
   }
 }
 
-const sessionHandler = session({
+const session = expressSession({
   cookie: { maxAge: DEFAULT_COOKIE_ORIGINAL_MAX_AGE },
   genid: ({ path }) => {
     const sid = uuidgen('--random').trim();
@@ -233,4 +233,4 @@ const sessionHandler = session({
   store: new SessionStore(),
 });
 
-export default sessionHandler;
+export default session;
