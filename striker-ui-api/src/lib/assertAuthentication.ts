@@ -35,3 +35,5 @@ export const assertAuthentication: (options?: {
     next();
   };
 };
+
+export const authenticationHandler = assertAuthentication();
