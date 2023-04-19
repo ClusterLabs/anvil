@@ -554,6 +554,9 @@ sub check_incoming
 			full_path       => $full_path,
 		}});
 		
+		# Skip dot-files, they're usually files being uploaded.
+		next if $file_name =~ /^\./;
+		
 		# Do I know about this file? If so, is the file the same size? If either is no, calculate the md5sum.
 		my ($file_uuid, $recorded_size, $recorded_mtime, $recorded_md5sum) = get_file_db_info($anvil, "", $file_name);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

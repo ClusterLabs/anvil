@@ -689,33 +689,102 @@ ORDER BY
 	}
 
 	# Check if the reserved RAM is overriden by the config
+	my $default_reserved = 8192;
+	if (not exists $anvil->data->{anvil_resources}{ram}{reserved})
+	{
+		$anvil->data->{anvil_resources}{ram}{reserved} = $default_reserved;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{ram}{reserved}}).")",
+	}});
+	
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/,//g;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/\s//g;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/MiB$//i;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/MB$//i;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/M$//i;
+	if ((not $anvil->data->{anvil_resources}{ram}{reserved}) or ($anvil->data->{anvil_resources}{ram}{reserved} =~ /\D/))
+	{
+		# Invalid value.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0151", variables => { 
+			was => $anvil->data->{anvil_resources}{ram}{reserved}, 
+			set => $default_reserved,
+		}});
+		$anvil->data->{anvil_resources}{ram}{reserved} = $default_reserved;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+		}});
+	}
+	
+	#anvil::<anvil_uuid>::resources::ram::reserved
+	if (exists $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved})
+	{
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/,//g;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/\s//g;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/MiB$//i;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/MB$//i;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/M$//i;
+		if ((not $anvil->data->{anvil_resources}{ram}{reserved}) or ($anvil->data->{anvil_resources}{ram}{reserved} =~ /\D/))
+		{
+			# Invalid value.
+			my $anvil_name = $anvil->Get->anvil_name_from_uuid({anvil_uuid => $anvil_uuid});
+			   $anvil_name = $anvil_uuid if not $anvil_name;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0152", variables => { 
+				anvil => $anvil_name,
+				was   => $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved}, 
+				set   => $anvil->data->{anvil_resources}{ram}{reserved},
+			}});
+			$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} = $anvil->data->{anvil_resources}{ram}{reserved};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil::${anvil_uuid}::resources::ram::reserved" => $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved},
+			}});
+		}
+	
+		if ($anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved})
+		{
+			$anvil->data->{anvil_resources}{ram}{reserved} = $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+			}});
+		}
+	}
+	
 	my $ram_reserved = $anvil->Convert->human_readable_to_bytes({
 		base2 => 1,
-		size  => $anvil->data->{anvil_resources}{ram}{reserved}, 
+		size  => $anvil->data->{anvil_resources}{ram}{reserved}." MiB", 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ram_reserved => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
+	}});
 	if (($ram_reserved eq "!!error!!") or 
-		(not $ram_reserved)            or 
+	    (not $ram_reserved)            or 
 	    ($ram_reserved < (2**30))      or 
 	    ($ram_reserved > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
 	{
-		# The reserved RAM is invalid, so reset it.
-		$ram_reserved = 0;
+		# The reserved RAM is invalid, so reset it to 8 GiB
+		$ram_reserved = 8589934592;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ram_reserved => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
+		}});
 	}
 
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"anvil_resources::ram::reserved" => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
-	}});
-
 	# Take 4 GiB or what was provided by the config off the available RAM for the host
-	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}   = $ram_reserved ? $ram_reserved : (4*(2**30)); # Reserve 4 GiB by default or what's set in the config file.
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}   = $ram_reserved;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved};
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated};
-
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"anvil_resources::${anvil_uuid}::ram::allocated" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}}).")",
 		"anvil_resources::${anvil_uuid}::ram::reserved"  => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}}).")",
 		"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
 	}});
+	
+	if ($anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} < 0)
+	{
+		$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+		}});
+	}
 	
 	# process bridges now
 	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}})

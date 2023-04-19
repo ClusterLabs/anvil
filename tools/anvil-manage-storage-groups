@@ -60,7 +60,7 @@ if (not $anvil->data->{sys}{database}{connections})
 
 $anvil->Database->get_hosts({include_deleted => 1});
 $anvil->Database->get_anvils();
-$anvil->Database->get_storage_group_data();
+$anvil->Database->get_storage_group_data({debug => 2});
 get_vg_data($anvil);
 get_storage_data($anvil);
 

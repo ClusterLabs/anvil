@@ -335,6 +335,7 @@ sub get_current_server
 	return($newest_mail_server_uuid);
 }
 
+
 =head2 get_next_server
 
 When two or more mail servers are configured, this will return the C<< mail_server_uuid >> of the mail server used in the most distant past. If two or more mail servers have never been used before, a random unused server is returned.
@@ -352,6 +353,11 @@ sub get_next_server
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->get_next_server()" }});
 	
+	if (not exists $anvil->data->{mail_servers}{mail_server})
+	{
+		$anvil->Database->get_mail_servers({debug => $debug});
+	}
+	
 	# If configured/running, the number of messages in queue is checked. If '0', 
 	# 'mail_server::queue_empty' is updated with the current time. If 1 or more, the time since the queue
 	# was last 0 is checked. If > 300, the mail server is reconfigured to use the mail server with the
@@ -360,11 +366,15 @@ sub get_next_server
 	my $oldest_mail_server_uuid = "";
 	foreach my $mail_server_uuid (keys %{$anvil->data->{mail_servers}{mail_server}})
 	{
-		my $last_used = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{last_used};
+		# HELO domain is 'DELETED' is the mail server is not used anymore
+		my $last_used   = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{last_used};
+		my $helo_domain = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			mail_server_uuid => $mail_server_uuid,
 			last_used        => $last_used, 
+			helo_domain      => $helo_domain,
 		}});
+		next if $helo_domain eq "DELETED";
 		
 		if ($last_used < $oldest_mail_server_time)
 		{

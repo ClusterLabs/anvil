@@ -284,22 +284,55 @@ sub start_pacemaker
 		
 		### TODO: A lot more testing is needed for degraded single-node start later. 
 		###       Should we use --all, or wait for our peer? For now, we wait.
-		#my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start --all";
-		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		### NOTE: This can be racy during initial setup, calling the start before /etc/hosts is 
+		###        populated. So this watches for that corner case.
+		my $wait_until = time + 120;
+		my $waiting    = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output,
-			return_code => $return_code, 
+			wait_until => $wait_until,
+			waiting    => $waiting, 
 		}});
-		if ($return_code)
+		while($waiting)
 		{
-			# What?! Fail out, we're done.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0256", variables => {
+			#my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start --all";
+			my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
-			$anvil->nice_exit({exit_code => 1});
+			if ($return_code)
+			{
+				# Are we done waiting?
+				if (time > $wait_until)
+				{
+					# We're done.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0256", variables => {
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					$anvil->nice_exit({exit_code => 1});
+				}
+				else
+				{
+					# Report the error and sleep
+					my $time_left = $wait_until - time;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0153", variables => {
+						output      => $output,
+						return_code => $return_code, 
+						time_left   => $time_left, 
+						waiting     => 10,
+					}});
+					sleep 10;
+				}
+			}
+			else
+			{
+				# Success!
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
 		}
 		
 		### TODO: We may implement the logic to fence our peer (similar to cman's post_join_delay' 
@@ -309,7 +342,7 @@ sub start_pacemaker
 		# the peer and, if the fence succeeds, unblock quorum.
 		my $start_time    = time;
 		my $wait_for_peer = $start_time + 120;
-		my $waiting       = 1;
+		   $waiting       = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			start_time    => $start_time,
 			wait_for_peer => $wait_for_peer, 
