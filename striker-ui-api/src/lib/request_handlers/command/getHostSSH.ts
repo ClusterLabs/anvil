@@ -9,7 +9,7 @@ import { stderr } from '../../shell';
 export const getHostSSH: RequestHandler<
   unknown,
   {
-    badSSHKeys?: DeleteSSHKeyConflictRequestBody;
+    badSSHKeys?: DeleteSshKeyConflictRequestBody;
     hostName: string;
     hostOS: string;
     hostUUID: string;
@@ -53,7 +53,7 @@ export const getHostSSH: RequestHandler<
     return;
   }
 
-  let badSSHKeys: DeleteSSHKeyConflictRequestBody | undefined;
+  let badSSHKeys: DeleteSshKeyConflictRequestBody | undefined;
 
   if (!isConnected) {
     const rows = dbQuery(`
@@ -65,7 +65,7 @@ export const getHostSSH: RequestHandler<
     )}';`).stdout as [stateNote: string, stateUUID: string][];
 
     if (rows.length > 0) {
-      badSSHKeys = rows.reduce<DeleteSSHKeyConflictRequestBody>(
+      badSSHKeys = rows.reduce<DeleteSshKeyConflictRequestBody>(
         (previous, [, stateUUID]) => {
           previous[localHostUUID].push(stateUUID);
 

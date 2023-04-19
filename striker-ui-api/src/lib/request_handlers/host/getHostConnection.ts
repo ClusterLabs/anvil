@@ -59,9 +59,9 @@ export const getHostConnection = buildGetRequestHandler(
     stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
     try {
-      ({ database: rawDatabaseData } = getAnvilData<{ database: AnvilDataDatabaseHash }>(
-        { database: true },
-      ));
+      ({ database: rawDatabaseData } = getAnvilData<{
+        database: AnvilDataDatabaseHash;
+      }>({ database: true }));
     } catch (subError) {
       throw new Error(`Failed to get anvil data; CAUSE: ${subError}`);
     }

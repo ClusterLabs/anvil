@@ -9,7 +9,7 @@ import { stderr } from '../../shell';
 export const deleteSSHKeyConflict: RequestHandler<
   unknown,
   undefined,
-  DeleteSSHKeyConflictRequestBody
+  DeleteSshKeyConflictRequestBody
 > = (request, response) => {
   const { body } = request;
   const hostUUIDs = Object.keys(body);

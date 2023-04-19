@@ -22,16 +22,7 @@ export const getSSHKeyConflict = buildGetRequestHandler(
         ON sta.state_host_uuid = hos.host_uuid
       WHERE sta.state_name LIKE '${HOST_KEY_CHANGED_PREFIX}%';`;
     const afterQueryReturn = buildQueryResultReducer<{
-      [hostUUID: string]: {
-        [stateUUID: string]: {
-          badFile: string;
-          badLine: number;
-          hostName: string;
-          hostUUID: string;
-          ipAddress: string;
-          stateUUID: string;
-        };
-      };
+      [hostUUID: string]: SshKeyConflict;
     }>((previous, [hostName, hostUUID, stateName, stateNote, stateUUID]) => {
       const hostUUIDKey = toLocal(hostUUID, localHostUUID);
 

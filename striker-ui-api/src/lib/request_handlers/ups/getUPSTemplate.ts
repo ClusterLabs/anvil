@@ -21,13 +21,13 @@ export const getUPSTemplate: RequestHandler = (request, response) => {
 
   const upsData: AnvilDataUPSHash = Object.entries(
     rawUPSData,
-  ).reduce<UPSTemplate>((previous, [upsTypeId, value]) => {
+  ).reduce<UpsTemplate>((previous, [upsTypeId, value]) => {
     const { brand, description: rawDescription, ...rest } = value;
 
     const matched = rawDescription.match(
       /^(.+)\s+[-]\s+[<][^>]+href=[\\"]+([^\s]+)[\\"]+.+[>]([^<]+)[<]/,
     );
-    const result: UPSTemplate[string] = {
+    const result: UpsTemplate[string] = {
       ...rest,
       brand,
       description: rawDescription,

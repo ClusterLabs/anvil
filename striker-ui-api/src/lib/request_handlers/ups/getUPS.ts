@@ -14,7 +14,7 @@ export const getUPS: RequestHandler = buildGetRequestHandler(
       FROM upses
       ORDER BY ups_name ASC;`;
     const afterQueryReturn: QueryResultModifierFunction | undefined =
-      buildQueryResultReducer<{ [upsUUID: string]: UPSOverview }>(
+      buildQueryResultReducer<{ [upsUUID: string]: UpsOverview }>(
         (previous, [upsUUID, upsName, upsAgent, upsIPAddress]) => {
           previous[upsUUID] = {
             upsAgent,
