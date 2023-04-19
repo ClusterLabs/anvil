@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express, { json } from 'express';
 
-import { authenticationHandler } from './lib/assertAuthentication';
+import { guardApi } from './lib/assertAuthentication';
 import passport from './passport';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
@@ -21,7 +21,7 @@ app.use(passport.initialize());
 app.use(passport.authenticate('session'));
 
 rrouters(app, routes.private, {
-  assign: (router) => [authenticationHandler, router],
+  assign: (router) => [guardApi, router],
   route: '/api',
 });
 rrouters(app, routes.public, { route: '/api' });

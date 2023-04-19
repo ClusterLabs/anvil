@@ -36,4 +36,4 @@ export const assertAuthentication: (options?: {
   };
 };
 
-export const authenticationHandler = assertAuthentication();
+export const guardApi = assertAuthentication();
