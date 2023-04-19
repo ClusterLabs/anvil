@@ -37,6 +37,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'striker-parse-os-list': {},
     },
   },
+  var: { www: { html: {} } },
 };
 
 const generatePaths = (

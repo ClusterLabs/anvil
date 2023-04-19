@@ -10,11 +10,12 @@ import manifestRouter from './manifest';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
 import sshKeyRouter from './ssh-key';
+import staticRouter from './static';
 import upsRouter from './ups';
 import userRouter from './user';
 
 const routes = {
-  api: {
+  private: {
     anvil: anvilRouter,
     command: commandRouter,
     fence: fenceRouter,
@@ -28,8 +29,11 @@ const routes = {
     ups: upsRouter,
     user: userRouter,
   },
-  auth: authRouter,
-  echo: echoRouter,
+  public: {
+    auth: authRouter,
+    echo: echoRouter,
+  },
+  static: staticRouter,
 };
 
 export default routes;
