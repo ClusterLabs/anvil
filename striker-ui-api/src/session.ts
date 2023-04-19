@@ -10,20 +10,9 @@ import {
   timestamp,
 } from './lib/accessModule';
 import { getSessionSecret } from './lib/getSessionSecret';
-import { isObject } from './lib/isObject';
 import { stderr, stdout, stdoutVar, uuidgen } from './lib/shell';
 
 const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 3600000;
-
-const getWriteCode = (obj: object) => {
-  let result: number | undefined;
-
-  if ('write_code' in obj) {
-    ({ write_code: result } = obj as { write_code: number });
-  }
-
-  return result;
-};
 
 export class SessionStore extends BaseSessionStore {
   constructor(options = {}) {
@@ -38,9 +27,7 @@ export class SessionStore extends BaseSessionStore {
 
     try {
       awrite(`DELETE FROM sessions WHERE session_uuid = '${sid}';`, {
-        onClose({ stdout: s1 }) {
-          const wcode = getWriteCode(isObject(s1).obj);
-
+        onClose({ wcode }) {
           if (wcode !== 0) {
             stderr(
               `SQL script failed during destroy session ${sid}; code: ${wcode}`,
@@ -147,9 +134,7 @@ export class SessionStore extends BaseSessionStore {
             DO UPDATE SET session_host_uuid = '${localHostUuid}',
                           modified_date = '${modifiedDate}';`,
         {
-          onClose: ({ stdout: s1 }) => {
-            const wcode = getWriteCode(isObject(s1).obj);
-
+          onClose: ({ wcode }) => {
             if (wcode !== 0) {
               stderr(
                 `SQL script failed during set session ${sid}; code: ${wcode}`,
@@ -181,9 +166,7 @@ export class SessionStore extends BaseSessionStore {
       awrite(
         `UPDATE sessions SET modified_date = '${timestamp()}' WHERE session_uuid = '${sid}';`,
         {
-          onClose: ({ stdout: s1 }) => {
-            const wcode = getWriteCode(isObject(s1).obj);
-
+          onClose: ({ wcode }) => {
             if (wcode !== 0) {
               stderr(
                 `SQL script failed during touch session ${sid}; code: ${wcode}`,

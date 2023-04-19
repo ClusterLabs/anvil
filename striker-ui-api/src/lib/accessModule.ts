@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 import { SERVER_PATHS } from './consts';
 
 import { formatSql } from './formatSql';
+import { isObject } from './isObject';
 import { date, stderr as sherr, stdout as shout } from './shell';
 
 const asyncAnvilAccessModule = (
@@ -190,13 +191,31 @@ const dbSubRefreshTimestamp = () => {
   return result;
 };
 
-const awrite = (script: string, options?: AsyncAnvilAccessModuleOptions) => {
+const awrite = (
+  script: string,
+  { onClose: initOnClose, ...restOptions }: AsyncDatabaseWriteOptions = {},
+) => {
   shout(formatSql(script));
 
-  return asyncAnvilAccessModule(
-    ['--query', script, '--mode', 'write'],
-    options,
-  );
+  const onClose: AsyncAnvilAccessModuleCloseHandler = (args, ...rest) => {
+    const { stdout } = args;
+    const { obj: output } = isObject(stdout);
+
+    let wcode: number | null = null;
+
+    if ('write_code' in output) {
+      ({ write_code: wcode } = output as { write_code: number });
+
+      shout(`Async write completed with write_code=${wcode}`);
+    }
+
+    initOnClose?.call(null, { wcode, ...args }, ...rest);
+  };
+
+  return asyncAnvilAccessModule(['--query', script, '--mode', 'write'], {
+    onClose,
+    ...restOptions,
+  });
 };
 
 const dbWrite = (script: string, options?: SpawnSyncOptions) => {
