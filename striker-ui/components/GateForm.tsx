@@ -1,11 +1,5 @@
 import { Box, BoxProps, SxProps, Theme } from '@mui/material';
-import {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 
 import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 
@@ -18,6 +12,7 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import Spinner from './Spinner';
 import { buildPeacefulStringTestBatch } from '../lib/test_input';
 import useFormUtils from '../hooks/useFormUtils';
+import useProtectedState from '../hooks/useProtectedState';
 
 const INPUT_ROOT_SX: SxProps<Theme> = { width: '100%' };
 
@@ -72,7 +67,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const inputPassphraseRef = useRef<InputForwardedRefContent<'string'>>({});
     const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [isSubmitting, setIsSubmitting] = useProtectedState<boolean>(false);
 
     const formUtils = useFormUtils(
       [INPUT_ID_GATE_ID, INPUT_ID_GATE_PASSPHRASE],
@@ -118,7 +113,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
             ...args,
           );
         }),
-      [onSubmit, onSubmitAppend, setMessage],
+      [onSubmit, onSubmitAppend, setIsSubmitting, setMessage],
     );
 
     const submitElement = useMemo(
