@@ -116,114 +116,68 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use JSON;
-use Data::Dumper;
+use Text::ParseWords;
 
 $| = 1;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
-if (($running_directory =~ /^\./) && ($ENV{PWD}))
-{
-	$running_directory =~ s/^\./$ENV{PWD}/;
-}
+
+$running_directory =~ s/^\./$ENV{PWD}/ if $running_directory =~ /^\./ && $ENV{PWD};
 
 my $anvil = Anvil::Tools->new();
 
-sub is_array
-{
-	return ref($_[0]) eq "ARRAY";
-}
-
-sub is_hash
-{
-	return ref($_[0]) eq "HASH";
-}
-
-sub db_access
-{
-	my $parameters     = shift;
-	my $db_access_mode = $parameters->{db_access_mode};
-	my $db_uuid        = $parameters->{db_uuid};
-	my $sql_query      = $parameters->{sql_query};
-
-	my $access_parameters = { query => $sql_query, uuid => $db_uuid, source => $THIS_FILE, line => __LINE__ };
-
-	return ($db_access_mode eq "write")
-		? { write_code => $anvil->Database->write($access_parameters) }
-		: $anvil->Database->query($access_parameters);
-}
-
-sub call_pre_data_fns
+sub access_chain
 {
 	my $parameters = shift;
-	my $fns        = $parameters->{fns};
+	# Required:
+	my $chain_str  = $parameters->{chain};
+	# Optional:
+	my $chain_args = $parameters->{chain_args} // [];
 
-	if (is_array($fns))
+	my @chain        = split(/->|[.]/, $chain_str);
+	my $key_index    = 0;
+	my $intermediate = $anvil;
+	my @results;
+
+	foreach my $key (@chain)
 	{
-		foreach my $fn_wrapper ( @{$fns} )
+		my $is_intermediate_hash = is_hash($intermediate);
+		my $is_last_key          = $key_index == $#chain;
+
+		if ($is_intermediate_hash) # Left-hand is hash; treat it as reading data
 		{
-			if (is_array($fn_wrapper))
+			last if (not exists $intermediate->{$key});
+
+			if ($is_last_key)
 			{
-				# The double dash ( // ) operator is similar to the or ( || )
-				# operator; it tests for defined instead of true.
+				@results = ($intermediate->{$key});
 
-				my $pre_chain    = @{$fn_wrapper}[0] // "";
-				my @fn_params    = @{$fn_wrapper}[1..$#{$fn_wrapper}] // ();
-				my @chain        = split(/->|,/, $pre_chain);
-				my $intermediate = $anvil;
-				my $key_index    = 0;
-
-				foreach my $key ( @chain )
-				{
-					last if not defined $intermediate->${key};
-
-					if ($key_index == $#chain && $intermediate->can($key))
-					{
-						eval { $intermediate->${key}(@fn_params); };
-					}
-					else
-					{
-						$intermediate = $intermediate->${key};
-					}
-
-					$key_index += 1;
-				}
+				last;
 			}
+
+			$intermediate = $intermediate->{$key};
 		}
-	}
-}
-
-sub get_anvil_data
-{
-	my $parameters = shift;
-	my $chain      = $parameters->{chain};
-
-	my $source_intermediate = $anvil->data;
-	my $target_intermediate = $parameters->{data};
-	my $key_index           = 0;
-
-	foreach my $key ( @{$chain} )
-	{
-		last if not exists $source_intermediate->{$key};
-
-		$source_intermediate = $source_intermediate->{$key};
-
-		if (not exists $target_intermediate->{$key})
+		else # Left-hand is not hash; treat it as blessed/class object (module) and try to call a method from it
 		{
-			$target_intermediate->{$key} = {};
-		}
+			# Key not found in object; stop following the chain
+			last if (not defined $intermediate->${key});
 
-		if ($key_index < $#{$chain})
-		{
-			$target_intermediate = $target_intermediate->{$key};
-		}
-		else
-		{
-			$target_intermediate->{$key} = $source_intermediate;
+			# On the last key of the chain; try to execute the subroutine if it exists
+			if ( $is_last_key && $intermediate->can($key) )
+			{
+				eval { (@results) = $intermediate->${key}(@$chain_args); return 1; } or @results = (1);
+
+				last;
+			}
+
+			$intermediate = $intermediate->${key};
 		}
 
 		$key_index += 1;
 	}
+
+	return (@results);
 }
 
 sub call_fn
@@ -246,6 +200,45 @@ sub call_fn
 	{
 		return $fallback;
 	}
+}
+
+sub call_pre_data_fns
+{
+	my $parameters = shift;
+	my $fns        = $parameters->{fns};
+
+	if (is_array($fns))
+	{
+		foreach my $fn_wrapper ( @{$fns} )
+		{
+			if (is_array($fn_wrapper))
+			{
+				# The double dash ( // ) operator is similar to the or ( || )
+				# operator; it tests for defined instead of true.
+
+				my @cargs = @{$fn_wrapper}[1..$#{$fn_wrapper}];
+
+				access_chain({
+					chain      => @{$fn_wrapper}[0],
+					chain_args => \@cargs,
+				});
+			}
+		}
+	}
+}
+
+sub db_access
+{
+	my $parameters     = shift;
+	my $db_access_mode = $parameters->{db_access_mode} // "";
+	my $db_uuid        = $parameters->{db_uuid};
+	my $sql_query      = $parameters->{sql_query};
+
+	my $access_parameters = { query => $sql_query, uuid => $db_uuid, source => $THIS_FILE, line => __LINE__ };
+
+	return ($db_access_mode eq "write")
+		? { write_code => $anvil->Database->write($access_parameters) }
+		: $anvil->Database->query($access_parameters);
 }
 
 sub foreach_nested
@@ -287,6 +280,134 @@ sub foreach_nested
 	}
 }
 
+sub get_anvil_data
+{
+	my $parameters          = shift;
+	my $chain               = $parameters->{chain};
+	my $target_intermediate = $parameters->{data};
+
+	my $source_intermediate = $anvil->data;
+	my $key_index           = 0;
+
+	foreach my $key ( @{$chain} )
+	{
+		last if not exists $source_intermediate->{$key};
+
+		$source_intermediate = $source_intermediate->{$key};
+
+		if (not exists $target_intermediate->{$key})
+		{
+			$target_intermediate->{$key} = {};
+		}
+
+		if ($key_index < $#{$chain})
+		{
+			$target_intermediate = $target_intermediate->{$key};
+		}
+		else
+		{
+			$target_intermediate->{$key} = $source_intermediate;
+		}
+
+		$key_index += 1;
+	}
+}
+
+sub get_scmd_args
+{
+	my $parameters = shift;
+	# Required:
+	my $input      = $parameters->{input};
+	my $get_values = $parameters->{get_values};
+	# Optional:
+	my $cmd        = $parameters->{cmd};
+	my $arg_names  = $parameters->{names} // [];
+
+	my $i       = 0;
+	my $args    = {};
+	my @matches = $get_values->($input, $cmd);
+
+	foreach (@matches)
+	{
+		my $arg_name = $arg_names->[$i++] // "$i";
+
+		$args->{$arg_name} = $_ if defined $arg_name;
+	}
+
+	return $args;
+}
+
+sub is_array
+{
+	return ref($_[0]) eq "ARRAY";
+}
+
+sub is_hash
+{
+	return ref($_[0]) eq "HASH";
+}
+
+sub process_scmd_db
+{
+	my $parameters = shift;
+	# Required:
+	my $cmd        = $parameters->{cmd};
+	my $input      = $parameters->{input};
+	# Optional:
+	my $mode       = $parameters->{mode};
+
+	my $sargs = get_scmd_args({
+		cmd        => $cmd,
+		input      => $input,
+		get_values => sub { my $c = $_[1]; return $_[0] =~ /^$c\s+(?:uuid=([^\s]+))?\s*(.*)$/; },
+		names      => ["uuid", "script"],
+	});
+
+	eval {
+		my $results = db_access({ db_uuid => $sargs->{uuid}, sql_query => $sargs->{script}, db_access_mode => $mode });
+
+		pstdout(JSON->new->utf8->encode($results));
+	} or do {
+		pstderr("failed to access database; cause: $@");
+	}
+}
+
+sub process_scmd_execute
+{
+	my $parameters = shift;
+	# Required:
+	my $input      = $parameters->{input};
+
+	my @sargs      = parse_line('\s+', 0, $input);
+
+	return if $#sargs < 1;
+
+	my $chain_str  = $sargs[1];
+	my @chain_args = $#sargs > 1 ? @sargs[2..$#sargs] : ();
+
+	for my $i (0..$#chain_args)
+	{
+		my $param             = $chain_args[$i];
+		my $is_decode_success = eval { $param = decode_json($param); };
+
+		$chain_args[$i] = $param if $is_decode_success;
+	}
+
+	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args });
+
+	pstdout(JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
+}
+
+sub pstdout
+{
+	print $_[0]."\n" if defined $_[0];
+}
+
+sub pstderr
+{
+	print STDERR "error: ".$_[0]."\n" if defined $_[0];
+}
+
 $anvil->Get->switches;
 
 $anvil->Database->connect;
@@ -302,6 +423,7 @@ my $data_hash       = $anvil->data->{switches}{'data'};
 my $db_access_mode  = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
 my $db_uuid         = $anvil->data->{switches}{'uuid'};
 my $pre_data        = $anvil->data->{switches}{'predata'};
+my $script_file     = $anvil->data->{switches}{'script'};
 my $sql_query       = $anvil->data->{switches}{'query'};
 my $sub_module_name = defined $anvil->data->{switches}{'sub-module'} ? $anvil->data->{switches}{'sub-module'} : "Database";
 my $sub_name        = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
@@ -310,7 +432,8 @@ my $sub_params      = defined $anvil->data->{switches}{'sub-params'} ? $anvil->d
 if ($sql_query)
 {
 	my $results = db_access({ db_uuid => $db_uuid, sql_query => $sql_query, db_access_mode => $db_access_mode });
-	print JSON->new->utf8->encode($results)."\n";
+
+	pstdout(JSON->new->utf8->encode($results));
 }
 elsif ($anvil->${sub_module_name}->can($sub_name))
 {
@@ -319,12 +442,14 @@ elsif ($anvil->${sub_module_name}->can($sub_name))
 
 	if (not $is_decode_sub_params_success)
 	{
-		print STDERR "error: failed to parse subroutine parameters\n";
+		pstderr("failed to parse subroutine parameters");
+
 		$anvil->nice_exit({ exit_code => 1 });
 	}
 
 	my (@results) = $anvil->${sub_module_name}->${sub_name}($decoded_sub_params);
-	print JSON->new->utf8->encode({ sub_results => scalar(@results) > 1 ? \@results : $results[0] })."\n";
+
+	pstdout(JSON->new->utf8->encode({ sub_results => scalar(@results) > 1 ? \@results : $results[0] }));
 }
 elsif ($data_hash)
 {
@@ -344,7 +469,8 @@ elsif ($data_hash)
 
 	if (not $is_decode_data_hash_success)
 	{
-		print STDERR "error: failed to parse data structure\n";
+		pstderr("failed to parse data structure");
+
 		$anvil->nice_exit({ exit_code => 1 });
 	}
 
@@ -355,11 +481,63 @@ elsif ($data_hash)
 		on_chain_end => { fn => \&get_anvil_data, params => $get_anvil_data_params },
 	});
 
-	print JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data})."\n";
+	pstdout(JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data}));
+}
+elsif ($script_file)
+{
+	my $script_file_handle;
+
+	eval {
+		if ($script_file eq "#!SET!#")
+		{
+			$script_file = "-";
+
+			open($script_file_handle, $script_file);
+		}
+		else
+		{
+			open($script_file_handle, "< :encoding(UTF-8)", $script_file);
+		}
+	} or do {
+		pstderr("failed to open $script_file as script input; cause: $@");
+
+		$anvil->nice_exit({ exit_code => 1 });
+	};
+
+	while (my $script_line = <$script_file_handle>)
+	{
+		last if ($script_line =~ /^(quit|q)\s+$/);
+
+		$script_line =~ s/\s+$//;
+
+		my $scmd_db_read  = "r";
+		my $scmd_db_write = "w";
+		my $scmd_execute  = "x";
+
+		if ($script_line =~ /^$scmd_db_read\s+/)
+		{
+			process_scmd_db({ cmd => $scmd_db_read, input => $script_line });
+		}
+		elsif ($script_line =~ /^$scmd_db_write\s+/)
+		{
+			process_scmd_db({ cmd => $scmd_db_write, input => $script_line, mode => "write" });
+		}
+		elsif ($script_line =~ /^$scmd_execute\s+/)
+		{
+			process_scmd_execute({ input => $script_line });
+		}
+	}
+
+	close($script_file_handle) or do {
+		pstderr("failed to close $script_file handle; cause: $@");
+
+		$anvil->nice_exit({ exit_code => 1 });
+	};
 }
 else
 {
-	print STDERR "error: missing switches and perhaps their respective parameters; one of --data, --query, or --sub is required\n";
+	print STDERR "missing switches/parameters; one of --data, --query, --script, or --sub is required\n";
+
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
