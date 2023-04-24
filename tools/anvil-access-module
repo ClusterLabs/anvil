@@ -21,24 +21,30 @@
 #   * Inputs are processed by lines. Each line must satisfy one of the
 #     following format:
 #
-#     r [uuid=<database UUID>] <SQL script>
+#     [<line UUID> ]r[ uuid=<database UUID>] <SQL script>
 #
 #       Performs a data query script (SELECT) on the database. Targets the
 #       specified database if "uuid=" is provided.
 #
-#     w [uuid=<database UUID>] <SQL script, i.e., >
+#     [<line UUID> ]w[ uuid=<database UUID>] <SQL script, i.e., >
 #
 #       Performs a data definition or manipulation script on the database.
 #
-#     x <module->subroutine, or hash available in Anvil::Tools class> [positional subroutine parameters...]
+#     [<line UUID> ]x <module->subroutine, or hash available in Anvil::Tools class> [space-separated positional subroutine parameters...]
 #
 #       Executes an Anvil module subroutine OR retrieves a hash value. This is
 #       designed to expose the most-used parts of "$anvil->..." to the
 #       interactive/script function of this tool.
 #
+#       * A quoted string is treated as one positional parameter with the
+#         wrapping quotes removed.
+#
 #       ! The tool will attempt to decode each positional parameter as JSON.
 #         Parameters that fail the decoding will be passed to the subroutine
 #         as-is.
+#
+#   * The response will be prefixed with line UUID if provided. Line UUID must
+#     be followed by a space to be recognized.
 #
 #   * Lines that fail to meet the format above are ignored.
 #
@@ -381,6 +387,7 @@ sub process_scmd_db
 	my $cmd        = $parameters->{cmd};
 	my $input      = $parameters->{input};
 	# Optional:
+	my $lid        = $parameters->{lid} // "";
 	my $mode       = $parameters->{mode};
 
 	my $sargs = get_scmd_args({
@@ -393,7 +400,7 @@ sub process_scmd_db
 	eval {
 		my $results = db_access({ db_uuid => $sargs->{uuid}, sql_query => $sargs->{script}, db_access_mode => $mode });
 
-		pstdout(JSON->new->utf8->encode($results));
+		pstdout($lid.JSON->new->utf8->encode($results));
 	} or do {
 		pstderr("failed to access database; cause: $@");
 	}
@@ -404,6 +411,8 @@ sub process_scmd_execute
 	my $parameters = shift;
 	# Required:
 	my $input      = $parameters->{input};
+	# Optional:
+	my $lid        = $parameters->{lid} // "";
 
 	my @sargs      = parse_line('\s+', 0, $input);
 
@@ -422,7 +431,7 @@ sub process_scmd_execute
 
 	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args });
 
-	pstdout(JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
+	pstdout($lid.JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
 }
 
 sub pstdout
@@ -534,7 +543,7 @@ else
 
 	while (my $script_line = <$script_file_handle>)
 	{
-		last if ($script_line =~ /^(quit|q)\s+$/);
+		last if ($script_line =~ /^(?:q|quit)\s+$/);
 
 		$script_line =~ s/\s+$//;
 
@@ -542,17 +551,21 @@ else
 		my $scmd_db_write = "w";
 		my $scmd_execute  = "x";
 
+		$script_line =~ s/^([[:xdigit:]]{8}-[[:xdigit:]]{4}-[1-5][[:xdigit:]]{3}-[89ab][[:xdigit:]]{3}-[[:xdigit:]]{12})\s+//;
+
+		my $script_line_id = $1;
+
 		if ($script_line =~ /^$scmd_db_read\s+/)
 		{
-			process_scmd_db({ cmd => $scmd_db_read, input => $script_line });
+			process_scmd_db({ cmd => $scmd_db_read, input => $script_line, lid => $script_line_id });
 		}
 		elsif ($script_line =~ /^$scmd_db_write\s+/)
 		{
-			process_scmd_db({ cmd => $scmd_db_write, input => $script_line, mode => "write" });
+			process_scmd_db({ cmd => $scmd_db_write, input => $script_line, lid => $script_line_id, mode => "write" });
 		}
 		elsif ($script_line =~ /^$scmd_execute\s+/)
 		{
-			process_scmd_execute({ input => $script_line });
+			process_scmd_execute({ input => $script_line, lid => $script_line_id });
 		}
 	}
 
