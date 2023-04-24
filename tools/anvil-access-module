@@ -15,6 +15,32 @@
 #
 #
 # --- Usages ---
+#   To use interactively or process a script:
+#   anvil-access-module [--script <file path>]
+#
+#   * Inputs are processed by lines. Each line must satisfy one of the
+#     following format:
+#
+#     r [uuid=<database UUID>] <SQL script>
+#
+#       Performs a data query script (SELECT) on the database. Targets the
+#       specified database if "uuid=" is provided.
+#
+#     w [uuid=<database UUID>] <SQL script, i.e., >
+#
+#       Performs a data definition or manipulation script on the database.
+#
+#     x <module->subroutine, or hash available in Anvil::Tools class> [positional subroutine parameters...]
+#
+#       Executes an Anvil module subroutine OR retrieves a hash value. This is
+#       designed to expose the most-used parts of "$anvil->..." to the
+#       interactive/script function of this tool.
+#
+#       ! The tool will attempt to decode each positional parameter as JSON.
+#         Parameters that fail the decoding will be passed to the subroutine
+#         as-is.
+#
+#   * Lines that fail to meet the format above are ignored.
 #
 #   To read from database:
 #   anvil-access-module --query <SQL query> [--uuid <database UUID>]
