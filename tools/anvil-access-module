@@ -161,12 +161,13 @@ sub access_chain
 		else # Left-hand is not hash; treat it as blessed/class object (module) and try to call a method from it
 		{
 			# Key not found in object; stop following the chain
-			last if (not defined $intermediate->${key});
+			eval { defined $intermediate->${key} ? 1 : 0; } or last;
 
 			# On the last key of the chain; try to execute the subroutine if it exists
 			if ( $is_last_key && $intermediate->can($key) )
 			{
-				eval { (@results) = $intermediate->${key}(@$chain_args); return 1; } or @results = (1);
+				# Trailing 1 means the eval block will return success if the subroutine and assign succeeded
+				eval { (@results) = $intermediate->${key}(@$chain_args); 1; } or @results = (1);
 
 				last;
 			}
@@ -420,14 +421,14 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 my $data_hash       = $anvil->data->{switches}{'data'};
-my $db_access_mode  = defined $anvil->data->{switches}{'mode'} ? $anvil->data->{switches}{'mode'} : "";
+my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
 my $db_uuid         = $anvil->data->{switches}{'uuid'};
 my $pre_data        = $anvil->data->{switches}{'predata'};
-my $script_file     = $anvil->data->{switches}{'script'};
+my $script_file     = $anvil->data->{switches}{'script'} // "-";
 my $sql_query       = $anvil->data->{switches}{'query'};
-my $sub_module_name = defined $anvil->data->{switches}{'sub-module'} ? $anvil->data->{switches}{'sub-module'} : "Database";
-my $sub_name        = defined $anvil->data->{switches}{'sub'} ? $anvil->data->{switches}{'sub'} : "";
-my $sub_params      = defined $anvil->data->{switches}{'sub-params'} ? $anvil->data->{switches}{'sub-params'} : "{}";
+my $sub_module_name = $anvil->data->{switches}{'sub-module'} // "Database";
+my $sub_name        = $anvil->data->{switches}{'sub'} // "";
+my $sub_params      = $anvil->data->{switches}{'sub-params'} // "{}";
 
 if ($sql_query)
 {
@@ -483,12 +484,12 @@ elsif ($data_hash)
 
 	pstdout(JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data}));
 }
-elsif ($script_file)
+else
 {
 	my $script_file_handle;
 
 	eval {
-		if ($script_file eq "#!SET!#")
+		if ($script_file =~ /^#!SET!#|-$/)
 		{
 			$script_file = "-";
 
@@ -499,7 +500,8 @@ elsif ($script_file)
 			open($script_file_handle, "< :encoding(UTF-8)", $script_file);
 		}
 	} or do {
-		pstderr("failed to open $script_file as script input; cause: $@");
+		# open() sets $! upon error, different from the database module failure (which sets $@)
+		pstderr("failed to open $script_file as script input; cause: $!");
 
 		$anvil->nice_exit({ exit_code => 1 });
 	};
@@ -529,16 +531,10 @@ elsif ($script_file)
 	}
 
 	close($script_file_handle) or do {
-		pstderr("failed to close $script_file handle; cause: $@");
+		pstderr("failed to close $script_file handle; cause: $!");
 
 		$anvil->nice_exit({ exit_code => 1 });
 	};
-}
-else
-{
-	print STDERR "missing switches/parameters; one of --data, --query, --script, or --sub is required\n";
-
-	$anvil->nice_exit({ exit_code => 1 });
 }
 
 $anvil->nice_exit({ exit_code => 0 });
