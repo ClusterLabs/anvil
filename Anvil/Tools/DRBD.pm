@@ -738,6 +738,24 @@ sub gather_data
 		local_short_host_name => $local_short_host_name, 
 	}});
 	
+	# Often, annoyingly, DRBD reports a message about usage before showing the XML. We need to detect and
+	# strip that off.
+	my $new_xml = "";
+	my $in_xml  = 0;
+	foreach my $line (split/\n/, $xml)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /<config/)
+		{
+			$in_xml = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_xml => $in_xml }});
+		}
+		next if not $in_xml;
+		$new_xml .= $line."\n";
+	}
+	$xml = $new_xml;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { xml => $xml }});
+	
 	local $@;
 	my $dom = eval { XML::LibXML->load_xml(string => $xml); };
 	if ($@)

@@ -601,7 +601,7 @@ WHERE
 			scan_hardware_cpu_cores   => $scan_hardware_cpu_cores,
 			scan_hardware_cpu_threads => $scan_hardware_cpu_threads, 
 			scan_hardware_cpu_model   => $scan_hardware_cpu_model, 
-			scan_hardware_ram_total   => $scan_hardware_ram_total, 
+			scan_hardware_ram_total   => $scan_hardware_ram_total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_hardware_ram_total}).")", 
 		}});
 		
 		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores}     = $scan_hardware_cpu_cores;
@@ -663,7 +663,9 @@ SELECT
 FROM 
     servers 
 WHERE 
-    server_anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." 
+    server_anvil_uuid =  ".$anvil->Database->quote($anvil_uuid)." 
+AND 
+    server_state      != 'DELETED' 
 ORDER BY 
     server_name ASC;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -693,9 +695,13 @@ ORDER BY
 	if (not exists $anvil->data->{anvil_resources}{ram}{reserved})
 	{
 		$anvil->data->{anvil_resources}{ram}{reserved} = $default_reserved;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			default_reserved                 => $default_reserved, 
+			"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+		}});
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{ram}{reserved}}).")",
+		"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
 	}});
 	
 	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/,//g;

@@ -17,6 +17,7 @@ Common queries;
 * SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;
 * SELECT a.dr_link_uuid, b.host_name, c.anvil_name, a.dr_link_note FROM dr_links a, hosts b, anvils c WHERE a.dr_link_host_uuid = b.host_uuid AND a.dr_link_anvil_uuid = c.anvil_uuid ORDER BY c.anvil_name ASC, b.host_name ASC;
 * SELECT a.storage_group_uuid, d.storage_group_member_uuid, b.anvil_name, a.storage_group_name, c.host_name, d.storage_group_member_vg_uuid, d.storage_group_member_note FROM storage_groups a, anvils b, hosts c, storage_group_members d WHERE a.storage_group_uuid = d.storage_group_member_storage_group_uuid AND a.storage_group_anvil_uuid = b.anvil_uuid AND c.host_uuid = d.storage_group_member_host_uuid ORDER BY a.storage_group_name ASC, c.host_name ASC;
+* SELECT a.scan_hardware_uuid, b.host_name, a.scan_hardware_cpu_cores AS cores, a.scan_hardware_cpu_threads AS threads, pg_size_pretty(a.scan_hardware_ram_total) AS ram_total, pg_size_pretty(a.scan_hardware_memory_total) AS memory_total, pg_size_pretty(a.scan_hardware_memory_free) AS memory_free FROM scan_hardware a, hosts b WHERE a.scan_hardware_host_uuid = b.host_uuid ORDER BY b.host_name ASC;
 
 
 # Fail a resource for testing purposes.
