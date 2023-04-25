@@ -14,6 +14,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
   usr: {
     bin: {
       date: {},
+      getent: {},
       mkfifo: {},
       openssl: {},
       psql: {},
