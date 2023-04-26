@@ -10,7 +10,7 @@ import { getLocalHostUUID, query, timestamp, write } from './lib/accessModule';
 import { getSessionSecret } from './lib/getSessionSecret';
 import { stderr, stdout, stdoutVar, uuid } from './lib/shell';
 
-const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 3600000;
+const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 28800000; // 8 hours
 
 export class SessionStore extends BaseSessionStore {
   constructor(options = {}) {
