@@ -25,7 +25,9 @@ export class SessionStore extends BaseSessionStore {
 
     try {
       const wcode = await write(
-        `UPDATE sessions SET session_salt = '${DELETED}' WHERE session_uuid = '${sid}';`,
+        `UPDATE sessions
+          SET session_salt = '${DELETED}', modified_date = '${timestamp()}'
+          WHERE session_uuid = '${sid}';`,
       );
 
       assert(wcode === 0, `Write exited with code ${wcode}`);
@@ -61,7 +63,8 @@ export class SessionStore extends BaseSessionStore {
           FROM sessions AS s
           JOIN users AS u
             ON s.session_user_uuid = u.user_uuid
-          WHERE s.session_uuid = '${sid}';`,
+          WHERE s.session_salt != '${DELETED}'
+            AND s.session_uuid = '${sid}';`,
       );
     } catch (queryError) {
       return done(queryError);
@@ -146,7 +149,9 @@ export class SessionStore extends BaseSessionStore {
 
     try {
       const wcode = await write(
-        `UPDATE sessions SET modified_date = '${timestamp()}' WHERE session_uuid = '${sid}';`,
+        `UPDATE sessions
+          SET modified_date = '${timestamp()}'
+          WHERE session_uuid = '${sid}';`,
       );
 
       assert(wcode === 0, `Write exited with code ${wcode}`);
