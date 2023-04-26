@@ -1,6 +1,7 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import join from '../../join';
 import { sanitize } from '../../sanitize';
+import { stdoutVar } from '../../shell';
 
 export const getServer = buildGetRequestHandler(
   (request, buildQueryOptions) => {
@@ -13,7 +14,7 @@ export const getServer = buildGetRequestHandler(
       separator: ', ',
     });
 
-    console.log(`condAnvilsUUID=[${condAnvilUUIDs}]`);
+    stdoutVar({ condAnvilUUIDs });
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {

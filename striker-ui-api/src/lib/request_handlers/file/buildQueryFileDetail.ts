@@ -1,4 +1,5 @@
 import join from '../../join';
+import { stdoutVar } from '../../shell';
 
 const buildQueryFileDetail = ({
   fileUUIDs = ['*'],
@@ -14,7 +15,7 @@ const buildQueryFileDetail = ({
         separator: ', ',
       });
 
-  console.log(`condFilesUUID=[${condFileUUIDs}]`);
+  stdoutVar({ condFileUUIDs });
 
   return `
     SELECT

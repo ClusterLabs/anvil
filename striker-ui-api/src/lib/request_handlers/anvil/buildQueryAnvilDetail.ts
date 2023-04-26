@@ -2,6 +2,7 @@ import NODE_AND_DR_RESERVED_MEMORY_SIZE from '../../consts/NODE_AND_DR_RESERVED_
 import { OS_LIST } from '../../consts/OS_LIST';
 
 import join from '../../join';
+import { stdoutVar } from '../../shell';
 
 const buildQueryAnvilDetail = ({
   anvilUUIDs = ['*'],
@@ -19,7 +20,7 @@ const buildQueryAnvilDetail = ({
         separator: ', ',
       });
 
-  console.log(`condAnvilsUUID=[${condAnvilsUUID}]`);
+  stdoutVar({ condAnvilsUUID });
 
   const buildHostQuery = ({
     isSummary = false,

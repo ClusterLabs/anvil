@@ -10,6 +10,7 @@ import {
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
+import { stderr, stdoutVar } from '../../shell';
 
 const fvar = (configStepCount: number, fieldName: string) =>
   ['form', `config_step${configStepCount}`, fieldName, 'value'].join('::');
@@ -40,8 +41,7 @@ export const configStriker: RequestHandler<
   undefined,
   InitializeStrikerForm
 > = ({ body }, response) => {
-  console.log('Begin initialize Striker.');
-  console.dir(body, { depth: null });
+  stdoutVar(body, 'Begin initialize Striker; body=');
 
   const {
     adminPassword = '',
@@ -105,13 +105,11 @@ export const configStriker: RequestHandler<
       `Data organization prefix can only contain 1 to 5 lowercase alphanumeric characters; got [${dataOrganizationPrefix}]`,
     );
   } catch (assertError) {
-    console.log(
+    stderr(
       `Failed to assert value when trying to initialize striker; CAUSE: ${assertError}.`,
     );
 
-    response.status(400).send();
-
-    return;
+    return response.status(400).send();
   }
 
   try {
@@ -153,11 +151,9 @@ ${buildNetworkLinks(2, networkShortName, interfaces)}`;
       job_description: 'job_0071',
     });
   } catch (subError) {
-    console.log(`Failed to queue striker initialization; CAUSE: ${subError}`);
+    stderr(`Failed to queue striker initialization; CAUSE: ${subError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   response.status(200).send();
