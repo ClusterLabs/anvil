@@ -128,7 +128,7 @@ class Access extends EventEmitter {
       });
     });
 
-    shvar({ scriptId, script });
+    shvar({ scriptId, script }, 'Access interact: ');
 
     this.queue.push(scriptId);
     stdin?.write(script);
@@ -138,6 +138,36 @@ class Access extends EventEmitter {
 }
 
 const access = new Access();
+
+const data = async <T>(...keys: string[]) =>
+  access.interact<T>('x', `data->${keys.join('->')}`);
+
+const subroutine = <T extends Record<string, unknown>>(
+  subroutine: string,
+  {
+    params = [],
+    pre = ['Database'],
+  }: {
+    params?: unknown[];
+    pre?: string[];
+  },
+) => {
+  const chain = `${pre.join('->')}->${subroutine}`;
+
+  const subParams: string[] = params.map<string>((p) => {
+    let result: string;
+
+    try {
+      result = JSON.stringify(p);
+    } catch (error) {
+      result = String(p);
+    }
+
+    return result;
+  });
+
+  return access.interact<T>('x', chain, ...subParams);
+};
 
 const query = <T extends (number | null | string)[][]>(script: string) =>
   access.interact<T>('r', formatSql(script));
@@ -366,6 +396,8 @@ export {
   getLocalHostName,
   getLocalHostUUID,
   getPeerData,
+  data,
   query,
+  subroutine,
   write,
 };
