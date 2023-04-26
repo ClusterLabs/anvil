@@ -1,13 +1,15 @@
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 
-import { dbQuery, sub } from './lib/accessModule';
+import { DELETED } from './lib/consts';
+
+import { query, sub } from './lib/accessModule';
 import { sanitize } from './lib/sanitize';
 import { stdout } from './lib/shell';
 
 passport.use(
   'login',
-  new LocalStrategy((username, password, done) => {
+  new LocalStrategy(async (username, password, done) => {
     stdout(`Attempting passport local strategy "login" for user [${username}]`);
 
     let rows: [
@@ -20,7 +22,7 @@ passport.use(
     ][];
 
     try {
-      rows = dbQuery(
+      rows = await query(
         `SELECT
           user_uuid,
           user_name,
@@ -32,7 +34,7 @@ passport.use(
         WHERE user_algorithm != 'DELETED'
           AND user_name = '${username}'
         LIMIT 1;`,
-      ).stdout;
+      );
     } catch (queryError) {
       return done(queryError);
     }
@@ -89,7 +91,7 @@ passport.serializeUser((user, done) => {
   return done(null, uuid);
 });
 
-passport.deserializeUser((id, done) => {
+passport.deserializeUser(async (id, done) => {
   const uuid = sanitize(id, 'string', { modifierType: 'sql' });
 
   stdout(`Deserialize user identified by ${uuid}`);
@@ -97,12 +99,12 @@ passport.deserializeUser((id, done) => {
   let rows: [userName: string][];
 
   try {
-    rows = dbQuery(
+    rows = await query(
       `SELECT user_name
         FROM users
-        WHERE user_algorithm != 'DELETED'
+        WHERE user_algorithm != '${DELETED}'
           AND user_uuid = '${uuid}';`,
-    ).stdout;
+    );
   } catch (error) {
     return done(error);
   }

@@ -11,7 +11,6 @@ import { readFileSync } from 'fs';
 import { SERVER_PATHS, PGID, PUID } from './consts';
 
 import { formatSql } from './formatSql';
-import { isObject } from './isObject';
 import {
   date,
   stderr as sherr,
@@ -140,52 +139,16 @@ class Access extends EventEmitter {
 
 const access = new Access();
 
-const asyncAnvilAccessModule = (
-  args: string[],
-  {
-    onClose,
-    onError,
-    stdio = 'pipe',
-    timeout = 60000,
-    ...restSpawnOptions
-  }: AsyncAnvilAccessModuleOptions = {},
-) => {
-  const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
-    stdio,
-    timeout,
-    ...restSpawnOptions,
-  });
+const query = <T extends (number | null | string)[][]>(script: string) =>
+  access.interact<T>('r', formatSql(script));
 
-  let stderr = '';
-  let stdout = '';
+const write = async (script: string) => {
+  const { write_code: wcode } = await access.interact<{ write_code: number }>(
+    'w',
+    formatSql(script),
+  );
 
-  ps.once('close', (ecode, signal) => {
-    let output;
-
-    try {
-      output = JSON.parse(stdout);
-    } catch (stdoutParseError) {
-      output = stdout;
-
-      sherr(
-        `Failed to parse async anvil-access-module stdout; CAUSE: ${stdoutParseError}`,
-      );
-    }
-
-    onClose?.call(null, { ecode, signal, stderr, stdout: output });
-  });
-
-  ps.once('error', (...args) => {
-    onError?.call(null, ...args);
-  });
-
-  ps.stderr?.setEncoding('utf-8').on('data', (data) => {
-    stderr += data;
-  });
-
-  ps.stdout?.setEncoding('utf-8').on('data', (data) => {
-    stdout += data;
-  });
+  return wcode;
 };
 
 const execAnvilAccessModule = (
@@ -304,9 +267,6 @@ const dbJobAnvilSyncShared = (
   return dbInsertOrUpdateJob(subParams);
 };
 
-const query = <T extends (number | null | string)[][]>(sqlscript: string) =>
-  access.interact<T>('r', formatSql(sqlscript));
-
 const dbSubRefreshTimestamp = () => {
   let result: string;
 
@@ -319,39 +279,6 @@ const dbSubRefreshTimestamp = () => {
   }
 
   return result;
-};
-
-const awrite = (
-  script: string,
-  { onClose: initOnClose, ...restOptions }: AsyncDatabaseWriteOptions = {},
-) => {
-  shout(formatSql(script));
-
-  const onClose: AsyncAnvilAccessModuleCloseHandler = (args, ...rest) => {
-    const { stdout } = args;
-    const { obj: output } = isObject(stdout);
-
-    let wcode: number | null = null;
-
-    if ('write_code' in output) {
-      ({ write_code: wcode } = output as { write_code: number });
-
-      shout(`Async write completed with write_code=${wcode}`);
-    }
-
-    initOnClose?.call(null, { wcode, ...args }, ...rest);
-  };
-
-  return asyncAnvilAccessModule(['--query', script, '--mode', 'write'], {
-    onClose,
-    ...restOptions,
-  });
-};
-
-const dbWrite = (script: string, options?: SpawnSyncOptions) => {
-  shout(formatSql(script));
-
-  return execAnvilAccessModule(['--query', script, '--mode', 'write'], options);
 };
 
 const getAnvilData = <HashType>(
@@ -430,16 +357,15 @@ const getPeerData: GetPeerDataFunction = (
 };
 
 export {
-  awrite,
   dbInsertOrUpdateJob as job,
   dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
   dbSubRefreshTimestamp as timestamp,
-  dbWrite,
   execModuleSubroutine as sub,
   getAnvilData,
   getLocalHostName,
   getLocalHostUUID,
   getPeerData,
   query,
+  write,
 };

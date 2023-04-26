@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 
 import { DELETED, REP_UUID } from '../../consts';
 
-import { awrite } from '../../accessModule';
+import { write } from '../../accessModule';
 import join from '../../join';
 import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar } from '../../shell';
@@ -12,7 +12,7 @@ export const deleteUser: RequestHandler<
   DeleteUserParamsDictionary,
   undefined,
   DeleteUserRequestBody
-> = (request, response) => {
+> = async (request, response) => {
   const {
     body: { uuids: rawUserUuidList } = {},
     params: { userUuid },
@@ -42,23 +42,13 @@ export const deleteUser: RequestHandler<
   }
 
   try {
-    awrite(
+    const wcode = await write(
       `UPDATE users
         SET user_algorithm = '${DELETED}'
         WHERE user_uuid IN (${join(ulist)});`,
-      {
-        onClose: ({ ecode, wcode }) => {
-          if (ecode !== 0 || wcode !== 0) {
-            stderr(
-              `SQL script failed in delete user(s); ecode=${ecode}, wcode=${wcode}`,
-            );
-          }
-        },
-        onError: (error) => {
-          stderr(`Delete user subprocess error; CAUSE: ${error}`);
-        },
-      },
     );
+
+    assert(wcode === 0, `Write exited with code ${wcode}`);
   } catch (error) {
     stderr(`Failed to delete user(s); CAUSE: ${error}`);
 

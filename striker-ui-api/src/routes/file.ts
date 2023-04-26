@@ -5,8 +5,8 @@ import { DELETED } from '../lib/consts';
 import {
   dbJobAnvilSyncShared,
   timestamp,
-  dbWrite,
   query,
+  write,
 } from '../lib/accessModule';
 import getFile from '../lib/request_handlers/file/getFile';
 import getFileDetail from '../lib/request_handlers/file/getFileDetail';
@@ -24,13 +24,13 @@ router
     );
 
     if (oldFileType !== DELETED) {
-      dbWrite(
+      await write(
         `UPDATE files
           SET
             file_type = '${DELETED}',
             modified_date = '${timestamp()}'
           WHERE file_uuid = '${fileUUID}';`,
-      ).stdout;
+      );
 
       dbJobAnvilSyncShared('purge', `file_uuid=${fileUUID}`, '0136', '0137', {
         jobHostUUID: 'all',
@@ -174,25 +174,21 @@ router
       );
     }
 
-    stdout(`Query (type=[${typeof sqlscript}]): [${sqlscript}]`);
-
-    let queryStdout;
+    let wcode: number;
 
     try {
-      ({ stdout: queryStdout } = dbWrite(sqlscript));
+      wcode = await write(sqlscript);
     } catch (queryError) {
       stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
       return response.status(500).send();
     }
 
-    stdoutVar(queryStdout, `Query stdout (type=[${typeof queryStdout}]): `);
-
     anvilSyncSharedFunctions.forEach((fn, index) =>
       stdoutVar(fn(), `Anvil sync shared [${index}] output: `),
     );
 
-    response.status(200).send(queryStdout);
+    response.status(200).send(wcode);
   });
 
 export default router;
