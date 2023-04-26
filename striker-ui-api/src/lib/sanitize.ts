@@ -12,6 +12,7 @@ type MapToReturnFunction = {
   [ReturnTypeName in keyof MapToReturnType]: (
     value: unknown,
     modifier: (unmodified: unknown) => string,
+    fallback?: MapToReturnType[ReturnTypeName],
   ) => MapToReturnType[ReturnTypeName];
 };
 
@@ -29,10 +30,10 @@ const MAP_TO_MODIFIER_FUNCTION: MapToModifierFunction = {
 
 const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
   boolean: (value) => value !== undefined,
-  number: (value) => parseFloat(String(value)) || 0,
-  string: (value, mod) => (value ? mod(value) : ''),
-  'string[]': (value, mod) => {
-    let result: string[] = [];
+  number: (value, mod, fallback = 0) => parseFloat(String(value)) || fallback,
+  string: (value, mod, fallback = '') => (value ? mod(value) : fallback),
+  'string[]': (value, mod, fallback = []) => {
+    let result: string[] = fallback;
 
     if (value instanceof Array) {
       result = value.reduce<string[]>((reduceContainer, element) => {
@@ -54,18 +55,24 @@ export const sanitize = <ReturnTypeName extends keyof MapToReturnType>(
   value: unknown,
   returnType: ReturnTypeName,
   {
+    fallback,
     modifierType = 'none',
     modifier = MAP_TO_MODIFIER_FUNCTION[modifierType],
   }: {
+    fallback?: MapToReturnType[ReturnTypeName];
     modifier?: ModifierFunction;
     modifierType?: keyof MapToModifierFunction;
   } = {},
 ): MapToReturnType[ReturnTypeName] =>
-  MAP_TO_RETURN_FUNCTION[returnType](value, (unmodified: unknown) => {
-    const input = String(unmodified);
+  MAP_TO_RETURN_FUNCTION[returnType](
+    value,
+    (unmodified: unknown) => {
+      const input = String(unmodified);
 
-    return call<string>(modifier, {
-      notCallableReturn: input,
-      parameters: [input],
-    });
-  }) as MapToReturnType[ReturnTypeName];
+      return call<string>(modifier, {
+        notCallableReturn: input,
+        parameters: [input],
+      });
+    },
+    fallback,
+  ) as MapToReturnType[ReturnTypeName];
