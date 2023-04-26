@@ -63,7 +63,7 @@ class Access extends EventEmitter {
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
       stderr += chunk;
 
-      const scriptId = this.queue.at(0);
+      const scriptId: string | undefined = this.queue[0];
 
       if (scriptId) {
         sherr(`${Access.event(scriptId, 'stderr')}: ${stderr}`);
