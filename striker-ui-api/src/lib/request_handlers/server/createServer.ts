@@ -9,9 +9,9 @@ import { sanitize } from '../../sanitize';
 import { stderr, stdout, stdoutVar } from '../../shell';
 
 export const createServer: RequestHandler = async (request, response) => {
-  const { body: rqbody = {} } = request;
+  const { body = {} } = request;
 
-  stdoutVar({ rqbody }, 'Creating server.\n');
+  stdoutVar(body, 'Creating server; body=');
 
   const {
     serverName: rServerName,
@@ -27,7 +27,7 @@ export const createServer: RequestHandler = async (request, response) => {
     driverISOFileUUID: rDriverIsoUuid,
     anvilUUID: rAnvilUuid,
     optimizeForOS: rOptimizeForOs,
-  } = rqbody;
+  } = body;
 
   const serverName = sanitize(rServerName, 'string');
   const os = sanitize(rOptimizeForOs, 'string');

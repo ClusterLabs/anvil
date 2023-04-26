@@ -3,13 +3,14 @@ import { RequestHandler } from 'express';
 
 import {
   REP_DOMAIN,
-  REP_INTEGER,
   REP_IPV4,
   REP_IPV4_CSV,
-} from '../../consts/REG_EXP_PATTERNS';
-import SERVER_PATHS from '../../consts/SERVER_PATHS';
+  REP_PEACEFUL_STRING,
+  SERVER_PATHS,
+} from '../../consts';
 
 import { job } from '../../accessModule';
+import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar } from '../../shell';
 
 const fvar = (configStepCount: number, fieldName: string) =>
@@ -39,70 +40,72 @@ ${fvar(
 export const configStriker: RequestHandler<
   unknown,
   undefined,
-  InitializeStrikerForm
-> = ({ body }, response) => {
+  Partial<InitializeStrikerForm>
+> = (request, response) => {
+  const { body = {} } = request;
+
   stdoutVar(body, 'Begin initialize Striker; body=');
 
   const {
-    adminPassword = '',
-    domainName = '',
-    hostName = '',
-    hostNumber = 0,
-    networkDNS = '',
-    networkGateway = '',
+    adminPassword: rAdminPassword = '',
+    domainName: rDomainName = '',
+    hostName: rHostName = '',
+    hostNumber: rHostNumber = 0,
+    networkDNS: rNetworkDns = '',
+    networkGateway: rNetworkGateway = '',
     networks = [],
-    organizationName = '',
-    organizationPrefix = '',
-  } = body || {};
+    organizationName: rOrganizationName = '',
+    organizationPrefix: rOrganizationPrefix = '',
+  } = body;
 
-  const dataAdminPassword = String(adminPassword);
-  const dataDomainName = String(domainName);
-  const dataHostName = String(hostName);
-  const dataHostNumber = String(hostNumber);
-  const dataNetworkDNS = String(networkDNS);
-  const dataNetworkGateway = String(networkGateway);
-  const dataOrganizationName = String(organizationName);
-  const dataOrganizationPrefix = String(organizationPrefix);
+  const adminPassword = sanitize(rAdminPassword, 'string');
+  const domainName = sanitize(rDomainName, 'string');
+  const hostName = sanitize(rHostName, 'string');
+  const hostNumber = sanitize(rHostNumber, 'number');
+  const networkDns = sanitize(rNetworkDns, 'string');
+  const networkGateway = sanitize(rNetworkGateway, 'string');
+  const organizationName = sanitize(rOrganizationName, 'string');
+  const organizationPrefix = sanitize(rOrganizationPrefix, 'string');
 
   try {
     assert(
-      !/['"/\\><}{]/g.test(dataAdminPassword),
-      `Data admin password cannot contain single-quote, double-quote, slash, backslash, angle brackets, and curly brackets; got [${dataAdminPassword}]`,
+      REP_PEACEFUL_STRING.test(adminPassword),
+      `Data admin password cannot contain single-quote, double-quote, slash, backslash, angle brackets, and curly brackets; got [${adminPassword}]`,
     );
 
     assert(
-      REP_DOMAIN.test(dataDomainName),
-      `Data domain name can only contain alphanumeric, hyphen, and dot characters; got [${dataDomainName}]`,
+      REP_DOMAIN.test(domainName),
+      `Data domain name can only contain alphanumeric, hyphen, and dot characters; got [${domainName}]`,
     );
 
     assert(
-      REP_DOMAIN.test(dataHostName),
-      `Data host name can only contain alphanumeric, hyphen, and dot characters; got [${dataHostName}]`,
+      REP_DOMAIN.test(hostName),
+      `Data host name can only contain alphanumeric, hyphen, and dot characters; got [${hostName}]`,
     );
 
     assert(
-      REP_INTEGER.test(dataHostNumber) && hostNumber > 0,
-      `Data host number can only contain digits; got [${dataHostNumber}]`,
+      Number.isInteger(hostNumber) && hostNumber > 0,
+      `Data host number can only contain digits; got [${hostNumber}]`,
     );
 
     assert(
-      REP_IPV4_CSV.test(dataNetworkDNS),
-      `Data network DNS must be a comma separated list of valid IPv4 addresses; got [${dataNetworkDNS}]`,
+      REP_IPV4_CSV.test(networkDns),
+      `Data network DNS must be a comma separated list of valid IPv4 addresses; got [${networkDns}]`,
     );
 
     assert(
-      REP_IPV4.test(dataNetworkGateway),
-      `Data network gateway must be a valid IPv4 address; got [${dataNetworkGateway}]`,
+      REP_IPV4.test(networkGateway),
+      `Data network gateway must be a valid IPv4 address; got [${networkGateway}]`,
     );
 
     assert(
-      dataOrganizationName.length > 0,
-      `Data organization name cannot be empty; got [${dataOrganizationName}]`,
+      REP_PEACEFUL_STRING.test(organizationName),
+      `Data organization name cannot be empty; got [${organizationName}]`,
     );
 
     assert(
-      /^[a-z0-9]{1,5}$/.test(dataOrganizationPrefix),
-      `Data organization prefix can only contain 1 to 5 lowercase alphanumeric characters; got [${dataOrganizationPrefix}]`,
+      /^[a-z0-9]{1,5}$/.test(organizationPrefix),
+      `Data organization prefix can only contain 1 to 5 lowercase alphanumeric characters; got [${organizationPrefix}]`,
     );
   } catch (assertError) {
     stderr(
@@ -120,7 +123,7 @@ export const configStriker: RequestHandler<
 ${fvar(1, 'organization')}=${organizationName}
 ${fvar(1, 'prefix')}=${organizationPrefix}
 ${fvar(1, 'sequence')}=${hostNumber}
-${fvar(2, 'dns')}=${networkDNS}
+${fvar(2, 'dns')}=${networkDns}
 ${fvar(2, 'gateway')}=${networkGateway}
 ${fvar(2, 'host_name')}=${hostName}
 ${fvar(2, 'striker_password')}=${adminPassword}
