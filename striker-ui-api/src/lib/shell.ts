@@ -58,5 +58,7 @@ export const stderr = (message: string) => print(message, { stream: 'stderr' });
 
 export const stdout = (message: string) => print(message);
 
-export const stdoutVar = (variable: { [name: string]: unknown }) =>
-  print(`Variables: ${JSON.stringify(variable, null, 2)}`);
+export const stdoutVar = (variable: unknown, label = 'Variables: ') =>
+  print(`${label}${JSON.stringify(variable, null, 2)}`);
+
+export const uuid = () => uuidgen('--random').trim();
