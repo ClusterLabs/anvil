@@ -14,12 +14,12 @@ export const getHostSSH: RequestHandler<
   GetHostSshRequestBody
 > = async (request, response) => {
   const {
-    body: { password: rpassword, port: rport = 22, ipAddress: rtarget },
+    body: { password: rPassword, port: rPort = 22, ipAddress: rTarget } = {},
   } = request;
 
-  const password = sanitize(rpassword, 'string');
-  const port = sanitize(rport, 'number');
-  const target = sanitize(rtarget, 'string', { modifierType: 'sql' });
+  const password = sanitize(rPassword, 'string');
+  const port = sanitize(rPort, 'number');
+  const target = sanitize(rTarget, 'string', { modifierType: 'sql' });
 
   try {
     assert(
@@ -47,7 +47,7 @@ export const getHostSSH: RequestHandler<
   let rsbody: GetHostSshResponseBody;
 
   try {
-    rsbody = getPeerData(target, { password, port });
+    rsbody = await getPeerData(target, { password, port });
   } catch (subError) {
     stderr(`Failed to get peer data; CAUSE: ${subError}`);
 

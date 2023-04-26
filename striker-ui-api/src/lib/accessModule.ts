@@ -142,7 +142,7 @@ const access = new Access();
 const data = async <T>(...keys: string[]) =>
   access.interact<T>('x', `data->${keys.join('->')}`);
 
-const subroutine = <T extends Record<string, unknown>>(
+const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
     params = [],
@@ -163,10 +163,18 @@ const subroutine = <T extends Record<string, unknown>>(
       result = String(p);
     }
 
-    return result;
+    return `'${result}'`;
   });
 
-  return access.interact<T>('x', chain, ...subParams);
+  const { sub_results: results } = await access.interact<{ sub_results: T }>(
+    'x',
+    chain,
+    ...subParams,
+  );
+
+  shvar(results, `${chain} results: `);
+
+  return results;
 };
 
 const query = <T extends (number | null | string)[][]>(script: string) =>
@@ -357,9 +365,9 @@ const getLocalHostUUID = () => {
   return result;
 };
 
-const getPeerData: GetPeerDataFunction = (
+const getPeerData: GetPeerDataFunction = async (
   target,
-  { password, port, ...restOptions } = {},
+  { password, port } = {},
 ) => {
   const [
     rawIsConnected,
@@ -370,11 +378,13 @@ const getPeerData: GetPeerDataFunction = (
       internet: rawIsInetConnected,
       os_registered: rawIsOSRegistered,
     },
-  ] = execModuleSubroutine('get_peer_data', {
-    subModuleName: 'Striker',
-    subParams: { password, port, target },
-    ...restOptions,
-  }).stdout as [connected: string, data: PeerDataHash];
+  ]: [connected: string, data: PeerDataHash] = await subroutine(
+    'get_peer_data',
+    {
+      params: [{ password, port, target }],
+      pre: ['Striker'],
+    },
+  );
 
   return {
     hostName,
