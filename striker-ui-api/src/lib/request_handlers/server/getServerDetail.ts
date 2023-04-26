@@ -3,10 +3,9 @@ import { RequestHandler } from 'express';
 import { createReadStream } from 'fs';
 import path from 'path';
 
-import { REP_UUID } from '../../consts/REG_EXP_PATTERNS';
-import SERVER_PATHS from '../../consts/SERVER_PATHS';
+import { REP_UUID, SERVER_PATHS } from '../../consts';
 
-import { dbQuery, getLocalHostUUID, job } from '../../accessModule';
+import { getLocalHostUUID, job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { mkfifo, rm, stderr, stdout } from '../../shell';
 
@@ -18,7 +17,7 @@ const rmfifo = (path: string) => {
   }
 };
 
-export const getServerDetail: RequestHandler = (request, response) => {
+export const getServerDetail: RequestHandler = async (request, response) => {
   const { serverUUID } = request.params;
   const { ss, resize } = request.query;
 
@@ -39,9 +38,7 @@ export const getServerDetail: RequestHandler = (request, response) => {
       `Failed to assert value when trying to get server detail; CAUSE: ${assertError}.`,
     );
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   if (isScreenshot) {
@@ -52,24 +49,20 @@ export const getServerDetail: RequestHandler = (request, response) => {
     } catch (subError) {
       stderr(String(subError));
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
 
     stdout(`requestHostUUID=[${requestHostUUID}]`);
 
     try {
-      [[serverHostUUID]] = dbQuery(`
+      [[serverHostUUID]] = await query(`
           SELECT server_host_uuid
           FROM servers
-          WHERE server_uuid = '${serverUUID}';`).stdout;
+          WHERE server_uuid = '${serverUUID}';`);
     } catch (queryError) {
       stderr(`Failed to get server host UUID; CAUSE: ${queryError}`);
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
 
     stdout(`serverHostUUID=[${serverHostUUID}]`);
@@ -94,9 +87,9 @@ export const getServerDetail: RequestHandler = (request, response) => {
       namedPipeReadStream.once('close', () => {
         stdout(`On close; removing named pipe at ${imageFilePath}.`);
 
-        response.status(200).send({ screenshot: imageData });
-
         rmfifo(imageFilePath);
+
+        return response.status(200).send({ screenshot: imageData });
       });
 
       namedPipeReadStream.on('data', (data) => {
@@ -123,11 +116,9 @@ export const getServerDetail: RequestHandler = (request, response) => {
         `Failed to prepare named pipe and/or receive image data; CAUSE: ${prepPipeError}`,
       );
 
-      response.status(500).send();
-
       rmfifo(imageFilePath);
 
-      return;
+      return response.status(500).send();
     }
 
     let resizeArgs = sanitize(resize, 'string');
@@ -152,9 +143,7 @@ out-file-id=${epoch}`,
     } catch (subError) {
       stderr(`Failed to queue fetch server screenshot job; CAUSE: ${subError}`);
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
   } else {
     // For getting sever detail data.

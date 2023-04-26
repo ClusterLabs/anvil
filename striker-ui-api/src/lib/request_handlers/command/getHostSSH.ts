@@ -1,71 +1,68 @@
+import assert from 'assert';
 import { RequestHandler } from 'express';
 
+import { REP_IPV4, REP_PEACEFUL_STRING } from '../../consts';
 import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
 
-import { dbQuery, getLocalHostUUID, getPeerData } from '../../accessModule';
-import { sanitizeSQLParam } from '../../sanitizeSQLParam';
+import { getLocalHostUUID, getPeerData, query } from '../../accessModule';
+import { sanitize } from '../../sanitize';
 import { stderr } from '../../shell';
 
 export const getHostSSH: RequestHandler<
   unknown,
-  {
-    badSSHKeys?: DeleteSshKeyConflictRequestBody;
-    hostName: string;
-    hostOS: string;
-    hostUUID: string;
-    isConnected: boolean;
-    isInetConnected: boolean;
-    isOSRegistered: boolean;
-  },
-  {
-    password: string;
-    port?: number;
-    ipAddress: string;
-  }
-> = (request, response) => {
+  GetHostSshResponseBody,
+  GetHostSshRequestBody
+> = async (request, response) => {
   const {
-    body: { password, port = 22, ipAddress: target },
+    body: { password: rpassword, port: rport = 22, ipAddress: rtarget },
   } = request;
 
-  let hostName: string;
-  let hostOS: string;
-  let hostUUID: string;
-  let isConnected: boolean;
-  let isInetConnected: boolean;
-  let isOSRegistered: boolean;
+  const password = sanitize(rpassword, 'string');
+  const port = sanitize(rport, 'number');
+  const target = sanitize(rtarget, 'string', { modifierType: 'sql' });
+
+  try {
+    assert(
+      REP_PEACEFUL_STRING.test(password),
+      `Password must be a peaceful string; got [${password}]`,
+    );
+
+    assert(
+      Number.isInteger(port),
+      `Port must be a valid integer; got [${port}]`,
+    );
+
+    assert(
+      REP_IPV4.test(target),
+      `IP address must be a valid IPv4 address; got [${target}]`,
+    );
+  } catch (assertError) {
+    stderr(`Assert failed when getting host SSH data; CAUSE: ${assertError}`);
+
+    return response.status(400).send();
+  }
 
   const localHostUUID = getLocalHostUUID();
 
+  let rsbody: GetHostSshResponseBody;
+
   try {
-    ({
-      hostName,
-      hostOS,
-      hostUUID,
-      isConnected,
-      isInetConnected,
-      isOSRegistered,
-    } = getPeerData(target, { password, port }));
+    rsbody = getPeerData(target, { password, port });
   } catch (subError) {
     stderr(`Failed to get peer data; CAUSE: ${subError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
-  let badSSHKeys: DeleteSshKeyConflictRequestBody | undefined;
-
-  if (!isConnected) {
-    const rows = dbQuery(`
+  if (!rsbody.isConnected) {
+    const rows: [stateNote: string, stateUUID: string][] = await query(`
       SELECT sta.state_note, sta.state_uuid
       FROM states AS sta
       WHERE sta.state_host_uuid = '${localHostUUID}'
-        AND sta.state_name = '${HOST_KEY_CHANGED_PREFIX}${sanitizeSQLParam(
-      target,
-    )}';`).stdout as [stateNote: string, stateUUID: string][];
+        AND sta.state_name = '${HOST_KEY_CHANGED_PREFIX}${target}';`);
 
     if (rows.length > 0) {
-      badSSHKeys = rows.reduce<DeleteSshKeyConflictRequestBody>(
+      rsbody.badSSHKeys = rows.reduce<DeleteSshKeyConflictRequestBody>(
         (previous, [, stateUUID]) => {
           previous[localHostUUID].push(stateUUID);
 
@@ -76,13 +73,5 @@ export const getHostSSH: RequestHandler<
     }
   }
 
-  response.status(200).send({
-    badSSHKeys,
-    hostName,
-    hostOS,
-    hostUUID,
-    isConnected,
-    isInetConnected,
-    isOSRegistered,
-  });
+  response.status(200).send(rsbody);
 };

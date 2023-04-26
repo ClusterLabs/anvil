@@ -1,11 +1,144 @@
-import { spawn, spawnSync, SpawnSyncOptions } from 'child_process';
+import {
+  ChildProcess,
+  spawn,
+  SpawnOptions,
+  spawnSync,
+  SpawnSyncOptions,
+} from 'child_process';
+import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
-import { SERVER_PATHS } from './consts';
+import { SERVER_PATHS, PGID, PUID } from './consts';
 
 import { formatSql } from './formatSql';
 import { isObject } from './isObject';
-import { date, stderr as sherr, stdout as shout } from './shell';
+import {
+  date,
+  stderr as sherr,
+  stdout as shout,
+  stdoutVar as shvar,
+  uuid,
+} from './shell';
+
+type AccessStartOptions = {
+  args?: readonly string[];
+} & SpawnOptions;
+
+class Access extends EventEmitter {
+  private ps: ChildProcess;
+  private queue: string[] = [];
+
+  constructor({
+    eventEmitterOptions = {},
+    spawnOptions = {},
+  }: {
+    eventEmitterOptions?: ConstructorParameters<typeof EventEmitter>[0];
+    spawnOptions?: SpawnOptions;
+  } = {}) {
+    super(eventEmitterOptions);
+
+    this.ps = this.start(spawnOptions);
+  }
+
+  private start({
+    args = [],
+    gid = PGID,
+    stdio = 'pipe',
+    timeout = 10000,
+    uid = PUID,
+    ...restSpawnOptions
+  }: AccessStartOptions = {}) {
+    shvar({ gid, stdio, timeout, uid, ...restSpawnOptions });
+
+    const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
+      gid,
+      stdio,
+      timeout,
+      uid,
+      ...restSpawnOptions,
+    });
+
+    let stderr = '';
+    let stdout = '';
+
+    ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
+      stderr += chunk;
+
+      const scriptId = this.queue.at(0);
+
+      if (scriptId) {
+        sherr(`${Access.event(scriptId, 'stderr')}: ${stderr}`);
+
+        stderr = '';
+      }
+    });
+
+    ps.stdout?.setEncoding('utf-8').on('data', (chunk: string) => {
+      stdout += chunk;
+
+      let nindex: number = stdout.indexOf('\n');
+
+      // 1. ~a is the shorthand for -(a + 1)
+      // 2. negatives are evaluated to true
+      while (~nindex) {
+        const scriptId = this.queue.shift();
+
+        if (scriptId) this.emit(scriptId, stdout.substring(0, nindex));
+
+        stdout = stdout.substring(nindex + 1);
+        nindex = stdout.indexOf('\n');
+      }
+    });
+
+    return ps;
+  }
+
+  private stop() {
+    this.ps.once('error', () => !this.ps.killed && this.ps.kill('SIGKILL'));
+
+    this.ps.kill();
+  }
+
+  private restart(options?: AccessStartOptions) {
+    this.ps.once('close', () => this.start(options));
+
+    this.stop();
+  }
+
+  private static event(scriptId: string, category: 'stderr'): string {
+    return `${scriptId}-${category}`;
+  }
+
+  public interact<T>(command: string, ...args: string[]) {
+    const { stdin } = this.ps;
+
+    const scriptId = uuid();
+    const script = `${command} ${args.join(' ')}\n`;
+
+    const promise = new Promise<T>((resolve, reject) => {
+      this.once(scriptId, (data) => {
+        let result: T;
+
+        try {
+          result = JSON.parse(data);
+        } catch (error) {
+          return reject(`Failed to parse line ${scriptId}; got [${data}]`);
+        }
+
+        return resolve(result);
+      });
+    });
+
+    shvar({ scriptId, script });
+
+    this.queue.push(scriptId);
+    stdin?.write(script);
+
+    return promise;
+  }
+}
+
+const access = new Access();
 
 const asyncAnvilAccessModule = (
   args: string[],
@@ -171,11 +304,8 @@ const dbJobAnvilSyncShared = (
   return dbInsertOrUpdateJob(subParams);
 };
 
-const dbQuery = (query: string, options?: SpawnSyncOptions) => {
-  shout(formatSql(query));
-
-  return execAnvilAccessModule(['--query', query], options);
-};
+const query = <T extends (number | null | string)[][]>(sqlscript: string) =>
+  access.interact<T>('r', formatSql(sqlscript));
 
 const dbSubRefreshTimestamp = () => {
   let result: string;
@@ -304,12 +434,12 @@ export {
   dbInsertOrUpdateJob as job,
   dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
-  dbQuery,
   dbSubRefreshTimestamp as timestamp,
   dbWrite,
+  execModuleSubroutine as sub,
   getAnvilData,
   getLocalHostName,
   getLocalHostUUID,
   getPeerData,
-  execModuleSubroutine as sub,
+  query,
 };

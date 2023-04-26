@@ -1,107 +1,120 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
+import { REP_UUID, SERVER_PATHS } from '../../consts';
 import { OS_LIST_MAP } from '../../consts/OS_LIST';
-import { REP_INTEGER, REP_UUID } from '../../consts/REG_EXP_PATTERNS';
-import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { dbQuery, job } from '../../accessModule';
-import { stderr, stdout } from '../../shell';
+import { job, query } from '../../accessModule';
+import { sanitize } from '../../sanitize';
+import { stderr, stdout, stdoutVar } from '../../shell';
 
-export const createServer: RequestHandler = ({ body }, response) => {
-  stdout(`Creating server.\n${JSON.stringify(body, null, 2)}`);
+export const createServer: RequestHandler = async (request, response) => {
+  const { body: rqbody = {} } = request;
+
+  stdoutVar({ rqbody }, 'Creating server.\n');
 
   const {
-    serverName,
-    cpuCores,
-    memory,
+    serverName: rServerName,
+    cpuCores: rCpuCores,
+    memory: rMemory,
     virtualDisks: [
-      { storageSize = undefined, storageGroupUUID = undefined } = {},
+      {
+        storageSize: rStorageSize = undefined,
+        storageGroupUUID: rStorageGroupUuid = undefined,
+      } = {},
     ] = [],
-    installISOFileUUID,
-    driverISOFileUUID,
-    anvilUUID,
-    optimizeForOS,
-  } = body || {};
+    installISOFileUUID: rInstallIsoUuid,
+    driverISOFileUUID: rDriverIsoUuid,
+    anvilUUID: rAnvilUuid,
+    optimizeForOS: rOptimizeForOs,
+  } = rqbody;
 
-  const dataServerName = String(serverName);
-  const dataOS = String(optimizeForOS);
-  const dataCPUCores = String(cpuCores);
-  const dataRAM = String(memory);
-  const dataStorageGroupUUID = String(storageGroupUUID);
-  const dataStorageSize = String(storageSize);
-  const dataInstallISO = String(installISOFileUUID);
-  const dataDriverISO = String(driverISOFileUUID) || 'none';
-  const dataAnvilUUID = String(anvilUUID);
+  const serverName = sanitize(rServerName, 'string');
+  const os = sanitize(rOptimizeForOs, 'string');
+  const cpuCores = sanitize(rCpuCores, 'number');
+  const memory = sanitize(rMemory, 'number');
+  const storageGroupUUID = sanitize(rStorageGroupUuid, 'string');
+  const storageSize = sanitize(rStorageSize, 'number');
+  const installIsoUuid = sanitize(rInstallIsoUuid, 'string');
+  const driverIsoUuid = sanitize(rDriverIsoUuid, 'string', {
+    fallback: 'none',
+  });
+  const anvilUuid = sanitize(rAnvilUuid, 'string');
 
   try {
     assert(
-      /^[0-9a-z_-]+$/i.test(dataServerName),
-      `Data server name can only contain alphanumeric, underscore, and hyphen characters; got [${dataServerName}].`,
+      /^[0-9a-z_-]+$/i.test(serverName),
+      `Data server name can only contain alphanumeric, underscore, and hyphen characters; got [${serverName}]`,
     );
 
-    const [[serverNameCount]] = dbQuery(
-      `SELECT COUNT(server_uuid) FROM servers WHERE server_name = '${dataServerName}'`,
-    ).stdout;
+    const [[serverNameCount]] = await query(
+      `SELECT COUNT(server_uuid) FROM servers WHERE server_name = '${serverName}'`,
+    );
 
     assert(
       serverNameCount === 0,
-      `Data server name already exists; got [${dataServerName}]`,
+      `Data server name already exists; got [${serverName}]`,
     );
+
     assert(
-      OS_LIST_MAP[dataOS] !== undefined,
-      `Data OS not recognized; got [${dataOS}].`,
+      OS_LIST_MAP[os] !== undefined,
+      `Data OS not recognized; got [${os}]`,
     );
+
     assert(
-      REP_INTEGER.test(dataCPUCores),
-      `Data CPU cores can only contain digits; got [${dataCPUCores}].`,
+      Number.isInteger(cpuCores),
+      `Data CPU cores can only contain digits; got [${cpuCores}]`,
     );
+
     assert(
-      REP_INTEGER.test(dataRAM),
-      `Data RAM can only contain digits; got [${dataRAM}].`,
+      Number.isInteger(memory),
+      `Data RAM can only contain digits; got [${memory}]`,
     );
+
     assert(
-      REP_UUID.test(dataStorageGroupUUID),
-      `Data storage group UUID must be a valid UUID; got [${dataStorageGroupUUID}].`,
+      REP_UUID.test(storageGroupUUID),
+      `Data storage group UUID must be a valid UUID; got [${storageGroupUUID}]`,
     );
+
     assert(
-      REP_INTEGER.test(dataStorageSize),
-      `Data storage size can only contain digits; got [${dataStorageSize}].`,
+      Number.isInteger(storageSize),
+      `Data storage size can only contain digits; got [${storageSize}]`,
     );
+
     assert(
-      REP_UUID.test(dataInstallISO),
-      `Data install ISO must be a valid UUID; got [${dataInstallISO}].`,
+      REP_UUID.test(installIsoUuid),
+      `Data install ISO must be a valid UUID; got [${installIsoUuid}]`,
     );
+
     assert(
-      dataDriverISO === 'none' || REP_UUID.test(dataDriverISO),
-      `Data driver ISO must be a valid UUID when provided; got [${dataDriverISO}].`,
+      driverIsoUuid === 'none' || REP_UUID.test(driverIsoUuid),
+      `Data driver ISO must be a valid UUID when provided; got [${driverIsoUuid}]`,
     );
+
     assert(
-      REP_UUID.test(dataAnvilUUID),
-      `Data anvil UUID must be a valid UUID; got [${dataAnvilUUID}].`,
+      REP_UUID.test(anvilUuid),
+      `Data anvil UUID must be a valid UUID; got [${anvilUuid}]`,
     );
   } catch (assertError) {
     stdout(
-      `Failed to assert value when trying to provision a server; CAUSE: ${assertError}.`,
+      `Failed to assert value when trying to provision a server; CAUSE: ${assertError}`,
     );
 
-    response.status(400).send();
-
-    return;
+    return response.status(400).send();
   }
 
-  const provisionServerJobData = `server_name=${dataServerName}
-os=${dataOS}
-cpu_cores=${dataCPUCores}
-ram=${dataRAM}
-storage_group_uuid=${dataStorageGroupUUID}
-storage_size=${dataStorageSize}
-install_iso=${dataInstallISO}
-driver_iso=${dataDriverISO}`;
+  const provisionServerJobData = `server_name=${serverName}
+os=${os}
+cpu_cores=${cpuCores}
+ram=${memory}
+storage_group_uuid=${storageGroupUUID}
+storage_size=${storageSize}
+install_iso=${installIsoUuid}
+driver_iso=${driverIsoUuid}`;
 
   stdout(`provisionServerJobData=[${provisionServerJobData}]`);
 
-  const [[provisionServerJobHostUUID]] = dbQuery(
+  const [[provisionServerJobHostUUID]]: [[string]] = await query(
     `SELECT
           CASE
             WHEN pri_hos.primary_host_uuid IS NULL
@@ -120,7 +133,7 @@ driver_iso=${dataDriverISO}`;
             AND sca_clu_nod.scan_cluster_node_crmd_member
             AND sca_clu_nod.scan_cluster_node_cluster_member
             AND (NOT sca_clu_nod.scan_cluster_node_maintenance_mode)
-            AND anv.anvil_uuid = '${dataAnvilUUID}'
+            AND anv.anvil_uuid = '${anvilUuid}'
           ORDER BY sca_clu_nod.scan_cluster_node_name
           LIMIT 1
         ) AS pri_hos
@@ -129,10 +142,10 @@ driver_iso=${dataDriverISO}`;
             1 AS phr,
             anv.anvil_node1_host_uuid AS node1_host_uuid
           FROM anvils AS anv
-          WHERE anv.anvil_uuid = '${dataAnvilUUID}'
+          WHERE anv.anvil_uuid = '${anvilUuid}'
         ) AS nod_1
           ON pri_hos.phl = nod_1.phr;`,
-  ).stdout;
+  );
 
   stdout(`provisionServerJobHostUUID=[${provisionServerJobHostUUID}]`);
 
@@ -149,9 +162,7 @@ driver_iso=${dataDriverISO}`;
   } catch (subError) {
     stderr(`Failed to provision server; CAUSE: ${subError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   response.status(202).send();

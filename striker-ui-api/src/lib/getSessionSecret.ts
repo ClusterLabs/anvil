@@ -2,18 +2,18 @@ import assert from 'assert';
 
 import { ECODE_SESSION_SECRET, VNAME_SESSION_SECRET } from './consts';
 
-import { dbQuery, variable } from './accessModule';
+import { query, variable } from './accessModule';
 import { openssl, stderr, stdout } from './shell';
 
-export const getSessionSecret = (): string => {
+export const getSessionSecret = async (): Promise<string> => {
   let sessionSecret: string;
 
   try {
-    const rows: [sessionSecret: string][] = dbQuery(
+    const rows: [sessionSecret: string][] = await query(
       `SELECT variable_value
         FROM variables
         WHERE variable_name = '${VNAME_SESSION_SECRET}';`,
-    ).stdout;
+    );
 
     assert(rows.length > 0, 'No existing session secret found.');
 

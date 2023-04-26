@@ -1,64 +1,53 @@
 import { Request, Response } from 'express';
 
-import { dbQuery } from '../accessModule';
+import { query } from '../accessModule';
 import call from '../call';
+import { stderr, stdout, stdoutVar } from '../shell';
 
 const buildGetRequestHandler =
   (
-    query: string | BuildQueryFunction,
+    sqlscript: string | BuildQueryFunction,
     { beforeRespond }: BuildGetRequestHandlerOptions = {},
   ) =>
-  (request: Request, response: Response) => {
-    console.log('Calling CLI script to get data.');
+  async (request: Request, response: Response) => {
+    stdout('Calling CLI script to get data.');
 
     const buildQueryOptions: BuildQueryOptions = {};
 
-    let queryStdout;
+    let result: (number | null | string)[][];
 
     try {
-      ({ stdout: queryStdout } = dbQuery(
-        call<string>(query, {
+      result = await query(
+        call<string>(sqlscript, {
           parameters: [request, buildQueryOptions],
-          notCallableReturn: query,
+          notCallableReturn: sqlscript,
         }),
-      ));
+      );
     } catch (queryError) {
-      console.log(`Failed to execute query; CAUSE: ${queryError}`);
+      stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
       response.status(500).send();
 
       return;
     }
 
-    console.log(
-      `Query stdout pre-hooks (type=[${typeof queryStdout}]): ${JSON.stringify(
-        queryStdout,
-        null,
-        2,
-      )}`,
-    );
+    stdoutVar(result, `Query stdout pre-hooks (type=[${typeof result}]): `);
 
     const { afterQueryReturn } = buildQueryOptions;
 
-    queryStdout = call(afterQueryReturn, {
-      parameters: [queryStdout],
-      notCallableReturn: queryStdout,
+    result = call(afterQueryReturn, {
+      parameters: [result],
+      notCallableReturn: result,
     });
 
-    queryStdout = call(beforeRespond, {
-      parameters: [queryStdout],
-      notCallableReturn: queryStdout,
+    result = call(beforeRespond, {
+      parameters: [result],
+      notCallableReturn: result,
     });
 
-    console.log(
-      `Query stdout post-hooks (type=[${typeof queryStdout}]): ${JSON.stringify(
-        queryStdout,
-        null,
-        2,
-      )}`,
-    );
+    stdoutVar(result, `Query stdout post-hooks (type=[${typeof result}]): `);
 
-    response.json(queryStdout);
+    response.json(result);
   };
 
 export default buildGetRequestHandler;

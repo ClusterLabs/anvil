@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 
-import { dbQuery, getLocalHostName } from '../../accessModule';
+import { getLocalHostName, query } from '../../accessModule';
 import {
   getHostNameDomain,
   getHostNamePrefix,
@@ -8,17 +8,18 @@ import {
 } from '../../disassembleHostName';
 import { stderr } from '../../shell';
 
-export const getManifestTemplate: RequestHandler = (request, response) => {
-  let localHostName = '';
+export const getManifestTemplate: RequestHandler = async (
+  request,
+  response,
+) => {
+  let localHostName: string;
 
   try {
     localHostName = getLocalHostName();
   } catch (subError) {
     stderr(String(subError));
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   const localShortHostName = getShortHostName(localHostName);
@@ -38,7 +39,7 @@ export const getManifestTemplate: RequestHandler = (request, response) => {
   >;
 
   try {
-    ({ stdout: rawQueryResult } = dbQuery(
+    rawQueryResult = await query(
       `SELECT
           a.fence_uuid,
           a.fence_name,
@@ -71,13 +72,11 @@ export const getManifestTemplate: RequestHandler = (request, response) => {
           ORDER BY manifest_name DESC
           LIMIT 1
         ) AS c ON a.row_number = c.row_number;`,
-    ));
+    );
   } catch (queryError) {
     stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   const queryResult = rawQueryResult.reduce<

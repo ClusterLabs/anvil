@@ -1,31 +1,33 @@
 import express from 'express';
 
+import { DELETED } from '../lib/consts';
+
 import {
   dbJobAnvilSyncShared,
-  dbQuery,
   timestamp,
   dbWrite,
+  query,
 } from '../lib/accessModule';
 import getFile from '../lib/request_handlers/file/getFile';
 import getFileDetail from '../lib/request_handlers/file/getFileDetail';
 import uploadSharedFiles from '../middlewares/uploadSharedFiles';
+import { stderr, stdout, stdoutVar } from '../lib/shell';
 
 const router = express.Router();
 
 router
-  .delete('/:fileUUID', (request, response) => {
+  .delete('/:fileUUID', async (request, response) => {
     const { fileUUID } = request.params;
-    const FILE_TYPE_DELETED = 'DELETED';
 
-    const [[oldFileType]] = dbQuery(
+    const [[oldFileType]] = await query(
       `SELECT file_type FROM files WHERE file_uuid = '${fileUUID}';`,
-    ).stdout;
+    );
 
-    if (oldFileType !== FILE_TYPE_DELETED) {
+    if (oldFileType !== DELETED) {
       dbWrite(
         `UPDATE files
           SET
-            file_type = '${FILE_TYPE_DELETED}',
+            file_type = '${DELETED}',
             modified_date = '${timestamp()}'
           WHERE file_uuid = '${fileUUID}';`,
       ).stdout;
@@ -40,11 +42,10 @@ router
   .get('/', getFile)
   .get('/:fileUUID', getFileDetail)
   .post('/', uploadSharedFiles.single('file'), ({ file, body }, response) => {
-    console.log('Receiving shared file.');
+    stdout('Receiving shared file.');
 
     if (file) {
-      console.log(`file: ${JSON.stringify(file, null, 2)}`);
-      console.log(`body: ${JSON.stringify(body, null, 2)}`);
+      stdoutVar({ body, file });
 
       dbJobAnvilSyncShared(
         'move_incoming',
@@ -56,24 +57,26 @@ router
       response.status(200).send();
     }
   })
-  .put('/:fileUUID', (request, response) => {
-    console.log('Begin edit single file.');
-    console.dir(request.body);
+  .put('/:fileUUID', async (request, response) => {
+    const { body = {}, params } = request;
 
-    const { fileUUID } = request.params;
-    const { fileName, fileLocations, fileType } = request.body;
+    stdoutVar(body, 'Begin edit single file. body=');
+
+    const { fileUUID } = params;
+    const { fileName, fileLocations, fileType } = body;
     const anvilSyncSharedFunctions = [];
 
-    let query = '';
+    let sqlscript = '';
 
     if (fileName) {
-      const [[oldFileName]] = dbQuery(
+      const [[oldFileName]] = await query(
         `SELECT file_name FROM files WHERE file_uuid = '${fileUUID}';`,
-      ).stdout;
-      console.log(`oldFileName=[${oldFileName}],newFileName=[${fileName}]`);
+      );
+
+      stdoutVar({ oldFileName, fileName });
 
       if (fileName !== oldFileName) {
-        query += `
+        sqlscript += `
           UPDATE files
           SET
             file_name = '${fileName}',
@@ -93,7 +96,7 @@ router
     }
 
     if (fileType) {
-      query += `
+      sqlscript += `
         UPDATE files
         SET
           file_type = '${fileType}',
@@ -113,7 +116,7 @@ router
 
     if (fileLocations) {
       fileLocations.forEach(
-        ({
+        async ({
           fileLocationUUID,
           isFileLocationActive,
         }: {
@@ -132,14 +135,18 @@ router
             jobDescription = '0133';
           }
 
-          query += `
-          UPDATE file_locations
-          SET
-            file_location_active = '${fileLocationActive}',
-            modified_date = '${timestamp()}'
-          WHERE file_location_uuid = '${fileLocationUUID}';`;
+          sqlscript += `
+            UPDATE file_locations
+            SET
+              file_location_active = '${fileLocationActive}',
+              modified_date = '${timestamp()}'
+            WHERE file_location_uuid = '${fileLocationUUID}';`;
 
-          const targetHosts = dbQuery(
+          const targetHosts: [
+            n1uuid: string,
+            n2uuid: string,
+            dr1uuid: null | string,
+          ][] = await query(
             `SELECT
               anv.anvil_node1_host_uuid,
               anv.anvil_node2_host_uuid,
@@ -148,9 +155,9 @@ router
             JOIN file_locations AS fil_loc
               ON anv.anvil_uuid = fil_loc.file_location_anvil_uuid
             WHERE fil_loc.file_location_uuid = '${fileLocationUUID}';`,
-          ).stdout;
+          );
 
-          targetHosts.flat().forEach((hostUUID: string) => {
+          targetHosts.flat().forEach((hostUUID: null | string) => {
             if (hostUUID) {
               anvilSyncSharedFunctions.push(() =>
                 dbJobAnvilSyncShared(
@@ -167,34 +174,23 @@ router
       );
     }
 
-    console.log(`Query (type=[${typeof query}]): [${query}]`);
+    stdout(`Query (type=[${typeof sqlscript}]): [${sqlscript}]`);
 
     let queryStdout;
 
     try {
-      ({ stdout: queryStdout } = dbWrite(query));
+      ({ stdout: queryStdout } = dbWrite(sqlscript));
     } catch (queryError) {
-      console.log(`Failed to execute query; CAUSE: ${queryError}`);
+      stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
-      response.status(500).send();
+      return response.status(500).send();
     }
 
-    console.log(
-      `Query stdout (type=[${typeof queryStdout}]): ${JSON.stringify(
-        queryStdout,
-        null,
-        2,
-      )}`,
+    stdoutVar(queryStdout, `Query stdout (type=[${typeof queryStdout}]): `);
+
+    anvilSyncSharedFunctions.forEach((fn, index) =>
+      stdoutVar(fn(), `Anvil sync shared [${index}] output: `),
     );
-    anvilSyncSharedFunctions.forEach((fn, index) => {
-      console.log(
-        `Anvil sync shared [${index}] output: [${JSON.stringify(
-          fn(),
-          null,
-          2,
-        )}]`,
-      );
-    });
 
     response.status(200).send(queryStdout);
   });
