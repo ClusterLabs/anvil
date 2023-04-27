@@ -4,7 +4,13 @@ import { RequestHandler } from 'express';
 import { REP_PEACEFUL_STRING, REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { getAnvilData, job, sub } from '../../accessModule';
+import {
+  getData,
+  getHostData,
+  getManifestData,
+  job,
+  sub,
+} from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { stderr } from '../../shell';
 
@@ -12,7 +18,7 @@ export const runManifest: RequestHandler<
   { manifestUuid: string },
   undefined,
   RunManifestRequestBody
-> = (request, response) => {
+> = async (request, response) => {
   const {
     params: { manifestUuid },
     body: {
@@ -85,29 +91,9 @@ export const runManifest: RequestHandler<
   let rawSysData: AnvilDataSysHash | undefined;
 
   try {
-    ({
-      hosts: rawHostListData,
-      manifests: rawManifestListData,
-      sys: rawSysData,
-    } = getAnvilData<{
-      hosts?: AnvilDataHostListHash;
-      manifests?: AnvilDataManifestListHash;
-      sys?: AnvilDataSysHash;
-    }>(
-      { hosts: true, manifests: true, sys: true },
-      {
-        predata: [
-          ['Database->get_hosts'],
-          [
-            'Striker->load_manifest',
-            {
-              debug,
-              manifest_uuid: manifestUuid,
-            },
-          ],
-        ],
-      },
-    ));
+    rawHostListData = await getHostData();
+    rawManifestListData = await getManifestData(manifestUuid);
+    rawSysData = await getData('sys');
   } catch (subError) {
     stderr(
       `Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`,

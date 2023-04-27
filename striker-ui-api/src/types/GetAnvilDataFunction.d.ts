@@ -111,6 +111,6 @@ type AnvilDataUPSHash = {
   };
 };
 
-type GetAnvilDataOptions = import('child_process').SpawnSyncOptions & {
+type GetAnvilDataOptions = {
   predata?: Array<[string, ...unknown[]]>;
 };

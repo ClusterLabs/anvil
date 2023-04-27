@@ -139,9 +139,6 @@ class Access extends EventEmitter {
 
 const access = new Access();
 
-const data = async <T>(...keys: string[]) =>
-  access.interact<T>('x', `data->${keys.join('->')}`);
-
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
@@ -150,7 +147,7 @@ const subroutine = async <T extends unknown[]>(
   }: {
     params?: unknown[];
     pre?: string[];
-  },
+  } = {},
 ) => {
   const chain = `${pre.join('->')}->${subroutine}`;
 
@@ -319,19 +316,29 @@ const dbSubRefreshTimestamp = () => {
   return result;
 };
 
-const getAnvilData = <HashType>(
-  dataStruct: AnvilDataStruct,
-  { predata, ...spawnSyncOptions }: GetAnvilDataOptions = {},
-): HashType =>
-  execAnvilAccessModule(
-    [
-      '--predata',
-      JSON.stringify(predata),
-      '--data',
-      JSON.stringify(dataStruct),
-    ],
-    spawnSyncOptions,
-  ).stdout;
+const getData = async <T>(...keys: string[]) => {
+  const chain = `data->${keys.join('->')}`;
+
+  const {
+    sub_results: [data],
+  } = await access.interact<{ sub_results: [T] }>('x', chain);
+
+  shvar(data, `${chain} data: `);
+
+  return data;
+};
+
+const getFenceSpec = async () => {
+  await subroutine('get_fence_data', { pre: ['Striker'] });
+
+  return getData<unknown>('fence_data');
+};
+
+const getHostData = async () => {
+  await subroutine('get_hosts');
+
+  return getData<AnvilDataHostListHash>('hosts');
+};
 
 const getLocalHostName = () => {
   let result: string;
@@ -349,7 +356,7 @@ const getLocalHostName = () => {
   return result;
 };
 
-const getLocalHostUUID = () => {
+const getLocalHostUuid = () => {
   let result: string;
 
   try {
@@ -363,6 +370,15 @@ const getLocalHostUUID = () => {
   shout(`localHostUUID=[${result}]`);
 
   return result;
+};
+
+const getManifestData = async (manifestUuid?: string) => {
+  await subroutine('load_manifest', {
+    params: [{ manifest_uuid: manifestUuid }],
+    pre: ['Striker'],
+  });
+
+  return getData<AnvilDataManifestListHash>('manifests');
 };
 
 const getPeerData: GetPeerDataFunction = async (
@@ -396,17 +412,26 @@ const getPeerData: GetPeerDataFunction = async (
   };
 };
 
+const getUpsSpec = async () => {
+  await subroutine('get_ups_data', { pre: ['Striker'] });
+
+  return getData<AnvilDataUPSHash>('ups_data');
+};
+
 export {
   dbInsertOrUpdateJob as job,
   dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
   dbSubRefreshTimestamp as timestamp,
   execModuleSubroutine as sub,
-  getAnvilData,
+  getData,
+  getFenceSpec,
+  getHostData,
   getLocalHostName,
-  getLocalHostUUID,
+  getLocalHostUuid as getLocalHostUUID,
+  getManifestData,
   getPeerData,
-  data,
+  getUpsSpec,
   query,
   subroutine,
   write,

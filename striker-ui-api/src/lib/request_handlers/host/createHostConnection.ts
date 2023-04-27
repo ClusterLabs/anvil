@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import {
-  getAnvilData,
+  getData,
   getLocalHostUUID,
   getPeerData,
   job,
@@ -140,10 +140,8 @@ export const createHostConnection: RequestHandler<
 
   try {
     const {
-      database: {
-        [localHostUUID]: { port: rawLocalDBPort },
-      },
-    } = getAnvilData<{ database: AnvilDataDatabaseHash }>({ database: true });
+      [localHostUUID]: { port: rawLocalDBPort },
+    } = await getData<AnvilDataDatabaseHash>('database');
 
     localDBPort = sanitize(rawLocalDBPort, 'number');
   } catch (subError) {
