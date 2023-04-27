@@ -10,9 +10,6 @@ type DBVariableParams = DBInsertOrUpdateFunctionCommonParams & {
   variable_value?: number | string;
 };
 
-type DBInsertOrUpdateVariableOptions = DBInsertOrUpdateFunctionCommonOptions;
-
 type DBInsertOrUpdateVariableFunction = (
-  subParams: DBVariableParams,
-  options?: DBInsertOrUpdateVariableOptions,
-) => string;
+  params: DBVariableParams,
+) => Promise<string>;

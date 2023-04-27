@@ -270,14 +270,15 @@ const dbInsertOrUpdateJob = (
     subParams: { job_progress, line, ...rest },
   }).stdout;
 
-const dbInsertOrUpdateVariable: DBInsertOrUpdateVariableFunction = (
-  subParams,
-  { spawnSyncOptions } = {},
-) =>
-  execModuleSubroutine('insert_or_update_variables', {
-    spawnSyncOptions,
-    subParams,
-  }).stdout;
+const insertOrUpdateVariable: DBInsertOrUpdateVariableFunction = async (
+  params,
+) => {
+  const [uuid]: [string] = await subroutine('insert_or_update_variables', {
+    params: [params],
+  });
+
+  return uuid;
+};
 
 const dbJobAnvilSyncShared = (
   jobName: string,
@@ -420,7 +421,7 @@ const getUpsSpec = async () => {
 
 export {
   dbInsertOrUpdateJob as job,
-  dbInsertOrUpdateVariable as variable,
+  insertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
   dbSubRefreshTimestamp as timestamp,
   getData,

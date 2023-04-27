@@ -6,8 +6,8 @@ import {
   REP_IPV4,
   REP_PEACEFUL_STRING,
   REP_UUID,
-} from '../../consts/REG_EXP_PATTERNS';
-import SERVER_PATHS from '../../consts/SERVER_PATHS';
+  SERVER_PATHS,
+} from '../../consts';
 
 import { job, variable } from '../../accessModule';
 import { sanitize } from '../../sanitize';
@@ -17,7 +17,7 @@ export const prepareHost: RequestHandler<
   unknown,
   undefined,
   PrepareHostRequestBody
-> = (request, response) => {
+> = async (request, response) => {
   const {
     body: {
       enterpriseUUID,
@@ -106,14 +106,12 @@ export const prepareHost: RequestHandler<
       `Failed to assert value when trying to prepare host; CAUSE: ${assertError}`,
     );
 
-    response.status(400).send();
-
-    return;
+    return response.status(400).send();
   }
 
   try {
     if (isHostUUIDProvided) {
-      variable({
+      await variable({
         file: __filename,
         update_value_only: 1,
         variable_name: 'system::configured',
@@ -141,9 +139,7 @@ type=${dataHostType}`,
   } catch (subError) {
     stderr(`Failed to init host; CAUSE: ${subError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   response.status(200).send();

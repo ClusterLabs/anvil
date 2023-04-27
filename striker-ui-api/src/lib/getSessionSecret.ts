@@ -39,7 +39,7 @@ export const getSessionSecret = async (): Promise<string> => {
   }
 
   try {
-    const vuuid = variable({
+    const vuuid = await variable({
       file: __filename,
       variable_name: VNAME_SESSION_SECRET,
       variable_value: sessionSecret,
