@@ -55,15 +55,17 @@ passport.use(
     };
 
     try {
-      encryptResult = sub('encrypt_password', {
-        subModuleName: 'Account',
-        subParams: {
-          algorithm: userAlgorithm,
-          hash_count: userHashCount,
-          password,
-          salt: userSalt,
-        },
-      }).stdout;
+      [encryptResult] = await sub('encrypt_password', {
+        params: [
+          {
+            algorithm: userAlgorithm,
+            hash_count: userHashCount,
+            password,
+            salt: userSalt,
+          },
+        ],
+        pre: ['Account'],
+      });
     } catch (subError) {
       return done(subError);
     }

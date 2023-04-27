@@ -423,7 +423,6 @@ export {
   dbInsertOrUpdateVariable as variable,
   dbJobAnvilSyncShared,
   dbSubRefreshTimestamp as timestamp,
-  execModuleSubroutine as sub,
   getData,
   getFenceSpec,
   getHostData,
@@ -433,6 +432,6 @@ export {
   getPeerData,
   getUpsSpec,
   query,
-  subroutine,
+  subroutine as sub,
   write,
 };

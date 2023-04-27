@@ -68,10 +68,10 @@ export const createHostConnection: RequestHandler<
   }
 
   try {
-    localIPAddress = sub('find_matching_ip', {
-      subModuleName: 'System',
-      subParams: { host: peerIPAddress },
-    }).stdout;
+    [localIPAddress] = await sub('find_matching_ip', {
+      params: [{ host: peerIPAddress }],
+      pre: ['System'],
+    });
   } catch (subError) {
     stderr(`Failed to get matching IP address; CAUSE: ${subError}`);
 
@@ -89,15 +89,17 @@ export const createHostConnection: RequestHandler<
   stdoutVar({ pgpassFilePath, pgpassFileBody });
 
   try {
-    sub('write_file', {
-      subModuleName: 'Storage',
-      subParams: {
-        body: pgpassFileBody,
-        file: pgpassFilePath,
-        mode: '0600',
-        overwrite: 1,
-        secure: 1,
-      },
+    await sub('write_file', {
+      params: [
+        {
+          body: pgpassFileBody,
+          file: pgpassFilePath,
+          mode: '0600',
+          overwrite: 1,
+          secure: 1,
+        },
+      ],
+      pre: ['Storage'],
     });
   } catch (subError) {
     stderr(`Failed to write ${pgpassFilePath}; CAUSE: ${subError}`);
@@ -106,12 +108,15 @@ export const createHostConnection: RequestHandler<
   }
 
   try {
-    const [rawIsPeerDBReachable] = sub('call', {
-      subModuleName: 'System',
-      subParams: {
-        shell_call: `PGPASSFILE="${pgpassFilePath}" ${SERVER_PATHS.usr.bin.psql.self} --host ${peerIPAddress} --port ${commonDBPort} --dbname ${commonDBName} --username ${commonDBUser} --no-password --tuples-only --no-align --command "SELECT 1"`,
-      },
-    }).stdout as [output: string, returnCode: number];
+    const [rawIsPeerDBReachable]: [output: string, returnCode: number] =
+      await sub('call', {
+        params: [
+          {
+            shell_call: `PGPASSFILE="${pgpassFilePath}" ${SERVER_PATHS.usr.bin.psql.self} --host ${peerIPAddress} --port ${commonDBPort} --dbname ${commonDBName} --username ${commonDBUser} --no-password --tuples-only --no-align --command "SELECT 1"`,
+          },
+        ],
+        pre: ['System'],
+      });
 
     isPeerDBReachable = rawIsPeerDBReachable === '1';
   } catch (subError) {

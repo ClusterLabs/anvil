@@ -7,7 +7,7 @@ export const deleteManifest: RequestHandler<
   { manifestUuid: string },
   undefined,
   { uuids: string[] }
-> = (request, response) => {
+> = async (request, response) => {
   const {
     params: { manifestUuid: rawManifestUuid },
     body: { uuids: rawManifestUuidList } = {},
@@ -17,21 +17,19 @@ export const deleteManifest: RequestHandler<
     ? rawManifestUuidList
     : [rawManifestUuid];
 
-  manifestUuidList.forEach((uuid) => {
+  for (const uuid of manifestUuidList) {
     stdout(`Begin delete manifest ${uuid}.`);
 
     try {
-      sub('insert_or_update_manifests', {
-        subParams: { delete: 1, manifest_uuid: uuid },
+      await sub('insert_or_update_manifests', {
+        params: [{ delete: 1, manifest_uuid: uuid }],
       });
     } catch (subError) {
       stderr(`Failed to delete manifest ${uuid}; CAUSE: ${subError}`);
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
-  });
+  }
 
   response.status(204).send();
 };

@@ -122,7 +122,7 @@ export const runManifest: RequestHandler<
 
   const joinAnJobs: DBJobParams[] = [];
 
-  let anParams: Record<string, string> | undefined;
+  let anParams: Record<string, string>;
 
   try {
     anParams = Object.values(hostList).reduce<Record<string, string>>(
@@ -163,8 +163,9 @@ export const runManifest: RequestHandler<
   }
 
   try {
-    const [newAnUuid] = sub('insert_or_update_anvils', { subParams: anParams })
-      .stdout as [string];
+    const [newAnUuid]: [string] = await sub('insert_or_update_anvils', {
+      params: [anParams],
+    });
 
     joinAnJobs.forEach((jobParams) => {
       jobParams.job_data += `,anvil_uuid=${newAnUuid}`;

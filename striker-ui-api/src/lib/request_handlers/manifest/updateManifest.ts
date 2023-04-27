@@ -4,7 +4,7 @@ import { RequestHandler } from 'express';
 import { buildManifest } from './buildManifest';
 import { stderr } from '../../shell';
 
-export const updateManifest: RequestHandler = (...args) => {
+export const updateManifest: RequestHandler = async (...args) => {
   const [request, response] = args;
   const {
     params: { manifestUuid },
@@ -13,7 +13,7 @@ export const updateManifest: RequestHandler = (...args) => {
   let result: Record<string, string> = {};
 
   try {
-    result = buildManifest(...args);
+    result = await buildManifest(...args);
   } catch (buildError) {
     stderr(
       `Failed to update install manifest ${manifestUuid}; CAUSE: ${buildError}`,
