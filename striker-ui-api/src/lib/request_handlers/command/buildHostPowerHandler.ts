@@ -32,7 +32,7 @@ export const buildHostPowerHandler: (
   task?: 'poweroff' | 'reboot',
 ) => RequestHandler =
   (task = 'reboot') =>
-  (request, response) => {
+  async (request, response) => {
     const subParams: DBJobParams = {
       file: __filename,
 
@@ -40,13 +40,11 @@ export const buildHostPowerHandler: (
     };
 
     try {
-      job(subParams);
+      await job(subParams);
     } catch (subError) {
       stderr(`Failed to ${task} host; CAUSE: ${subError}`);
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
 
     response.status(204).send();

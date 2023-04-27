@@ -5,9 +5,9 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 import { job } from '../../accessModule';
 import { stderr } from '../../shell';
 
-export const updateSystem: RequestHandler = (request, response) => {
+export const updateSystem: RequestHandler = async (request, response) => {
   try {
-    job({
+    await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-update-system'].self,
       job_description: 'job_0004',
@@ -17,9 +17,7 @@ export const updateSystem: RequestHandler = (request, response) => {
   } catch (subError) {
     stderr(`Failed to initiate system update; CAUSE: ${subError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   response.status(204).send();

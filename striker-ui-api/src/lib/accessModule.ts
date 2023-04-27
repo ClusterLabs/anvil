@@ -1,10 +1,4 @@
-import {
-  ChildProcess,
-  spawn,
-  SpawnOptions,
-  spawnSync,
-  SpawnSyncOptions,
-} from 'child_process';
+import { ChildProcess, spawn, SpawnOptions } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
@@ -186,89 +180,17 @@ const write = async (script: string) => {
   return wcode;
 };
 
-const execAnvilAccessModule = (
-  args: string[],
-  options: SpawnSyncOptions = {},
-) => {
-  const {
-    encoding = 'utf-8',
-    timeout = 10000,
-    ...restSpawnSyncOptions
-  } = options;
+const insertOrUpdateJob = async ({
+  job_progress = 0,
+  line = 0,
+  ...rest
+}: DBJobParams) => {
+  const [uuid]: [string] = await subroutine('insert_or_update_jobs', {
+    params: [{ job_progress, line, ...rest }],
+  });
 
-  const { error, stderr, stdout } = spawnSync(
-    SERVER_PATHS.usr.sbin['anvil-access-module'].self,
-    args,
-    { encoding, timeout, ...restSpawnSyncOptions },
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  if (stderr.length > 0) {
-    throw new Error(stderr.toString());
-  }
-
-  let output;
-
-  try {
-    output = JSON.parse(stdout.toString());
-  } catch (stdoutParseError) {
-    output = stdout;
-
-    sherr(
-      `Failed to parse anvil-access-module stdout; CAUSE: ${stdoutParseError}`,
-    );
-  }
-
-  return {
-    stdout: output,
-  };
+  return uuid;
 };
-
-const execModuleSubroutine = (
-  subName: string,
-  {
-    spawnSyncOptions,
-    subModuleName,
-    subParams,
-  }: ExecModuleSubroutineOptions = {},
-) => {
-  const args = ['--sub', subName];
-
-  // Defaults to "Database" in anvil-access-module.
-  if (subModuleName) {
-    args.push('--sub-module', subModuleName);
-  }
-
-  if (subParams) {
-    args.push('--sub-params', JSON.stringify(subParams));
-  }
-
-  shout(
-    `...${subModuleName}->${subName} with params: ${JSON.stringify(
-      subParams,
-      null,
-      2,
-    )}`,
-  );
-
-  const { stdout } = execAnvilAccessModule(args, spawnSyncOptions);
-
-  return {
-    stdout: stdout['sub_results'],
-  };
-};
-
-const dbInsertOrUpdateJob = (
-  { job_progress = 0, line = 0, ...rest }: DBJobParams,
-  { spawnSyncOptions }: DBInsertOrUpdateJobOptions = {},
-) =>
-  execModuleSubroutine('insert_or_update_jobs', {
-    spawnSyncOptions,
-    subParams: { job_progress, line, ...rest },
-  }).stdout;
 
 const insertOrUpdateVariable: DBInsertOrUpdateVariableFunction = async (
   params,
@@ -280,7 +202,7 @@ const insertOrUpdateVariable: DBInsertOrUpdateVariableFunction = async (
   return uuid;
 };
 
-const dbJobAnvilSyncShared = (
+const anvilSyncShared = (
   jobName: string,
   jobData: string,
   jobTitle: string,
@@ -300,10 +222,10 @@ const dbJobAnvilSyncShared = (
     subParams.job_host_uuid = jobHostUUID;
   }
 
-  return dbInsertOrUpdateJob(subParams);
+  return insertOrUpdateJob(subParams);
 };
 
-const dbSubRefreshTimestamp = () => {
+const refreshTimestamp = () => {
   let result: string;
 
   try {
@@ -420,10 +342,10 @@ const getUpsSpec = async () => {
 };
 
 export {
-  dbInsertOrUpdateJob as job,
+  insertOrUpdateJob as job,
   insertOrUpdateVariable as variable,
-  dbJobAnvilSyncShared,
-  dbSubRefreshTimestamp as timestamp,
+  anvilSyncShared,
+  refreshTimestamp as timestamp,
   getData,
   getFenceSpec,
   getHostData,

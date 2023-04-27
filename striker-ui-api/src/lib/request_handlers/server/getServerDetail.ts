@@ -128,7 +128,7 @@ export const getServerDetail: RequestHandler = async (request, response) => {
     }
 
     try {
-      job({
+      await job({
         file: __filename,
         job_command: SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self,
         job_data: `server-uuid=${serverUUID}

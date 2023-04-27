@@ -7,5 +7,3 @@ type DBJobParams = DBInsertOrUpdateFunctionCommonParams & {
   job_host_uuid?: string;
   job_progress?: number;
 };
-
-type DBInsertOrUpdateJobOptions = DBInsertOrUpdateFunctionCommonOptions;

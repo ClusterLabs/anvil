@@ -121,7 +121,7 @@ export const prepareHost: RequestHandler<
       });
     }
 
-    job({
+    await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['striker-initialize-host'].self,
       job_data: `enterprise_uuid=${dataEnterpriseUUID}

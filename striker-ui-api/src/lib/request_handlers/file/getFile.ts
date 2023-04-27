@@ -1,10 +1,12 @@
 import { RequestHandler } from 'express';
 
+import { DELETED } from '../../consts';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import buildQueryFileDetail from './buildQueryFileDetail';
+import { buildQueryFileDetail } from './buildQueryFileDetail';
 import { sanitize } from '../../sanitize';
 
-const getFile: RequestHandler = buildGetRequestHandler((request) => {
+export const getFile: RequestHandler = buildGetRequestHandler((request) => {
   const { fileUUIDs } = request.query;
 
   let query = `
@@ -15,7 +17,7 @@ const getFile: RequestHandler = buildGetRequestHandler((request) => {
       file_type,
       file_md5sum
     FROM files
-    WHERE file_type != 'DELETED';`;
+    WHERE file_type != '${DELETED}';`;
 
   if (fileUUIDs) {
     query = buildQueryFileDetail({
@@ -27,5 +29,3 @@ const getFile: RequestHandler = buildGetRequestHandler((request) => {
 
   return query;
 });
-
-export default getFile;

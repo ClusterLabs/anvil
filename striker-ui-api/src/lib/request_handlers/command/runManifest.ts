@@ -81,9 +81,7 @@ export const runManifest: RequestHandler<
 
     assert(isHostListUnique, `Each entry in hosts must be unique`);
   } catch (assertError) {
-    handleAssertError(assertError);
-
-    return;
+    return handleAssertError(assertError);
   }
 
   let rawHostListData: AnvilDataHostListHash | undefined;
@@ -99,15 +97,11 @@ export const runManifest: RequestHandler<
       `Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`,
     );
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   if (!rawHostListData || !rawManifestListData || !rawSysData) {
-    response.status(404).send();
-
-    return;
+    return response.status(404).send();
   }
 
   const { host_uuid: hostUuidMapToData } = rawHostListData;
@@ -167,16 +161,15 @@ export const runManifest: RequestHandler<
       params: [anParams],
     });
 
-    joinAnJobs.forEach((jobParams) => {
+    for (const jobParams of joinAnJobs) {
       jobParams.job_data += `,anvil_uuid=${newAnUuid}`;
-      job(jobParams);
-    });
+
+      await job(jobParams);
+    }
   } catch (subError) {
     stderr(`Failed to record new anvil node entry; CAUSE: ${subError}`);
 
-    response.status(500).send();
-
-    return;
+    return response.status(500).send();
   }
 
   response.status(204).send();

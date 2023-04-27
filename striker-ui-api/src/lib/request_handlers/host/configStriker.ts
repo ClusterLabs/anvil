@@ -41,7 +41,7 @@ export const configStriker: RequestHandler<
   unknown,
   undefined,
   Partial<InitializeStrikerForm>
-> = (request, response) => {
+> = async (request, response) => {
   const { body = {} } = request;
 
   stdoutVar(body, 'Begin initialize Striker; body=');
@@ -116,7 +116,7 @@ export const configStriker: RequestHandler<
   }
 
   try {
-    job({
+    await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-configure-host'].self,
       job_data: `${fvar(1, 'domain')}=${domainName}

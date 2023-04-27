@@ -150,7 +150,7 @@ driver_iso=${driverIsoUuid}`;
   stdout(`provisionServerJobHostUUID=[${provisionServerJobHostUUID}]`);
 
   try {
-    job({
+    await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
       job_data: provisionServerJobData,

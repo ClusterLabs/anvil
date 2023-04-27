@@ -159,7 +159,7 @@ export const createHostConnection: RequestHandler<
   const peerJobCommand = `${SERVER_PATHS.usr.sbin['striker-manage-peers'].self} --add --host-uuid ${localHostUUID} --host ${localIPAddress} --port ${localDBPort} --ping ${commonPing}`;
 
   try {
-    job({
+    await job({
       file: __filename,
       job_command: jobCommand,
       job_data: `password=${commonPassword}
