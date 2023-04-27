@@ -6,7 +6,7 @@ import { stderr, stdout, stdoutVar } from '../shell';
 
 const buildGetRequestHandler =
   (
-    sqlscript: string | BuildQueryFunction,
+    scriptOrCallback: string | BuildQueryFunction,
     { beforeRespond }: BuildGetRequestHandlerOptions = {},
   ) =>
   async (request: Request, response: Response) => {
@@ -17,12 +17,12 @@ const buildGetRequestHandler =
     let result: (number | null | string)[][];
 
     try {
-      result = await query(
-        call<string>(sqlscript, {
-          parameters: [request, buildQueryOptions],
-          notCallableReturn: sqlscript,
-        }),
-      );
+      const sqlscript: string =
+        typeof scriptOrCallback === 'function'
+          ? await scriptOrCallback(request, buildQueryOptions)
+          : scriptOrCallback;
+
+      result = await query(sqlscript);
     } catch (queryError) {
       stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
