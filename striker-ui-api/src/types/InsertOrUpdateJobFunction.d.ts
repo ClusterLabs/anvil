@@ -1,4 +1,4 @@
-type DBJobParams = DBInsertOrUpdateFunctionCommonParams & {
+type JobParams = InsertOrUpdateFunctionCommonParams & {
   job_command: string;
   job_data?: string;
   job_name: string;

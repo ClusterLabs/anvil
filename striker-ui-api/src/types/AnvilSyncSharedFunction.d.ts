@@ -1,0 +1,3 @@
+type JobAnvilSyncSharedOptions = {
+  jobHostUUID?: string;
+};

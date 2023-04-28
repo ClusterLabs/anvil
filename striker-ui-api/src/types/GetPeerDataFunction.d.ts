@@ -6,7 +6,7 @@ type PeerDataHash = {
   os_registered: string;
 };
 
-type GetPeerDataOptions = ModuleSubroutineCommonParams & {
+type GetPeerDataOptions = SubroutineCommonParams & {
   password?: string;
   port?: number;
 };

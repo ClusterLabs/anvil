@@ -5,14 +5,14 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 import { job } from '../../accessModule';
 import { stderr } from '../../shell';
 
-type DistinctDBJobParams = Omit<
-  DBJobParams,
+type DistinctJobParams = Omit<
+  JobParams,
   'file' | 'line' | 'job_data' | 'job_progress'
 >;
 
 const MANAGE_HOST_POWER_JOB_PARAMS: {
-  poweroff: DistinctDBJobParams;
-  reboot: DistinctDBJobParams;
+  poweroff: DistinctJobParams;
+  reboot: DistinctJobParams;
 } = {
   poweroff: {
     job_command: `${SERVER_PATHS.usr.sbin['anvil-manage-power'].self} --poweroff -y`,
@@ -33,7 +33,7 @@ export const buildHostPowerHandler: (
 ) => RequestHandler =
   (task = 'reboot') =>
   async (request, response) => {
-    const subParams: DBJobParams = {
+    const subParams: JobParams = {
       file: __filename,
 
       ...MANAGE_HOST_POWER_JOB_PARAMS[task],

@@ -114,7 +114,7 @@ export const runManifest: RequestHandler<
   } = rawManifestListData;
   const { hosts: { by_uuid: mapToHostNameData = {} } = {} } = rawSysData;
 
-  const joinAnJobs: DBJobParams[] = [];
+  const joinAnJobs: JobParams[] = [];
 
   let anParams: Record<string, string>;
 

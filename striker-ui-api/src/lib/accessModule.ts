@@ -13,10 +13,6 @@ import {
   uuid,
 } from './shell';
 
-type AccessStartOptions = {
-  args?: readonly string[];
-} & SpawnOptions;
-
 class Access extends EventEmitter {
   private ps: ChildProcess;
   private queue: string[] = [];
@@ -184,7 +180,7 @@ const insertOrUpdateJob = async ({
   job_progress = 0,
   line = 0,
   ...rest
-}: DBJobParams) => {
+}: JobParams) => {
   const [uuid]: [string] = await subroutine('insert_or_update_jobs', {
     params: [{ job_progress, line, ...rest }],
   });
@@ -192,7 +188,7 @@ const insertOrUpdateJob = async ({
   return uuid;
 };
 
-const insertOrUpdateVariable: DBInsertOrUpdateVariableFunction = async (
+const insertOrUpdateVariable: InsertOrUpdateVariableFunction = async (
   params,
 ) => {
   const [uuid]: [string] = await subroutine('insert_or_update_variables', {
@@ -207,9 +203,9 @@ const anvilSyncShared = (
   jobData: string,
   jobTitle: string,
   jobDescription: string,
-  { jobHostUUID }: DBJobAnvilSyncSharedOptions = { jobHostUUID: undefined },
+  { jobHostUUID }: JobAnvilSyncSharedOptions = { jobHostUUID: undefined },
 ) => {
-  const subParams: DBJobParams = {
+  const subParams: JobParams = {
     file: __filename,
     job_command: SERVER_PATHS.usr.sbin['anvil-sync-shared'].self,
     job_data: jobData,

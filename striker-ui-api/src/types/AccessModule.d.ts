@@ -1,30 +1,12 @@
-type AsyncAnvilAccessModuleCloseArgs = {
-  ecode: number | null;
-  signal: NodeJS.Signals | null;
-  stderr: string;
-  stdout: unknown;
+type AccessStartOptions = {
+  args?: readonly string[];
+} & import('child_process').SpawnOptions;
+
+type SubroutineCommonParams = {
+  debug?: number;
 };
 
-type AsyncDatabaseWriteCloseArgs = AsyncAnvilAccessModuleCloseArgs & {
-  wcode: number | null;
-};
-
-type AsyncAnvilAccessModuleCloseHandler = (
-  args: AsyncAnvilAccessModuleCloseArgs,
-) => void;
-
-type AsyncDatabaseWriteCloseHandler = (
-  args: AsyncDatabaseWriteCloseArgs,
-) => void;
-
-type AsyncAnvilAccessModuleOptions = import('child_process').SpawnOptions & {
-  onClose?: AsyncAnvilAccessModuleCloseHandler;
-  onError?: (err: Error) => void;
-};
-
-type AsyncDatabaseWriteOptions = Omit<
-  AsyncAnvilAccessModuleOptions,
-  'onClose'
-> & {
-  onClose?: AsyncDatabaseWriteCloseHandler;
+type InsertOrUpdateFunctionCommonParams = SubroutineCommonParams & {
+  file: string;
+  line?: number;
 };
