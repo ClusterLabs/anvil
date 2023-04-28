@@ -54,14 +54,6 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# Did we get called with a job UUID? If not, try to find a pending job and take it.
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-if (not $anvil->data->{switches}{'job-uuid'})
-{
-	# See if a job is waiting to run.
-	$anvil->data->{switches}{job_uuid} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-}
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job details. If anything is returned, there was a problem.

@@ -54,14 +54,6 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid} }});
 
-# If we don't have a job UUID, try to find one.
-if (not $anvil->data->{switches}{'job-uuid'})
-{
-	# Load the job data.
-	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-}
-
 # If we still don't have a job-uuit, go into interactive mode.
 if ($anvil->data->{switches}{'job-uuid'})
 {

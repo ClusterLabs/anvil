@@ -1481,6 +1481,28 @@ sub run_jobs
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
 		
+		# To minimize the chance of race conditions, any given command will be called only once at a 
+		# time. If two jobs of the same command exist, only one will be called.
+		if ($job_progress != 100)
+		{
+			my $short_command =  $job_command;
+			   $short_command =~ s/\s.*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_command => $short_command }});
+			if (exists $anvil->data->{sys}{started}{$short_command})
+			{
+				# Skip it.
+				my $started_job = $anvil->data->{sys}{started}{$short_command};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0737", variables => { 
+					started_job => $started_job, 
+					job_uuid    => $job_uuid,
+					command     => $short_command, 
+				}});
+				next;
+			}
+			$anvil->data->{sys}{started}{$short_command} = $job_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::started::${short_command}" => $anvil->data->{sys}{started}{$short_command} }});
+		}
+		
 		# If this is a start-up call, only start jobs whose status is 'anvil_startup'.
 		if (($startup) && ($job_status ne "anvil_startup"))
 		{

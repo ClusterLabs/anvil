@@ -143,6 +143,9 @@ sub add_server
 	if (exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type})
 	{
 		# The server already exists
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"cib::parsed::cib::resources::primitive::${server_name}::type" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type}, 
+		}});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0213", variables => { server_name => $server_name }});
 		return("!!error!!");
 	}
