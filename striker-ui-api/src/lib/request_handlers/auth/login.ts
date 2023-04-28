@@ -14,5 +14,5 @@ export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
     stdout(`Successfully authenticated user [${userName}]`);
   }
 
-  response.status(200).send();
+  response.status(204).send();
 };
