@@ -182,7 +182,11 @@ export class SessionStore extends BaseSessionStore {
 
 export default (async () =>
   expressSession({
-    cookie: { maxAge: DEFAULT_COOKIE_ORIGINAL_MAX_AGE },
+    cookie: {
+      httpOnly: true,
+      maxAge: DEFAULT_COOKIE_ORIGINAL_MAX_AGE,
+      secure: false,
+    },
     genid: ({ path }) => {
       const sid = uuid();
 
