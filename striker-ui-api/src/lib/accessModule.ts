@@ -37,7 +37,10 @@ class Access extends EventEmitter {
     uid = PUID,
     ...restSpawnOptions
   }: AccessStartOptions = {}) {
-    shvar({ gid, stdio, timeout, uid, ...restSpawnOptions });
+    shvar(
+      { gid, stdio, timeout, uid, ...restSpawnOptions },
+      `Starting anvil-access-module daemon with options: `,
+    );
 
     const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
       gid,
