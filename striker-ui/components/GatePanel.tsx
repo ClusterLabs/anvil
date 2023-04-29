@@ -26,7 +26,11 @@ const GatePanel: FC = () => {
           setIsSubmitting(true);
 
           api
-            .post('/auth/login', { username, password })
+            .post(
+              '/auth/login',
+              { username, password },
+              { withCredentials: true },
+            )
             .then(() => {
               router.push('/');
             })
@@ -34,6 +38,7 @@ const GatePanel: FC = () => {
               const emsg = handleAPIError(error, {
                 onResponseErrorAppend: () => ({
                   children: `Credentials mismatched.`,
+                  type: 'warning',
                 }),
               });
 
