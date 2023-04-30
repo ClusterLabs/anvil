@@ -527,7 +527,7 @@ sub available_resources
 	
 	# This both loads storage group data and assembles ungrouped VGs into storage groups, when possible.
 	$anvil->Cluster->assemble_storage_groups({
-		debug      => $debug,
+		debug      => 2,
 		anvil_uuid => $anvil_uuid, 
 	});
 	
