@@ -378,7 +378,10 @@ ORDER BY
 				scan_lvm_vg_size          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
 				scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
 			}});
-		
+			
+			# Using previously loaded storage group data can be racy, so query group membership directly.
+			$anvil->Database->get_storage_group_data({debug => $debug});
+			
 			# Skip VGs that are in a group already.
 			if ((exists $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}) && 
 			    ($anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid}))
