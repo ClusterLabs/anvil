@@ -84,6 +84,9 @@ read_last_scan($anvil);
 # Loog for changes
 find_changes($anvil);
 
+# Check storage for storage groups.
+check_storage_groups($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 $anvil->nice_exit({exit_code => 0});
@@ -92,6 +95,51 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub check_storage_groups
+{
+	my ($anvil) = @_;
+	
+	# Are we in an Anvil!? If so, are there any storage groups yet?
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	
+	if ($anvil_uuid)
+	{
+		# If we're node 1, we'll try to assemble the storage group. Onle node 1 does this to help avoid race 
+		# conditions. This both loads storage group data and assembles ungrouped VGs into storage groups, 
+		# when possible.
+		$anvil->Database->get_anvils();
+		my $host_uuid       = $anvil->Get->host_uuid;
+		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_name'      => $anvil_name,
+			's2:node1_host_uuid' => $node1_host_uuid, 
+			's3:node2_host_uuid' => $node2_host_uuid, 
+			's4:host_uuid'       => $host_uuid, 
+		}});
+		if ($host_uuid eq $node1_host_uuid)
+		{
+			# Are there any storage groups yet? If not, try to assemble one.
+			my $query = "SELECT COUNT(*) FROM storage_groups WHERE storage_group_anvil_uuid = ".$anvil->Database->quote($anvil_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+
+			my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			if (not $count)
+			{
+				$anvil->Cluster->assemble_storage_groups({
+					debug      => 2,
+					anvil_uuid => $anvil_uuid, 
+				});
+			}
+		}
+	}
+	
+	return(0);
+}
 
 sub find_changes
 {

@@ -5900,7 +5900,6 @@ ORDER BY
 		my $storage_group_member_host_uuid = $row->[4];
 		my $storage_group_member_vg_uuid   = $row->[5];		# This is the VG's internal UUID
 		my $storage_group_member_note      = $row->[6];		# If this is 'DELETED', the link isn't used anymore
-		my $storage_group_member_host_name = $anvil->data->{hosts}{host_uuid}{$storage_group_member_host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			storage_group_uuid             => $storage_group_uuid, 
 			storage_group_anvil_uuid       => $storage_group_anvil_uuid, 
@@ -5909,6 +5908,14 @@ ORDER BY
 			storage_group_member_host_uuid => $storage_group_member_host_uuid, 
 			storage_group_member_vg_uuid   => $storage_group_member_vg_uuid, 
 			storage_group_member_note      => $storage_group_member_note,
+		}});
+		
+		if (not exists $anvil->data->{hosts}{host_uuid}{$storage_group_member_host_uuid})
+		{
+			$anvil->Database->get_hosts({debug => $debug});
+		}
+		my $storage_group_member_host_name = $anvil->data->{hosts}{host_uuid}{$storage_group_member_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			storage_group_member_host_name => $storage_group_member_host_name,
 		}});
 		
