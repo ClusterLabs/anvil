@@ -516,20 +516,27 @@ sub available_resources
 	$anvil->Database->get_bridges({debug => $debug});
 	
 	# Get the details.
+	my $host_uuid       = $anvil->Get->host_uuid;
 	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		anvil_name      => $anvil_name,
-		node1_host_uuid => $node1_host_uuid, 
-		node2_host_uuid => $node2_host_uuid, 
+		's1:anvil_name'      => $anvil_name,
+		's2:node1_host_uuid' => $node1_host_uuid, 
+		's3:node2_host_uuid' => $node2_host_uuid, 
+		's4:host_uuid'       => $host_uuid, 
 	}});
 	
-	# This both loads storage group data and assembles ungrouped VGs into storage groups, when possible.
-	$anvil->Cluster->assemble_storage_groups({
-		debug      => 2,
-		anvil_uuid => $anvil_uuid, 
-	});
+	# If we're node 1, we'll try to assemble the storage group. Onle node 1 does this to help avoid race 
+	# conditions. This both loads storage group data and assembles ungrouped VGs into storage groups, 
+	# when possible.
+	if ($host_uuid eq $node1_host_uuid)
+	{
+		$anvil->Cluster->assemble_storage_groups({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid, 
+		});
+	}
 	
 	# This will store the available resources based on the least of the nodes.
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
