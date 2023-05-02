@@ -99,11 +99,11 @@ export class SessionStore extends BaseSessionStore {
   ): Promise<void> {
     stdoutVar({ session }, `Set session ${sid}`);
 
-    const {
-      passport: { user: userUuid },
-    } = session;
+    const { passport: { user: userUuid } = {} } = session;
 
     try {
+      assert.ok(userUuid, 'Missing user identifier');
+
       const localHostUuid = getLocalHostUUID();
       const modifiedDate = timestamp();
 
