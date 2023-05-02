@@ -514,7 +514,8 @@ sub available_resources
 	# Load hosts and network bridges. This loads Anvil! data as well
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->get_bridges({debug => $debug});
-	
+	$anvil->Database->get_lvm_data({debug => $debug});
+
 	# Get the details.
 	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
