@@ -6,7 +6,6 @@ import passport from './passport';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
 import session from './session';
-import { stdout } from './lib/shell';
 
 export default (async () => {
   const app = express();
@@ -15,11 +14,7 @@ export default (async () => {
 
   app.use(
     cors({
-      origin: (requestOrigin, done) => {
-        stdout(`Request header: Origin=${requestOrigin}`);
-
-        done(null, requestOrigin);
-      },
+      origin: true,
       credentials: true,
     }),
   );
