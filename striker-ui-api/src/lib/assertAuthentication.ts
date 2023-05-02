@@ -1,38 +1,54 @@
-import { Handler, Request, Response } from 'express';
+import { Handler } from 'express';
 
 import { stdout } from './shell';
 
-export const assertAuthentication: (options?: {
-  failureRedirect?: string;
-  failureReturnTo?: boolean | string;
-}) => Handler = ({ failureRedirect, failureReturnTo } = {}) => {
-  const redirectOnFailure: (response: Response) => void = failureRedirect
-    ? (response) => response.redirect(failureRedirect)
-    : (response) => response.status(404).send();
+type AssertAuthenticationOptions = {
+  fail?: string | ((...args: Parameters<Handler>) => void);
+  failReturnTo?: boolean | string;
+  succeed?: string | ((...args: Parameters<Handler>) => void);
+};
 
-  let getSessionReturnTo: ((request: Request) => string) | undefined;
+type AssertAuthenticationFunction = (
+  options?: AssertAuthenticationOptions,
+) => Handler;
 
-  if (failureReturnTo === true) {
-    getSessionReturnTo = ({ originalUrl, url }) => originalUrl || url;
-  } else if (typeof failureReturnTo === 'string') {
-    getSessionReturnTo = () => failureReturnTo;
+export const assertAuthentication: AssertAuthenticationFunction = ({
+  fail: initFail = (request, response) => response.status(404).send(),
+  failReturnTo,
+  succeed: initSucceed = (request, response, next) => next(),
+}: AssertAuthenticationOptions = {}) => {
+  const fail: (...args: Parameters<Handler>) => void =
+    typeof initFail === 'string'
+      ? (request, response) => response.redirect(initFail)
+      : initFail;
+
+  const succeed: (...args: Parameters<Handler>) => void =
+    typeof initSucceed === 'string'
+      ? (request, response) => response.redirect(initSucceed)
+      : initSucceed;
+
+  let getReturnTo: ((...args: Parameters<Handler>) => string) | undefined;
+
+  if (failReturnTo === true) {
+    getReturnTo = ({ originalUrl, url }) => originalUrl || url;
+  } else if (typeof failReturnTo === 'string') {
+    getReturnTo = () => failReturnTo;
   }
 
-  return (request, response, next) => {
+  return (...args) => {
+    const { 0: request } = args;
     const { originalUrl, session } = request;
     const { passport } = session;
 
-    if (!passport?.user) {
-      session.returnTo = getSessionReturnTo?.call(null, request);
+    if (passport?.user) return succeed(...args);
 
-      stdout(
-        `Unauthenticated access to ${originalUrl}; set return to ${session.returnTo}`,
-      );
+    session.returnTo = getReturnTo?.call(null, ...args);
 
-      return redirectOnFailure?.call(null, response);
-    }
+    stdout(
+      `Unauthenticated access to ${originalUrl}; set return to ${session.returnTo}`,
+    );
 
-    next();
+    return fail(...args);
   };
 };
 
