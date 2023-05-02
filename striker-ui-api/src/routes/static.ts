@@ -26,8 +26,9 @@ router.use(
 
     const parts = originalUrl.replace(/[/]$/, '').split('/');
     const tail = parts.pop() || 'index';
+    const extended = /[.]html$/.test(tail) ? tail : `${tail}.html`;
 
-    parts.push(`${tail}.html`);
+    parts.push(extended);
 
     const htmlPath = path.posix.join(htmlDir, ...parts);
     const isHtmlExists = existsSync(htmlPath);
