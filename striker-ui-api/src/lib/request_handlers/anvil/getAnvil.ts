@@ -4,7 +4,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryAnvilDetail from './buildQueryAnvilDetail';
 import { sanitize } from '../../sanitize';
 
-const getAnvil: RequestHandler = buildGetRequestHandler(
+export const getAnvil: RequestHandler = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { anvilUUIDs, isForProvisionServer } = request.query;
 
@@ -77,5 +77,3 @@ const getAnvil: RequestHandler = buildGetRequestHandler(
     return query;
   },
 );
-
-export default getAnvil;

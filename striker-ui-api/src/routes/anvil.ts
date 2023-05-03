@@ -1,9 +1,9 @@
 import express from 'express';
 
-import getAnvil from '../lib/request_handlers/anvil/getAnvil';
+import { getAnvil, getAnvilDetail } from '../lib/request_handlers/anvil';
 
 const router = express.Router();
 
-router.get('/', getAnvil);
+router.get('/', getAnvil).get('/:anvilUuid', getAnvilDetail);
 
 export default router;

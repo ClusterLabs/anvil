@@ -1,3 +1,21 @@
+type AnvilDetailHostSummary = {
+  host_name: string;
+  host_uuid: string;
+  maintenance_mode: boolean;
+  state: string;
+  state_message: string;
+  state_percent: number;
+};
+
+type AnvilDetailParamsDictionary = {
+  anvilUuid: string;
+};
+
+type AnvilDetailResponseBody = {
+  anvil_state: string;
+  hosts: AnvilDetailHostSummary[];
+};
+
 type AnvilDetailForProvisionServer = {
   anvilUUID: string;
   anvilName: string;
