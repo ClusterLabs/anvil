@@ -250,6 +250,12 @@ const getData = async <T>(...keys: string[]) => {
   return data;
 };
 
+const getAnvilData = async () => {
+  await subroutine('get_anvils');
+
+  return getData<AnvilDataAnvilListHash>('anvils');
+};
+
 const getFenceSpec = async () => {
   await subroutine('get_fence_data', { pre: ['Striker'] });
 
@@ -346,6 +352,7 @@ export {
   anvilSyncShared,
   refreshTimestamp as timestamp,
   getData,
+  getAnvilData,
   getFenceSpec,
   getHostData,
   getLocalHostName,

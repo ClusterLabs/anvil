@@ -2,6 +2,24 @@ interface AnvilDataStruct {
   [key: string]: AnvilDataStruct | boolean;
 }
 
+type AnvilDataAnvilListHash = {
+  anvil_uuid: {
+    [uuid: string]: {
+      anvil_description: string;
+      anvil_node1_host_uuid: string;
+      anvil_node2_host_uuid: string;
+      query_time: number;
+    };
+  };
+  host_uuid: {
+    [uuid: string]: {
+      anvil_name: string;
+      anvil_uuid: string;
+      role: string;
+    };
+  };
+};
+
 type AnvilDataDatabaseHash = {
   [hostUUID: string]: {
     host: string;
