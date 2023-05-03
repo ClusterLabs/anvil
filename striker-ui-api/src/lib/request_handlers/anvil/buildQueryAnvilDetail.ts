@@ -92,16 +92,16 @@ const buildQueryAnvilDetail = ({
             server_definition_server_uuid,
             CAST(
               SUBSTRING(
-                server_definition_xml, '%cores=''#"[0-9]+#"''%', '#'
+                server_definition_xml, 'cores=''([\\d]*)'''
               ) AS INTEGER
             ) AS server_cpu_cores,
             CAST(
               SUBSTRING(
-                server_definition_xml, '%memory%>#"[0-9]+#"</memory%', '#'
+                server_definition_xml, 'memory.*>([\\d]*)</memory'
               ) AS BIGINT
             ) AS server_memory_value,
             SUBSTRING(
-              server_definition_xml, '%memory%unit=''#"[A-Za-z]+#"''%', '#'
+              server_definition_xml, 'memory.*unit=''([A-Za-z]*)'''
             ) AS server_memory_unit
           FROM server_definitions AS ser_def
         ) AS ser_def_memory_converted
@@ -129,7 +129,7 @@ const buildQueryAnvilDetail = ({
 
   const buildFileQuery = () => `
     SELECT
-      file_location_anvil_uuid,
+      file_location_host_uuid,
       file_uuid,
       file_name
     FROM file_locations as fil_loc
@@ -181,7 +181,11 @@ const buildQueryAnvilDetail = ({
     LEFT JOIN (${buildStorageGroupQuery()}) AS storage_group_list
       ON anv.anvil_uuid = storage_group_list.storage_group_anvil_uuid
     LEFT JOIN (${buildFileQuery()}) AS file_list
-      ON anv.anvil_uuid = file_list.file_location_anvil_uuid
+      ON file_list.file_location_host_uuid IN (
+        anv.anvil_node1_host_uuid,
+        anv.anvil_node2_host_uuid,
+        anv.anvil_dr1_host_uuid
+      )
     ;`;
 
   let query = `

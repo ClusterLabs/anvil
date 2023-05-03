@@ -95,7 +95,11 @@ export const updateFile: RequestHandler = async (request, response) => {
               anv.anvil_dr1_host_uuid
             FROM anvils AS anv
             JOIN file_locations AS fil_loc
-              ON anv.anvil_uuid = fil_loc.file_location_anvil_uuid
+              ON fil_loc.file_location_host_uuid IN (
+                anv.anvil_node1_host_uuid,
+                anv.anvil_node2_host_uuid,
+                anv.anvil_dr1_host_uuid
+              )
             WHERE fil_loc.file_location_uuid = '${fileLocationUUID}';`,
         );
 
