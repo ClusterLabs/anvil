@@ -14,9 +14,19 @@ Create "Node status" which returns "degraded" if the peer is gone
 
 Common queries;
 * SELECT a.job_uuid, b.host_name, a.job_command, a.job_data, a.job_progress, a.job_status FROM jobs a, hosts b WHERE a.job_host_uuid = b.host_uuid AND a.job_progress != 100;
-* SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;
 * SELECT a.dr_link_uuid, b.host_name, c.anvil_name, a.dr_link_note FROM dr_links a, hosts b, anvils c WHERE a.dr_link_host_uuid = b.host_uuid AND a.dr_link_anvil_uuid = c.anvil_uuid ORDER BY c.anvil_name ASC, b.host_name ASC;
 * SELECT a.storage_group_uuid, d.storage_group_member_uuid, b.anvil_name, a.storage_group_name, c.host_name, d.storage_group_member_vg_uuid, d.storage_group_member_note FROM storage_groups a, anvils b, hosts c, storage_group_members d WHERE a.storage_group_uuid = d.storage_group_member_storage_group_uuid AND a.storage_group_anvil_uuid = b.anvil_uuid AND c.host_uuid = d.storage_group_member_host_uuid ORDER BY a.storage_group_name ASC, c.host_name ASC;
+* SELECT a.scan_hardware_uuid, b.host_name, a.scan_hardware_cpu_cores AS cores, a.scan_hardware_cpu_threads AS threads, pg_size_pretty(a.scan_hardware_ram_total) AS ram_total, pg_size_pretty(a.scan_hardware_memory_total) AS memory_total, pg_size_pretty(a.scan_hardware_memory_free) AS memory_free FROM scan_hardware a, hosts b WHERE a.scan_hardware_host_uuid = b.host_uuid ORDER BY b.host_name ASC;
+* SELECT a.scan_apc_ups_name AS name, a.scan_apc_ups_serial_number AS sn, a.scan_apc_ups_health AS health, a.scan_apc_ups_nmc_serial_number AS nmc_sn, a.scan_apc_ups_nmc_mac_address AS mac, a.scan_apc_ups_ip AS ip, b._percentage_charge AS charge, d.scan_apc_ups_battery_temperature AS btemp FROM scan_apc_upses a, scan_apc_ups_input b, scan_apc_ups_output c, scan_apc_ups_batteries d WHERE a.scan_apc_ups_uuid = b.scan_apc_ups_input_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = c.scan_apc_ups_output_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = d.scan_apc_ups_battery_scan_apc_ups_uuid ORDER BY name ASC;
+
+* SELECT b.host_name, a.network_interface_uuid, a.network_interface_mac_address AS mac, a.network_interface_name AS name, a.network_interface_speed AS speed, a.network_interface_link_state AS link, a.network_interface_operational AS op, a.network_interface_duplex AS duplex, a.network_interface_medium AS medium, a.network_interface_bond_uuid AS bond_uuid, a.network_interface_bridge_uuid AS bridge_uuid FROM network_interfaces a, hosts b WHERE a.network_interface_host_uuid = b.host_uuid AND b.host_name LIKE 'an-a02%' AND a.network_interface_operational != 'DELETED' ORDER BY b.host_name ASC, a.network_interface_name ASC;
+* SELECT b.host_name, a.bond_uuid, a.bond_name, a.bond_mode, a.bond_mtu AS mtu, a.bond_primary_interface AS primary, a.bond_active_interface AS active, a.bond_mac_address AS mac, a.bond_operational AS op, c.bridge_name, a.modified_date FROM bonds a, hosts b, bridges c WHERE a.bond_host_uuid = b.host_uuid AND a.bond_bridge_uuid = c.bridge_uuid AND (b.host_uuid = 'b4e46faf-0ebe-e211-a0d6-00262d0ca874' OR b.host_uuid = '4ba42b4e-9bf7-e311-a889-899427029de4') ORDER BY b.host_name ASC, a.bond_name ASC;
+* SELECT b.host_name, a.bridge_uuid, a.bridge_name, a.bridge_id, a.bridge_mtu FROM bridges a, hosts b WHERE a.bridge_host_uuid = b.host_uuid AND b.host_name LIKE 'an-a02%' ORDER BY b.host_name ASC, a.bridge_name ASC;
+* SELECT a.host_name, b.file_name, c.file_location_active FROM hosts a, files b, file_locations c WHERE a.host_uuid = c.file_location_host_uuid AND b.file_uuid = c.file_location_file_uuid ORDER BY b.file_name ASC, a.host_name ASC;
+* SELECT b.host_name, a.health_agent_name, a.health_source_name, a.health_source_weight FROM health a, hosts b WHERE b.host_uuid = a.health_host_uuid AND b.host_name LIKE 'an-a02%' order by b.host_name ASC, a.health_agent_name ASC, a.health_source_weight ASC;
+
+
+for lv in $(lvscan | grep deploy| awk '{print $2}' | sed  s/\'//g); do lvremove -y $lv; done; rm -f /etc/drbd.d/an-test-deploy*; lvscan; ls -lah /etc/drbd.d/
 
 
 # Fail a resource for testing purposes.
@@ -25,13 +35,10 @@ crm_resource --fail --resource srv02-b -N vm-a01n01
 # Recover without reboot
 crm_resource --resource srv01-a --refresh
 
-
 uname -r; grubby --default-kernel; lsinitrd -m /boot/initramfs-4.18.0-448.el8.x86_64.img | grep lvm; systemctl is-enabled scancore.service; 
 dnf -y update; systemctl disable --now anvil-daemon; systemctl disable --now scancore
 
-
 When pairing Striker, make sure new config goes to all known nodes!
-
 
 dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-striker --allowerasing
 dnf -y update && dnf -y install https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm && alteeve-repo-setup -y && dnf -y install anvil-node --allowerasing
@@ -56,7 +63,6 @@ firewall-cmd --permanent --zone=IFN1 --add-port=22869/tcp
 firewall-cmd --reload
 
 
-
 # Configure APC PDUs and UPSes
 tcpip -i 10.201.2.3 -s 255.255.0.0 -g 10.201.255.254
 web -h enable
@@ -69,7 +75,6 @@ snmp -S enable -c2 public -a2 writeplus
 /root/ci-tools/ci-setup-anvil-bm-vm rhel-8 ci ci
 
 watch 'echo "striker 1"; ssh root@an-striker01 "grep ^database /etc/anvil/anvil.conf | grep host";  echo "striker 2"; ssh root@an-striker02 "grep ^database /etc/anvil/anvil.conf | grep host"; echo "node 1"; ssh root@an-a01n01 "grep ^database /etc/anvil/anvil.conf | grep host"; echo "node 2"; ssh root@an-a01n02 "grep ^database /etc/anvil/anvil.conf | grep host"; echo "dr 1"; ssh root@an-a01dr01 "grep ^database /etc/anvil/anvil.conf | grep host";'
-
 
 
 Anvil! to Anvil! live migration;
@@ -91,13 +96,6 @@ Deleting Resource - srv01-cs8
 10. 
 
 
-TODO: 
-- Remove this; (step 2) "This is the user name that you will log into Striker as and the name of the user that owns the database"
-- Being set to the gateway, not the default DNS - "This is the domain name server(s) to use when resolving domain names. You can specify 2 or more, separated by commas."
-- The web UI password isn't being set properly during Striker stage-2 setup
-- Changing the password doesn't log out active webui sessions.
-- host_health is a duplicate of 'health'
-
 ============
  
 # Dump
@@ -107,12 +105,8 @@ su - postgres -c "pg_dump --schema-only anvil > /var/lib/pgsql/anvil_schema.out"
 su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /var/lib/pgsql/anvil.out"
 su postgres -c "psql anvil"
 
-SELECT a.scan_apc_ups_name AS name, a.scan_apc_ups_serial_number AS sn, a.scan_apc_ups_health AS health, a.scan_apc_ups_nmc_serial_number AS nmc_sn, a.scan_apc_ups_nmc_mac_address AS mac, a.scan_apc_ups_ip AS ip, b._percentage_charge AS charge, d.scan_apc_ups_battery_temperature AS btemp FROM scan_apc_upses a, scan_apc_ups_input b, scan_apc_ups_output c, scan_apc_ups_batteries d WHERE a.scan_apc_ups_uuid = b.scan_apc_ups_input_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = c.scan_apc_ups_output_scan_apc_ups_uuid AND a.scan_apc_ups_uuid = d.scan_apc_ups_battery_scan_apc_ups_uuid ORDER BY name ASC;
 
 ============
-
-dnf -y install augeas
-
 
 Jenkins;
 
@@ -1072,8 +1066,8 @@ OS10# write memory
 
 ### Set hostname:
 OS10# configure terminal 
-OS10(config)# hostname zo-switch02
-zo-switch02(config)# 
+OS10(config)# hostname an-switch02
+an-switch02(config)# 
 
 ======] VLT Config [=======
 
@@ -1107,7 +1101,7 @@ OS10# show vlt 1 mismatch
 (If no issues, VLT is OK)
 
 # See how I am and my role (* == switch you're on)
-zo-switch02(config)# show vlt 1 role 
+an-switch02(config)# show vlt 1 role 
 VLT Unit ID    Role
 ------------------------
 * 1            secondary
@@ -1122,31 +1116,31 @@ OS10(conf-if-ma-1/1/1)# ip address 10.201.1.2/16
 OS10(conf-if-ma-1/1/1)# no shutdown 
 OS10(conf-if-ma-1/1/1)# exit
 OS10(config)# write memory
-OS10(config)# hostname zo-switch01
-zo-switch01(config)# interface vlan 100
-zo-switch01(conf-if-vl-100)# description BCN1
-zo-switch01(config)# exit
-zo-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/14
-zo-switch01(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
-zo-switch01(conf-range-eth1/1/1-1/1/10)# no shutdown 
-zo-switch01(conf-range-eth1/1/1-1/1/10)# exit
+OS10(config)# hostname an-switch01
+an-switch01(config)# interface vlan 100
+an-switch01(conf-if-vl-100)# description BCN1
+an-switch01(config)# exit
+an-switch01(conf-if-vl-100)# interface range ethernet 1/1/1-1/1/14
+an-switch01(conf-range-eth1/1/1-1/1/10)# switchport access vlan 100
+an-switch01(conf-range-eth1/1/1-1/1/10)# no shutdown 
+an-switch01(conf-range-eth1/1/1-1/1/10)# exit
 
-zo-switch01(config)# interface vlan 200
-zo-switch01(conf-if-vl-200)# description SN1
-zo-switch01(conf-if-vl-200)# exit
-zo-switch01(config)# interface range ethernet 1/1/11-1/1/14
-zo-switch01(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
-zo-switch01(conf-range-eth1/1/11-1/1/14)# no shutdown
-zo-switch01(conf-range-eth1/1/11-1/1/14)# exit
+an-switch01(config)# interface vlan 200
+an-switch01(conf-if-vl-200)# description SN1
+an-switch01(conf-if-vl-200)# exit
+an-switch01(config)# interface range ethernet 1/1/11-1/1/14
+an-switch01(conf-range-eth1/1/11-1/1/14)# switchport access vlan 200
+an-switch01(conf-range-eth1/1/11-1/1/14)# no shutdown
+an-switch01(conf-range-eth1/1/11-1/1/14)# exit
 
-zo-switch01(config)# interface vlan 300
-zo-switch01(conf-if-vl-300)# description IFN1
-zo-switch01(conf-if-vl-300)# exit
-zo-switch01(config)# interface range ethernet 1/1/15-1/1/24
-zo-switch01(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
-zo-switch01(conf-range-eth1/1/15-1/1/24)# no shutdown
-zo-switch01(conf-range-eth1/1/15-1/1/24)# exit
-zo-switch01(config)# show vlan
+an-switch01(config)# interface vlan 300
+an-switch01(conf-if-vl-300)# description IFN1
+an-switch01(conf-if-vl-300)# exit
+an-switch01(config)# interface range ethernet 1/1/15-1/1/24
+an-switch01(conf-range-eth1/1/15-1/1/24)# switchport access vlan 300
+an-switch01(conf-range-eth1/1/15-1/1/24)# no shutdown
+an-switch01(conf-range-eth1/1/15-1/1/24)# exit
+an-switch01(config)# show vlan
 Codes: * - Default VLAN, M - Management VLAN, R - Remote Port Mirroring VLANs,
        @ - Attached to Virtual Network, P - Primary, C - Community, I - Isolated
 Q: A - Access (Untagged), T - Tagged
@@ -1160,12 +1154,12 @@ Q: A - Access (Untagged), T - Tagged
     300    Active    IFN1                            T Po1000 
                                                      A Eth1/1/15-1/1/24 
     4094   Active                                    T Po1000 
-zo-switch01(config)# write memory
+an-switch01(config)# write memory
     
 ### Delete a VLAN:
 
-zo-switch02(config)# no interface vlan 3400
-zo-switch02(config)# show vlan
+an-switch02(config)# no interface vlan 3400
+an-switch02(config)# show vlan
 
 
 === Firmware Update ===
@@ -1247,7 +1241,7 @@ reboot: machine restart
 
 ### NOTE: The login prompt will appear before the system is ready to log in. The default username and password revert to 'admin' / 'admin', but this won't work for the first couple of minutes.
 ## OLD
-zo-switch02# show version 
+an-switch02# show version 
 Dell EMC Networking OS10 Enterprise
 Copyright (c) 1999-2020 by Dell Inc. All Rights Reserved.
 OS Version: 10.5.0.4
@@ -1256,10 +1250,10 @@ Build Time: 2020-01-30T21:08:56+0000
 System Type: S4128T-ON
 Architecture: x86_64
 Up Time: 22:49:57
-zo-switch02# 
+an-switch02# 
 
 ## New
-zo-a01n01# show version
+an-a01n01# show version
 Dell EMC Networking OS10 Enterprise
 Copyright (c) 1999-2021 by Dell Inc. All Rights Reserved.
 OS Version: 10.5.2.3
@@ -1535,13 +1529,13 @@ $body = $cgi->param('POSTDATA') # gives you the body of the request as a string,
 
 ausearch -c 'drbdsetup' --raw | audit2allow -M my-drbdsetup && semodule -X 300 -i my-drbdsetup.pp
 
-May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t. For complete SELinux messages run: sealert -l 4079c288-db4a-4f44-a588-94f1dbfff269
-May 02 13:35:21 zo-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t.
+May 02 13:35:21 an-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t. For complete SELinux messages run: sealert -l 4079c288-db4a-4f44-a588-94f1dbfff269
+May 02 13:35:21 an-a01n02.zennioptical.com setroubleshoot[5333]: SELinux is preventing /usr/sbin/drbdsetup from create access on the netlink_generic_socket labeled drbd_t.
                                                                  If you believe that drbdsetup should be allowed create access on netlink_generic_socket labeled drbd_t by default.
                                                                  # ausearch -c 'drbdsetup' --raw | audit2allow -M my-drbdsetup
                                                                  # semodule -X 300 -i my-drbdsetup.pp
 
-                                                                  If you believe that virsh should be allowed read access on the srv16-zo-psql-qa.xml file by default.
+                                                                  If you believe that virsh should be allowed read access on the srv16-an-psql-qa.xml file by default.
                                                                   # ausearch -c 'virsh' --raw | audit2allow -M my-virsh
                                                                   # semodule -X 300 -i my-virsh.pp
 
@@ -1605,17 +1599,17 @@ Gi1/0/24 + Gi2/0/24
 Dell LACP Config (OS10 - https://www.dell.com/support/kbdoc/en-us/000102901/dell-emc-networking-os10-how-to-set-up-virtual-link-trunking-vlt)
 
 * On both switches;
-zo-switch02# configure terminal 
+an-switch02# configure terminal 
 
 * IFN Port channel is 3
-zo-switch02(config)# interface port-channel 3
-zo-switch02(conf-if-po-3)# <165>1 2021-10-19T04:58:56.022086+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_ASTATE_UP: Interface admin state up :port-channel3
-<165>1 2021-10-19T04:58:56.022722+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_DN: Interface operational state is down :port-channel3
-zo-switch02(conf-if-po-3)# lacp fallback enable 
-zo-switch02(conf-if-po-3)# description IFN1
-zo-switch02(conf-if-po-3)# exit
-zo-switch02(config)# exit
-zo-switch02# show port-channel summary 
+an-switch02(config)# interface port-channel 3
+an-switch02(conf-if-po-3)# <165>1 2021-10-19T04:58:56.022086+00:00 an-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_ASTATE_UP: Interface admin state up :port-channel3
+<165>1 2021-10-19T04:58:56.022722+00:00 an-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_DN: Interface operational state is down :port-channel3
+an-switch02(conf-if-po-3)# lacp fallback enable 
+an-switch02(conf-if-po-3)# description IFN1
+an-switch02(conf-if-po-3)# exit
+an-switch02(config)# exit
+an-switch02# show port-channel summary 
   
 Flags:  D - Down    I - member up but inactive    P - member up and active
         U - Up (port-channel)    F - Fallback Activated
@@ -1625,10 +1619,10 @@ Group Port-Channel           Type     Protocol  Member Ports
 3    port-channel3    (D)     Eth      STATIC    
 1000 port-channel1000 (U)     Eth      STATIC    1/1/25(P) 1/1/26(P) 
 
-zo-switch02# configure terminal 
-zo-switch02(config)# interface ethernet 1/1/24
-zo-switch02(conf-if-eth1/1/24)# channel-group 3
-zo-switch02(conf-if-eth1/1/24)# <165>1 2021-10-19T05:09:41.237808+00:00 zo-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :port-channel3
+an-switch02# configure terminal 
+an-switch02(config)# interface ethernet 1/1/24
+an-switch02(conf-if-eth1/1/24)# channel-group 3
+an-switch02(conf-if-eth1/1/24)# <165>1 2021-10-19T05:09:41.237808+00:00 an-switch02 dn_alm 920 - - Node.1-Unit.1:PRI [event], Dell EMC (OS10) %IFM_OSTATE_UP: Interface operational state is up :port-channel3
 exit
 exit
 

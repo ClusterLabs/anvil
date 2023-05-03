@@ -514,22 +514,17 @@ sub available_resources
 	# Load hosts and network bridges. This loads Anvil! data as well
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->get_bridges({debug => $debug});
-	
+	$anvil->Database->get_lvm_data({debug => $debug});
+
 	# Get the details.
 	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		anvil_name      => $anvil_name,
-		node1_host_uuid => $node1_host_uuid, 
-		node2_host_uuid => $node2_host_uuid, 
+		's1:anvil_name'      => $anvil_name,
+		's2:node1_host_uuid' => $node1_host_uuid, 
+		's3:node2_host_uuid' => $node2_host_uuid, 
 	}});
-	
-	# This both loads storage group data and assembles ungrouped VGs into storage groups, when possible.
-	$anvil->Cluster->assemble_storage_groups({
-		debug      => $debug,
-		anvil_uuid => $anvil_uuid, 
-	});
 	
 	# This will store the available resources based on the least of the nodes.
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
@@ -601,7 +596,7 @@ WHERE
 			scan_hardware_cpu_cores   => $scan_hardware_cpu_cores,
 			scan_hardware_cpu_threads => $scan_hardware_cpu_threads, 
 			scan_hardware_cpu_model   => $scan_hardware_cpu_model, 
-			scan_hardware_ram_total   => $scan_hardware_ram_total, 
+			scan_hardware_ram_total   => $scan_hardware_ram_total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_hardware_ram_total}).")", 
 		}});
 		
 		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores}     = $scan_hardware_cpu_cores;
@@ -663,7 +658,9 @@ SELECT
 FROM 
     servers 
 WHERE 
-    server_anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." 
+    server_anvil_uuid =  ".$anvil->Database->quote($anvil_uuid)." 
+AND 
+    server_state      != 'DELETED' 
 ORDER BY 
     server_name ASC;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -693,9 +690,13 @@ ORDER BY
 	if (not exists $anvil->data->{anvil_resources}{ram}{reserved})
 	{
 		$anvil->data->{anvil_resources}{ram}{reserved} = $default_reserved;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			default_reserved                 => $default_reserved, 
+			"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+		}});
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{ram}{reserved}}).")",
+		"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
 	}});
 	
 	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/,//g;

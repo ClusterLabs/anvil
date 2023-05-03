@@ -143,6 +143,9 @@ sub add_server
 	if (exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type})
 	{
 		# The server already exists
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"cib::parsed::cib::resources::primitive::${server_name}::type" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type}, 
+		}});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0213", variables => { server_name => $server_name }});
 		return("!!error!!");
 	}
@@ -375,7 +378,7 @@ ORDER BY
 				scan_lvm_vg_size          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
 				scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
 			}});
-		
+			
 			# Skip VGs that are in a group already.
 			if ((exists $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}) && 
 			    ($anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid}))

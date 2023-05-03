@@ -32,6 +32,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 $| = 1;
 
 my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 $anvil->Get->switches({list => [
 	"add",

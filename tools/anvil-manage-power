@@ -228,11 +228,6 @@ sub do_poweroff
 		$job_uuid = $anvil->data->{switches}{'job-uuid'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 	}
-	else
-	{
-		$job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-	}
 	
 	# Make sure the 'reboot needed' flag is set. When 'anvil-daemon' starts, it will use this to confirm
 	# that it is starting post-reboot and clear it.

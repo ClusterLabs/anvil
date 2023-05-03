@@ -738,6 +738,24 @@ sub gather_data
 		local_short_host_name => $local_short_host_name, 
 	}});
 	
+	# Often, annoyingly, DRBD reports a message about usage before showing the XML. We need to detect and
+	# strip that off.
+	my $new_xml = "";
+	my $in_xml  = 0;
+	foreach my $line (split/\n/, $xml)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /<config/)
+		{
+			$in_xml = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_xml => $in_xml }});
+		}
+		next if not $in_xml;
+		$new_xml .= $line."\n";
+	}
+	$xml = $new_xml;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { xml => $xml }});
+	
 	local $@;
 	my $dom = eval { XML::LibXML->load_xml(string => $xml); };
 	if ($@)
@@ -1903,6 +1921,75 @@ ORDER BY
 		}
 		else
 		{
+			# See if this minor is held by someone.
+			my $variable_name                           = "drbd::hold::minor::".$free_minor."::until";
+			my ($variable_value, $variable_uuid, undef) = $anvil->Database->read_variable({
+				debug         => $debug,
+				variable_name => $variable_name,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:variable_name'  => $variable_name, 
+				's2:variable_value' => $variable_value,
+				's3:variable_uuid'  => $variable_uuid, 
+			}});
+			
+			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			{
+				# Bad value, clear it.
+				$variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug             => $debug,
+					variable_uuid     => $variable_uuid,
+					variable_value    => "0",
+					update_value_only => "", 
+				});
+				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable_uuid  => $variable_uuid,
+					variable_value => $variable_value
+				}});
+			}
+			
+			if ($variable_uuid)
+			{
+				my $now_time = time;
+				my $age      = $now_time - $variable_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					age      => $age, 
+					now_time => $now_time,
+				}});
+				if (($variable_value) && ($now_time > $variable_value))
+				{
+					# This is being held, move on.
+					$free_minor++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
+					next;
+				}
+				else
+				{
+					# Either the hold is stale or invalid, delete it.
+					$variable_uuid = $anvil->Database->insert_or_update_variables({
+						debug             => $debug,
+						variable_uuid     => $variable_uuid,
+						variable_value    => "0",
+						update_value_only => "", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+				}
+			}
+			
+			# To prevent race conditions, put a one minute hold on the minor number.
+			$variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug                 => $debug,
+				variable_name         => $variable_name,
+				variable_value        => time+60,
+				variable_default      => "0", 
+				variable_description  => "striker_0301", 
+				variable_section      => "hold", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			
 			$looking = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
 		}
@@ -1938,6 +2025,74 @@ ORDER BY
 		}
 		else
 		{
+			# See if this minor is held by someone.
+			my $variable_name                           = "drbd::hold::tcp_port::".$check_port."::until";
+			my ($variable_value, $variable_uuid, undef) = $anvil->Database->read_variable({
+				debug         => $debug,
+				variable_name => $variable_name,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:variable_name'  => $variable_name,
+				's2:variable_value' => $variable_value,
+				's3:variable_uuid'  => $variable_uuid, 
+			}});
+			
+			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			{
+				# Bad value, clear it.
+				$variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug             => $debug,
+					variable_uuid     => $variable_uuid,
+					variable_value    => "0",
+					update_value_only => "", 
+				});
+				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable_uuid  => $variable_uuid,
+					variable_value => $variable_value
+				}});
+			}
+			
+			if ($variable_uuid)
+			{
+				my $now_time = time;
+				my $age      = $now_time - $variable_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					age      => $age,
+					now_time => $now_time }});
+				if (($variable_value) && ($now_time > $variable_value))
+				{
+					# This is being held, move on.
+					$check_port++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
+					next;
+				}
+				else
+				{
+					# Either the hold is stale or invalid, delete it.
+					$variable_uuid = $anvil->Database->insert_or_update_variables({
+						debug             => $debug,
+						variable_uuid     => $variable_uuid,
+						variable_value    => "0",
+						update_value_only => "", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+				}
+			}
+			
+			# To prevent a race condition, put a one minute hold on this port number.
+			$variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug                 => $debug,
+				variable_name         => $variable_name,
+				variable_value        => time+60,
+				variable_default      => "0", 
+				variable_description  => "striker_0301", 
+				variable_section      => "hold", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			
 			# This is a free port.
 			$free_ports .= $check_port.",";
 			$port_count++;
@@ -1959,6 +2114,7 @@ ORDER BY
 		}
 	}
 	
+	# Mark these ports as assigned.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		free_minor => $free_minor,
 		free_ports => $free_ports, 
