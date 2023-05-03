@@ -4,8 +4,6 @@ import { RequestHandler } from 'express';
 import { getAnvilData, getHostData, query } from '../../accessModule';
 import { stderr } from '../../shell';
 
-type DbBoolean = 0 | 1;
-
 const buildHostStateMessage = (postfix = 2) => `message_022${postfix}`;
 
 export const getAnvilDetail: RequestHandler<
@@ -63,10 +61,10 @@ export const getAnvilDetail: RequestHandler<
     if (hstatus !== 'online') continue;
 
     let rows: [
-      inCcm: DbBoolean,
-      crmdMember: DbBoolean,
-      clusterMember: DbBoolean,
-      maintenanceMode: DbBoolean,
+      inCcm: NumberBoolean,
+      crmdMember: NumberBoolean,
+      clusterMember: NumberBoolean,
+      maintenanceMode: NumberBoolean,
     ][];
 
     try {

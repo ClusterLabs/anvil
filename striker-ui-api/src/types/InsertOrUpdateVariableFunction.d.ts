@@ -1,5 +1,5 @@
 type VariableParams = InsertOrUpdateFunctionCommonParams & {
-  update_value_only?: 0 | 1;
+  update_value_only?: NumberBoolean;
   variable_default?: string;
   varaible_description?: string;
   variable_name?: string;
