@@ -429,6 +429,7 @@ sub check_file_locations
 					file_location_file_uuid => $file_uuid, 
 					file_location_host_uuid => $host_uuid, 
 					file_location_active    => 1, 
+					file_location_ready     => "same",
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 			}
@@ -3487,6 +3488,7 @@ This loads the known install file_locations into the C<< anvil::data >> hash at:
 * file_locations::file_location_uuid::<file_location_uuid>::file_location_file_uuid
 * file_locations::file_location_uuid::<file_location_uuid>::file_location_host_uuid
 * file_locations::file_location_uuid::<file_location_uuid>::file_location_active
+* file_locations::file_location_uuid::<file_location_uuid>::file_location_ready
 * file_locations::file_location_uuid::<file_location_uuid>::modified_date
 
 If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
@@ -3513,6 +3515,7 @@ SELECT
     file_location_file_uuid, 
     file_location_host_uuid, 
     file_location_active, 
+    file_location_ready, 
     modified_date 
 FROM 
     file_locations 
@@ -3530,12 +3533,14 @@ FROM
 		my $file_location_file_uuid = $row->[1];
 		my $file_location_host_uuid = $row->[2];
 		my $file_location_active    = $row->[3]; 
-		my $modified_date           = $row->[4];
+		my $file_location_ready     = $row->[4]; 
+		my $modified_date           = $row->[5];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			file_location_uuid      => $file_location_uuid, 
 			file_location_file_uuid => $file_location_file_uuid, 
 			file_location_host_uuid => $file_location_host_uuid, 
 			file_location_active    => $file_location_active, 
+			file_location_ready     => $file_location_ready, 
 			modified_date           => $modified_date, 
 		}});
 		
@@ -3543,11 +3548,13 @@ FROM
 		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid} = $file_location_file_uuid;
 		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_host_uuid} = $file_location_host_uuid;
 		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}    = $file_location_active;
+		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready}     = $file_location_ready;
 		$anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}           = $modified_date;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"file_locations::file_location_uuid::${file_location_uuid}::file_location_file_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid}, 
 			"file_locations::file_location_uuid::${file_location_uuid}::file_location_host_uuid" => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_host_uuid}, 
 			"file_locations::file_location_uuid::${file_location_uuid}::file_location_active"    => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active}, 
+			"file_locations::file_location_uuid::${file_location_uuid}::file_location_ready"     => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready}, 
 			"file_locations::file_location_uuid::${file_location_uuid}::modified_date"           => $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{modified_date}, 
 		}});
 		
@@ -8490,6 +8497,14 @@ This is set to C<< 1 >> or C<< 0 >>, and indicates if the file should be on the 
 
 When set to C<< 1 >>, the file will be copied by the Anvil! member machines (by the member machines, they pull the files using rsync). If set to C<< 0 >>, the file is marked as inactive. If the file exists on the Anvil! members, it will be deleted.
 
+=head3 file_location_ready (optional, default '0')
+
+This is set to C<< 1 >> or C<< 0 >>, and indicates if the file is on the system and ready to be used. 
+
+B<< Note >>: This can also be set to C<< same >>. If set, and the file exists in the database, the existing value is retained. If the entry is inserted, this is set to C<< 0 >>.
+
+When set to C<< 1 >>, the file's size and md5sum have been confirmed to match on disk what is recorded in the database. When set to C<< 0 >>, the file _may_ be ready, but it probably isn't yet. Any process needing the file should check that it's ready before using it.
+
 =cut
 sub insert_or_update_file_locations
 {
@@ -8506,7 +8521,8 @@ sub insert_or_update_file_locations
 	my $file_location_anvil_uuid = defined $parameter->{file_location_anvil_uuid} ? $parameter->{file_location_anvil_uuid} : "";
 	my $file_location_file_uuid  = defined $parameter->{file_location_file_uuid}  ? $parameter->{file_location_file_uuid}  : "";
 	my $file_location_host_uuid  = defined $parameter->{file_location_host_uuid}  ? $parameter->{file_location_host_uuid}  : "";
-	my $file_location_active     = defined $parameter->{file_location_active}     ? $parameter->{file_location_active}     : "";
+	my $file_location_active     = defined $parameter->{file_location_active}     ? $parameter->{file_location_active}     : 0;
+	my $file_location_ready      = defined $parameter->{file_location_ready}      ? $parameter->{file_location_ready}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                     => $uuid, 
 		file                     => $file,
@@ -8516,6 +8532,7 @@ sub insert_or_update_file_locations
 		file_location_file_uuid  => $file_location_file_uuid, 
 		file_location_host_uuid  => $file_location_host_uuid, 
 		file_location_active     => $file_location_active, 
+		file_location_ready      => $file_location_ready, 
 	}});
 	
 	if (not $file_location_file_uuid)
@@ -8534,6 +8551,12 @@ sub insert_or_update_file_locations
 	{
 		# Throw an error and exit.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_active" }});
+		return("");
+	}
+	if (($file_location_ready ne "0") && ($file_location_ready ne "1") && ($file_location_ready ne "same"))
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_ready" }});
 		return("");
 	}
 	
@@ -8577,6 +8600,7 @@ sub insert_or_update_file_locations
 				file_location_file_uuid  => $file_location_file_uuid, 
 				file_location_host_uuid  => $host_uuid, 
 				file_location_active     => $file_location_active, 
+				file_location_ready      => $file_location_ready, 
 			});
 			$file_location_uuids .= $host_uuid."=".$file_location_uuid.",";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -8626,6 +8650,12 @@ AND
 		$file_location_uuid = $anvil->Get->uuid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 		
+		if ($file_location_ready eq "same")
+		{
+			$file_location_ready = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_ready => $file_location_ready }});
+		}
+		
 		my $query = "
 INSERT INTO 
     file_locations 
@@ -8634,12 +8664,14 @@ INSERT INTO
     file_location_file_uuid, 
     file_location_host_uuid, 
     file_location_active, 
+    file_location_ready, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($file_location_uuid).", 
     ".$anvil->Database->quote($file_location_file_uuid).", 
     ".$anvil->Database->quote($file_location_host_uuid).", 
     ".$anvil->Database->quote($file_location_active).", 
+    ".$anvil->Database->quote($file_location_ready).", 
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
@@ -8653,7 +8685,8 @@ INSERT INTO
 SELECT 
     file_location_file_uuid, 
     file_location_host_uuid, 
-    file_location_active 
+    file_location_active, 
+    file_location_ready 
 FROM 
     file_locations 
 WHERE 
@@ -8678,16 +8711,25 @@ WHERE
 			my $old_file_location_file_uuid = $row->[0];
 			my $old_file_location_host_uuid = $row->[1];
 			my $old_file_location_active    = $row->[2];
+			my $old_file_location_ready     = $row->[3];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_file_location_file_uuid => $old_file_location_file_uuid, 
 				old_file_location_host_uuid => $old_file_location_host_uuid, 
 				old_file_location_active    => $old_file_location_active, 
+				old_file_location_ready     => $old_file_location_ready, 
 			}});
+			
+			if ($file_location_ready eq "same")
+			{
+				$file_location_ready = $old_file_location_ready;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_ready => $file_location_ready }});
+			}
 			
 			# Anything change?
 			if (($old_file_location_file_uuid ne $file_location_file_uuid) or 
 			    ($old_file_location_host_uuid ne $file_location_host_uuid) or 
-			    ($old_file_location_active    ne $file_location_active))
+			    ($old_file_location_active    ne $file_location_active)    or
+			    ($old_file_location_ready     ne $file_location_ready))
 			{
 				# Something changed, save.
 				my $query = "
@@ -8697,6 +8739,7 @@ SET
     file_location_file_uuid = ".$anvil->Database->quote($file_location_file_uuid).", 
     file_location_host_uuid = ".$anvil->Database->quote($file_location_host_uuid).", 
     file_location_active    = ".$anvil->Database->quote($file_location_active).", 
+    file_location_ready     = ".$anvil->Database->quote($file_location_ready).", 
     modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     file_location_uuid      = ".$anvil->Database->quote($file_location_uuid)." 
@@ -18185,6 +18228,7 @@ sub track_files
 						file_location_file_uuid => $file_uuid,
 						file_location_host_uuid => $host_uuid,
 						file_location_active    => 1,
+						file_location_ready     => "same",
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						reload             => $reload,
@@ -18250,6 +18294,7 @@ sub track_files
 						file_location_file_uuid => $file_uuid,
 						file_location_host_uuid => $host_uuid,
 						file_location_active    => 1,
+						file_location_ready     => "same",
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 				}
@@ -18267,6 +18312,7 @@ sub track_files
 							file_location_file_uuid => $file_uuid,
 							file_location_host_uuid => $host_uuid,
 							file_location_active    => 1,
+							file_location_ready     => "same",
 						});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 					}
@@ -18323,6 +18369,7 @@ sub track_files
 							file_location_file_uuid => $file_uuid,
 							file_location_host_uuid => $host_uuid,
 							file_location_active    => 1,
+							file_location_ready     => "same",
 						});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
 					}
