@@ -3597,6 +3597,10 @@ The attempt to start the servers appears to have failed. The return code '0' was
 ====
 We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up if it keeps failing after: [#!variable!time_left!#] seconds.
 		</key>
+		<key name="warning_0154">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was not found in the database yet.</key>
+		<key name="warning_0155">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was not found in the database as being on this host yet.</key>
+		<key name="warning_0156">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was found, but it's not ready yet.</key>
+		<key name="warning_0157">[ Warning ] - Waiting for a bit, and then will check if files are ready.</key>
 		
 	</language>
 	<!-- 日本語 -->

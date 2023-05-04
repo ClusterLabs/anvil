@@ -566,6 +566,101 @@ sub provision_server
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	
+	### TODO: Left off here
+	# Wait until file(s) are ready.
+	my $waiting   = 1;
+	my $host_uuid = $anvil->Get->host_uuid();
+	my @files     = ($anvil->data->{job}{install_iso_path});
+	if ($anvil->data->{job}{driver_iso_path})
+	{
+		push @files, $anvil->data->{job}{driver_iso_path};
+	}
+	while ($waiting)
+	{
+		$anvil->Storage->check_files({debug => 2});
+		$anvil->Database->get_files({debug => 2});
+		$anvil->Database->get_file_locations({debug => 2});
+		$waiting = 0;
+		foreach my $file_path (sort {$a cmp $b} @files)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_path => $file_path }});
+			
+			$anvil->data->{file_uuid}{$file_path} = "" if not exists $anvil->data->{uuid}{$file_path}{file_uuid};
+			
+			# What's this file's file_uuid?
+			my $file_uuid          = $anvil->data->{file_uuid}{$file_path};
+			my $file_location_uuid = "";
+			if (not $file_uuid)
+			{
+				foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{files}{file_uuid}})
+				{
+					my $this_file_path =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$this_file_uuid}{file_name};
+					$this_file_path =~ s/\/\//\//g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						this_file_uuid => $this_file_uuid, 
+						this_file_path => $this_file_path,
+					}});
+					if ($this_file_path eq $file_path)
+					{
+						# Found it.
+						$file_uuid = $this_file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+					}
+				}
+			}
+			
+			# Did we find the file?
+			if (not $file_uuid)
+			{
+				# Nope.
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0154", variables => {
+					file_path   => $file_path, 
+					server_name => $server, 
+				}});
+				next;
+			}
+			
+			# Yes, now do we have the file_location_uuid?
+			if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
+			{
+				# Nope
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0155", variables => {
+					file_path   => $file_path, 
+					server_name => $server, 
+				}});
+				next;
+			}
+			
+			   $file_location_uuid  = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_ready = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file_location_uuid  => $file_location_uuid,
+				file_location_ready => $file_location_ready, 
+			}});
+			
+			if (not $file_location_ready)
+			{
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0156", variables => {
+					file_path   => $file_path, 
+					server_name => $server, 
+				}});
+				next;
+			}
+		}
+		
+		if ($waiting)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0157"});
+			sleep 10;
+		}
+	}
+	
 	# Call as a background process.
 	my ($handle, $return_code) = $anvil->System->call({
 		background  => 1, 
@@ -587,7 +682,7 @@ sub provision_server
 	
 	# Loop for up to 10 seconds waiting to see the server start running.
 	my $wait_until = time + 60;
-	my $waiting    = 1;
+	   $waiting    = 1;
 	my $status     = "";
 	while($waiting)
 	{
