@@ -462,7 +462,7 @@ if ($local_uuid)
 	
 	# In some cases, the database won't allow connections to the admin user. To deal with this, we'll 
 	# call stop->start on the daemon (reload doesn't fix it).
-	my $return_code = $anvil->System->stop_daemon({daemon => "postgresql"});
+	$return_code = $anvil->System->stop_daemon({daemon => "postgresql"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	
 	$return_code = $anvil->System->start_daemon({daemon => "postgresql"});

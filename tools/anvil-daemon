@@ -545,7 +545,7 @@ sub handle_periodic_tasks
 		update_state_file($anvil);
 		
 		# Check shared files.
-		check_files($anvils);
+		check_files($anvil);
 		
 		# Check mail server config.
 		my $problem = $anvil->Email->check_config({debug => 3});
