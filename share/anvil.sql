@@ -1234,6 +1234,7 @@ CREATE TABLE file_locations (
     file_location_file_uuid    uuid                        not null,                   -- This is file to be moved to (or restored to) this machine.
     file_location_host_uuid    uuid                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
     file_location_active       boolean                     not null    default TRUE,   -- This is set to true when the file should be on Anvil! machines, triggering rsyncs when needed. When set to false, the file will be deleted from members, if they exist.
+    file_location_ready        boolean                     not null    default FALSE,  -- This is set to true when the file is on the host with a good md5sum. If this is FALSE, any process needing this file should wait/loop until this goes TRUE
     modified_date              timestamp with time zone    not null,
     
     FOREIGN KEY(file_location_file_uuid) REFERENCES files(file_uuid), 
@@ -1247,6 +1248,7 @@ CREATE TABLE history.file_locations (
     file_location_file_uuid    text,
     file_location_host_uuid    uuid,
     file_location_active       boolean,
+    file_location_ready        boolean,
     modified_date              timestamp with time zone    not null
 );
 ALTER TABLE history.file_locations OWNER TO admin;
@@ -1262,12 +1264,14 @@ BEGIN
          file_location_file_uuid,
          file_location_host_uuid, 
          file_location_active, 
+         file_location_ready, 
          modified_date)
     VALUES
         (history_file_locations.file_location_uuid, 
          history_file_locations.file_location_file_uuid,
          history_file_locations.file_location_host_uuid, 
          history_file_locations.file_location_active, 
+         history_file_locations.file_location_ready, 
          history_file_locations.modified_date);
     RETURN NULL;
 END;
