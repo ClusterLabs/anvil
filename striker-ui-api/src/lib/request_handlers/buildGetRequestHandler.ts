@@ -14,7 +14,7 @@ const buildGetRequestHandler =
 
     const buildQueryOptions: BuildQueryOptions = {};
 
-    let result: (number | null | string)[][];
+    let result: unknown;
 
     try {
       const sqlscript: string =
@@ -26,9 +26,7 @@ const buildGetRequestHandler =
     } catch (queryError) {
       stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
 
     stdoutVar(result, `Query stdout pre-hooks (type=[${typeof result}]): `);

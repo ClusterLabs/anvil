@@ -1,5 +1,3 @@
-type QueryResultModifierFunction = (output: unknown) => unknown;
-
 type BuildQueryOptions = {
   afterQueryReturn?: QueryResultModifierFunction;
 };

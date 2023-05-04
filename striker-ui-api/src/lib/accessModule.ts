@@ -167,7 +167,7 @@ const subroutine = async <T extends unknown[]>(
   return results;
 };
 
-const query = <T extends (number | null | string)[][]>(script: string) =>
+const query = <T extends QueryResult>(script: string) =>
   access.interact<T>('r', formatSql(script));
 
 const write = async (script: string) => {
