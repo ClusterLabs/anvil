@@ -1,5 +1,4 @@
-import NODE_AND_DR_RESERVED_MEMORY_SIZE from '../../consts/NODE_AND_DR_RESERVED_MEMORY_SIZE';
-import { OS_LIST } from '../../consts/OS_LIST';
+import { NODE_AND_DR_RESERVED_MEMORY_SIZE, OS_LIST } from '../../consts';
 
 import join from '../../join';
 import { stdoutVar } from '../../shell';
