@@ -1,4 +1,4 @@
-export const P_HEX = '[[:xdigit:]]';
+export const P_HEX = '[a-f0-9]';
 export const P_OCTET = '(?:25[0-5]|(?:2[0-4]|1[0-9]|[1-9]|)[0-9])';
 export const P_ALPHANUM = '[a-z0-9]';
 export const P_ALPHANUM_DASH = '[a-z0-9-]';

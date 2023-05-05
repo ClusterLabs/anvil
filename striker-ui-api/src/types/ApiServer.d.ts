@@ -6,3 +6,12 @@ type ServerOverview = {
   serverState: string;
   serverUUID: string;
 };
+
+type ServerDetailParamsDictionary = {
+  serverUUID: string;
+};
+
+type ServerDetailParsedQs = {
+  ss: boolean | number | string;
+  resize: string;
+};

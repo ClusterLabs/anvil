@@ -17,9 +17,16 @@ const rmfifo = (path: string) => {
   }
 };
 
-export const getServerDetail: RequestHandler = async (request, response) => {
-  const { serverUUID } = request.params;
-  const { ss, resize } = request.query;
+export const getServerDetail: RequestHandler<
+  ServerDetailParamsDictionary,
+  unknown,
+  unknown,
+  ServerDetailParsedQs
+> = async (request, response) => {
+  const {
+    params: { serverUUID },
+    query: { ss, resize },
+  } = request;
 
   const epoch = Date.now();
   const isScreenshot = sanitize(ss, 'boolean');
