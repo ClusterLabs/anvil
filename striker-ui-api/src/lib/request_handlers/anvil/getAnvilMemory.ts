@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express';
+import { DataSizeUnit, dSize } from 'format-data-size';
 
 import { NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
 
@@ -55,27 +56,66 @@ export const getAnvilMemory: RequestHandler<
   }
 
   const {
-    0: { 1: rTotal },
+    0: { 1: minTotal },
   } = hostMemoryRows;
 
-  if (rTotal === null) return response.status(404).send();
-
-  const total = Number.parseInt(rTotal);
+  if (minTotal === null) return response.status(404).send();
 
   const hosts: AnvilDetailHostMemory[] =
     hostMemoryRows.map<AnvilDetailHostMemory>(
-      ([host_uuid, , mtotal, mfree, stotal, sfree]) => ({
-        free: Number.parseInt(mfree),
+      ([host_uuid, , total, free, swap_total, swap_free]) => ({
+        free,
         host_uuid,
-        swap_free: Number.parseInt(sfree),
-        swap_total: Number.parseInt(stotal),
-        total: Number.parseInt(mtotal),
+        swap_free,
+        swap_total,
+        total,
       }),
     );
 
+  let serverMemoryRows: [serverMemoryValue: string, serverMemoryUnit: string][];
+
+  try {
+    serverMemoryRows = await query(
+      `SELECT
+          CAST(
+            SUBSTRING(
+              a.server_definition_xml, 'memory.*>([\\d]*)</memory'
+            ) AS BIGINT
+          ) AS server_memory_value,
+          SUBSTRING(
+            a.server_definition_xml, 'memory.*unit=''([A-Za-z]*)'''
+          ) AS server_memory_unit
+        FROM server_definitions AS a
+        JOIN servers AS b
+          ON b.server_uuid = a.server_definition_server_uuid
+        WHERE server_anvil_uuid = '${anvilUuid}';`,
+    );
+  } catch (error) {
+    stderr(`Failed to get anvil ${anvilUuid} server info; CAUSE: ${error}`);
+
+    return response.status(500).send();
+  }
+
+  let allocated = '0';
+
+  if (serverMemoryRows.length > 0) {
+    allocated = String(
+      serverMemoryRows.reduce<bigint>((previous, [mvalue, munit]) => {
+        const serverMemory =
+          dSize(mvalue, {
+            fromUnit: munit as DataSizeUnit,
+            toUnit: 'B',
+          })?.value ?? '0';
+
+        return previous + BigInt(serverMemory);
+      }, BigInt(0)),
+    );
+  }
+
   return response.status(200).send({
+    allocated,
     hosts,
-    reserved: NODE_AND_DR_RESERVED_MEMORY_SIZE,
-    total,
+    reserved: String(NODE_AND_DR_RESERVED_MEMORY_SIZE),
+    total: minTotal,
   });
 };

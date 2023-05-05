@@ -1,9 +1,9 @@
 type AnvilDetailHostMemory = {
-  free: number;
+  free: string;
   host_uuid: string;
-  swap_free: number;
-  swap_total: number;
-  total: number;
+  swap_free: string;
+  swap_total: string;
+  total: string;
 };
 
 type AnvilDetailHostSummary = {
