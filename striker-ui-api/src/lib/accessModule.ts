@@ -2,7 +2,7 @@ import { ChildProcess, spawn, SpawnOptions } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
-import { SERVER_PATHS, PGID, PUID } from './consts';
+import { SERVER_PATHS, PGID, PUID, DEFAULT_JOB_PROGRESS } from './consts';
 
 import { formatSql } from './formatSql';
 import {
@@ -180,7 +180,7 @@ const write = async (script: string) => {
 };
 
 const insertOrUpdateJob = async ({
-  job_progress = 0,
+  job_progress = DEFAULT_JOB_PROGRESS,
   line = 0,
   ...rest
 }: JobParams) => {
