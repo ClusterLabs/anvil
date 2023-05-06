@@ -2,6 +2,8 @@ import express from 'express';
 
 import {
   getHostSSH,
+  joinAn,
+  leaveAn,
   poweroffStriker,
   rebootStriker,
   runManifest,
@@ -16,6 +18,8 @@ const router = express.Router();
 
 router
   .put('/inquire-host', getHostSSH)
+  .put('/join-an/:uuid', joinAn)
+  .put('/leave-an/:uuid', leaveAn)
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
   .put('/run-manifest/:manifestUuid', runManifest)

@@ -12,21 +12,21 @@ import { stderr } from '../../shell';
  * * poweroff, reboot targets the striker this express app operates on
  * * start, stop targets subnode or DR host
  */
-const MANAGE_HOST_POWER_JOB_PARAMS: Record<
+const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
   PowerTask,
   BuildPowerJobParamsFunction
 > = {
   poweroff: () => ({
     job_command: `${SERVER_PATHS.usr.sbin['anvil-manage-power'].self} --poweroff -y`,
+    job_description: 'job_0008',
     job_name: 'poweroff::system',
     job_title: 'job_0010',
-    job_description: 'job_0008',
   }),
   reboot: () => ({
     job_command: `${SERVER_PATHS.usr.sbin['anvil-manage-power'].self} --reboot -y`,
+    job_description: 'job_0006',
     job_name: 'reboot::system',
     job_title: 'job_0009',
-    job_description: 'job_0006',
   }),
   start: ({ uuid } = {}) => ({
     job_command: `${SERVER_PATHS.usr.sbin['striker-boot-machine'].self} --host-uuid '${uuid}'`,
@@ -49,13 +49,13 @@ const queuePowerJob = async (
   task: PowerTask,
   options?: BuildPowerJobParamsOptions,
 ) => {
-  const subParams: JobParams = {
+  const params: JobParams = {
     file: __filename,
 
-    ...MANAGE_HOST_POWER_JOB_PARAMS[task](options),
+    ...MAP_TO_POWER_JOB_PARAMS_BUILDER[task](options),
   };
 
-  return await job(subParams);
+  return await job(params);
 };
 
 export const buildPowerHandler: (
