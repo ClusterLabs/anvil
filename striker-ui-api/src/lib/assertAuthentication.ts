@@ -29,7 +29,7 @@ export const assertAuthentication: AssertAuthenticationFunction = ({
   let getReturnTo: ((...args: HandlerParameters) => string) | undefined;
 
   if (failReturnTo === true) {
-    getReturnTo = ({ path }) => path;
+    getReturnTo = ({ originalUrl, url }) => originalUrl || url;
   } else if (typeof failReturnTo === 'string') {
     getReturnTo = () => failReturnTo;
   }
@@ -47,14 +47,14 @@ export const assertAuthentication: AssertAuthenticationFunction = ({
 
   return (...args) => {
     const { 0: request } = args;
-    const { path, session } = request;
+    const { originalUrl, session } = request;
     const { passport } = session;
 
     if (passport?.user) return succeed(...args);
 
     const rt = getReturnTo?.call(null, ...args);
 
-    stdout(`Unauthenticated access to ${path}`);
+    stdout(`Unauthenticated access to ${originalUrl}`);
 
     if (rt) {
       stdout(`Set session.returnTo=${rt}`);

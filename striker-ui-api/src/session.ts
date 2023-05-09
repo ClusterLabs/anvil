@@ -187,10 +187,10 @@ export default (async () =>
       maxAge: DEFAULT_COOKIE_ORIGINAL_MAX_AGE,
       secure: false,
     },
-    genid: ({ path }) => {
+    genid: ({ originalUrl }) => {
       const sid = uuid();
 
-      stdout(`Generated session identifier ${sid}; request.path=${path}`);
+      stdout(`Generated session identifier ${sid}; access to ${originalUrl}`);
 
       return sid;
     },
