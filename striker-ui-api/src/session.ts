@@ -97,7 +97,7 @@ export class SessionStore extends BaseSessionStore {
     session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): Promise<void> {
-    stdoutVar({ session }, `Set session ${sid}`);
+    stdoutVar({ session }, `Set session ${sid}: `);
 
     const { passport: { user: userUuid } = {} } = session;
 
@@ -145,7 +145,7 @@ export class SessionStore extends BaseSessionStore {
     session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): Promise<void> {
-    stdoutVar({ session }, `Touch session ${sid}`);
+    stdoutVar({ session }, `Touch session ${sid}: `);
 
     try {
       const wcode = await write(
