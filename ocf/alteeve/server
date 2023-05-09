@@ -908,10 +908,16 @@ sub start_drbd_resource
 		{
 			# This is set to '1' if either the volumes are UpToDate or Sync'ing.
 			$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{ok} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"drbd::status::${local_host}::resource::${resource}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{ok},
+			}});
 			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}})
 			{
 				# This will be used to mark if a volume is being sync'ed later, if needed.
 				$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"drbd::status::${local_host}::resource::${resource}::devices::volume::${volume}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok},
+				}});
 				
 				my $disk_state = lc($anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'});
 				   $disk_state = "" if not defined $disk_state;
