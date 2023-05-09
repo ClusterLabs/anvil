@@ -1,11 +1,15 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
-import { createReadStream } from 'fs';
+import { ReadStream, createReadStream, writeFileSync } from 'fs';
 import path from 'path';
 
-import { REP_UUID, SERVER_PATHS } from '../../consts';
+import {
+  GET_SERVER_SCREENSHOT_TIMEOUT,
+  REP_UUID,
+  SERVER_PATHS,
+} from '../../consts';
 
-import { getLocalHostUUID, job, query } from '../../accessModule';
+import { getLocalHostUUID, job, query, write } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { mkfifo, rm, stderr, stdout } from '../../shell';
 
@@ -13,7 +17,7 @@ const rmfifo = (path: string) => {
   try {
     rm(path);
   } catch (rmfifoError) {
-    stderr(`Failed to clean up named pipe; CAUSE: ${rmfifoError}`);
+    stderr(`Failed to clean up FIFO; CAUSE: ${rmfifoError}`);
   }
 };
 
@@ -74,32 +78,35 @@ export const getServerDetail: RequestHandler<
 
     stdout(`serverHostUUID=[${serverHostUUID}]`);
 
-    const imageFileName = `${serverUUID}_screenshot_${epoch}`;
-    const imageFilePath = path.join(SERVER_PATHS.tmp.self, imageFileName);
+    const imageFifoName = `${serverUUID}_screenshot_${epoch}`;
+    const imageFifoPath = path.join(SERVER_PATHS.tmp.self, imageFifoName);
+
+    let fifoReadStream: ReadStream;
 
     try {
-      mkfifo(imageFilePath);
+      mkfifo(imageFifoPath);
 
-      const namedPipeReadStream = createReadStream(imageFilePath, {
+      fifoReadStream = createReadStream(imageFifoPath, {
         autoClose: true,
+        emitClose: true,
         encoding: 'utf-8',
       });
 
       let imageData = '';
 
-      namedPipeReadStream.once('error', (readError) => {
-        stderr(`Failed to read from named pipe; CAUSE: ${readError}`);
+      fifoReadStream.once('error', (readError) => {
+        stderr(`Failed to read from FIFO; CAUSE: ${readError}`);
       });
 
-      namedPipeReadStream.once('close', () => {
-        stdout(`On close; removing named pipe at ${imageFilePath}.`);
+      fifoReadStream.once('close', () => {
+        stdout(`On close; removing FIFO at ${imageFifoPath}.`);
 
-        rmfifo(imageFilePath);
+        rmfifo(imageFifoPath);
 
         return response.status(200).send({ screenshot: imageData });
       });
 
-      namedPipeReadStream.on('data', (data) => {
+      fifoReadStream.on('data', (data) => {
         const imageChunk = data.toString().trim();
         const peekLength = 10;
 
@@ -120,10 +127,10 @@ export const getServerDetail: RequestHandler<
       });
     } catch (prepPipeError) {
       stderr(
-        `Failed to prepare named pipe and/or receive image data; CAUSE: ${prepPipeError}`,
+        `Failed to prepare FIFO and/or receive image data; CAUSE: ${prepPipeError}`,
       );
 
-      rmfifo(imageFilePath);
+      rmfifo(imageFifoPath);
 
       return response.status(500).send();
     }
@@ -134,8 +141,10 @@ export const getServerDetail: RequestHandler<
       resizeArgs = '';
     }
 
+    let jobUuid: string;
+
     try {
-      await job({
+      jobUuid = await job({
         file: __filename,
         job_command: SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self,
         job_data: `server-uuid=${serverUUID}
@@ -152,6 +161,50 @@ out-file-id=${epoch}`,
 
       return response.status(500).send();
     }
+
+    const timeoutId: NodeJS.Timeout = setTimeout<[string, string]>(
+      async (uuid, fpath) => {
+        const [[isNotInProgress]]: [[number]] = await query(
+          `SELECT
+            CASE
+              WHEN job_progress IN (0, 100)
+                THEN CAST(1 AS BOOLEAN)
+              ELSE CAST(0 AS BOOLEAN)
+            END AS is_job_started
+          FROM jobs
+          WHERE job_uuid = '${uuid}';`,
+        );
+
+        if (isNotInProgress) {
+          stdout(
+            `Discard job ${uuid} because it's not-in-progress after timeout`,
+          );
+
+          try {
+            const wcode = await write(
+              `UPDATE jobs SET job_progress = 100 WHERE job_uuid = '${uuid}';`,
+            );
+
+            assert(wcode === 0, `Write exited with code ${wcode}`);
+
+            writeFileSync(fpath, '');
+          } catch (error) {
+            stderr(`Failed to discard job ${uuid} on timeout; CAUSE: ${error}`);
+
+            return response.status(500).send();
+          }
+        }
+      },
+      GET_SERVER_SCREENSHOT_TIMEOUT,
+      jobUuid,
+      imageFifoPath,
+    );
+
+    fifoReadStream.once('data', () => {
+      stdout(`Receiving server screenshot image data; cancel timeout`);
+
+      clearTimeout(timeoutId);
+    });
   } else {
     // For getting sever detail data.
 

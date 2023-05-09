@@ -33,3 +33,13 @@ export const PUID = resolveUid(process.env.PUID ?? 'striker-ui-api');
  * @default PUID
  */
 export const PGID = resolveGid(process.env.PGID ?? PUID);
+
+/**
+ * Get server screenshot job timeout in milliseconds. The job will be
+ * forced to progress 100 if it doesn't start within this time limit.
+ *
+ * @default 30000
+ */
+export const GET_SERVER_SCREENSHOT_TIMEOUT = Number.parseInt(
+  process.env.GET_SERVER_SCREENSHOT_TIMEOUT ?? '30000',
+);
