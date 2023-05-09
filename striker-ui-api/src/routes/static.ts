@@ -19,9 +19,10 @@ router.use(
     if (/^[/]login/.test(originalUrl)) {
       stdout(`Static:login requested`);
 
-      return assertAuthentication({ fail: (rq, rs, nx) => nx(), succeed: '/' })(
-        ...args,
-      );
+      return assertAuthentication({
+        fail: (rt, rq, rs, nx) => nx(),
+        succeed: '/',
+      })(...args);
     }
 
     const parts = originalUrl.replace(/[/]$/, '').split('/');

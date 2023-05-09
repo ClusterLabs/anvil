@@ -2,10 +2,19 @@ import { Handler } from 'express';
 
 import { stdout } from './shell';
 
+type HandlerParameters = Parameters<Handler>;
+
+type AssertAuthenticationFailFunction = (
+  returnTo?: string,
+  ...args: HandlerParameters
+) => void;
+
+type AssertAuthenticationSucceedFunction = (...args: HandlerParameters) => void;
+
 type AssertAuthenticationOptions = {
-  fail?: string | ((...args: Parameters<Handler>) => void);
+  fail?: string | AssertAuthenticationFailFunction;
   failReturnTo?: boolean | string;
-  succeed?: string | ((...args: Parameters<Handler>) => void);
+  succeed?: string | AssertAuthenticationSucceedFunction;
 };
 
 type AssertAuthenticationFunction = (
@@ -13,42 +22,47 @@ type AssertAuthenticationFunction = (
 ) => Handler;
 
 export const assertAuthentication: AssertAuthenticationFunction = ({
-  fail: initFail = (request, response) => response.status(404).send(),
+  fail: initFail = (rt, rq, response) => response.status(404).send(),
   failReturnTo,
   succeed: initSucceed = (request, response, next) => next(),
 }: AssertAuthenticationOptions = {}) => {
-  const fail: (...args: Parameters<Handler>) => void =
-    typeof initFail === 'string'
-      ? (request, response) => response.redirect(initFail)
-      : initFail;
-
-  const succeed: (...args: Parameters<Handler>) => void =
-    typeof initSucceed === 'string'
-      ? (request, response) => response.redirect(initSucceed)
-      : initSucceed;
-
-  let getReturnTo: ((...args: Parameters<Handler>) => string) | undefined;
+  let getReturnTo: ((...args: HandlerParameters) => string) | undefined;
 
   if (failReturnTo === true) {
-    getReturnTo = ({ originalUrl, url }) => originalUrl || url;
+    getReturnTo = ({ path }) => path;
   } else if (typeof failReturnTo === 'string') {
     getReturnTo = () => failReturnTo;
   }
 
+  const fail: AssertAuthenticationFailFunction =
+    typeof initFail === 'string'
+      ? (returnTo, rq, response) =>
+          response.redirect(returnTo ? `${initFail}?rt=${returnTo}` : initFail)
+      : initFail;
+
+  const succeed: AssertAuthenticationSucceedFunction =
+    typeof initSucceed === 'string'
+      ? (request, response) => response.redirect(initSucceed)
+      : initSucceed;
+
   return (...args) => {
     const { 0: request } = args;
-    const { originalUrl, session } = request;
+    const { path, session } = request;
     const { passport } = session;
 
     if (passport?.user) return succeed(...args);
 
-    session.returnTo = getReturnTo?.call(null, ...args);
+    const rt = getReturnTo?.call(null, ...args);
 
-    stdout(
-      `Unauthenticated access to ${originalUrl}; set return to ${session.returnTo}`,
-    );
+    stdout(`Unauthenticated access to ${path}`);
 
-    return fail(...args);
+    if (rt) {
+      stdout(`Set session.returnTo=${rt}`);
+
+      session.returnTo = rt;
+    }
+
+    return fail(rt, ...args);
   };
 };
 
