@@ -77,6 +77,6 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
     FROM jobs AS job
     JOIN hosts AS hos
       ON job.job_host_uuid = hos.host_uuid
-    WHERE job.job_progress < 100
-      ${condModifiedDate};`;
+    WHERE (job.job_progress < 100 ${condModifiedDate})
+      AND job_name NOT LIKE 'get_server_screenshot%';`;
 });
