@@ -1,11 +1,11 @@
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 
-import { DELETED } from './lib/consts';
+import { DELETED } from '../lib/consts';
 
-import { query, sub } from './lib/accessModule';
-import { sanitize } from './lib/sanitize';
-import { stdout } from './lib/shell';
+import { query, sub } from '../lib/accessModule';
+import { sanitize } from '../lib/sanitize';
+import { stdout } from '../lib/shell';
 
 passport.use(
   'login',

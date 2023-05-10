@@ -4,7 +4,7 @@ import path from 'path';
 
 import { SERVER_PATHS } from '../lib/consts';
 
-import { assertAuthentication } from '../lib/assertAuthentication';
+import { assertAuthentication } from '../middlewares';
 import { stdout } from '../lib/shell';
 
 const router = express.Router();

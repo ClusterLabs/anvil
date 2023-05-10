@@ -1,6 +1,6 @@
 import { Handler } from 'express';
 
-import { stdout } from './shell';
+import { stdout } from '../lib/shell';
 
 type HandlerParameters = Parameters<Handler>;
 

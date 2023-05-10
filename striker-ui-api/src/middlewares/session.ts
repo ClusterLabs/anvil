@@ -4,11 +4,11 @@ import expressSession, {
   Store as BaseSessionStore,
 } from 'express-session';
 
-import { DELETED } from './lib/consts';
+import { DELETED } from '../lib/consts';
 
-import { getLocalHostUUID, query, timestamp, write } from './lib/accessModule';
-import { getSessionSecret } from './lib/getSessionSecret';
-import { stderr, stdout, stdoutVar, uuid } from './lib/shell';
+import { getLocalHostUUID, query, timestamp, write } from '../lib/accessModule';
+import { getSessionSecret } from '../lib/getSessionSecret';
+import { stderr, stdout, stdoutVar, uuid } from '../lib/shell';
 
 const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 28800000; // 8 hours
 
