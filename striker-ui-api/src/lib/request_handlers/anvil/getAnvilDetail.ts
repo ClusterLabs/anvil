@@ -8,7 +8,7 @@ const buildHostStateMessage = (postfix = 2) => `message_022${postfix}`;
 
 export const getAnvilDetail: RequestHandler<
   AnvilDetailParamsDictionary,
-  AnvilDetailResponseBody,
+  AnvilDetail,
   undefined
 > = async (request, response) => {
   const {
@@ -36,7 +36,7 @@ export const getAnvilDetail: RequestHandler<
     },
   } = anvils;
 
-  const result: AnvilDetailResponseBody = { anvil_state: 'optimal', hosts: [] };
+  const result: AnvilDetail = { anvil_state: 'optimal', hosts: [] };
 
   for (const huuid of [n1uuid, n2uuid]) {
     const {

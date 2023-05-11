@@ -1,29 +1,3 @@
-type AnvilDetailHostMemory = {
-  free: string;
-  host_uuid: string;
-  swap_free: string;
-  swap_total: string;
-  total: string;
-};
-
-type AnvilDetailHostSummary = {
-  host_name: string;
-  host_uuid: string;
-  maintenance_mode: boolean;
-  state: string;
-  state_message: string;
-  state_percent: number;
-};
-
-type AnvilDetailParamsDictionary = {
-  anvilUuid: string;
-};
-
-type AnvilDetailResponseBody = {
-  anvil_state: string;
-  hosts: AnvilDetailHostSummary[];
-};
-
 type AnvilDetailFileForProvisionServer = {
   fileUUID: string;
   fileName: string;
@@ -34,6 +8,35 @@ type AnvilDetailHostForProvisionServer = {
   hostName: string;
   hostCPUCores: number;
   hostMemory: string;
+};
+
+type AnvilDetailHostMemory = {
+  free: string;
+  host_uuid: string;
+  swap_free: string;
+  swap_total: string;
+  total: string;
+};
+
+type AnvilDetailServerForProvisionServer = {
+  serverUUID: string;
+  serverName: string;
+  serverCPUCores: number;
+  serverMemory: string;
+};
+
+type AnvilDetailStore = {
+  storage_group_free: string;
+  storage_group_name: string;
+  storage_group_total: string;
+  storage_group_uuid: string;
+};
+
+type AnvilDetailStoreForProvisionServer = {
+  storageGroupUUID: string;
+  storageGroupName: string;
+  storageGroupSize: string;
+  storageGroupFree: string;
 };
 
 type AnvilDetailSubnodeLink = {
@@ -57,22 +60,20 @@ type AnvilDetailSubnodeNetwork = {
   host_uuid: string;
 };
 
-type AnvilDetailNetworkSummary = {
-  hosts: AnvilDetailSubnodeNetwork[];
+// Types below are for typing request handlers:
+
+type AnvilDetailHostSummary = {
+  host_name: string;
+  host_uuid: string;
+  maintenance_mode: boolean;
+  state: string;
+  state_message: string;
+  state_percent: number;
 };
 
-type AnvilDetailServerForProvisionServer = {
-  serverUUID: string;
-  serverName: string;
-  serverCPUCores: number;
-  serverMemory: string;
-};
-
-type AnvilDetailStoreForProvisionServer = {
-  storageGroupUUID: string;
-  storageGroupName: string;
-  storageGroupSize: string;
-  storageGroupFree: string;
+type AnvilDetail = {
+  anvil_state: string;
+  hosts: AnvilDetailHostSummary[];
 };
 
 type AnvilDetailForProvisionServer = {
@@ -89,6 +90,18 @@ type AnvilDetailForProvisionServer = {
   hosts: AnvilDetailHostForProvisionServer[];
   servers: AnvilDetailServerForProvisionServer[];
   storageGroups: AnvilDetailStoreForProvisionServer[];
+};
+
+type AnvilDetailNetworkSummary = {
+  hosts: AnvilDetailSubnodeNetwork[];
+};
+
+type AnvilDetailParamsDictionary = {
+  anvilUuid: string;
+};
+
+type AnvilDetailStoreSummary = {
+  storage_groups: AnvilDetailStore[];
 };
 
 type AnvilOverview = {
