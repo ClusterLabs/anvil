@@ -309,6 +309,25 @@ const getManifestData = async (manifestUuid?: string) => {
   return getData<AnvilDataManifestListHash>('manifests');
 };
 
+const getNetworkData = async (hostUuid: string, hostName?: string) => {
+  let replacementKey = hostName;
+
+  if (!replacementKey) {
+    ({
+      host_uuid: {
+        [hostUuid]: { short_host_name: replacementKey },
+      },
+    } = await getHostData());
+  }
+
+  await subroutine('load_interfces', {
+    params: [{ host: replacementKey, host_uuid: hostUuid }],
+    pre: ['Network'],
+  });
+
+  return getData<AnvilDataNetworkListHash>('network');
+};
+
 const getPeerData: GetPeerDataFunction = async (
   target,
   { password, port } = {},
@@ -358,6 +377,7 @@ export {
   getLocalHostName,
   getLocalHostUuid as getLocalHostUUID,
   getManifestData,
+  getNetworkData,
   getPeerData,
   getUpsSpec,
   query,

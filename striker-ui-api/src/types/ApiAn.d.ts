@@ -36,6 +36,31 @@ type AnvilDetailHostForProvisionServer = {
   hostMemory: string;
 };
 
+type AnvilDetailSubnodeLink = {
+  is_active: boolean;
+  link_name: string;
+  link_speed: number;
+  link_state: string;
+  link_uuid: string;
+};
+
+type AnvilDetailSubnodeBond = {
+  active_interface: string;
+  bond_name: string;
+  bond_uuid: string;
+  links: AnvilDetailSubnodeLink[];
+};
+
+type AnvilDetailSubnodeNetwork = {
+  bonds: AnvilDetailSubnodeBond[];
+  host_name: string;
+  host_uuid: string;
+};
+
+type AnvilDetailNetworkSummary = {
+  hosts: AnvilDetailSubnodeNetwork[];
+};
+
 type AnvilDetailServerForProvisionServer = {
   serverUUID: string;
   serverName: string;
