@@ -663,6 +663,19 @@ sub delete_resource
 		}
 	}
 	
+	# If we're DR, delete the definition file also.
+	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$resource.".xml";
+	my $host_type       = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		definition_file => $definition_file,
+		host_type       => $host_type, 
+	}});
+	if (($host_type eq "dr") && (-f $definition_file))
+	{
+		unlink $definition_file;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "job_0134", variables => { file_path => $definition_file }});
+	}
+	
 	return(0);
 }
 
@@ -724,6 +737,24 @@ sub gather_data
 		local_host_name       => $local_host_name, 
 		local_short_host_name => $local_short_host_name, 
 	}});
+	
+	# Often, annoyingly, DRBD reports a message about usage before showing the XML. We need to detect and
+	# strip that off.
+	my $new_xml = "";
+	my $in_xml  = 0;
+	foreach my $line (split/\n/, $xml)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /<config/)
+		{
+			$in_xml = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_xml => $in_xml }});
+		}
+		next if not $in_xml;
+		$new_xml .= $line."\n";
+	}
+	$xml = $new_xml;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { xml => $xml }});
 	
 	local $@;
 	my $dom = eval { XML::LibXML->load_xml(string => $xml); };
@@ -1764,11 +1795,9 @@ sub get_next_resource
 	# certain.
 	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		node1_host_uuid => $node1_host_uuid, 
 		node2_host_uuid => $node2_host_uuid, 
-		dr1_host_uuid   => $dr1_host_uuid, 
 	}});
 	
 my $query = "
@@ -1805,14 +1834,7 @@ AND
     (
         scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)." 
     OR 
-        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." ";
-	if ($dr1_host_uuid)
-	{
-		$query .= "
-    OR 
-        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid)." ";
-	}
-	$query .= "
+        scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)." 
     )
 ORDER BY 
     b.scan_drbd_resource_name ASC, 
@@ -1899,6 +1921,75 @@ ORDER BY
 		}
 		else
 		{
+			# See if this minor is held by someone.
+			my $variable_name                           = "drbd::hold::minor::".$free_minor."::until";
+			my ($variable_value, $variable_uuid, undef) = $anvil->Database->read_variable({
+				debug         => $debug,
+				variable_name => $variable_name,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:variable_name'  => $variable_name, 
+				's2:variable_value' => $variable_value,
+				's3:variable_uuid'  => $variable_uuid, 
+			}});
+			
+			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			{
+				# Bad value, clear it.
+				$variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug             => $debug,
+					variable_uuid     => $variable_uuid,
+					variable_value    => "0",
+					update_value_only => "", 
+				});
+				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable_uuid  => $variable_uuid,
+					variable_value => $variable_value
+				}});
+			}
+			
+			if ($variable_uuid)
+			{
+				my $now_time = time;
+				my $age      = $now_time - $variable_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					age      => $age, 
+					now_time => $now_time,
+				}});
+				if (($variable_value) && ($now_time > $variable_value))
+				{
+					# This is being held, move on.
+					$free_minor++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
+					next;
+				}
+				else
+				{
+					# Either the hold is stale or invalid, delete it.
+					$variable_uuid = $anvil->Database->insert_or_update_variables({
+						debug             => $debug,
+						variable_uuid     => $variable_uuid,
+						variable_value    => "0",
+						update_value_only => "", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+				}
+			}
+			
+			# To prevent race conditions, put a one minute hold on the minor number.
+			$variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug                 => $debug,
+				variable_name         => $variable_name,
+				variable_value        => time+60,
+				variable_default      => "0", 
+				variable_description  => "striker_0301", 
+				variable_section      => "hold", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			
 			$looking = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
 		}
@@ -1934,6 +2025,74 @@ ORDER BY
 		}
 		else
 		{
+			# See if this minor is held by someone.
+			my $variable_name                           = "drbd::hold::tcp_port::".$check_port."::until";
+			my ($variable_value, $variable_uuid, undef) = $anvil->Database->read_variable({
+				debug         => $debug,
+				variable_name => $variable_name,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:variable_name'  => $variable_name,
+				's2:variable_value' => $variable_value,
+				's3:variable_uuid'  => $variable_uuid, 
+			}});
+			
+			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			{
+				# Bad value, clear it.
+				$variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug             => $debug,
+					variable_uuid     => $variable_uuid,
+					variable_value    => "0",
+					update_value_only => "", 
+				});
+				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable_uuid  => $variable_uuid,
+					variable_value => $variable_value
+				}});
+			}
+			
+			if ($variable_uuid)
+			{
+				my $now_time = time;
+				my $age      = $now_time - $variable_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					age      => $age,
+					now_time => $now_time }});
+				if (($variable_value) && ($now_time > $variable_value))
+				{
+					# This is being held, move on.
+					$check_port++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
+					next;
+				}
+				else
+				{
+					# Either the hold is stale or invalid, delete it.
+					$variable_uuid = $anvil->Database->insert_or_update_variables({
+						debug             => $debug,
+						variable_uuid     => $variable_uuid,
+						variable_value    => "0",
+						update_value_only => "", 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+				}
+			}
+			
+			# To prevent a race condition, put a one minute hold on this port number.
+			$variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug                 => $debug,
+				variable_name         => $variable_name,
+				variable_value        => time+60,
+				variable_default      => "0", 
+				variable_description  => "striker_0301", 
+				variable_section      => "hold", 
+				variable_source_uuid  => "NULL", 
+				variable_source_table => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			
 			# This is a free port.
 			$free_ports .= $check_port.",";
 			$port_count++;
@@ -1955,6 +2114,7 @@ ORDER BY
 		}
 	}
 	
+	# Mark these ports as assigned.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		free_minor => $free_minor,
 		free_ports => $free_ports, 
@@ -2405,86 +2565,12 @@ sub parse_resource
 	}
 	else
 	{
+		if (not exists $anvil->data->{lvm}{host_name})
+		{
+			$anvil->Database->get_lvm_data({debug => $debug});
+		}
+		
 		# Successful parse!
-=cut
-<resource name="srv01-fs37" conf-file-line="/etc/drbd.d/srv01-fs37.res:2">
-        <host name="vm-a01n01">
-            <volume vnr="0">
-                <device minor="0">/dev/drbd_srv01-fs37_0</device>
-                <disk>/dev/cs_vm-a01n01/srv01-fs37_0</disk>
-                <meta-disk>internal</meta-disk>
-            </volume>
-            <volume vnr="1">
-                <device minor="1">/dev/drbd_srv01-fs37_1</device>
-                <disk>/dev/cs_vm-a01n01/srv01-fs37_1</disk>
-                <meta-disk>internal</meta-disk>
-            </volume>
-            <address family="(null)" port="(null)">(null)</address>
-        </host>
-        <host name="vm-a01n02">
-            <volume vnr="0">
-                <device minor="0">/dev/drbd_srv01-fs37_0</device>
-                <disk>/dev/cs_vm-a01n02/srv01-fs37_0</disk>
-                <meta-disk>internal</meta-disk>
-            </volume>
-            <volume vnr="1">
-                <device minor="1">/dev/drbd_srv01-fs37_1</device>
-                <disk>/dev/cs_vm-a01n02/srv01-fs37_1</disk>
-                <meta-disk>internal</meta-disk>
-            </volume>
-            <address family="(null)" port="(null)">(null)</address>
-        </host>
-        <host name="vm-a01dr01">
-            <volume vnr="0">
-                <device minor="0">/dev/drbd_srv01-fs37_0</device>
-                <disk>/dev/cs_vm-a01dr01/srv01-fs37_0</disk>
-                <meta-disk>internal</meta-disk>
-            </volume>
-            <volume vnr="1">
-                <device minor="1">/dev/drbd_srv01-fs37_1</device>
-                <disk>/dev/cs_vm-a01dr01/srv01-fs37_1</disk>
-                <meta-disk>internal</meta-disk>
-            </volume>
-            <address family="(null)" port="(null)">(null)</address>
-        </host>
-        <connection>
-            <host name="vm-a01n01"><address family="ipv4" port="7788">10.101.10.1</address></host>
-            <host name="vm-a01n02"><address family="ipv4" port="7788">10.101.10.2</address></host>
-            <section name="net">
-                <option name="protocol" value="C"/>
-                <option name="verify-alg" value="md5"/>
-                <option name="fencing" value="resource-and-stonith"/>
-            </section>
-            <section name="disk">
-                <option name="c-max-rate" value="500M"/>
-            </section>
-        </connection>
-        <connection>
-            <host name="vm-a01n01"><address family="ipv4" port="7789">10.201.10.1</address></host>
-            <host name="vm-a01dr01"><address family="ipv4" port="7789">10.201.10.3</address></host>
-            <section name="net">
-                <option name="protocol" value="A"/>
-                <option name="verify-alg" value="md5"/>
-                <option name="fencing" value="dont-care"/>
-            </section>
-            <section name="disk">
-                <option name="c-max-rate" value="500M"/>
-            </section>
-        </connection>
-        <connection>
-            <host name="vm-a01n02"><address family="ipv4" port="7790">10.201.10.2</address></host>
-            <host name="vm-a01dr01"><address family="ipv4" port="7790">10.201.10.3</address></host>
-            <section name="net">
-                <option name="protocol" value="A"/>
-                <option name="verify-alg" value="md5"/>
-                <option name="fencing" value="dont-care"/>
-            </section>
-            <section name="disk">
-                <option name="c-max-rate" value="500M"/>
-            </section>
-        </connection>
-</resource>
-=cut
 		foreach my $name ($dom->findnodes('/resource'))
 		{
 			my $resource = $name->{name};
@@ -2505,22 +2591,77 @@ sub parse_resource
 						's2:meta_disk' => $meta_disk, 
 					}});
 					
-					my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+					my $host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
+					my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+					my $backing_disk    = $volume_vnr->findvalue('./disk');
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						host_uuid       => $host_uuid,
+						short_host_name => $short_host_name, 
+						backing_disk    => $backing_disk, 
+					}});
 					
-					$anvil->data->{new}{resource}{$resource}{host_name}{$this_host_name}{host_uuid}                = $host_uuid;
-					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path}  = $volume_vnr->findvalue('./device');
-					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk} = $volume_vnr->findvalue('./disk');
-					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor} = $volume_vnr->findvalue('./device/@minor');
-					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk}    = $meta_disk;
-					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{size}         = 0;
+					$anvil->data->{new}{resource}{$resource}{host_name}{$this_host_name}{host_uuid}                             = $host_uuid;
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path}        = $volume_vnr->findvalue('./device');
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk}       = $backing_disk;
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor}       = $volume_vnr->findvalue('./device/@minor');
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk}          = $meta_disk;
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{size}               = 0;
+					$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{storage_group_uuid} = "";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"s1:new::resource::${resource}::host_name::${this_host_name}::host_uuid"                  => $anvil->data->{new}{resource}{$resource}{host_name}{$this_host_name}{host_uuid},
-						"s2:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::device_path"  => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path},
-						"s3:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::backing_disk" => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk},
-						"s4:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::device_minor" => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor},
-						"s5:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::meta_disk"    => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk},
+						"s2:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::device_path"        => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path},
+						"s3:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::backing_disk"       => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk},
+						"s4:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::device_minor"       => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_minor},
+						"s5:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::meta_disk"          => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk},
+						"s6:new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::storage_group_uuid" => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{storage_group_uuid},
 					}});
+					
+					# What Storage Group is this in?
+					foreach my $this_scan_lvm_lv_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{lv}})
+					{
+						my $this_scan_lvm_lv_path  = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_path}; 
+						my $this_scan_lvm_lv_on_vg = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_on_vg}; 
+						my $this_scan_lvm_lv_uuid  = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_uuid};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:this_scan_lvm_lv_name'  => $this_scan_lvm_lv_name, 
+							's2:this_scan_lvm_lv_path'  => $this_scan_lvm_lv_path,
+							's3:this_scan_lvm_lv_on_vg' => $this_scan_lvm_lv_on_vg, 
+							's4:this_scan_lvm_lv_uuid'  => $this_scan_lvm_lv_uuid, 
+						}});
+						if ($anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk} eq $this_scan_lvm_lv_path)
+						{
+							# While we're here, make it easy to go from LV -> DRBD resource and volume.
+							$anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{resource} = $resource;
+							$anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{volume}   = $volume;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"s1:lvm::host_name::${short_host_name}::lv_path::${backing_disk}::drbd::resource" => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{resource}, 
+								"s2:lvm::host_name::${short_host_name}::lv_path::${backing_disk}::drbd::volume"   => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$backing_disk}{drbd}{volume}, 
+							}});
+							
+							# What's the VG's UUID? 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:short_host_name'        => $short_host_name, 
+								's2:this_scan_lvm_lv_on_vg' => $this_scan_lvm_lv_on_vg, 
+							}});
+							if (exists $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg})
+							{
+								my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg}{scan_lvm_vg_internal_uuid};
+								my $storage_group_uuid        = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg}{storage_group_uuid};
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									's1:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+									's2:storage_group_uuid'        => $storage_group_uuid, 
+								}});
+								
+								if ($storage_group_uuid)
+								{
+									$anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{storage_group_uuid} = $storage_group_uuid;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+										"new::resource::${resource}::host_uuid::${host_uuid}::volume_number::${volume}::storage_group_uuid" => $anvil->data->{new}{resource}{$resource}{host_uuid}{$host_uuid}{volume_number}{$volume}{storage_group_uuid},
+									}});
+								}
+							}
+						}
+					}
 				}
 			}
 			foreach my $connection ($name->findnodes('./connection'))

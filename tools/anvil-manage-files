@@ -242,7 +242,7 @@ ORDER BY
 			
 			# Do we have a file_location_uuid? If not, there will be soon but nothing to do until
 			# then.
-			my $file_location_uuid = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
 			next if not $file_location_uuid;
 			
@@ -553,6 +553,9 @@ sub check_incoming
 			say_mimetype    => $say_mimetype, 
 			full_path       => $full_path,
 		}});
+		
+		# Skip dot-files, they're usually files being uploaded.
+		next if $file_name =~ /^\./;
 		
 		# Do I know about this file? If so, is the file the same size? If either is no, calculate the md5sum.
 		my ($file_uuid, $recorded_size, $recorded_mtime, $recorded_md5sum) = get_file_db_info($anvil, "", $file_name);

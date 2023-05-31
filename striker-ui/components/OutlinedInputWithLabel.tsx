@@ -31,9 +31,6 @@ type OutlinedInputWithLabelOptionalPropsWithDefault = {
 };
 
 type OutlinedInputWithLabelOptionalPropsWithoutDefault = {
-  onBlur?: OutlinedInputProps['onBlur'];
-  onChange?: OutlinedInputProps['onChange'];
-  onFocus?: OutlinedInputProps['onFocus'];
   onHelp?: MUIIconButtonProps['onClick'];
   onHelpAppend?: MUIIconButtonProps['onClick'];
   type?: string;
@@ -43,9 +40,13 @@ type OutlinedInputWithLabelOptionalProps =
   OutlinedInputWithLabelOptionalPropsWithDefault &
     OutlinedInputWithLabelOptionalPropsWithoutDefault;
 
-type OutlinedInputWithLabelProps = OutlinedInputWithLabelOptionalProps & {
-  label: string;
-};
+type OutlinedInputWithLabelProps = Pick<
+  OutlinedInputProps,
+  'name' | 'onBlur' | 'onChange' | 'onFocus'
+> &
+  OutlinedInputWithLabelOptionalProps & {
+    label: string;
+  };
 
 const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOptionalPropsWithDefault> &
   OutlinedInputWithLabelOptionalPropsWithoutDefault = {
@@ -56,9 +57,6 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOp
   inputProps: {},
   inputLabelProps: {},
   messageBoxProps: {},
-  onBlur: undefined,
-  onChange: undefined,
-  onFocus: undefined,
   onHelp: undefined,
   onHelpAppend: undefined,
   required: false,
@@ -78,6 +76,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   inputLabelProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputLabelProps,
   label,
   messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
+  name,
   onBlur,
   onChange,
   onFocus,
@@ -133,6 +132,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
 
   return (
     <MUIFormControl
+      fullWidth
       {...restFormControlProps}
       sx={{ width: formControlWidth, ...formControlSx }}
     >
@@ -172,6 +172,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
         fullWidth={formControlProps.fullWidth}
         id={id}
         label={label}
+        name={name}
         onBlur={onBlur}
         onChange={onChange}
         onFocus={onFocus}

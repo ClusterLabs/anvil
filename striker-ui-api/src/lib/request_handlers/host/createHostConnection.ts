@@ -154,7 +154,7 @@ export const createHostConnection: RequestHandler<
       database: {
         [localHostUUID]: { port: rawLocalDBPort },
       },
-    } = getAnvilData({ database: true }) as { database: DatabaseHash };
+    } = getAnvilData<{ database: AnvilDataDatabaseHash }>({ database: true });
 
     localDBPort = sanitize(rawLocalDBPort, 'number');
   } catch (subError) {

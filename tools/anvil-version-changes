@@ -62,6 +62,9 @@ $anvil->nice_exit({exit_code => 0});
 sub striker_checks
 {
 	my ($anvil) = @_;
+	
+	# This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
+	update_file_location_ready($anvil);
 
 	# This replaces anvil_uuid with host_uuid to support more granular location info to support the new
 	# multi-target DR system
@@ -75,9 +78,8 @@ sub striker_checks
 
 	### NOTE: Disabled until review complete
 	# This checks to make sure that the 'audits' table exists (added late into M3.0 pre-release)
-	#update_audits($anvil);
+	update_audits($anvil);
 	
-	### NOTE: Disabled until review complete
 	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
 	# entries are copied.
 	update_dr_links($anvil);
@@ -238,6 +240,101 @@ CREATE TRIGGER trigger_dr_links
 		}
 	}
 
+	return(0);
+}
+
+# This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
+sub update_file_location_ready
+{
+	my ($anvil) = @_;
+	
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'file_locations' AND column_name = 'file_location_ready';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.file_locations ADD COLUMN file_location_ready boolean not null DEFAULT FALSE;";
+			push @{$queries}, "ALTER TABLE history.file_locations ADD COLUMN file_location_ready boolean;";
+			push @{$queries}, "DROP FUNCTION history_file_locations() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_file_locations() RETURNS trigger
+AS $$
+DECLARE
+    history_file_locations RECORD;
+BEGIN
+    SELECT INTO history_file_locations * FROM file_locations WHERE file_location_uuid = new.file_location_uuid;
+    INSERT INTO history.file_locations
+        (file_location_uuid,
+         file_location_file_uuid,
+         file_location_host_uuid, 
+         file_location_active, 
+         file_location_ready, 
+         modified_date)
+    VALUES
+        (history_file_locations.file_location_uuid, 
+         history_file_locations.file_location_file_uuid,
+         history_file_locations.file_location_host_uuid, 
+         history_file_locations.file_location_active, 
+         history_file_locations.file_location_ready, 
+         history_file_locations.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_file_locations() OWNER TO admin;
+
+CREATE TRIGGER trigger_file_locations
+    AFTER INSERT OR UPDATE ON file_locations
+    FOR EACH ROW EXECUTE PROCEDURE history_file_locations();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Now make sure that existing DR entries are copied here.
+	$anvil->Database->get_hosts({deubg => 2});
+	$anvil->Database->get_dr_links({debug => 2});
+	
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid          = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_dr1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name"          => $anvil_name,
+			"s2:anvil_uuid"          => $anvil_uuid, 
+			"s3:anvil_dr1_host_uuid" => $anvil_dr1_host_uuid, 
+		}});
+		if ($anvil_dr1_host_uuid)
+		{
+			my $dr1_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{short_host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_host_name => $dr1_host_name }});
+			
+			if ((not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid})                                          or 
+			    (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$anvil_dr1_host_uuid}) or 
+			    (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$anvil_dr1_host_uuid}{dr_link_uuid}))
+			{
+				# Add it.
+				my $dr_link_uuid = $anvil->Database->insert_or_update_dr_links({
+					debug              => 2,
+					dr_link_anvil_uuid => $anvil_uuid, 
+					dr_link_host_uuid  => $anvil_dr1_host_uuid, 
+					dr_link_note       => "auto_generated",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_host_name => $dr1_host_name }});
+			}
+		}
+	}
+	
 	return(0);
 }
 
@@ -486,7 +583,8 @@ CREATE TRIGGER trigger_file_locations
 					debug                   => 2, 
 					file_location_file_uuid => $file_uuid, 
 					file_location_host_uuid => $host_uuid, 
-					file_location_active    => 1, 
+					file_location_active    => 1,
+					file_location_ready     => "same",
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
 			}

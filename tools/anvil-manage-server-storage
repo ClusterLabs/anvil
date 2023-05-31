@@ -70,14 +70,6 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# If we don't have a job UUID, try to find one.
-if (not $anvil->data->{switches}{'job-uuid'})
-{
-	# Load the job data.
-	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-}
-
 $anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 $anvil->Database->get_servers();
@@ -122,6 +114,53 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+sub load_storage
+{
+	my ($anvil) = @_;
+	
+	# Host and server
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	
+	# We need to know which volume groups the disks are on so that we can report how much free space is 
+	# available for either growing or adding a disk.
+	$anvil->Get->available_resources({
+		debug      => 2,
+		anvil_uuid => $anvil->data->{switches}{anvil_uuid},
+	});
+	
+	# Load LVM and Storage Group data
+	$anvil->Database->get_lvm_data({debug => 2});
+	
+	# Load DRBD data from the database.
+	$anvil->Database->get_drbd_data({debug => 2});
+	
+	# Load DRBD resource data so that we can map DRBD resources / volumes to volume groups.
+	my $drbd_resource = "";
+	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
+	{
+		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
+		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:device_path'   => $device_path, 
+			's2:on_lv'         => $on_lv,
+			's3:drbd_resource' => $drbd_resource, 
+			's4:device_target' => $device_target, 
+		}});
+	}
+	# There should only ever be one, but it's not impossible for there to be multiple.
+	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+		
+		# Get the DRBD volume data
+		load_drbd_data($anvil, $drbd_resource);
+	}
+	
+	return($drbd_resource);
+}
+
 sub manage_disk
 {
 	my ($anvil) = @_;
@@ -157,6 +196,68 @@ sub manage_disk
 			print "\n[ Error ] - Please indicate the disk drive to work with using '--disk --drive <target_device>'.\n\n";
 			show_server_details($anvil);
 			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	my $drbd_resource = load_storage($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
+	foreach my $host_type ("node", "dr")
+	{
+		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
+		{
+			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+			}});
+			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
+			{
+				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
+				my $device_minor = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_minor};
+				my $volume_size  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{volume_size};
+				my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{backing_disk};
+				my $meta_disk    = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{meta_disk};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:volume_number' => $volume_number,
+					's2:device_path'   => $device_path, 
+					's3:device_minor'  => $device_minor, 
+					's4:volume_size'   => $volume_size, 
+					's5:backing_disk'  => $backing_disk, 
+					's6:meta_disk'     => $meta_disk, 
+				}});
+				
+				# Which volume group is the backing device in?
+				foreach my $this_scan_lvm_lv_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{lv}})
+				{
+					my $this_scan_lvm_lv_path  = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_path}; 
+					my $this_scan_lvm_lv_on_vg = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_on_vg}; 
+					my $this_scan_lvm_lv_uuid  = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:this_scan_lvm_lv_name'  => $this_scan_lvm_lv_name, 
+						's2:this_scan_lvm_lv_path'  => $this_scan_lvm_lv_path,
+						's3:this_scan_lvm_lv_on_vg' => $this_scan_lvm_lv_on_vg, 
+						's4:this_scan_lvm_lv_uuid'  => $this_scan_lvm_lv_uuid, 
+					}});
+					
+					if ($backing_disk eq $this_scan_lvm_lv_path)
+					{
+						# What's the VG's UUID? 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:short_host_name'        => $short_host_name, 
+							's2:this_scan_lvm_lv_on_vg' => $this_scan_lvm_lv_on_vg, 
+						}});
+						if (exists $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg})
+						{
+							my $scan_lvm_vg_uuid   = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_name}{scan_lvm_vg_uuid};
+							my $storage_group_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_name}{storage_group_uuid};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:scan_lvm_vg_uuid'   => $scan_lvm_vg_uuid, 
+								's2:storage_group_uuid' => $storage_group_uuid, 
+							}});
+						}
+					}
+				}
+			}
 		}
 	}
 	
@@ -202,7 +303,6 @@ sub manage_disk
 	my $volume = "";
 	
 	print "Sub-Nodes:\n";
-	my $drbd_resource = "";
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
 	{
 		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
@@ -388,15 +488,32 @@ sub get_definition_source
 {
 	my ($anvil) = @_;
 	
-	my $short_host_name = $anvil->Get->short_host_name;
-	my $server_name     = $anvil->data->{switches}{server_name};
-	my $from_source     = "";
+	my $short_host_name  = $anvil->Get->short_host_name;
+	my $server_name      = $anvil->data->{switches}{server_name};
+	my $server_uuid      = $anvil->data->{switches}{server_uuid};
+	my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $from_source      = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
+		server_state    => $server_state, 
 		from_source     => $from_source, 
 	}});
-	if (exists $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh})
+	
+	$anvil->data->{server}{$short_host_name}{$server_name}{from_virsh} = "" if not exists $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh};
+	$anvil->data->{server}{$short_host_name}{$server_name}{from_disk}  = "" if not exists $anvil->data->{server}{$short_host_name}{$server_name}{from_disk};
+	$anvil->data->{server}{$short_host_name}{$server_name}{from_db}    = "" if not exists $anvil->data->{server}{$short_host_name}{$server_name}{from_db};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"server::${short_host_name}::${server_name}::from_virsh" => $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh},
+		"server::${short_host_name}::${server_name}::from_disk"  => $anvil->data->{server}{$short_host_name}{$server_name}{from_disk},
+		"server::${short_host_name}::${server_name}::from_db"    => $anvil->data->{server}{$short_host_name}{$server_name}{from_db},
+	}});
+	
+	if (($server_state eq "running")                    && 
+	    ($server_host_uuid eq $anvil->Get->host_uuid()) && 
+	    (exists $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}))
 	{
 		$from_source = "from_virsh";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
@@ -420,11 +537,16 @@ sub show_server_details
 	my ($anvil) = @_;
 	
 	my $short_host_name = $anvil->Get->short_host_name;
+	my $host_uuid       = $anvil->Get->host_uuid;
 	my $server_name     = $anvil->data->{switches}{server_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:short_host_name' => $short_host_name,
+		's2:host_uuid'       => $host_uuid,
 		's2:server_name'     => $server_name, 
 	}});
+	
+	# Load storage data
+	my $drbd_resource = load_storage($anvil);
 	
 	my $from_source = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { from_source => $from_source }});
@@ -471,15 +593,36 @@ sub show_server_details
 				my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
 				my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{io};
 				my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{cache};
+				my $on_lv            = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+				my $drbd_resource    = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
+				my $drbd_volume      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{drbd}{volume};
+				my $resource_size    = $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$drbd_resource}{volume}{$drbd_volume}{volume_size};
+				my $lv_name          = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{scan_lvm_lv_name};
+				my $lv_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$lv_name}{scan_lvm_lv_size};
+				my $metadata_size    = $lv_size - $resource_size;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:address_domain'   => $address_domain,
-					's2:address_slot'     => $address_slot, 
-					's3:address_function' => $address_function, 
-					's4:device_path'      => $device_path, 
-					's5:driver_io'        => $driver_io, 
-					's6:driver_cache'     => $driver_cache, 
+					's01:address_domain'   => $address_domain,
+					's02:address_slot'     => $address_slot, 
+					's03:address_function' => $address_function, 
+					's04:device_path'      => $device_path, 
+					's05:driver_io'        => $driver_io, 
+					's06:driver_cache'     => $driver_cache, 
+					's07:on_lv'            => $on_lv, 
+					's08:lv_name'          => $lv_name, 
+					's09:drbd_resource'    => $drbd_resource, 
+					's10:drbd_volume'      => $drbd_volume, 
+					's11:resource_size'    => $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." (".$anvil->Convert->add_commas({number => $resource_size}).")", 
+					's12:lv_size'          => $anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})."] (".$anvil->Convert->add_commas({number => $lv_size}).")", 
+					's13:metadata_size'    => $anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."] (".$anvil->Convert->add_commas({number => $metadata_size}).")",
 				}});
-				print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
+				
+				print "- Target: [".$device_target."], boot: [".$say_boot."], Replication Volume: [".$drbd_resource."/".$drbd_volume."]\n";
+				print "  - Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], cache: [".$driver_cache."], IO Policy: [".$driver_io."]\n";
+				
+				# Get the backing LV from the DRBD resource.
+				
+				
+				#if ($anvil->data->{storage_groups}{vg_uuid}{$vg_uuid}{storage_group_uuid})
 			}
 			else
 			{
@@ -502,27 +645,6 @@ sub show_server_details
 		}
 	}
 	print "\n";
-	
-	my $drbd_resource = "";
-	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{device}})
-	{
-		my $on_lv         = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
-		   $drbd_resource = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
-		my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{target};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:device_path'   => $device_path, 
-			's2:on_lv'         => $on_lv,
-			's3:drbd_resource' => $drbd_resource, 
-			's4:device_target' => $device_target, 
-		}});
-	}
-	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
-		
-		# Get the DRBD volume data
-		load_drbd_data($anvil, $drbd_resource);
-	}
 	
 	print "Sub-Nodes:\n";
 	show_volume($anvil, $drbd_resource, "node");
@@ -613,6 +735,8 @@ sub show_volume
 {
 	my ($anvil, $drbd_resource, $host_type) = @_;
 	
+	my $anvil_uuid = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 	{
 		my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
@@ -623,20 +747,73 @@ sub show_volume
 		print " |- Name: [".$short_host_name."], UUID: [".$host_uuid."]\n";
 		foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 		{
-			my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
-			my $device_minor = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_minor};
-			my $volume_size  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{volume_size};
-			my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{backing_disk};
-			my $meta_disk    = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{meta_disk};
+			my $device_path        = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
+			my $device_minor       = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_minor};
+			my $volume_size        = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{volume_size};
+			my $backing_disk       = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{backing_disk};
+			my $meta_disk          = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{meta_disk};
+			my $storage_group_uuid = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{storage_group_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:volume_number' => $volume_number,
-				's2:device_path'   => $device_path, 
-				's3:device_minor'  => $device_minor, 
-				's4:volume_size'   => $volume_size, 
-				's5:backing_disk'  => $backing_disk, 
-				's6:meta_disk'     => $meta_disk, 
+				's1:volume_number'      => $volume_number,
+				's2:device_path'        => $device_path, 
+				's3:device_minor'       => $device_minor, 
+				's4:volume_size'        => $volume_size, 
+				's5:backing_disk'       => $backing_disk, 
+				's6:meta_disk'          => $meta_disk, 
+				's7:storage_group_uuid' => $storage_group_uuid, 
 			}});
-			print "   ^- Volume: [".$volume_number."], backing device: [".$backing_disk."], DRBD minor: [".$device_minor."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."]\n";
+			my $storage_group_name       = "<unknown>";
+			my $storage_group_size       = 0;
+			my $storage_group_free_space = 0;
+			if (($storage_group_uuid) && ($anvil_uuid) && (exists $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}))
+			{
+				$storage_group_name       = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_name};
+				$storage_group_size       = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+				$storage_group_free_space = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:storage_group_size'       => $storage_group_size,
+				's2:storage_group_free_space' => $storage_group_free_space, 
+			}});
+			print "   |- Volume: [".$volume_number."], backing device: [".$backing_disk."], DRBD minor: [".$device_minor."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."]\n";
+			print "   ^- In storage group: [".$storage_group_name."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_size})."], free: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_free_space})."]\n";
+			
+			# How much space is available in the storage group this volume is in?
+			foreach my $this_scan_lvm_lv_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{lv}})
+			{
+				my $this_scan_lvm_lv_path  = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_path}; 
+				my $this_scan_lvm_lv_on_vg = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_on_vg}; 
+				my $this_scan_lvm_lv_uuid  = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$this_scan_lvm_lv_name}{scan_lvm_lv_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:this_scan_lvm_lv_name'  => $this_scan_lvm_lv_name, 
+					's2:this_scan_lvm_lv_path'  => $this_scan_lvm_lv_path,
+					's3:this_scan_lvm_lv_on_vg' => $this_scan_lvm_lv_on_vg, 
+					's4:this_scan_lvm_lv_uuid'  => $this_scan_lvm_lv_uuid, 
+				}});
+				if ($backing_disk eq $this_scan_lvm_lv_path)
+				{
+					# What's the VG's UUID? 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:short_host_name'        => $short_host_name, 
+						's2:this_scan_lvm_lv_on_vg' => $this_scan_lvm_lv_on_vg, 
+					}});
+					if (exists $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg})
+					{
+						my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg}{scan_lvm_vg_internal_uuid};
+						my $storage_group_uuid        = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$this_scan_lvm_lv_on_vg}{storage_group_uuid};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+							's2:storage_group_uuid'        => $storage_group_uuid, 
+						}});
+						
+						if ($storage_group_uuid)
+						{
+							my $vg_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+							my $free_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+						}
+					}
+				}
+			}
 		}
 	}
 	
@@ -680,6 +857,7 @@ sub validate_server
 	my $server_definition = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
 	my $server_host_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 	my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	my $anvil_uuid        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:short_host_name'   => $short_host_name, 
 		's2:server_name'       => $server_name, 
@@ -687,7 +865,21 @@ sub validate_server
 		's4:server_definition' => $server_definition,
 		's5:server_host_uuid'  => $server_host_uuid, 
 		's6:server_state'      => $server_state, 
+		's7:anvil_uuid'        => $anvil_uuid, 
 	}});
+	if (not $anvil->data->{switches}{anvil_uuid})
+	{
+		$anvil->data->{switches}{anvil_uuid} = $anvil_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:switches::anvil_uuid' => $anvil->data->{switches}{anvil_uuid}, 
+		}});
+	}
+	
+	if ($server_state eq "DELETED")
+	{
+		print "The server: [".$server_name."] has been deleted.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	# Parse the definition.
 	$anvil->Server->parse_definition({
@@ -710,7 +902,7 @@ sub validate_server
 		# The server isn't actually running... Not here anyway.
 		if ($server_state eq "running")
 		{
-			my $server_host_name = $anvil->Get->get_host_from_uuid({
+			my $server_host_name = $anvil->Database->get_host_from_uuid({
 				short     => 1,
 				host_uuid => $server_host_uuid,
 			});
@@ -943,11 +1135,14 @@ sub show_server_list
 		{
 			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 			{
-				my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					server_name => $server_name, 
-					server_uuid => $server_uuid, 
+					server_name  => $server_name, 
+					server_uuid  => $server_uuid, 
+					server_state => $server_state,
 				}});
+				next if $server_state eq "DELETED";
 				print "^- Server: [".$server_name."], UUID: [".$server_uuid."]\n";
 			}
 		}

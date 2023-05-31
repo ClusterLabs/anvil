@@ -66,14 +66,6 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# If we don't have a job UUID, try to find one.
-if (not $anvil->data->{switches}{'job-uuid'})
-{
-	# Load the job data.
-	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({program => $THIS_FILE});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-}
-
 # If we still don't have a job-uuit, go into interactive mode.
 if ($anvil->data->{switches}{'job-uuid'})
 {
@@ -354,7 +346,10 @@ sub add_server_to_cluster
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0207"});
 	
 	# Is our peer in the cluster? For that matter, are we?
-	my $problem = $anvil->Cluster->add_server({server_name => $anvil->data->{job}{server_name}});
+	my $problem = $anvil->Cluster->add_server({
+		debug       => 2, 
+		server_name => $anvil->data->{job}{server_name},
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)
 	{
@@ -393,6 +388,12 @@ sub write_definition
 		{
 			$anvil->Database->get_servers();
 			$anvil->Database->get_server_definitions();
+			
+			if (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid})
+			{
+				sleep 1;
+				next;
+			}
 			
 			my $server_uuid       = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
 			my $server_definition = exists $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid} ? $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml} : "";
@@ -532,7 +533,7 @@ sub provision_server
 	{
 		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
 	}
-	$shell_call .= " --noautoconsole --wait -1 > /var/log/anvil-server_".$server.".log\n";
+	$shell_call .= " --noautoconsole > /var/log/anvil-server_".$server.".log\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	$anvil->Job->update_progress({
@@ -565,6 +566,101 @@ sub provision_server
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	
+	### TODO: Left off here
+	# Wait until file(s) are ready.
+	my $waiting   = 1;
+	my $host_uuid = $anvil->Get->host_uuid();
+	my @files     = ($anvil->data->{job}{install_iso_path});
+	if ($anvil->data->{job}{driver_iso_path})
+	{
+		push @files, $anvil->data->{job}{driver_iso_path};
+	}
+	while ($waiting)
+	{
+		$anvil->Storage->check_files({debug => 2});
+		$anvil->Database->get_files({debug => 2});
+		$anvil->Database->get_file_locations({debug => 2});
+		$waiting = 0;
+		foreach my $file_path (sort {$a cmp $b} @files)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_path => $file_path }});
+			
+			$anvil->data->{file_uuid}{$file_path} = "" if not exists $anvil->data->{uuid}{$file_path}{file_uuid};
+			
+			# What's this file's file_uuid?
+			my $file_uuid          = $anvil->data->{file_uuid}{$file_path};
+			my $file_location_uuid = "";
+			if (not $file_uuid)
+			{
+				foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{files}{file_uuid}})
+				{
+					my $this_file_path =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$this_file_uuid}{file_name};
+					$this_file_path =~ s/\/\//\//g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						this_file_uuid => $this_file_uuid, 
+						this_file_path => $this_file_path,
+					}});
+					if ($this_file_path eq $file_path)
+					{
+						# Found it.
+						$file_uuid = $this_file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+					}
+				}
+			}
+			
+			# Did we find the file?
+			if (not $file_uuid)
+			{
+				# Nope.
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0154", variables => {
+					file_path   => $file_path, 
+					server_name => $server, 
+				}});
+				next;
+			}
+			
+			# Yes, now do we have the file_location_uuid?
+			if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
+			{
+				# Nope
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0155", variables => {
+					file_path   => $file_path, 
+					server_name => $server, 
+				}});
+				next;
+			}
+			
+			   $file_location_uuid  = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_ready = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				file_location_uuid  => $file_location_uuid,
+				file_location_ready => $file_location_ready, 
+			}});
+			
+			if (not $file_location_ready)
+			{
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0156", variables => {
+					file_path   => $file_path, 
+					server_name => $server, 
+				}});
+				next;
+			}
+		}
+		
+		if ($waiting)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0157"});
+			sleep 10;
+		}
+	}
+	
 	# Call as a background process.
 	my ($handle, $return_code) = $anvil->System->call({
 		background  => 1, 
@@ -586,7 +682,7 @@ sub provision_server
 	
 	# Loop for up to 10 seconds waiting to see the server start running.
 	my $wait_until = time + 60;
-	my $waiting    = 1;
+	   $waiting    = 1;
 	my $status     = "";
 	while($waiting)
 	{
@@ -2130,7 +2226,10 @@ sub interactive_ask_server_cpu
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid,
+		});
 		
 		my $default_cpu = $anvil->data->{switches}{cpu};
 		if (not $default_cpu)
@@ -2195,7 +2294,10 @@ sub interactive_ask_server_ram
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
 		}});
@@ -2231,7 +2333,6 @@ sub interactive_ask_server_ram
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
 		print $anvil->Words->string({key => "job_0167", variables => { 
 			ram_available => $anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}, unit => "M"}).")", 
@@ -2294,7 +2395,10 @@ sub interactive_ask_server_storage_group
 	{
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Database->get_anvils();
-		$anvil->Get->available_resources({debug => 2, anvil_uuid => $anvil_uuid});
+		$anvil->Get->available_resources({
+			debug      => 2, 
+			anvil_uuid => $anvil_uuid,
+		});
 		
 		# I need a list of Storage groups,
 		my $say_ram               = $anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{new_server}{ram}});
@@ -2403,8 +2507,11 @@ sub interactive_ask_server_storage_size
 		}});
 		
 		$anvil->Database->get_anvils();
-		$anvil->Database->get_storage_group_data();
-		$anvil->Get->available_resources({debug => 2, anvil_uuid => $anvil_uuid});
+		$anvil->Database->get_storage_group_data({debug => 2});
+		$anvil->Get->available_resources({
+			debug      => 2, 
+			anvil_uuid => $anvil_uuid,
+		});
 		
 		$vg_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
 		$vg_free = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
@@ -2534,8 +2641,8 @@ sub interactive_ask_server_install_media
 	my $retry = 0;
 	while(1)
 	{
-		$anvil->Database->get_files();
-		$anvil->Database->get_file_locations();
+		$anvil->Database->get_files({debug => 2});
+		$anvil->Database->get_file_locations({debug => 2});
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		
@@ -2550,7 +2657,7 @@ sub interactive_ask_server_install_media
 			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
 			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
 			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid            => $file_uuid, 
@@ -2650,7 +2757,7 @@ sub interactive_ask_server_driver_disc
 			my $file_size            = $anvil->data->{files}{file_name}{$file_name}{file_size};
 			my $file_type            = $anvil->data->{files}{file_name}{$file_name}{file_type};
 			my $file_path            = $file_directory."/".$file_name;
-			my $file_location_uuid   = $anvil->data->{file_locations}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			my $file_location_active = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				file_uuid            => $file_uuid, 
@@ -2690,7 +2797,6 @@ sub interactive_ask_server_driver_disc
 		}
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		my $dr1_host_uuid   = $anvil->data->{anvil_resources}{$anvil_uuid}{has_dr} ? $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid} : "";
 		
 		print $anvil->Words->string({key => "job_0182"})."\n";
 		print $iso_list."\n";
@@ -2862,7 +2968,10 @@ sub interactive_ask_server_confirm
 		
 		my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-		$anvil->Get->available_resources({anvil_uuid => $anvil_uuid, debug => 2});
+		$anvil->Get->available_resources({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid, 
+		});
 		
 		$anvil->data->{new_server}{name}          = "";
 		$anvil->data->{new_server}{uuid}          = "";

@@ -388,7 +388,7 @@ fi
 %{_usr}/lib/ocf/resource.d/alteeve/server
 
 %files dr
-#<placeholder for node specific files>
+#<placeholder for dr specific files>
 
 
 %changelog

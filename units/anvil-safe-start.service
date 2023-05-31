@@ -1,0 +1,11 @@
+[Unit]
+Description=Anvil! IA Platform - This service sanity checks and, if all is well, auto-starts the cluster and servers
+Wants=network.target
+
+[Service]
+ExecStart=/usr/sbin/anvil-safe-start
+RemainAfterExit=true
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

@@ -1459,7 +1459,11 @@ sub post_scan_analysis_dr
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->post_scan_analysis_dr()" }});
 	
-	
+	# Now that DR hosts are outside of specific Anvil! systems, auto-configuring their IPMI is more 
+	# tricky. If there's no 'host_ipmi' set, and if there is a BCN1 IP, we'll configure using the BCN's
+	# third octet, plus 1. We'll use the password used for the database password. Later, if the IPMI
+	# is changed in the DB, we'll reconfigure to match.
+	$anvil->System->configure_ipmi({debug => $debug, dr => 1});
 	
 	return(0);
 }

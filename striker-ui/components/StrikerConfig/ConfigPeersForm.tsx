@@ -127,10 +127,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
 
   return (
     <>
-      <ExpandablePanel
-        header={<BodyText>Configure striker peers</BodyText>}
-        loading={isLoading}
-      >
+      <ExpandablePanel header="Configure striker peers" loading={isLoading}>
         <Grid columns={{ xs: 1, sm: 2 }} container spacing="1em">
           <Grid item xs={1}>
             <List

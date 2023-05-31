@@ -12,7 +12,7 @@ import { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel, {
   OutlinedInputWithLabelProps,
 } from './OutlinedInputWithLabel';
-import SelectWithLabel, { SelectWithLabelProps } from './SelectWithLabel';
+import SelectWithLabel from './SelectWithLabel';
 
 type OutlinedLabeledInputWithSelectOptionalProps = {
   inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;
@@ -66,19 +66,11 @@ const OutlinedLabeledInputWithSelect: FC<
         },
       }}
     >
-      <OutlinedInputWithLabel
-        {...{
-          id,
-          label,
-          ...inputWithLabelProps,
-        }}
-      />
+      <OutlinedInputWithLabel id={id} label={label} {...inputWithLabelProps} />
       <SelectWithLabel
-        {...{
-          id: `${id}-nested-select`,
-          selectItems,
-          ...selectWithLabelProps,
-        }}
+        id={`${id}-nested-select`}
+        selectItems={selectItems}
+        {...selectWithLabelProps}
       />
     </Box>
     <InputMessageBox {...messageBoxProps} />

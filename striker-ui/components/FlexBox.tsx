@@ -6,6 +6,8 @@ type FlexBoxDirection = 'column' | 'row';
 type FlexBoxSpacing = number | string;
 
 type FlexBoxOptionalPropsWithDefault = {
+  fullWidth?: boolean;
+  growFirst?: boolean;
   row?: boolean;
   spacing?: FlexBoxSpacing;
   xs?: FlexBoxDirection;
@@ -28,6 +30,8 @@ type FlexBoxProps = MUIBoxProps & FlexBoxOptionalProps;
 const FLEX_BOX_DEFAULT_PROPS: Required<FlexBoxOptionalPropsWithDefault> &
   FlexBoxOptionalPropsWithoutDefault = {
   columnSpacing: undefined,
+  fullWidth: false,
+  growFirst: false,
   row: false,
   rowSpacing: undefined,
   lg: undefined,
@@ -39,6 +43,8 @@ const FLEX_BOX_DEFAULT_PROPS: Required<FlexBoxOptionalPropsWithDefault> &
 };
 
 const FlexBox: FC<FlexBoxProps> = ({
+  fullWidth,
+  growFirst,
   lg: dLg = FLEX_BOX_DEFAULT_PROPS.lg,
   md: dMd = FLEX_BOX_DEFAULT_PROPS.md,
   row: isRow,
@@ -50,7 +56,6 @@ const FlexBox: FC<FlexBoxProps> = ({
   // Input props that depend on other input props.
   columnSpacing = spacing,
   rowSpacing = spacing,
-
   ...muiBoxRestProps
 }) => {
   const xs = useMemo(() => (isRow ? 'row' : dXs), [dXs, isRow]);
@@ -81,6 +86,11 @@ const FlexBox: FC<FlexBoxProps> = ({
     }),
     [columnSpacing, rowSpacing],
   );
+  const firstChildFlexGrow = useMemo(
+    () => (growFirst ? 1 : undefined),
+    [growFirst],
+  );
+  const width = useMemo(() => (fullWidth ? '100%' : undefined), [fullWidth]);
 
   return (
     <MUIBox
@@ -96,6 +106,11 @@ const FlexBox: FC<FlexBoxProps> = ({
           },
           display: 'flex',
           flexDirection: { xs, sm, md, lg, xl },
+          width,
+
+          '& > :first-child': {
+            flexGrow: firstChildFlexGrow,
+          },
 
           '& > :not(:first-child)': {
             marginLeft: {

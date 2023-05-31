@@ -544,39 +544,8 @@ sub handle_periodic_tasks
 		# Scan the local network.
 		update_state_file($anvil);
 		
-		# Make sure the shared directories exist.
-		foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{path}{directories}{shared}})
-		{
-			my $directory = $anvil->data->{path}{directories}{shared}{$target};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				target    => $target, 
-				directory => $directory,
-			}});
-			if (not -e $anvil->data->{path}{directories}{shared}{$target})
-			{
-				my $failed = $anvil->Storage->make_directory({
-					directory => $directory,
-					group     => "apache", 
-					user      => "apache",
-					mode      => "0775",
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
-				if ($failed)
-				{
-					# Something went wrong.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0254", variables => {
-						directory => $directory,
-					}});
-				}
-				else
-				{
-					# Success
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0255", variables => {
-						directory => $directory,
-					}});
-				}
-			}
-		}
+		# Check shared files.
+		check_files($anvil);
 		
 		# Check mail server config.
 		my $problem = $anvil->Email->check_config({debug => 3});
@@ -1481,6 +1450,28 @@ sub run_jobs
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
 		
+		# To minimize the chance of race conditions, any given command will be called only once at a 
+		# time. If two jobs of the same command exist, only one will be called.
+		if ($job_progress != 100)
+		{
+			my $short_command =  $job_command;
+			   $short_command =~ s/\s.*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_command => $short_command }});
+			if (exists $anvil->data->{sys}{started}{$short_command})
+			{
+				# Skip it.
+				my $started_job = $anvil->data->{sys}{started}{$short_command};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0737", variables => { 
+					started_job => $started_job, 
+					job_uuid    => $job_uuid,
+					command     => $short_command, 
+				}});
+				next;
+			}
+			$anvil->data->{sys}{started}{$short_command} = $job_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::started::${short_command}" => $anvil->data->{sys}{started}{$short_command} }});
+		}
+		
 		# If this is a start-up call, only start jobs whose status is 'anvil_startup'.
 		if (($startup) && ($job_status ne "anvil_startup"))
 		{
@@ -1677,6 +1668,52 @@ sub run_jobs
 		user      => "apache", 
 		group     => "apache",
 	});
+	
+	return(0);
+}
+
+#
+sub check_files
+{
+	my ($anvil) = @_;
+	
+	# Make sure the shared directories exist.
+	foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{path}{directories}{shared}})
+	{
+		my $directory = $anvil->data->{path}{directories}{shared}{$target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			target    => $target, 
+			directory => $directory,
+		}});
+		if (not -e $anvil->data->{path}{directories}{shared}{$target})
+		{
+			my $failed = $anvil->Storage->make_directory({
+				directory => $directory,
+				group     => "apache", 
+				user      => "apache",
+				mode      => "0775",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
+			if ($failed)
+			{
+				# Something went wrong.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0254", variables => {
+					directory => $directory,
+				}});
+			}
+			else
+			{
+				# Success
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0255", variables => {
+					directory => $directory,
+				}});
+			}
+		}
+	}
+	
+	# Look for files on our system that are in file_locations. If they're shown as ready, make sure 
+	# they're there. If they're marked as not ready, see if they now are.
+	$anvil->Storage->check_files({debug => 2});
 	
 	return(0);
 }

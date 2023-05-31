@@ -105,19 +105,6 @@ sub get_job_details
 {
 	my ($anvil) = @_;
 	
-	# If I don't have a job-uuid, see if any jobs are pending
-	if (not $anvil->data->{switches}{'job-uuid'})
-	{
-		my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-		if ($anvil->Validate->uuid({uuid => $job_uuid}))
-		{
-			# Got one!
-			$anvil->data->{switches}{'job-uuid'} = $job_uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
-		}
-	}
-	
 	# If we've got a job-uuid, load the details.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	if ($anvil->data->{switches}{'job-uuid'})

@@ -481,15 +481,36 @@ sub identify_peer
 					# This is me. Am I in maintenance mode?
 					if (exists $hash_ref->{instance_attributes})
 					{
-						# We've got some data...
-						my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
-						my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
-						to_log($conf, {message => "node: [".$node."] instance attribyte name: [".$name."], value: [".$value."]", 'line' => __LINE__, level => 1});
-						if (($name eq "maintenance") and ($value eq "on"))
+						next if not exists $hash_ref->{instance_attributes}{nvpair};
+						my $reference = ref($hash_ref->{instance_attributes}{nvpair});
+						to_log($conf, {message => "Instance attribute reference type: [".$reference."]", 'line' => __LINE__, level => 3});
+						if ($reference eq "ARRAY")
 						{
-							# We're in maintenance mode, abort.
-							to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
-							exit(1);
+							foreach my $array_ref (@{$hash_ref->{instance_attributes}{nvpair}})
+							{
+								my $id    = $array_ref->{id};
+								my $name  = $array_ref->{name};
+								my $value = $array_ref->{value};
+								to_log($conf, {message => "Instance attribute ID: [".$id."], name: [".$name."], value: [".$value."]", 'line' => __LINE__, level => 3});
+								if (($name eq "maintenance") and ($value eq "on"))
+								{
+									# We're in maintenance mode, abort.
+									to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
+									exit(1);
+								}
+							}
+						}
+						elsif ($reference eq "HASH")
+						{
+							my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
+							my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
+							to_log($conf, {message => "node: [".$node."] instance attribyte name: [".$name."], value: [".$value."]", 'line' => __LINE__, level => 1});
+							if (($name eq "maintenance") and ($value eq "on"))
+							{
+								# We're in maintenance mode, abort.
+								to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
+								exit(1);
+							}
 						}
 					}
 				}
@@ -627,7 +648,7 @@ sub find_executables
 	my @dirs = split/:/, $ENV{PATH};
 	foreach my $exe (sort {$b cmp $a} keys %{$conf->{path}{exe}})
 	{
-		if ( not -e $conf->{path}{exe}{$exe} )
+		if (not -e $conf->{path}{exe}{$exe})
 		{
 			to_log($conf, {message => "The program: [".$exe."] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now...", 'line' => __LINE__, level => 1});
 			foreach my $path (@dirs)
@@ -655,7 +676,7 @@ sub find_executables
 		}
 		else
 		{
-			to_log($conf, {message => "Found!", 'line' => __LINE__, level => 3});
+			to_log($conf, {message => "Found: [".$exe."] at: [".$conf->{path}{exe}{$exe}."]!", 'line' => __LINE__, level => 3});
 			next;
 		}
 

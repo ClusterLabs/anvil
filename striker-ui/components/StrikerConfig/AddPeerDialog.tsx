@@ -61,8 +61,8 @@ const AddPeerDialog = forwardRef<
 
   const buildInputFirstRenderFunction = useCallback(
     (key: string) =>
-      ({ isRequired }: { isRequired: boolean }) => {
-        setFormValidity(buildObjectStateSetterCallback(key, !isRequired));
+      ({ isValid }: InputFirstRenderFunctionArgs) => {
+        setFormValidity(buildObjectStateSetterCallback(key, isValid));
       },
     [],
   );

@@ -40,14 +40,6 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 
-# If we don't have a job-uuid, look for one.
-if (not $anvil->data->{switches}{'job-uuid'})
-{
-	# Load the job data.
-	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-}
-
 # If we have a job-uuid, process it.
 if ($anvil->data->{switches}{'job-uuid'})
 {
@@ -733,30 +725,18 @@ sub process_pull_file
 	
 	my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 		anvil_node2_host_uuid => $anvil_node2_host_uuid, 
-		anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
 	}});
 	
 	# Where we pull from will depend on which machine we are and how many strikers we have. If we have
-	# one Anvil!, node 1 and 2 download at the same time, and DR waits. If there are two strikers, Each
-	# node will download from a different striker (if possible) and DR waits. If there are 3 or more 
-	# Strikers, DR does not wait, and downloads from a different striker than the striker's nodes use.
+	# one Anvil!, sub-node 1 and 2 download at the same time. If there are two strikers, Each node will
+	# download from a different striker (if possible).
 	my $i_am = "node1";
 	if ($anvil->Get->host_uuid eq $anvil_node2_host_uuid)
 	{
 		$i_am = "node2";
-	}
-	elsif ($anvil->Get->host_uuid eq $anvil_dr1_host_uuid)
-	{
-		$i_am = "dr1";
-		
-		# As we're DR, we'll likely be pinging the nodes to seee if they're up when we wait for them
-		# to finish jobs. As such, load their IPs into memory.
-		$anvil->Network->load_ips({debug => 2, host_uuid => $anvil_node1_host_uuid});
-		$anvil->Network->load_ips({debug => 2, host_uuid => $anvil_node2_host_uuid});
 	}
 	
 	my $striker_count = @{$anvil->data->{target_strikers}};
@@ -777,158 +757,26 @@ sub process_pull_file
 		$anvil->nice_exit({exit_code => 2});
 	}
 	
-	my $use     = 0;
-	my $dr_wait = 1;
+	my $use = 0;
 	if ($striker_count >= 3)
 	{
-		$dr_wait = 0;
 		if ($i_am eq "node1")    { $use = 0; }
 		elsif ($i_am eq "node2") { $use = 1; }
-		elsif ($i_am eq "dr1")   { $use = 2; }
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			'use'   => $use, 
-			dr_wait => $dr_wait,
-		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'use' => $use }});
 	}
 	elsif ($striker_count == 2)
 	{
-		# Two strikers, each node will use the other Striker, DR waits for both to be done.
+		# Two strikers, each node will use the other Striker
 		if ($i_am eq "node1")    { $use = 0; }
 		elsif ($i_am eq "node2") { $use = 1; }
-		elsif ($i_am eq "dr1")   { $use = 1; }
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			'use'   => $use, 
-			dr_wait => $dr_wait,
-		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'use' => $use }});
 	}
 	elsif ($striker_count == 1)
 	{
 		# Only 1 Striker
 		if ($i_am eq "node1")    { $use = 0; }
 		elsif ($i_am eq "node2") { $use = 0; }
-		elsif ($i_am eq "dr1")   { $use = 0; }
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			'use'   => $use, 
-			dr_wait => $dr_wait,
-		}});
-	}
-	
-	# If I'm DR and need to wait, look for jobs on node1 and node2 and wait until both are done (or is 
-	# offline).
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		i_am    => $i_am, 
-		dr_wait => $dr_wait,
-	}});
-	if (($i_am eq "dr1") && ($dr_wait))
-	{
-		my $node1_job_uuid = "";
-		my $node1_online   = 1;
-		my $node2_job_uuid = "";
-		my $node2_online   = 1;
-		my $node1_waiting  = 1;
-		my $node2_waiting  = 1;
-		
-		my $query = "
-SELECT 
-    job_uuid, 
-    job_host_uuid 
-FROM 
-    jobs 
-WHERE 
-    job_name = 'storage::pull_file' 
-AND 
-    (
-        job_host_uuid = ".$anvil->Database->quote($anvil_node1_host_uuid)." 
-    OR 
-        job_host_uuid = ".$anvil->Database->quote($anvil_node2_host_uuid)."
-    )
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		foreach my $row (@{$results})
-		{
-			my $job_uuid      = $row->[0];
-			my $job_host_uuid = $row->[1];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				job_uuid      => $job_uuid,
-				job_host_uuid => $job_host_uuid, 
-			}});
-			
-			if ($job_host_uuid eq $anvil_node1_host_uuid)
-			{
-				$node1_job_uuid = $job_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_job_uuid => $node1_job_uuid }});
-			}
-			if ($job_host_uuid eq $anvil_node2_host_uuid)
-			{
-				$node2_job_uuid = $job_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_job_uuid => $node2_job_uuid }});
-			}
-		}
-		
-		my $waiting = 1;
-		while($waiting)
-		{
-			if ($node1_waiting)
-			{
-				if (not $node1_job_uuid)
-				{
-					$node1_waiting = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_waiting => $node1_waiting }});
-				}
-				else
-				{
-					$node1_waiting = wait_on_host($anvil, $anvil_node1_host_uuid, $node1_job_uuid);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_waiting => $node1_waiting }});
-				}
-			}
-			if ($node2_waiting)
-			{
-				if (not $node2_job_uuid)
-				{
-					$node2_waiting = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_waiting => $node2_waiting }});
-				}
-				else
-				{
-					$node2_waiting = wait_on_host($anvil, $anvil_node2_host_uuid, $node2_job_uuid);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_waiting => $node2_waiting }});
-				}
-			}
-			
-			if ((not $node1_waiting) && (not $node2_waiting))
-			{
-				# We can proceed.
-				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-			}
-			else
-			{
-				# Sleep for a bit.
-				my $sleep_time = 30;
-				my $wait_until = $anvil->Get->date_and_time({offset => $sleep_time});
-				
-				$anvil->Job->update_progress({
-					progress   => 1,
-					message    => "message_0199,!!strikers!".$striker_count."!!,!!node1_waiting!".$node1_waiting."!!,!!node2_waiting!".$node2_waiting."!!,!!wait_until!".$wait_until."!!", 
-					job_status => "failed", 
-				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0199", variables => { 
-					strikers      => $striker_count,
-					node1_waiting => $node1_waiting, 
-					node2_waiting => $node2_waiting, 
-					wait_until    => $wait_until,
-				}});
-				
-				sleep $sleep_time;
-			}
-		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'use' => $use }});
 	}
 	
 	# Now proceed with the download!

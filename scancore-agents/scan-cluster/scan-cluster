@@ -99,6 +99,9 @@ check_config($anvil);
 # Check the fence delay
 check_fence_delay($anvil);
 
+# Check for failed resources
+check_resources($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -106,6 +109,191 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This looks for failed resource and, if found, tries to recover them.
+sub check_resources
+{
+	my ($anvil) = @_;
+
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}})
+	{
+		# This is used for alerts, if needed below.
+		my $variables = { server => $server };
+		
+		my $failed = check_if_server_failed($anvil, $server);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server => $server,
+			failed => $failed, 
+		}});
+		if ($failed)
+		{
+			# Who am I and who is my peer? See if the server is running on either host.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0003", variables => { server => $server }});
+			my $attempt_recovery = 0;
+			my $server_found     = 0;
+			my $both_nodes_ready = 1;
+			foreach my $target ("local", "peer")
+			{
+				my $node_ready = $anvil->data->{cib}{parsed}{$target}{ready};
+				my $node_name  = $anvil->data->{cib}{parsed}{$target}{name};
+				my $host_uuid  = $anvil->Get->host_uuid_from_name({host_name => $node_name});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0004", variables => { 
+					node_name  => $node_name,
+					host_uuid  => $host_uuid, 
+					node_ready => $node_ready, 
+				}});
+				if (not $node_ready)
+				{
+					$both_nodes_ready = 1;
+				}
+				
+				if ($host_uuid eq $anvil->Get->host_uuid)
+				{
+					# Search for the server here
+					$anvil->Server->find({debug => 2});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0005"});
+				}
+				else
+				{
+					# Search for the server on the peer.
+					my $target_ip = $anvil->Network->find_target_ip({host_uuid => $host_uuid});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0006", variables => { target_ip => $target_ip }});
+					$anvil->Server->find({
+						debug  => 2,
+						target => $target_ip,
+					});
+				}
+				my $server_host   = defined $anvil->data->{server}{location}{$server}{host_name} ? $anvil->data->{server}{location}{$server}{host_name} : "";
+				my $server_status = defined $anvil->data->{server}{location}{$server}{status}    ? $anvil->data->{server}{location}{$server}{status}    : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+					server_host   => $server_host, 
+					server_status => $server_status, 
+				}});
+				if ($server_host)
+				{
+					$server_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_found => $server_found }});
+					if (($node_ready) && ($host_uuid eq $anvil->Get->host_uuid))
+					{
+						# Go ahead with recovery
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0007"});
+						$attempt_recovery = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { attempt_recovery => $attempt_recovery }});
+					}
+				}
+			}
+			
+			if ((not $server_found) && ($both_nodes_ready))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0008"});
+				$attempt_recovery = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { attempt_recovery => $attempt_recovery }});
+			}
+			elsif (($server_found) && (not $attempt_recovery))
+			{
+				# The server was found to be running, but not here (or this node is not fully in the cluster). NOT attempting recovery yet.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0009"});
+			}
+			elsif ($attempt_recovery)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0010"});
+				$anvil->Cluster->recover_server({
+					debug  => 2,
+					server => $server,
+				});
+				
+				# It'll leave 'failed state' for a bit, so we need to wait.
+				sleep 3;
+				my $wait_until = time + 10;
+				my $waiting    = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0011"});
+				while($waiting)
+				{
+					my $failed = check_if_server_failed($anvil, $server);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+					if ($failed)
+					{
+						# No luck...
+						   $waiting = 0;
+						my $changed = $anvil->Alert->check_alert_sent({
+							record_locator => "scan_cluster::failed_server::".$server,
+							set_by         => $THIS_FILE,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							waiting => $waiting, 
+							changed => $changed,
+						}});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_alert_0014", variables => $variables});
+						if ($changed)
+						{
+							# Send an alert.
+							$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0014", variables => $variables, set_by => $THIS_FILE});
+						}
+					}
+					elsif (time > $wait_until)
+					{
+						# Success!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_alert_0013", variables => $variables});
+						$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0013", variables => $variables, set_by => $THIS_FILE});
+						
+						# Clear the alert, if it existed before
+						   $waiting = 0;
+						my $changed = $anvil->Alert->check_alert_sent({
+							record_locator => "scan_cluster::failed_server::".$server,
+							set_by         => $THIS_FILE,
+							clear          => 1,
+						});
+					}
+					else
+					{
+						# Wait a sec
+						sleep 2;
+					}
+				}
+			}
+		}
+		else
+		{
+			# Make sure that this server wasn't previously failed.
+			my $changed = $anvil->Alert->check_alert_sent({
+				record_locator => "scan_cluster::failed_server::".$server,
+				set_by         => $THIS_FILE,
+				clear          => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Send the All-good alert.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_alert_0015", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0015", variables => $variables, set_by => $THIS_FILE});
+			}
+		}
+	}
+	
+	return(0);
+}
+
+sub check_if_server_failed
+{
+	my ($anvil, $server) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server => $server }});
+	
+	$anvil->Cluster->parse_crm_mon({debug => 3});
+	my $failed = exists $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed} ? $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
+	if ($failed eq "true")
+	{
+		$failed = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
+	}
+	elsif ($failed eq "false")
+	{
+		$failed = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
+	}
+	
+	return($failed);
+}
 
 # Check to see if we need to move the fence delay.
 sub check_fence_delay

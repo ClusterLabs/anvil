@@ -511,56 +511,25 @@ sub available_resources
 		delete $anvil->data->{anvil_resources}{$anvil_uuid};
 	}
 	
-	# Get the node UUIDs for this anvil.
-	my $query = "
-SELECT 
-    anvil_name, 
-    anvil_node1_host_uuid, 
-    anvil_node2_host_uuid 
-FROM 
-    anvils 
-WHERE 
-    anvil_uuid = ".$anvil->Database->quote($anvil_uuid)."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	if (not $count)
-	{
-		# Not found.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0169", variables => { anvil_uuid => $anvil_uuid }});
-		return("!!error!!");
-	}
-	
-	# Get the details.
-	my $anvil_name      = $results->[0]->[0];
-	my $node1_host_uuid = $results->[0]->[1];
-	my $node2_host_uuid = $results->[0]->[2];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		anvil_name      => $anvil_name,
-		node1_host_uuid => $node1_host_uuid, 
-		node2_host_uuid => $node2_host_uuid, 
-	}});
-	
-	# Load hosts and network bridges
+	# Load hosts and network bridges. This loads Anvil! data as well
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->get_bridges({debug => $debug});
-	
-	# This both loads storage group data and assembles ungrouped VGs into storage groups, when possible.
-	$anvil->Cluster->assemble_storage_groups({
-		debug      => $debug,
-		anvil_uuid => $anvil_uuid, 
-	});
+	$anvil->Database->get_lvm_data({debug => $debug});
+
+	# Get the details.
+	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:anvil_name'      => $anvil_name,
+		's2:node1_host_uuid' => $node1_host_uuid, 
+		's3:node2_host_uuid' => $node2_host_uuid, 
+	}});
 	
 	# This will store the available resources based on the least of the nodes.
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}  = 0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = 0;
-
 	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
 	{
 		my $this_is = "node1";
@@ -627,7 +596,7 @@ WHERE
 			scan_hardware_cpu_cores   => $scan_hardware_cpu_cores,
 			scan_hardware_cpu_threads => $scan_hardware_cpu_threads, 
 			scan_hardware_cpu_model   => $scan_hardware_cpu_model, 
-			scan_hardware_ram_total   => $scan_hardware_ram_total, 
+			scan_hardware_ram_total   => $scan_hardware_ram_total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_hardware_ram_total}).")", 
 		}});
 		
 		$anvil->data->{anvil_resources}{$anvil_uuid}{host_uuid}{$host_uuid}{cpu}{cores}     = $scan_hardware_cpu_cores;
@@ -682,19 +651,21 @@ WHERE
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated} =  0;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}  = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
 	
-	$query = "
+	my $query = "
 SELECT 
     server_name, 
     server_ram_in_use 
 FROM 
     servers 
 WHERE 
-    server_anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." 
+    server_anvil_uuid =  ".$anvil->Database->quote($anvil_uuid)." 
+AND 
+    server_state      != 'DELETED' 
 ORDER BY 
     server_name ASC;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count, 
@@ -715,33 +686,106 @@ ORDER BY
 	}
 
 	# Check if the reserved RAM is overriden by the config
+	my $default_reserved = 8192;
+	if (not exists $anvil->data->{anvil_resources}{ram}{reserved})
+	{
+		$anvil->data->{anvil_resources}{ram}{reserved} = $default_reserved;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			default_reserved                 => $default_reserved, 
+			"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+		}});
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+	}});
+	
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/,//g;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/\s//g;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/MiB$//i;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/MB$//i;
+	$anvil->data->{anvil_resources}{ram}{reserved} =~ s/M$//i;
+	if ((not $anvil->data->{anvil_resources}{ram}{reserved}) or ($anvil->data->{anvil_resources}{ram}{reserved} =~ /\D/))
+	{
+		# Invalid value.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0151", variables => { 
+			was => $anvil->data->{anvil_resources}{ram}{reserved}, 
+			set => $default_reserved,
+		}});
+		$anvil->data->{anvil_resources}{ram}{reserved} = $default_reserved;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+		}});
+	}
+	
+	#anvil::<anvil_uuid>::resources::ram::reserved
+	if (exists $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved})
+	{
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/,//g;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/\s//g;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/MiB$//i;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/MB$//i;
+		$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} =~ s/M$//i;
+		if ((not $anvil->data->{anvil_resources}{ram}{reserved}) or ($anvil->data->{anvil_resources}{ram}{reserved} =~ /\D/))
+		{
+			# Invalid value.
+			my $anvil_name = $anvil->Get->anvil_name_from_uuid({anvil_uuid => $anvil_uuid});
+			   $anvil_name = $anvil_uuid if not $anvil_name;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0152", variables => { 
+				anvil => $anvil_name,
+				was   => $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved}, 
+				set   => $anvil->data->{anvil_resources}{ram}{reserved},
+			}});
+			$anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved} = $anvil->data->{anvil_resources}{ram}{reserved};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil::${anvil_uuid}::resources::ram::reserved" => $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved},
+			}});
+		}
+	
+		if ($anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved})
+		{
+			$anvil->data->{anvil_resources}{ram}{reserved} = $anvil->data->{anvil}{$anvil_uuid}{resources}{ram}{reserved};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::ram::reserved" => $anvil->data->{anvil_resources}{ram}{reserved},
+			}});
+		}
+	}
+	
 	my $ram_reserved = $anvil->Convert->human_readable_to_bytes({
 		base2 => 1,
-		size  => $anvil->data->{anvil_resources}{ram}{reserved}, 
+		size  => $anvil->data->{anvil_resources}{ram}{reserved}." MiB", 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ram_reserved => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
+	}});
 	if (($ram_reserved eq "!!error!!") or 
-		(not $ram_reserved)            or 
+	    (not $ram_reserved)            or 
 	    ($ram_reserved < (2**30))      or 
 	    ($ram_reserved > $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}))
 	{
-		# The reserved RAM is invalid, so reset it.
-		$ram_reserved = 0;
+		# The reserved RAM is invalid, so reset it to 8 GiB
+		$ram_reserved = 8589934592;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ram_reserved => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
+		}});
 	}
 
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"anvil_resources::ram::reserved" => $ram_reserved." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_reserved}).")",
-	}});
-
 	# Take 4 GiB or what was provided by the config off the available RAM for the host
-	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}   = $ram_reserved ? $ram_reserved : (4*(2**30)); # Reserve 4 GiB by default or what's set in the config file.
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}   = $ram_reserved;
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved};
 	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} -= $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated};
-
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"anvil_resources::${anvil_uuid}::ram::allocated" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{allocated}}).")",
 		"anvil_resources::${anvil_uuid}::ram::reserved"  => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{reserved}}).")",
 		"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
 	}});
+	
+	if ($anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} < 0)
+	{
+		$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available} = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::ram::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}}).")",
+		}});
+	}
 	
 	# process bridges now
 	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_resources}{$anvil_uuid}{bridges}})
@@ -795,8 +839,8 @@ ORDER BY
 		}});
 		
 		# Make it easy to sort by group name
-		my $storage_group_name = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
-		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		my $storage_group_name                                                                                       = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
+		   $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"anvil_resources::${anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid" => $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 		}});

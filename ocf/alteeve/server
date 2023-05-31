@@ -256,6 +256,18 @@ if (not $anvil->data->{switches}{monitor})
 	show_environment($anvil, 3);
 }
 
+# If there's a test fail file, return '1' to cause pacemaker to fail this resource.
+if ($anvil->data->{environment}{OCF_RESKEY_name})
+{
+	my $test_fail_file = "/tmp/".$anvil->data->{environment}{OCF_RESKEY_name}.".fail";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_fail_file => $test_fail_file }});
+	if (-e $test_fail_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0150", variables => { fail_file => $test_fail_file }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+}
+
 ### What are we being asked to do?
 # start        - Starts the resource.
 # stop         - Shuts down the resource.
@@ -896,10 +908,16 @@ sub start_drbd_resource
 		{
 			# This is set to '1' if either the volumes are UpToDate or Sync'ing.
 			$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{ok} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"drbd::status::${local_host}::resource::${resource}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{ok},
+			}});
 			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}})
 			{
 				# This will be used to mark if a volume is being sync'ed later, if needed.
 				$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"drbd::status::${local_host}::resource::${resource}::devices::volume::${volume}::ok" => $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{ok},
+				}});
 				
 				my $disk_state = lc($anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'});
 				   $disk_state = "" if not defined $disk_state;

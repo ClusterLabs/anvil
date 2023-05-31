@@ -1081,7 +1081,7 @@ DELETED   - Marks a server as no longer existing
 		next if $server_host_uuid ne $anvil->Get->host_uuid;
 		
 		# If we're here, the server used to be on us, and isn't on the peer, so mark it as off.
-		if ($server_state ne "shut off")
+		if (($server_state ne "shut off") && ($server_state ne "DELETED"))
 		{
 			# Mark it as being off now.
 			my $query = "

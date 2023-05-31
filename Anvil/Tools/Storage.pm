@@ -19,6 +19,7 @@ my $THIS_FILE = "Storage.pm";
 # backup
 # change_mode
 # change_owner
+# check_files
 # check_md5sums
 # compress
 # copy_file
@@ -582,6 +583,142 @@ sub change_owner
 	
 	return($error);
 }
+
+
+=head2 check_files
+
+This method checks the files on the local system. Specifically, it looks in C<< file_locations >> table and then checks if the file is "ready" or not. Depending on the results, C<< file_location_ready >> is updated if needed.
+
+This method takes no parameters.
+
+=cut
+sub check_files
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->check_md5sums()" }});
+	
+	$anvil->Database->get_files({debug => $debug});
+	$anvil->Database->get_file_locations({debug => $debug});
+	
+	# Look for files that should be on this host.
+	my $host_uuid = $anvil->Get->host_uuid({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	
+	# Sorting isn't useful really, but it ensures consistent listing run over run).
+	foreach my $file_location_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}})
+	{
+		my $file_location_uuid      = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_location_file_uuid}{file_location_uuid};
+		my $file_location_file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
+		my $file_location_active    = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
+		my $file_location_ready     = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready};
+		my $file_name               = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_name};
+		my $file_directory          = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_directory};
+		my $file_size               = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_size}; 
+		my $file_md5sum             = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_md5sum};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:file_location_file_uuid' => $file_location_file_uuid, 
+			's2:file_location_uuid'      => $file_location_uuid, 
+			's3:file_location_file_uuid' => $file_location_file_uuid, 
+			's4:file_location_active'    => $file_location_active, 
+			's5:file_location_ready'     => $file_location_ready, 
+			's6:file_name'               => $file_name, 
+			's7:file_directory'          => $file_directory, 
+			's8:file_size'               => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+			's9:file_md5sum'             => $file_md5sum, 
+		}});
+		
+		my $full_path =  $file_directory."/".$file_name;
+		   $full_path =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		
+		# If the file is not active, make sure the active is also false, regardless of anything else.
+		if (not $file_location_active)
+		{
+			if ($file_location_ready)
+			{
+				$anvil->Database->insert_or_update_file_locations({
+					debug                   => $debug, 
+					file_location_uuid      => $file_location_uuid, 
+					file_location_file_uuid => $file_location_file_uuid, 
+					file_location_host_uuid => $host_uuid, 
+					file_location_active    => $file_location_active, 
+					file_location_ready     => 0,
+				});
+			}
+		}
+		elsif (-e $full_path)
+		{
+			# It exists, what's it's size?
+			my $real_size = (stat($full_path))[7];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				real_size => $real_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $real_size}).")", 
+			}});
+			
+			# If the size is the same as recorded, and the file is already 'ready', we're done.
+			if ($real_size == $file_size)
+			{
+				if (not $file_location_ready)
+				{
+					# Calculate the md5sum and see if it is ready now.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0265", variables => { file => $full_path }});
+					if ($real_size > (128 * (2 ** 20)))
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0266", variables => { 
+							size => $anvil->Convert->bytes_to_human_readable({'bytes' => $real_size}),
+						}});
+					}
+					
+					# Update (or get) the md5sum.
+					my $real_md5sum = $anvil->Get->md5sum({debug => 2, file => $full_path});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { real_md5sum => $real_md5sum }});
+					
+					if ($real_md5sum eq $file_md5sum)
+					{
+						# It's ready now.
+						$anvil->Database->insert_or_update_file_locations({
+							debug                   => $debug, 
+							file_location_uuid      => $file_location_uuid, 
+							file_location_file_uuid => $file_location_file_uuid, 
+							file_location_host_uuid => $host_uuid, 
+							file_location_active    => $file_location_active, 
+							file_location_ready     => 1,
+						});
+					}
+				}
+			}
+			elsif ($file_location_ready)
+			{
+				# It's not ready.
+				$anvil->Database->insert_or_update_file_locations({
+					debug                   => $debug, 
+					file_location_uuid      => $file_location_uuid, 
+					file_location_file_uuid => $file_location_file_uuid, 
+					file_location_host_uuid => $host_uuid, 
+					file_location_active    => $file_location_active, 
+					file_location_ready     => 0,
+				});
+			}
+		}
+		elsif ($file_location_ready)
+		{
+			# File doesn't exist but is marked as read, mark it as not ready.
+			$anvil->Database->insert_or_update_file_locations({
+				debug                   => $debug, 
+				file_location_uuid      => $file_location_uuid, 
+				file_location_file_uuid => $file_location_file_uuid, 
+				file_location_host_uuid => $host_uuid, 
+				file_location_active    => $file_location_active, 
+				file_location_ready     => 0,
+			});
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 check_md5sums
 
@@ -1767,16 +1904,13 @@ sub get_size_of_block_device
 	$anvil->Database->get_anvils({debug => $debug});
 	my $node1_host_uuid = "";
 	my $node2_host_uuid = "";
-	my $dr1_host_uuid   = "";
 	if ($anvil_uuid)
 	{
 		$node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		$node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-		$dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			node1_host_uuid => $node1_host_uuid,
 			node1_host_uuid => $node2_host_uuid, 
-			dr1_host_uuid   => $dr1_host_uuid, 
 		}});
 	}
 	
@@ -1807,19 +1941,11 @@ AND
     (
         scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node1_host_uuid)."
     OR 
-        scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node2_host_uuid);
-			if ($dr1_host_uuid)
-			{
-				$query .= "
-    OR 
-        scan_lvm_lv_host_uuid = ".$anvil->Database->quote($dr1_host_uuid);
-			}
-			$query .= "
-    )";
-		}
-		$query .= "
+        scan_lvm_lv_host_uuid = ".$anvil->Database->quote($node2_host_uuid)."
+    )
 LIMIT 1
 ;";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
@@ -1911,11 +2037,7 @@ LIMIT 1
 						     ($anvil_uuid) && 
 						     (
 						      ($this_host_uuid eq $node1_host_uuid) or 
-						      ($this_host_uuid eq $node2_host_uuid) or 
-						      (
-						       ($dr1_host_uuid) && 
-						       ($this_host_uuid eq $dr1_host_uuid)
-						      )
+						      ($this_host_uuid eq $node2_host_uuid)
 						     )
 						    )
 						   )
@@ -1976,14 +2098,7 @@ AND
     (
         a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node1_host_uuid)."
     OR 
-        a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid);
-			if ($dr1_host_uuid)
-			{
-				$query .= "
-    OR 
-        a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($dr1_host_uuid);
-			}
-			$query .= "
+        a.scan_drbd_resource_host_uuid = ".$anvil->Database->quote($node2_host_uuid)."
     )";
 		}
 		$query .= "
@@ -2222,16 +2337,13 @@ sub get_storage_group_from_path
 			$anvil->Database->get_anvils({debug => $debug});
 			my $node1_host_uuid = "";
 			my $node2_host_uuid = "";
-			my $dr1_host_uuid   = "";
 			if ($anvil_uuid)
 			{
 				$node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 				$node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-				$dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					node1_host_uuid => $node1_host_uuid,
 					node1_host_uuid => $node2_host_uuid, 
-					dr1_host_uuid   => $dr1_host_uuid, 
 				}});
 			}
 			
@@ -2272,11 +2384,7 @@ sub get_storage_group_from_path
 						     ($anvil_uuid) && 
 						     (
 						      ($this_host_uuid eq $node1_host_uuid) or 
-						      ($this_host_uuid eq $node2_host_uuid) or 
-						      (
-						       ($dr1_host_uuid) && 
-						       ($this_host_uuid eq $dr1_host_uuid)
-						      )
+						      ($this_host_uuid eq $node2_host_uuid)
 						     )
 						    )
 						   )
@@ -3708,6 +3816,7 @@ sub push_file
 						file_location_file_uuid => $file_uuid, 
 						file_location_host_uuid => $target_host_uuid, 
 						file_location_active    => 1, 
+						file_location_ready     => "same", 
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
 				}
