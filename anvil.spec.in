@@ -367,7 +367,7 @@ fi
 
 
 %files core
-%doc README.md notes
+%doc README.md
 %config(noreplace) %{_sysconfdir}/anvil/anvil.conf
 %{_usr}/lib/*
 %config(noreplace) %{_datadir}/anvil/anvil.sql

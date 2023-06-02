@@ -2,7 +2,7 @@ EXTRA_DIST		= autogen.sh \
 			  .version make/release.mk \
 			  make/git-version-gen make/gitlog-to-changelog \
 			  m4/ax_prog_date.m4 m4/ax_prog_perl_modules.m4 \
-			  anvil.conf $(SPEC).in notes \
+			  anvil.conf $(SPEC).in \
 			  README.md scancore.README watch_logs
 
 AUTOMAKE_OPTIONS	= foreign
