@@ -191,6 +191,14 @@ const insertOrUpdateJob = async ({
   return uuid;
 };
 
+const insertOrUpdateUser: InsertOrUpdateUserFunction = async (params) => {
+  const [uuid]: [string] = await subroutine('insert_or_update_users', {
+    params: [params],
+  });
+
+  return uuid;
+};
+
 const insertOrUpdateVariable: InsertOrUpdateVariableFunction = async (
   params,
 ) => {
@@ -367,6 +375,7 @@ const getUpsSpec = async () => {
 
 export {
   insertOrUpdateJob as job,
+  insertOrUpdateUser,
   insertOrUpdateVariable as variable,
   anvilSyncShared,
   refreshTimestamp as timestamp,
