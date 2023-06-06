@@ -199,8 +199,9 @@ sub check_resources
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0010"});
 				$anvil->Cluster->recover_server({
-					debug  => 2,
-					server => $server,
+					debug   => 2,
+					server  => $server,
+					running => $server_found,
 				});
 				
 				# It'll leave 'failed state' for a bit, so we need to wait.

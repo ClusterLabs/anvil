@@ -3463,6 +3463,8 @@ server_uuid=".$anvil->data->{new_server}{uuid};
 		$target_host_uuid = $node1_host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
 	}
+	my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => $target_host_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		debug           => 2, 
 		job_command     => $anvil->data->{path}{exe}{'anvil-provision-server'}.$anvil->Log->switches, 
