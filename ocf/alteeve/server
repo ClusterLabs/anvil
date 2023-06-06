@@ -101,6 +101,8 @@ $| = 1;
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
 
+$anvil->Log->level({set => 2});
+
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
 $anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; 
@@ -612,8 +614,21 @@ sub start_server
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
 	if ($success)
 	{
+		# Make sure server constraints favour us.
+		my $local_name  = $anvil->data->{cib}{parsed}{'local'}{name};
+		my $peer_name   = $anvil->data->{cib}{parsed}{peer}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			local_name  => $local_name, 
+			peer_name   => $peer_name, 
+		}});
+		$anvil->Cluster->_set_server_constraint({
+			debug          => 2,
+			server         => $server,
+			preferred_node => $local_name,
+		});
+		
 		# Success!
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0309", variables => { server => $server }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0309", variables => { server => $server }});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	else
@@ -1021,11 +1036,19 @@ sub find_server
 	foreach my $ip_address (sort {$a cmp $b} keys %{$anvil->data->{drbd}{config}{$host}{ip_addresses}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_address => $ip_address }});
-		$anvil->Server->find({
-			debug       => 3, 
-			target      => $ip_address,
-			remote_user => "root", 
-		});
+		
+		# Can we access this IP?
+		my $access = $anvil->Remote->test_access({target => $ip_address});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+		
+		if ($access)
+		{
+			$anvil->Server->find({
+				debug       => 3, 
+				target      => $ip_address,
+				remote_user => "root", 
+			});
+		}
 	}
 	
 	foreach my $this_server (sort {$a cmp $b} keys %{$anvil->data->{server}{location}})
