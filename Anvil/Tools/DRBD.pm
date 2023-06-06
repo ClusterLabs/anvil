@@ -2180,7 +2180,8 @@ sub get_status
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
 	my $host       = $anvil->Get->short_host_name();
-	if ($anvil->Network->is_local({host => $target}))
+	my $is_local   = $anvil->Network->is_local({host => $target});
+	if ($is_local)
 	{
 		# Local.
 		($output, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->System->call({shell_call => $shell_call});
@@ -2214,9 +2215,48 @@ sub get_status
 		delete $anvil->data->{drbd}{status}{$host};
 	}
 	
+	if ($output =~ /modprobe: FATAL: Module drbd not found/i)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+		if ($is_local)
+		{
+			# Try rebuilding the module.
+			my $problem = $anvil->DRBD->_initialize_kmod({debug => 2});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			
+			if ($problem)
+			{
+				# Try again.
+				($output, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output                               => $output,
+					"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{$host}{return_code},
+				}});
+				if ($output =~ /modprobe: FATAL: Module drbd not found/i)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0415", variables => { 
+						output      => $output,
+						return_code => $anvil->data->{drbd}{status}{$host}{return_code},
+					}});
+					return(1);
+				}
+			}
+		}
+	}
+	
 	# Parse the output.
+	local $@;
 	my $json        = JSON->new->allow_nonref;
-	my $drbd_status = $json->decode($output);
+	my $drbd_status = eval { $json->decode($output); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0416", variables => { 
+			json  => $drbd_status,
+			error => $@,
+		}});
+		return(1);
+	}
+	
 	foreach my $hash_ref (@{$drbd_status})
 	{
 		my $resource = $hash_ref->{name};

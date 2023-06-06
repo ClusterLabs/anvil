@@ -588,6 +588,18 @@ The definition data passed in was:
 		<key name="error_0412"><![CDATA[The server: [#!variable!server!#] is on the Anvil! node: [#!variable!on_anvil!#], and this is: [#!variable!this_anvil!#]. Exiting.]]></key>
 		<key name="error_0413"><![CDATA[You need to specify the server with '--server <name or uuid>'. Available servers are;]]></key>
 		<key name="error_0414"><![CDATA[The target host: [#!variable!target!#] was not found in the database.]]></key>
+		<key name="error_0415"><![CDATA[Failed to call the JSON formatted drbdsetup status. The output was: [#!variable!output!#] which exited with the return code: [#!variable!return_code!#].]]></key>
+		<key name="error_0416">[ Warning ] - Failed to parse the DRBD setup status JSON. The JSON read was:
+========
+#!variable!json!#
+========
+
+The error was:
+
+========
+#!variable!error!#
+========
+		</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->

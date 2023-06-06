@@ -194,7 +194,8 @@ sub check_resources
 				# The server was found to be running, but not here (or this node is not fully in the cluster). NOT attempting recovery yet.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0009"});
 			}
-			elsif ($attempt_recovery)
+			
+			if ($attempt_recovery)
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0010"});
 				$anvil->Cluster->recover_server({
