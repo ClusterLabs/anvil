@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_PEACEFUL_STRING, REP_UUID } from '../../consts';
+import { DELETED, REP_PEACEFUL_STRING, REP_UUID } from '../../consts';
 
 import { insertOrUpdateUser, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
@@ -33,7 +33,9 @@ export const createUser: RequestHandler<
     );
 
     const [[userCount]]: [[number]] = await query(
-      `SELECT COUNT(user_uuid) FROM users WHERE user_name = '${userName}';`,
+      `SELECT COUNT(user_uuid)
+        FROM users
+        WHERE user_algorithm != '${DELETED}' AND user_name = '${userName}';`,
     );
 
     assert(userCount === 0, `User name [${userName}] already used`);
