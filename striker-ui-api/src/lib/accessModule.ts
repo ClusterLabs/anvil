@@ -246,6 +246,15 @@ const refreshTimestamp = () => {
   return result;
 };
 
+const encrypt: EncryptFunction = async (params) => {
+  const [result]: [Encrypted] = await subroutine('encrypt_password', {
+    params: [params],
+    pre: ['Account'],
+  });
+
+  return result;
+};
+
 const getData = async <T>(...keys: string[]) => {
   const chain = `data->${keys.join('->')}`;
 
@@ -379,6 +388,7 @@ export {
   insertOrUpdateVariable as variable,
   anvilSyncShared,
   refreshTimestamp as timestamp,
+  encrypt,
   getData,
   getAnvilData,
   getFenceSpec,

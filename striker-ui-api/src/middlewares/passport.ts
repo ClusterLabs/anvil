@@ -3,7 +3,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 
 import { DELETED } from '../lib/consts';
 
-import { query, sub } from '../lib/accessModule';
+import { encrypt, query } from '../lib/accessModule';
 import { sanitize } from '../lib/sanitize';
 import { stdout } from '../lib/shell';
 
@@ -47,24 +47,14 @@ passport.use(
       0: [userUuid, , userPasswordHash, userSalt, userAlgorithm, userHashCount],
     } = rows;
 
-    let encryptResult: {
-      user_password_hash: string;
-      user_salt: string;
-      user_hash_count: number;
-      user_algorithm: string;
-    };
+    let encryptResult: Encrypted;
 
     try {
-      [encryptResult] = await sub('encrypt_password', {
-        params: [
-          {
-            algorithm: userAlgorithm,
-            hash_count: userHashCount,
-            password,
-            salt: userSalt,
-          },
-        ],
-        pre: ['Account'],
+      encryptResult = await encrypt({
+        algorithm: userAlgorithm,
+        hash_count: userHashCount,
+        password,
+        salt: userSalt,
       });
     } catch (subError) {
       return done(subError);
