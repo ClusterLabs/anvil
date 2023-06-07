@@ -153,7 +153,7 @@ const subroutine = async <T extends unknown[]>(
       result = String(p);
     }
 
-    return `'${result}'`;
+    return `"${result.replaceAll('"', '\\"')}"`;
   });
 
   const { sub_results: results } = await access.interact<{ sub_results: T }>(
