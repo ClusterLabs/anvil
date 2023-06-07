@@ -1019,6 +1019,10 @@ resource #!variable!server!# {
 		<key name="header_0104">Host UUID</key>
 		<key name="header_0105">Machines</key>
 		<key name="header_0106">MN link #!variable!number!#</key>
+		<key name="header_0107">Charge %</key>
+		<key name="header_0108">On Battery</key>
+		<key name="header_0109">Estimated Runtime</key>
+		<key name="header_0110">Last Updated</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -2384,6 +2388,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0735">The DR host: [#!variable!host!#] as been _unlinked_ to the Anvil! node: [#!variable!anvil!#].</key>
 		<key name="log_0736">The DR host: [#!variable!host!#] was not linked to the Anvil! node: [#!variable!anvil!#], nothing to do.</key>
 		<key name="log_0737">The job: [#!variable!command!#] (with job UUID: [#!variable!job_uuid!#]) is being skipped for now, already started a job (started job_uuid: [#!variable!started_job!#]) with this command on this loop.</key>
+		<key name="log_0738">There are no databases available at this time.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
