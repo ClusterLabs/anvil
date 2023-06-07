@@ -31,8 +31,9 @@ passport.use(
           user_algorithm,
           user_hash_count
         FROM users
-        WHERE user_algorithm != 'DELETED'
+        WHERE user_algorithm != '${DELETED}'
           AND user_name = '${username}'
+        ORDER BY modified_date DESC
         LIMIT 1;`,
       );
     } catch (queryError) {
