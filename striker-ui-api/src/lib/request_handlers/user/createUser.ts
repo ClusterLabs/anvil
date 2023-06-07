@@ -12,7 +12,12 @@ export const createUser: RequestHandler<
   CreateUserResponseBody,
   CreateUserRequestBody
 > = async (request, response) => {
-  const { body: { password: rPassword, userName: rUserName } = {} } = request;
+  const {
+    body: { password: rPassword, userName: rUserName } = {},
+    user: { name: sessionUserName } = {},
+  } = request;
+
+  if (sessionUserName !== 'admin') return response.status(401).send();
 
   const password = sanitize(rPassword, 'string', {
     fallback: openssl('rand', '-base64', '12').trim().replaceAll('/', '!'),

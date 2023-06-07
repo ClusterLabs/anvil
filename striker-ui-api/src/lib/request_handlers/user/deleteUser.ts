@@ -16,7 +16,10 @@ export const deleteUser: RequestHandler<
   const {
     body: { uuids: rawUserUuidList } = {},
     params: { userUuid },
+    user: { name: sessionUserName } = {},
   } = request;
+
+  if (sessionUserName !== 'admin') return response.status(401).send();
 
   const userUuidList = sanitize(rawUserUuidList, 'string[]');
 

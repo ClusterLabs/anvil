@@ -15,7 +15,11 @@ export const updateUser: RequestHandler<
   const {
     body: { password: rPassword, userName: rUserName } = {},
     params: { userUuid },
+    user: { name: sessionUserName, uuid: sessionUserUuid } = {},
   } = request;
+
+  if (sessionUserName !== 'admin' && userUuid !== sessionUserUuid)
+    return response.status(401).send();
 
   const password = sanitize(rPassword, 'string');
   const userName = sanitize(rUserName, 'string', { modifierType: 'sql' });
