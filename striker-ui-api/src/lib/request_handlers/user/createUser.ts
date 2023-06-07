@@ -15,7 +15,7 @@ export const createUser: RequestHandler<
   const { body: { password: rPassword, userName: rUserName } = {} } = request;
 
   const password = sanitize(rPassword, 'string', {
-    fallback: openssl('rand', '-base64', '12').trim(),
+    fallback: openssl('rand', '-base64', '12').trim().replaceAll('/', '!'),
   });
   const userName = sanitize(rUserName, 'string', { modifierType: 'sql' });
 
