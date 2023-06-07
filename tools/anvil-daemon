@@ -554,9 +554,7 @@ sub handle_periodic_tasks
 		# Check if anything is needed to be done in /mnt/shared.
 		check_incoming($anvil);
 
-		# Get a screenshot from every server (cluster resource)
-		# running on localhost and punt them to all strikers.
-		get_server_screenshot($anvil);
+		do_non_striker_tasks($anvil);
 
 		# Check for stale db_in_use states.
 		check_db_in_use_states($anvil);
@@ -1830,11 +1828,11 @@ sub get_server_screenshot
 	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
 	my $count   = @{$results};
 
-	my $striker_uuid_csv;
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query, count => $count } });
 
 	return (1) if ($count == 0);
 
-	$striker_uuid_csv = $results->[0]->[0];
+	my $striker_uuid_csv = $results->[0]->[0];
 
 	foreach my $row ( @{$results}[1 .. $#{$results}] )
 	{
@@ -1843,16 +1841,20 @@ sub get_server_screenshot
 		$striker_uuid_csv = "$striker_uuid_csv,$host_uuid";
 	}
 
-	my ($rcode) = $anvil->Server->find();
-
-	return (1) if ($rcode != 0);
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { striker_uuid_csv => $striker_uuid_csv } });
 
 	my $server_list_on_local = $anvil->data->{server}{location};
 	my $server_name_csv      = join(", ", map { $anvil->Database->quote($_) } keys %{$server_list_on_local});
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name_csv => $server_name_csv } });
+
+	return (1) if ( length($server_name_csv) == 0 );
+
 	$query   = "SELECT server_uuid FROM servers WHERE server_name IN (".$server_name_csv.") ORDER BY server_name;";
 	$results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
 	$count   = @{$results};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query, count => $count } });
 
 	return (1) if ($count == 0);
 
@@ -1871,6 +1873,31 @@ sub get_server_screenshot
 			syscall_output => $syscall_output,
 			syscall_rcode  => $syscall_rcode,
 		}});
+	}
+
+	return (0);
+}
+
+sub do_non_striker_tasks
+{
+	my $anvil      = shift;
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} // 3;
+
+	my $host_type = $anvil->data->{sys}{host_type};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type } });
+
+	return (1) if ($host_type eq "striker");
+
+	# Get the servers running on this host (except striker).
+	my ($rcode) = $anvil->Server->find();
+
+	if ($rcode == 0)
+	{
+		# Get a screenshot from every server (cluster resource)
+		# running on localhost and punt them to all strikers.
+		get_server_screenshot($anvil, { debug => $debug });
 	}
 
 	return (0);
