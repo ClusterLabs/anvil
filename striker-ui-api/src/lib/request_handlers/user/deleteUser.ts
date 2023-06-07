@@ -9,7 +9,7 @@ import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar } from '../../shell';
 
 export const deleteUser: RequestHandler<
-  DeleteUserParamsDictionary,
+  UserParamsDictionary,
   undefined,
   DeleteUserRequestBody
 > = async (request, response) => {
@@ -45,7 +45,10 @@ export const deleteUser: RequestHandler<
     const wcode = await write(
       `UPDATE users
         SET user_algorithm = '${DELETED}'
-        WHERE user_uuid IN (${join(ulist)});`,
+        WHERE user_uuid IN (${join(ulist, {
+          elementWrapper: "'",
+          separator: ',',
+        })});`,
     );
 
     assert(wcode === 0, `Write exited with code ${wcode}`);
