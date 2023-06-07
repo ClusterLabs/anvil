@@ -112,7 +112,7 @@ export const updateUser: RequestHandler<
     }
   }
 
-  if (userName.length && userName !== xUserName) {
+  if (userName.length && xUserName !== 'admin' && userName !== xUserName) {
     assigns.push(`user_name = '${userName}'`);
   }
 
