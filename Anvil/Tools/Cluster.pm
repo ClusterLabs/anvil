@@ -185,23 +185,47 @@ sub add_server
 		password        => $anvil->Log->is_secure($password),
 	}});
 	
-	# Verify that the server is here or on the peer. We need to add the command to t
-	$anvil->Server->find({
-		debug  => $debug,
-		server => $server_name, 
-	});
-	$anvil->Server->find({
-		debug    => $debug,
-		refresh  => 0, 
-		password => $password,
-		target   => $peer_target_ip, 
-		server   => $server_name, 
-	});
+	# Verify that the server is here or on the peer. Given they could be called at the same time that the
+	# server is being provisioned, we'll wait up to 15 seconds for it to appear.
+	my $waiting    = 1;
+	my $wait_until = time + 15;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_until => $wait_until }});
+	while ($waiting)
+	{
+		$anvil->Server->find({
+			debug  => $debug,
+			server => $server_name, 
+		});
+		$anvil->Server->find({
+			debug    => $debug,
+			refresh  => 0, 
+			password => $password,
+			target   => $peer_target_ip, 
+			server   => $server_name, 
+		});
+		
+		if (exists $anvil->data->{server}{location}{$server_name}{status})
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				waiting                                       => $waiting,
+				"server::location::${server_name}::status"    => $anvil->data->{server}{location}{$server_name}{status},
+				"server::location::${server_name}::host_name" => $anvil->data->{server}{location}{$server_name}{host_name},
+			}});
+		}
+		
+		if (($waiting) && (time > $wait_until))
+		{
+			# Stop waiting.
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+		}
+	}
 	
 	# The host here is the full host name.
 	my $host_name    = $anvil->Get->host_name();
-	my $server_state = $anvil->data->{server}{location}{$server_name}{status};
-	my $server_host  = $anvil->data->{server}{location}{$server_name}{host_name};
+	my $server_state = defined $anvil->data->{server}{location}{$server_name}{status}    ? $anvil->data->{server}{location}{$server_name}{status}    : "";
+	my $server_host  = defined $anvil->data->{server}{location}{$server_name}{host_name} ? $anvil->data->{server}{location}{$server_name}{host_name} : "";
 	my $target_role  = $server_state eq "running" ? "started" : "stopped";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name    => $host_name, 
@@ -4278,9 +4302,13 @@ This tries to recover a C<< FAILED >> resource (server).
 
 Parameters;
 
-=head3 server_ (required)
+=head3 server (required)
 
 This is the server (resource) name to try to recover.
+
+=head3 running (required)
+
+This indicates if the server should be recovered into the running state when set to C<< 1 >>, or stopped state when set to C<< 0 >>.
 
 =cut
 sub recover_server
@@ -4291,9 +4319,11 @@ sub recover_server
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->recover_server()" }});
 	
-	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	my $running = defined $parameter->{running} ? $parameter->{running} : "";
+	my $server  = defined $parameter->{server}  ? $parameter->{server}  : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		server => $server,
+		running => $running,
+		server  => $server,
 	}});
 	
 	if (not $server)
@@ -4301,11 +4331,28 @@ sub recover_server
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->recover_server()", parameter => "server" }});
 		return("!!error!!");
 	}
+	if ($running eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->recover_server()", parameter => "running" }});
+		return("!!error!!");
+	}
 	
-	my $shell_call = $anvil->data->{path}{exe}{crm_resource}." --resource ".$server." --refresh";
+	# Set the desired state post recovery.
+	my $wanted_state = $running ? "enable" : "disable";
+	my $shell_call   = $anvil->data->{path}{exe}{pcs}." resource ".$wanted_state." ".$server;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
 	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Now tell it to refresh
+	$shell_call = $anvil->data->{path}{exe}{crm_resource}." --resource ".$server." --refresh";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 

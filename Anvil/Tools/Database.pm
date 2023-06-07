@@ -6450,6 +6450,7 @@ SELECT
     power_on_battery, 
     power_seconds_left, 
     power_charge_percentage, 
+    modified_date, 
     round(extract(epoch from modified_date)) 
 FROM 
     power 
@@ -6468,13 +6469,15 @@ FROM
 		my $power_on_battery        = $row->[2];
 		my $power_seconds_left      = $row->[3]; 
 		my $power_charge_percentage = $row->[4];
-		my $modified_date_unix      = $row->[5];
+		my $modified_date           = $row->[5];
+		my $modified_date_unix      = $row->[6];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			power_uuid              => $power_uuid, 
 			power_ups_uuid          => $power_ups_uuid, 
 			power_on_battery        => $power_on_battery, 
 			power_seconds_left      => $power_seconds_left, 
 			power_charge_percentage => $power_charge_percentage, 
+			modified_date           => $modified_date, 
 			modified_date_unix      => $modified_date_unix, 
 		}});
 		
@@ -6483,12 +6486,14 @@ FROM
 		$anvil->data->{power}{power_uuid}{$power_uuid}{power_on_battery}        = $power_on_battery;
 		$anvil->data->{power}{power_uuid}{$power_uuid}{power_seconds_left}      = $power_seconds_left;
 		$anvil->data->{power}{power_uuid}{$power_uuid}{power_charge_percentage} = $power_charge_percentage;
+		$anvil->data->{power}{power_uuid}{$power_uuid}{modified_date}           = $modified_date;
 		$anvil->data->{power}{power_uuid}{$power_uuid}{modified_date_unix}      = $modified_date_unix;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"power::power_uuid::${power_uuid}::power_ups_uuid"          => $anvil->data->{power}{power_uuid}{$power_uuid}{power_ups_uuid}, 
 			"power::power_uuid::${power_uuid}::power_on_battery"        => $anvil->data->{power}{power_uuid}{$power_uuid}{power_on_battery}, 
 			"power::power_uuid::${power_uuid}::power_seconds_left"      => $anvil->data->{power}{power_uuid}{$power_uuid}{power_seconds_left}, 
 			"power::power_uuid::${power_uuid}::power_charge_percentage" => $anvil->data->{power}{power_uuid}{$power_uuid}{power_charge_percentage}, 
+			"power::power_uuid::${power_uuid}::modified_date"           => $anvil->data->{power}{power_uuid}{$power_uuid}{modified_date}, 
 			"power::power_uuid::${power_uuid}::modified_date_unix"      => $anvil->data->{power}{power_uuid}{$power_uuid}{modified_date_unix}, 
 		}});
 		
@@ -6496,12 +6501,14 @@ FROM
 		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_on_battery}        = $power_on_battery;
 		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_seconds_left}      = $power_seconds_left;
 		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_charge_percentage} = $power_charge_percentage;
+		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{modified_date}           = $modified_date;
 		$anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{modified_date_unix}      = $modified_date_unix;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"power::power_ups_uuid::${power_ups_uuid}::power_uuid"              => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_uuid}, 
 			"power::power_ups_uuid::${power_ups_uuid}::power_on_battery"        => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_on_battery}, 
 			"power::power_ups_uuid::${power_ups_uuid}::power_seconds_left"      => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_seconds_left}, 
 			"power::power_ups_uuid::${power_ups_uuid}::power_charge_percentage" => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{power_charge_percentage}, 
+			"power::power_ups_uuid::${power_ups_uuid}::modified_date"           => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{modified_date}, 
 			"power::power_ups_uuid::${power_ups_uuid}::modified_date_unix"      => $anvil->data->{power}{power_ups_uuid}{$power_ups_uuid}{modified_date_unix}, 
 		}});
 	}
@@ -6568,7 +6575,8 @@ SELECT
     ups_name, 
     ups_agent, 
     ups_ip_address, 
-    modified_date 
+    modified_date, 
+    round(extract(epoch from modified_date)) 
 FROM 
     upses ";
 	if (not $include_deleted)
@@ -6588,42 +6596,48 @@ WHERE
 	}});
 	foreach my $row (@{$results})
 	{
-		my $ups_uuid       = $row->[0];
-		my $ups_name       = $row->[1];
-		my $ups_agent      = $row->[2];
-		my $ups_ip_address = $row->[3]; 
-		my $modified_date  = $row->[4];
+		my $ups_uuid           = $row->[0];
+		my $ups_name           = $row->[1];
+		my $ups_agent          = $row->[2];
+		my $ups_ip_address     = $row->[3]; 
+		my $modified_date      = $row->[4];
+		my $modified_date_unix = $row->[5];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			ups_uuid       => $ups_uuid, 
-			ups_name       => $ups_name, 
-			ups_agent      => $ups_agent, 
-			ups_ip_address => $ups_ip_address, 
-			modified_date  => $modified_date, 
+			ups_uuid           => $ups_uuid, 
+			ups_name           => $ups_name, 
+			ups_agent          => $ups_agent, 
+			ups_ip_address     => $ups_ip_address, 
+			modified_date      => $modified_date, 
+			modified_date_unix => $modified_date_unix, 
 		}});
 		
 		# Record the data in the hash, too.
-		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}       = $ups_name;
-		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}      = $ups_agent;
-		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address} = $ups_ip_address;
-		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}  = $modified_date;
-		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{power_uuid}     = "";
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}           = $ups_name;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}          = $ups_agent;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address}     = $ups_ip_address;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}      = $modified_date;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date_unix} = $modified_date_unix;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{power_uuid}         = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"upses::ups_uuid::${ups_uuid}::ups_name"       => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}, 
-			"upses::ups_uuid::${ups_uuid}::ups_agent"      => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}, 
-			"upses::ups_uuid::${ups_uuid}::ups_ip_address" => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address}, 
-			"upses::ups_uuid::${ups_uuid}::modified_date"  => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}, 
+			"upses::ups_uuid::${ups_uuid}::ups_name"           => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}, 
+			"upses::ups_uuid::${ups_uuid}::ups_agent"          => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}, 
+			"upses::ups_uuid::${ups_uuid}::ups_ip_address"     => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address}, 
+			"upses::ups_uuid::${ups_uuid}::modified_date"      => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}, 
+			"upses::ups_uuid::${ups_uuid}::modified_date_unix" => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date_unix}, 
 		}});
 		
-		$anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}       = $ups_uuid;
-		$anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}      = $ups_agent;
-		$anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address} = $ups_ip_address;
-		$anvil->data->{upses}{ups_name}{$ups_name}{modified_date}  = $modified_date;
-		$anvil->data->{upses}{ups_name}{$ups_name}{power_uuid}     = "";
+		$anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}           = $ups_uuid;
+		$anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}          = $ups_agent;
+		$anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address}     = $ups_ip_address;
+		$anvil->data->{upses}{ups_name}{$ups_name}{modified_date}      = $modified_date;
+		$anvil->data->{upses}{ups_name}{$ups_name}{modified_date_unix} = $modified_date;
+		$anvil->data->{upses}{ups_name}{$ups_name}{power_uuid}         = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"upses::ups_name::${ups_name}::ups_uuid"       => $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}, 
-			"upses::ups_name::${ups_name}::ups_agent"      => $anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}, 
-			"upses::ups_name::${ups_name}::ups_ip_address" => $anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address}, 
-			"upses::ups_name::${ups_name}::modified_date"  => $anvil->data->{upses}{ups_name}{$ups_name}{modified_date}, 
+			"upses::ups_name::${ups_name}::ups_uuid"           => $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}, 
+			"upses::ups_name::${ups_name}::ups_agent"          => $anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}, 
+			"upses::ups_name::${ups_name}::ups_ip_address"     => $anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address}, 
+			"upses::ups_name::${ups_name}::modified_date"      => $anvil->data->{upses}{ups_name}{$ups_name}{modified_date}, 
+			"upses::ups_name::${ups_name}::modified_date_unix" => $anvil->data->{upses}{ups_name}{$ups_name}{modified_date_unix}, 
 		}});
 		
 		# Collect power information from 'power'.

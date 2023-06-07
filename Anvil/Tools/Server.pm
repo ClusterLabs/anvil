@@ -416,6 +416,7 @@ sub find
 	# Clear any old data
 	if ((exists $anvil->data->{server}{location}) && ($refresh))
 	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0700", variables => { hash => "server::location" }});
 		delete $anvil->data->{server}{location};
 	}
 	

@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! server removal tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-delete-server "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-delete-server "8" "June 06 2023" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-delete-server \- This program deletes a server from an Anvil! sub-cluster.
 .SH SYNOPSIS
 .B anvil-delete-server 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This deletes a server, running or stopped, from an Anvil! subcluster. The resource allocated to this server are removed and returned to the resource pool as well.
+This deletes a server, running or stopped, from an Anvil! sub-cluster. The resource allocated to this server are removed and returned to the resource pool as well.
 .TP
 This action is permanent!
 .TP
@@ -23,9 +23,17 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
-\fB\-\-job-uuid\fR <name>
+\fB\-\-job-uuid\fR <UUID>
 The program is normally run as a job, with data on how to configure the host defined in the job. This switch allows the running of a specific job. If this is not set, the program will search for a job that has not yet been picked up by another process. If found, that job UUID is used automatically.
 .IP
+.SS "Commands:"
+.TP
+\fB\-\-force\fR
+When used with \fB\-\-server\fR, no confirmation prompt will be shown. Use this with caution!
+.TP
+\fB\-\-server\fR <name or UUID>
+This is the server to be deleted. It can either be the name or UUID. If not provided, a list of servers on the Anvil! node this command is run from will be shown where you can select the one to delete.
+.TP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
 .SH "REPORTING BUGS"
