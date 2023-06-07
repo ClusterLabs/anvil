@@ -2,13 +2,22 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
 export const getUser = buildGetRequestHandler((request, buildQueryOptions) => {
-  const { user: { uuid: sessionUserUuid } = {} } = request;
+  const { user: { name: sessionUserName, uuid: sessionUserUuid } = {} } =
+    request;
+
+  let condLimitRegular = '';
+
+  if (sessionUserName !== 'admin') {
+    condLimitRegular = `WHERE user_uuid = '${sessionUserUuid}'`;
+  }
 
   const query = `
     SELECT
       a.user_name,
       a.user_uuid
-    FROM users AS a;`;
+    FROM users AS a
+    ${condLimitRegular};`;
+
   const afterQueryReturn: QueryResultModifierFunction | undefined =
     buildQueryResultReducer<
       Record<string, { userName: string; userUUID: string }>
