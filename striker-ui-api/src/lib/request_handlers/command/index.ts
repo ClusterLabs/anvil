@@ -4,6 +4,7 @@ export * from './leaveAn';
 export * from './poweroffStriker';
 export * from './rebootStriker';
 export * from './runManifest';
+export * from './setMapNetwork';
 export * from './startAn';
 export * from './startSubnode';
 export * from './stopAn';

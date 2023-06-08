@@ -7,6 +7,7 @@ import {
   poweroffStriker,
   rebootStriker,
   runManifest,
+  setMapNetwork,
   startAn,
   startSubnode,
   stopAn,
@@ -23,6 +24,7 @@ router
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
   .put('/run-manifest/:manifestUuid', runManifest)
+  .put('/set-map-network/:uuid', setMapNetwork)
   .put('/start-an/:uuid', startAn)
   .put('/start-subnode/:uuid', startSubnode)
   .put('/stop-an/:uuid', stopAn)
