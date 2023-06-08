@@ -355,7 +355,7 @@ sub is_remote_host_name
 {
 	my $host_name = shift;
 
-	return ((defined $host_name) and ($host_name ne $anvil->Get->host_name())) ? 1 : 0;
+	return ((defined $host_name) and ($host_name ne $anvil->data->{sys}{host_name})) ? 1 : 0;
 }
 
 sub start_websockify
@@ -1013,22 +1013,27 @@ if ($anvil->data->{switches}{'job-uuid'})
 $anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 
+my $is_drop_table = $anvil->data->{switches}{'drop-table'};
+my $is_open       = $anvil->data->{switches}{'open'};
+my $is_ws_only    = $anvil->data->{switches}{'ws-only'};
+my $server_uuid   = $anvil->data->{switches}{'server-uuid'};
+
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-	server_uuid   => $anvil->data->{switches}{'server-uuid'},
-	is_open       => $anvil->data->{switches}{'open'},
-	is_drop_table => $anvil->data->{switches}{'drop-table'}
+	server_uuid   => $server_uuid,
+	is_open       => $is_open,
+	is_drop_table => $is_drop_table
 } });
 
-if ($anvil->data->{switches}{'server-uuid'})
+if ($server_uuid)
 {
 	create_vnc_pipes_table();
 
 	my $vnc_pipe_parameters = {
-		server_uuid => $anvil->data->{switches}{'server-uuid'},
-		host_uuid => $anvil->Get->host_uuid()
+		server_uuid => $server_uuid,
+		host_uuid   => $anvil->data->{sys}{host_uuid}
 	};
 
-	if ($anvil->data->{switches}{'open'})
+	if ($is_open)
 	{
 		my $vnc_pipe_info = open_vnc_pipe($vnc_pipe_parameters);
 
@@ -1042,7 +1047,7 @@ if ($anvil->data->{switches}{'server-uuid'})
 		close_vnc_pipe($vnc_pipe_parameters);
 	}
 }
-elsif ($anvil->data->{switches}{'drop-table'})
+elsif ($is_drop_table)
 {
 	drop_vnc_pipes_table();
 
