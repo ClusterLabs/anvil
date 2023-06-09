@@ -99,7 +99,7 @@ check_config($anvil);
 # Check the fence delay
 check_fence_delay($anvil);
 
-# Check for failed resources
+# Check for failed resources or resources that need updates
 check_resources($anvil);
 
 # Shut down.
@@ -114,7 +114,10 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 sub check_resources
 {
 	my ($anvil) = @_;
-
+	
+	my ($problem) = $anvil->Cluster->parse_cib({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
 	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}})
 	{
 		# This is used for alerts, if needed below.
@@ -268,6 +271,45 @@ sub check_resources
 				# Send the All-good alert.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_alert_0015", variables => $variables});
 				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0015", variables => $variables, set_by => $THIS_FILE});
+			}
+			
+			# Check to see if server's parameters need updating
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server => $server }});
+			my $update = 0;
+			foreach my $op (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server}{operations}{op}})
+			{
+				my $name = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server}{operations}{op}{$op}{name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name }});
+				if (($name eq "migrate_to") or ($name eq "migrate_from"))
+				{
+					my $on_fail = exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server}{operations}{op}{$op}{'on-fail'} ? $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server}{operations}{op}{$op}{'on-fail'} : "";
+					my $timeout = exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server}{operations}{op}{$op}{timeout}   ? $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server}{operations}{op}{$op}{timeout}   : 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						on_fail => $on_fail, 
+						timeout => $timeout,
+					}});
+					if (($on_fail ne "block") or ($timeout != 600))
+					{
+						$update = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+					}
+				}
+			}
+				
+			if ($update)
+			{
+				
+				my $resource_command = $anvil->data->{path}{exe}{pcs}." resource update ".$server." ocf:alteeve:server name=\"".$server."\" meta allow-migrate=\"true\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\" migrate_from timeout=\"600\" on-fail=\"block\"";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0739", variables => { 
+					server  => $server,
+					command => $resource_command, 
+				}});
+
+				my ($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
 			}
 		}
 	}
