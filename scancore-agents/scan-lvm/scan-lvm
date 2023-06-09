@@ -1000,15 +1000,41 @@ WHERE
 	{
 		# We've got an entry in the 'scan_lvm_pv' table, so now we'll look for data in the node and 
 		# services tables.
-		my $scan_lvm_pv_internal_uuid                                                                                        = $row->[1]; 
-		my $scan_lvm_pv_name                                                                                                 = $row->[2];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid}        = $row->[0];; 
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name}        = $scan_lvm_pv_name; 
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg}  = $row->[3]; 
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes}  = $row->[4];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}        = $row->[5];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}        = $row->[6];
-		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_sector_size} = $row->[7];
+		my $scan_lvm_pv_uuid          = $row->[0];
+		my $scan_lvm_pv_internal_uuid = $row->[1]; 
+		my $scan_lvm_pv_name          = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_lvm_pv_uuid          => $scan_lvm_pv_uuid, 
+			scan_lvm_pv_internal_uuid => $scan_lvm_pv_internal_uuid, 
+			scan_lvm_pv_name          => $scan_lvm_pv_name, 
+		}});
+		
+		# If there's an existing entry, delete this one, it's somehow a duplicate.
+		if (exists $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid})
+		{
+			# Duplicate!
+			my $variables = {
+				pv_name       => $scan_lvm_pv_name, 
+				pv_uuid       => $scan_lvm_pv_uuid, 
+				internal_uuid => $scan_lvm_pv_internal_uuid,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0033", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0033", variables => $variables, set_by => $THIS_FILE});
+			
+			my $query = "DELETE FROM scan_lvm_pvs WHERE scan_lvm_pv_uuid = ".$anvil->Database->quote($scan_lvm_pv_uuid).";\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			next;
+		}
+		
+		# Save
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid}        = $scan_lvm_pv_uuid; 
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name}        = $scan_lvm_pv_name; 
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_used_by_vg}  = $row->[3]; 
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_attributes}  = $row->[4];
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_size}        = $row->[5];
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_free}        = $row->[6];
+		$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_sector_size} = $row->[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_uuid"        => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_uuid},
 			"sql::scan_lvm_pvs::scan_lvm_pv_internal_uuid::${scan_lvm_pv_internal_uuid}::scan_lvm_pv_name"        => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_internal_uuid}{$scan_lvm_pv_internal_uuid}{scan_lvm_pv_name},
@@ -1049,14 +1075,40 @@ WHERE
 	{
 		# We've got an entry in the 'scan_lvm_vg' table, so now we'll look for data in the node and 
 		# services tables.
-		my $scan_lvm_vg_internal_uuid                                                                                        = $row->[1]; 
-		my $scan_lvm_vg_name                                                                                                 = $row->[2];
-		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid}        = $row->[0]; 
-		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name}        = $scan_lvm_vg_name; 
-		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_attributes}  = $row->[3]; 
-		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_extent_size} = $row->[4];
-		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size}        = $row->[5];
-		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free}        = $row->[6];
+		my $scan_lvm_vg_uuid          = $row->[0];
+		my $scan_lvm_vg_internal_uuid = $row->[1]; 
+		my $scan_lvm_vg_name          = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_lvm_vg_uuid          => $scan_lvm_vg_uuid, 
+			scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
+			scan_lvm_vg_name          => $scan_lvm_vg_name, 
+		}});
+		
+		# If there's an existing entry, delete this one, it's somehow a duplicate.
+		if (exists $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid})
+		{
+			# Duplicate!
+			my $variables = {
+				vg_name       => $scan_lvm_vg_name, 
+				vg_uuid       => $scan_lvm_vg_uuid, 
+				internal_uuid => $scan_lvm_vg_internal_uuid,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0034", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0034", variables => $variables, set_by => $THIS_FILE});
+			
+			my $query = "DELETE FROM scan_lvm_vgs WHERE scan_lvm_vg_uuid = ".$anvil->Database->quote($scan_lvm_vg_uuid).";\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			next;
+		}
+		
+		# Save
+		$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid}        = $scan_lvm_vg_uuid; 
+		$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name}        = $scan_lvm_vg_name; 
+		$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_attributes}  = $row->[3]; 
+		$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_extent_size} = $row->[4];
+		$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size}        = $row->[5];
+		$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free}        = $row->[6];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sql::scan_lvm_vgs::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_uuid"        => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid},
 			"sql::scan_lvm_vgs::scan_lvm_vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_name"        => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name},
@@ -1097,15 +1149,70 @@ WHERE
 	{
 		# We've got an entry in the 'scan_lvm_lv' table, so now we'll look for data in the node and 
 		# services tables.
-		my $scan_lvm_lv_internal_uuid                                                                                       = $row->[1]; 
-		my $scan_lvm_lv_name                                                                                                = $row->[2];
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_uuid}       = $row->[0]; 
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_name}       = $scan_lvm_lv_name; 
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_attributes} = $row->[3]; 
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_on_vg}      = $row->[4]; 
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_size}       = $row->[5]; 
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_path}       = $row->[6]; 
-		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_on_pvs}     = $row->[7];
+		my $scan_lvm_lv_uuid          = $row->[0]; 
+		my $scan_lvm_lv_internal_uuid = $row->[1]; 
+		my $scan_lvm_lv_name          = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_lvm_lv_uuid          => $scan_lvm_lv_uuid, 
+			scan_lvm_lv_internal_uuid => $scan_lvm_lv_internal_uuid, 
+			scan_lvm_lv_name          => $scan_lvm_lv_name, 
+		}});
+		
+		# If there's an existing entry, delete this one, it's somehow a duplicate.
+		if (exists $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid})
+		{
+			# Duplicate! Is one of them DELETED?
+			my $existing_name = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_name};
+			my $existing_uuid = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				existing_name => $existing_name, 
+				existing_uuid => $existing_uuid, 
+			}});
+			
+			if ($anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_name} eq "DELETED")
+			{
+				# Delete the one we already read.
+				my $variables = {
+					lv_name       => $existing_name, 
+					lv_uuid       => $existing_uuid, 
+					internal_uuid => $scan_lvm_lv_internal_uuid,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0035", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0034", variables => $variables, set_by => $THIS_FILE});
+				
+				my $query = "DELETE FROM scan_lvm_lvs WHERE scan_lvm_lv_uuid = ".$anvil->Database->quote($existing_uuid).";\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				delete $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid};
+			}
+			else
+			{
+				# Delete the new one
+				my $variables = {
+					lv_name       => $scan_lvm_lv_name, 
+					lv_uuid       => $scan_lvm_lv_uuid, 
+					internal_uuid => $scan_lvm_lv_internal_uuid,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_alert_0035", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_lvm_alert_0034", variables => $variables, set_by => $THIS_FILE});
+				
+				my $query = "DELETE FROM scan_lvm_lvs WHERE scan_lvm_lv_uuid = ".$anvil->Database->quote($scan_lvm_lv_uuid).";\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				next;
+			}
+		}
+		
+		# Save
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_uuid}       = $scan_lvm_lv_uuid; 
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_name}       = $scan_lvm_lv_name; 
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_attributes} = $row->[3]; 
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_on_vg}      = $row->[4]; 
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_size}       = $row->[5]; 
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_path}       = $row->[6]; 
+		$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_on_pvs}     = $row->[7];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sql::scan_lvm_lvs::scan_lvm_lv_internal_uuid::${scan_lvm_lv_internal_uuid}::scan_lvm_lv_uuid"       => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_uuid},
 			"sql::scan_lvm_lvs::scan_lvm_lv_internal_uuid::${scan_lvm_lv_internal_uuid}::scan_lvm_lv_name"       => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_internal_uuid}{$scan_lvm_lv_internal_uuid}{scan_lvm_lv_name},

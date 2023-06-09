@@ -220,6 +220,9 @@ The attribute bits are:
 		<key name="scan_lvm_alert_0030">The volume group: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) has vanished! If this is a removable device, like a USB drive, this is OK. Otherwise, it could be the sign of a disk failure.</key>
 		<key name="scan_lvm_alert_0031">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) has been lost. This is normal if the LV is on a removable medium like a USB disk. Otherwise, it could be the sign of a disk failure.</key>
 		<key name="scan_lvm_alert_0032">The physical volume: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) sector size changed from: [#!variable!old_pv_sector_size!#] (#!variable!old_pv_sector_size_bytes!# bytes) to: [#!variable!new_pv_sector_size!#] (#!variable!new_pv_sector_size_bytes!# bytes). This should not happen, unless the storage behind the PV was somehow rebuilt without recreating the LVM metadata.</key>
+		<key name="scan_lvm_alert_0033">The physical volume with the internal UUID: [#!variable!internal_uuid!#] (name: [#!variable!pv_name!#]) has a duplicate entry! Deleting the one with the scan_lvm_pv_uuid: [#!variable!pv_uuid!#].</key>
+		<key name="scan_lvm_alert_0034">The volume group with the internal UUID: [#!variable!internal_uuid!#] (name: [#!variable!vg_name!#]) has a duplicate entry! Deleting the one with the scan_lvm_vg_uuid: [#!variable!vg_uuid!#].</key>
+		<key name="scan_lvm_alert_0035">The logical volume with the internal UUID: [#!variable!internal_uuid!#] (name: [#!variable!lv_name!#]) has a duplicate entry! Deleting the one with the scan_lvm_lv_uuid: [#!variable!lv_uuid!#].</key>
 
 		<!-- Log entries -->
 		<key name="scan_lvm_log_0001">Starting: [#!variable!program!#].</key>

@@ -298,7 +298,7 @@ sub check_resources
 				
 			if ($update)
 			{
-				
+				# Update the resource config.
 				my $resource_command = $anvil->data->{path}{exe}{pcs}." resource update ".$server." ocf:alteeve:server name=\"".$server."\" meta allow-migrate=\"true\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\" migrate_from timeout=\"600\" on-fail=\"block\"";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0739", variables => { 
 					server  => $server,

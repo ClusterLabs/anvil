@@ -241,16 +241,28 @@ sub add_server
 	### 
 	### TODO: If the target_role is 'started' because the server was running, we may need to later do an 
 	###       update to set it to 'stopped' after we've verified it's in the cluster below.
-	my $resource_command = $anvil->data->{path}{exe}{pcs}." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\" migrate_from timeout=\"600\" on-fail=\"block\"";
+	my $pcs_file             = "/tmp/anvil.add_server.".$server_name.".cib";
+	my $pcs_cib_file_command = $anvil->data->{path}{exe}{pcs}." cluster cib ".$pcs_file;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pcs_cib_file_command => $pcs_cib_file_command }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $pcs_cib_file_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	undef $output;
+	undef $return_code;
+	
+	my $resource_command = $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\" migrate_from timeout=\"600\" on-fail=\"block\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
 
-	my ($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
+	($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
 	
-	my $constraint_command = $anvil->data->{path}{exe}{pcs}." constraint location ".$server_name." prefers ";
+	my $constraint_command = $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." constraint location ".$server_name." prefers ";
 	if (($server_state eq "running") && ($server_host ne $host_name))
 	{
 		# Set the peer as primary.
@@ -270,6 +282,19 @@ sub add_server
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	
+	# Commit 
+	my $commit_command = $anvil->data->{path}{exe}{pcs}." cluster cib-push ".$pcs_file;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commit_command => $commit_command }});
+
+	($output, $return_code) = $anvil->System->call({shell_call => $commit_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Unlink the temp CIB
+	unlink $pcs_file;
 	
 	# Reload the CIB
 	($problem) = $anvil->Cluster->parse_cib({debug => 2});
