@@ -94,26 +94,36 @@ sub get_vnc_info
 {
 	my $parameters  = shift;
 	my $host_name   = $parameters->{host_name};
+	my $port        = $parameters->{port};
 	my $port_base   = $parameters->{port_base} // 5900;
 	my $server_name = $parameters->{server_name};
 	my $server_uuid = $parameters->{server_uuid};
 
-	# Requires root to access VM information.
-	my $shell_call = "virsh vncdisplay ".$server_name;
+	my $port_offset;
 	my $vnc_info;
 
-	my ($shell_output, $shell_error, $shell_return_code) = call({
-		host_name   => $host_name,
-		remote_user => "root",
-		shell_call  => $shell_call
-	});
+	if ( (not defined $port) or (not $port =~ /^\d+$/) )
+	{
+		# Requires root to access VM information.
+		my $shell_call = "virsh vncdisplay ".$server_name;
 
-	return if ($shell_return_code != 0);
+		my ($shell_output, $shell_error, $shell_return_code) = call({
+			host_name   => $host_name,
+			remote_user => "root",
+			shell_call  => $shell_call
+		});
 
-	my ($port_offset) = $shell_output =~ /:(\d+)$/;
+		return if ($shell_return_code != 0);
 
-	$vnc_info         = { host_name => $host_name };
-	$vnc_info->{port} = $port_base + int($port_offset);
+		($port_offset) = $shell_output =~ /:(\d+)$/;
+		$port          = $port_base + int($port_offset);
+	}
+	else
+	{
+		$port = int($port);
+	}
+
+	$vnc_info = { host_name => $host_name, port => $port };
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		port_offset => $port_offset,
@@ -711,8 +721,9 @@ $cond_ws_huuid
 
 sub open_ws
 {
-	my $parameters  = shift;
-	my $server_uuid = $parameters->{server_uuid};
+	my $parameters      = shift;
+	my $server_uuid     = $parameters->{server_uuid};
+	my $server_vnc_port = $parameters->{server_vnc_port};
 
 	my $server_info = $parameters->{server_info} // get_server_info($parameters);
 
@@ -722,6 +733,7 @@ sub open_ws
 
 	my $vnc_info = get_vnc_info({
 		host_name   => $server_info->{host_name},
+		port        => $server_vnc_port,
 		server_name => $server_info->{server_name},
 		server_uuid => $server_uuid
 	});
@@ -862,18 +874,20 @@ sub handle_vnc_pipe_error
 
 sub open_vnc_pipe
 {
-	my $parameters  = shift;
-	my $host_uuid   = $parameters->{host_uuid};
-	my $is_print    = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
-	my $server_uuid = $parameters->{server_uuid};
+	my $parameters      = shift;
+	my $host_uuid       = $parameters->{host_uuid};
+	my $is_print        = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
+	my $server_uuid     = $parameters->{server_uuid};
+	my $server_vnc_port = $parameters->{server_vnc_port};
 
 	my $is_error;
 	my $open_output;
 
 	my $open_params = {
-		host_uuid   => $host_uuid,
-		server_info => get_server_info($parameters),
-		server_uuid => $server_uuid
+		host_uuid       => $host_uuid,
+		server_info     => get_server_info($parameters),
+		server_uuid     => $server_uuid,
+		server_vnc_port => $server_vnc_port
 	};
 
 	($is_error, $open_output) = open_ws($open_params);
@@ -988,18 +1002,20 @@ if ($anvil->data->{switches}{'job-uuid'})
 $anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 
-my $component     = $anvil->data->{switches}{'component'} // "all";
-my $is_drop_table = $anvil->data->{switches}{'drop-table'};
-my $is_open       = $anvil->data->{switches}{'open'};
-my $server        = $anvil->data->{switches}{'server'};
-my $server_uuid   = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
+my $component       = $anvil->data->{switches}{'component'} // "all";
+my $is_drop_table   = $anvil->data->{switches}{'drop-table'};
+my $is_open         = $anvil->data->{switches}{'open'};
+my $server          = $anvil->data->{switches}{'server'};
+my $server_uuid     = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
+my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-	component     => $component,
-	is_open       => $is_open,
-	is_drop_table => $is_drop_table,
-	server        => $server,
-	server_uuid   => $server_uuid
+	component       => $component,
+	is_open         => $is_open,
+	is_drop_table   => $is_drop_table,
+	server          => $server,
+	server_uuid     => $server_uuid,
+	server_vnc_port => $server_vnc_port
 } });
 
 my $map_to_operation = {
@@ -1023,8 +1039,9 @@ if ($server_uuid)
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { operation => $op } });
 
 	my ($is_error) = $ops->{$op}({
-		server_uuid => $server_uuid,
-		host_uuid   => $anvil->data->{sys}{host_uuid}
+		host_uuid       => $anvil->data->{sys}{host_uuid},
+		server_uuid     => $server_uuid,
+		server_vnc_port => $server_vnc_port
 	});
 
 	$anvil->nice_exit({ exit_code => 2 }) if ($is_error);
