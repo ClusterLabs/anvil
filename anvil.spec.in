@@ -401,12 +401,12 @@ fi
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
-%{_datadir}/%{suiapi}/*
 %{_mandir}/*
 
 %files striker
 %{_localstatedir}/www/*/*
 %{_datadir}/anvil/striker-auto-initialize-all.example
+%{_datadir}/%{suiapi}/*
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
