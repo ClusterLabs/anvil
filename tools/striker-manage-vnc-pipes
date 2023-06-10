@@ -454,18 +454,7 @@ sub stop_websockify
 
 	return if (not is_websockify_process($parameters));
 
-	my $shell_call             = "kill ".$ws_pid;
-	my $call_parameters = { host_name  => $host_name, shell_call => $shell_call };
-
-	my ($shell_output, $shell_error, $shell_return_code) = call($call_parameters);
-
-	sleep(2);
-
-	return if (not is_websockify_process($parameters));
-
-	$call_parameters->{shell_call} = $shell_call =~ s/kill/kill -9/;
-
-	($shell_output, $shell_error, $shell_return_code) = $anvil->Remote->call($call_parameters);
+	call({ host_name  => $host_name, shell_call => "kill $ws_pid || kill -9 $ws_pid" });
 }
 
 sub start_ssh_tunnel
@@ -558,18 +547,7 @@ sub stop_ssh_tunnel
 
 	return if (not is_ssh_process($parameters));
 
-	my $shell_call      = "kill ".$ssh_tunnel_pid;
-	my $call_parameters = { host_name => $host_name, shell_call => $shell_call };
-
-	my ($shell_output, $shell_error, $shell_return_code) = call($call_parameters);
-
-	sleep(2);
-
-	return if (not is_ssh_process($parameters));
-
-	$call_parameters->{shell_call} = $shell_call =~ s/kill/kill -9/;
-
-	($shell_output, $shell_error, $shell_return_code) = call($call_parameters);
+	call({ host_name => $host_name, shell_call => "kill $ssh_tunnel_pid || kill -9 $ssh_tunnel_pid" });
 }
 
 sub create_vnc_pipes_table
