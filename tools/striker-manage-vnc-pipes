@@ -991,12 +991,14 @@ $anvil->Database->get_anvils();
 my $component     = $anvil->data->{switches}{'component'} // "all";
 my $is_drop_table = $anvil->data->{switches}{'drop-table'};
 my $is_open       = $anvil->data->{switches}{'open'};
-my $server_uuid   = $anvil->data->{switches}{'server-uuid'};
+my $server        = $anvil->data->{switches}{'server'};
+my $server_uuid   = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 	component     => $component,
 	is_open       => $is_open,
 	is_drop_table => $is_drop_table,
+	server        => $server,
 	server_uuid   => $server_uuid
 } });
 
