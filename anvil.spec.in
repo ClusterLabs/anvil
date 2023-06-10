@@ -255,7 +255,7 @@ getent passwd %{suiapi} >/dev/null \
 
 if [ $1 -gt 1 ]; then # >1=Upgrade
 	# Transfer files owned by apache to Striker UI API user.
-	chown -R --from apache  %{suiapi}: /mnt
+	chown -R --from apache %{suiapi}: /mnt
 	chown -R --from apache %{suiapi}: %{_localstatedir}/www
 fi
 
