@@ -410,10 +410,11 @@ fi
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
+%{_sysconfdir}/libvirt/hooks/*
 %{_usr}/lib/ocf/resource.d/alteeve/server
 
 %files dr
-#<placeholder for dr specific files>
+%{_sysconfdir}/libvirt/hooks/*
 
 
 %changelog
