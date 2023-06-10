@@ -1,0 +1,29 @@
+#!/bin/bash
+
+echo "wsargs=$@"
+
+guest_name="$1"
+operation="$2"
+
+# Operation migrate will:
+# 1. Trigger migrate->prepare->start->started operation on the destination host.
+# 2. Trigger stopped->release operations on the source host.
+if [[ "$operation" == "started" || "$operation" == "stopped" ]]
+then
+	ws_open_flag=""
+	ws_port_flag=""
+
+	if [[ "$operation" == "started" ]]
+	then
+		ws_open_flag="--open"
+
+		# libvirt hooks cannot call anything related to libvirt, i.e.,
+		# virsh because a deadlock will happen.
+		server_vnc_port=$(grep "<graphics.*type=['\"]vnc['\"]" - | grep -oPm1 "(?<=port=['\"])\d+")
+		ws_port_flag="--server-vnc-port ${server_vnc_port}"
+	fi
+
+	ws_command="striker-manage-vnc-pipes -vv --server ${guest_name} ${ws_port_flag} --component ws ${ws_open_flag}"
+	echo "wscmd=$ws_command"
+	$ws_command
+fi
