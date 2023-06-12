@@ -324,6 +324,26 @@ sub run_jobs
 	# Add the server to the cluster.
 	add_server_to_cluster($anvil);
 	
+	# Update the database by calling select scan agents
+	$anvil->Job->update_progress({
+		progress => 95,
+		message  => "job_0464", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0464"});
+	foreach my $agent ("scan-drbd", "scan-cluster", "scan-network", "scan-server")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0740", variables => { agent => $agent }});
+		
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
 	# Done!
 	$anvil->Job->update_progress({
 		progress => 100,
@@ -1407,6 +1427,24 @@ sub create_lv
 			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		
+		# Call scan-lvm now to make sure we've recorded this LV.
+		$anvil->Job->update_progress({
+			progress => 28,
+			message  => "job_0464", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0464"});
+		my $agent = "scan-lvm";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0740", variables => { agent => $agent }});
+		
+		$shell_call = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
 		
 		# Report 
 		$anvil->Job->update_progress({

@@ -1549,6 +1549,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0461"><![CDATA[                 > File name: [#!variable!name!#], file UUID: [#!variable!uuid!#], size: [#!variable!size!#]]]></key>
 		<key name="job_0462"><![CDATA[ --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.]]></key>
 		<key name="job_0463">Enabling the enable-safe-start daemon.</key>
+		<key name="job_0464">Calling select ScanCore scan agents to ensure the database is updated.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2390,6 +2391,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0737">The job: [#!variable!command!#] (with job UUID: [#!variable!job_uuid!#]) is being skipped for now, already started a job (started job_uuid: [#!variable!started_job!#]) with this command on this loop.</key>
 		<key name="log_0738">There are no databases available at this time.</key>
 		<key name="log_0739">The server: [#!variable!server!#] needs it's pacemaker configuration updated. Running: [#!variable!command!#].</key>
+		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

@@ -226,11 +226,11 @@ sub add_server
 	my $host_name    = $anvil->Get->host_name();
 	my $server_state = defined $anvil->data->{server}{location}{$server_name}{status}    ? $anvil->data->{server}{location}{$server_name}{status}    : "";
 	my $server_host  = defined $anvil->data->{server}{location}{$server_name}{host_name} ? $anvil->data->{server}{location}{$server_name}{host_name} : "";
-	my $target_role  = $server_state eq "running" ? "started" : "stopped";
+	my $target_role  = $server_host ? "started" : "stopped";	# Don't use state as it could be 'paused' if caught during initialization.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name    => $host_name, 
 		server_state => $server_state, 
-		server_host  => $server_host,
+		server_host  => $server_host, 
 		target_role  => $target_role, 
 	}});
 	
@@ -262,17 +262,70 @@ sub add_server
 		return_code => $return_code, 
 	}});
 	
-	my $constraint_command = $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." constraint location ".$server_name." prefers ";
-	if (($server_state eq "running") && ($server_host ne $host_name))
+	### NOTE: The higher the constraint score, the more preferred the host is.
+	# Which sub-node do we want to run the server on?
+	my $run_on_host_name = "";
+	my $backup_host_name = "";
+	my $target_host_uuid = $anvil->Cluster->get_primary_host_uuid({debug => 2, anvil_uuid => $anvil_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
+	
+	if ($target_role eq "started")
 	{
-		# Set the peer as primary.
-		$constraint_command .= $local_name."=100 ".$peer_name."=200";
+		# Run on the current host.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_host => $server_host,
+			host_name   => $host_name, 
+		}});
+		if ($server_host eq $host_name)
+		{
+			# Run here
+			$run_on_host_name = $local_name;
+			$backup_host_name = $peer_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				run_on_host_name => $run_on_host_name,
+				backup_host_name => $backup_host_name, 
+			}});
+		}
+		else
+		{
+			# Run on the 
+			$run_on_host_name = $peer_name;
+			$backup_host_name = $local_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				run_on_host_name => $run_on_host_name,
+				backup_host_name => $backup_host_name, 
+			}});
+		}
 	}
 	else
 	{
-		# Set us as primary.
-		$constraint_command .= $local_name."=200 ".$peer_name."=100";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			target_host_uuid => $target_host_uuid,
+			peer_host_uuid   => $peer_host_uuid, 
+		}});
+		if ($target_host_uuid eq $peer_host_uuid)
+		{
+			# Run on the 
+			$run_on_host_name = $peer_name;
+			$backup_host_name = $local_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				run_on_host_name => $run_on_host_name,
+				backup_host_name => $backup_host_name, 
+			}});
+		}
+		else
+		{
+			# Run here
+			$run_on_host_name = $local_name;
+			$backup_host_name = $peer_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				run_on_host_name => $run_on_host_name,
+				backup_host_name => $backup_host_name, 
+			}});
+		}
 	}
+	
+	my $constraint_command = $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." constraint location ".$server_name." prefers ".$run_on_host_name."=200 ".$backup_host_name."=100";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { constraint_command => $constraint_command }});
 
 	undef $output;
