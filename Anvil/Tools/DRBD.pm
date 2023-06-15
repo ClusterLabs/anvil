@@ -193,7 +193,11 @@ sub allow_two_primaries
 				target      => $target, 
 			});
 		}
-		if ($anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'} =~ /^\d+$/)
+		if ((exists $anvil->data->{drbd}{status}{$host})                                                               &&
+		    (exists $anvil->data->{drbd}{status}{$host}{resource}{$resource})                                          && 
+		    (exists $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name})                  && 
+		    (defined $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'}) && 
+		    ($anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'} =~ /^\d+$/))
 		{
 			$target_node_id = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_node_id => $target_node_id }});
@@ -2502,11 +2506,20 @@ sub manage_resource
 	### TODO: When taking down a resource, check to see if any machine is SyncTarget and take it/them 
 	###       down first. See anvil-rename-server -> verify_server_is_off() for the logic.
 	### TODO: Sanity check the resource name and task requested.
-	### NOTE: For an unknown reason, sometimes a resource is left with allow-two-primary enabled. This
-	###       can block startup, so to be safe, during start, we'll call adjust
+	### NOTE: If a live-migration fails, one of the nodes could have their allow-two-primaries left up.
+	###       This ensures that they're set to 'no' before connecting.
 	if ($task eq "up")
 	{
 		# This generally brings up the resource
+		my ($return) = $anvil->DRBD->allow_two_primaries({
+			debug    => 2, 
+			resource => $resource, 
+			set_to   => "no", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+		
+		# Now call an adjust to make sure all other config details are loaded. It also up's the 
+		# resource.
 		my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
 		my $output      = "";
 		my $return_code = 255; 
@@ -2538,6 +2551,9 @@ sub manage_resource
 				return_code => $return_code,
 			}});
 		}
+		
+		# Sleep for a moment to make sure adjust has taken hold.
+		sleep 1;
 	}
 	
 	# If we 'adjust'ed above, this will likely complain that the backing disk already exists, and that's 

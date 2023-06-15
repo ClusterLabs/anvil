@@ -4776,7 +4776,6 @@ sub _set_server_constraint
 		if ($problem)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0145", variables => { server => $server }});
-			
 		}
 	}
 	
