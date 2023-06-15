@@ -45,6 +45,9 @@ sub call
 	}
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		host_name         => $host_name,
+		is_remote_call    => $is_remote_call,
+		remote_user       => $remote_user,
 		shell_call        => $shell_call,
 		shell_output      => $shell_output,
 		shell_error       => $shell_error,
@@ -56,22 +59,32 @@ sub call
 
 sub get_server_info
 {
-	my $parameters  = shift;
-	my $server_uuid = $parameters->{server_uuid};
+	my $parameters       = shift;
+	my $server_uuid      = $parameters->{server_uuid};
+	my $server_host_uuid = $parameters->{server_host_uuid};
+
+	my $query;
 	my $server_info;
 
-	my $query = "
-SELECT
-	ser.server_name, hos.host_name, hos.host_uuid
-FROM
-	public.servers AS ser
-JOIN
-	public.hosts AS hos
-ON
-	ser.server_host_uuid = hos.host_uuid
-WHERE
-	server_uuid = ".$anvil->Database->quote($server_uuid)."
+	if (defined $server_host_uuid)
+	{
+		$query = "
+SELECT a.server_name, b.host_name, b.host_uuid
+FROM servers AS a, hosts AS b
+WHERE server_uuid = ".$anvil->Database->quote($server_uuid)."
+AND host_uuid = ".$anvil->Database->quote($server_host_uuid)."
 ;";
+	}
+	else
+	{
+		$query = "
+SELECT a.server_name, b.host_name, b.host_uuid
+FROM servers AS a
+JOIN hosts AS b ON a.server_host_uuid = b.host_uuid
+WHERE server_uuid = ".$anvil->Database->quote($server_uuid)."
+;";
+	}
+
 	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
 	my $count   = @{$results};
 
@@ -227,30 +240,21 @@ WHERE
 			# No need to preserve the websockify source port in
 			# this case because the tunnel will need to be replaced
 			# as well.
-			$ws_exists_info->{ws_source_port} = undef();
-			$ws_exists_info->{exists_code}    = 1;
+			$ws_exists_info->{exists_code} = 1;
 		}
 		elsif ($server_vnc_port != $server_vnc_port_in_record)
 		{
 			# VNC server port mismatch; try to stop the recorded instance.
 			stop_websockify($clean_up_parameters);
 
-			if (not exists $ws_exists_info->{ws_source_port})
-			{
-				$ws_exists_info->{ws_source_port} = $ws_source_port;
-			}
-
-			$ws_exists_info->{exists_code} = 1;
+			$ws_exists_info->{ws_source_port} = $ws_source_port;
+			$ws_exists_info->{exists_code}    = 1;
 		}
 		elsif (not is_websockify_process($clean_up_parameters))
 		{
-			if (not exists $ws_exists_info->{ws_source_port})
-			{
-				$ws_exists_info->{ws_source_port} = $ws_source_port;
-			}
-
 			# The recorded instance died.
-			$ws_exists_info->{exists_code} = 1;
+			$ws_exists_info->{ws_source_port} = $ws_source_port;
+			$ws_exists_info->{exists_code}    = 1;
 		}
 		else
 		{
@@ -372,6 +376,8 @@ sub start_websockify
 	my $target_port  = $parameters->{target_port};
 	my $source_port  = $parameters->{source_port};
 	my $ws_info;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "start_websockify" });
 
 	my $ws_exists_info = is_websockify_exists({
 		server_uuid     => $server_uuid,
@@ -564,7 +570,7 @@ CREATE TABLE IF NOT EXISTS public.vnc_pipes (
 	ssh_tunnel_pid		numeric,
 	ssh_tunnel_forward_port	numeric,
 	modified_date		timestamp with time zone	not null,
-	unique(server_uuid)
+	unique(server_uuid, ws_host_uuid)
 );";
 
 	$anvil->Database->write({ query => $query, source => $THIS_FILE, line => __LINE__ });
@@ -636,7 +642,7 @@ INSERT INTO public.vnc_pipes (
 	".$anvil->Database->quote($server_uuid).",
 	$insert_values
 	$quoted_vnc_pipe_mdate
-) ON CONFLICT (server_uuid) DO UPDATE SET
+) ON CONFLICT (server_uuid, ws_host_uuid) DO UPDATE SET
 	$update_values
 	modified_date = $quoted_vnc_pipe_mdate;";
 
@@ -650,21 +656,26 @@ sub get_vnc_pipe
 
 	return if (not defined $server_uuid);
 
-	my $host_uuid    = $parameters->{host_uuid}; # ssh_tunnel_host_uuid
-	my $ws_host_uuid = $parameters->{ws_host_uuid};
+	my $ssh_tunnel_host_uuid = $parameters->{ssh_tunnel_host_uuid};
+	my $ws_host_uuid         = $parameters->{ws_host_uuid};
 
 	my $vnc_pipe_info;
 
-	my $cond_ssht_huuid = defined $host_uuid    ? "AND ssh_tunnel_host_uuid = ".$anvil->Database->quote($host_uuid) : "";
-	my $cond_ws_huuid   = defined $ws_host_uuid ? "AND ws_host_uuid = ".$anvil->Database->quote($ws_host_uuid)      : "";
+	my $cond_ssht_huuid = defined $ssh_tunnel_host_uuid
+		? "AND ssh_tunnel_host_uuid = ".$anvil->Database->quote($ssh_tunnel_host_uuid) : "";
+	my $cond_ws_huuid   = defined $ws_host_uuid
+		? "AND ws_host_uuid = ".$anvil->Database->quote($ws_host_uuid) : "";
 
 	my $query = "
 SELECT
+	vnc.server_vnc_port,
 	hos.host_name,
 	vnc.ws_host_uuid,
 	vnc.ws_pid,
 	vnc.ws_source_port,
-	vnc.ssh_tunnel_pid
+	vnc.ssh_tunnel_host_uuid,
+	vnc.ssh_tunnel_pid,
+	vnc.ssh_tunnel_forward_port
 FROM
 	public.vnc_pipes AS vnc
 JOIN
@@ -673,8 +684,10 @@ ON
 	vnc.ws_host_uuid = hos.host_uuid
 WHERE
 	server_uuid = ".$anvil->Database->quote($server_uuid)."
-$cond_ssht_huuid
-$cond_ws_huuid
+	$cond_ssht_huuid
+	$cond_ws_huuid
+ORDER BY
+	vnc.modified_date DESC
 ;";
 
 	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
@@ -684,12 +697,15 @@ $cond_ws_huuid
 	{
 		my $row = $results->[0];
 
-		$vnc_pipe_info                   = {};
-		$vnc_pipe_info->{host_name}      = $row->[0];
-		$vnc_pipe_info->{ws_host_uuid}   = $row->[1];
-		$vnc_pipe_info->{ws_pid}         = $row->[2];
-		$vnc_pipe_info->{ws_source_port} = $row->[3];
-		$vnc_pipe_info->{ssh_tunnel_pid} = $row->[4];
+		$vnc_pipe_info                            = {};
+		$vnc_pipe_info->{server_vnc_port}         = $row->[0];
+		$vnc_pipe_info->{host_name}               = $row->[1];
+		$vnc_pipe_info->{ws_host_uuid}            = $row->[2];
+		$vnc_pipe_info->{ws_pid}                  = $row->[3];
+		$vnc_pipe_info->{ws_source_port}          = $row->[4];
+		$vnc_pipe_info->{ssh_tunnel_host_uuid}    = $row->[5];
+		$vnc_pipe_info->{ssh_tunnel_pid}          = $row->[6];
+		$vnc_pipe_info->{ssh_tunnel_forward_port} = $row->[7];
 	}
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $vnc_pipe_info });
@@ -699,9 +715,10 @@ $cond_ws_huuid
 
 sub open_ws
 {
-	my $parameters      = shift;
-	my $server_uuid     = $parameters->{server_uuid};
-	my $server_vnc_port = $parameters->{server_vnc_port};
+	my $parameters       = shift;
+	my $server_host_uuid = $parameters->{server_host_uuid};
+	my $server_uuid      = $parameters->{server_uuid};
+	my $server_vnc_port  = $parameters->{server_vnc_port};
 
 	my $server_info = $parameters->{server_info} // get_server_info($parameters);
 
@@ -760,7 +777,7 @@ sub close_ws
 	insert_or_update_vnc_pipe({
 		server_uuid     => $server_uuid,
 		server_vnc_port => "NULL",
-		ws_host_uuid    => "NULL",
+		ws_host_uuid    => $vnc_pipe_info->{ws_host_uuid},
 		ws_pid          => "NULL",
 		ws_source_port  => "NULL"
 	});
@@ -770,9 +787,10 @@ sub close_ws
 
 sub open_st
 {
-	my $parameters  = shift;
-	my $host_uuid   = $parameters->{host_uuid};
-	my $server_uuid = $parameters->{server_uuid};
+	my $parameters       = shift;
+	my $host_uuid        = $parameters->{host_uuid};
+	my $server_host_uuid = $parameters->{server_host_uuid};
+	my $server_uuid      = $parameters->{server_uuid};
 
 	my $server_info = $parameters->{server_info} // get_server_info($parameters);
 
@@ -813,7 +831,10 @@ sub close_st
 	my $host_uuid   = $parameters->{host_uuid};
 	my $server_uuid = $parameters->{server_uuid};
 
-	my $vnc_pipe_info = $parameters->{vnc_pipe_info} // get_vnc_pipe($parameters);
+	my $vnc_pipe_info = $parameters->{vnc_pipe_info} // get_vnc_pipe({
+		server_uuid          => $server_uuid,
+		ssh_tunnel_host_uuid => $host_uuid
+	});
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters });
 
@@ -825,7 +846,8 @@ sub close_st
 		server_uuid             => $server_uuid,
 		ssh_tunnel_host_uuid    => "NULL",
 		ssh_tunnel_pid          => "NULL",
-		ssh_tunnel_forward_port => "NULL"
+		ssh_tunnel_forward_port => "NULL",
+		ws_host_uuid            => $vnc_pipe_info->{ws_host_uuid}
 	});
 
 	return (0);
@@ -852,11 +874,12 @@ sub handle_vnc_pipe_error
 
 sub open_vnc_pipe
 {
-	my $parameters      = shift;
-	my $host_uuid       = $parameters->{host_uuid};
-	my $is_print        = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
-	my $server_uuid     = $parameters->{server_uuid};
-	my $server_vnc_port = $parameters->{server_vnc_port};
+	my $parameters       = shift;
+	my $host_uuid        = $parameters->{host_uuid};
+	my $is_print         = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
+	my $server_host_uuid = $parameters->{server_host_uuid};
+	my $server_uuid      = $parameters->{server_uuid};
+	my $server_vnc_port  = $parameters->{server_vnc_port};
 
 	my $is_error;
 	my $open_output;
@@ -900,7 +923,10 @@ sub close_vnc_pipe
 	my $close_params = {
 		host_uuid     => $host_uuid,
 		server_uuid   => $server_uuid,
-		vnc_pipe_info => get_vnc_pipe($parameters)
+		vnc_pipe_info => get_vnc_pipe({
+			server_uuid          => $server_uuid,
+			ssh_tunnel_host_uuid => $host_uuid
+		})
 	};
 
 	($is_error, $close_output) = close_ws($close_params);
@@ -980,12 +1006,18 @@ if ($anvil->data->{switches}{'job-uuid'})
 $anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 
-my $component       = $anvil->data->{switches}{'component'} // "all";
-my $is_drop_table   = $anvil->data->{switches}{'drop-table'};
-my $is_open         = $anvil->data->{switches}{'open'};
-my $server          = $anvil->data->{switches}{'server'};
-my $server_uuid     = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
-my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
+my $component        = $anvil->data->{switches}{'component'} // "all";
+my $is_drop_table    = $anvil->data->{switches}{'drop-table'};
+my $is_open          = $anvil->data->{switches}{'open'};
+my $server           = $anvil->data->{switches}{'server'};
+my $server_host_uuid = $anvil->data->{switches}{'server-host-uuid'};
+my $server_uuid      = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
+my $server_vnc_port  = $anvil->data->{switches}{'server-vnc-port'};
+
+if (defined $server_host_uuid and $server_host_uuid eq "local")
+{
+	$server_host_uuid = $anvil->data->{sys}{host_uuid};
+}
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 	component       => $component,
@@ -1002,7 +1034,7 @@ my $map_to_operation = {
 	ws  => { close => \&close_ws, open => \&open_ws },
 };
 
-if ($server_uuid)
+if ($server_uuid =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/)
 {
 	create_vnc_pipes_table();
 
@@ -1017,9 +1049,10 @@ if ($server_uuid)
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { operation => $op } });
 
 	my ($is_error) = $ops->{$op}({
-		host_uuid       => $anvil->data->{sys}{host_uuid},
-		server_uuid     => $server_uuid,
-		server_vnc_port => $server_vnc_port
+		host_uuid        => $anvil->data->{sys}{host_uuid},
+		server_host_uuid => $server_host_uuid,
+		server_uuid      => $server_uuid,
+		server_vnc_port  => $server_vnc_port
 	});
 
 	$anvil->nice_exit({ exit_code => 2 }) if ($is_error);
