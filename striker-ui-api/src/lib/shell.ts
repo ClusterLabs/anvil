@@ -47,6 +47,9 @@ export const rm = (...args: string[]) =>
 export const uuidgen = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.uuidgen.self, args);
 
+export const vncpipe = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.sbin['striker-manage-vnc-pipes'].self, args);
+
 export const resolveId = (id: number | string, database: string) =>
   Number.parseInt(getent(database, String(id)).split(':', 3)[2]);
 
