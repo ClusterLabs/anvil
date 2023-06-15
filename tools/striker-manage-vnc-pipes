@@ -789,6 +789,7 @@ sub open_st
 {
 	my $parameters       = shift;
 	my $host_uuid        = $parameters->{host_uuid};
+	my $is_print         = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
 	my $server_host_uuid = $parameters->{server_host_uuid};
 	my $server_uuid      = $parameters->{server_uuid};
 
@@ -822,6 +823,12 @@ sub open_st
 			ws_host_uuid            => $vnc_pipe_info->{ws_host_uuid}
 		});
 	}
+
+	my $forward_port = $ssh_tunnel_info->{forward_port} // "";
+
+	$ssh_tunnel_info->{forward_port} = $forward_port;
+
+	print "protocol:ws,forward_port:$forward_port\n" if ($is_print);
 
 	return (0, $ssh_tunnel_info);
 }
@@ -877,7 +884,7 @@ sub open_vnc_pipe
 {
 	my $parameters       = shift;
 	my $host_uuid        = $parameters->{host_uuid};
-	my $is_print         = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
+	my $is_print         = $parameters->{print};
 	my $server_host_uuid = $parameters->{server_host_uuid};
 	my $server_uuid      = $parameters->{server_uuid};
 	my $server_vnc_port  = $parameters->{server_vnc_port};
@@ -887,6 +894,7 @@ sub open_vnc_pipe
 
 	my $open_params = {
 		host_uuid       => $host_uuid,
+		print           => $is_print,
 		server_info     => get_server_info($parameters),
 		server_uuid     => $server_uuid,
 		server_vnc_port => $server_vnc_port
@@ -905,11 +913,7 @@ sub open_vnc_pipe
 		message  => "message_0260,!!operation!opening!!,!!server_uuid!".$server_uuid."!!,!!host_uuid!".$host_uuid."!!"
 	});
 
-	my $forward_port = $open_output->{forward_port} // "";
-
-	print "protocol:ws,forward_port:$forward_port\n" if ($is_print);
-
-	return (0, { forward_port => $forward_port });
+	return (0, { forward_port => $open_params->{forward_port} });
 }
 
 sub close_vnc_pipe
