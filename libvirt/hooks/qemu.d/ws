@@ -23,7 +23,7 @@ then
 		ws_port_flag="--server-vnc-port ${server_vnc_port}"
 	fi
 
-	ws_command="striker-manage-vnc-pipes -vv --server ${guest_name} ${ws_port_flag} --component ws ${ws_open_flag}"
+	ws_command="striker-manage-vnc-pipes --server ${guest_name} --server-host-uuid local ${ws_port_flag} --component ws ${ws_open_flag}"
 	echo "wscmd=$ws_command"
 	$ws_command
 fi
