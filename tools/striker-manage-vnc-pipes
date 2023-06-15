@@ -818,7 +818,8 @@ sub open_st
 			server_uuid             => $server_uuid,
 			ssh_tunnel_host_uuid    => $host_uuid,
 			ssh_tunnel_pid          => $ssh_tunnel_info->{pid},
-			ssh_tunnel_forward_port => $ssh_tunnel_info->{forward_port}
+			ssh_tunnel_forward_port => $ssh_tunnel_info->{forward_port},
+			ws_host_uuid            => $vnc_pipe_info->{ws_host_uuid}
 		});
 	}
 
