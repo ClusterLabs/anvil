@@ -1,6 +1,8 @@
 import cors from 'cors';
 import express, { json } from 'express';
 
+import { GUARD_API } from './lib/consts';
+
 import { guardApi, passport, session } from './middlewares';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
@@ -25,7 +27,7 @@ export default (async () => {
   app.use(passport.authenticate('session'));
 
   rrouters(app, routes.private, {
-    assign: (router) => [guardApi, router],
+    assign: GUARD_API ? (router) => [guardApi, router] : undefined,
     route: '/api',
   });
   rrouters(app, routes.public, { route: '/api' });
