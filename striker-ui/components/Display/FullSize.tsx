@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
-import { useState, useRef, useEffect, FC } from 'react';
+import { useState, useRef, useEffect, FC, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
@@ -131,41 +131,43 @@ const FullSize: FC<FullSizeProps> = ({
   const [vncConnecting, setVncConnecting] = useProtectedState<boolean>(false);
   const [isError, setIsError] = useProtectedState<boolean>(false);
 
+  const connectVnc = useCallback(async () => {
+    if (vncConnection || vncConnecting) return;
+
+    setVncConnecting(true);
+
+    try {
+      const res = await putFetchWithTimeout(
+        CMD_VNC_PIPE_URL,
+        {
+          serverUuid: serverUUID,
+          open: true,
+        },
+        120000,
+      );
+
+      setVncConnection(await res.json());
+    } catch {
+      setIsError(true);
+    } finally {
+      setVncConnecting(false);
+    }
+  }, [
+    serverUUID,
+    setIsError,
+    setVncConnecting,
+    setVncConnection,
+    vncConnecting,
+    vncConnection,
+  ]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       hostname.current = window.location.hostname;
     }
 
-    if (!vncConnection && !vncConnecting)
-      (async () => {
-        setVncConnecting(true);
-
-        try {
-          const res = await putFetchWithTimeout(
-            CMD_VNC_PIPE_URL,
-            {
-              serverUuid: serverUUID,
-              open: true,
-            },
-            120000,
-          );
-
-          setVncConnection(await res.json());
-        } catch {
-          setIsError(true);
-        } finally {
-          setVncConnecting(false);
-        }
-      })();
-  }, [
-    serverUUID,
-    vncConnection,
-    isError,
-    setVncConnection,
-    setIsError,
-    vncConnecting,
-    setVncConnecting,
-  ]);
+    connectVnc();
+  }, [connectVnc]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
@@ -214,6 +216,12 @@ const FullSize: FC<FullSizeProps> = ({
               background=""
               qualityLevel={6}
               compressionLevel={2}
+              onDisconnect={({ detail: { clean } }) => {
+                if (!clean) {
+                  setVncConnection(undefined);
+                  connectVnc();
+                }
+              }}
             />
             <Box>
               <Box className={classes.closeBox}>
