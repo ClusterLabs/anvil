@@ -131,17 +131,21 @@ class Access extends EventEmitter {
 }
 
 const access = new Access();
+const rootAccess = new Access({ spawnOptions: { gid: 0, uid: 0 } });
 
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
     params = [],
     pre = ['Database'],
+    root,
   }: {
     params?: unknown[];
     pre?: string[];
+    root?: boolean;
   } = {},
 ) => {
+  const selectedAccess = root ? rootAccess : access;
   const chain = `${pre.join('->')}->${subroutine}`;
 
   const subParams: string[] = params.map<string>((p) => {
@@ -156,11 +160,9 @@ const subroutine = async <T extends unknown[]>(
     return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await access.interact<{ sub_results: T }>(
-    'x',
-    chain,
-    ...subParams,
-  );
+  const { sub_results: results } = await selectedAccess.interact<{
+    sub_results: T;
+  }>('x', chain, ...subParams);
 
   shvar(results, `${chain} results: `);
 
@@ -382,6 +384,45 @@ const getUpsSpec = async () => {
   return getData<AnvilDataUPSHash>('ups_data');
 };
 
+const vncpipe = async (serverUuid: string, open?: boolean) => {
+  const [output, rReturnCode]: [string, string] = await subroutine('call', {
+    params: [
+      {
+        shell_call: `${
+          SERVER_PATHS.usr.sbin['striker-manage-vnc-pipes'].self
+        } -vv --server-uuid ${serverUuid} --component st${
+          open ? ' --open' : ''
+        }`,
+      },
+    ],
+    pre: ['System'],
+    root: true,
+  });
+
+  const rcode = Number.parseInt(rReturnCode);
+
+  if (rcode !== 0) {
+    throw new Error(`VNC pipe call failed with code ${rcode}`);
+  }
+
+  const lines = output.split('\n');
+  const lastLine = lines[lines.length - 1];
+  const rVncPipeProps = lastLine
+    .split(',')
+    .reduce<Record<string, string>>((previous, pair) => {
+      const [key, value] = pair.trim().split(/\s*:\s*/, 2);
+
+      previous[key] = value;
+
+      return previous;
+    }, {});
+
+  const forwardPort = Number.parseInt(rVncPipeProps.forward_port);
+  const protocol = rVncPipeProps.protocol;
+
+  return { forwardPort, protocol };
+};
+
 export {
   insertOrUpdateJob as job,
   insertOrUpdateUser,
@@ -401,5 +442,6 @@ export {
   getUpsSpec,
   query,
   subroutine as sub,
+  vncpipe,
   write,
 };

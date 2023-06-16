@@ -3,14 +3,15 @@ import { RequestHandler } from 'express';
 
 import { REP_UUID } from '../../consts';
 
+import { vncpipe } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, vncpipe } from '../../shell';
+import { stderr, stdoutVar } from '../../shell';
 
 export const manageVncSshTunnel: RequestHandler<
   unknown,
   { forwardPort: number; protocol: string },
   { open: boolean; serverUuid: string }
-> = (request, response) => {
+> = async (request, response) => {
   const { body: { open: rOpen, serverUuid: rServerUuid } = {} } = request;
 
   const isOpen = sanitize(rOpen, 'boolean');
@@ -27,53 +28,25 @@ export const manageVncSshTunnel: RequestHandler<
     return response.status(400).send();
   }
 
-  let cstdout = '';
+  stdoutVar({ isOpen, serverUuid }, 'Manage VNC SSH tunnel params: ');
+
+  let operation = 'close';
+
+  if (isOpen) {
+    operation = 'open';
+  }
+
+  let rsbody: { forwardPort: number; protocol: string };
 
   try {
-    cstdout = vncpipe(
-      '--server-uuid',
-      serverUuid,
-      '--component',
-      'st',
-      isOpen ? '--open' : '',
-    );
+    rsbody = await vncpipe(serverUuid, isOpen);
   } catch (error) {
     stderr(
-      `Failed to ${
-        isOpen ? 'open' : 'close'
-      } VNC SSH tunnel to server ${serverUuid}; CAUSE: ${error}`,
+      `Failed to ${operation} VNC SSH tunnel to server ${serverUuid}; CAUSE: ${error}`,
     );
 
     return response.status(500).send();
   }
 
-  const coutput = cstdout
-    .split(/\s*,\s*/)
-    .reduce<Record<string, string>>((previous, pair: string) => {
-      const [key, value] = pair.split(/\s*:\s*/, 2);
-
-      previous[key] = value;
-
-      return previous;
-    }, {});
-
-  let forwardPort: number;
-  let protocol: string;
-
-  try {
-    assert('forwardPort' in coutput, 'Missing forward port in command output');
-    assert('protocol' in coutput, 'Missing protocol in command output');
-
-    forwardPort = Number.parseInt(coutput.forwardPort);
-    protocol = coutput.protocol;
-  } catch (error) {
-    stderr(`Failed to get VNC SSH tunnel connect info; CAUSE: ${error}`);
-
-    return response.status(500).send();
-  }
-
-  return response.json({
-    forwardPort,
-    protocol,
-  });
+  return response.json(rsbody);
 };
