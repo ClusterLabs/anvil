@@ -2392,6 +2392,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0738">There are no databases available at this time.</key>
 		<key name="log_0739">The server: [#!variable!server!#] needs it's pacemaker configuration updated. Running: [#!variable!command!#].</key>
 		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
+		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

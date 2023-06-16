@@ -210,7 +210,7 @@ sub allow_two_primaries
 	}
 	
 	my $key = $set_to eq "yes" ? "log_0350" : "log_0642";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "", variables => { 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => $key, variables => { 
 		resource       => $resource,
 		target_name    => $peer_name, 
 		target_node_id => $target_node_id, 
