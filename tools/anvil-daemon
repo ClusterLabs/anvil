@@ -1637,7 +1637,22 @@ sub run_jobs
 					
 					if (exists $anvil->data->{jobs}{running}{$started_job_uuid})
 					{
-						if ($anvil->data->{jobs}{running}{$started_job_uuid}{job_progress} != 100)
+						# If the previously running job and this job have the same
+						# UUID, it failed and needs to restart.
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							job_uuid                                           => $job_uuid, 
+							started_job_uuid                                   => $started_job_uuid,
+							"jobs::running::${started_job_uuid}::job_progress" => $anvil->data->{jobs}{running}{$started_job_uuid}{job_progress}, 
+						}});
+						if ($started_job_uuid eq $job_uuid)
+						{
+							# We're restarting.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
+								command  => $job_command,
+								job_uuid => $job_uuid, 
+							}});
+						}
+						elsif ($anvil->data->{jobs}{running}{$started_job_uuid}{job_progress} != 100)
 						{
 							# Don't start it in this pass.
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
