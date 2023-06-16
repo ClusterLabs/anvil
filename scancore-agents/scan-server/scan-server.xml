@@ -77,9 +77,9 @@ A new server named: [#!variable!server!#] has been found. The definition XML is:
 		<key name="scan_server_alert_0011">The server: [#!variable!server!#] has is no longer marked as user-stopped.</key>
 		<key name="scan_server_alert_0012">The server: [#!variable!server!#] has moved from the node: [#!variable!old_host_name!#] to: [#!variable!new_host_name!#] (from: [#!variable!old_host_uuid!#] to: [#!variable!new_host_uuid!#]).</key>
 		<key name="scan_server_alert_0013">The amount of RAM the server: [#!variable!server!#] is currently using has changed from: [#!variable!old_ram_in_use_short!#] to: [#!variable!new_ram_in_use_short!#] (from: [#!variable!old_ram_in_use_bytes!# bytes] to: [#!variable!new_ram_in_use_bytes!# bytes]).</key>
-		<key name="scan_server_alert_0014">The amount of RAM configured for the server: [#!variable!server!#] has changed from: [#!variable!old_ram_in_use_short!#] to: [#!variable!new_ram_in_use_short!#] (from: [#!variable!old_ram_in_use_bytes!# bytes] to: [#!variable!new_ram_in_use_bytes!# bytes]).</key>
+		<key name="scan_server_alert_0014">The amount of RAM configured for the server: [#!variable!server!#] has changed from: [#!variable!old_configured_ram_short!#] to: [#!variable!new_configured_ram_short!#] (from: [#!variable!old_configured_ram_bytes!# bytes] to: [#!variable!new_configured_ram_bytes!# bytes]).</key>
 		<key name="scan_server_alert_0015">
-The amount of RAM configured for the server: [#!variable!server!#] has changed from: [#!variable!old_ram_in_use_short!#] to: [#!variable!new_ram_in_use_short!#] (from: [#!variable!old_ram_in_use_bytes!# bytes] to: [#!variable!new_ram_in_use_bytes!# bytes]).
+The amount of RAM configured for the server: [#!variable!server!#] has changed from: [#!variable!old_configured_ram_short!#] to: [#!variable!new_configured_ram_short!#] (from: [#!variable!old_configured_ram_bytes!# bytes] to: [#!variable!new_configured_ram_bytes!# bytes]).
 
 - NOTE: This RAM will not be used until the server is power cycled!
 		</key>

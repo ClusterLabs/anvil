@@ -620,11 +620,12 @@ sub start_server
 			local_name  => $local_name, 
 			peer_name   => $peer_name, 
 		}});
-		$anvil->Cluster->_set_server_constraint({
+		my $problem = $anvil->Cluster->_set_server_constraint({
 			debug          => 2,
 			server         => $server,
 			preferred_node => $local_name,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		
 		# Success!
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0309", variables => { server => $server }});

@@ -155,6 +155,8 @@ The global common configuration file: [#!variable!file!#] needs to be updated. T
 ====
 		</key>
 		<key name="scan_drbd_message_0035">The DRBD peer: [#!variable!peer_name!#] resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] was deleted, and the corresponding LVM data no longer exists. Purging this resource's data.</key>
+		<key name="scan_drbd_message_0036">The cluster is up and both nodes are ready, yet the DRBD resource/volume: [#!variable!resource!#/#!variable!volume!#] is down. Bringing it up now.</key>
+		<key name="scan_drbd_message_0037">The cluster is up and both nodes are ready, yet the DRBD resource/volume: [#!variable!resource!#] is StandAlone. Adjusting and reconnecting now.</key>
 		
 		<!-- Units -->
 		<key name="scan_drbd_unit_0001">Enabled</key>

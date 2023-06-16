@@ -4648,6 +4648,10 @@ sub get_jobs
 	{
 		delete $anvil->data->{jobs}{running};
 	}
+	if (exists $anvil->data->{jobs}{modified_date})
+	{
+		delete $anvil->data->{jobs}{modified_date};
+	}
 	
 	my $query = "
 SELECT 
@@ -4756,6 +4760,30 @@ WHERE
 			"jobs::running::${job_uuid}::job_description"  => $anvil->data->{jobs}{running}{$job_uuid}{job_description}, 
 			"jobs::running::${job_uuid}::job_status"       => $anvil->data->{jobs}{running}{$job_uuid}{job_status}, 
 			"jobs::running::${job_uuid}::modified_date"    => $anvil->data->{jobs}{running}{$job_uuid}{modified_date}, 
+		}});
+		
+		# Make it possible to sort by modified date for serial execution of similar jobs.
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_command}      = $job_command;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_data}         = $job_data;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_picked_up_by} = $job_picked_up_by;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_picked_up_at} = $job_picked_up_at;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_updated}      = $job_updated;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_name}         = $job_name;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_progress}     = $job_progress;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_title}        = $job_title;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_description}  = $job_description;
+		$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_status}       = $job_status;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_command"      => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_command}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_data"         => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_data}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_picked_up_by" => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_picked_up_by}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_picked_up_at" => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_picked_up_at}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_updated"      => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_updated}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_name"         => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_name}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_progress"     => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_progress}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_title"        => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_title}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_description"  => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_description}, 
+			"jobs::modified_date::${modified_date}::job_uuid::${job_uuid}::job_status"       => $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_status}, 
 		}});
 	}
 	

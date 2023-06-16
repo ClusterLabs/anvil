@@ -1,0 +1,186 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+use Term::Cap;
+use Time::Local;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+# Get a list of all interfaces with IP addresses.
+$anvil->Get->switches({debug => 3, list => []});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+
+$anvil->data->{'say'}{yes}               = $anvil->Words->string({key => "unit_0001"});
+$anvil->data->{'say'}{'no'}              = $anvil->Words->string({key => "unit_0002"});
+$anvil->data->{'say'}{ups}               = $anvil->Words->string({key => "header_0024"});
+$anvil->data->{'say'}{ip_address}        = $anvil->Words->string({key => "header_0025"});
+$anvil->data->{'say'}{charge_percent}    = $anvil->Words->string({key => "header_0107"});
+$anvil->data->{'say'}{on_battery}        = $anvil->Words->string({key => "header_0108"});
+$anvil->data->{'say'}{estimated_runtime} = $anvil->Words->string({key => "header_0109"});
+$anvil->data->{'say'}{last_updated}      = $anvil->Words->string({key => "header_0110"});
+
+my $t = Term::Cap->Tgetent;
+while(1)
+{
+	# Reload defaults, re-read the config and then connect to the database(s)
+	$anvil->refresh();
+	$anvil->Database->connect();
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+	
+	if ($anvil->data->{sys}{database}{connections})
+	{
+		show_power_data($anvil);
+	}
+	else
+	{
+		# No databases available.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0738"});
+	}
+	sleep 2;
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+sub show_power_data
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_upses({debug => 2});
+
+	my $longest_ups_name          = length($anvil->data->{'say'}{ups});
+	my $longest_ip_address        = length($anvil->data->{'say'}{ip_address});
+	my $longest_charge_percent    = length($anvil->data->{'say'}{charge_percent});
+	my $longest_on_battery        = length($anvil->data->{'say'}{on_battery});
+	my $longest_estimated_runtime = length($anvil->data->{'say'}{estimated_runtime});
+	my $longest_age_of_data       = length($anvil->data->{'say'}{last_updated});
+	
+	foreach my $ups_uuid (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_uuid}})
+	{
+		my $ups_name            = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name};
+		my $ups_agent           = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent};
+		my $ups_ip_address      = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address};
+		my $ups_modified_date   = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date_unix};
+		my $power_uuid          = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{power_uuid};
+		my $on_battery          = $anvil->data->{power}{power_uuid}{$power_uuid}{power_on_battery};
+		my $seconds_left        = $anvil->data->{power}{power_uuid}{$power_uuid}{power_seconds_left};
+		my $charge_percentage   = $anvil->data->{power}{power_uuid}{$power_uuid}{power_charge_percentage};
+		my $power_modified_date = $anvil->data->{power}{power_uuid}{$power_uuid}{modified_date_unix};
+		my $last_updated        = $power_modified_date > $ups_modified_date ? $power_modified_date : $ups_modified_date;
+		my $age_of_data         = $anvil->Convert->time({'time' => (time - $last_updated), translate => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's01:ups_uuid'            => $ups_uuid, 
+			's02:ups_name'            => $ups_name, 
+			's03:ups_ip_address'      => $ups_ip_address, 
+			's04:ups_modified_date'   => $ups_modified_date, 
+			's05:power_uuid'          => $power_uuid, 
+			's06:on_battery'          => $on_battery, 
+			's07:seconds_left'        => $seconds_left, 
+			's08:charge_percentage'   => $charge_percentage, 
+			's09:power_modified_date' => $power_modified_date, 
+			's10:last_updated'        => $last_updated, 
+			's11:age_of_data'         => $age_of_data,
+		}});
+		
+		$anvil->data->{ups}{$ups_name}{ip_address}        = $ups_ip_address;
+		$anvil->data->{ups}{$ups_name}{on_battery}        = $on_battery ? $anvil->data->{'say'}{yes} : $anvil->data->{'say'}{'no'};
+		$anvil->data->{ups}{$ups_name}{estimated_runtime} = $anvil->Convert->time({'time' => $seconds_left, translate => 1});;
+		$anvil->data->{ups}{$ups_name}{charge_percentage} = $charge_percentage;
+		$anvil->data->{ups}{$ups_name}{age_of_data}       = $age_of_data;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:ups::${ups_name}::ip_address"        => $anvil->data->{ups}{$ups_name}{ip_address}, 
+			"s2:ups::${ups_name}::on_battery"        => $anvil->data->{ups}{$ups_name}{on_battery}, 
+			"s3:ups::${ups_name}::seconds_left"      => $anvil->data->{ups}{$ups_name}{seconds_left}, 
+			"s4:ups::${ups_name}::charge_percentage" => $anvil->data->{ups}{$ups_name}{charge_percentage}, 
+			"s5:ups::${ups_name}::age_of_data"       => $anvil->data->{ups}{$ups_name}{age_of_data}, 
+		}});
+		
+		if (length($ups_name) > $longest_ups_name)
+		{
+			$longest_ups_name = length($ups_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_ups_name => $longest_ups_name }});
+		}
+		if (length($anvil->data->{ups}{$ups_name}{ip_address}) > $longest_ip_address)
+		{
+			$longest_ip_address = length($anvil->data->{ups}{$ups_name}{ip_address});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_ip_address => $longest_ip_address }});
+		}
+		if (length($anvil->data->{ups}{$ups_name}{charge_percent}) > $longest_charge_percent)
+		{
+			$longest_charge_percent = length($anvil->data->{ups}{$ups_name}{charge_percent});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_charge_percent => $longest_charge_percent }});
+		}
+		if (length($anvil->data->{ups}{$ups_name}{on_battery}) > $longest_on_battery)
+		{
+			$longest_on_battery = length($anvil->data->{ups}{$ups_name}{on_battery});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_on_battery => $longest_on_battery }});
+		}
+		if (length($anvil->data->{ups}{$ups_name}{estimated_runtime}) > $longest_estimated_runtime)
+		{
+			$longest_estimated_runtime = length($anvil->data->{ups}{$ups_name}{estimated_runtime});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_estimated_runtime => $longest_estimated_runtime }});
+		}
+		if (length($anvil->data->{ups}{$ups_name}{age_of_data}) > $longest_age_of_data)
+		{
+			$longest_age_of_data = length($anvil->data->{ups}{$ups_name}{age_of_data});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_age_of_data => $longest_age_of_data }});
+		}
+	}
+	
+	
+	system('clear');
+	print $t->Tgoto("cm", 0, 0);
+	my $header  = "| ".sprintf("%-${longest_ups_name}s", $anvil->data->{'say'}{ups});
+	   $header .= " | ".sprintf("%-${longest_ip_address}s", $anvil->data->{'say'}{ip_address});
+	   $header .= " | ".sprintf("%-${longest_charge_percent}s", $anvil->data->{'say'}{charge_percent});
+	   $header .= " | ".sprintf("%-${longest_on_battery}s", $anvil->data->{'say'}{on_battery});
+	   $header .= " | ".sprintf("%-${longest_estimated_runtime}s", $anvil->data->{'say'}{estimated_runtime});
+	   $header .= " | ".sprintf("%-${longest_age_of_data}s", $anvil->data->{'say'}{last_updated});
+	   $header .= " |";
+	my $break_line  = "+-".sprintf("%0${longest_ups_name}d", 0);
+	   $break_line .= "-+-".sprintf("%0${longest_ip_address}d", 0);
+	   $break_line .= "-+-".sprintf("%0${longest_charge_percent}d", 0);
+	   $break_line .= "-+-".sprintf("%0${longest_on_battery}d", 0);
+	   $break_line .= "-+-".sprintf("%0${longest_estimated_runtime}d", 0);
+	   $break_line .= "-+-".sprintf("%0${longest_age_of_data}d", 0);
+	   $break_line .= "-+";
+	   $break_line =~ s/0/-/g;
+	print $anvil->Get->date_and_time()."\n";
+	print $break_line."\n";
+	print $header."\n";
+	print $break_line."\n";
+	foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{ups}})
+	{
+		my $ups_ip_address    = $anvil->data->{ups}{$ups_name}{ip_address};
+		my $on_battery        = $anvil->data->{ups}{$ups_name}{on_battery};
+		my $estimated_runtime = $anvil->data->{ups}{$ups_name}{estimated_runtime};
+		my $charge_percentage = $anvil->data->{ups}{$ups_name}{charge_percentage};
+		my $age_of_data       = $anvil->data->{ups}{$ups_name}{age_of_data};
+		
+		my $data_line  = "| ".sprintf("%-${longest_ups_name}s", $ups_name);
+		   $data_line .= " | ".sprintf("%-${longest_ip_address}s", $ups_ip_address);
+		   $data_line .= " | ".sprintf("%-${longest_charge_percent}s", $charge_percentage);
+		   $data_line .= " | ".sprintf("%-${longest_on_battery}s", $on_battery);
+		   $data_line .= " | ".sprintf("%-${longest_estimated_runtime}s", $estimated_runtime);
+		   $data_line .= " | ".sprintf("%-${longest_age_of_data}s", $age_of_data);
+		   $data_line .= " |";
+		print $data_line."\n";
+	}
+	print $break_line."\n";
+	print $anvil->Words->string({key => "header_0061"})."\n";
+	
+	return(0);
+}

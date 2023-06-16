@@ -240,6 +240,27 @@ WHERE
 		unlink $resource_file;
 	}
 	
+	# Call scan-cluster, scan-network and scan-server to make sure the databases are updated.
+	$anvil->Job->update_progress({
+		progress => 90,
+		message  => "job_0464", 
+	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0464"});
+	foreach my $agent ("scan-cluster", "scan-network", "scan-server")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0740", variables => { agent => $agent }});
+		
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	# We're done
 	$anvil->Job->update_progress({
 		progress => 100,
 		message  => "job_0216", 

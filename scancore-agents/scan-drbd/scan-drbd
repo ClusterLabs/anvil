@@ -100,6 +100,8 @@ find_changes($anvil);
 
 check_config($anvil);
 
+fix_things($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -107,6 +109,133 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This looks for issues that we can fix, and if any are found, we try to fix them.
+sub fix_things
+{
+	my ($anvil) = @_;
+	
+	# If the cluster is up and both nodes are online, make sure all DRBD resources are connected.
+	$anvil->Database->get_hosts();
+	$anvil->DRBD->get_status();
+	my $host_uuid       = $anvil->Get->host_uuid();
+	my $host_type       = $anvil->Get->host_type();
+	my $short_host_name = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid       => $host_uuid,
+		host_type       => $host_type,
+		short_host_name => $short_host_name, 
+	}});
+	if ($host_type eq "node")
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			problem                     => $problem,
+			"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
+			"cib::parsed::peer::ready"  => $anvil->data->{cib}{parsed}{peer}{ready},
+		}});
+		
+		if ((not $problem) && ($anvil->data->{cib}{parsed}{peer}{ready}) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+		{
+			# Walk through all resources and make sure the peer and local disks are attached and 
+			# the connection established.
+			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
+				
+				# Check connection states.
+				foreach my $local_name (sort {$a cmp $b} keys%{$anvil->data->{drbd}{status}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_name => $local_name }});
+					foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$local_name}{resource}{$resource}{connection}})
+					{
+						my $connection_state = lc($anvil->data->{drbd}{status}{$local_name}{resource}{$resource}{connection}{$peer}{'connection-state'});
+						my $peer_host_uuid   = $anvil->Get->host_uuid_from_name({host_name => $peer, debug => 3});
+						my $peer_host_type   = exists $anvil->data->{hosts}{host_uuid}{$host_uuid} ? $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type} : "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:peer'             => $peer,
+							's2:connection_state' => $connection_state, 
+							's3:peer_host_uuid'   => $peer_host_uuid, 
+							's4:peer_host_type'   => $peer_host_type, 
+						}});
+						
+						if (($peer_host_type eq "node") && ($connection_state eq "standalone"))
+						{
+							# Are either of the nodes still 'allow-two-primary', 
+							# set it to 'no' (no migration is happening anyway, 
+							# if we're StandAlone), and try reconnecting.
+							my $variables = {
+								resource => $resource,
+								peer     => $peer, 
+							};
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0037", variables => $variables});
+							$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0037", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+							
+							$anvil->DRBD->manage_resource({
+								debug    => 2,
+								resource => $resource,
+								task     => "up",
+							});
+						}
+					}
+				}
+				
+				foreach my $volume (sort {$a <=> $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { volume => $volume }});
+					foreach my $peer (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}})
+					{
+						my $peer_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $peer});
+						my $peer_host_type = exists $anvil->data->{hosts}{host_uuid}{$host_uuid} ? $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type} : "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:peer'           => $peer,
+							's2:peer_host_uuid' => $peer_host_uuid, 
+							's3:peer_host_type' => $peer_host_type, 
+						}});
+						
+						if ($peer_host_type eq "node")
+						{
+							my $connection_state = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{connection_state};
+							my $local_role       = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_role};
+							my $peer_role        = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_role};
+							my $local_disk_state = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{local_disk_state};
+							my $peer_disk_state  = $anvil->data->{new}{resource}{$resource}{volume}{$volume}{peer}{$peer}{peer_disk_state}; 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:connection_state' => $connection_state, 
+								's2:local_role'       => $local_role, 
+								's3:peer_role'        => $peer_role, 
+								's4:local_disk_state' => $local_disk_state, 
+								's5:peer_disk_state'  => $peer_disk_state, 
+							}});
+							
+							# Find the peer's host_uuid and make sure we're 
+							# talking to a node, not a DR host.
+							if ($local_disk_state eq "down")
+							{
+								# Bring it up.
+								my $variables = {
+									resource => $resource,
+									volume   => $volume, 
+									peer     => $peer, 
+								};
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_drbd_message_0036", variables => $variables});
+								$anvil->Alert->register({alert_level => "notice", message => "scan_drbd_message_0036", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-drbd'}{alert_sort}++});
+								
+								$anvil->DRBD->manage_resource({
+									debug    => 2,
+									resource => $resource,
+									task     => "up",
+								});
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # In the early days, scan_drbd_peers -> scan_drbd_peer_tcp_port was type numeric. This wasn't compatible with
 # drbd-proxy and had to be changed to type text to support csv port lists.

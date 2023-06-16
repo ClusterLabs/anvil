@@ -1006,9 +1006,10 @@ sub human_readable_to_bytes
 	}
 
 	# Start cleaning up the variables.
-	my $value  =  $size;
-	   $size   =~ s/ //g;
-	   $type   =~ s/ //g;
+	   $size  =~ s/\(.*?\)//;	# Sometimes, the bytes with the human readible size in brackets is passed.
+	my $value =  $size;
+	   $size  =~ s/ //g;
+	   $type  =~ s/ //g;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { size => $size, value => $value }});
 	
 	# Store and strip the sign, if passed
