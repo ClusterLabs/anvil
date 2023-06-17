@@ -15,6 +15,7 @@ type ListOptionalProps<T extends unknown = unknown> = {
   allowItemButton?: boolean;
   edit?: boolean;
   flexBoxProps?: import('../components/FlexBox').FlexBoxProps;
+  getListItemCheckboxProps?: (key: string, value: T) => CheckboxProps;
   header?: import('react').ReactNode;
   headerSpacing?: number | string;
   initialCheckAll?: boolean;

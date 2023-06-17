@@ -40,6 +40,7 @@ const List = forwardRef(
       allowItemButton: isAllowItemButton = false,
       edit: isEdit = false,
       flexBoxProps,
+      getListItemCheckboxProps,
       header,
       headerSpacing = '.3em',
       initialCheckAll = false,
@@ -184,7 +185,7 @@ const List = forwardRef(
     );
 
     const listItemCheckbox = useCallback(
-      (key: string, checked?: boolean) =>
+      (key: string, checked?: boolean, props?: CheckboxProps) =>
         isEdit && isAllowCheckItem ? (
           <MUIListItemIcon sx={{ minWidth: listItemIconMinWidth }}>
             <Checkbox
@@ -193,6 +194,7 @@ const List = forwardRef(
               onChange={(...args) =>
                 onItemCheckboxChange?.call(null, key, ...args)
               }
+              {...props}
             />
           </MUIListItemIcon>
         ) : undefined,
@@ -218,6 +220,7 @@ const List = forwardRef(
                 {listItemCheckbox(
                   key,
                   renderListItemCheckboxState?.call(null, key, value),
+                  getListItemCheckboxProps?.call(null, key, value),
                 )}
                 {isAllowItemButton ? (
                   <ListItemButton
@@ -247,6 +250,7 @@ const List = forwardRef(
       listItemSx,
       listItemCheckbox,
       renderListItemCheckboxState,
+      getListItemCheckboxProps,
       isAllowItemButton,
       onItemClick,
     ]);
