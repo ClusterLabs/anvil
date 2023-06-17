@@ -28,11 +28,7 @@ const GatePanel: FC = () => {
           setIsSubmitting(true);
 
           api
-            .post(
-              '/auth/login',
-              { username, password },
-              { withCredentials: true },
-            )
+            .post('/auth/login', { username, password })
             .then(() => {
               const url = returnTo ? String(returnTo) : '/';
 

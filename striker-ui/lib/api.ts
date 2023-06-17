@@ -7,6 +7,7 @@ const api = new Axios({
   transformRequest: axios.defaults.transformRequest,
   transformResponse: axios.defaults.transformResponse,
   validateStatus: (status) => status < 400,
+  withCredentials: true,
 });
 
 export default api;
