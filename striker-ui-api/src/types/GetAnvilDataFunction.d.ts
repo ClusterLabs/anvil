@@ -7,9 +7,10 @@ type AnvilDataAnvilListHash = {
     [uuid: string]: {
       anvil_description: string;
       anvil_dr1_host_uuid?: string;
+      anvil_name: string;
       anvil_node1_host_uuid: string;
       anvil_node2_host_uuid: string;
-      query_time: number;
+      modified_date: string;
     };
   };
   host_uuid: {

@@ -71,10 +71,17 @@ type AnvilDetailHostSummary = {
   state_percent: number;
 };
 
-type AnvilDetail = {
+type AnvilDetailSummary = {
+  anvil_name: string;
   anvil_state: string;
+  anvil_uuid: string;
   hosts: AnvilDetailHostSummary[];
 };
+
+/**
+ * @deprecated
+ */
+type AnvilSummary = { anvils: AnvilDetailSummary[] };
 
 type AnvilDetailForProvisionServer = {
   anvilDescription: string;
