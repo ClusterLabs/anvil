@@ -1,3 +1,5 @@
+import { DELETED } from '../../consts';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
@@ -8,7 +10,7 @@ export const getUser = buildGetRequestHandler((request, buildQueryOptions) => {
   let condLimitRegular = '';
 
   if (sessionUserName !== 'admin') {
-    condLimitRegular = `WHERE user_uuid = '${sessionUserUuid}'`;
+    condLimitRegular = `AND user_uuid = '${sessionUserUuid}'`;
   }
 
   const query = `
@@ -16,6 +18,7 @@ export const getUser = buildGetRequestHandler((request, buildQueryOptions) => {
       a.user_name,
       a.user_uuid
     FROM users AS a
+    WHERE a.user_algorithm != '${DELETED}'
     ${condLimitRegular};`;
 
   const afterQueryReturn: QueryResultModifierFunction | undefined =
