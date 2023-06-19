@@ -5,11 +5,9 @@ import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
 import { ProgressBar } from './Bars';
 import FlexBox from './FlexBox';
-import Link from './Link';
 import List from './List';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import { BodyText } from './Text';
-import useProtect from '../hooks/useProtect';
 import useProtectedState from '../hooks/useProtectedState';
 
 type AnvilJobs = {
@@ -57,9 +55,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     },
     ref,
   ) => {
-    const { protect } = useProtect();
-
-    const [anvilJobs, setAnvilJobs] = useProtectedState<AnvilJobs>({}, protect);
+    const [anvilJobs, setAnvilJobs] = useProtectedState<AnvilJobs>({});
     const [isOpenJobSummary, setIsOpenJobSummary] =
       useState<boolean>(openInitially);
     const [menuAnchorElement, setMenuAnchorElement] = useState<
@@ -116,7 +112,6 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
               </FlexBox>
             )}
           />
-          <Link href="cgi-bin/striker?jobs=true">More details</Link>
         </FlexBox>
       ),
       [anvilJobs],
