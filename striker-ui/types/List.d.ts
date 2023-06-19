@@ -13,6 +13,7 @@ type ListOptionalProps<T extends unknown = unknown> = {
   allowEdit?: boolean;
   allowEditItem?: boolean;
   allowItemButton?: boolean;
+  disableDelete?: boolean;
   edit?: boolean;
   flexBoxProps?: import('../components/FlexBox').FlexBoxProps;
   getListItemCheckboxProps?: (key: string, value: T) => CheckboxProps;

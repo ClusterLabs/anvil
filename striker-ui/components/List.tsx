@@ -38,6 +38,7 @@ const List = forwardRef(
       allowCheckAll: isAllowCheckAll = false,
       allowEdit: isAllowEdit = false,
       allowItemButton: isAllowItemButton = false,
+      disableDelete = false,
       edit: isEdit = false,
       flexBoxProps,
       getListItemCheckboxProps,
@@ -88,6 +89,7 @@ const List = forwardRef(
       () =>
         isEdit && isAllowDelete ? (
           <IconButton
+            disabled={disableDelete}
             onClick={onDelete}
             size="small"
             sx={{
@@ -100,7 +102,7 @@ const List = forwardRef(
             <MUIDeleteIcon />
           </IconButton>
         ) : undefined,
-      [isAllowDelete, isEdit, onDelete],
+      [disableDelete, isAllowDelete, isEdit, onDelete],
     );
     const editItemButton = useMemo(() => {
       if (isAllowEditItem) {
