@@ -216,6 +216,8 @@ ON
 	vnc.ws_host_uuid = hos.host_uuid
 WHERE
 	vnc.server_uuid = ".$anvil->Database->quote($server_uuid)."
+AND
+	vnc.ws_host_uuid = ".$anvil->Database->quote($ws_host_uuid)."
 ;";
 
 	my $results        = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
@@ -223,9 +225,9 @@ WHERE
 
 	foreach my $row (@{$results})
 	{
-		my $server_vnc_port_in_record = $row->[0];
+		my $server_vnc_port_in_record = $row->[0] // 0;
 		my $ws_host_name              = $row->[1];
-		my $ws_host_uuid_in_record    = $row->[2];
+		my $ws_host_uuid_in_record    = $row->[2] // '';
 		my $ws_pid                    = $row->[3];
 		my $ws_source_port            = $row->[4];
 		my $ssh_tunnel_host_uuid      = $row->[5];
@@ -300,8 +302,8 @@ AND
 	if ($count == 1)
 	{
 		my $row                      = $results->[0];
-		my $ws_host_uuid_in_record   = $row->[0];
-		my $ws_source_port_in_record = $row->[1];
+		my $ws_host_uuid_in_record   = $row->[0] // '';
+		my $ws_source_port_in_record = $row->[1] // 0;
 		my $ssh_tunnel_pid           = $row->[2];
 		my $ssh_tunnel_forward_port  = $row->[3];
 		my $clean_up_parameters      = { ssh_tunnel_pid => $ssh_tunnel_pid };
