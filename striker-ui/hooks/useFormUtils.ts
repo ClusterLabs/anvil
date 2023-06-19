@@ -1,10 +1,13 @@
 import { MutableRefObject, useCallback, useMemo, useState } from 'react';
 
+import api from '../lib/api';
 import buildObjectStateSetterCallback, {
   buildRegExpObjectStateSetterCallback,
 } from '../lib/buildObjectStateSetterCallback';
+import handleAPIError from '../lib/handleAPIError';
 import { Message } from '../components/MessageBox';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
+import useProtectedState from './useProtectedState';
 
 const useFormUtils = <
   U extends string,
@@ -14,6 +17,7 @@ const useFormUtils = <
   ids: I,
   messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
 ): FormUtils<M> => {
+  const [formSubmitting, setFormSubmitting] = useProtectedState<boolean>(false);
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
 
   const setMessage = useCallback(
@@ -80,7 +84,32 @@ const useFormUtils = <
     [unsetKey],
   );
 
-  const isFormInvalid = useMemo(
+  const submitForm = useCallback<SubmitFormFunction>(
+    ({ body, getErrorMsg, msgKey = 'api', method, successMsg, url }) => {
+      setFormSubmitting(true);
+
+      api
+        .request({ data: body, method, url })
+        .then(() => {
+          messageGroupRef?.current?.setMessage?.call(null, msgKey, {
+            children: successMsg,
+          });
+        })
+        .catch((apiError) => {
+          const emsg = handleAPIError(apiError);
+
+          emsg.children = getErrorMsg(emsg.children);
+
+          messageGroupRef?.current?.setMessage?.call(null, msgKey, emsg);
+        })
+        .finally(() => {
+          setFormSubmitting(false);
+        });
+    },
+    [messageGroupRef, setFormSubmitting],
+  );
+
+  const formInvalid = useMemo(
     () => Object.values(formValidity).some((isInputValid) => !isInputValid),
     [formValidity],
   );
@@ -90,12 +119,14 @@ const useFormUtils = <
     buildInputFirstRenderFunction,
     buildInputUnmountFunction,
     formValidity,
-    isFormInvalid,
+    isFormInvalid: formInvalid,
+    isFormSubmitting: formSubmitting,
     setFormValidity,
     setMessage,
     setMessageRe,
     setValidity,
     setValidityRe,
+    submitForm,
     unsetKey,
     unsetKeyRe,
   };
