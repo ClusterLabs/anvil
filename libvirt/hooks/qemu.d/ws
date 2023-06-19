@@ -21,6 +21,12 @@ then
 		# virsh because a deadlock will happen.
 		server_vnc_port=$(grep "<graphics.*type=['\"]vnc['\"]" - | grep -oPm1 "(?<=port=['\"])\d+")
 		ws_port_flag="--server-vnc-port ${server_vnc_port}"
+
+		local_host_uuid=$(</etc/anvil/host.uuid)
+
+		update_sql="UPDATE servers SET server_host_uuid = '$local_host_uuid' WHERE server_name = '$guest_name';"
+		echo "update=$update_sql"
+		anvil-access-module --query "$update_sql" --mode write
 	fi
 
 	ws_command="striker-manage-vnc-pipes --server ${guest_name} --server-host-uuid local ${ws_port_flag} --component ws ${ws_open_flag}"
