@@ -40,17 +40,20 @@ const buildEntryList = ({
   Object.entries(entries).forEach(([itemKey, entry]) => {
     const itemId = `form-summary-entry-${itemKey}`;
 
+    const nest = entry !== null && typeof entry === 'object';
+    const value = nest ? null : entry;
+
     result.push(
       <MUIListItem
         key={itemId}
         sx={{ paddingLeft: `.${depth * 2}em` }}
-        {...getListItemProps?.call(null, itemKey, null, depth)}
+        {...getListItemProps?.call(null, itemKey, value, depth)}
       >
-        {renderEntry(itemKey, null, getEntryLabel, renderEntryValue)}
+        {renderEntry(itemKey, value, getEntryLabel, renderEntryValue)}
       </MUIListItem>,
     );
 
-    if (entry !== null && typeof entry === 'object' && depth < maxDepth) {
+    if (nest && depth < maxDepth) {
       result.push(
         buildEntryList({
           depth: depth + 1,
