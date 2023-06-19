@@ -34,14 +34,26 @@ const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
     job_name: `set_power::on`,
     job_title: 'job_0334',
   }),
+  startserver: ({ uuid } = {}) => ({
+    job_command: `${SERVER_PATHS.usr.sbin['anvil-boot-server'].self} --server-uuid '${uuid}'`,
+    job_description: 'job_0341',
+    job_name: 'set_power::server::on',
+    job_title: 'job_0340',
+  }),
   stop: ({ isStopServers, uuid } = {}) => ({
-    job_command: `${
-      SERVER_PATHS.usr.sbin['anvil-safe-stop'].self
-    } --power-off ${isStopServers ? '--stop-servers' : ''}`,
+    job_command: `${SERVER_PATHS.usr.sbin['anvil-safe-stop'].self} --power-off${
+      isStopServers ? ' --stop-servers' : ''
+    }`,
     job_description: 'job_0333',
     job_host_uuid: uuid,
     job_name: 'set_power::off',
     job_title: 'job_0332',
+  }),
+  stopserver: ({ uuid } = {}) => ({
+    job_command: `${SERVER_PATHS.usr.sbin['anvil-shutdown-server'].self} --server-uuid '${uuid}'`,
+    job_description: 'job_0343',
+    job_name: 'set_power::server::off',
+    job_title: 'job_0342',
   }),
 };
 
@@ -74,7 +86,7 @@ export const buildPowerHandler: (
         );
       }
     } catch (error) {
-      stderr(`Failed to ${task} host; CAUSE: ${error}`);
+      stderr(`Failed to ${task}; CAUSE: ${error}`);
 
       return response.status(400).send();
     }
@@ -82,7 +94,7 @@ export const buildPowerHandler: (
     try {
       await queuePowerJob(task, { uuid });
     } catch (error) {
-      stderr(`Failed to ${task} host ${uuid ?? LOCAL}; CAUSE: ${error}`);
+      stderr(`Failed to ${task} ${uuid ?? LOCAL}; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

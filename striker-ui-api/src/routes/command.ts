@@ -10,8 +10,10 @@ import {
   runManifest,
   setMapNetwork,
   startAn,
+  startServer,
   startSubnode,
   stopAn,
+  stopServer,
   stopSubnode,
   updateSystem,
 } from '../lib/request_handlers/command';
@@ -28,8 +30,10 @@ router
   .put('/run-manifest/:manifestUuid', runManifest)
   .put('/set-map-network/:uuid', setMapNetwork)
   .put('/start-an/:uuid', startAn)
+  .put('/start-server/:uuid', startServer)
   .put('/start-subnode/:uuid', startSubnode)
   .put('/stop-an/:uuid', stopAn)
+  .put('/stop-server/:uuid', stopServer)
   .put('/stop-subnode/:uuid', stopSubnode)
   .put('/update-system', updateSystem);
 

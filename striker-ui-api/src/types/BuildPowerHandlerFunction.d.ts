@@ -1,4 +1,10 @@
-type PowerTask = 'poweroff' | 'reboot' | 'start' | 'stop';
+type PowerTask =
+  | 'poweroff'
+  | 'reboot'
+  | 'start'
+  | 'startserver'
+  | 'stop'
+  | 'stopserver';
 
 type PowerJobParams = Omit<JobParams, 'file' | 'line'>;
 

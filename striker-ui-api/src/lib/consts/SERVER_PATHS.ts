@@ -24,6 +24,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
     },
     sbin: {
       'anvil-access-module': {},
+      'anvil-boot-server': {},
       'anvil-configure-host': {},
       'anvil-get-server-screenshot': {},
       'anvil-join-anvil': {},
@@ -32,6 +33,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-provision-server': {},
       'anvil-safe-start': {},
       'anvil-safe-stop': {},
+      'anvil-shutdown-server': {},
       'anvil-sync-shared': {},
       'anvil-update-system': {},
       'striker-boot-machine': {},
