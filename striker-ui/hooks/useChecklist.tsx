@@ -14,7 +14,7 @@ const useChecklist = (): {
 } => {
   const [checklist, setChecklist] = useState<Checklist>({});
 
-  const checks = useMemo(() => Object.entries(checklist), [checklist]);
+  const checks = useMemo(() => Object.keys(checklist), [checklist]);
 
   const hasChecks = useMemo(() => checks.length > 0, [checks.length]);
 

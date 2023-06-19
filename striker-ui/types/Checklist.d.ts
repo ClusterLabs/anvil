@@ -1,6 +1,6 @@
 type Checklist = Record<string, boolean>;
 
-type ArrayChecklist = [keyof Checklist, Checklist[string]][];
+type ArrayChecklist = (keyof Checklist)[];
 
 type BuildDeleteDialogPropsFunction = (args: {
   confirmDialogProps?: Partial<Omit<ConfirmDialogProps, 'content'>>;
