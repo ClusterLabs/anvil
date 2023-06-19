@@ -52,7 +52,7 @@ sub call
 		shell_output      => $shell_output,
 		shell_error       => $shell_error,
 		shell_return_code => $shell_return_code
-	} });
+	}, prefix => "call" });
 
 	return ($shell_output, $shell_error, $shell_return_code);
 }
@@ -97,7 +97,7 @@ WHERE server_uuid = ".$anvil->Database->quote($server_uuid)."
 		$server_info->{host_name}   = $row->[1];
 		$server_info->{host_uuid}   = $row->[2];
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $server_info });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $server_info, prefix => "get_server_info" });
 	}
 
 	return $server_info;
@@ -141,7 +141,7 @@ sub get_vnc_info
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		port_offset => $port_offset,
 		vnc_port    => $vnc_info->{port}
-	} });
+	}, prefix => "get_vnc_info" });
 
 	return $vnc_info;
 }
@@ -271,7 +271,7 @@ AND
 		}
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ws_exists_info });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ws_exists_info, prefix => "is_websockify_exists" });
 
 	return $ws_exists_info;
 }
@@ -344,7 +344,7 @@ AND
 		$ssh_tunnel_exists_info->{exists_code} = 2;
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ssh_tunnel_exists_info });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ssh_tunnel_exists_info, prefix => "is_ssh_tunnel_exists" });
 
 	return $ssh_tunnel_exists_info;
 }
@@ -419,7 +419,7 @@ sub start_websockify
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			source_port => $source_port
-		} });
+		}, prefix => "start_websockify" });
 
 		return if (not defined $source_port);
 
@@ -449,7 +449,7 @@ sub start_websockify
 		}
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ws_info });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ws_info, prefix => "start_websockify" });
 
 	return $ws_info;
 }
@@ -508,7 +508,7 @@ sub start_ssh_tunnel
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			ssh_tunnel_forward_port => $ssh_tunnel_forward_port
-		} });
+		}, prefix => "start_ssh_tunnel" });
 
 		if (not defined $ssh_tunnel_forward_port)
 		{
@@ -542,7 +542,7 @@ sub start_ssh_tunnel
 		}
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ssh_tunnel_info });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ssh_tunnel_info, prefix => "start_ssh_tunnel" });
 
 	return $ssh_tunnel_info;
 }
@@ -601,7 +601,7 @@ sub insert_or_update_vnc_pipe
 	my $ws_pid                  = $parameters->{ws_pid};
 	my $ws_source_port          = $parameters->{ws_source_port};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "insert_or_update_vnc_pipe" });
 
 	my $vnc_pipe_mdate        = $anvil->Database->refresh_timestamp();
 	my $quoted_vnc_pipe_mdate = $anvil->Database->quote($vnc_pipe_mdate);
@@ -710,7 +710,7 @@ ORDER BY
 		$vnc_pipe_info->{ssh_tunnel_forward_port} = $row->[7];
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $vnc_pipe_info });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $vnc_pipe_info, prefix => "get_vnc_pipe" });
 
 	return $vnc_pipe_info;
 }
@@ -724,7 +724,7 @@ sub open_ws
 
 	my $server_info = $parameters->{server_info} // get_server_info($parameters);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "open_ws" });
 
 	return (1, "error_0313") if (not defined $server_info);
 
@@ -768,7 +768,7 @@ sub close_ws
 
 	my $vnc_pipe_info = $parameters->{vnc_pipe_info} // get_vnc_pipe({ server_uuid => $server_uuid, ws_host_uuid => $host_uuid });
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "close_ws" });
 
 	return (1, "error_0317") if (not defined $vnc_pipe_info);
 
@@ -797,7 +797,7 @@ sub open_st
 
 	my $server_info = $parameters->{server_info} // get_server_info($parameters);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "open_st" });
 
 	return (1, "error_0313") if (not defined $server_info);
 
@@ -846,7 +846,7 @@ sub close_st
 		ssh_tunnel_host_uuid => $host_uuid
 	});
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "close_st" });
 
 	return (1, "error_0317") if (not defined $vnc_pipe_info);
 
