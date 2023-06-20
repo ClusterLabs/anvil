@@ -51,6 +51,7 @@ dist_sbin_SCRIPTS	= \
 			  scancore \
 			  striker-auto-initialize-all \
 			  striker-boot-machine \
+			  striker-check-machines \
 			  striker-db-report \
 			  striker-db-status \
 			  striker-file-manager \

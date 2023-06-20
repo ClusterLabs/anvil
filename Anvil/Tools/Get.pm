@@ -2607,10 +2607,25 @@ sub trusted_hosts
 
 This returns, in seconds, how long the host has been up and running for. 
 
-This method takes no parameters.
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
 
 =cut
-### TODO: Make this work on remote hosts
 sub uptime
 {
 	my $self      = shift;
@@ -2619,12 +2634,58 @@ sub uptime
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->uptime()" }});
 	
-	my $uptime = $anvil->Storage->read_file({
-		force_read => 1,
-		cache      => 0,
-		file       => $anvil->data->{path}{proc}{uptime},
-	});
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->is_secure($password),
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	}});
+	
+	# Read the file
+	my $uptime = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+	
+	# Is this a local call or a remote call?
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		$uptime = $anvil->Storage->read_file({
+			debug       => $debug, 
+			force_read  => 1,
+			cache       => 0,
+			file        => $anvil->data->{path}{proc}{uptime},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+	}
+	else
+	{
+		# Remote, we have to cat the file.
+		my $shell_call = $anvil->data->{path}{exe}{cat}." ".$anvil->data->{path}{proc}{uptime};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			error       => $error,
+			return_code => $return_code, 
+		}});
+		if (not $return_code)
+		{
+			$uptime = $output;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+		}
+	}
 	
 	# Clean it up. We'll have gotten two numbers, the uptime in seconds (to two decimal places) and the 
 	# total idle time. We only care about the int number.
