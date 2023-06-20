@@ -4,13 +4,16 @@ import SelectedAnvil from './SelectedAnvil';
 import AnvilList from './AnvilList';
 
 import sortAnvils from './sortAnvils';
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
 const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
   const anvils: AnvilListItem[] = [];
 
   list?.anvils.forEach((anvil: AnvilListItem) => {
+    const { anvil_uuid } = anvil;
+
     const { data } = periodicFetch<AnvilStatus>(
-      `${process.env.NEXT_PUBLIC_API_URL}/get_status?anvil_uuid=${anvil.anvil_uuid}`,
+      `${API_BASE_URL}/anvil/${anvil_uuid}`,
     );
     anvils.push({
       ...anvil,

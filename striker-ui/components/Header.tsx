@@ -3,7 +3,6 @@ import { AppBar, Box, Button, IconButton, styled } from '@mui/material';
 import { useRef, useState } from 'react';
 
 import { BORDER_RADIUS, OLD_ICON, RED } from '../lib/consts/DEFAULT_THEME';
-import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 
 import AnvilDrawer from './AnvilDrawer';
 import FlexBox from './FlexBox';
@@ -90,26 +89,6 @@ const Header = (): JSX.Element => {
                 <IconWithIndicator icon={AssignmentIcon} ref={jobIconRef} />
               </IconButton>
             </Box>
-            {ICONS.map(
-              (icon): JSX.Element => (
-                <a
-                  key={icon.uri}
-                  href={
-                    icon.uri.search(/^https?:/) !== -1
-                      ? icon.uri
-                      : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
-                  }
-                >
-                  <img
-                    alt=""
-                    key="icon"
-                    src={icon.image}
-                    {...ICON_SIZE}
-                    className={classes.icons}
-                  />
-                </a>
-              ),
-            )}
           </FlexBox>
         </Box>
       </StyledAppBar>

@@ -1,17 +1,19 @@
 import { useContext } from 'react';
-import { Panel } from '../Panels';
-import { HeaderText } from '../Text';
-import AnvilHost from './AnvilHost';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+
 import { AnvilContext } from '../AnvilContext';
-import Spinner from '../Spinner';
+import AnvilHost from './AnvilHost';
 import hostsSanitizer from '../../lib/sanitizers/hostsSanitizer';
+import { Panel } from '../Panels';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
+import { HeaderText } from '../Text';
+import Spinner from '../Spinner';
 
 const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const { data, isLoading } = periodicFetch<AnvilStatus>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_status?anvil_uuid=${uuid}`,
+    `${API_BASE_URL}/anvil/${uuid}`,
   );
 
   const anvilIndex = anvil.findIndex((a) => a.anvil_uuid === uuid);

@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useContext, useEffect, useMemo } from 'react';
 
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 import AnvilProvider, { AnvilContext } from '../../components/AnvilContext';
@@ -65,7 +66,7 @@ const Anvil = (): JSX.Element => {
   const { anvil_uuid: queryAnvilUUID } = router.query;
   const { uuid: contextAnvilUUID, setAnvilUuid } = useContext(AnvilContext);
   const { data, isLoading } = periodicFetch<AnvilList>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_anvils`,
+    `${API_BASE_URL}/anvil/summary`,
   );
 
   const contentLayoutElement = useMemo(() => {

@@ -5,6 +5,7 @@ import { Dispatch, SetStateAction } from 'react';
 import { BodyText, HeaderText } from './Text';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 import { DIVIDER, GREY } from '../lib/consts/DEFAULT_THEME';
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
 const PREFIX = 'AnvilDrawer';
 
@@ -77,7 +78,7 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => (
               href={
                 icon.uri.search(/^https?:/) !== -1
                   ? icon.uri
-                  : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
+                  : `${API_BASE_URL}${icon.uri}`
               }
             >
               <Box display="flex" flexDirection="row" width="100%">

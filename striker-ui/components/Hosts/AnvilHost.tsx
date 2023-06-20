@@ -1,13 +1,14 @@
-import { Box, Switch } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { InnerPanel, InnerPanelHeader } from '../Panels';
-import { ProgressBar } from '../Bars';
-import { BodyText } from '../Text';
-import Decorator, { Colours } from '../Decorator';
+import { Box, styled, Switch } from '@mui/material';
+
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 import HOST_STATUS from '../../lib/consts/NODES';
 
+import { ProgressBar } from '../Bars';
+import Decorator, { Colours } from '../Decorator';
+import { InnerPanel, InnerPanelHeader } from '../Panels';
 import putFetch from '../../lib/fetchers/putFetch';
-import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
+import { BodyText } from '../Text';
 
 const PREFIX = 'AnvilHost';
 
@@ -111,11 +112,12 @@ const AnvilHost = ({
                       checked={host.state === 'online'}
                       onChange={() =>
                         putFetch(
-                          `${process.env.NEXT_PUBLIC_API_URL}/set_power`,
-                          {
-                            host_uuid: host.host_uuid,
-                            is_on: !(host.state === 'online'),
-                          },
+                          `${API_BASE_URL}/command/${
+                            host.state === 'online'
+                              ? 'stop-subnode'
+                              : 'start-subnode'
+                          }/${host.host_uuid}`,
+                          {},
                         )
                       }
                     />
@@ -129,11 +131,10 @@ const AnvilHost = ({
                       disabled={!(host.state === 'online')}
                       onChange={() =>
                         putFetch(
-                          `${process.env.NEXT_PUBLIC_API_URL}/set_membership`,
-                          {
-                            host_uuid: host.host_uuid,
-                            is_member: !(host.state === 'online'),
-                          },
+                          `${API_BASE_URL}/command/${
+                            host.state === 'online' ? 'leave-an' : 'join-an'
+                          }/${host.host_uuid}`,
+                          {},
                         )
                       }
                     />

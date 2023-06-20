@@ -1,12 +1,13 @@
+import { Box, styled, Switch } from '@mui/material';
 import { useContext } from 'react';
-import Box from '@mui/material/Box';
-import Switch from '@mui/material/Switch';
-import { styled } from '@mui/material/styles';
-import { HeaderText } from '../Text';
+
 import anvilState from '../../lib/consts/ANVILS';
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
 import putFetch from '../../lib/fetchers/putFetch';
+import { HeaderText } from '../Text';
 
 const PREFIX = 'SelectedAnvil';
 
@@ -69,12 +70,17 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
           <Box p={1}>
             <Switch
               checked={isAnvilOn(list[index])}
-              onChange={() =>
-                putFetch(`${process.env.NEXT_PUBLIC_API_URL}/set_power`, {
-                  anvil_uuid: list[index].anvil_uuid,
-                  is_on: !isAnvilOn(list[index]),
-                })
-              }
+              onChange={() => {
+                const { [index]: litem } = list;
+                const { anvil_uuid: auuid } = litem;
+
+                putFetch(
+                  `${API_BASE_URL}/command/${
+                    isAnvilOn(litem) ? 'stop-an' : 'start-an'
+                  }/${auuid}`,
+                  {},
+                );
+              }}
             />
           </Box>
         </>
