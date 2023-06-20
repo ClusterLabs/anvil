@@ -1,7 +1,11 @@
-import { useState, useContext, useRef } from 'react';
+import {
+  Add as AddIcon,
+  Check as CheckIcon,
+  Edit as EditIcon,
+  MoreVert as MoreVertIcon,
+} from '@mui/icons-material';
 import {
   Box,
-  Button,
   Checkbox,
   Divider,
   List,
@@ -10,18 +14,11 @@ import {
   styled,
   Typography,
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Check as CheckIcon,
-  Edit as EditIcon,
-  MoreVert as MoreVertIcon,
-} from '@mui/icons-material';
+import { useState, useContext, useRef } from 'react';
 
 import {
-  BLACK,
   BLUE,
   DIVIDER,
-  GREY,
   HOVER,
   LARGE_MOBILE_BREAKPOINT,
   RED,
@@ -42,6 +39,7 @@ import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import putFetch from '../lib/fetchers/putFetch';
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import ContainedButton from './ContainedButton';
 
 const PREFIX = 'Servers';
 
@@ -54,10 +52,8 @@ const classes = {
   hostsBox: `${PREFIX}-hostsBox`,
   hostBox: `${PREFIX}-hostBox`,
   checkbox: `${PREFIX}-checkbox`,
-  serverActionButton: `${PREFIX}-serverActionButton`,
   editButtonBox: `${PREFIX}-editButtonBox`,
   dropdown: `${PREFIX}-dropdown`,
-  power: `${PREFIX}-power`,
   on: `${PREFIX}-on`,
   off: `${PREFIX}-off`,
   all: `${PREFIX}-all`,
@@ -108,15 +104,6 @@ const StyledDiv = styled('div')(({ theme }) => ({
     paddingTop: '.8em',
   },
 
-  [`& .${classes.serverActionButton}`]: {
-    backgroundColor: TEXT,
-    color: BLACK,
-    textTransform: 'none',
-    '&:hover': {
-      backgroundColor: GREY,
-    },
-  },
-
   [`& .${classes.editButtonBox}`]: {
     paddingTop: '.3em',
   },
@@ -124,10 +111,6 @@ const StyledDiv = styled('div')(({ theme }) => ({
   [`& .${classes.dropdown}`]: {
     paddingTop: '.8em',
     paddingBottom: '.8em',
-  },
-
-  [`& .${classes.power}`]: {
-    color: BLACK,
   },
 
   [`& .${classes.all}`]: {
@@ -249,16 +232,13 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
             <>
               <Box className={classes.headerPadding} display="flex">
                 <Box flexGrow={1} className={classes.dropdown}>
-                  <Button
-                    variant="contained"
-                    startIcon={<MoreVertIcon />}
+                  <ContainedButton
+                    disabled={!selected.length}
                     onClick={handleClick}
-                    className={classes.serverActionButton}
+                    startIcon={<MoreVertIcon />}
                   >
-                    <Typography className={classes.power} variant="subtitle1">
-                      Power
-                    </Typography>
-                  </Button>
+                    Power
+                  </ContainedButton>
                   <Menu
                     anchorEl={anchorEl}
                     keepMounted
