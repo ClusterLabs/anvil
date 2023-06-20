@@ -1,11 +1,11 @@
-type UPSOverview = {
+type UpsOverview = {
   upsAgent: string;
   upsIPAddress: string;
   upsName: string;
   upsUUID: string;
 };
 
-type UPSTemplate = {
+type UpsTemplate = {
   [upsName: string]: AnvilDataUPSHash[string] & {
     links: {
       [linkId: string]: {

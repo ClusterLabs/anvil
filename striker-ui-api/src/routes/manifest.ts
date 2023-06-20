@@ -13,7 +13,7 @@ const router = express.Router();
 
 router
   .delete('/', deleteManifest)
-  .delete('/manifestUuid', deleteManifest)
+  .delete('/:manifestUuid', deleteManifest)
   .get('/', getManifest)
   .get('/template', getManifestTemplate)
   .get('/:manifestUUID', getManifestDetail)

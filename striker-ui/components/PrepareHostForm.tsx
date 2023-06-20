@@ -58,7 +58,6 @@ const PrepareHostForm: FC = () => {
   const { protect } = useProtect();
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
-  const gateFormRef = useRef<GateFormForwardedRefContent>({});
   const inputEnterpriseKeyRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputHostNameRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputRedhatPassword = useRef<InputForwardedRefContent<'string'>>({});
@@ -207,18 +206,7 @@ const PrepareHostForm: FC = () => {
             },
           },
         }}
-        identifierInputTestBatchBuilder={(setMessage) =>
-          buildIPAddressTestBatch(
-            HOST_IP_LABEL,
-            () => {
-              setMessage();
-            },
-            undefined,
-            (message) => {
-              setMessage({ children: message, type: 'warning' });
-            },
-          )
-        }
+        identifierInputTestBatchBuilder={buildIPAddressTestBatch}
         identifierLabel={HOST_IP_LABEL}
         onIdentifierBlurAppend={({ target: { value } }) => {
           if (connectedHostIPAddress) {
@@ -230,26 +218,18 @@ const PrepareHostForm: FC = () => {
           }
         }}
         onSubmitAppend={(
-          { getValue: getIdentifier },
-          { getValue: getPassphrase },
-          setMessage,
-          setIsSubmitting,
+          ipAddress,
+          password,
+          setGateMessage,
+          setGateIsSubmitting,
         ) => {
-          const identifierValue = getIdentifier?.call(null);
-          const passphraseValue = getPassphrase?.call(null);
+          const body = { ipAddress, password };
 
           api
-            .put<{
-              hostName: string;
-              hostOS: string;
-              hostUUID: string;
-              isConnected: boolean;
-              isInetConnected: boolean;
-              isOSRegistered: boolean;
-            }>('/command/inquire-host', {
-              ipAddress: identifierValue,
-              password: passphraseValue,
-            })
+            .put<APICommandInquireHostResponseBody>(
+              '/command/inquire-host',
+              body,
+            )
             .then(
               ({
                 data: {
@@ -277,31 +257,30 @@ const PrepareHostForm: FC = () => {
                     setIsShowRedhatSection(true);
                   }
 
-                  setConnectedHostIPAddress(identifierValue);
-                  setConnectedHostPassword(passphraseValue);
+                  setConnectedHostIPAddress(ipAddress);
+                  setConnectedHostPassword(password);
                   setConnectedHostUUID(hostUUID);
 
                   setIsShowAccessSubmit(false);
                   setIsShowOptionalSection(true);
                 } else {
-                  setMessage?.call(null, {
+                  setGateMessage({
                     children: `Failed to establish a connection with the given host credentials.`,
                     type: 'error',
                   });
                 }
               },
             )
-            .catch((error) => {
-              const errorMessage = handleAPIError(error);
+            .catch((apiError) => {
+              const emsg = handleAPIError(apiError);
 
-              setMessage?.call(null, errorMessage);
+              setGateMessage?.call(null, emsg);
             })
             .finally(() => {
-              setIsSubmitting(false);
+              setGateIsSubmitting(false);
             });
         }}
         passphraseLabel="Host root password"
-        ref={gateFormRef}
         submitLabel="Test access"
       />
     ),

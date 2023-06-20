@@ -1,5 +1,7 @@
 import express from 'express';
 
+import { stdoutVar } from '../lib/shell';
+
 const router = express.Router();
 
 router
@@ -7,9 +9,11 @@ router
     response.status(200).send({ message: 'Empty echo.' });
   })
   .post('/', (request, response) => {
-    console.log('echo:post', JSON.stringify(request.body, undefined, 2));
+    const { body = {} } = request;
 
-    const message = request.body.message ?? 'No message.';
+    stdoutVar(body, 'echo:post\n');
+
+    const { message = 'No message.' } = body;
 
     response.status(200).send({ message });
   });

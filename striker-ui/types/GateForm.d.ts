@@ -10,27 +10,26 @@ type GateFormMessageSetter = (
 type GateFormSubmittingSetter = (value: boolean) => void;
 
 type GateFormSubmitHandler = (
-  identifierContent: import('../components/InputWithRef').InputForwardedRefContent<'string'>,
-  passphraseContent: import('../components/InputWithRef').InputForwardedRefContent<'string'>,
+  identifier: string,
+  passphrase: string,
   setMessage: GateFormMessageSetter,
   setIsSubmitting: GateFormSubmittingSetter,
-  messageGroupContent: import('../components/MessageGroup').MessageGroupForwardedRefContent,
-  ...args: Parameters<ContainedButtonProps['onClick']>
+  ...args: Parameters<DivFormEventHandler>
 ) => void;
 
 type GateFormOptionalProps = {
   allowSubmit?: boolean;
+  formContainer?: boolean;
   gridProps?: Partial<GridProps>;
+  identifierId?: string;
+  identifierInputTestBatchBuilder?: BuildInputTestBatchFunction;
   identifierOutlinedInputWithLabelProps?: Partial<
     import('../components/OutlinedInputWithLabel').OutlinedInputWithLabelProps
   >;
-  identifierInputTestBatchBuilder?: (
-    setMessage: GateFormMessageSetter,
-    identifierContent: import('../components/InputWithRef').InputForwardedRefContent<'string'>,
-  ) => ReturnType<BuildInputTestBatchFunction>;
   onIdentifierBlurAppend?: import('../components/OutlinedInput').OutlinedInputProps['onBlur'];
-  onSubmit?: ContainedButtonProps['onClick'];
+  onSubmit?: DivFormEventHandler;
   onSubmitAppend?: GateFormSubmitHandler;
+  passphraseId?: string;
   passphraseOutlinedInputWithLabelProps?: Partial<
     import('../components/OutlinedInputWithLabel').OutlinedInputWithLabelProps
   >;

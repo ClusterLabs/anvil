@@ -32,15 +32,33 @@ const systemCall = (
 export const date = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.date.self, args);
 
+export const getent = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.bin.getent.self, args);
+
 export const mkfifo = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.mkfifo.self, args);
 
+export const openssl = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.bin.openssl.self, args);
+
 export const rm = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.rm.self, args);
+
+export const uuidgen = (...args: string[]) =>
+  systemCall(SERVER_PATHS.usr.bin.uuidgen.self, args);
+
+export const resolveId = (id: number | string, database: string) =>
+  Number.parseInt(getent(database, String(id)).split(':', 3)[2]);
+
+export const resolveGid = (id: number | string) => resolveId(id, 'group');
+
+export const resolveUid = (id: number | string) => resolveId(id, 'passwd');
 
 export const stderr = (message: string) => print(message, { stream: 'stderr' });
 
 export const stdout = (message: string) => print(message);
 
-export const stdoutVar = (variable: { [name: string]: unknown }) =>
-  print(`Variables: ${JSON.stringify(variable, null, 2)}`);
+export const stdoutVar = (variable: unknown, label = 'Variables: ') =>
+  print(`${label}${JSON.stringify(variable, null, 2)}`);
+
+export const uuid = () => uuidgen('--random').trim();

@@ -13,7 +13,7 @@ import { sub } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { stdout } from '../../shell';
 
-export const buildManifest = (
+export const buildManifest = async (
   ...[request]: Parameters<
     RequestHandler<
       { manifestUuid?: string },
@@ -257,24 +257,29 @@ export const buildManifest = (
     {},
   );
 
-  let result: { name: string; uuid: string } | undefined;
+  let result: { name: string; uuid: string };
 
   try {
-    const [uuid, name] = sub('generate_manifest', {
-      subModuleName: 'Striker',
-      subParams: {
-        dns,
-        domain,
-        manifest_uuid: manifestUuid,
-        mtu,
-        ntp,
-        prefix,
-        sequence,
-        ...networkCountContainer,
-        ...networkContainer,
-        ...hostContainer,
+    const [uuid, name]: [manifestUuid: string, anvilName: string] = await sub(
+      'generate_manifest',
+      {
+        params: [
+          {
+            dns,
+            domain,
+            manifest_uuid: manifestUuid,
+            mtu,
+            ntp,
+            prefix,
+            sequence,
+            ...networkCountContainer,
+            ...networkContainer,
+            ...hostContainer,
+          },
+        ],
+        pre: ['Striker'],
       },
-    }).stdout as [manifestUuid: string, anvilName: string];
+    );
 
     result = { name, uuid };
   } catch (subError) {

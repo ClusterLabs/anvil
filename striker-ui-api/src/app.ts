@@ -1,18 +1,38 @@
 import cors from 'cors';
-import express from 'express';
-import path from 'path';
+import express, { json } from 'express';
 
-import API_ROOT_PATH from './lib/consts/API_ROOT_PATH';
-
+import { guardApi } from './lib/assertAuthentication';
+import passport from './passport';
 import routes from './routes';
+import { rrouters } from './lib/rrouters';
+import session from './session';
 
-const app = express();
+export default (async () => {
+  const app = express();
 
-app.use(express.json());
-app.use(cors());
+  app.use(json());
 
-Object.entries(routes).forEach(([route, router]) => {
-  app.use(path.join(API_ROOT_PATH, route), router);
-});
+  app.use(
+    cors({
+      origin: true,
+      credentials: true,
+    }),
+  );
 
-export default app;
+  // Add session handler to the chain **after** adding other handlers that do
+  // not depend on session(s).
+  app.use(await session);
+
+  app.use(passport.initialize());
+  app.use(passport.authenticate('session'));
+
+  rrouters(app, routes.private, {
+    assign: (router) => [guardApi, router],
+    route: '/api',
+  });
+  rrouters(app, routes.public, { route: '/api' });
+
+  app.use(routes.static);
+
+  return app;
+})();

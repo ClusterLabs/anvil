@@ -7,4 +7,4 @@ type BuildQueryOptions = {
 type BuildQueryFunction = (
   request: import('express').Request,
   options?: BuildQueryOptions,
-) => string;
+) => string | Promise<string>;
