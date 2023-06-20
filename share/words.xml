@@ -600,6 +600,8 @@ The error was:
 #!variable!error!#
 ========
 		</key>
+		<key name="error_0417">There was a problem with finding a common storage network between: [#!variable!node1_name!#] and: [#!variable!node2_name!#] using the common interface: [#!variable!interface!#]. Found node 1 to have the IP: [#!variable!node1_ip!#] and node 2: [#!variable!node2_ip!#]. Is there a problem with '/etc/hosts'?</key>
+		<key name="error_0418">Failed to find a network to use for storage replication. Is there a problem with '/etc/hosts'?</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->

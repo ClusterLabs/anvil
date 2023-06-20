@@ -17,7 +17,7 @@
 # 3 = It looks like the update failed, reset progress to '0'.
 # 
 # TODO: 
-#  - Use this to update local repos for when we get to the Install Manifest stage.
+#  - Rebuild this to be 'striker-update-system' and have it update local strikers and all nodes.
 # 
 
 use strict;
