@@ -2,6 +2,7 @@ import express from 'express';
 
 import {
   createServer,
+  deleteServer,
   getServer,
   getServerDetail,
 } from '../lib/request_handlers/server';
@@ -9,6 +10,8 @@ import {
 const router = express.Router();
 
 router
+  .delete('/', deleteServer)
+  .delete('/:serverUuid', deleteServer)
   .get('/', getServer)
   .get('/:serverUUID', getServerDetail)
   .post('/', createServer);

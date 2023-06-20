@@ -26,6 +26,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-access-module': {},
       'anvil-boot-server': {},
       'anvil-configure-host': {},
+      'anvil-delete-server': {},
       'anvil-get-server-screenshot': {},
       'anvil-join-anvil': {},
       'anvil-manage-keys': {},
