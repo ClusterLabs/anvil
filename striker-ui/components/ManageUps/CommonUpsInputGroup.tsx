@@ -22,7 +22,7 @@ const CommonUpsInputGroup = <
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
-    msgSetters,
+    setMessage,
   },
   previous: { upsIPAddress: previousIpAddress, upsName: previousUpsName } = {},
 }: CommonUpsInputGroupProps<M>): ReactElement => (
@@ -42,16 +42,14 @@ const CommonUpsInputGroup = <
             inputTestBatch={buildPeacefulStringTestBatch(
               INPUT_LABEL_UPS_NAME,
               () => {
-                msgSetters[INPUT_ID_UPS_NAME]();
+                setMessage(INPUT_ID_UPS_NAME);
               },
               {
                 onFinishBatch:
                   buildFinishInputTestBatchFunction(INPUT_ID_UPS_NAME),
               },
               (message) => {
-                msgSetters[INPUT_ID_UPS_NAME]({
-                  children: message,
-                });
+                setMessage(INPUT_ID_UPS_NAME, { children: message });
               },
             )}
             onFirstRender={buildInputFirstRenderFunction(INPUT_ID_UPS_NAME)}
@@ -72,16 +70,14 @@ const CommonUpsInputGroup = <
             inputTestBatch={buildIPAddressTestBatch(
               INPUT_LABEL_UPS_IP,
               () => {
-                msgSetters[INPUT_ID_UPS_IP]();
+                setMessage(INPUT_ID_UPS_IP);
               },
               {
                 onFinishBatch:
                   buildFinishInputTestBatchFunction(INPUT_ID_UPS_IP),
               },
               (message) => {
-                msgSetters[INPUT_ID_UPS_IP]({
-                  children: message,
-                });
+                setMessage(INPUT_ID_UPS_IP, { children: message });
               },
             )}
             onFirstRender={buildInputFirstRenderFunction(INPUT_ID_UPS_IP)}

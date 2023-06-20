@@ -1,0 +1,88 @@
+import { ReactElement, useMemo, useState } from 'react';
+
+import AnHostConfigInputGroup from './AnHostConfigInputGroup';
+import AnIdInputGroup, {
+  INPUT_ID_AI_DOMAIN,
+  INPUT_ID_AI_PREFIX,
+  INPUT_ID_AI_SEQUENCE,
+} from './AnIdInputGroup';
+import AnNetworkConfigInputGroup, {
+  INPUT_ID_ANC_DNS,
+  INPUT_ID_ANC_MTU,
+  INPUT_ID_ANC_NTP,
+} from './AnNetworkConfigInputGroup';
+import FlexBox from '../FlexBox';
+
+const DEFAULT_NETWORK_LIST: ManifestNetworkList = {
+  bcn1: {
+    networkMinIp: '10.201.0.0',
+    networkNumber: 1,
+    networkSubnetMask: '255.255.0.0',
+    networkType: 'bcn',
+  },
+  sn1: {
+    networkMinIp: '10.101.0.0',
+    networkNumber: 1,
+    networkSubnetMask: '255.255.0.0',
+    networkType: 'sn',
+  },
+  ifn1: {
+    networkMinIp: '',
+    networkNumber: 1,
+    networkSubnetMask: '',
+    networkType: 'ifn',
+  },
+};
+
+const AddManifestInputGroup = <
+  M extends {
+    [K in
+      | typeof INPUT_ID_AI_DOMAIN
+      | typeof INPUT_ID_AI_PREFIX
+      | typeof INPUT_ID_AI_SEQUENCE
+      | typeof INPUT_ID_ANC_DNS
+      | typeof INPUT_ID_ANC_MTU
+      | typeof INPUT_ID_ANC_NTP]: string;
+  },
+>({
+  formUtils,
+  knownFences,
+  knownUpses,
+  previous: {
+    hostConfig: previousHostConfig,
+    networkConfig: previousNetworkConfig = {},
+    ...previousAnId
+  } = {},
+}: AddManifestInputGroupProps<M>): ReactElement => {
+  const { networks: previousNetworkList = DEFAULT_NETWORK_LIST } =
+    previousNetworkConfig;
+
+  const [networkList, setNetworkList] =
+    useState<ManifestNetworkList>(previousNetworkList);
+
+  const networkListEntries = useMemo(
+    () => Object.entries(networkList),
+    [networkList],
+  );
+
+  return (
+    <FlexBox>
+      <AnIdInputGroup formUtils={formUtils} previous={previousAnId} />
+      <AnNetworkConfigInputGroup
+        formUtils={formUtils}
+        networkListEntries={networkListEntries}
+        previous={previousNetworkConfig}
+        setNetworkList={setNetworkList}
+      />
+      <AnHostConfigInputGroup
+        formUtils={formUtils}
+        knownFences={knownFences}
+        knownUpses={knownUpses}
+        networkListEntries={networkListEntries}
+        previous={previousHostConfig}
+      />
+    </FlexBox>
+  );
+};
+
+export default AddManifestInputGroup;

@@ -62,20 +62,22 @@ const MessageGroup = forwardRef<
       (key: string, message?: Message) => {
         let length = 0;
 
-        const { [key]: unused, ...rest } = messages;
-        const result: Messages = rest;
+        setMessages((previous) => {
+          const { [key]: unused, ...rest } = previous;
+          const result: Messages = rest;
 
-        if (message) {
-          result[key] = message;
-        }
+          if (message) {
+            result[key] = message;
+          }
 
-        length = Object.keys(result).length;
+          length = Object.keys(result).length;
+
+          return result;
+        });
 
         onSet?.call(null, length);
-
-        setMessages(result);
       },
-      [messages, onSet],
+      [onSet],
     );
     const setMessageRe = useCallback(
       (re: RegExp, message?: Message) => {
@@ -87,22 +89,25 @@ const MessageGroup = forwardRef<
               length += 1;
             }
           : undefined;
-        const result: Messages = {};
 
-        Object.keys(messages).forEach((key: string) => {
-          if (re.test(key)) {
-            assignMessage?.call(null, result, key);
-          } else {
-            result[key] = messages[key];
-            length += 1;
-          }
+        setMessages((previous) => {
+          const result: Messages = {};
+
+          Object.keys(previous).forEach((key: string) => {
+            if (re.test(key)) {
+              assignMessage?.call(null, result, key);
+            } else {
+              result[key] = previous[key];
+              length += 1;
+            }
+          });
+
+          return result;
         });
 
         onSet?.call(null, length);
-
-        setMessages(result);
       },
-      [messages, onSet],
+      [onSet],
     );
 
     const messageElements = useMemo(() => {

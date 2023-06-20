@@ -14,6 +14,9 @@ const buildDomainTestBatch: BuildInputTestBatchFunction = (
   onFinishBatch,
   tests: [
     {
+      test: testNotBlank,
+    },
+    {
       onFailure: (...args) => {
         onDomainTestFailure(
           <>
@@ -27,7 +30,6 @@ const buildDomainTestBatch: BuildInputTestBatchFunction = (
       test: ({ compare, value }) =>
         (compare[0] as boolean) || REP_DOMAIN.test(value as string),
     },
-    { test: testNotBlank },
   ],
 });
 

@@ -6,6 +6,7 @@ import {
   IconButtonProps as MUIIconButtonProps,
   iconButtonClasses as muiIconButtonClasses,
   InputAdornment as MUIInputAdornment,
+  InputBaseComponentProps as MUIInputBaseComponentProps,
 } from '@mui/material';
 import { FC, useCallback, useMemo, useState } from 'react';
 
@@ -31,6 +32,7 @@ type OutlinedInputWithLabelOptionalPropsWithDefault = {
 };
 
 type OutlinedInputWithLabelOptionalPropsWithoutDefault = {
+  baseInputProps?: MUIInputBaseComponentProps;
   onHelp?: MUIIconButtonProps['onClick'];
   onHelpAppend?: MUIIconButtonProps['onClick'];
   type?: string;
@@ -50,6 +52,7 @@ type OutlinedInputWithLabelProps = Pick<
 
 const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOptionalPropsWithDefault> &
   OutlinedInputWithLabelOptionalPropsWithoutDefault = {
+  baseInputProps: undefined,
   fillRow: false,
   formControlProps: {},
   helpMessageBoxProps: {},
@@ -65,6 +68,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOp
 };
 
 const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
+  baseInputProps,
   fillRow: isFillRow = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.fillRow,
   formControlProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.formControlProps,
   helpMessageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.helpMessageBoxProps,
@@ -171,6 +175,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
         }
         fullWidth={formControlProps.fullWidth}
         id={id}
+        inputProps={baseInputProps}
         label={label}
         name={name}
         onBlur={onBlur}

@@ -13,15 +13,17 @@ const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
   onFinishBatch,
   tests: [
     {
+      test: testNotBlank,
+    },
+    {
       onFailure: (...args) => {
         onIPv4TestFailure(
-          `${inputName} should be a valid IPv4 address.`,
+          <>{inputName} should be a valid IPv4 address.</>,
           ...args,
         );
       },
       test: ({ value }) => REP_IPV4.test(value as string),
     },
-    { test: testNotBlank },
   ],
 });
 

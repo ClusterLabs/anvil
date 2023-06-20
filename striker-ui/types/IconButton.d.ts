@@ -1,16 +1,29 @@
 type CreatableComponent = Parameters<typeof import('react').createElement>[0];
 
-type IconButtonPresetMapToStateIcon = 'edit' | 'visibility';
+type IconButtonPresetMapToStateIconBundle =
+  | 'add'
+  | 'close'
+  | 'edit'
+  | 'play'
+  | 'visibility';
 
-type IconButtonMapToStateIcon = Record<string, CreatableComponent>;
+type IconButtonStateIconBundle = {
+  iconType: CreatableComponent;
+  iconProps?: import('@mui/material').SvgIconProps;
+};
+
+type IconButtonMapToStateIconBundle = Record<string, IconButtonStateIconBundle>;
 
 type IconButtonVariant = 'contained' | 'normal';
+
+type IconButtonMouseEventHandler =
+  import('@mui/material').IconButtonProps['onClick'];
 
 type IconButtonOptionalProps = {
   defaultIcon?: CreatableComponent;
   iconProps?: import('@mui/material').SvgIconProps;
-  mapPreset?: IconButtonPresetMapToStateIcon;
-  mapToIcon?: IconButtonMapToStateIcon;
+  mapPreset?: IconButtonPresetMapToStateIconBundle;
+  mapToIcon?: IconButtonMapToStateIconBundle;
   state?: string;
   variant?: IconButtonVariant;
 };

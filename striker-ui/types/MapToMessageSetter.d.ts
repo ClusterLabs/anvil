@@ -1,5 +1,5 @@
 type MapToMessageSetter<T extends MapToInputTestID> = {
-  [MessageSetterID in keyof T]: MessageSetterFunction;
+  [MessageSetterID in keyof T]: MessageSetter;
 };
 
 type InputIds<T> = ReadonlyArray<T> | MapToInputTestID;

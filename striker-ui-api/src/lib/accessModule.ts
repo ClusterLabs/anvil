@@ -148,6 +148,22 @@ const getAnvilData = <HashType>(
     spawnSyncOptions,
   ).stdout;
 
+const getLocalHostName = () => {
+  let result: string;
+
+  try {
+    result = execModuleSubroutine('host_name', {
+      subModuleName: 'Get',
+    }).stdout;
+  } catch (subError) {
+    throw new Error(`Failed to get local host name; CAUSE: ${subError}`);
+  }
+
+  shout(`localHostName=${result}`);
+
+  return result;
+};
+
 const getLocalHostUUID = () => {
   let result: string;
 
@@ -156,7 +172,7 @@ const getLocalHostUUID = () => {
       subModuleName: 'Get',
     }).stdout;
   } catch (subError) {
-    throw new Error(`Failed to get localhost UUID; CAUSE: ${subError}`);
+    throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
   }
 
   shout(`localHostUUID=[${result}]`);
@@ -201,6 +217,7 @@ export {
   dbSubRefreshTimestamp,
   dbWrite,
   getAnvilData,
+  getLocalHostName,
   getLocalHostUUID,
   getPeerData,
   execModuleSubroutine as sub,

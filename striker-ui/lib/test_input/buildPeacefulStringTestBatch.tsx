@@ -14,6 +14,13 @@ const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
   onFinishBatch,
   tests: [
     {
+      /**
+       * Not-blank test ensures no unnecessary error message is provided when
+       * input is not (yet) filled.
+       */
+      test: testNotBlank,
+    },
+    {
       onFailure: (...args) => {
         onTestPeacefulStringFailureAppend(
           <>
@@ -31,7 +38,6 @@ const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
       },
       test: ({ value }) => REP_PEACEFUL_STRING.test(value as string),
     },
-    { test: testNotBlank },
   ],
 });
 

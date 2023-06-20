@@ -308,68 +308,89 @@ sub generate_manifest
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $debug     = $parameter->{debug} // 3;
+
+	my $domain          = $parameter->{domain} // $anvil->data->{cgi}{domain}{value};
+	my $manifest_uuid   = $parameter->{manifest_uuid} // $anvil->data->{cgi}{manifest_uuid}{value};
+	my $name_prefix     = $parameter->{prefix} // $anvil->data->{cgi}{prefix}{value};
+	my $network_dns     = $parameter->{dns} // $anvil->data->{cgi}{dns}{value};
+	my $network_mtu     = $parameter->{mtu} // $anvil->data->{cgi}{mtu}{value};
+	my $network_ntp     = $parameter->{ntp} // $anvil->data->{cgi}{ntp}{value};
+	my $padded_sequence = $parameter->{sequence} // $anvil->data->{cgi}{sequence}{value};
+
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->generate_manifest()" }});
 	
 	$anvil->Database->get_upses({debug => $debug});
 	$anvil->Database->get_fences({debug => $debug});
 	
-	my $manifest_uuid   = $anvil->data->{cgi}{manifest_uuid}{value} eq "new" ? "" : $anvil->data->{cgi}{manifest_uuid}{value};
-	my $padded_sequence = $anvil->data->{cgi}{sequence}{value};
+	$manifest_uuid   = $manifest_uuid eq "new" ? "" : $manifest_uuid;
+
 	if (length($padded_sequence) == 1)
 	{
 		$padded_sequence = sprintf("%02d", $padded_sequence);
 	}
-	my $anvil_name = $anvil->data->{cgi}{prefix}{value}."-anvil-".$padded_sequence;
-	my $node1_name = $anvil->data->{cgi}{prefix}{value}."-a".$padded_sequence."n01";
-	my $node2_name = $anvil->data->{cgi}{prefix}{value}."-a".$padded_sequence."n02";
-	my $dr1_name   = $anvil->data->{cgi}{prefix}{value}."-a".$padded_sequence."dr01";
+
+	my $anvil_name = $name_prefix."-anvil-".$padded_sequence;
+	my $node1_name = $name_prefix."-a".$padded_sequence."n01";
+	my $node2_name = $name_prefix."-a".$padded_sequence."n02";
+	my $dr1_name   = $name_prefix."-a".$padded_sequence."dr01";
 	my $machines   = {};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 	my $manifest_xml = '<?xml version="1.0" encoding="UTF-8"?>
-<install_manifest name="'.$anvil_name.'" domain="'.$anvil->data->{cgi}{domain}{value}.'">
-	<networks mtu="'.$anvil->data->{cgi}{mtu}{value}.'" dns="'.$anvil->data->{cgi}{dns}{value}.'" ntp="'.$anvil->data->{cgi}{ntp}{value}.'">
+<install_manifest name="'.$anvil_name.'" domain="'.$domain.'">
+	<networks mtu="'.$network_mtu.'" dns="'.$network_dns.'" ntp="'.$network_ntp.'">
 ';
 	foreach my $network ("bcn", "sn", "ifn")
 	{
 		my $count_key = $network."_count";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cgi::${count_key}::value" => $anvil->data->{cgi}{$count_key}{value} }});
-		foreach my $i (1..$anvil->data->{cgi}{$count_key}{value})
+		my $count_value = $parameter->{$count_key} // $anvil->data->{cgi}{$count_key}{value};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "${count_key}" => $count_value }});
+		foreach my $i (1..$count_value)
 		{
-			my $network_name =  $network.$i;
-			my $network_key  =  $network_name."_network";
-			my $subnet_key   =  $network_name."_subnet";
-			my $gateway_key  =  $network_name."_gateway";
-			   $manifest_xml .= '		<network name="'.$network_name.'" network="'.$anvil->data->{cgi}{$network_key}{value}.'" subnet="'.$anvil->data->{cgi}{$subnet_key}{value}.'" gateway="'.$anvil->data->{cgi}{$gateway_key}{value}.'" />'."\n";
+			my $network_name  = $network.$i;
+			my $network_key   = $network_name."_network";
+			my $network_value = $parameter->{$network_key} // $anvil->data->{cgi}{$network_key}{value};
+			my $subnet_key    = $network_name."_subnet";
+			my $subnet_value  = $parameter->{$subnet_key} // $anvil->data->{cgi}{$subnet_key}{value};
+			my $gateway_key   = $network_name."_gateway";
+			my $gateway_value = $parameter->{$gateway_key} // $anvil->data->{cgi}{$gateway_key}{value};
+
+			$manifest_xml .= '		<network name="'.$network_name.'" network="'.$network_value.'" subnet="'.$subnet_value.'" gateway="'.$gateway_value.'" />'."\n";
 			
 			# While we're here, gather the network data for the machines.
 			foreach my $machine ("node1", "node2", "dr1")
 			{
 				# Record the network
-				my $ip_key = $machine."_".$network_name."_ip";
-				$machines->{$machine}{network}{$network_name} = defined $anvil->data->{cgi}{$ip_key}{value} ? $anvil->data->{cgi}{$ip_key}{value} : "";
+				my $ip_key   = $machine."_".$network_name."_ip";
+				my $ip_value = ($parameter->{$ip_key} // $anvil->data->{cgi}{$ip_key}{value}) // "";
+
+				$machines->{$machine}{network}{$network_name} = $ip_value;
 				
 				# On the first loop (bcn1), pull in the other information as well.
 				if (($network eq "bcn") && ($i eq "1"))
 				{
 					# Get the IP.
-					my $ipmi_ip_key                   = $machine."_ipmi_ip";
-					   $machines->{$machine}{ipmi_ip} = defined $anvil->data->{cgi}{$ipmi_ip_key}{value} ? $anvil->data->{cgi}{$ipmi_ip_key}{value} : "";
+					my $ipmi_ip_key   = $machine."_ipmi_ip";
+					my $ipmi_ip_value = ($parameter->{$ipmi_ip_key} // $anvil->data->{cgi}{$ipmi_ip_key}{value}) // "";
+
+					$machines->{$machine}{ipmi_ip} = $ipmi_ip_value;
 					
 					# Find the UPSes.
 					foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
 					{
 						my $ups_key                              = $machine."_ups_".$ups_name;
-						   $anvil->data->{cgi}{$ups_key}{value}  = "" if not defined $anvil->data->{cgi}{$ups_key}{value};
-						   $machines->{$machine}{ups}{$ups_name} = $anvil->data->{cgi}{$ups_key}{value} ? "1" : "0";
+						my $ups_value = ($parameter->{$ups_key} // $anvil->data->{cgi}{$ups_key}{value}) // "";
+
+						$machines->{$machine}{ups}{$ups_name} = $ups_value ? "1" : "0";
 					}
 					
 					# Find the Fence devices.
 					foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
 					{
-						my $fence_key                                = $machine."_fence_".$fence_name;
-						   $anvil->data->{cgi}{$fence_key}{value}    = "" if not defined $anvil->data->{cgi}{$fence_key}{value};
-						   $machines->{$machine}{fence}{$fence_name} = $anvil->data->{cgi}{$fence_key}{value};
+						my $fence_key   = $machine."_fence_".$fence_name;
+						my $fence_value = ($parameter->{$fence_key} // $anvil->data->{cgi}{$fence_key}{value}) // "";
+
+						$machines->{$machine}{fence}{$fence_name} = $fence_value;
 					}
 				}
 			}

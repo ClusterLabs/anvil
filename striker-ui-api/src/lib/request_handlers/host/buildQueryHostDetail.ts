@@ -1,7 +1,7 @@
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { cap } from '../../cap';
-import { getShortHostName } from '../../getShortHostName';
+import { getShortHostName } from '../../disassembleHostName';
 import { stdout } from '../../shell';
 
 type ExtractVariableKeyFunction = (parts: string[]) => string;

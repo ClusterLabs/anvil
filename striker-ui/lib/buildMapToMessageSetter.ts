@@ -7,8 +7,8 @@ const buildMessageSetter = <T extends MapToInputTestID>(
   messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
   container?: MapToMessageSetter<T>,
   key: string = id,
-): MessageSetterFunction => {
-  const setter: MessageSetterFunction = (message?) => {
+): MessageSetter => {
+  const setter: MessageSetter = (message?) => {
     messageGroupRef.current.setMessage?.call(null, id, message);
   };
 
@@ -46,5 +46,7 @@ const buildMapToMessageSetter = <
 
   return result;
 };
+
+export { buildMessageSetter };
 
 export default buildMapToMessageSetter;
