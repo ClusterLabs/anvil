@@ -7,6 +7,7 @@ import fenceRouter from './fence';
 import fileRouter from './file';
 import hostRouter from './host';
 import jobRouter from './job';
+import manifestRouter from './manifest';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
 import sshKeyRouter from './ssh-key';
@@ -21,6 +22,7 @@ const routes: Readonly<Record<string, Router>> = {
   file: fileRouter,
   host: hostRouter,
   job: jobRouter,
+  manifest: manifestRouter,
   'network-interface': networkInterfaceRouter,
   server: serverRouter,
   'ssh-key': sshKeyRouter,

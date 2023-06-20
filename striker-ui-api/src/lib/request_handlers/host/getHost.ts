@@ -4,7 +4,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryHostDetail } from './buildQueryHostDetail';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
-import { getShortHostName } from '../../getShortHostName';
+import { getShortHostName } from '../../disassembleHostName';
 import { sanitize } from '../../sanitize';
 
 export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {

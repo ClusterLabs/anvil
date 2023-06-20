@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode, useMemo, useState } from 'react';
+import { ReactElement, ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { BLACK } from '../../lib/consts/DEFAULT_THEME';
 
@@ -142,11 +142,13 @@ const AddUpsInputGroup = <
     ],
   );
 
-  if (isFirstRender) {
-    buildInputFirstRenderFunction(INPUT_ID_UPS_TYPE)({
-      isValid: Boolean(inputUpsTypeIdValue),
-    });
-  }
+  useEffect(() => {
+    if (isFirstRender) {
+      buildInputFirstRenderFunction(INPUT_ID_UPS_TYPE)({
+        isValid: Boolean(inputUpsTypeIdValue),
+      });
+    }
+  }, [buildInputFirstRenderFunction, inputUpsTypeIdValue, isFirstRender]);
 
   return content;
 };

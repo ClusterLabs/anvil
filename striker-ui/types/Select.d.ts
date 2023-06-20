@@ -1,3 +1,8 @@
+type SelectChangeEventHandler = Exclude<
+  import('@mui/material').SelectProps['onChange'],
+  undefined
+>;
+
 type SelectOptionalProps = {
   onClearIndicatorClick?: import('@mui/material').IconButtonProps['onClick'];
 };

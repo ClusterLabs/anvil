@@ -1,7 +1,9 @@
 import { MutableRefObject, useCallback, useMemo, useState } from 'react';
 
-import buildMapToMessageSetter from '../lib/buildMapToMessageSetter';
-import buildObjectStateSetterCallback from '../lib/buildObjectStateSetterCallback';
+import buildObjectStateSetterCallback, {
+  buildRegExpObjectStateSetterCallback,
+} from '../lib/buildObjectStateSetterCallback';
+import { Message } from '../components/MessageBox';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
 
 const useFormUtils = <
@@ -14,11 +16,47 @@ const useFormUtils = <
 ): FormUtils<M> => {
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
 
-  const setValidity = useCallback((key: keyof M, value: boolean) => {
+  const setMessage = useCallback(
+    (key: keyof M, message?: Message) => {
+      messageGroupRef?.current?.setMessage?.call(null, String(key), message);
+    },
+    [messageGroupRef],
+  );
+
+  const setMessageRe = useCallback(
+    (re: RegExp, message?: Message) => {
+      messageGroupRef?.current?.setMessageRe?.call(null, re, message);
+    },
+    [messageGroupRef],
+  );
+
+  const setValidity = useCallback((key: keyof M, value?: boolean) => {
     setFormValidity(
       buildObjectStateSetterCallback<FormValidity<M>>(key, value),
     );
   }, []);
+
+  const setValidityRe = useCallback((re: RegExp, value?: boolean) => {
+    setFormValidity(
+      buildRegExpObjectStateSetterCallback<FormValidity<M>>(re, value),
+    );
+  }, []);
+
+  const unsetKey = useCallback(
+    (key: keyof M) => {
+      setMessage(key);
+      setValidity(key);
+    },
+    [setMessage, setValidity],
+  );
+
+  const unsetKeyRe = useCallback(
+    (re: RegExp) => {
+      setMessageRe(re);
+      setValidityRe(re);
+    },
+    [setMessageRe, setValidityRe],
+  );
 
   const buildFinishInputTestBatchFunction = useCallback(
     (key: keyof M) => (result: boolean) => {
@@ -35,24 +73,31 @@ const useFormUtils = <
     [setValidity],
   );
 
+  const buildInputUnmountFunction = useCallback(
+    (key: keyof M) => () => {
+      unsetKey(key);
+    },
+    [unsetKey],
+  );
+
   const isFormInvalid = useMemo(
     () => Object.values(formValidity).some((isInputValid) => !isInputValid),
     [formValidity],
   );
 
-  const msgSetters = useMemo(
-    () => buildMapToMessageSetter<U, I, M>(ids, messageGroupRef),
-    [ids, messageGroupRef],
-  );
-
   return {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
+    buildInputUnmountFunction,
     formValidity,
     isFormInvalid,
-    msgSetters,
     setFormValidity,
+    setMessage,
+    setMessageRe,
     setValidity,
+    setValidityRe,
+    unsetKey,
+    unsetKeyRe,
   };
 };
 

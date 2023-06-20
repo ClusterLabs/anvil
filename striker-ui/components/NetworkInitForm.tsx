@@ -34,6 +34,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
+import NETWORK_TYPES from '../lib/consts/NETWORK_TYPES';
 import { REP_IPV4, REP_IPV4_CSV } from '../lib/consts/REG_EXP_PATTERNS';
 
 import BriefNetworkInterface from './BriefNetworkInterface';
@@ -105,17 +106,6 @@ const CLASSES = {
   ifaceNotApplied: `${CLASS_PREFIX}-network-interface-not-applied`,
 };
 const INITIAL_IFACES = [undefined, undefined];
-
-const NETWORK_TYPES: Record<string, string> = {
-  bcn: 'Back-Channel Network',
-  ifn: 'Internet-Facing Network',
-  sn: 'Storage Network',
-};
-
-const NODE_NETWORK_TYPES: Record<string, string> = {
-  ...NETWORK_TYPES,
-  mn: 'Migration Network',
-};
 
 const STRIKER_REQUIRED_NETWORKS: NetworkInput[] = [
   {
@@ -349,11 +339,13 @@ const NetworkForm: FC<{
       !isNode && networkInterfaceCount <= 2 ? [1] : NETWORK_INTERFACE_TEMPLATE,
     [isNode, networkInterfaceCount],
   );
-  const netTypeList = useMemo(
-    () =>
-      isNode && networkInterfaceCount >= 8 ? NODE_NETWORK_TYPES : NETWORK_TYPES,
-    [isNode, networkInterfaceCount],
-  );
+  const netTypeList = useMemo(() => {
+    const { bcn, ifn, mn, sn } = NETWORK_TYPES;
+
+    return isNode && networkInterfaceCount >= 8
+      ? { bcn, ifn, mn, sn }
+      : { bcn, ifn, sn };
+  }, [isNode, networkInterfaceCount]);
 
   useEffect(() => {
     const { ipAddressInputRef: ipRef, subnetMaskInputRef: maskRef } =

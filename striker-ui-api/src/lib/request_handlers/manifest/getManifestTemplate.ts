@@ -1,0 +1,119 @@
+import { RequestHandler } from 'express';
+
+import { dbQuery, getLocalHostName } from '../../accessModule';
+import {
+  getHostNameDomain,
+  getHostNamePrefix,
+  getShortHostName,
+} from '../../disassembleHostName';
+import { stderr } from '../../shell';
+
+export const getManifestTemplate: RequestHandler = (request, response) => {
+  let localHostName = '';
+
+  try {
+    localHostName = getLocalHostName();
+  } catch (subError) {
+    stderr(String(subError));
+
+    response.status(500).send();
+
+    return;
+  }
+
+  const localShortHostName = getShortHostName(localHostName);
+
+  const domain = getHostNameDomain(localHostName);
+  const prefix = getHostNamePrefix(localShortHostName);
+
+  let rawQueryResult: Array<
+    [
+      fenceUUID: string,
+      fenceName: string,
+      upsUUID: string,
+      upsName: string,
+      manifestUuid: string,
+      lastSequence: string,
+    ]
+  >;
+
+  try {
+    ({ stdout: rawQueryResult } = dbQuery(
+      `SELECT
+          a.fence_uuid,
+          a.fence_name,
+          b.ups_uuid,
+          b.ups_name,
+          c.last_sequence
+        FROM (
+          SELECT
+            ROW_NUMBER() OVER (ORDER BY fence_name),
+            fence_uuid,
+            fence_name
+          FROM fences
+          ORDER BY fence_name
+        ) AS a
+        FULL JOIN (
+          SELECT
+            ROW_NUMBER() OVER (ORDER BY ups_name),
+            ups_uuid,
+            ups_name
+          FROM upses
+          ORDER BY ups_name
+        ) AS b ON a.row_number = b.row_number
+        FULL JOIN (
+          SELECT
+            ROW_NUMBER() OVER (ORDER BY manifest_name DESC),
+            CAST(
+              SUBSTRING(manifest_name, '([\\d]*)$') AS INTEGER
+            ) AS last_sequence
+          FROM manifests
+          ORDER BY manifest_name DESC
+          LIMIT 1
+        ) AS c ON a.row_number = c.row_number;`,
+    ));
+  } catch (queryError) {
+    stderr(`Failed to execute query; CAUSE: ${queryError}`);
+
+    response.status(500).send();
+
+    return;
+  }
+
+  const queryResult = rawQueryResult.reduce<
+    Pick<ManifestTemplate, 'fences' | 'sequence' | 'upses'>
+  >(
+    (previous, [fenceUUID, fenceName, upsUUID, upsName, lastSequence]) => {
+      const { fences, upses } = previous;
+
+      if (fenceUUID) {
+        fences[fenceUUID] = {
+          fenceName,
+          fenceUUID,
+        };
+      }
+
+      if (upsUUID) {
+        upses[upsUUID] = {
+          upsName,
+          upsUUID,
+        };
+      }
+
+      if (lastSequence) {
+        previous.sequence = Number.parseInt(lastSequence) + 1;
+      }
+
+      return previous;
+    },
+    { fences: {}, sequence: 1, upses: {} },
+  );
+
+  const result: ManifestTemplate = {
+    domain,
+    prefix,
+    ...queryResult,
+  };
+
+  response.status(200).send(result);
+};

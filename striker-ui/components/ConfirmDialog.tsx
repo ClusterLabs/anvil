@@ -42,7 +42,9 @@ const ConfirmDialog = forwardRef<
         PaperProps: paperProps = {},
         ...restDialogProps
       } = {},
+      disableProceed: isDisableProceed,
       formContent: isFormContent,
+      loading: isLoading = false,
       loadingAction: isLoadingAction = false,
       onActionAppend,
       onCancelAppend,
@@ -59,8 +61,11 @@ const ConfirmDialog = forwardRef<
     ref,
   ) => {
     const { sx: paperSx, ...restPaperProps } = paperProps;
-    const { sx: proceedButtonSx, ...restProceedButtonProps } =
-      proceedButtonProps;
+    const {
+      disabled: proceedButtonDisabled = isDisableProceed,
+      sx: proceedButtonSx,
+      ...restProceedButtonProps
+    } = proceedButtonProps;
 
     const [isOpen, setIsOpen] = useState<boolean>(openInitially);
 
@@ -141,6 +146,7 @@ const ConfirmDialog = forwardRef<
     const proceedButtonElement = useMemo(
       () => (
         <ContainedButton
+          disabled={proceedButtonDisabled}
           onClick={proceedButtonClickEventHandler}
           type={proceedButtonType}
           {...restProceedButtonProps}
@@ -159,6 +165,7 @@ const ConfirmDialog = forwardRef<
       [
         actionProceedText,
         proceedButtonClickEventHandler,
+        proceedButtonDisabled,
         proceedButtonSx,
         proceedButtonType,
         proceedColour,
@@ -196,16 +203,52 @@ const ConfirmDialog = forwardRef<
         ),
       [titleText],
     );
-    const combinedScrollBoxSx = useMemo<SxProps<Theme> | undefined>(
+    const combinedScrollBoxSx = useMemo(() => {
+      let result: SxProps<Theme> | undefined;
+
+      if (isScrollContent) {
+        let overflowX: 'hidden' | undefined;
+        let paddingTop: string | undefined;
+
+        if (isFormContent) {
+          overflowX = 'hidden';
+          paddingTop = '.6em';
+        }
+
+        result = {
+          maxHeight: '60vh',
+          overflowX,
+          overflowY: 'scroll',
+          paddingRight: '.4em',
+          paddingTop,
+          ...scrollBoxSx,
+        };
+      }
+
+      return result;
+    }, [isFormContent, isScrollContent, scrollBoxSx]);
+
+    const contentAreaElement = useMemo(
       () =>
-        isScrollContent
-          ? {
-              maxHeight: '60vh',
-              overflowY: 'scroll',
-              ...scrollBoxSx,
-            }
-          : undefined,
-      [isScrollContent, scrollBoxSx],
+        isLoading ? (
+          <Spinner />
+        ) : (
+          <>
+            <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
+              {contentElement}
+            </Box>
+            {preActionArea}
+            {actionAreaElement}
+          </>
+        ),
+      [
+        actionAreaElement,
+        combinedScrollBoxSx,
+        contentElement,
+        isLoading,
+        preActionArea,
+        restScrollBoxProps,
+      ],
     );
 
     useImperativeHandle(
@@ -232,11 +275,7 @@ const ConfirmDialog = forwardRef<
           onSubmit={contentContainerSubmitEventHandler}
           {...contentContainerProps}
         >
-          <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
-            {contentElement}
-          </Box>
-          {preActionArea}
-          {actionAreaElement}
+          {contentAreaElement}
         </FlexBox>
       </MUIDialog>
     );

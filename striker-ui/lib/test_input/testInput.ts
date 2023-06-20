@@ -101,14 +101,16 @@ const testInput: TestInputFunction = ({
       displayMin = orSet(dDisplayMin, String(min)),
     } = testsToRun[id];
 
-    if (!value && isOptional) {
-      return true;
-    }
-
     const { cbFinishBatch, setTestCallbacks } = evalIsIgnoreOnCallbacks({
       isIgnoreOnCallbacks,
       onFinishBatch,
     });
+
+    if (!value && isOptional) {
+      cbFinishBatch?.call(null, true, id);
+
+      return true;
+    }
 
     const runTest: (test: InputTest) => boolean = ({
       onFailure,

@@ -5,6 +5,7 @@ import {
   forwardRef,
   ReactElement,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -12,7 +13,6 @@ import {
 
 import createInputOnChangeHandler from '../lib/createInputOnChangeHandler';
 import { createTestInputFunction } from '../lib/test_input';
-import useIsFirstRender from '../hooks/useIsFirstRender';
 
 type InputWithRefOptionalPropsWithDefault<
   TypeName extends keyof MapToInputType,
@@ -26,6 +26,7 @@ type InputWithRefOptionalPropsWithoutDefault<
 > = {
   inputTestBatch?: InputTestBatch;
   onFirstRender?: InputFirstRenderFunction;
+  onUnmount?: () => void;
   valueKey?: CreateInputOnChangeHandlerOptions<TypeName>['valueKey'];
 };
 
@@ -69,6 +70,7 @@ const InputWithRef = forwardRef(
       input,
       inputTestBatch,
       onFirstRender,
+      onUnmount,
       required: isRequired = INPUT_WITH_REF_DEFAULT_PROPS.required,
       valueKey,
       valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType as TypeName,
@@ -95,8 +97,6 @@ const InputWithRef = forwardRef(
       [vKey]: initValue = MAP_TO_INITIAL_VALUE[valueType],
       ...restInitProps
     } = inputProps;
-
-    const isFirstRender = useIsFirstRender();
 
     const [inputValue, setInputValue] =
       useState<MapToInputType[TypeName]>(initValue);
@@ -166,7 +166,14 @@ const InputWithRef = forwardRef(
       [initOnFocus, inputTestBatch],
     );
 
-    if (isFirstRender) {
+    /**
+     * Using any setState function synchronously in the render function
+     * directly will trigger the 'cannot update a component while readering a
+     * different component' warning. This can be solved by wrapping the
+     * setState call(s) in a useEffect hook because it executes **after** the
+     * render function completes.
+     */
+    useEffect(() => {
       const isValid =
         testInput?.call(null, {
           inputs: { [INPUT_TEST_ID]: { value: inputValue } },
@@ -174,7 +181,11 @@ const InputWithRef = forwardRef(
         }) ?? false;
 
       onFirstRender?.call(null, { isValid });
-    }
+
+      return onUnmount;
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useImperativeHandle(
       ref,
