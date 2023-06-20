@@ -68,6 +68,7 @@ const OutlinedLabeledInputWithSelect: FC<
     >
       <OutlinedInputWithLabel id={id} label={label} {...inputWithLabelProps} />
       <SelectWithLabel
+        formControlProps={{ fullWidth: false }}
         id={`${id}-nested-select`}
         selectItems={selectItems}
         {...selectWithLabelProps}
