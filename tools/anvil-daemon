@@ -1414,14 +1414,20 @@ sub run_jobs
 	my $ended_within = $startup ? 1 : 300;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ended_within => $ended_within }});
 	
-	$anvil->Database->get_jobs({ended_within => $ended_within});
+	$anvil->Database->get_jobs({
+		debug        => 2, 
+		ended_within => $ended_within,
+	});
 	foreach my $modified_date (sort {$a cmp $b} keys %{$anvil->data->{jobs}{modified_date}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { modified_date => $modified_date }});
 		foreach my $job_uuid (sort {$a cmp $b} keys %{$anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}})
 		{
 			# Reload the jobs so we get an updated view of them.
-			$anvil->Database->get_jobs({ended_within => $ended_within});
+			$anvil->Database->get_jobs({
+				debug        => 2, 
+				ended_within => $ended_within,
+			});
 			
 			# Collect the data.
 			my $job_command         =  $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_command};
