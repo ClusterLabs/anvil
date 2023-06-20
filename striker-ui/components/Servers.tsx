@@ -1,9 +1,4 @@
-import {
-  Add as AddIcon,
-  Check as CheckIcon,
-  Edit as EditIcon,
-  MoreVert as MoreVertIcon,
-} from '@mui/icons-material';
+import { MoreVert as MoreVertIcon } from '@mui/icons-material';
 import {
   Box,
   Checkbox,
@@ -14,8 +9,9 @@ import {
   styled,
   Typography,
 } from '@mui/material';
-import { useState, useContext, useRef } from 'react';
+import { useState, useContext, useRef, useMemo } from 'react';
 
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import {
   BLUE,
   DIVIDER,
@@ -26,20 +22,22 @@ import {
 } from '../lib/consts/DEFAULT_THEME';
 import serverState from '../lib/consts/SERVERS';
 
+import api from '../lib/api';
 import { AnvilContext } from './AnvilContext';
+import ConfirmDialog from './ConfirmDialog';
+import ContainedButton from './ContainedButton';
 import Decorator, { Colours } from './Decorator';
+import handleAPIError from '../lib/handleAPIError';
+import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 import IconButton from './IconButton';
 import MenuItem from './MenuItem';
 import { Panel, PanelHeader } from './Panels';
+import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from './ProvisionServerDialog';
+import putFetch from '../lib/fetchers/putFetch';
 import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
-
-import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
-import periodicFetch from '../lib/fetchers/periodicFetch';
-import putFetch from '../lib/fetchers/putFetch';
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
-import ContainedButton from './ContainedButton';
+import useConfirmDialogProps from '../hooks/useConfirmDialogProps';
 
 const PREFIX = 'Servers';
 
@@ -152,6 +150,9 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [isOpenProvisionServerDialog, setIsOpenProvisionServerDialog] =
     useState<boolean>(false);
 
+  const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
+  const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
+
   const { uuid } = useContext(AnvilContext);
 
   const buttonLabels = useRef<ButtonLabels[]>([]);
@@ -212,6 +213,11 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const filteredHosts = hostsSanitizer(anvil[anvilIndex]?.hosts);
 
+  const noneChecked = useMemo<boolean>(
+    () => !selected.length,
+    [selected.length],
+  );
+
   return (
     <>
       <Panel>
@@ -221,19 +227,51 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
             sx={{ marginBottom: 0 }}
           >
             <HeaderText text="Servers" />
-            <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
-              <AddIcon />
-            </IconButton>
-            <IconButton onClick={() => setShowCheckbox(!showCheckbox)}>
-              {showCheckbox ? <CheckIcon sx={{ color: BLUE }} /> : <EditIcon />}
-            </IconButton>
+            {showCheckbox && (
+              <IconButton
+                disabled={noneChecked}
+                mapPreset="delete"
+                onClick={() => {
+                  setConfirmDialogProps({
+                    actionProceedText: 'Delete',
+                    content: `Are you sure you want to delete the selected server(s)? This action is not revertable.`,
+                    onProceedAppend: () => {
+                      api
+                        .request({
+                          data: { serverUuids: selected },
+                          method: 'delete',
+                          url: '/server',
+                        })
+                        .catch((error) => {
+                          // TODO: find a place to display the error
+                          handleAPIError(error);
+                        });
+                    },
+                    proceedColour: 'red',
+                    titleText: `Delete ${selected.length} server(s)?`,
+                  });
+
+                  confirmDialogRef.current.setOpen?.call(null, true);
+                }}
+                variant="redcontained"
+              />
+            )}
+            <IconButton
+              mapPreset="edit"
+              onClick={() => setShowCheckbox(!showCheckbox)}
+              state={String(showCheckbox)}
+            />
+            <IconButton
+              mapPreset="add"
+              onClick={() => setIsOpenProvisionServerDialog(true)}
+            />
           </PanelHeader>
           {showCheckbox && (
             <>
               <Box className={classes.headerPadding} display="flex">
                 <Box flexGrow={1} className={classes.dropdown}>
                   <ContainedButton
-                    disabled={!selected.length}
+                    disabled={noneChecked}
                     onClick={handleClick}
                     startIcon={<MoreVertIcon />}
                   >
@@ -376,6 +414,11 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
         onClose={() => {
           setIsOpenProvisionServerDialog(false);
         }}
+      />
+      <ConfirmDialog
+        closeOnProceed
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
       />
     </>
   );
