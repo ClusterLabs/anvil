@@ -12,13 +12,6 @@ export const DEFAULT_JOB_PROGRESS: number = Number.parseInt(
 );
 
 /**
- * Toggles whether to guard API endpoints with session information.
- */
-export const GUARD_API = process.env.GUARD_API
-  ? process.env.GUARD_API === 'true'
-  : true;
-
-/**
  * Port to use by the express app.
  *
  * @default 8080
