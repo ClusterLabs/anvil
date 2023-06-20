@@ -390,9 +390,7 @@ const vncpipe = async (serverUuid: string, open?: boolean) => {
       {
         shell_call: `${
           SERVER_PATHS.usr.sbin['striker-manage-vnc-pipes'].self
-        } --server-uuid ${serverUuid} --component st${
-          open ? ' --open' : ''
-        }`,
+        } --server-uuid ${serverUuid} --component st${open ? ' --open' : ''}`,
       },
     ],
     pre: ['System'],
