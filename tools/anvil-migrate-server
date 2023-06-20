@@ -195,8 +195,8 @@ sub migrate_server
 	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
 	{
 		# Nope.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0548", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => 100, message => "log_0548,!!server!".$server."!!"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0158", variables => { server => $server }});
+		$anvil->Job->update_progress({progress => 100, message => "error_0158,!!server!".$server."!!"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	

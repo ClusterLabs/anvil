@@ -71,7 +71,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
 	$anvil->Job->clear();
-	$anvil->Job->get_job_details();
+	$anvil->Job->get_job_details({debug => 2});
 	$anvil->Job->update_progress({
 		progress         => 1,
 		job_picked_up_by => $$, 
@@ -346,6 +346,7 @@ sub run_jobs
 	
 	# Done!
 	$anvil->Job->update_progress({
+		debug    => 2,
 		progress => 100,
 		message  => "job_0202", 
 	});
@@ -473,7 +474,7 @@ sub write_definition
 	
 	# The peer is done, it'll pick up the XML definition when ScanCore runs 
 	$anvil->Job->update_progress({
-		progress => 100,
+		progress => 85,
 		message  => "job_0204", 
 	});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0204"});
@@ -1216,6 +1217,9 @@ sub get_sn_details
 		line   => __LINE__,
 	});
 	
+	$anvil->data->{job}{sn_network}  = "";
+	$anvil->data->{job}{node1_sn_ip} = "";
+	$anvil->data->{job}{node2_sn_ip} = "";
 	my $node1_short_host_name = $anvil->data->{job}{node1_short_host_name};
 	my $node2_short_host_name = $anvil->data->{job}{node2_short_host_name};
 	my $matched_ips = keys %{$match};
@@ -1226,6 +1230,20 @@ sub get_sn_details
 		{
 			### TODO: This always chooses SN1 at this time, we need to support (later) VM 
 			###       build-time SN selection when 2+ SNs exist.
+			# Valid data?
+			if ((not $match->{$node1_short_host_name}{$interface}{ip}) or (not $match->{$node2_short_host_name}{$interface}{ip}))
+			{
+				# Probably a bug, maybe a broken /etc/hosts file?
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0417", variables => {
+					node1_name => $node1_short_host_name, 
+					node2_name => $node2_short_host_name, 
+					interface  => $interface, 
+					node1_ip   => defined $match->{$node1_short_host_name}{$interface}{ip} ? $match->{$node1_short_host_name}{$interface}{ip} : "", 
+					node2_ip   => defined $match->{$node2_short_host_name}{$interface}{ip} ? $match->{$node2_short_host_name}{$interface}{ip} : "", 
+				}});
+				next;
+			}
+			
 			# Found an SN.
 			$anvil->data->{job}{sn_network}  = uc(($interface =~ /^(sn\d+)_/)[0]);
 			$anvil->data->{job}{node1_sn_ip} = $match->{$node1_short_host_name}{$interface}{ip};
@@ -1236,6 +1254,18 @@ sub get_sn_details
 				node2_sn_ip => $anvil->data->{job}{node2_sn_ip}, 
 			}});
 		}
+	}
+	
+	if ((not $anvil->data->{job}{node1_sn_ip}) or (not $anvil->data->{job}{node2_sn_ip}))
+	{
+		# Fail out.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0418", 
+			job_status => "failed", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0418"});
+		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	return(0);
