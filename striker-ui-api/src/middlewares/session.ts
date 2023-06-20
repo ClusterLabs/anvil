@@ -7,6 +7,7 @@ import expressSession, {
 import { DELETED } from '../lib/consts';
 
 import { getLocalHostUUID, query, timestamp, write } from '../lib/accessModule';
+import { cname } from '../lib/cname';
 import { getSessionSecret } from '../lib/getSessionSecret';
 import { stderr, stdout, stdoutVar, uuid } from '../lib/shell';
 
@@ -194,6 +195,7 @@ export default (async () =>
 
       return sid;
     },
+    name: cname('sid'),
     resave: false,
     saveUninitialized: false,
     secret: await getSessionSecret(),

@@ -1,6 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { stdout } from '../../shell';
+import { cname } from '../../cname';
 
 export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
   request,
@@ -12,6 +13,8 @@ export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
     const { name: userName } = user;
 
     stdout(`Successfully authenticated user [${userName}]`);
+
+    response.cookie(cname('user'), user);
   }
 
   response.status(204).send();

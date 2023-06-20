@@ -1,6 +1,13 @@
 import { resolveGid, resolveUid } from '../shell';
 
 /**
+ * The prefix of every cookie used by the express app.
+ *
+ * @default 'suiapi'
+ */
+export const COOKIE_PREFIX = process.env.COOKIE_PREFIX ?? 'suiapi';
+
+/**
  * The fallback job progress value when queuing jobs.
  *
  * Ignore jobs by setting this to `100`.
