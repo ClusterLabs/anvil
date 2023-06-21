@@ -28,6 +28,7 @@ router
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
   .put('/run-manifest/:manifestUuid', runManifest)
+  .put('/set-map-network', setMapNetwork)
   .put('/set-map-network/:uuid', setMapNetwork)
   .put('/start-an/:uuid', startAn)
   .put('/start-server/:uuid', startServer)
