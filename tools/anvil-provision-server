@@ -1208,14 +1208,24 @@ sub get_sn_details
 	$anvil->data->{job}{node1_sn_ip} = "";
 	$anvil->data->{job}{node2_sn_ip} = "";
 	$anvil->data->{job}{sn_network}  = "";
-	$anvil->Network->load_ips({host => $anvil->data->{job}{node1_short_host_name}, host_uuid => $anvil->data->{job}{node1_host_uuid}});
-	$anvil->Network->load_ips({host => $anvil->data->{job}{node2_short_host_name}, host_uuid => $anvil->data->{job}{node2_host_uuid}});
+	$anvil->Network->load_ips({
+		debug     => 2,
+		host      => $anvil->data->{job}{node1_short_host_name}, 
+		host_uuid => $anvil->data->{job}{node1_host_uuid},
+	});
+	$anvil->Network->load_ips({
+		debug     => 2, 
+		host      => $anvil->data->{job}{node2_short_host_name}, 
+		host_uuid => $anvil->data->{job}{node2_host_uuid},
+	});
 	my $match = $anvil->Network->find_matches({
+		debug  => 2,
 		first  => $anvil->data->{job}{node1_short_host_name},
 		second => $anvil->data->{job}{node2_short_host_name}, 
 		source => $THIS_FILE, 
 		line   => __LINE__,
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
 	
 	$anvil->data->{job}{sn_network}  = "";
 	$anvil->data->{job}{node1_sn_ip} = "";
@@ -1226,6 +1236,7 @@ sub get_sn_details
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matched_ips => $matched_ips }});
 	foreach my $interface (sort {$a cmp $b} keys %{$match->{$node1_short_host_name}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
 		if ($interface =~ /sn/)
 		{
 			### TODO: This always chooses SN1 at this time, we need to support (later) VM 
