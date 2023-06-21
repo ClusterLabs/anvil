@@ -13,7 +13,8 @@ outpages		= \
 			file-manager.html \
 			index.html \
 			init.html \
-			prepare-host.html \
+			login.html \
+			manage-element.html \
 			server.html
 outjsmodulesdir		= _next
 outimagesdir		= pngs
