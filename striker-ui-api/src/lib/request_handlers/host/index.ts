@@ -1,3 +1,4 @@
+export * from './configStriker';
 export * from './createHost';
 export * from './createHostConnection';
 export * from './deleteHostConnection';
