@@ -1,29 +1,25 @@
-import { Dashboard as DashboardIcon } from '@mui/icons-material';
 import {
-  Box,
-  Divider,
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  styled,
-} from '@mui/material';
+  Dashboard as DashboardIcon,
+  Logout as LogoutIcon,
+} from '@mui/icons-material';
+import { Drawer, List, ListItem, ListItemButton, styled } from '@mui/material';
 import { Dispatch, SetStateAction } from 'react';
 
-import { DIVIDER, GREY } from '../lib/consts/DEFAULT_THEME';
+import { OLD_ICON } from '../lib/consts/DEFAULT_THEME';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
 
+import api from '../lib/api';
+import Divider from './Divider';
+import FlexBox from './FlexBox';
+import handleAPIError from '../lib/handleAPIError';
 import { BodyText } from './Text';
 import useCookieJar from '../hooks/useCookieJar';
 
 const PREFIX = 'AnvilDrawer';
 
 const classes = {
+  actionIcon: `${PREFIX}-actionIcon`,
   list: `${PREFIX}-list`,
-  divider: `${PREFIX}-divider`,
-  text: `${PREFIX}-text`,
-  dashboardButton: `${PREFIX}-dashboardButton`,
-  dashboardIcon: `${PREFIX}-dashboardIcon`,
 };
 
 const StyledDrawer = styled(Drawer)(() => ({
@@ -31,22 +27,9 @@ const StyledDrawer = styled(Drawer)(() => ({
     width: '200px',
   },
 
-  [`& .${classes.divider}`]: {
-    backgroundColor: DIVIDER,
-  },
-
-  [`& .${classes.text}`]: {
-    paddingTop: '.5em',
-    paddingLeft: '1.5em',
-  },
-
-  [`& .${classes.dashboardButton}`]: {
-    paddingLeft: '.1em',
-  },
-
-  [`& .${classes.dashboardIcon}`]: {
+  [`& .${classes.actionIcon}`]: {
     fontSize: '2.3em',
-    color: GREY,
+    color: OLD_ICON,
   },
 }));
 
@@ -74,31 +57,44 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
               {sessionUser ? <>Welcome, {sessionUser.name}</> : 'Unregistered'}
             </BodyText>
           </ListItem>
-          <Divider className={classes.divider} />
+          <Divider />
           <ListItemButton component="a" href="/index.html">
-            <Box display="flex" flexDirection="row" width="100%">
-              <Box className={classes.dashboardButton}>
-                <DashboardIcon className={classes.dashboardIcon} />
-              </Box>
-              <Box flexGrow={1} className={classes.text}>
-                <BodyText text="Dashboard" />
-              </Box>
-            </Box>
+            <FlexBox fullWidth row spacing="2em">
+              <DashboardIcon className={classes.actionIcon} />
+              <BodyText>Dashboard</BodyText>
+            </FlexBox>
           </ListItemButton>
           {ICONS.map(
             (icon): JSX.Element => (
-              <ListItemButton key={icon.image} component="a" href={icon.uri}>
-                <Box display="flex" flexDirection="row" width="100%">
-                  <Box>
-                    <img alt="" key="icon" src={icon.image} {...ICON_SIZE} />
-                  </Box>
-                  <Box flexGrow={1} className={classes.text}>
-                    <BodyText text={icon.text} />
-                  </Box>
-                </Box>
+              <ListItemButton
+                key={`anvil-drawer-${icon.image}`}
+                component="a"
+                href={icon.uri}
+              >
+                <FlexBox fullWidth row spacing="2em">
+                  <img alt={icon.text} src={icon.image} {...ICON_SIZE} />
+                  <BodyText>{icon.text}</BodyText>
+                </FlexBox>
               </ListItemButton>
             ),
           )}
+          <ListItemButton
+            onClick={() => {
+              api
+                .put('/auth/logout')
+                .then(() => {
+                  window.location.replace('/login');
+                })
+                .catch((error) => {
+                  handleAPIError(error);
+                });
+            }}
+          >
+            <FlexBox fullWidth row spacing="2em">
+              <LogoutIcon className={classes.actionIcon} />
+              <BodyText>Logout</BodyText>
+            </FlexBox>
+          </ListItemButton>
         </List>
       </div>
     </StyledDrawer>
