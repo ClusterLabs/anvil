@@ -25,7 +25,9 @@ type InputWithRefOptionalPropsWithoutDefault<
   TypeName extends keyof MapToInputType,
 > = {
   inputTestBatch?: InputTestBatch;
+  onBlurAppend?: InputBaseProps['onBlur'];
   onFirstRender?: InputFirstRenderFunction;
+  onFocusAppend?: InputBaseProps['onFocus'];
   onUnmount?: () => void;
   valueKey?: CreateInputOnChangeHandlerOptions<TypeName>['valueKey'];
 };
@@ -69,7 +71,9 @@ const InputWithRef = forwardRef(
     {
       input,
       inputTestBatch,
+      onBlurAppend,
       onFirstRender,
+      onFocusAppend,
       onUnmount,
       required: isRequired = INPUT_WITH_REF_DEFAULT_PROPS.required,
       valueKey,
@@ -125,14 +129,20 @@ const InputWithRef = forwardRef(
       () =>
         initOnBlur ??
         (testInput &&
-          (({ target: { value } }) => {
+          ((...args) => {
+            const {
+              0: {
+                target: { value },
+              },
+            } = args;
             const isValid = testInput({
               inputs: { [INPUT_TEST_ID]: { value } },
             });
 
             setIsInputValid(isValid);
+            onBlurAppend?.call(null, ...args);
           })),
-      [initOnBlur, testInput],
+      [initOnBlur, onBlurAppend, testInput],
     );
     const onChange = useMemo(
       () =>
@@ -160,10 +170,11 @@ const InputWithRef = forwardRef(
       () =>
         initOnFocus ??
         (inputTestBatch &&
-          (() => {
+          ((...args) => {
             inputTestBatch.defaults?.onSuccess?.call(null, { append: {} });
+            onFocusAppend?.call(null, ...args);
           })),
-      [initOnFocus, inputTestBatch],
+      [initOnFocus, inputTestBatch, onFocusAppend],
     );
 
     /**

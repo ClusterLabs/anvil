@@ -1,6 +1,10 @@
 import path from 'path';
 
 const EMPTY_SERVER_PATHS: ServerPath = {
+  etc: {
+    anvil: { 'host.uuid': {} },
+    hostname: {},
+  },
   mnt: {
     shared: {
       incoming: {},
@@ -10,10 +14,13 @@ const EMPTY_SERVER_PATHS: ServerPath = {
   usr: {
     bin: {
       date: {},
+      getent: {},
       mkfifo: {},
+      openssl: {},
       psql: {},
       rm: {},
       sed: {},
+      uuidgen: {},
     },
     sbin: {
       'anvil-access-module': {},
@@ -31,6 +38,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'striker-parse-os-list': {},
     },
   },
+  var: { www: { html: {} } },
 };
 
 const generatePaths = (

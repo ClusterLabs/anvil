@@ -1,15 +1,13 @@
 import { RequestHandler } from 'express';
-import { getAnvilData } from '../../accessModule';
+
+import { getFenceSpec } from '../../accessModule';
 import { stderr } from '../../shell';
 
-export const getFenceTemplate: RequestHandler = (request, response) => {
+export const getFenceTemplate: RequestHandler = async (request, response) => {
   let rawFenceData;
 
   try {
-    ({ fence_data: rawFenceData } = getAnvilData<{ fence_data: unknown }>(
-      { fence_data: true },
-      { predata: [['Striker->get_fence_data']] },
-    ));
+    rawFenceData = await getFenceSpec();
   } catch (subError) {
     stderr(`Failed to get fence device template; CAUSE: ${subError}`);
 

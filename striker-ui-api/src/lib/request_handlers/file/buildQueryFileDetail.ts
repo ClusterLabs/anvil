@@ -1,6 +1,9 @@
-import join from '../../join';
+import { DELETED } from '../../consts';
 
-const buildQueryFileDetail = ({
+import join from '../../join';
+import { stdoutVar } from '../../shell';
+
+export const buildQueryFileDetail = ({
   fileUUIDs = ['*'],
 }: {
   fileUUIDs?: string[] | '*';
@@ -14,7 +17,7 @@ const buildQueryFileDetail = ({
         separator: ', ',
       });
 
-  console.log(`condFilesUUID=[${condFileUUIDs}]`);
+  stdoutVar({ condFileUUIDs });
 
   return `
     SELECT
@@ -33,8 +36,6 @@ const buildQueryFileDetail = ({
       ON fil.file_uuid = fil_loc.file_location_file_uuid
     JOIN anvils AS anv
       ON fil_loc.file_location_anvil_uuid = anv.anvil_uuid
-    WHERE fil.file_type != 'DELETED'
+    WHERE fil.file_type != '${DELETED}'
       ${condFileUUIDs};`;
 };
-
-export default buildQueryFileDetail;

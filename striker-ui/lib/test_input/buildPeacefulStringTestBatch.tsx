@@ -25,12 +25,12 @@ const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
         onTestPeacefulStringFailureAppend(
           <>
             {inputName} cannot contain single-quote (
-            <InlineMonoText text="'" />
-            ), double-quote (<InlineMonoText text='"' />
-            ), slash (<InlineMonoText text="/" />
-            ), backslash (<InlineMonoText text="\" />
-            ), angle brackets (<InlineMonoText text="<>" />
-            ), curly brackets (<InlineMonoText text="{}" />
+            <InlineMonoText inheritColour text="'" />
+            ), double-quote (<InlineMonoText inheritColour text='"' />
+            ), slash (<InlineMonoText inheritColour text="/" />
+            ), backslash (<InlineMonoText inheritColour text="\" />
+            ), angle brackets (<InlineMonoText inheritColour text="<>" />
+            ), curly brackets (<InlineMonoText inheritColour text="{}" />
             ).
           </>,
           ...args,

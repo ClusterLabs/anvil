@@ -1,109 +1,214 @@
-import { spawnSync, SpawnSyncOptions } from 'child_process';
+import { ChildProcess, spawn, SpawnOptions } from 'child_process';
+import EventEmitter from 'events';
+import { readFileSync } from 'fs';
 
-import SERVER_PATHS from './consts/SERVER_PATHS';
+import { SERVER_PATHS, PGID, PUID } from './consts';
 
-import { stderr as sherr, stdout as shout } from './shell';
+import { formatSql } from './formatSql';
+import {
+  date,
+  stderr as sherr,
+  stdout as shout,
+  stdoutVar as shvar,
+  uuid,
+} from './shell';
 
-const formatQuery = (query: string) => query.replace(/\s+/g, ' ');
+class Access extends EventEmitter {
+  private ps: ChildProcess;
+  private queue: string[] = [];
 
-const execAnvilAccessModule = (
-  args: string[],
-  options: SpawnSyncOptions = {
-    encoding: 'utf-8',
-    timeout: 10000,
-  },
-) => {
-  const { error, stdout, stderr } = spawnSync(
-    SERVER_PATHS.usr.sbin['anvil-access-module'].self,
-    args,
-    options,
-  );
+  constructor({
+    eventEmitterOptions = {},
+    spawnOptions = {},
+  }: {
+    eventEmitterOptions?: ConstructorParameters<typeof EventEmitter>[0];
+    spawnOptions?: SpawnOptions;
+  } = {}) {
+    super(eventEmitterOptions);
 
-  if (error) {
-    throw error;
+    this.ps = this.start(spawnOptions);
   }
 
-  if (stderr.length > 0) {
-    throw new Error(stderr.toString());
-  }
-
-  let output;
-
-  try {
-    output = JSON.parse(stdout.toString());
-  } catch (stdoutParseError) {
-    output = stdout;
-
-    sherr(
-      `Failed to parse anvil-access-module output [${output}]; CAUSE: [${stdoutParseError}]`,
+  private start({
+    args = [],
+    gid = PGID,
+    stdio = 'pipe',
+    timeout = 10000,
+    uid = PUID,
+    ...restSpawnOptions
+  }: AccessStartOptions = {}) {
+    shvar(
+      { gid, stdio, timeout, uid, ...restSpawnOptions },
+      `Starting anvil-access-module daemon with options: `,
     );
+
+    const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
+      gid,
+      stdio,
+      timeout,
+      uid,
+      ...restSpawnOptions,
+    });
+
+    let stderr = '';
+    let stdout = '';
+
+    ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
+      stderr += chunk;
+
+      const scriptId: string | undefined = this.queue[0];
+
+      if (scriptId) {
+        sherr(`${Access.event(scriptId, 'stderr')}: ${stderr}`);
+
+        stderr = '';
+      }
+    });
+
+    ps.stdout?.setEncoding('utf-8').on('data', (chunk: string) => {
+      stdout += chunk;
+
+      let nindex: number = stdout.indexOf('\n');
+
+      // 1. ~a is the shorthand for -(a + 1)
+      // 2. negatives are evaluated to true
+      while (~nindex) {
+        const scriptId = this.queue.shift();
+
+        if (scriptId) this.emit(scriptId, stdout.substring(0, nindex));
+
+        stdout = stdout.substring(nindex + 1);
+        nindex = stdout.indexOf('\n');
+      }
+    });
+
+    return ps;
   }
 
-  return {
-    stdout: output,
-  };
-};
+  private stop() {
+    this.ps.once('error', () => !this.ps.killed && this.ps.kill('SIGKILL'));
 
-const execModuleSubroutine = (
-  subName: string,
+    this.ps.kill();
+  }
+
+  private restart(options?: AccessStartOptions) {
+    this.ps.once('close', () => this.start(options));
+
+    this.stop();
+  }
+
+  private static event(scriptId: string, category: 'stderr'): string {
+    return `${scriptId}-${category}`;
+  }
+
+  public interact<T>(command: string, ...args: string[]) {
+    const { stdin } = this.ps;
+
+    const scriptId = uuid();
+    const script = `${command} ${args.join(' ')}\n`;
+
+    const promise = new Promise<T>((resolve, reject) => {
+      this.once(scriptId, (data) => {
+        let result: T;
+
+        try {
+          result = JSON.parse(data);
+        } catch (error) {
+          return reject(`Failed to parse line ${scriptId}; got [${data}]`);
+        }
+
+        return resolve(result);
+      });
+    });
+
+    shvar({ scriptId, script }, 'Access interact: ');
+
+    this.queue.push(scriptId);
+    stdin?.write(script);
+
+    return promise;
+  }
+}
+
+const access = new Access();
+
+const subroutine = async <T extends unknown[]>(
+  subroutine: string,
   {
-    spawnSyncOptions,
-    subModuleName,
-    subParams,
-  }: ExecModuleSubroutineOptions = {},
+    params = [],
+    pre = ['Database'],
+  }: {
+    params?: unknown[];
+    pre?: string[];
+  } = {},
 ) => {
-  const args = ['--sub', subName];
+  const chain = `${pre.join('->')}->${subroutine}`;
 
-  // Defaults to "Database" in anvil-access-module.
-  if (subModuleName) {
-    args.push('--sub-module', subModuleName);
-  }
+  const subParams: string[] = params.map<string>((p) => {
+    let result: string;
 
-  if (subParams) {
-    args.push('--sub-params', JSON.stringify(subParams));
-  }
+    try {
+      result = JSON.stringify(p);
+    } catch (error) {
+      result = String(p);
+    }
 
-  shout(
-    `...${subModuleName}->${subName} with params: ${JSON.stringify(
-      subParams,
-      null,
-      2,
-    )}`,
+    return `'${result}'`;
+  });
+
+  const { sub_results: results } = await access.interact<{ sub_results: T }>(
+    'x',
+    chain,
+    ...subParams,
   );
 
-  const { stdout } = execAnvilAccessModule(args, spawnSyncOptions);
+  shvar(results, `${chain} results: `);
 
-  return {
-    stdout: stdout['sub_results'],
-  };
+  return results;
 };
 
-const dbInsertOrUpdateJob = (
-  { job_progress = 0, line = 0, ...rest }: DBJobParams,
-  { spawnSyncOptions }: DBInsertOrUpdateJobOptions = {},
-) =>
-  execModuleSubroutine('insert_or_update_jobs', {
-    spawnSyncOptions,
-    subParams: { job_progress, line, ...rest },
-  }).stdout;
+const query = <T extends (number | null | string)[][]>(script: string) =>
+  access.interact<T>('r', formatSql(script));
 
-const dbInsertOrUpdateVariable: DBInsertOrUpdateVariableFunction = (
-  subParams,
-  { spawnSyncOptions } = {},
-) =>
-  execModuleSubroutine('insert_or_update_variables', {
-    spawnSyncOptions,
-    subParams,
-  }).stdout;
+const write = async (script: string) => {
+  const { write_code: wcode } = await access.interact<{ write_code: number }>(
+    'w',
+    formatSql(script),
+  );
 
-const dbJobAnvilSyncShared = (
+  return wcode;
+};
+
+const insertOrUpdateJob = async ({
+  job_progress = 0,
+  line = 0,
+  ...rest
+}: JobParams) => {
+  const [uuid]: [string] = await subroutine('insert_or_update_jobs', {
+    params: [{ job_progress, line, ...rest }],
+  });
+
+  return uuid;
+};
+
+const insertOrUpdateVariable: InsertOrUpdateVariableFunction = async (
+  params,
+) => {
+  const [uuid]: [string] = await subroutine('insert_or_update_variables', {
+    params: [params],
+  });
+
+  return uuid;
+};
+
+const anvilSyncShared = (
   jobName: string,
   jobData: string,
   jobTitle: string,
   jobDescription: string,
-  { jobHostUUID }: DBJobAnvilSyncSharedOptions = { jobHostUUID: undefined },
+  { jobHostUUID }: JobAnvilSyncSharedOptions = { jobHostUUID: undefined },
 ) => {
-  const subParams: DBJobParams = {
+  const subParams: JobParams = {
     file: __filename,
     job_command: SERVER_PATHS.usr.sbin['anvil-sync-shared'].self,
     job_data: jobData,
@@ -116,45 +221,54 @@ const dbJobAnvilSyncShared = (
     subParams.job_host_uuid = jobHostUUID;
   }
 
-  return dbInsertOrUpdateJob(subParams);
+  return insertOrUpdateJob(subParams);
 };
 
-const dbQuery = (query: string, options?: SpawnSyncOptions) => {
-  shout(formatQuery(query));
+const refreshTimestamp = () => {
+  let result: string;
 
-  return execAnvilAccessModule(['--query', query], options);
+  try {
+    result = date('--rfc-3339', 'ns').trim();
+  } catch (shError) {
+    throw new Error(
+      `Failed to get timestamp for database use; CAUSE: ${shError}`,
+    );
+  }
+
+  return result;
 };
 
-const dbSubRefreshTimestamp = () =>
-  execModuleSubroutine('refresh_timestamp').stdout;
+const getData = async <T>(...keys: string[]) => {
+  const chain = `data->${keys.join('->')}`;
 
-const dbWrite = (query: string, options?: SpawnSyncOptions) => {
-  shout(formatQuery(query));
+  const {
+    sub_results: [data],
+  } = await access.interact<{ sub_results: [T] }>('x', chain);
 
-  return execAnvilAccessModule(['--query', query, '--mode', 'write'], options);
+  shvar(data, `${chain} data: `);
+
+  return data;
 };
 
-const getAnvilData = <HashType>(
-  dataStruct: AnvilDataStruct,
-  { predata, ...spawnSyncOptions }: GetAnvilDataOptions = {},
-): HashType =>
-  execAnvilAccessModule(
-    [
-      '--predata',
-      JSON.stringify(predata),
-      '--data',
-      JSON.stringify(dataStruct),
-    ],
-    spawnSyncOptions,
-  ).stdout;
+const getFenceSpec = async () => {
+  await subroutine('get_fence_data', { pre: ['Striker'] });
+
+  return getData<unknown>('fence_data');
+};
+
+const getHostData = async () => {
+  await subroutine('get_hosts');
+
+  return getData<AnvilDataHostListHash>('hosts');
+};
 
 const getLocalHostName = () => {
   let result: string;
 
   try {
-    result = execModuleSubroutine('host_name', {
-      subModuleName: 'Get',
-    }).stdout;
+    result = readFileSync(SERVER_PATHS.etc.hostname.self, {
+      encoding: 'utf-8',
+    }).trim();
   } catch (subError) {
     throw new Error(`Failed to get local host name; CAUSE: ${subError}`);
   }
@@ -164,13 +278,13 @@ const getLocalHostName = () => {
   return result;
 };
 
-const getLocalHostUUID = () => {
+const getLocalHostUuid = () => {
   let result: string;
 
   try {
-    result = execModuleSubroutine('host_uuid', {
-      subModuleName: 'Get',
-    }).stdout;
+    result = readFileSync(SERVER_PATHS.etc.anvil['host.uuid'].self, {
+      encoding: 'utf-8',
+    }).trim();
   } catch (subError) {
     throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
   }
@@ -180,9 +294,18 @@ const getLocalHostUUID = () => {
   return result;
 };
 
-const getPeerData: GetPeerDataFunction = (
+const getManifestData = async (manifestUuid?: string) => {
+  await subroutine('load_manifest', {
+    params: [{ manifest_uuid: manifestUuid }],
+    pre: ['Striker'],
+  });
+
+  return getData<AnvilDataManifestListHash>('manifests');
+};
+
+const getPeerData: GetPeerDataFunction = async (
   target,
-  { password, port, ...restOptions } = {},
+  { password, port } = {},
 ) => {
   const [
     rawIsConnected,
@@ -193,11 +316,13 @@ const getPeerData: GetPeerDataFunction = (
       internet: rawIsInetConnected,
       os_registered: rawIsOSRegistered,
     },
-  ] = execModuleSubroutine('get_peer_data', {
-    subModuleName: 'Striker',
-    subParams: { password, port, target },
-    ...restOptions,
-  }).stdout as [connected: string, data: PeerDataHash];
+  ]: [connected: string, data: PeerDataHash] = await subroutine(
+    'get_peer_data',
+    {
+      params: [{ password, port, target }],
+      pre: ['Striker'],
+    },
+  );
 
   return {
     hostName,
@@ -209,16 +334,26 @@ const getPeerData: GetPeerDataFunction = (
   };
 };
 
+const getUpsSpec = async () => {
+  await subroutine('get_ups_data', { pre: ['Striker'] });
+
+  return getData<AnvilDataUPSHash>('ups_data');
+};
+
 export {
-  dbInsertOrUpdateJob as job,
-  dbInsertOrUpdateVariable as variable,
-  dbJobAnvilSyncShared,
-  dbQuery,
-  dbSubRefreshTimestamp,
-  dbWrite,
-  getAnvilData,
+  insertOrUpdateJob as job,
+  insertOrUpdateVariable as variable,
+  anvilSyncShared,
+  refreshTimestamp as timestamp,
+  getData,
+  getFenceSpec,
+  getHostData,
   getLocalHostName,
-  getLocalHostUUID,
+  getLocalHostUuid as getLocalHostUUID,
+  getManifestData,
   getPeerData,
-  execModuleSubroutine as sub,
+  getUpsSpec,
+  query,
+  subroutine as sub,
+  write,
 };

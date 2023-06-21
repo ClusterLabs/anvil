@@ -6,23 +6,19 @@ type PeerDataHash = {
   os_registered: string;
 };
 
-type GetPeerDataOptions = Omit<
-  ExecModuleSubroutineOptions,
-  'subModuleName' | 'subParams'
-> &
-  ModuleSubroutineCommonParams & {
-    password?: string;
-    port?: number;
-  };
+type GetPeerDataOptions = SubroutineCommonParams & {
+  password?: string;
+  port?: number;
+};
 
 type GetPeerDataFunction = (
   target: string,
   options?: GetPeerDataOptions,
-) => {
+) => Promise<{
   hostName: string;
   hostOS: string;
   hostUUID: string;
   isConnected: boolean;
   isInetConnected: boolean;
   isOSRegistered: boolean;
-};
+}>;

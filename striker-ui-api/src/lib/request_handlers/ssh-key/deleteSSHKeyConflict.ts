@@ -9,33 +9,31 @@ import { stderr } from '../../shell';
 export const deleteSSHKeyConflict: RequestHandler<
   unknown,
   undefined,
-  DeleteSSHKeyConflictRequestBody
-> = (request, response) => {
+  DeleteSshKeyConflictRequestBody
+> = async (request, response) => {
   const { body } = request;
-  const hostUUIDs = Object.keys(body);
+  const hostUuids = Object.keys(body);
 
-  hostUUIDs.forEach((key) => {
-    const hostUUID = toHostUUID(key);
-    const stateUUIDs = body[key];
+  for (const uuid of hostUuids) {
+    const hostUuid = toHostUUID(uuid);
+    const stateUuids = body[uuid];
 
     try {
-      job({
+      await job({
         file: __filename,
         job_command: SERVER_PATHS.usr.sbin['anvil-manage-keys'].self,
-        job_data: stateUUIDs.join(','),
+        job_data: stateUuids.join(','),
         job_description: 'job_0057',
-        job_host_uuid: hostUUID,
+        job_host_uuid: hostUuid,
         job_name: 'manage::broken_keys',
         job_title: 'job_0056',
       });
     } catch (subError) {
       stderr(`Failed to delete bad SSH keys; CAUSE: ${subError}`);
 
-      response.status(500).send();
-
-      return;
+      return response.status(500).send();
     }
-  });
+  }
 
   response.status(204).send();
 };

@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 
-import { getAnvilData } from '../../accessModule';
+import { getManifestData } from '../../accessModule';
 import { getEntityParts } from '../../disassembleEntityId';
 import { stderr, stdout } from '../../shell';
 
@@ -67,25 +67,18 @@ const handleSortNetworks = <T extends [string, unknown]>(
   return result;
 };
 
-export const getManifestDetail: RequestHandler = (request, response) => {
+export const getManifestDetail: RequestHandler = async (request, response) => {
   const {
-    params: { manifestUUID },
+    params: { manifestUUID: manifestUuid },
   } = request;
 
   let rawManifestListData: AnvilDataManifestListHash | undefined;
 
   try {
-    ({ manifests: rawManifestListData } = getAnvilData<{
-      manifests?: AnvilDataManifestListHash;
-    }>(
-      { manifests: true },
-      {
-        predata: [['Striker->load_manifest', { manifest_uuid: manifestUUID }]],
-      },
-    ));
+    rawManifestListData = await getManifestData(manifestUuid);
   } catch (subError) {
     stderr(
-      `Failed to get install manifest ${manifestUUID}; CAUSE: ${subError}`,
+      `Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`,
     );
 
     response.status(500).send();
@@ -109,7 +102,7 @@ export const getManifestDetail: RequestHandler = (request, response) => {
 
   const {
     manifest_uuid: {
-      [manifestUUID]: {
+      [manifestUuid]: {
         parsed: {
           domain,
           fences: fenceUuidList = {},

@@ -1,6 +1,5 @@
-import { Router } from 'express';
-
 import anvilRouter from './anvil';
+import authRouter from './auth';
 import commandRouter from './command';
 import echoRouter from './echo';
 import fenceRouter from './fence';
@@ -11,23 +10,30 @@ import manifestRouter from './manifest';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
 import sshKeyRouter from './ssh-key';
+import staticRouter from './static';
 import upsRouter from './ups';
 import userRouter from './user';
 
-const routes: Readonly<Record<string, Router>> = {
-  anvil: anvilRouter,
-  command: commandRouter,
-  echo: echoRouter,
-  fence: fenceRouter,
-  file: fileRouter,
-  host: hostRouter,
-  job: jobRouter,
-  manifest: manifestRouter,
-  'network-interface': networkInterfaceRouter,
-  server: serverRouter,
-  'ssh-key': sshKeyRouter,
-  ups: upsRouter,
-  user: userRouter,
+const routes = {
+  private: {
+    anvil: anvilRouter,
+    command: commandRouter,
+    fence: fenceRouter,
+    file: fileRouter,
+    host: hostRouter,
+    job: jobRouter,
+    manifest: manifestRouter,
+    'network-interface': networkInterfaceRouter,
+    server: serverRouter,
+    'ssh-key': sshKeyRouter,
+    ups: upsRouter,
+    user: userRouter,
+  },
+  public: {
+    auth: authRouter,
+    echo: echoRouter,
+  },
+  static: staticRouter,
 };
 
 export default routes;

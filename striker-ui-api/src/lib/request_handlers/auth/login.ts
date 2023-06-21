@@ -1,0 +1,18 @@
+import { RequestHandler } from 'express';
+
+import { stdout } from '../../shell';
+
+export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
+  request,
+  response,
+) => {
+  const { user } = request;
+
+  if (user) {
+    const { name: userName } = user;
+
+    stdout(`Successfully authenticated user [${userName}]`);
+  }
+
+  response.status(204).send();
+};

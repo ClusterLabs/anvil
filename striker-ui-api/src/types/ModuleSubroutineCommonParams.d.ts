@@ -1,3 +1,0 @@
-type ModuleSubroutineCommonParams = {
-  debug?: number;
-};

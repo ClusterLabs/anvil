@@ -1,16 +1,13 @@
 import { RequestHandler } from 'express';
 
-import { getAnvilData } from '../../accessModule';
+import { getUpsSpec } from '../../accessModule';
 import { stderr } from '../../shell';
 
-export const getUPSTemplate: RequestHandler = (request, response) => {
+export const getUPSTemplate: RequestHandler = async (request, response) => {
   let rawUPSData: AnvilDataUPSHash;
 
   try {
-    ({ ups_data: rawUPSData } = getAnvilData<{ ups_data: AnvilDataUPSHash }>(
-      { ups_data: true },
-      { predata: [['Striker->get_ups_data']] },
-    ));
+    rawUPSData = await getUpsSpec();
   } catch (subError) {
     stderr(`Failed to get ups template; CAUSE: ${subError}`);
 
@@ -21,13 +18,13 @@ export const getUPSTemplate: RequestHandler = (request, response) => {
 
   const upsData: AnvilDataUPSHash = Object.entries(
     rawUPSData,
-  ).reduce<UPSTemplate>((previous, [upsTypeId, value]) => {
+  ).reduce<UpsTemplate>((previous, [upsTypeId, value]) => {
     const { brand, description: rawDescription, ...rest } = value;
 
     const matched = rawDescription.match(
       /^(.+)\s+[-]\s+[<][^>]+href=[\\"]+([^\s]+)[\\"]+.+[>]([^<]+)[<]/,
     );
-    const result: UPSTemplate[string] = {
+    const result: UpsTemplate[string] = {
       ...rest,
       brand,
       description: rawDescription,

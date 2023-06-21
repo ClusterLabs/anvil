@@ -4,13 +4,13 @@ import { RequestHandler } from 'express';
 import { buildManifest } from './buildManifest';
 import { stderr } from '../../shell';
 
-export const createManifest: RequestHandler = (...handlerArgs) => {
+export const createManifest: RequestHandler = async (...handlerArgs) => {
   const [, response] = handlerArgs;
 
   let result: Record<string, string> = {};
 
   try {
-    result = buildManifest(...handlerArgs);
+    result = await buildManifest(...handlerArgs);
   } catch (buildError) {
     stderr(`Failed to create new install manifest; CAUSE ${buildError}`);
 

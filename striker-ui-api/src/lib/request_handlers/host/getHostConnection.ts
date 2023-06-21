@@ -1,4 +1,4 @@
-import { getAnvilData, getLocalHostUUID } from '../../accessModule';
+import { getData, getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { toLocal } from '../../convertHostUUID';
@@ -39,7 +39,7 @@ const buildHostConnections = (
   );
 
 export const getHostConnection = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
+  async (request, buildQueryOptions) => {
     const { hostUUIDs: rawHostUUIDs } = request.query;
 
     let rawDatabaseData: AnvilDataDatabaseHash;
@@ -59,9 +59,7 @@ export const getHostConnection = buildGetRequestHandler(
     stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
     try {
-      ({ database: rawDatabaseData } = getAnvilData<{ database: AnvilDataDatabaseHash }>(
-        { database: true },
-      ));
+      rawDatabaseData = await getData<AnvilDataDatabaseHash>('database');
     } catch (subError) {
       throw new Error(`Failed to get anvil data; CAUSE: ${subError}`);
     }
