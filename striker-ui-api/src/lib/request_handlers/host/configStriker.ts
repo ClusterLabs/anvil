@@ -6,36 +6,85 @@ import {
   REP_IPV4,
   REP_IPV4_CSV,
   REP_PEACEFUL_STRING,
+  REP_UUID,
   SERVER_PATHS,
 } from '../../consts';
 
-import { job } from '../../accessModule';
+import { getLocalHostUUID, job, variable } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar } from '../../shell';
 
-const fvar = (configStepCount: number, fieldName: string) =>
+const cvar = (configStepCount: number, fieldName: string) =>
   ['form', `config_step${configStepCount}`, fieldName, 'value'].join('::');
 
-const buildNetworkLinks = (
-  configStepCount: number,
+const buildNetworkLinkConfigs = (
   networkShortName: string,
   interfaces: InitializeStrikerNetworkForm['interfaces'],
+  configStep = 2,
 ) =>
-  interfaces.reduce<string>((reduceContainer, iface, index) => {
-    let result = reduceContainer;
-
+  interfaces.reduce<FormConfigData>((previous, iface, index) => {
     if (iface) {
       const { networkInterfaceMACAddress } = iface;
+      const linkNumber = index + 1;
 
-      result += `
-${fvar(
-  configStepCount,
-  `${networkShortName}_link${index + 1}_mac_to_set`,
-)}=${networkInterfaceMACAddress}`;
+      previous[
+        cvar(configStep, `${networkShortName}_link${linkNumber}_mac_to_set`)
+      ] = { step: configStep, value: networkInterfaceMACAddress };
     }
 
-    return result;
-  }, '');
+    return previous;
+  }, {});
+
+const buildNetworkConfigs = (
+  networks: InitializeStrikerNetworkForm[],
+  configStep = 2,
+): FormConfigData => {
+  const { counters: ncounts, data: cdata } = networks.reduce<{
+    counters: Record<InitializeStrikerNetworkForm['type'], number>;
+    data: FormConfigData;
+  }>(
+    (previous, { interfaces, ipAddress, subnetMask, type }) => {
+      const { counters } = previous;
+
+      counters[type] = counters[type] ? counters[type] + 1 : 1;
+
+      const networkShortName = `${type}${counters[type]}`;
+
+      previous.data = {
+        ...previous.data,
+        [cvar(configStep, `${networkShortName}_ip`)]: {
+          step: configStep,
+          value: ipAddress,
+        },
+        [cvar(configStep, `${networkShortName}_subnet_mask`)]: {
+          step: configStep,
+          value: subnetMask,
+        },
+        ...buildNetworkLinkConfigs(networkShortName, interfaces),
+      };
+
+      return previous;
+    },
+    { counters: {}, data: {} },
+  );
+
+  Object.entries(ncounts).forEach(([ntype, ncount]) => {
+    cdata[cvar(1, `${ntype}_count`)] = { value: ncount };
+  });
+
+  return cdata;
+};
+
+const configToJobData = (
+  entries: [keyof FormConfigData, FormConfigData[keyof FormConfigData]][],
+) =>
+  entries
+    .reduce<string>((previous, [key, value]) => {
+      previous += `${key}=${value}\n`;
+
+      return previous;
+    }, '')
+    .trim();
 
 export const configStriker: RequestHandler<
   unknown,
@@ -115,40 +164,50 @@ export const configStriker: RequestHandler<
     return response.status(400).send();
   }
 
+  const configData: FormConfigData = {
+    [cvar(1, 'domain')]: { value: domainName },
+    [cvar(1, 'organization')]: { value: organizationName },
+    [cvar(1, 'prefix')]: { value: organizationPrefix },
+    [cvar(1, 'sequence')]: { value: hostNumber },
+    [cvar(2, 'dns')]: { step: 2, value: networkDns },
+    [cvar(2, 'gateway')]: { step: 2, value: networkGateway },
+    [cvar(2, 'host_name')]: { step: 2, value: hostName },
+    [cvar(2, 'striker_password')]: { step: 2, value: adminPassword },
+    [cvar(2, 'striker_user')]: { step: 2, value: 'admin' },
+    ...buildNetworkConfigs(networks),
+  };
+
+  stdoutVar(configData, `Config data before initiating striker config: `);
+
+  const configEntries = Object.entries(configData);
+
   try {
+    const localHostUuid = getLocalHostUUID();
+
+    for (const [ckey, cdetail] of configEntries) {
+      const { step = 1, value } = cdetail;
+
+      const vuuid = await variable({
+        file: __filename,
+        variable_default: '',
+        varaible_description: '',
+        variable_name: ckey,
+        variable_section: `config_step${step}`,
+        variable_source_uuid: localHostUuid,
+        variable_source_table: 'hosts',
+        variable_value: value,
+      });
+
+      assert(
+        REP_UUID.test(vuuid),
+        `Not a UUIDv4 post insert or update of ${ckey} with [${cdetail}]`,
+      );
+    }
+
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-configure-host'].self,
-      job_data: `${fvar(1, 'domain')}=${domainName}
-${fvar(1, 'organization')}=${organizationName}
-${fvar(1, 'prefix')}=${organizationPrefix}
-${fvar(1, 'sequence')}=${hostNumber}
-${fvar(2, 'dns')}=${networkDns}
-${fvar(2, 'gateway')}=${networkGateway}
-${fvar(2, 'host_name')}=${hostName}
-${fvar(2, 'striker_password')}=${adminPassword}
-${fvar(2, 'striker_user')}=admin${
-        networks.reduce<{
-          counters: Record<InitializeStrikerNetworkForm['type'], number>;
-          result: string;
-        }>(
-          (reduceContainer, { interfaces, ipAddress, subnetMask, type }) => {
-            const { counters } = reduceContainer;
-
-            counters[type] = counters[type] ? counters[type] + 1 : 1;
-
-            const networkShortName = `${type}${counters[type]}`;
-
-            reduceContainer.result += `
-${fvar(2, `${networkShortName}_ip`)}=${ipAddress}
-${fvar(2, `${networkShortName}_subnet_mask`)}=${subnetMask}
-${buildNetworkLinks(2, networkShortName, interfaces)}`;
-
-            return reduceContainer;
-          },
-          { counters: {}, result: '' },
-        ).result
-      }`,
+      job_data: configToJobData(configEntries),
       job_name: 'configure::network',
       job_title: 'job_0001',
       job_description: 'job_0071',
