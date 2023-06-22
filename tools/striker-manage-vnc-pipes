@@ -139,7 +139,7 @@ sub get_vnc_info
 	if ( (not defined $port) or (not $port =~ /^\d+$/) )
 	{
 		# Requires root to access VM information.
-		my $shell_call = "virsh vncdisplay ".$server_name;
+		my $shell_call = "virsh vncdisplay \"$server_name\"";
 
 		my ($shell_output, $shell_error, $shell_return_code) = call({
 			host_name   => $host_name,
