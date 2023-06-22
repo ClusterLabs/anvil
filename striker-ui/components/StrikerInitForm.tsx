@@ -206,7 +206,7 @@ const StrikerInitForm: FC = () => {
               <BodyText>Domain name server(s)</BodyText>
             </Grid>
             <Grid item xs={1}>
-              <MonoText>{requestBody?.domainNameServerCSV}</MonoText>
+              <MonoText>{requestBody?.dns}</MonoText>
             </Grid>
           </Grid>
         }
@@ -220,7 +220,7 @@ const StrikerInitForm: FC = () => {
           setIsOpenConfirm(false);
 
           api
-            .post('/init', requestBody)
+            .put('/init', requestBody)
             .then(() => {
               setIsSubmittingForm(false);
             })

@@ -78,7 +78,7 @@ type NetworkInterfaceInputMap = Record<
 >;
 
 type NetworkInitFormValues = {
-  domainNameServerCSV?: string;
+  dns?: string;
   gateway?: string;
   gatewayInterface?: string;
   networks: Omit<NetworkInput, 'ipAddressInputRef' | 'subnetMaskInputRef'>[];
@@ -148,7 +148,7 @@ const NODE_REQUIRED_NETWORKS: NetworkInput[] = [
 
 const MAX_INTERFACES_PER_NETWORK = 2;
 const IT_IDS = {
-  dnsCSV: 'domainNameServerCSV',
+  dnsCSV: 'dns',
   gateway: 'gateway',
   networkInterfaces: (prefix: string) => `${prefix}Interface`,
   networkIPAddress: (prefix: string) => `${prefix}IPAddress`,
@@ -645,7 +645,7 @@ const NetworkInitForm = forwardRef<
       messageGroupRef.current.setMessageRe?.call(null, re, message),
     [],
   );
-  const setDomainNameServerCSVInputMessage = useCallback(
+  const setDnsInputMessage = useCallback(
     (message?: Message) => setMessage(IT_IDS.dnsCSV, message),
     [setMessage],
   );
@@ -743,13 +743,13 @@ const NetworkInitForm = forwardRef<
         defaults: {
           getValue: () => dnsCSVInputRef.current.getValue?.call(null),
           onSuccess: () => {
-            setDomainNameServerCSVInputMessage();
+            setDnsInputMessage();
           },
         },
         tests: [
           {
             onFailure: () => {
-              setDomainNameServerCSVInputMessage({
+              setDnsInputMessage({
                 children:
                   'Domain name servers should be a comma-separated list of IPv4 addresses without trailing comma(s).',
               });
@@ -958,7 +958,7 @@ const NetworkInitForm = forwardRef<
     return tests;
   }, [
     networkInputs,
-    setDomainNameServerCSVInputMessage,
+    setDnsInputMessage,
     setGatewayInputMessage,
     setMessage,
     subnetContains,
@@ -1166,7 +1166,7 @@ const NetworkInitForm = forwardRef<
     ref,
     () => ({
       get: () => ({
-        domainNameServerCSV: dnsCSVInputRef.current.getValue?.call(null),
+        dns: dnsCSVInputRef.current.getValue?.call(null),
         gateway: gatewayInputRef.current.getValue?.call(null),
         gatewayInterface,
         networks: networkInputs.map(
@@ -1400,7 +1400,7 @@ const NetworkInitForm = forwardRef<
                   testInputToToggleSubmitDisabled({
                     inputs: { [IT_IDS.dnsCSV]: { value } },
                   });
-                  setDomainNameServerCSVInputMessage();
+                  setDnsInputMessage();
                 }}
                 label="Domain name server(s)"
                 value={xDns}
