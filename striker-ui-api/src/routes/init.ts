@@ -12,21 +12,23 @@ router
   .get(
     '/network-interface/:hostUUID?',
     assertInit({
-      fail: ({ path }, response) => response.redirect(`/api${path}`),
+      fail: ({ path }, response) => response.redirect(307, `/api${path}`),
     }),
     getNetworkInterface,
   )
-  .post(
+  .put(
     '/',
     assertInit({
-      fail: (request, response) => response.redirect(`/api/host`),
+      fail: (request, response) =>
+        response.redirect(307, `/api/host?handler=striker`),
     }),
     configStriker,
   )
   .put(
     '/set-map-network',
     assertInit({
-      fail: ({ path }, response) => response.redirect(`/api/command${path}`),
+      fail: ({ path }, response) =>
+        response.redirect(307, `/api/command${path}`),
     }),
     setMapNetwork,
   );
