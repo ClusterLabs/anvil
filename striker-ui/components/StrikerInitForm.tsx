@@ -220,7 +220,7 @@ const StrikerInitForm: FC = () => {
           setIsOpenConfirm(false);
 
           api
-            .post('/host', requestBody)
+            .post('/init', requestBody)
             .then(() => {
               setIsSubmittingForm(false);
             })
