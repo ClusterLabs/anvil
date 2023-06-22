@@ -1,5 +1,9 @@
+import { Assignment as AssignmentIcon } from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
+
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import { BLACK } from '../lib/consts/DEFAULT_THEME';
 
 import api from '../lib/api';
 import ConfirmDialog from './ConfirmDialog';
@@ -10,6 +14,12 @@ import GeneralInitForm, {
   GeneralInitFormValues,
 } from './GeneralInitForm';
 import handleAPIError from '../lib/handleAPIError';
+import IconButton from './IconButton';
+import IconWithIndicator, {
+  IconWithIndicatorForwardedRefContent,
+} from './IconWithIndicator';
+import JobSummary, { JobSummaryForwardedRefContent } from './JobSummary';
+import Link from './Link';
 import MessageBox, { Message } from './MessageBox';
 import NetworkInitForm, {
   NetworkInitFormForwardedRefContent,
@@ -34,6 +44,9 @@ const StrikerInitForm: FC = () => {
 
   const generalInitFormRef = useRef<GeneralInitFormForwardedRefContent>({});
   const networkInitFormRef = useRef<NetworkInitFormForwardedRefContent>({});
+
+  const jobIconRef = useRef<IconWithIndicatorForwardedRefContent>({});
+  const jobSummaryRef = useRef<JobSummaryForwardedRefContent>({});
 
   const buildSubmitSection = useMemo(
     () =>
@@ -70,6 +83,15 @@ const StrikerInitForm: FC = () => {
       <Panel>
         <PanelHeader>
           <HeaderText text="Initialize striker" />
+          <IconButton
+            onClick={({ currentTarget }) => {
+              jobSummaryRef.current.setAnchor?.call(null, currentTarget);
+              jobSummaryRef.current.setOpen?.call(null, true);
+            }}
+            variant="normal"
+          >
+            <IconWithIndicator icon={AssignmentIcon} ref={jobIconRef} />
+          </IconButton>
         </PanelHeader>
         <FlexBox>
           <GeneralInitForm
@@ -223,6 +245,23 @@ const StrikerInitForm: FC = () => {
             .put('/init', requestBody)
             .then(() => {
               setIsSubmittingForm(false);
+              setSubmitMessage({
+                children: (
+                  <>
+                    Successfully registered the configuration job! You can check
+                    the progress at the top right icon. Once the job completes,
+                    you can access the{' '}
+                    <Link
+                      href="/login"
+                      sx={{ color: BLACK, display: 'inline-flex' }}
+                    >
+                      login page
+                    </Link>
+                    .
+                  </>
+                ),
+                type: 'info',
+              });
             })
             .catch((error) => {
               const errorMessage = handleAPIError(error);
@@ -232,6 +271,13 @@ const StrikerInitForm: FC = () => {
             });
         }}
         titleText="Confirm striker initialization"
+      />
+      <JobSummary
+        getJobUrl={(epoch) => `${API_BASE_URL}/init/job?start=${epoch}`}
+        onFetchSuccessAppend={(jobs) => {
+          jobIconRef.current.indicate?.call(null, Object.keys(jobs).length > 0);
+        }}
+        ref={jobSummaryRef}
       />
     </>
   );

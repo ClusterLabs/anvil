@@ -20,6 +20,7 @@ type AnvilJobs = {
 };
 
 type JobSummaryOptionalPropsWithDefault = {
+  getJobUrl?: (epoch: number) => string;
   openInitially?: boolean;
   refreshInterval?: number;
 };
@@ -41,6 +42,7 @@ type JobSummaryForwardedRefContent = {
 const JOB_LIST_LENGTH = '20em';
 const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
   JobSummaryOptionalPropsWithoutDefault = {
+  getJobUrl: (epoch) => `${API_BASE_URL}/job?start=${epoch}`,
   onFetchSuccessAppend: undefined,
   openInitially: false,
   refreshInterval: 10000,
@@ -49,6 +51,7 @@ const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
 const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
   (
     {
+      getJobUrl = JOB_SUMMARY_DEFAULT_PROPS.getJobUrl,
       onFetchSuccessAppend,
       openInitially = JOB_SUMMARY_DEFAULT_PROPS.openInitially,
       refreshInterval = JOB_SUMMARY_DEFAULT_PROPS.refreshInterval,
@@ -64,7 +67,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
     const loadTimestamp = useMemo(() => Math.floor(Date.now() / 1000), []);
 
-    periodicFetch<AnvilJobs>(`${API_BASE_URL}/job?start=${loadTimestamp}`, {
+    periodicFetch<AnvilJobs>(getJobUrl(loadTimestamp), {
       onError: () => {
         setAnvilJobs({});
       },
