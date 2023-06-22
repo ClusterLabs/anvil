@@ -79,8 +79,8 @@ const configToJobData = (
   entries: [keyof FormConfigData, FormConfigData[keyof FormConfigData]][],
 ) =>
   entries
-    .reduce<string>((previous, [key, value]) => {
-      previous += `${key}=${value}\n`;
+    .reduce<string>((previous, [key, { value }]) => {
+      previous += `${key}=${value}\\n`;
 
       return previous;
     }, '')
@@ -96,16 +96,16 @@ export const configStriker: RequestHandler<
   stdoutVar(body, 'Begin initialize Striker; body=');
 
   const {
-    adminPassword: rAdminPassword = '',
-    domainName: rDomainName = '',
-    hostName: rHostName = '',
-    hostNumber: rHostNumber = 0,
-    dns: rDns = '',
-    gateway: rGateway = '',
-    gatewayInterface: rGatewayInterface = '',
+    adminPassword: rAdminPassword,
+    domainName: rDomainName,
+    hostName: rHostName,
+    hostNumber: rHostNumber,
+    dns: rDns,
+    gateway: rGateway,
+    gatewayInterface: rGatewayInterface,
     networks = [],
-    organizationName: rOrganizationName = '',
-    organizationPrefix: rOrganizationPrefix = '',
+    organizationName: rOrganizationName,
+    organizationPrefix: rOrganizationPrefix,
   } = body;
 
   const adminPassword = sanitize(rAdminPassword, 'string');
@@ -155,7 +155,7 @@ export const configStriker: RequestHandler<
     );
 
     assert(
-      REP_PEACEFUL_STRING.test(organizationName),
+      organizationName.length > 0,
       `Data organization name cannot be empty; got [${organizationName}]`,
     );
 
