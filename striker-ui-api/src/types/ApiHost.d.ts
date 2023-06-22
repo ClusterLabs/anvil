@@ -60,8 +60,9 @@ type InitializeStrikerForm = {
   domainName: string;
   hostName: string;
   hostNumber: number;
-  networkDNS: string;
-  networkGateway: string;
+  dns: string;
+  gateway: string;
+  gatewayInterface: string;
   networks: InitializeStrikerNetworkForm[];
   organizationName: string;
   organizationPrefix: string;

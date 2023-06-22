@@ -100,8 +100,9 @@ export const configStriker: RequestHandler<
     domainName: rDomainName = '',
     hostName: rHostName = '',
     hostNumber: rHostNumber = 0,
-    networkDNS: rNetworkDns = '',
-    networkGateway: rNetworkGateway = '',
+    dns: rDns = '',
+    gateway: rGateway = '',
+    gatewayInterface: rGatewayInterface = '',
     networks = [],
     organizationName: rOrganizationName = '',
     organizationPrefix: rOrganizationPrefix = '',
@@ -111,8 +112,9 @@ export const configStriker: RequestHandler<
   const domainName = sanitize(rDomainName, 'string');
   const hostName = sanitize(rHostName, 'string');
   const hostNumber = sanitize(rHostNumber, 'number');
-  const networkDns = sanitize(rNetworkDns, 'string');
-  const networkGateway = sanitize(rNetworkGateway, 'string');
+  const dns = sanitize(rDns, 'string');
+  const gateway = sanitize(rGateway, 'string');
+  const gatewayInterface = sanitize(rGatewayInterface, 'string');
   const organizationName = sanitize(rOrganizationName, 'string');
   const organizationPrefix = sanitize(rOrganizationPrefix, 'string');
 
@@ -138,13 +140,18 @@ export const configStriker: RequestHandler<
     );
 
     assert(
-      REP_IPV4_CSV.test(networkDns),
-      `Data network DNS must be a comma separated list of valid IPv4 addresses; got [${networkDns}]`,
+      REP_IPV4_CSV.test(dns),
+      `Data network DNS must be a comma separated list of valid IPv4 addresses; got [${dns}]`,
     );
 
     assert(
-      REP_IPV4.test(networkGateway),
-      `Data network gateway must be a valid IPv4 address; got [${networkGateway}]`,
+      REP_IPV4.test(gateway),
+      `Data network gateway must be a valid IPv4 address; got [${gateway}]`,
+    );
+
+    assert(
+      REP_PEACEFUL_STRING.test(gatewayInterface),
+      `Data gateway interface must be a peaceful string; got [${gatewayInterface}]`,
     );
 
     assert(
@@ -169,8 +176,9 @@ export const configStriker: RequestHandler<
     [cvar(1, 'organization')]: { value: organizationName },
     [cvar(1, 'prefix')]: { value: organizationPrefix },
     [cvar(1, 'sequence')]: { value: hostNumber },
-    [cvar(2, 'dns')]: { step: 2, value: networkDns },
-    [cvar(2, 'gateway')]: { step: 2, value: networkGateway },
+    [cvar(2, 'dns')]: { step: 2, value: dns },
+    [cvar(2, 'gateway')]: { step: 2, value: gateway },
+    [cvar(2, 'gateway_interface')]: { step: 2, value: gatewayInterface },
     [cvar(2, 'host_name')]: { step: 2, value: hostName },
     [cvar(2, 'striker_password')]: { step: 2, value: adminPassword },
     [cvar(2, 'striker_user')]: { step: 2, value: 'admin' },
