@@ -60,11 +60,30 @@ sub call
 sub get_server_info
 {
 	my $parameters       = shift;
-	my $server_uuid      = $parameters->{server_uuid};
+	my $server_host_name = $parameters->{server_host_name};
 	my $server_host_uuid = $parameters->{server_host_uuid};
+	my $server_name      = $parameters->{server_name};
+	my $server_uuid      = $parameters->{server_uuid};
+
+	return if (not defined $server_uuid);
 
 	my $query;
 	my $server_info;
+
+	# When all required server info are provided, i.e., extracted from
+	# libvirt domain XML, simply return the values.
+	if (defined $server_host_name and defined $server_host_uuid and defined $server_name)
+	{
+		$server_info = {
+			host_name   => $server_host_name,
+			host_uuid   => $server_host_uuid,
+			server_name => $server_name
+		};
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $server_info, prefix => "get_server_info" });
+
+		return $server_info;
+	}
 
 	if (defined $server_host_uuid)
 	{
@@ -790,7 +809,9 @@ ORDER BY
 sub open_ws
 {
 	my $parameters       = shift;
+	my $server_host_name = $parameters->{server_host_name};
 	my $server_host_uuid = $parameters->{server_host_uuid};
+	my $server_name      = $parameters->{server_name};
 	my $server_uuid      = $parameters->{server_uuid};
 	my $server_vnc_port  = $parameters->{server_vnc_port};
 
@@ -995,18 +1016,30 @@ my $server_host_uuid = $anvil->data->{switches}{'server-host-uuid'};
 my $server_uuid      = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
 my $server_vnc_port  = $anvil->data->{switches}{'server-vnc-port'};
 
-if (defined $server_host_uuid and $server_host_uuid eq "local")
+my $server_host_name;
+
+if (defined $server_host_uuid)
 {
-	$server_host_uuid = $anvil->data->{sys}{host_uuid};
+	if ($server_host_uuid eq "local")
+	{
+		$server_host_uuid = $anvil->data->{sys}{host_uuid};
+		$server_host_name = $anvil->data->{sys}{host_name};
+	}
+	else
+	{
+		$server_host_name = $anvil->Get->host_name_from_uuid({ host_uuid => $server_host_uuid });
+	}
 }
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-	component       => $component,
-	is_open         => $is_open,
-	is_drop_table   => $is_drop_table,
-	server          => $server,
-	server_uuid     => $server_uuid,
-	server_vnc_port => $server_vnc_port
+	component        => $component,
+	is_open          => $is_open,
+	is_drop_table    => $is_drop_table,
+	server           => $server,
+	server_host_name => $server_host_name,
+	server_host_uuid => $server_host_uuid,
+	server_uuid      => $server_uuid,
+	server_vnc_port  => $server_vnc_port
 } });
 
 my $map_to_operation = {
@@ -1032,7 +1065,9 @@ if ($server_uuid =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-
 
 	my ($is_error, $error) = $ops->{$op}({
 		host_uuid        => $host_uuid,
+		server_host_name => $server_host_name,
 		server_host_uuid => $server_host_uuid,
+		server_name      => $server,
 		server_uuid      => $server_uuid,
 		server_vnc_port  => $server_vnc_port
 	});
