@@ -8,11 +8,27 @@ import { getNetworkInterface } from '../lib/request_handlers/network-interface';
 
 const router = express.Router();
 
-router.use(assertInit());
-
 router
-  .get('/network-interface', getNetworkInterface)
-  .post('/', configStriker)
-  .put('/set-map-network', setMapNetwork);
+  .get(
+    '/network-interface/:hostUUID?',
+    assertInit({
+      fail: ({ path }, response) => response.redirect(`/api${path}`),
+    }),
+    getNetworkInterface,
+  )
+  .post(
+    '/',
+    assertInit({
+      fail: (request, response) => response.redirect(`/api/host`),
+    }),
+    configStriker,
+  )
+  .put(
+    '/set-map-network',
+    assertInit({
+      fail: ({ path }, response) => response.redirect(`/api/command${path}`),
+    }),
+    setMapNetwork,
+  );
 
 export default router;
