@@ -4,19 +4,32 @@ import buildObjectStateSetterCallback from '../lib/buildObjectStateSetterCallbac
 
 import FormSummary from '../components/FormSummary';
 
-const useChecklist = (): {
+const useChecklist = ({
+  list = {},
+}: {
+  list?: Record<string, unknown>;
+}): {
   buildDeleteDialogProps: BuildDeleteDialogPropsFunction;
   checklist: Checklist;
   checks: ArrayChecklist;
   getCheck: GetCheckFunction;
+  hasAllChecks: boolean;
   hasChecks: boolean;
+  multipleItems: boolean;
+  setAllChecks: SetAllChecksFunction;
   setCheck: SetCheckFunction;
 } => {
   const [checklist, setChecklist] = useState<Checklist>({});
 
+  const listKeys = useMemo(() => Object.keys(list), [list]);
   const checks = useMemo(() => Object.keys(checklist), [checklist]);
 
+  const hasAllChecks = useMemo(
+    () => checks.length === listKeys.length,
+    [checks.length, listKeys.length],
+  );
   const hasChecks = useMemo(() => checks.length > 0, [checks.length]);
+  const multipleItems = useMemo(() => listKeys.length > 1, [listKeys.length]);
 
   const buildDeleteDialogProps = useCallback<BuildDeleteDialogPropsFunction>(
     ({
@@ -40,6 +53,20 @@ const useChecklist = (): {
     [checklist],
   );
 
+  const setAllChecks = useCallback<SetAllChecksFunction>(
+    (checked) =>
+      setChecklist(
+        listKeys.reduce<Checklist>((previous, key) => {
+          if (checked) {
+            previous[key] = checked;
+          }
+
+          return previous;
+        }, {}),
+      ),
+    [listKeys],
+  );
+
   const setCheck = useCallback<SetCheckFunction>(
     (key, checked) =>
       setChecklist(buildObjectStateSetterCallback(key, checked || undefined)),
@@ -51,7 +78,10 @@ const useChecklist = (): {
     checklist,
     checks,
     getCheck,
+    hasAllChecks,
     hasChecks,
+    multipleItems,
+    setAllChecks,
     setCheck,
   };
 };

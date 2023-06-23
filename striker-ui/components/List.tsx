@@ -13,15 +13,7 @@ import {
   SxProps,
   Theme,
 } from '@mui/material';
-import {
-  FC,
-  ForwardedRef,
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useState,
-} from 'react';
+import { FC, forwardRef, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BLUE, BORDER_RADIUS, GREY, RED } from '../lib/consts/DEFAULT_THEME';
@@ -33,44 +25,39 @@ import IconButton from './IconButton';
 import { BodyText } from './Text';
 
 const List = forwardRef(
-  <T,>(
-    {
-      allowCheckAll: isAllowCheckAll = false,
-      allowEdit: isAllowEdit = false,
-      allowItemButton: isAllowItemButton = false,
-      disableDelete = false,
-      edit: isEdit = false,
-      flexBoxProps,
-      getListItemCheckboxProps,
-      header,
-      headerSpacing = '.3em',
-      initialCheckAll = false,
-      insertHeader: isInsertHeader = true,
-      listEmpty,
-      listItemIconMinWidth = '56px',
-      listItemKeyPrefix = uuidv4(),
-      listItemProps: { sx: listItemSx, ...restListItemProps } = {},
-      listItems,
-      listProps: { sx: listSx, ...restListProps } = {},
-      onAdd,
-      onDelete,
-      onEdit,
-      onAllCheckboxChange,
-      onItemCheckboxChange,
-      onItemClick,
-      renderListItem = (key) => <BodyText>{key}</BodyText>,
-      renderListItemCheckboxState,
-      scroll: isScroll = false,
-      // Input props that depend on other input props.
-      allowAddItem: isAllowAddItem = isAllowEdit,
-      allowCheckItem: isAllowCheckItem = isAllowEdit,
-      allowDelete: isAllowDelete = isAllowEdit,
-      allowEditItem: isAllowEditItem = isAllowEdit,
-    }: ListProps<T>,
-    ref: ForwardedRef<ListForwardedRefContent>,
-  ) => {
-    const [isCheckAll, setIsCheckAll] = useState<boolean>(initialCheckAll);
-
+  <T,>({
+    allowCheckAll: isAllowCheckAll = false,
+    allowEdit: isAllowEdit = false,
+    allowItemButton: isAllowItemButton = false,
+    disableDelete = false,
+    edit: isEdit = false,
+    flexBoxProps,
+    getListCheckboxProps,
+    getListItemCheckboxProps,
+    header,
+    headerSpacing = '.3em',
+    insertHeader: isInsertHeader = true,
+    listEmpty,
+    listItemIconMinWidth = '56px',
+    listItemKeyPrefix = uuidv4(),
+    listItemProps: { sx: listItemSx, ...restListItemProps } = {},
+    listItems,
+    listProps: { sx: listSx, ...restListProps } = {},
+    onAdd,
+    onDelete,
+    onEdit,
+    onAllCheckboxChange,
+    onItemCheckboxChange,
+    onItemClick,
+    renderListItem = (key) => <BodyText>{key}</BodyText>,
+    renderListItemCheckboxState,
+    scroll: isScroll = false,
+    // Input props that depend on other input props.
+    allowAddItem: isAllowAddItem = isAllowEdit,
+    allowCheckItem: isAllowCheckItem = isAllowEdit,
+    allowDelete: isAllowDelete = isAllowEdit,
+    allowEditItem: isAllowEditItem = isAllowEdit,
+  }: ListProps<T>) => {
     const checkAllMinWidth = useMemo(
       () => `calc(${listItemIconMinWidth} - ${headerSpacing})`,
       [headerSpacing, listItemIconMinWidth],
@@ -122,14 +109,9 @@ const List = forwardRef(
         element = isAllowCheckAll ? (
           <MUIBox sx={{ minWidth: checkAllMinWidth }}>
             <Checkbox
-              checked={isCheckAll}
               edge="start"
-              onChange={(...args) => {
-                const [, isChecked] = args;
-
-                onAllCheckboxChange?.call(null, ...args);
-                setIsCheckAll(isChecked);
-              }}
+              onChange={onAllCheckboxChange}
+              {...getListCheckboxProps?.call(null)}
             />
           </MUIBox>
         ) : (
@@ -140,9 +122,9 @@ const List = forwardRef(
       return element;
     }, [
       checkAllMinWidth,
+      getListCheckboxProps,
       isAllowCheckAll,
       isAllowCheckItem,
-      isCheckAll,
       isEdit,
       onAllCheckboxChange,
     ]);
@@ -261,14 +243,6 @@ const List = forwardRef(
       [isScroll],
     );
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        setCheckAll: (value) => setIsCheckAll(value),
-      }),
-      [],
-    );
-
     return (
       <FlexBox spacing={0} {...flexBoxProps}>
         {headerElement}
@@ -285,6 +259,4 @@ const List = forwardRef(
 
 List.displayName = 'List';
 
-export default List as <T>(
-  props: ListProps<T> & { ref?: ForwardedRef<ListForwardedRefContent> },
-) => ReturnType<FC<ListProps<T>>>;
+export default List as <T>(props: ListProps<T>) => ReturnType<FC<ListProps<T>>>;

@@ -15,12 +15,12 @@ import List from '../List';
 import MessageBox, { Message } from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { ExpandablePanel } from '../Panels';
+import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { BodyText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useProtectedState from '../../hooks/useProtectedState';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 
 const getFormEntries = (
   ...[{ target }]: DivFormEventHandlerParameters
@@ -76,7 +76,7 @@ const ManageUsersForm: FC = () => {
   const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
 
   const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
-    useChecklist();
+    useChecklist({ list: users });
 
   const { userName: udetailName, userUUID: udetailUuid } = useMemo<
     Partial<UserOverviewMetadata>
@@ -216,9 +216,7 @@ const ManageUsersForm: FC = () => {
             confirmDialogRef.current.setOpen?.call(null, true);
           }}
           onEdit={() => setEditUsers((previous) => !previous)}
-          onItemCheckboxChange={(key, { target: { checked } }) =>
-            setCheck(key, checked)
-          }
+          onItemCheckboxChange={(key, event, checked) => setCheck(key, checked)}
           onItemClick={(value) => {
             if (editUsers) {
               setUserDetail(value);

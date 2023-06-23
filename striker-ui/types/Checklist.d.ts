@@ -10,4 +10,6 @@ type BuildDeleteDialogPropsFunction = (args: {
 
 type GetCheckFunction = (key: string) => boolean;
 
+type SetAllChecksFunction = (checked?: boolean) => void;
+
 type SetCheckFunction = (key: string, checked?: boolean) => void;
