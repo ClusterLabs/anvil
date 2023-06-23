@@ -2,7 +2,6 @@ MAINTAINERCLEANFILES	= Makefile.in
 
 # XXX recheck after rebase!
 EXTRA_DIST		= \
-			  watch_drbd
 
 dist_sbin_SCRIPTS	= \
 			  anvil-access-module \
@@ -47,6 +46,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-update-system \
 			  anvil-version-changes \
 			  anvil-watch-bonds \
+			  anvil-watch-drbd \
 			  anvil-watch-power \
 			  scancore \
 			  striker-auto-initialize-all \
