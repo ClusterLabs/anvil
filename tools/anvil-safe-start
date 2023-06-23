@@ -16,6 +16,8 @@
 # - Make this work on DR hosts.
 # - 'pcs quorum unblock' could be useful in sole-survivor cold starts.
 # - Start DRBD resources if the VMs are running already on the peer.
+# - Check that the installed kernel-headers matches the running kernel and, if not, check with grubby to 
+#   ensure the right kernel is set to boot. Then alert the user to a likely need to reboot.
 # 
 
 use strict;

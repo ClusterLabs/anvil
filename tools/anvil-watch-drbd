@@ -1,0 +1,219 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+use Term::Cap;
+use Time::Local;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+# Get a list of all interfaces with IP addresses.
+$anvil->Get->switches({debug => 2, list => ["watch"]});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+
+
+our $t = Term::Cap->Tgetent;
+
+# One shot or continuous?
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+	'switches::watch' => $anvil->data->{switches}{watch},
+}});
+if ($anvil->data->{switches}{watch})
+{
+	# Do we have an interval?
+	my $interval = 2;
+	if ($anvil->data->{switches}{watch} =~ /^\d+$/)
+	{
+		$interval = $anvil->data->{switches}{watch};
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { interval => $interval }});
+	
+	# Loop until terminated.
+	while(1)
+	{
+		show_status($anvil);
+		sleep $interval;
+	}
+}
+else
+{
+	# Once and exit.
+	show_status($anvil);
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+sub show_status
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{switches}{watch})
+	{
+		system('clear');
+		print $t->Tgoto("cm", 0, 0);
+	}
+	
+	if ($anvil->data->{switches}{watch})
+	{
+		my $date = $anvil->Get->date_and_time();
+		print "-=] Updated: ".$date." - Press '<ctrl> + <c>' to exit\n";
+	}
+	
+	my $vms                = {};
+	my $longest_resource   = 3; # Res
+	my $longest_connection = 2; # To
+	my $longest_volume     = 3; # Vol
+	my $total_transfer     = 0;
+
+	my $root_directory = $anvil->data->{path}{directories}{resource_status};
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $root_directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $full_path = $root_directory."/".$file;
+		if (-d $full_path)
+		{
+			my $resource = $file;
+			if (length($resource) > $longest_resource)
+			{
+				$longest_resource = length($resource);
+			}
+			$vms->{resource}{$resource} = {};
+			#print "Resource found: [".$resource."]\n";
+		}
+	}
+	closedir(DIRECTORY);
+	
+	foreach my $resource (sort {$a cmp $b} keys %{$vms->{resource}})
+	{
+		my $directory = $root_directory."/".$resource."/connections";
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file eq ".";
+			next if $file eq "..";
+			my $full_path = $directory."/".$file;
+			if (-d $full_path)
+			{
+				my $connection = $file;
+				if (length($connection) > $longest_connection)
+				{
+					$longest_connection = length($connection);
+				}
+				#print "Found connection: [".$resource."] -> [".$connection."]\n";
+				$vms->{resource}{$resource}{connection}{$connection} = {};
+			}
+		}
+		closedir(DIRECTORY);
+	
+		foreach my $connection (sort {$a cmp $b} keys %{$vms->{resource}{$resource}{connection}})
+		{
+			my $directory = $root_directory."/".$resource."/connections/".$connection;
+			local(*DIRECTORY);
+			opendir(DIRECTORY, $directory);
+			while(my $file = readdir(DIRECTORY))
+			{
+				next if $file eq ".";
+				next if $file eq "..";
+				my $full_path = $directory."/".$file."/proc_drbd";
+				if (-r $full_path)
+				{
+					my $volume = $file;
+					if (length($volume) > $longest_volume)
+					{
+						$longest_volume = length($volume);
+					}
+					#print "Found volume: [".$resource."] -> [".$connection."] -> [".$volume."]\n";
+					$vms->{resource}{$resource}{connection}{$connection}{volume}{$volume}{proc_drbd} = $full_path;
+				}
+			}
+			closedir(DIRECTORY);
+		}
+	}
+
+	print "Sync progress:\n";
+	print "  ".sprintf("%-${longest_resource}s", "Res")."    ".sprintf("%-${longest_connection}s", "To")."    Vol\n";
+	foreach my $resource (sort {$a cmp $b} keys %{$vms->{resource}})
+	{
+		foreach my $connection (sort {$a cmp $b} keys %{$vms->{resource}{$resource}{connection}})
+		{
+			foreach my $volume (sort {$a cmp $b} keys %{$vms->{resource}{$resource}{connection}{$connection}{volume}})
+			{
+				my $local_role = "";
+				my $peer_role  = "";
+				my $local_disk = "";
+				my $peer_disk  = "";
+				my $proc_file  = $vms->{resource}{$resource}{connection}{$connection}{volume}{$volume}{proc_drbd};
+				my $progress = "";
+				open (my $file_handle, "<", $proc_file) or die "Failed to read: [".$proc_file."], error: $!\n";
+				while(<$file_handle>)
+				{
+					chomp;
+					my $line = $_;
+					if ($line =~ /ds:(.*?)\/(.*?) /)
+					{
+						$local_disk = $1;
+						$peer_disk  = $2;
+						if (($local_disk eq "UpToDate") && ($peer_disk eq "UpToDate"))
+						{
+							$progress = "(UpToDate)";
+						}
+					}
+					if ($line =~ /ro:(.*?)\/(.*?) /)
+					{
+						$local_role = $1;
+						$peer_role  = $2;
+						if ($peer_role eq "Unknown")
+						{
+							$progress = "(Disconnected)";
+						}
+					}
+
+					if ($line =~ /(\[.*?\])/)
+					{
+						$progress = $1." ";
+					}
+					if ($line =~ /sync'ed: (.*?\%)/)
+					{
+						$progress .= $1." ";
+					}
+					if ($line =~ /speed: (.*?) \(/)
+					{
+						my $speed          =  $1;
+						   $progress       .= $speed." KiB/Sec ";
+						   $speed          =~ s/\D//g;
+						   $total_transfer += $speed;
+					}
+					if ($line =~ /finish: (.*?) speed/)
+					{
+						$progress .= "(ETA ".$1.")";
+					}
+				}
+				close $file_handle;
+				my $say_resource   = sprintf("%-${longest_resource}s", $resource);
+				my $say_connection = sprintf("%${longest_connection}s", $connection);
+				my $say_volume     = sprintf("%${longest_volume}s", $volume);
+				print "- ".$say_resource." -> ".$say_connection." -> ".$say_volume.": ".$progress." //  ds:".$local_disk."/".$peer_disk.", ro:".$local_role."/".$peer_role."\n";
+			}
+		}
+	}
+	my $say_speed = $total_transfer / 1024;
+	   $say_speed =~ s/^(\d+\.\d{3})\d+/$1/;
+	print "* Total transfer speed is about: [".$say_speed." MiB/sec]\n";
+}
