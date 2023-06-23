@@ -406,6 +406,21 @@ sub manage_optical
 	my $device_target = $anvil->data->{switches}{optical};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
 	
+	if ($anvil->data->{switches}{optical} eq "#!SET!#")
+	{
+		# User didn't specify a device.
+		show_server_details($anvil);
+		print "\n[ Error ] - Please specify the optical disk target you want to work on.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target})
+	{
+		# Invalid device target
+		show_server_details($anvil);
+		print "\n[ Error ] - The optical device target: [".$device_target."] wasn't found.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
 	my $eject_first        = 0;
 	my $alias              = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{alias};
 	my $boot_order         = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{boot_order};

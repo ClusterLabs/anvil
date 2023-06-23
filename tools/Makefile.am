@@ -1,7 +1,6 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
 # XXX recheck after rebase!
-EXTRA_DIST		= \
 
 dist_sbin_SCRIPTS	= \
 			  anvil-access-module \
