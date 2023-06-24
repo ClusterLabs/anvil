@@ -339,6 +339,34 @@ sub collect_data
 			{
 				my $server_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
+				
+				# Make very sure the definition XML is valid
+				if (not $server_definition)
+				{
+					# Asked to write an empty definition file!
+					my $variables = {
+						server => $server_name, 
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0020", variables => $variables });
+					$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0020", variables => $variables, set_by => $THIS_FILE});
+					$anvil->nice_exit({exit_code => 1});
+				}
+				
+				local $@;
+				my $xml        = XML::Simple->new();
+				my $server_xml = "";
+				my $test       = eval { $server_xml = $xml->XMLin($server_definition, KeyAttr => {}, ForceArray => 1) };
+				if (not $test)
+				{
+					chomp $@;
+					my $error =  "[ Error ] - The was a problem parsing: [".$server_definition."]. The error was:\n";
+					$error .= "===========================================================\n";
+					$error .= $@."\n";
+					$error .= "===========================================================\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", list => { error => $error }});
+					return(1);
+				}
+				
 				if ($server_definition)
 				{
 					# Register an alert.
@@ -402,6 +430,7 @@ DELETED   - Marks a server as no longer existing
 			
 			# Parse out the server UUID.
 			my $virsh_definition = get_and_parse_virsh_definition($anvil, $server_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition => $virsh_definition }});
 			
 			# Does the XML definition file exist yet?
 			my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
@@ -410,13 +439,13 @@ DELETED   - Marks a server as no longer existing
 			{
 				# No, generate it. This will also load and parse the file after it's written.
 				my $on_disk_definition = update_on_disk_definition($anvil, $server_name, $virsh_definition);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { on_disk_definition => $on_disk_definition }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_disk_definition => $on_disk_definition }});
 			}
 			else
 			{
 				# Yes, parse it.
 				my $on_disk_definition = get_and_parse_disk_definition($anvil, $server_name);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { on_disk_definition => $on_disk_definition }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_disk_definition => $on_disk_definition }});
 			}
 			
 			# We'll compare the memory allocated to the server from the on-disk definition and the memory
@@ -540,19 +569,30 @@ DELETED   - Marks a server as no longer existing
 						return_code => $return_code,
 					}});
 					
-					# The definition may have certainly changed, so update it in case 
-					# needed.
-					update_definitions_from_virsh($anvil, $server_name, $server_uuid, $virsh_definition);
+					# Make sure the definition we read was valid.
+					my $problem = $anvil->Server->parse_definition({
+						server     => $server_name,
+						source     => "from_virsh", 
+						definition => $virsh_definition, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 					
-					# Now undefine the server
-					$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server_name;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-					
-					(my $output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output, 
-						return_code => $return_code,
-					}});
+					if (not $problem)
+					{
+						# The definition may have certainly changed, so update it in case 
+						# needed.
+						update_definitions_from_virsh($anvil, $server_name, $server_uuid, $virsh_definition);
+						
+						# Now undefine the server
+						$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						
+						(my $output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output, 
+							return_code => $return_code,
+						}});
+					}
 				}
 				
 				# Set the boot time back to zero.
@@ -588,7 +628,7 @@ DELETED   - Marks a server as no longer existing
 		my $virsh_definition    = get_and_parse_virsh_definition($anvil, $server_name);
 		my $database_definition = get_and_parse_database_definition($anvil, $server_name, $server_uuid);
 		my $on_disk_definition  = get_and_parse_disk_definition($anvil, $server_name);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			virsh_definition    => $virsh_definition,
 			database_definition => $database_definition, 
 			on_disk_definition  => $on_disk_definition,
@@ -693,11 +733,18 @@ DELETED   - Marks a server as no longer existing
 		
 		my ($virsh_live_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
-		$anvil->Server->parse_definition({
+		my $problem = $anvil->Server->parse_definition({
 			server     => $server_name,
 			source     => "from_live_virsh", 
 			definition => $virsh_live_definition, 
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+		if ($problem)
+		{
+			$virsh_live_definition = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_live_definition => $virsh_live_definition }});
+		}
 		
 		# Now that definition updates are dealth with, has anything else changed?
 		my $server_state              = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state};
@@ -937,7 +984,7 @@ DELETED   - Marks a server as no longer existing
 		# Still here? check the age of the file on disk and the age of the database entry.
 		my $database_definition = get_and_parse_database_definition($anvil, $server_name, $server_uuid);
 		my $on_disk_definition  = get_and_parse_disk_definition($anvil, $server_name);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			database_definition => $database_definition, 
 			on_disk_definition  => $on_disk_definition,
 		}});
@@ -1114,11 +1161,18 @@ sub get_and_parse_database_definition
 	my $database_definition = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_definition => $database_definition }});
 	
-	$anvil->Server->parse_definition({
+	my $problem = $anvil->Server->parse_definition({
 		server     => $server_name,
 		source     => "from_db", 
 		definition => $database_definition, 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+	if ($problem)
+	{
+		# The definition is not valid.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_server_log_0003", variables => { definition => $database_definition }});
+		$database_definition = "";
+	}
 	
 	return($database_definition);
 }
@@ -1136,11 +1190,19 @@ sub get_and_parse_disk_definition
 	
 	$anvil->Storage->get_file_stats({file_path => $xml_file});
 	
-	$anvil->Server->parse_definition({
+	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
 		server     => $server_name,
 		source     => "from_disk", 
 		definition => $on_disk_definition, 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+	if ($problem)
+	{
+		# The definition is not valid.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_server_log_0003", variables => { definition => $on_disk_definition }});
+		$on_disk_definition = "";
+	}
 	
 	return($on_disk_definition);
 }
@@ -1160,11 +1222,19 @@ sub get_and_parse_virsh_definition
 		return_code => $return_code,
 	}});
 	
-	$anvil->Server->parse_definition({
+	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
 		server     => $server_name,
 		source     => "from_virsh", 
 		definition => $virsh_definition, 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+	if ($problem)
+	{
+		# The definition is not valid.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_server_log_0003", variables => { definition => $virsh_definition }});
+		$virsh_definition = "";
+	}
 	
 	return($virsh_definition);
 }
@@ -1201,6 +1271,7 @@ sub redefine_server_from_disk
 	
 	# Re-read and parse the new (inactive) definition
 	my $virsh_definition = get_and_parse_virsh_definition($anvil, $server_name);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition => $virsh_definition }});
 	
 	return($virsh_definition);
 }
@@ -1212,6 +1283,7 @@ sub update_definitions_from_virsh
 	my ($anvil, $server_name, $server_uuid, $virsh_definition) = @_;
 	
 	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
 		server     => $server_name,
 		source     => "from_virsh", 
 		definition => $virsh_definition, 
@@ -1226,21 +1298,22 @@ sub update_definitions_from_virsh
 			server_definition_xml         => $virsh_definition,  
 			server_definition_server_uuid => $server_uuid, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_definition_uuid => $server_definition_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
 		
 		# Reload the database definitions
 		$anvil->Database->get_server_definitions();
 		
 		my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { xml_file => $xml_file }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { xml_file => $xml_file }});
 		
 		# Just write out the file. If nothing else, it'll update the mtime.
 		my $return = $anvil->Storage->write_file({
+			debug     => 2,
 			body      => $virsh_definition,
 			file      => $xml_file,
 			overwrite => 1,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
 	}
 	
 	return(0);
@@ -1274,6 +1347,33 @@ sub update_on_disk_definition
 {
 	my ($anvil, $server_name, $new_definition) = @_;
 	
+	# Make very sure the definition XML is valid
+	if (not $new_definition)
+	{
+		# Asked to write an empty definition file!
+		my $variables = {
+			server => $server_name, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0020", variables => $variables });
+		$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0020", variables => $variables, set_by => $THIS_FILE});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	local $@;
+	my $xml        = XML::Simple->new();
+	my $server_xml = "";
+	my $test       = eval { $server_xml = $xml->XMLin($new_definition, KeyAttr => {}, ForceArray => 1) };
+	if (not $test)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem parsing: [".$new_definition."]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", list => { error => $error }});
+		return(1);
+	}
+	
 	my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { xml_file => $xml_file }});
 	
@@ -1290,6 +1390,7 @@ sub update_on_disk_definition
 	
 	# Read the file back in and parse it.
 	my $on_disk_definition = get_and_parse_disk_definition($anvil, $server_name);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_disk_definition => $on_disk_definition }});
 	
 	return($on_disk_definition);
 }

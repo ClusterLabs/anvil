@@ -47,6 +47,7 @@ $anvil->Log->secure({set => 1});
 $anvil->Get->switches({list => [
 	"add",
 	"anvil", 
+	"confirm",
 	"disk", 
 	"eject", 
 	"grow",
@@ -165,10 +166,12 @@ sub manage_disk
 {
 	my ($anvil) = @_;
 	
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
 		from_source     => $from_source, 
@@ -199,7 +202,7 @@ sub manage_disk
 		}
 	}
 	
-	my $drbd_resource = load_storage($anvil);
+	my $drbd_resource  = load_storage($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	foreach my $host_type ("node", "dr")
 	{
@@ -257,12 +260,33 @@ sub manage_disk
 						}
 					}
 				}
+				
+				# How much space can this LV grow into (this factors DR is already protected).
+				$anvil->data->{server_name}{$server_name}{drbd_resource}{$drbd_resource}{volume}{$volume_number}{free_space} = get_max_free_space($anvil, $drbd_resource, $volume_number);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"server_name::${server_name}::drbd_resource::${drbd_resource}::volume::${volume_number}::free_space" => $anvil->data->{server_name}{$server_name}{drbd_resource}{$drbd_resource}{volume}{$volume_number}{free_space}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{server_name}{$server_name}{drbd_resource}{$drbd_resource}{volume}{$volume_number}{free_space}}).")", 
+				}});
 			}
 		}
 	}
 	
 	my $device_target = $anvil->data->{switches}{disk};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
+	
+	if ($anvil->data->{switches}{disk} eq "#!SET!#")
+	{
+		# User didn't specify a device.
+		show_server_details($anvil);
+		print "\n[ Error ] - Please specify the disk drive target you want to work on.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}{$device_target})
+	{
+		# Invalid device target
+		show_server_details($anvil);
+		print "\n[ Error ] - The disk drive target: [".$device_target."] wasn't found.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
 
 	my $device           = "disk";
 	my $alias            = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{alias};
@@ -280,6 +304,9 @@ sub manage_disk
 	my $device_path      = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
 	my $driver_io        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{io};
 	my $driver_cache     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{driver}{cache};
+	my $on_lv            = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
+	my $drbd_volume      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{drbd}{volume};
+	my $max_free_space   = $anvil->data->{server_name}{$server_name}{drbd_resource}{$drbd_resource}{volume}{$drbd_volume}{free_space};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's01:device_target'    => $device_target,
 		's02:alias'            => $alias, 
@@ -297,9 +324,14 @@ sub manage_disk
 		's14:device_path'      => $device_path, 
 		's15:driver_io'        => $driver_io, 
 		's16:driver_cache'     => $driver_cache, 
+		's17:on_lv'            => $on_lv, 
+		's18:drbd_volume'      => $drbd_volume, 
+		's19:max_free_space'   => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
 	}});
-	print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
+	#print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
+	print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], Available space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."]\n";
 	
+=cut
 	my $volume = "";
 	
 	print "Sub-Nodes:\n";
@@ -318,9 +350,6 @@ sub manage_disk
 	foreach my $drbd_resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{drbd}{resource}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
-		
-		# Get the DRBD volume data
-		load_drbd_data($anvil, $drbd_resource);
 	}
 	foreach my $host_type ("node", "dr")
 	{
@@ -351,15 +380,293 @@ sub manage_disk
 			}
 		}
 	}
+=cut
 	
 	# What are we doing?
 	if ($anvil->data->{switches}{grow})
 	{
+		# Are they asking for an available amount of space?
+		my $error_note = q|
+[ Note ]  - The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size.
+          - Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 
+          - vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single
+          - letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
+|;
+
+		my $add_size = $anvil->data->{switches}{grow};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
+		if ($add_size =~ /^(\d+)%$/)
+		{
+			# This is valid
+			my $percent = ".".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { percent => $percent }});
+			
+			$add_size = int($max_free_space * $percent);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
+		}
+		elsif ($add_size !~ /\d/)
+		{
+			# No digits, probably didn't set a value at all.
+			print "\n[ Error ] - Please specify the size you would like to grow this disk by. The maximum size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."].\n";
+			print $error_note."\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		elsif ($add_size !~ /^\d+$/)
+		{
+			# Size is not in bytes, try to convert it.
+			my $bytes = $anvil->Convert->human_readable_to_bytes({
+				debug => 2,
+				size  => $add_size,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'bytes' => $bytes }});
+			if ($bytes =~ /^\d+$/)
+			{
+				$add_size = $bytes;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
+			}
+			else
+			{
+				# Not a valid size.
+				print "\n[ Error ] - The requested size: [".$add_size."] could not be interpreted.\n";
+				print $error_note."\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		
+		# Make sure they're asking for a reasonable size
+		if ($add_size < 4194304)
+		{
+			# Must be a typo, this is less than the size of a single extent.
+			print "\n[ Error ] - The requested size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $add_size})."] is too small, it's less than an single extent.\n";
+			print $error_note."\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		elsif ($add_size > $max_free_space)
+		{
+			# Not enough space.
+			print "\n[ Error ] - The requested size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $add_size})."] is too large. The available size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."]\n";
+			print $error_note."\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
 		### TODO: Make this work without the peer node being online.
 		# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
 		# needs to be online.
+		my $all_online = check_drbd_peer_access($anvil, $from_source, $drbd_volume);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
 		
-		# Process the DRBD config to get the backing LVs.
+		if (not $all_online)
+		{
+			print "\n[ Error ] - Growing the storage requires all peers to be online.\n";
+			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+			{
+				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? "up." : "down!";
+				print "          - Peer: [".$short_host_name."] is ".$say_access."\n";
+			}
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Still here? We're good to go.
+		my $lv_command_size = 0;
+		my $hr_size         = $anvil->Convert->bytes_to_human_readable({'bytes' => $add_size});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hr_size => $hr_size }});
+		if ($add_size eq "100%")
+		{
+			# This is valid
+			$add_size = "-l +100\%FREE";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
+		}
+		else
+		{
+			$hr_size  =~ s/\s+//g;
+			$add_size =  "-L +".$hr_size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
+		}
+		
+		print "- Preparing to grow the storage by: [".$hr_size."]...\n";
+		if (not $anvil->data->{switches}{confirm})
+		{
+			print $anvil->Words->string({key => "message_0059"})." ";
+			my $answer = <STDIN>;
+			chomp($answer);
+			if ($answer !~ /^y/i)
+			{
+				print "Aborting.\n";
+				$anvil->nice_exit({exit_code => 0});
+			}
+			
+			# Test that we've lost access while waiting for the answer.
+			my $all_online = check_drbd_peer_access($anvil, $from_source, $drbd_volume);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
+			
+			if (not $all_online)
+			{
+				print "\n[ Error ] - It would appear that we've lost access to a peer while waiting for the answer.\n";
+				foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+				{
+					my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? "up." : "down!";
+					print "          - Peer: [".$short_host_name."] is ".$say_access."\n";
+				}
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		
+		foreach my $host_type ("node", "dr")
+		{
+			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
+			{
+				my $host_uuid    = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+				my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$drbd_volume}{backing_disk};
+				my $shell_call   = $anvil->data->{path}{exe}{lvextend}." ".$add_size." ".$backing_disk;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:short_host_name' => $short_host_name,
+					's2:host_uuid'       => $host_uuid, 
+					's3:backing_disk'    => $backing_disk, 
+					's4:shell_call'      => $shell_call, 
+				}});
+				if ($host_uuid eq $anvil->Get->host_uuid)
+				{
+					print " - Extending local LV: [".$backing_disk."]...";
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					if ($return_code)
+					{
+						print " Error!\n";
+						print "[ FAILED ] - When trying to grow the local logical volume: [".$backing_disk."]\n";
+						print "[ FAILED ] - using the command: [".$shell_call."]\n";
+						print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
+						print "==========\n";
+						print $output."\n";
+						print "==========\n";
+						print "The extension of the resource is incomplete, manual intervention is required!!\n";
+						print "[ Warning ] - Do NOT re-run this command! The backing devices may not have mis-matched sized!\n";
+						$anvil->nice_exit({exit_code => 1});
+					}
+					else
+					{
+						print " Done!\n";
+					}
+				}
+				else
+				{
+					my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
+					my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
+					print " - Extending peer: [".$short_host_name.":".$backing_disk."], via: [".$use_ip." (".$use_network.")]";
+					my ($output, $error, $return_code) = $anvil->Remote->call({
+						shell_call => $shell_call, 
+						target     => $use_ip,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						error       => $error,
+						return_code => $return_code,
+					}});
+					if ($return_code)
+					{
+						print " Error!\n";
+						print "[ FAILED ] - When trying to grow the peer's logical volume: [".$backing_disk."]\n";
+						print "[ FAILED ] - using the command: [".$shell_call."]\n";
+						print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
+						print "==] STDOUT [========\n";
+						print $output."\n";
+						print "==] STDERR [========\n";
+						print $error."\n";
+						print "====================\n";
+						print "The extension of the resource is incomplete, manual intervention is required!!\n";
+						print "[ Warning ] - Do NOT re-run this command! The backing devices may not have mis-matched sized!\n";
+						$anvil->nice_exit({exit_code => 1});
+					}
+					else
+					{
+						print " Done!\n";
+					}
+				}
+			}
+		}
+		
+		# Locally, we'll call DRBD to resize.
+		print "- Extending backing devices complete. Now extending DRBD resource/volume... ";
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." resize ".$drbd_resource."/".$drbd_volume;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($return_code)
+		{
+			print " Error!\n";
+			print "[ FAILED ] - When trying to grow the DRBD device: [".$drbd_resource."/".$drbd_volume."]\n";
+			print "[ FAILED ] - using the command: [".$shell_call."]\n";
+			print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
+			print "==========\n";
+			print $output."\n";
+			print "==========\n";
+			print "The extension of the resource is incomplete, manual intervention is required!!\n";
+			print "[ Note ] - All backing devices have been grown. Manually resolving the drbd grow\n";
+			print "[ Note ] - error should complete the drive expansion!\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		else
+		{
+			print " Done!\n";
+		}
+		
+		# Call scan-lvm and scan-drbd to make sure the databases are updated.
+		print "- Calling scancore agents to ensure the database has the new storage config recorded.\n";
+		foreach my $agent ("scan-drbd", "scan-lvm")
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0740", variables => { agent => $agent }});
+			
+			my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.$anvil->Log->switches();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			foreach my $host_type ("node", "dr")
+			{
+				foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
+				{
+					my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:short_host_name' => $short_host_name,
+						's2:host_uuid'       => $host_uuid, 
+					}});
+					if ($host_uuid eq $anvil->Get->host_uuid)
+					{
+						print " - Running scan agent: [".$agent."] locally...";
+						my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
+						print " Done!\n";
+					}
+					else
+					{
+						my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
+						my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
+						print " - Running scan agent: [".$agent."] on: [".$short_host_name."] via: [".$use_ip." (".$use_network.")]...";
+						my ($output, $error, $return_code) = $anvil->Remote->call({
+							shell_call => $shell_call, 
+							target     => $use_ip,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output, 
+							error       => $error,
+							return_code => $return_code,
+						}});
+						print " Done!\n";
+					}
+				}
+			}
+		}
+		
+		print "[ Success ] - Expansion is complete!\n";
+		print "[ Note ]    - Depending on your OS, you may need to power the server off, and then power it back on\n";
+		print "[ Note ]    - for the new space to be visible. Typically, powering off the server from the guest OS\n";
+		print "[ Note ]    - and waiting for the Anvil! to boot it back up will do the job nicely.\n";
 	}
 	
 	return(0);
@@ -481,9 +788,25 @@ sub manage_optical
 	{
 		print "- Inserting: [".$anvil->data->{switches}{insert}."] into the drive: [".$device_target."].\n";
 	}
+	elsif ($anvil->data->{switches}{eject})
+	{
+		print "- Ejecting: [".$device_path."] from: [".$device_target."].\n";
+	}
 	else
 	{
-		print "- Ejecting: [".$anvil->data->{switches}{insert}."] from: [".$device_target."].\n";
+		# Show the ISO in the drive.
+		if ($device_path)
+		{
+			print "- Drive: [".$device_target."] has the disc image: [".$device_path."] inserted currently.\n";
+			print "- Use '--eject' to eject the disc.\n";
+			print "- Use '--insert /mnt/shared/files/<file>' to replace it with a different disc image.\n";
+		}
+		else
+		{
+			print "- Drive: [".$device_target."] currently has no disc image inserted.\n";
+			print "- Use '--insert /mnt/shared/files/<file>' to insert a disc image.\n";
+		}
+		$anvil->nice_exit({exit_code => 0});
 	}
 	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -615,6 +938,7 @@ sub show_server_details
 				my $lv_name          = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{scan_lvm_lv_name};
 				my $lv_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$lv_name}{scan_lvm_lv_size};
 				my $metadata_size    = $lv_size - $resource_size;
+				my $max_free_space   = get_max_free_space($anvil, $drbd_resource, $drbd_volume);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's01:address_domain'   => $address_domain,
 					's02:address_slot'     => $address_slot, 
@@ -629,15 +953,12 @@ sub show_server_details
 					's11:resource_size'    => $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." (".$anvil->Convert->add_commas({number => $resource_size}).")", 
 					's12:lv_size'          => $anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})."] (".$anvil->Convert->add_commas({number => $lv_size}).")", 
 					's13:metadata_size'    => $anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."] (".$anvil->Convert->add_commas({number => $metadata_size}).")",
+					's14:max_free_space'   => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
 				}});
 				
 				print "- Target: [".$device_target."], boot: [".$say_boot."], Replication Volume: [".$drbd_resource."/".$drbd_volume."]\n";
-				print "  - Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], cache: [".$driver_cache."], IO Policy: [".$driver_io."]\n";
-				
-				# Get the backing LV from the DRBD resource.
-				
-				
-				#if ($anvil->data->{storage_groups}{vg_uuid}{$vg_uuid}{storage_group_uuid})
+				print " |- Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."]\n";
+				#print " |- Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."], cache: [".$driver_cache."], IO Policy: [".$driver_io."]\n";
 			}
 			else
 			{
@@ -673,6 +994,114 @@ sub show_server_details
 	}
 	
 	return(0);
+}
+
+sub check_drbd_peer_access
+{
+	my ($anvil, $drbd_resource, $drbd_volume) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's01:drbd_resource' => $drbd_resource,
+		's02:drbd_volume'   => $drbd_volume,
+	}});
+	
+	my $all_online = 1;
+	foreach my $this_host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
+	{
+		my $host_uuid       = $anvil->Get->host_uuid_from_name({debug => 2, host_name => $this_host});
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:this_host'       => $this_host, 
+			's2:host_uuid'       => $host_uuid, 
+			's3:short_host_name' => $short_host_name, 
+		}});
+		next if $host_uuid eq $anvil->Get->host_uuid;
+		
+		# This is used to store the IP we used to access the peer. If no access is available, this 
+		# shows which hosts are not available.
+		$anvil->data->{peer}{$short_host_name}{access_ip}      = "";
+		$anvil->data->{peer}{$short_host_name}{access_network} = "";
+		
+		my $access  = 0;
+		my $matches = $anvil->Network->find_access({
+			debug  => 2,
+			target => $this_host, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
+		foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
+			foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
+			{
+				next if $access;
+				next if $network_name !~ /^$preferred_network/;
+				my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
+				my $test_access = $anvil->Remote->test_access({target => $target_ip});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:network_name' => $network_name, 
+					's2:target_ip'    => $target_ip, 
+					's3:test_access'  => $test_access, 
+				}});
+				
+				if ($test_access)
+				{
+					# We're good.
+					$access                                                 = 1;
+					$anvil->data->{peer}{$short_host_name}{access}{ip}      = $target_ip;
+					$anvil->data->{peer}{$short_host_name}{access}{network} = $network_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:access'                                    => $access, 
+						"s2:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
+						"s3:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
+					}});
+				}
+			}
+		}
+		
+		if (not $access)
+		{
+			$all_online = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
+		}
+	}
+	
+	return($all_online);
+}
+
+sub get_max_free_space
+{
+	my ($anvil, $drbd_resource, $drbd_volume) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's01:drbd_resource' => $drbd_resource,
+		's02:drbd_volume'   => $drbd_volume,
+	}});
+	
+	my $max_free_space = 0;
+	foreach my $this_host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
+	{
+		my $drbd_path        = $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$drbd_resource}{volume}{$drbd_volume}{drbd_path};
+		my $drbd_path_by_res = $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$drbd_resource}{volume}{$drbd_volume}{drbd_path_by_res};
+		my $backing_lv       = $anvil->data->{drbd}{drbd_node}{$this_host}{config}{resource}{$drbd_resource}{volume}{$drbd_volume}{backing_lv};
+		my $lv_name          = $anvil->data->{lvm}{host_name}{$this_host}{lv_path}{$backing_lv}{scan_lvm_lv_name};;
+		my $on_vg            = $anvil->data->{lvm}{host_name}{$this_host}{lv}{$lv_name}{scan_lvm_lv_on_vg};
+		my $vg_free_space    = $anvil->data->{lvm}{host_name}{$this_host}{vg}{$on_vg}{scan_lvm_vg_free};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's01:this_host'        => $this_host,
+			's02:drbd_path'        => $drbd_path, 
+			's03:drbd_path_by_res' => $drbd_path_by_res, 
+			's04:backing_lv'       => $backing_lv, 
+			's05:on_vg'            => $on_vg, 
+			's06:vg_free_space'    => $vg_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free_space}).")",
+		}});
+		if ((not $max_free_space) or ($vg_free_space < $max_free_space))
+		{
+			$max_free_space = $vg_free_space;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				max_free_space => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
+			}});
+		}
+	}
+	
+	return($max_free_space);
 }
 
 sub load_drbd_data
@@ -750,7 +1179,7 @@ sub show_volume
 {
 	my ($anvil, $drbd_resource, $host_type) = @_;
 	
-	my $anvil_uuid = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
+	my $anvil_uuid = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 	{
@@ -823,7 +1252,7 @@ sub show_volume
 						
 						if ($storage_group_uuid)
 						{
-							my $vg_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
+							my $vg_size   = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{vg_size};
 							my $free_size = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
 						}
 					}

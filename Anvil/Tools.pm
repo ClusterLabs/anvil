@@ -1218,6 +1218,7 @@ sub _set_paths
 				lvchange			=>	"/usr/sbin/lvchange",
 				lvcreate			=>	"/usr/sbin/lvcreate",
 				lvdisplay			=>	"/usr/sbin/lvdisplay",
+				lvextend			=>	"/usr/sbin/lvextend",
 				lvremove			=>	"/usr/sbin/lvremove",
 				lvrename			=>	"/usr/sbin/lvrename",
 				lvs				=>	"/usr/sbin/lvs", 
