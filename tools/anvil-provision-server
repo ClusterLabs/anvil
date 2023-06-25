@@ -1200,7 +1200,7 @@ sub create_md
 	return(0);
 }
 
-# This finds which SN network and IPs we're using.
+# This finds which SN (or BCN, IFN) network and IPs we're using.
 sub get_sn_details
 {
 	my ($anvil) = @_;
@@ -1208,62 +1208,75 @@ sub get_sn_details
 	$anvil->data->{job}{node1_sn_ip} = "";
 	$anvil->data->{job}{node2_sn_ip} = "";
 	$anvil->data->{job}{sn_network}  = "";
-	$anvil->Network->load_ips({
-		debug     => 2,
-		host      => $anvil->data->{job}{node1_short_host_name}, 
-		host_uuid => $anvil->data->{job}{node1_host_uuid},
-	});
-	$anvil->Network->load_ips({
-		debug     => 2, 
-		host      => $anvil->data->{job}{node2_short_host_name}, 
-		host_uuid => $anvil->data->{job}{node2_host_uuid},
-	});
-	my $match = $anvil->Network->find_matches({
-		debug  => 2,
-		first  => $anvil->data->{job}{node1_short_host_name},
-		second => $anvil->data->{job}{node2_short_host_name}, 
-		source => $THIS_FILE, 
-		line   => __LINE__,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
 	
-	$anvil->data->{job}{sn_network}  = "";
-	$anvil->data->{job}{node1_sn_ip} = "";
-	$anvil->data->{job}{node2_sn_ip} = "";
 	my $node1_short_host_name = $anvil->data->{job}{node1_short_host_name};
+	my $node1_host_uuid       = $anvil->data->{job}{node1_host_uuid};
 	my $node2_short_host_name = $anvil->data->{job}{node2_short_host_name};
-	my $matched_ips = keys %{$match};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matched_ips => $matched_ips }});
-	foreach my $interface (sort {$a cmp $b} keys %{$match->{$node1_short_host_name}})
+	my $node2_host_uuid       = $anvil->data->{job}{node1_host_uuid};
+	my $peer_short_name       = $anvil->data->{job}{peer_short_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:node1_short_host_name" => $node1_short_host_name, 
+		"s2:node1_host_uuid"       => $node1_host_uuid, 
+		"s3:node2_short_host_name" => $node2_short_host_name, 
+		"s4:node2_host_uuid"       => $node2_host_uuid, 
+		"s5:peer_short_name"       => $peer_short_name, 
+	}});
+	
+	# Look for a match on the SN, and failing that the BCN, and finally the IFN. We don't check the MN.
+	my $matches = $anvil->Network->find_access({
+		debug  => 2,
+		target => $peer_short_name, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
+	foreach my $preferred_network ("sn")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
-		if ($interface =~ /sn/)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
+		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 		{
-			### TODO: This always chooses SN1 at this time, we need to support (later) VM 
-			###       build-time SN selection when 2+ SNs exist.
-			# Valid data?
-			if ((not $match->{$node1_short_host_name}{$interface}{ip}) or (not $match->{$node2_short_host_name}{$interface}{ip}))
+			next if $network_name !~ /^$preferred_network/;
+			
+			# Network and link speed
+			$anvil->data->{job}{sn_network}    = uc($network_name);
+			$anvil->data->{job}{network_speed} = $anvil->data->{network_access}{$network_name}{local_speed} < $anvil->data->{network_access}{$network_name}{target_speed} ? $anvil->data->{network_access}{$network_name}{local_speed} : $anvil->data->{network_access}{$network_name}{target_speed};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:job::sn_network"    => $anvil->data->{job}{sn_network}, 
+				"s2:job::network_speed" => $anvil->data->{job}{network_speed}, 
+			}});
+			if ($node1_host_uuid eq $anvil->Get->host_uuid)
 			{
-				# Probably a bug, maybe a broken /etc/hosts file?
+				# We're node 1
+				$anvil->data->{job}{node1_sn_ip} = $anvil->data->{network_access}{$network_name}{local_ip_address}  ? $anvil->data->{network_access}{$network_name}{local_ip_address}  : "";
+				$anvil->data->{job}{node2_sn_ip} = $anvil->data->{network_access}{$network_name}{target_ip_address} ? $anvil->data->{network_access}{$network_name}{target_ip_address} : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:job::node1_sn_ip" => $anvil->data->{job}{node1_sn_ip}, 
+					"s2:job::node2_sn_ip" => $anvil->data->{job}{node2_sn_ip}, 
+				}});
+			}
+			else
+			{
+				# We're node 2
+				$anvil->data->{job}{node1_sn_ip} = $anvil->data->{network_access}{$network_name}{target_ip_address} ? $anvil->data->{network_access}{$network_name}{target_ip_address} : "";
+				$anvil->data->{job}{node2_sn_ip} = $anvil->data->{network_access}{$network_name}{local_ip_address}  ? $anvil->data->{network_access}{$network_name}{local_ip_address}  : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:job::node1_sn_ip" => $anvil->data->{job}{node1_sn_ip}, 
+					"s2:job::node2_sn_ip" => $anvil->data->{job}{node2_sn_ip}, 
+				}});
+			}
+			
+			if ((not $anvil->data->{job}{node1_sn_ip}) or (not $anvil->data->{job}{node2_sn_ip}))
+			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0417", variables => {
 					node1_name => $node1_short_host_name, 
 					node2_name => $node2_short_host_name, 
-					interface  => $interface, 
-					node1_ip   => defined $match->{$node1_short_host_name}{$interface}{ip} ? $match->{$node1_short_host_name}{$interface}{ip} : "", 
-					node2_ip   => defined $match->{$node2_short_host_name}{$interface}{ip} ? $match->{$node2_short_host_name}{$interface}{ip} : "", 
+					node1_ip   => $anvil->data->{job}{node1_sn_ip}, 
+					node2_ip   => $anvil->data->{job}{node2_sn_ip}, 
 				}});
 				next;
 			}
-			
-			# Found an SN.
-			$anvil->data->{job}{sn_network}  = uc(($interface =~ /^(sn\d+)_/)[0]);
-			$anvil->data->{job}{node1_sn_ip} = $match->{$node1_short_host_name}{$interface}{ip};
-			$anvil->data->{job}{node2_sn_ip} = $match->{$node2_short_host_name}{$interface}{ip};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				sn_network  => $anvil->data->{job}{sn_network}, 
-				node1_sn_ip => $anvil->data->{job}{node1_sn_ip}, 
-				node2_sn_ip => $anvil->data->{job}{node2_sn_ip}, 
-			}});
+			else
+			{
+				last;
+			}
 		}
 	}
 	
