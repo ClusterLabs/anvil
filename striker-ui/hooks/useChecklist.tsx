@@ -36,11 +36,19 @@ const useChecklist = ({
       confirmDialogProps = {},
       formSummaryProps = {},
       getConfirmDialogTitle,
+      onProceedAppend,
+      renderEntry,
     }) => ({
       actionProceedText: 'Delete',
       content: (
-        <FormSummary entries={checklist} maxDepth={0} {...formSummaryProps} />
+        <FormSummary
+          entries={checklist}
+          maxDepth={0}
+          renderEntry={renderEntry}
+          {...formSummaryProps}
+        />
       ),
+      onProceedAppend,
       proceedColour: 'red',
       titleText: getConfirmDialogTitle(checks.length),
       ...confirmDialogProps,
