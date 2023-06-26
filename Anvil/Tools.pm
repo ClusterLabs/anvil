@@ -1095,7 +1095,6 @@ sub _set_paths
 				bonds				=>	"/proc/net/bonding",
 				'cgi-bin'			=>	"/var/www/cgi-bin",
 				drbd_resources			=>	"/etc/drbd.d/",
-				drbd_kernel_proc		=>	"/sys/kernel/debug/drbd/resources",
 				fence_agents			=>	"/usr/sbin",
 				firewalld_services		=>	"/usr/lib/firewalld/services",
 				firewalld_zones_etc		=>	"/etc/firewalld/zones",		# Changes when firewall-cmd ... --permanent is used.
@@ -1219,6 +1218,7 @@ sub _set_paths
 				lvchange			=>	"/usr/sbin/lvchange",
 				lvcreate			=>	"/usr/sbin/lvcreate",
 				lvdisplay			=>	"/usr/sbin/lvdisplay",
+				lvextend			=>	"/usr/sbin/lvextend",
 				lvremove			=>	"/usr/sbin/lvremove",
 				lvrename			=>	"/usr/sbin/lvrename",
 				lvs				=>	"/usr/sbin/lvs", 

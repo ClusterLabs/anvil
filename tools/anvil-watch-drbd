@@ -2,22 +2,83 @@
 
 use strict;
 use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
 use Term::Cap;
+use Time::Local;
 
-my $t = Term::Cap->Tgetent;
+$| = 1;
 
-my $root_directory = "/sys/kernel/debug/drbd/resources/";
-while(1)
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
 {
-	system('clear');
-	print $t->Tgoto("cm", 0, 0);
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
 
+my $anvil = Anvil::Tools->new();
+
+# Get a list of all interfaces with IP addresses.
+$anvil->Get->switches({debug => 2, list => ["watch"]});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+
+
+our $t = Term::Cap->Tgetent;
+
+# One shot or continuous?
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+	'switches::watch' => $anvil->data->{switches}{watch},
+}});
+if ($anvil->data->{switches}{watch})
+{
+	# Do we have an interval?
+	my $interval = 2;
+	if ($anvil->data->{switches}{watch} =~ /^\d+$/)
+	{
+		$interval = $anvil->data->{switches}{watch};
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { interval => $interval }});
+	
+	# Loop until terminated.
+	while(1)
+	{
+		show_status($anvil);
+		sleep $interval;
+	}
+}
+else
+{
+	# Once and exit.
+	show_status($anvil);
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+sub show_status
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{switches}{watch})
+	{
+		system('clear');
+		print $t->Tgoto("cm", 0, 0);
+	}
+	
+	if ($anvil->data->{switches}{watch})
+	{
+		my $date = $anvil->Get->date_and_time();
+		print "-=] Updated: ".$date." - Press '<ctrl> + <c>' to exit\n";
+	}
+	
 	my $vms                = {};
 	my $longest_resource   = 3; # Res
 	my $longest_connection = 2; # To
 	my $longest_volume     = 3; # Vol
 	my $total_transfer     = 0;
 
+	my $root_directory = $anvil->data->{path}{directories}{resource_status};
 	local(*DIRECTORY);
 	opendir(DIRECTORY, $root_directory);
 	while(my $file = readdir(DIRECTORY))
@@ -155,5 +216,4 @@ while(1)
 	my $say_speed = $total_transfer / 1024;
 	   $say_speed =~ s/^(\d+\.\d{3})\d+/$1/;
 	print "* Total transfer speed is about: [".$say_speed." MiB/sec]\n";
-	sleep 2;
 }

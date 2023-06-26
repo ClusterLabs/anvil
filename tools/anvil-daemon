@@ -252,7 +252,7 @@ sub check_ram
 	}});
 	if ($problem)
 	{
-		# See if an [anvil-sync-shared' job is running and, if so, don't exit. The file copy is 
+		# See if an 'anvil-sync-shared' job is running and, if so, don't exit. The file copy is 
 		# counted and not an actual problem.
 		$anvil->Database->get_jobs({debug => 2});
 		foreach my $job_uuid (keys %{$anvil->data->{jobs}{running}})

@@ -21,6 +21,7 @@ dist_man8_MANS		= \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
 			  anvil-manage-storage-groups.8 \
+			  anvil-watch-drbd.8 \
 			  scancore.8 \
 			  striker-check-machines.8 \
 			  striker-initialize-host.8

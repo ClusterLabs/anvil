@@ -801,6 +801,7 @@ ORDER BY
 		}
 	}
 	
+	# Get storage group data now.
 	foreach my $storage_group_uuid (keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
 	{
 		$anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name} = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};

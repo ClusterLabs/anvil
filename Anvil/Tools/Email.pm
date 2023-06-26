@@ -303,11 +303,8 @@ sub get_current_server
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->get_current_server()" }});
 	
-	if (not exists $anvil->data->{mail_servers}{mail_server})
-	{
-		# Try loading the mail server data.
-		$anvil->Database->get_mail_servers({debug => $debug});
-	}
+	# Try loading the mail server data.
+	$anvil->Database->get_mail_servers({debug => $debug});
 	
 	my $newest_mail_server_time = 0;
 	my $newest_mail_server_uuid = "";
