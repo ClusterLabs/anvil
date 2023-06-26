@@ -93,6 +93,7 @@ const useFormUtils = <
         .then(() => {
           messageGroupRef?.current?.setMessage?.call(null, msgKey, {
             children: successMsg,
+            type: 'info',
           });
         })
         .catch((apiError) => {
