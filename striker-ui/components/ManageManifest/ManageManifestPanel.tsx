@@ -40,6 +40,7 @@ import RunManifestInputGroup, {
 } from './RunManifestInputGroup';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
+import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
@@ -200,6 +201,11 @@ const ManageManifestPanel: FC = () => {
   );
   const { isFormInvalid: isRunFormInvalid } = runFormUtils;
 
+  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
+    useChecklist({
+      list: manifestOverviews,
+    });
+
   const {
     hostConfig: { hosts: mdetailHosts = {} } = {},
     name: mdetailName,
@@ -229,16 +235,18 @@ const ManageManifestPanel: FC = () => {
     }: {
       body: Record<string, unknown>;
       getErrorMsg: (parentMsg: ReactNode) => ReactNode;
-      method: 'post' | 'put';
-      successMsg: ReactNode;
+      method: 'delete' | 'post' | 'put';
+      successMsg?: ReactNode;
       url: string;
     }) => {
       setIsSubmittingForm(true);
 
-      api[method](url, body)
+      api
+        .request({ data: body, method, url })
         .then(() => {
           setMessage(MSG_ID_MANIFEST_API, {
             children: successMsg,
+            type: 'info',
           });
         })
         .catch((apiError) => {
@@ -433,6 +441,7 @@ const ManageManifestPanel: FC = () => {
       <List
         allowEdit
         allowItemButton={isEditManifests}
+        disableDelete={!hasChecks}
         edit={isEditManifests}
         header
         listEmpty="No manifest(s) registered."
@@ -440,8 +449,33 @@ const ManageManifestPanel: FC = () => {
         onAdd={() => {
           addManifestFormDialogRef.current.setOpen?.call(null, true);
         }}
+        onDelete={() => {
+          setConfirmDialogProps(
+            buildDeleteDialogProps({
+              onProceedAppend: () => {
+                submitForm({
+                  body: { uuids: checks },
+                  getErrorMsg: (parentMsg) => (
+                    <>Delete manifest(s) failed. {parentMsg}</>
+                  ),
+                  method: 'delete',
+                  url: `/manifest`,
+                });
+              },
+              getConfirmDialogTitle: (count) => `Delete ${count} manifest(s)?`,
+              renderEntry: (key) => (
+                <BodyText>{manifestOverviews?.[key].manifestName}</BodyText>
+              ),
+            }),
+          );
+
+          confirmDialogRef.current.setOpen?.call(null, true);
+        }}
         onEdit={() => {
           setIsEditManifests((previous) => !previous);
+        }}
+        onItemCheckboxChange={(key, event, checked) => {
+          setCheck(key, checked);
         }}
         onItemClick={({ manifestName, manifestUUID }) => {
           setManifestDetail({
@@ -451,6 +485,7 @@ const ManageManifestPanel: FC = () => {
           editManifestFormDialogRef.current.setOpen?.call(null, true);
           getManifestDetail(manifestUUID);
         }}
+        renderListItemCheckboxState={(key) => getCheck(key)}
         renderListItem={(manifestUUID, { manifestName }) => (
           <FlexBox fullWidth row>
             <IconButton
@@ -471,7 +506,19 @@ const ManageManifestPanel: FC = () => {
         )}
       />
     ),
-    [getManifestDetail, isEditManifests, manifestOverviews, setManifestDetail],
+    [
+      buildDeleteDialogProps,
+      checks,
+      getCheck,
+      getManifestDetail,
+      hasChecks,
+      isEditManifests,
+      manifestOverviews,
+      setCheck,
+      setConfirmDialogProps,
+      setManifestDetail,
+      submitForm,
+    ],
   );
 
   const panelContent = useMemo(
