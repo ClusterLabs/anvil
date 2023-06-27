@@ -1757,6 +1757,10 @@ If set, the 'free_port' returned will be a comma-separated pair of TCP ports. Th
 
 If set, the 'free_port' returned will be a comma-separated list of seven TCP ports needed for a full B<< Long Throw >> configuration.
 
+=head3 minor_only (optional, default '0')
+
+When set to C<< 1 >>, only a new minor number is returned. The tcp number will be an empty string.
+
 =head3 resource_name (optional)
 
 If this is set, and the resource is found to already exist, the first DRBD minor number and first used TCP port are returned. Alternatively, if C<< force_unique >> is set to C<< 1 >>, and the resource is found to exist, empty strings are returned.
@@ -1780,12 +1784,14 @@ sub get_next_resource
 	my $anvil_uuid       = defined $parameter->{anvil_uuid}       ? $parameter->{anvil_uuid}       : "";
 	my $dr_tcp_ports     = defined $parameter->{dr_tcp_ports}     ? $parameter->{dr_tcp_ports}     : "";
 	my $long_throw_ports = defined $parameter->{long_throw_ports} ? $parameter->{long_throw_ports} : "";
+	my $minor_only       = defined $parameter->{minor_only}       ? $parameter->{minor_only}       : "";
 	my $resource_name    = defined $parameter->{resource_name}    ? $parameter->{resource_name}    : "";
 	my $force_unique     = defined $parameter->{force_unique}     ? $parameter->{force_unique}     : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		anvil_uuid       => $anvil_uuid, 
 		dr_tcp_ports     => $dr_tcp_ports, 
 		long_throw_ports => $long_throw_ports, 
+		minor_only       => $minor_only, 
 		resource_name    => $resource_name, 
 		force_unique     => $force_unique, 
 	}});
@@ -1931,8 +1937,13 @@ ORDER BY
 	# If I'm here, We'll look for the next minor number for this host.
 	my $looking    = 1;
 	my $free_minor = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		looking    => $looking, 
+		free_minor => $free_minor,
+	}});
 	while($looking)
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
 		if (exists $anvil->data->{drbd}{used_resources}{minor}{$free_minor})
 		{
 			$free_minor++;
@@ -1952,7 +1963,8 @@ ORDER BY
 				's3:variable_uuid'  => $variable_uuid, 
 			}});
 			
-			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			# If the value set, a digit, and older than the current time?
+			if (($variable_value) && (($variable_value !~ /^\d+$/) or (time > $variable_value)))
 			{
 				# Bad value, clear it.
 				$variable_uuid = $anvil->Database->insert_or_update_variables({
@@ -1961,39 +1973,23 @@ ORDER BY
 					variable_value    => "0",
 					update_value_only => "", 
 				});
-				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid  => $variable_uuid }});
+				
+				# Clear the variable UUID for the next step.
+				$variable_uuid  = "";
+				$variable_value = "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					variable_uuid  => $variable_uuid,
 					variable_value => $variable_value
 				}});
 			}
 			
-			if ($variable_uuid)
+			if ($variable_uuid) 
 			{
-				my $now_time = time;
-				my $age      = $now_time - $variable_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					age      => $age, 
-					now_time => $now_time,
-				}});
-				if (($variable_value) && ($now_time > $variable_value))
-				{
-					# This is being held, move on.
-					$free_minor++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
-					next;
-				}
-				else
-				{
-					# Either the hold is stale or invalid, delete it.
-					$variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug             => $debug,
-						variable_uuid     => $variable_uuid,
-						variable_value    => "0",
-						update_value_only => "", 
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
-				}
+				# This is being held, move on.
+				$free_minor++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
+				next;
 			}
 			
 			# To prevent race conditions, put a one minute hold on the minor number.
@@ -2012,6 +2008,14 @@ ORDER BY
 			$looking = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { looking => $looking }});
 		}
+	}
+	
+	# If they're only asking for a minor number, like adding a disk, we're done.
+	if ($minor_only)
+	{
+		# We're done.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { free_minor => $free_minor }});
+		return($free_minor, "");
 	}
 	
 	# I need to find the next free TCP port. 
@@ -2056,7 +2060,7 @@ ORDER BY
 				's3:variable_uuid'  => $variable_uuid, 
 			}});
 			
-			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			if (($variable_value) && (($variable_value !~ /^\d+$/) or (time > $variable_value)))
 			{
 				# Bad value, clear it.
 				$variable_uuid = $anvil->Database->insert_or_update_variables({
@@ -2065,7 +2069,11 @@ ORDER BY
 					variable_value    => "0",
 					update_value_only => "", 
 				});
-				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid  => $variable_uuid }});
+				
+				# Clear the variable UUID for the next step.
+				$variable_uuid  = "";
+				$variable_value = "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					variable_uuid  => $variable_uuid,
 					variable_value => $variable_value
@@ -2074,29 +2082,9 @@ ORDER BY
 			
 			if ($variable_uuid)
 			{
-				my $now_time = time;
-				my $age      = $now_time - $variable_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					age      => $age,
-					now_time => $now_time }});
-				if (($variable_value) && ($now_time > $variable_value))
-				{
-					# This is being held, move on.
-					$check_port++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
-					next;
-				}
-				else
-				{
-					# Either the hold is stale or invalid, delete it.
-					$variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug             => $debug,
-						variable_uuid     => $variable_uuid,
-						variable_value    => "0",
-						update_value_only => "", 
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
-				}
+				$check_port++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
+				next;
 			}
 			
 			# To prevent a race condition, put a one minute hold on this port number.

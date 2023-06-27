@@ -2221,10 +2221,6 @@ sub process_protect
 					this_size => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
 				}});
 				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					this_size => $anvil->Convert->add_commas({number => $this_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_size}).")", 
-				}});
-				
 				if ((not exists $anvil->data->{server}{drbd}{$resource}{$volume}{size}) or (not $anvil->data->{server}{drbd}{$resource}{$volume}{size}))
 				{
 					$anvil->data->{server}{drbd}{$resource}{$volume}{size} = $this_size;

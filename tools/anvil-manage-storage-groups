@@ -568,7 +568,12 @@ FROM
 sub get_storage_data
 {
 	my ($anvil) = @_;
-
+	
+	if (exists $anvil->data->{duplicate_check})
+	{
+		delete $anvil->data->{duplicate_check};
+	}
+	
 	my $query = "
 SELECT
     storage_group_uuid,
@@ -577,11 +582,11 @@ SELECT
 FROM
     storage_groups
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		results => $results,
 		count   => $count,
 	}});
@@ -590,19 +595,95 @@ FROM
 		my $storage_group_uuid       = $row->[0];
 		my $storage_group_anvil_uuid = $row->[1];
 		my $storage_group_name       = $row->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			storage_group_uuid       => $storage_group_uuid,
 			storage_group_anvil_uuid => $storage_group_anvil_uuid,
 			storage_group_name       => $storage_group_name,
 		}});
-
+		
+		# Check for duplicate groups.
+		if (exists $anvil->data->{duplicate_check}{$storage_group_name})
+		{
+			# Pick one to delete. Does one of the groups have DR and the other doesn't?
+			my $other_storage_group_uuid = $anvil->data->{duplicate_check}{$storage_group_name}{storage_group_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { other_storage_group_uuid => $other_storage_group_uuid }});
+			
+			my $this_query  = "SELECT COUNT(*) FROM storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid).";";
+			my $other_query = "SELECT COUNT(*) FROM storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($other_storage_group_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				this_query  => $this_query,
+				other_query => $other_query, 
+			}});
+			
+			my $this_member_count  = $anvil->Database->query({query => $this_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $other_member_count = $anvil->Database->query({query => $other_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				this_member_count  => $this_member_count,
+				other_member_count => $other_member_count, 
+			}});
+			
+			# We'll delete this storage group uuid, UNLESS we've got more members.
+			if ($this_member_count > $other_member_count)
+			{
+				# We have more members, we need to delete the other.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0158", variables => { 
+					group_name  => $storage_group_name, 
+					keep_uuid   => $storage_group_uuid, 
+					delete_uuid => $other_storage_group_uuid, 
+				}});
+				
+				my $queries = [];
+				push @{$queries}, "DELETE FROM history.storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($other_storage_group_uuid).";";
+				push @{$queries}, "DELETE FROM storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($other_storage_group_uuid).";";
+				push @{$queries}, "DELETE FROM history.storage_groups WHERE storage_group_uuid = ".$anvil->Database->quote($other_storage_group_uuid).";";
+				push @{$queries}, "DELETE FROM storage_groups WHERE storage_group_uuid = ".$anvil->Database->quote($other_storage_group_uuid).";";
+				foreach my $query (@{$queries})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, list => { query => $query }});
+				}
+				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+			}
+			else
+			{
+				# Delete this one.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0158", variables => { 
+					group_name  => $storage_group_name, 
+					keep_uuid   => $other_storage_group_uuid, 
+					delete_uuid => $storage_group_uuid, 
+				}});
+				
+				my $queries = [];
+				push @{$queries}, "DELETE FROM history.storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid).";";
+				push @{$queries}, "DELETE FROM storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid).";";
+				push @{$queries}, "DELETE FROM history.storage_groups WHERE storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid).";";
+				push @{$queries}, "DELETE FROM storage_groups WHERE storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid).";";
+				foreach my $query (@{$queries})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				}
+				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+				
+				# We don't want to clobber the previously read data, so move on to the next group now.
+				next;
+			}
+		}
+		
+		# Used to check for duplicates. We can't use the real data as it could have been loaded before here.
+		$anvil->data->{duplicate_check}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"duplicate_check::${storage_group_name}::storage_group_uuid" => $anvil->data->{duplicate_check}{$storage_group_name}{storage_group_uuid},
+		}});
+		
+		# Store the real data
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name} = $storage_group_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid"               => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 			"storage_groups::storage_group_uuid::${storage_group_uuid}::storage_group_anvil_uuid::${storage_group_anvil_uuid}::storage_group_name" => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name},
 		}});
 	}
+	
+	delete $anvil->data->{duplicate_check};
 
 	return(0);
 }
