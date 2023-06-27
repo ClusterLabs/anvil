@@ -27,7 +27,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 our $t = Term::Cap->Tgetent;
 
 # One shot or continuous?
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	'switches::watch' => $anvil->data->{switches}{watch},
 }});
 if ($anvil->data->{switches}{watch})

@@ -466,7 +466,7 @@ Giving up.
 		<key name="error_0340"><![CDATA[Please specify the server to manager using '--server <name or uuid>'. Exiting.]]></key>
 		<key name="error_0341">Failed to find the server: [#!variable!server!#] by name or UUID? Exiting.</key>
 		<key name="error_0342">The protocol: [#!variable!protocol!#] is invalid. Please use '--help' for more information.</key>
-		<key name="error_0343">The DR host: [#!variable!host_name!#] doesn't appear to be storage group: [#!variable!storage_group!#]. Unable to proceed.</key>
+		<key name="error_0343">The DR host: [#!variable!host_name!#] doesn't appear to be in the storage group: [#!variable!storage_group!#]. Unable to proceed.</key>
 		<key name="error_0344">We need: [#!variable!space_needed!# (#!variable!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but only: [#!variable!space_on_dr!# (#!variable!space_on_dr_bytes!# bytes)] is available on DR. Unable to proceed.</key>
 		<key name="error_0345">[ Error ] - The check appears to have failed. Expected a return code of '0', but got: [#!variable!return_code!#]
 The output, if any, was
@@ -2418,7 +2418,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0018">What would you like the new password to be?</key>
 		<key name="message_0019">Please enter the password again to confirm.</key>
 		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
-		<key name="message_0021">Proceed? [y/N]</key> <!-- Default Yes is at message_0206 -->
+		<key name="message_0021">Proceed? [y/N]</key> <!-- Default No is at message_0206 -->
 		<key name="message_0022">Aborting.</key>
 		<key name="message_0023">Auto-approved by command line switch, proceeding.</key>
 		<key name="message_0024">Updating the Striker user: [#!variable!user!#] password... </key>
@@ -3625,6 +3625,7 @@ We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up i
 		<key name="warning_0155">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was not found in the database as being on this host yet.</key>
 		<key name="warning_0156">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was found, but it's not ready yet.</key>
 		<key name="warning_0157">[ Warning ] - Waiting for a bit, and then will check if files are ready.</key>
+		<key name="warning_0158">[ Warning ] - There is a duplicate storage group named: [#!variable!group_name!#]. Keeping the group with UUID: [#!variable!keep_uuid!#], and deleting the group with the UUID: [#!variable!delete_uuid!#]</key>
 		
 	</language>
 	<!-- 日本語 -->
