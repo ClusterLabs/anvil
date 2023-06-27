@@ -2060,7 +2060,7 @@ ORDER BY
 				's3:variable_uuid'  => $variable_uuid, 
 			}});
 			
-			if (($variable_value) && ($variable_value !~ /^\d+$/))
+			if (($variable_value) && (($variable_value !~ /^\d+$/) or (time > $variable_value)))
 			{
 				# Bad value, clear it.
 				$variable_uuid = $anvil->Database->insert_or_update_variables({
@@ -2069,7 +2069,11 @@ ORDER BY
 					variable_value    => "0",
 					update_value_only => "", 
 				});
-				$variable_value = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid  => $variable_uuid }});
+				
+				# Clear the variable UUID for the next step.
+				$variable_uuid  = "";
+				$variable_value = "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					variable_uuid  => $variable_uuid,
 					variable_value => $variable_value
@@ -2078,29 +2082,9 @@ ORDER BY
 			
 			if ($variable_uuid)
 			{
-				my $now_time = time;
-				my $age      = $now_time - $variable_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					age      => $age,
-					now_time => $now_time }});
-				if (($variable_value) && ($now_time > $variable_value))
-				{
-					# This is being held, move on.
-					$check_port++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
-					next;
-				}
-				else
-				{
-					# Either the hold is stale or invalid, delete it.
-					$variable_uuid = $anvil->Database->insert_or_update_variables({
-						debug             => $debug,
-						variable_uuid     => $variable_uuid,
-						variable_value    => "0",
-						update_value_only => "", 
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
-				}
+				$check_port++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_port => $check_port }});
+				next;
 			}
 			
 			# To prevent a race condition, put a one minute hold on this port number.
