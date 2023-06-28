@@ -33,6 +33,38 @@ type AnvilDataDatabaseHash = {
   };
 };
 
+type AnvilDataFenceParameterType =
+  | 'boolean'
+  | 'integer'
+  | 'second'
+  | 'select'
+  | 'string';
+
+type AnvilDataFenceHash = {
+  [agent: string]: {
+    actions: string[];
+    description: string;
+    parameters: {
+      [parameterId: string]: {
+        content_type: AnvilDataFenceParameterType;
+        default?: string;
+        deprecated: number;
+        description: string;
+        obsoletes: number;
+        options?: string[];
+        replacement: string;
+        required: '0' | '1';
+        switches: string;
+        unique: '0' | '1';
+      };
+    };
+    switch: {
+      [switchId: string]: { name: string };
+    };
+    symlink?: { [agent: string]: string };
+  };
+};
+
 type AnvilDataHostListHash = {
   host_uuid: {
     [hostUuid: string]: {

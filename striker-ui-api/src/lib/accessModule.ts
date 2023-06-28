@@ -278,7 +278,7 @@ const getAnvilData = async () => {
 const getFenceSpec = async () => {
   await subroutine('get_fence_data', { pre: ['Striker'] });
 
-  return getData<unknown>('fence_data');
+  return getData<AnvilDataFenceHash>('fence_data');
 };
 
 const getHostData = async () => {
