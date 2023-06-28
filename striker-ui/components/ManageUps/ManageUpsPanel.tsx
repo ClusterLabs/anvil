@@ -277,7 +277,7 @@ const ManageUpsPanel: FC = () => {
                   url: '/ups',
                 });
               },
-              renderEntry: (key) => (
+              renderEntry: ({ key }) => (
                 <BodyText>{upsOverviews?.[key].upsName}</BodyText>
               ),
             }),

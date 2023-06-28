@@ -204,7 +204,7 @@ const ManageUsersForm: FC = () => {
                   },
                 },
                 formSummaryProps: {
-                  renderEntry: (key) => (
+                  renderEntry: ({ key }) => (
                     <BodyText>{users?.[key].userName}</BodyText>
                   ),
                 },

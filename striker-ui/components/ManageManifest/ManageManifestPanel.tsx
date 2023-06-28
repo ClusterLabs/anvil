@@ -463,7 +463,7 @@ const ManageManifestPanel: FC = () => {
                 });
               },
               getConfirmDialogTitle: (count) => `Delete ${count} manifest(s)?`,
-              renderEntry: (key) => (
+              renderEntry: ({ key }) => (
                 <BodyText>{manifestOverviews?.[key].manifestName}</BodyText>
               ),
             }),

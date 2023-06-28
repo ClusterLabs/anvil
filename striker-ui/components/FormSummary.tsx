@@ -8,7 +8,17 @@ import { FC, ReactElement, createElement } from 'react';
 import FlexBox from './FlexBox';
 import { BodyText, MonoText, SensitiveText } from './Text';
 
-const renderEntryValueWithPassword: RenderFormValueFunction = (key, entry) => {
+const capEntryLabel: CapFormEntryLabel = (value) => {
+  const spaced = value.replace(/([a-z\d])([A-Z])/g, '$1 $2');
+  const lcased = spaced.toLowerCase();
+
+  return capitalize(lcased);
+};
+
+const renderEntryValueWithPassword: RenderFormValueFunction = ({
+  entry,
+  key,
+}) => {
   const textElement = /passw/i.test(key) ? SensitiveText : MonoText;
 
   return createElement(textElement, { monospaced: true }, String(entry));
@@ -46,10 +56,17 @@ const buildEntryList = ({
     result.push(
       <MUIListItem
         key={itemId}
-        sx={{ paddingLeft: `.${depth * 2}em` }}
-        {...getListItemProps?.call(null, itemKey, value, depth)}
+        sx={{ paddingLeft: `${depth}em` }}
+        {...getListItemProps?.call(null, { depth, entry: value, key: itemKey })}
       >
-        {renderEntry(itemKey, value, getEntryLabel, renderEntryValue)}
+        {renderEntry({
+          depth,
+          entry: value,
+          getLabel: getEntryLabel,
+          key: itemKey,
+          nest,
+          renderValue: renderEntryValue,
+        })}
       </MUIListItem>,
     );
 
@@ -73,8 +90,9 @@ const buildEntryList = ({
   return (
     <MUIList
       dense
+      disablePadding
       key={listId}
-      {...getListProps?.call(null, listKey, entries, depth)}
+      {...getListProps?.call(null, { depth, entries, key: listKey })}
     >
       {result}
     </MUIList>
@@ -83,26 +101,31 @@ const buildEntryList = ({
 
 const FormSummary = <T extends FormEntries>({
   entries,
-  getEntryLabel = (key) => {
-    const spaced = key.replace(/([a-z\d])([A-Z])/g, '$1 $2');
-    const lcased = spaced.toLowerCase();
-
-    return capitalize(lcased);
-  },
+  getEntryLabel = ({ cap, key }) => cap(key),
   getListProps,
   getListItemProps,
   hasPassword,
   maxDepth = 3,
-  renderEntry = (key, entry, getLabel, renderValue) => (
-    <FlexBox fullWidth growFirst row>
-      <BodyText>{getLabel(key, entry)}</BodyText>
-      {renderValue(key, entry)}
+  renderEntry = ({ depth, entry, getLabel, key, nest, renderValue }) => (
+    <FlexBox fullWidth growFirst row maxWidth="100%">
+      <BodyText>{getLabel({ cap: capEntryLabel, depth, entry, key })}</BodyText>
+      {!nest && renderValue({ depth, entry, key })}
     </FlexBox>
   ),
   // Prop(s) that rely on other(s).
-  renderEntryValue = hasPassword
-    ? renderEntryValueWithPassword
-    : (key, entry) => <MonoText>{String(entry)}</MonoText>,
+  renderEntryValue = (args) => {
+    const { entry } = args;
+
+    if (['', null, undefined].some((bad) => entry === bad)) {
+      return <BodyText>none</BodyText>;
+    }
+
+    return hasPassword ? (
+      renderEntryValueWithPassword(args)
+    ) : (
+      <MonoText>{String(entry)}</MonoText>
+    );
+  },
 }: FormSummaryProps<T>): ReturnType<FC<FormSummaryProps<T>>> =>
   buildEntryList({
     entries,

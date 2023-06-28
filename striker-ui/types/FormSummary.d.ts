@@ -4,30 +4,40 @@ type FormEntries = {
   [key: string]: FormEntries | FormEntry;
 };
 
-type GetFormEntryLabelFunction = (key: string, entry: FormEntry) => string;
+type CommonFormEntryHandlerArgs = {
+  depth: number;
+  entry: FormEntry;
+  key: string;
+};
+
+type CapFormEntryLabel = (value: string) => string;
+
+type GetFormEntryLabelFunction = (
+  args: CommonFormEntryHandlerArgs & {
+    cap: CapFormEntryLabel;
+  },
+) => string;
 
 type GetFormEntryPropsFunction = (
-  key: string,
-  entry: FormEntry,
-  depth: number,
+  args: CommonFormEntryHandlerArgs,
 ) => import('@mui/material').ListItemProps;
 
-type GetFormEntriesPropsFunction = (
-  key: string | undefined,
-  entries: FormEntries,
-  depth: number,
-) => import('@mui/material').ListProps;
+type GetFormEntriesPropsFunction = (args: {
+  depth: number;
+  entries: FormEntries;
+  key?: string;
+}) => import('@mui/material').ListProps;
 
 type RenderFormValueFunction = (
-  key: string,
-  entry: FormEntry,
+  args: CommonFormEntryHandlerArgs,
 ) => import('react').ReactElement;
 
 type RenderFormEntryFunction = (
-  key: string,
-  entry: FormEntry,
-  getLabel: GetFormEntryLabelFunction,
-  renderValue: RenderFormValueFunction,
+  args: CommonFormEntryHandlerArgs & {
+    getLabel: GetFormEntryLabelFunction;
+    nest: boolean;
+    renderValue: RenderFormValueFunction;
+  },
 ) => import('react').ReactElement;
 
 type FormSummaryOptionalProps = {
