@@ -9,7 +9,7 @@ import { stderr, uuid } from '../../shell';
 
 export const createUps: RequestHandler<
   { uuid?: string },
-  UpsOverview,
+  undefined,
   { agent: string; ipAddress: string; name: string }
 > = async (request, response) => {
   const {
@@ -43,7 +43,7 @@ export const createUps: RequestHandler<
       `UPS UUID must be a valid UUIDv4; got [${upsUuid}]`,
     );
   } catch (error) {
-    stderr(`Assert value failed during create UPS; CAUSE: ${error}`);
+    stderr(`Assert value failed when working with UPS; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
