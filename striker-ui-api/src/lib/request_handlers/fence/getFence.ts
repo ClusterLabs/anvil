@@ -1,5 +1,7 @@
 import { RequestHandler } from 'express';
 
+import { DELETED } from '../../consts';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { stdout } from '../../shell';
@@ -13,7 +15,9 @@ export const getFence: RequestHandler = buildGetRequestHandler(
         fence_agent,
         fence_arguments
       FROM fences
+      WHERE fence_arguments != '${DELETED}'
       ORDER BY fence_name ASC;`;
+
     const afterQueryReturn: QueryResultModifierFunction | undefined =
       buildQueryResultReducer<{ [fenceUUID: string]: FenceOverview }>(
         (previous, [fenceUUID, fenceName, fenceAgent, fenceArgumentString]) => {
