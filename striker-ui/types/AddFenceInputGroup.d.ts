@@ -9,4 +9,7 @@ type AddFenceInputGroupOptionalProps = {
   loading?: boolean;
 };
 
-type AddFenceInputGroupProps = AddFenceInputGroupOptionalProps;
+type AddFenceInputGroupProps<M extends MapToInputTestID> =
+  AddFenceInputGroupOptionalProps & {
+    formUtils: FormUtils<M>;
+  };
