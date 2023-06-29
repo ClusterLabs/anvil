@@ -73,7 +73,6 @@ const buildNumberParamInput = <M extends MapToInputTestID>(
           id={id}
           label={label}
           name={name}
-          type={INPUT_TYPES.number}
           value={value}
         />
       }
