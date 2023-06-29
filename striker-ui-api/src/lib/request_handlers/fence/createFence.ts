@@ -7,15 +7,19 @@ import { getFenceSpec, timestamp, write } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar, uuid } from '../../shell';
 
+const handleNumberType = (v: unknown) => String(sanitize(v, 'number'));
+
+const handleStringType = (v: unknown) => sanitize(v, 'string');
+
 const MAP_TO_VAR_TYPE: Record<
   AnvilDataFenceParameterType,
-  'boolean' | 'number' | 'string'
+  (v: unknown) => string
 > = {
-  boolean: 'boolean',
-  integer: 'number',
-  second: 'number',
-  select: 'string',
-  string: 'string',
+  boolean: (v) => (sanitize(v, 'boolean') ? '1' : ''),
+  integer: handleNumberType,
+  second: handleNumberType,
+  select: handleStringType,
+  string: handleStringType,
 };
 
 export const createFence: RequestHandler<
@@ -24,7 +28,7 @@ export const createFence: RequestHandler<
   {
     agent: string;
     name: string;
-    parameters: { [parameterId: string]: boolean | number | string };
+    parameters: { [parameterId: string]: string };
   }
 > = async (request, response) => {
   const {
@@ -83,7 +87,7 @@ export const createFence: RequestHandler<
         return previous;
 
       // TODO: add SQL modifier after finding a way to escape single quotes
-      const paramValue = sanitize(rParamValue, MAP_TO_VAR_TYPE[paramType]);
+      const paramValue = MAP_TO_VAR_TYPE[paramType](rParamValue);
 
       previous.push(`${paramId}="${paramValue}"`);
 
