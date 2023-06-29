@@ -1,9 +1,10 @@
 import {
+  Box,
   List as MUIList,
   ListItem as MUIListItem,
   capitalize,
 } from '@mui/material';
-import { FC, ReactElement, createElement } from 'react';
+import { FC, ReactElement } from 'react';
 
 import FlexBox from './FlexBox';
 import { BodyText, MonoText, SensitiveText } from './Text';
@@ -15,13 +16,24 @@ const capEntryLabel: CapFormEntryLabel = (value) => {
   return capitalize(lcased);
 };
 
-const renderEntryValueWithPassword: RenderFormValueFunction = ({
-  entry,
-  key,
-}) => {
-  const textElement = /passw/i.test(key) ? SensitiveText : MonoText;
+const renderEntryValueWithMono: RenderFormValueFunction = ({ entry }) => (
+  <MonoText whiteSpace="nowrap">{String(entry)}</MonoText>
+);
 
-  return createElement(textElement, { monospaced: true }, String(entry));
+const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
+  const { entry, key } = args;
+
+  return /passw/i.test(key) ? (
+    <SensitiveText
+      revealButtonProps={{ sx: { marginRight: 0, padding: 0 } }}
+      monospaced
+      textLineHeight={null}
+    >
+      {String(entry)}
+    </SensitiveText>
+  ) : (
+    renderEntryValueWithMono(args)
+  );
 };
 
 const buildEntryList = ({
@@ -109,7 +121,9 @@ const FormSummary = <T extends FormEntries>({
   renderEntry = ({ depth, entry, getLabel, key, nest, renderValue }) => (
     <FlexBox fullWidth growFirst row maxWidth="100%">
       <BodyText>{getLabel({ cap: capEntryLabel, depth, entry, key })}</BodyText>
-      {!nest && renderValue({ depth, entry, key })}
+      <Box sx={{ maxWidth: '100%', overflowX: 'scroll' }}>
+        {!nest && renderValue({ depth, entry, key })}
+      </Box>
     </FlexBox>
   ),
   // Prop(s) that rely on other(s).
@@ -120,11 +134,9 @@ const FormSummary = <T extends FormEntries>({
       return <BodyText>none</BodyText>;
     }
 
-    return hasPassword ? (
-      renderEntryValueWithPassword(args)
-    ) : (
-      <MonoText>{String(entry)}</MonoText>
-    );
+    return hasPassword
+      ? renderEntryValueWithPassword(args)
+      : renderEntryValueWithMono(args);
   },
 }: FormSummaryProps<T>): ReturnType<FC<FormSummaryProps<T>>> =>
   buildEntryList({
