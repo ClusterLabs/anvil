@@ -132,7 +132,7 @@ export const createFence: RequestHandler<
     return response.status(500).send();
   }
 
-  const scode = rUuid ? 201 : 200;
+  const scode = rUuid ? 200 : 201;
 
   return response.status(scode).send();
 };
