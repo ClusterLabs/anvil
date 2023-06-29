@@ -1,45 +1,70 @@
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
-import { cap } from '../../cap';
+import { camel } from '../../camel';
 import { getShortHostName } from '../../disassembleHostName';
 import { stdout } from '../../shell';
 
-type ExtractVariableKeyFunction = (parts: string[]) => string;
+const CVAR_PREFIX = 'form::config_step';
 
-const MAP_TO_EXTRACTOR: { [prefix: string]: ExtractVariableKeyFunction } = {
+const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
   form: ([, part2]) => {
-    const [head, ...rest] = part2.split('_');
+    const [rHead, ...rest] = part2.split('_');
+    const head = rHead.toLowerCase();
 
-    return rest.reduce<string>(
-      (previous, part) => `${previous}${cap(part)}`,
-      head,
-    );
+    return /^[a-z]+n[0-9]+/.test(head)
+      ? ['networks', head, camel(...rest)]
+      : [camel(head, ...rest)];
   },
-  'install-target': () => 'installTarget',
+  'install-target': () => ['installTarget'],
+};
+
+const setCvar = (
+  keychain: string[],
+  value: string,
+  parent: Tree = {},
+): Tree | string => {
+  const { 0: key, length } = keychain;
+
+  if (!key) return value;
+
+  const next = 1;
+  const { [key]: xv } = parent;
+
+  parent[key] =
+    next < length && typeof xv !== 'string'
+      ? setCvar(keychain.slice(next), value, xv)
+      : value;
+
+  return parent;
 };
 
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   keys: hostUUIDs = '*',
 } = {}) => {
-  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'AND hos.host_uuid');
+  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'AND b.host_uuid');
 
   stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
   const query = `
     SELECT
-      hos.host_name,
-      hos.host_type,
-      hos.host_uuid,
-      var.variable_name,
-      var.variable_value
-    FROM variables AS var
-    JOIN hosts AS hos
-      ON var.variable_source_uuid = hos.host_uuid
+      b.host_name,
+      b.host_type,
+      b.host_uuid,
+      a.variable_name,
+      a.variable_value,
+      SUBSTRING(
+        a.variable_name, '^${CVAR_PREFIX}\\d+::([^:]+)'
+      ) as cvar_name
+    FROM variables AS a
+    JOIN hosts AS b
+      ON a.variable_source_uuid = b.host_uuid
     WHERE (
-        variable_name LIKE 'form::config_%'
+        variable_name LIKE '${CVAR_PREFIX}%'
         OR variable_name = 'install-target::enabled'
       )
-      ${condHostUUIDs};`;
+      ${condHostUUIDs}
+    ORDER BY cvar_name ASC,
+      a.variable_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
@@ -52,14 +77,14 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
           hostType: string;
           hostUUID: string;
           shortHostName: string;
-        } & Record<string, string>
+        } & Tree
       >(
         (previous, [, , , variableName, variableValue]) => {
           const [variablePrefix, ...restVariableParts] =
             variableName.split('::');
-          const key = MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
+          const keychain = MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
 
-          previous[key] = variableValue;
+          setCvar(keychain, variableValue, previous);
 
           return previous;
         },
