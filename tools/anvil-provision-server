@@ -846,10 +846,11 @@ sub startup_resource
 	# Is the current resource up locally already? If it is, we're done. 
 	my $server          = $anvil->data->{job}{server_name};
 	my $short_host_name = $anvil->data->{job}{short_host_name};
-	my $role = defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server}{role} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server}{role} : "";
+	my $role            = defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server}{role} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server}{role} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'job::server' => $anvil->data->{job}{server_name}, 
-		role   => $role,
+		server          => $server, 
+		short_host_name => $short_host_name, 
+		role            => $role,
 	}});
 	
 	if ((lc($role) ne "secondary") && (lc($role) ne "primary"))
