@@ -1001,7 +1001,7 @@ sub manage_disk_add
 	# force here.
 	print "- Waiting for all peers to connect the new volume...";
 	my $waiting    = 1;
-	my $wait_until = time + 60;
+	my $wait_until = time + 300;
 	while ($waiting)
 	{
 		$anvil->DRBD->get_status({debug => 2});
@@ -1009,15 +1009,20 @@ sub manage_disk_add
 		my $disks_ready     = 0;
 		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{peers}})
 		{
-			my $host_uuid        = $anvil->data->{peers}{$this_host_name}{host_uuid};
+			my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name}); 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_host_name' => $this_host_name, 
+				's2:host_uuid'      => $host_uuid, 
+			}});
+			next if $host_uuid eq $anvil->Get->host_uuid;
+			
 			my $connection_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$this_host_name}{'connection-state'};
 			my $node_id          = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$this_host_name}{'peer-node-id'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:this_host_name'   => $this_host_name, 
-				's2:host_uuid'        => $host_uuid, 
-				's3:connection_state' => $connection_state, 
-				's4:node_id'          => $node_id,
+				's1:connection_state' => $connection_state, 
+				's2:node_id'          => $node_id,
 			}});
+
 			if (lc($connection_state) ne "connected")
 			{
 				$peers_connected = 0;
@@ -1025,6 +1030,7 @@ sub manage_disk_add
 			}
 		}
 		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
 		if ($peers_connected)
 		{
 			# Make sure all disks are attached.
@@ -1050,6 +1056,11 @@ sub manage_disk_add
 					$disks_ready = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
 				}
+				if ((not $peer_disk_state) or (lc($peer_disk_state) eq "diskless"))
+				{
+					$disks_ready = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
+				}
 				
 				$anvil->data->{peers}{$peer_name}{disk_state} = $peer_disk_state;
 				$anvil->data->{peers}{$peer_name}{role}       = $role;
@@ -1059,6 +1070,7 @@ sub manage_disk_add
 			}
 		}
 		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
 		if ($disks_ready)
 		{
 			$waiting = 0;
