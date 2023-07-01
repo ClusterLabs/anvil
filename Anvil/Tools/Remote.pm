@@ -224,13 +224,9 @@ B<NOTE>: By default, a connection to a target will be held open and cached to in
 
 Parameters;
 
-=head3 background (optional, default '0')
-
-If set to C<< 1 >>, the command is run in the background. In this case, the PID of the SSH process is returned. The called should use C<< waitpid >> to ensure the PID has been reaped.
-
 =head3 close (optional, default '0')
 
-If set to C<< 1 >>, the connection to the target will be closed at the end of the call.
+If set, the connection to the target will be closed at the end of the call.
 
 =head3 log_level (optional, default C<< 3 >>)
 
@@ -304,7 +300,6 @@ sub call
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	
 	# Now pick up the rest of the variables.
-	my $background  = defined $parameter->{background} ? $parameter->{background} : 0;
 	my $close       = defined $parameter->{'close'}    ? $parameter->{'close'}    : 0;
 	my $no_cache    = defined $parameter->{no_cache}   ? $parameter->{no_cache}   : 0;
 	my $password    = defined $parameter->{password}   ? $parameter->{password}   : "";
@@ -315,16 +310,15 @@ sub call
 	my $ssh_fh      = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		background => $background, 
 		'close'    => $close, 
 		password   => $anvil->Log->is_secure($password), 
 		secure     => $secure, 
-		shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call), 
-		ssh_fh     => $ssh_fh, 
+		shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
+		ssh_fh     => $ssh_fh,
 		start_time => $start_time, 
 		timeout    => $timeout, 
 		port       => $port, 
-		target     => $target, 
+		target     => $target,
 		ssh_fh_key => $ssh_fh_key, 
 	}});
 	
@@ -649,14 +643,6 @@ sub call
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { ssh_fh => $ssh_fh }});
 	if ($ssh_fh =~ /^Net::OpenSSH/)
 	{
-		# Are we doing a background call?
-		if ($background)
-		{
-			my $pid = $ssh_fh->spawn($shell_call);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { pid => $pid }});
-			return($pid);
-		}
-		
 		# The shell_call can't end is a newline. Conveniently, we want the return code. By adding 
 		# this, we ensure it doesn't end in a new-line (and we can't blindly strip off the last 
 		# new-line because of 'EOF' type cat's). 

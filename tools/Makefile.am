@@ -37,6 +37,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-scan-network \
 			  anvil-show-local-ips \
 			  anvil-shutdown-server \
+			  anvil-special-operations \
 			  anvil-sync-shared \
 			  anvil-test-alerts \
 			  anvil-update-definition \

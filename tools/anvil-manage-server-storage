@@ -950,69 +950,52 @@ sub manage_disk_add
 		}
 	}
 	
+	### NOTE: The call to 'drbdadm adjust <res>' hangs, hard, until the same command is run on the peers.
+	###       To deal with this, we register jobs to run 'anvil-special-operations' on the peers, then we
+	###       call adjust here. 
 	# Adjust to start/connect.
-	my @pids;
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
 			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$drbd_resource;
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
 				's3:shell_call'      => $shell_call, 
 			}});
+			next if $host_uuid eq $anvil->Get->host_uuid;
 			
-			### NOTE: The 'adjust' call doesn't return until it's adjusted on all machines, so we
-			###       make these calls as background calls.
-			# Create the metadata, but don't exit on failure in case the metadata was created in
-			# a previous pass.
-			if ($host_uuid eq $anvil->Get->host_uuid)
-			{
-				print "- Adjusting the local resource: [".$drbd_resource."] to pick up the new config.\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				($output, $return_code) = $anvil->System->call({
-					shell_call => $shell_call,
-					background => 1,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output,
-					return_code => $return_code, 
-				}});
-			}
-			else
-			{
-				# We'll use this in a minute to confirm connections.
-				$anvil->data->{peers}{$short_host_name}{host_uuid} = $host_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"peers::${short_host_name}::host_uuid" => $anvil->data->{peers}{$short_host_name}{host_uuid}, 
-				}});
-				
-				### NOTE: This is expected to timeout when DR is used.
-				print "- Adjusting the peer: [".$short_host_name."]'s resource: [".$drbd_resource."] to pick up the new config.\n";
-				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
-				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-				my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$drbd_resource;
-				my ($pid) = $anvil->Remote->call({
-					debug      => 2,
-					background => 1,
-					shell_call => $shell_call, 
-					target     => $use_ip,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
-				push @pids, $pid;
-			}
+			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				debug           => 2, 
+				job_command     => $shell_call, 
+				job_data        => "adjust=".$drbd_resource, 
+				job_name        => "server::add_disk::rescan", 
+				job_title       => "job_0465", 
+				job_description => "job_0466", 
+				job_progress    => 0,
+				job_host_uuid   => $host_uuid, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			
+			print "- Registered a job with job UUID: [".$job_uuid."] to reload the resource config on the host: [".$short_host_name."].\n";
 		}
 	}
 	
-	# Wait for the remote PID(s) to be reaped.
-# 	foreach my $pid (@pids)
-# 	{
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
-# 		next if not $pid;
-# 		waitpid($pid, 0);
-# 	}
+	print "- Adjusting the local resource: [".$drbd_resource."] to pick up the new config.\n";
+	print "[ NOTE ] - If this hangs, make sure 'anvil-daemon' is running on the peers.\n";
+	$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$drbd_resource;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({
+		debug      => 2,
+		background => 1,
+		shell_call => $shell_call,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	# Find which node is currently Primary and use that host to force primary to start sync. If none, 
 	# force here.
@@ -1171,7 +1154,7 @@ sub manage_disk_add
 		{
 			my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 			my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-			print " - The resource is primary onthe peer: [".$short_host_name."], forcing primary there via: [".$use_ip." (".$use_network.")]";
+			print " - The resource is primary on the peer: [".$short_host_name."], forcing primary there via: [".$use_ip." (".$use_network.")]";
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				shell_call => $shell_call, 
 				target     => $use_ip,
@@ -1214,14 +1197,12 @@ sub manage_disk_add
 	{
 		print "Initial sync does not appear to be required.\n";
 	}
-	
-# 	my $startup_needed = 1;
-# 	my $local_role     = defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role} : "";
-# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_role => $local_role }});
-	
-	
-	
+
 =cut
+	my $startup_needed = 1;
+	my $local_role     = defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_role => $local_role }});
+	
 	# Create the DRBD metadata. For this, we don't fail.
 	foreach my $host_type ("node", "dr")
 	{

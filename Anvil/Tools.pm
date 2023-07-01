@@ -1150,6 +1150,7 @@ sub _set_paths
 				'anvil-safe-start'		=>	"/usr/sbin/anvil-safe-start",
 				'anvil-safe-stop'		=>	"/usr/sbin/anvil-safe-stop",
 				'anvil-shutdown-server'		=>	"/usr/sbin/anvil-shutdown-server",
+				'anvil-special-operations'	=>	"/usr/sbin/anvil-special-operations",
 				'anvil-sync-shared'		=>	"/usr/sbin/anvil-sync-shared",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
