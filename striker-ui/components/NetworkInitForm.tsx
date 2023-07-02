@@ -602,8 +602,6 @@ const NetworkInitForm = forwardRef<
     [hostType],
   );
 
-  const [isReadHostDetail, setIsReadHostDetail] = useState<boolean>(false);
-
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
     y: number;
@@ -618,8 +616,11 @@ const NetworkInitForm = forwardRef<
   >();
   const [gatewayInterface, setGatewayInterface] = useState<string>('');
 
-  const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const dnsCSVInputRef = useRef<InputForwardedRefContent<'string'>>({});
+  const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
+  /** Avoid state here to prevent triggering multiple renders when reading
+   * host detail. */
+  const isReadHostDetailRef = useRef<boolean>(false);
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
   const {
@@ -1181,44 +1182,57 @@ const NetworkInitForm = forwardRef<
       Object.keys(networkInterfaceInputMap).length > 0 &&
       expectHostDetail &&
       hostDetail &&
-      !isReadHostDetail
+      !isReadHostDetailRef.current
     ) {
-      setNetworkInputs(
-        Object.values(previousNetworks).reduce<NetworkInput[]>(
-          (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
-            const name = NETWORK_TYPES[type];
-            const typeCount =
-              getNetworkTypeCount(type, { inputs: previous }) + 1;
-            const isRequired = requiredNetworks[type] === typeCount;
+      isReadHostDetailRef.current = true;
 
-            previous.push({
-              inputUUID: uuidv4(),
-              interfaces: [
-                networkInterfaceInputMap[link1Uuid]?.metadata,
-                networkInterfaceInputMap[link2Uuid]?.metadata,
-              ],
-              ipAddress: ip,
-              isRequired,
-              name,
-              subnetMask,
-              type,
-              typeCount,
-            });
+      const applied: string[] = [];
+      const inputs = Object.values(previousNetworks).reduce<NetworkInput[]>(
+        (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
+          const name = NETWORK_TYPES[type];
+          const typeCount = getNetworkTypeCount(type, { inputs: previous }) + 1;
+          const isRequired = requiredNetworks[type] === typeCount;
 
-            return previous;
-          },
-          [],
-        ),
+          applied.push(link1Uuid, link2Uuid);
+
+          previous.push({
+            inputUUID: uuidv4(),
+            interfaces: [
+              networkInterfaceInputMap[link1Uuid]?.metadata,
+              networkInterfaceInputMap[link2Uuid]?.metadata,
+            ],
+            ipAddress: ip,
+            isRequired,
+            name,
+            subnetMask,
+            type,
+            typeCount,
+          });
+
+          return previous;
+        },
+        [],
       );
 
-      setIsReadHostDetail(true);
+      setNetworkInterfaceInputMap((previous) => {
+        const result = { ...previous };
+
+        applied.forEach((uuid) => {
+          if (result[uuid]) {
+            result[uuid].isApplied = true;
+          }
+        });
+
+        return result;
+      });
+
+      setNetworkInputs(inputs);
     }
   }, [
     createNetwork,
     expectHostDetail,
     getNetworkTypeCount,
     hostDetail,
-    isReadHostDetail,
     networkInputs,
     networkInterfaceInputMap,
     previousNetworks,
