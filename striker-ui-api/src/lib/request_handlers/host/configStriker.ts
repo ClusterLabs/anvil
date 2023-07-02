@@ -11,80 +11,11 @@ import {
 } from '../../consts';
 
 import { getLocalHostUUID, job, variable } from '../../accessModule';
+import { buildJobData } from '../../buildJobData';
+import { buildNetworkConfig } from '../../fconfig';
 import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar } from '../../shell';
-
-const cvar = (configStepCount: number, fieldName: string) =>
-  ['form', `config_step${configStepCount}`, fieldName, 'value'].join('::');
-
-const buildNetworkLinkConfigs = (
-  networkShortName: string,
-  interfaces: InitializeStrikerNetworkForm['interfaces'],
-  configStep = 2,
-) =>
-  interfaces.reduce<FormConfigData>((previous, iface, index) => {
-    if (iface) {
-      const { networkInterfaceMACAddress } = iface;
-      const linkNumber = index + 1;
-
-      previous[
-        cvar(configStep, `${networkShortName}_link${linkNumber}_mac_to_set`)
-      ] = { step: configStep, value: networkInterfaceMACAddress };
-    }
-
-    return previous;
-  }, {});
-
-const buildNetworkConfigs = (
-  networks: InitializeStrikerNetworkForm[],
-  configStep = 2,
-): FormConfigData => {
-  const { counters: ncounts, data: cdata } = networks.reduce<{
-    counters: Record<InitializeStrikerNetworkForm['type'], number>;
-    data: FormConfigData;
-  }>(
-    (previous, { interfaces, ipAddress, subnetMask, type }) => {
-      const { counters } = previous;
-
-      counters[type] = counters[type] ? counters[type] + 1 : 1;
-
-      const networkShortName = `${type}${counters[type]}`;
-
-      previous.data = {
-        ...previous.data,
-        [cvar(configStep, `${networkShortName}_ip`)]: {
-          step: configStep,
-          value: ipAddress,
-        },
-        [cvar(configStep, `${networkShortName}_subnet_mask`)]: {
-          step: configStep,
-          value: subnetMask,
-        },
-        ...buildNetworkLinkConfigs(networkShortName, interfaces),
-      };
-
-      return previous;
-    },
-    { counters: {}, data: {} },
-  );
-
-  Object.entries(ncounts).forEach(([ntype, ncount]) => {
-    cdata[cvar(1, `${ntype}_count`)] = { value: ncount };
-  });
-
-  return cdata;
-};
-
-const configToJobData = (
-  entries: [keyof FormConfigData, FormConfigData[keyof FormConfigData]][],
-) =>
-  entries
-    .reduce<string>((previous, [key, { value }]) => {
-      previous += `${key}=${value}\\n`;
-
-      return previous;
-    }, '')
-    .trim();
+import { cvar } from '../../varn';
 
 export const configStriker: RequestHandler<
   unknown,
@@ -182,7 +113,7 @@ export const configStriker: RequestHandler<
     [cvar(2, 'host_name')]: { step: 2, value: hostName },
     [cvar(2, 'striker_password')]: { step: 2, value: adminPassword },
     [cvar(2, 'striker_user')]: { step: 2, value: 'admin' },
-    ...buildNetworkConfigs(networks),
+    ...buildNetworkConfig(networks),
   };
 
   stdoutVar(configData, `Config data before initiating striker config: `);
@@ -215,7 +146,10 @@ export const configStriker: RequestHandler<
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-configure-host'].self,
-      job_data: configToJobData(configEntries),
+      job_data: buildJobData({
+        entries: configEntries,
+        getValue: ({ value }) => String(value),
+      }),
       job_name: 'configure::network',
       job_title: 'job_0001',
       job_description: 'job_0071',

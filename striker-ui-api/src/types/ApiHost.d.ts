@@ -57,12 +57,12 @@ type InitializeStrikerNetworkForm = {
 
 type InitializeStrikerForm = {
   adminPassword: string;
-  domainName: string;
-  hostName: string;
-  hostNumber: number;
   dns: string;
+  domainName: string;
   gateway: string;
   gatewayInterface: string;
+  hostName: string;
+  hostNumber: number;
   networks: InitializeStrikerNetworkForm[];
   organizationName: string;
   organizationPrefix: string;
@@ -79,6 +79,14 @@ type PrepareHostRequestBody = {
   hostUUID?: string;
   redhatPassword: string;
   redhatUser: string;
+};
+
+type PrepareNetworkRequestBody = {
+  dns: string;
+  gateway: string;
+  gatewayInterface: string;
+  hostName: string;
+  networks: InitializeStrikerNetworkForm[];
 };
 
 type SetHostInstallTargetRequestBody = {
