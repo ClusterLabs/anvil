@@ -585,6 +585,7 @@ const NetworkInitForm = forwardRef<
   const {
     dns: previousDns,
     gateway: previousGateway,
+    gatewayInterface: previousGatewayInterface,
     hostType,
     hostUUID = 'local',
     networks: previousNetworks,
@@ -1189,9 +1190,10 @@ const NetworkInitForm = forwardRef<
       const applied: string[] = [];
       const inputs = Object.values(previousNetworks).reduce<NetworkInput[]>(
         (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
-          const name = NETWORK_TYPES[type];
           const typeCount = getNetworkTypeCount(type, { inputs: previous }) + 1;
           const isRequired = requiredNetworks[type] === typeCount;
+
+          const name = `${NETWORK_TYPES[type]} ${typeCount}`;
 
           applied.push(link1Uuid, link2Uuid);
 
@@ -1214,6 +1216,8 @@ const NetworkInitForm = forwardRef<
         [],
       );
 
+      setGatewayInterface(previousGatewayInterface);
+
       setNetworkInterfaceInputMap((previous) => {
         const result = { ...previous };
 
@@ -1235,6 +1239,7 @@ const NetworkInitForm = forwardRef<
     hostDetail,
     networkInputs,
     networkInterfaceInputMap,
+    previousGatewayInterface,
     previousNetworks,
     requiredNetworks,
   ]);
