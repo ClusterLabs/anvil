@@ -13,30 +13,27 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
 import { HeaderText } from './Text';
-import useProtect from '../hooks/useProtect';
 import useProtectedState from '../hooks/useProtectedState';
 
 const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
   expectUUID: isExpectExternalHostUUID = false,
   hostUUID,
 }) => {
-  const { protect } = useProtect();
-
   const {
     isReady,
     query: { host_uuid: queryHostUUID },
   } = useRouter();
 
-  const [dataHostDetail, setDataHostDetail] = useProtectedState<
+  const [hostDetail, setHostDetail] = useProtectedState<
     APIHostDetail | undefined
-  >(undefined, protect);
+  >(undefined);
   const [fatalErrorMessage, setFatalErrorMessage] = useProtectedState<
     Message | undefined
-  >(undefined, protect);
-  const [isLoading, setIsLoading] = useProtectedState<boolean>(true, protect);
-  const [previousHostUUID, setPreviousHostUUID] = useProtectedState<
-    PrepareNetworkFormProps['hostUUID']
-  >(undefined, protect);
+  >(undefined);
+  const [isLoadingHostDetail, setIsLoadingHostDetail] =
+    useProtectedState<boolean>(true);
+  const [previousHostUUID, setPreviousHostUUID] =
+    useProtectedState<PrepareNetworkFormProps['hostUUID']>(undefined);
 
   const isDifferentHostUUID = useMemo(
     () => hostUUID !== previousHostUUID,
@@ -50,17 +47,15 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
   const panelHeaderElement = useMemo(
     () => (
       <PanelHeader>
-        <HeaderText>
-          Prepare network on {dataHostDetail?.shortHostName}
-        </HeaderText>
+        <HeaderText>Prepare network on {hostDetail?.shortHostName}</HeaderText>
       </PanelHeader>
     ),
-    [dataHostDetail],
+    [hostDetail],
   );
   const contentElement = useMemo(() => {
     let result;
 
-    if (isLoading) {
+    if (isLoadingHostDetail) {
       result = <Spinner mt={0} />;
     } else if (fatalErrorMessage) {
       result = <MessageBox {...fatalErrorMessage} />;
@@ -75,12 +70,12 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
                   formControlProps={{ sx: { maxWidth: '20em' } }}
                   id="prepare-network-host-name"
                   label="Host name"
-                  value={dataHostDetail?.hostName}
+                  value={hostDetail?.hostName}
                 />
               }
               required
             />
-            <NetworkInitForm hostDetail={dataHostDetail} />
+            <NetworkInitForm expectHostDetail hostDetail={hostDetail} />
             <FlexBox row justifyContent="flex-end">
               <ContainedButton>Prepare network</ContainedButton>
             </FlexBox>
@@ -90,18 +85,18 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     }
 
     return result;
-  }, [dataHostDetail, fatalErrorMessage, isLoading, panelHeaderElement]);
+  }, [hostDetail, fatalErrorMessage, isLoadingHostDetail, panelHeaderElement]);
 
   const getHostDetail = useCallback(
     (uuid: string) => {
-      setIsLoading(true);
+      setIsLoadingHostDetail(true);
 
-      if (isLoading) {
+      if (isLoadingHostDetail) {
         api
           .get<APIHostDetail>(`/host/${uuid}`)
           .then(({ data }) => {
             setPreviousHostUUID(data.hostUUID);
-            setDataHostDetail(data);
+            setHostDetail(data);
           })
           .catch((error) => {
             const { children } = handleAPIError(error);
@@ -112,15 +107,15 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
             });
           })
           .finally(() => {
-            setIsLoading(false);
+            setIsLoadingHostDetail(false);
           });
       }
     },
     [
-      setIsLoading,
-      isLoading,
+      setIsLoadingHostDetail,
+      isLoadingHostDetail,
       setPreviousHostUUID,
-      setDataHostDetail,
+      setHostDetail,
       setFatalErrorMessage,
     ],
   );
@@ -139,7 +134,7 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
           type: 'error',
         });
 
-        setIsLoading(false);
+        setIsLoadingHostDetail(false);
       }
     }
   }, [
@@ -150,8 +145,8 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     isReady,
     queryHostUUID,
     setFatalErrorMessage,
-    setDataHostDetail,
-    setIsLoading,
+    setHostDetail,
+    setIsLoadingHostDetail,
     isReloadHostDetail,
   ]);
 
