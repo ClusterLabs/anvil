@@ -26,6 +26,7 @@ export const getNetworkInterface = buildGetRequestHandler(
         ROW_NUMBER() OVER(ORDER BY modified_date ASC) AS network_interface_order
       FROM network_interfaces
       WHERE network_interface_operational != '${DELETED}'
+        AND network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
         AND network_interface_host_uuid = '${hostUUID}';`;
 
     if (buildQueryOptions) {
