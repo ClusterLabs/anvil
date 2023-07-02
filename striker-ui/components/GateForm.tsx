@@ -135,7 +135,13 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
 
       if (isAllowSubmit) {
         result['gate-cell-message-group'] = {
-          children: <MessageGroup count={1} ref={messageGroupRef} />,
+          children: (
+            <MessageGroup
+              count={1}
+              defaultMessageType="warning"
+              ref={messageGroupRef}
+            />
+          ),
           sm: 2,
         };
         result['gate-cell-submit'] = { children: submitElement, sm: 2 };
