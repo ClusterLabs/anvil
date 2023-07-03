@@ -48,6 +48,7 @@ type HostOverview = {
 };
 
 type InitializeStrikerNetworkForm = {
+  createBridge?: StringBoolean;
   interfaces: Array<NetworkInterfaceOverview | null | undefined>;
   ipAddress: string;
   name: string;
