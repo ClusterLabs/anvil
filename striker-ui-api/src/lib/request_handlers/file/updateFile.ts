@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { RequestHandler } from 'express';
 
 import { anvilSyncShared, query, timestamp, write } from '../../accessModule';
@@ -84,38 +85,26 @@ export const updateFile: RequestHandler = async (request, response) => {
               modified_date = '${timestamp()}'
             WHERE file_location_uuid = '${fileLocationUUID}';`;
 
-        const targetHosts: [
-          n1uuid: string,
-          n2uuid: string,
-          dr1uuid: null | string,
-        ][] = await query(
-          `SELECT
-              anv.anvil_node1_host_uuid,
-              anv.anvil_node2_host_uuid,
-              anv.anvil_dr1_host_uuid
-            FROM anvils AS anv
-            JOIN file_locations AS fil_loc
-              ON fil_loc.file_location_host_uuid IN (
-                anv.anvil_node1_host_uuid,
-                anv.anvil_node2_host_uuid,
-                anv.anvil_dr1_host_uuid
-              )
-            WHERE fil_loc.file_location_uuid = '${fileLocationUUID}';`,
+        // Each file location entry is for 1 host.
+        const rows = await query<[[string]]>(
+          `SELECT file_location_host_uuid
+            FROM file_locations
+            WHERE file_location_uuid = '${fileLocationUUID}';`,
         );
 
-        targetHosts.flat().forEach((hostUUID: null | string) => {
-          if (hostUUID) {
-            anvilSyncSharedFunctions.push(() =>
-              anvilSyncShared(
-                jobName,
-                `file_uuid=${fileUUID}`,
-                jobTitle,
-                jobDescription,
-                { jobHostUUID: hostUUID },
-              ),
-            );
-          }
-        });
+        if (rows.length) {
+          const [[hostUuid]] = rows;
+
+          anvilSyncSharedFunctions.push(() =>
+            anvilSyncShared(
+              jobName,
+              `file_uuid=${fileUUID}`,
+              jobTitle,
+              jobDescription,
+              { jobHostUUID: hostUuid },
+            ),
+          );
+        }
       },
     );
   }
@@ -124,6 +113,8 @@ export const updateFile: RequestHandler = async (request, response) => {
 
   try {
     wcode = await write(sqlscript);
+
+    assert(wcode === 0, `Write exited with code ${wcode}`);
   } catch (queryError) {
     stderr(`Failed to execute query; CAUSE: ${queryError}`);
 
@@ -134,5 +125,5 @@ export const updateFile: RequestHandler = async (request, response) => {
     stdoutVar(await fn(), `Anvil sync shared [${index}] output: `),
   );
 
-  response.status(200).send(wcode);
+  response.status(200).send();
 };
