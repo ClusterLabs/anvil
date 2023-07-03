@@ -3,13 +3,19 @@ import { cvar } from '../varn';
 
 export const buildNetworkConfig = (
   networks: InitializeStrikerNetworkForm[],
-  configStep = 2,
+  {
+    netconfStep = 2,
+    netcountStep = 1,
+  }: {
+    netconfStep?: number;
+    netcountStep?: number;
+  } = {},
 ): FormConfigData => {
   const { counters: ncounts, data: cdata } = networks.reduce<{
     counters: Record<InitializeStrikerNetworkForm['type'], number>;
     data: FormConfigData;
   }>(
-    (previous, { interfaces, ipAddress, subnetMask, type }) => {
+    (previous, { createBridge, interfaces, ipAddress, subnetMask, type }) => {
       const { counters } = previous;
 
       counters[type] = counters[type] ? counters[type] + 1 : 1;
@@ -18,16 +24,24 @@ export const buildNetworkConfig = (
 
       previous.data = {
         ...previous.data,
-        [cvar(configStep, `${networkShortName}_ip`)]: {
-          step: configStep,
+        [cvar(netconfStep, `${networkShortName}_ip`)]: {
+          step: netconfStep,
           value: ipAddress,
         },
-        [cvar(configStep, `${networkShortName}_subnet_mask`)]: {
-          step: configStep,
+        [cvar(netconfStep, `${networkShortName}_subnet_mask`)]: {
+          step: netconfStep,
           value: subnetMask,
         },
         ...buildNetworkLinkConfig(networkShortName, interfaces),
       };
+
+      if (createBridge) {
+        previous.data[cvar(netconfStep, `${networkShortName}_create_bridge`)] =
+          {
+            step: netconfStep,
+            value: createBridge,
+          };
+      }
 
       return previous;
     },
@@ -35,7 +49,7 @@ export const buildNetworkConfig = (
   );
 
   Object.entries(ncounts).forEach(([ntype, ncount]) => {
-    cdata[cvar(1, `${ntype}_count`)] = { value: ncount };
+    cdata[cvar(netcountStep, `${ntype}_count`)] = { value: ncount };
   });
 
   return cdata;
