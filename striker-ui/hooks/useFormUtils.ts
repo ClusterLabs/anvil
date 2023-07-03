@@ -85,13 +85,21 @@ const useFormUtils = <
   );
 
   const submitForm = useCallback<SubmitFormFunction>(
-    ({ body, getErrorMsg, msgKey = 'api', method, successMsg, url }) => {
+    ({
+      body,
+      getErrorMsg,
+      msgKey = 'api',
+      method,
+      setMsg = messageGroupRef?.current?.setMessage,
+      successMsg,
+      url,
+    }) => {
       setFormSubmitting(true);
 
       api
         .request({ data: body, method, url })
         .then(() => {
-          messageGroupRef?.current?.setMessage?.call(null, msgKey, {
+          setMsg?.call(null, msgKey, {
             children: successMsg,
             type: 'info',
           });
@@ -101,7 +109,7 @@ const useFormUtils = <
 
           emsg.children = getErrorMsg(emsg.children);
 
-          messageGroupRef?.current?.setMessage?.call(null, msgKey, emsg);
+          setMsg?.call(null, msgKey, emsg);
         })
         .finally(() => {
           setFormSubmitting(false);
