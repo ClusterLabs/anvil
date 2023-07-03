@@ -195,23 +195,22 @@ const FileEditForm = (
             `${API_BASE_URL}/file/${fileOverview.fileUUID}`,
           );
 
-          fileToEdit.fileLocations = data.map(
-            ([
-              ,
-              ,
-              ,
-              ,
-              ,
-              fileLocationUUID,
-              fileLocationActive,
-              anvilUUID,
-              anvilName,
-              anvilDescription,
-            ]) => ({
+          fileToEdit.fileLocations = data.map<FileLocation>(
+            ({
+              5: fileLocationUUID,
+              6: fileLocationActive,
+              7: anvilUUID,
+              8: anvilName,
+              9: anvilDescription,
+              10: hostUUID,
+              11: hostName,
+            }) => ({
               anvilDescription,
               anvilName,
               anvilUUID,
               fileLocationUUID,
+              hostName,
+              hostUUID,
               isFileLocationActive: parseInt(fileLocationActive, 10) === 1,
             }),
           );
