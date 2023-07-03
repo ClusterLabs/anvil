@@ -499,7 +499,18 @@ const GeneralInitForm = forwardRef<
   );
 
   useEffect(() => {
-    if (expectHostDetail && hostDetail && readHostDetailRef.current) {
+    if (
+      [
+        expectHostDetail,
+        hostDetail,
+        readHostDetailRef.current,
+        domainNameInputRef.current,
+        hostNameInputRef.current,
+        hostNumberInputRef.current,
+        organizationNameInputRef.current,
+        organizationPrefixInputRef.current,
+      ].every((condition) => Boolean(condition))
+    ) {
       readHostDetailRef.current = false;
 
       const {
@@ -508,15 +519,17 @@ const GeneralInitForm = forwardRef<
         organization: pOrganization,
         prefix: pPrefix,
         sequence: pSequence,
-      } = hostDetail;
+      } = hostDetail as APIHostDetail;
 
-      organizationNameInputRef.current.setValue?.call(null, pOrganization);
-      organizationPrefixInputRef.current.setValue?.call(null, pPrefix);
-      hostNumberInputRef.current.setValue?.call(null, pSequence);
       domainNameInputRef.current.setValue?.call(null, pDomain);
       hostNameInputRef.current.setValue?.call(null, pHostName);
+      hostNumberInputRef.current.setValue?.call(null, pSequence);
+      organizationNameInputRef.current.setValue?.call(null, pOrganization);
+      organizationPrefixInputRef.current.setValue?.call(null, pPrefix);
+
+      testInputToToggleSubmitDisabled();
     }
-  }, [expectHostDetail, hostDetail]);
+  }, [expectHostDetail, hostDetail, testInputToToggleSubmitDisabled]);
 
   useImperativeHandle(ref, () => ({
     get: () => ({

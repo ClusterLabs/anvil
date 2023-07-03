@@ -582,14 +582,8 @@ const NetworkInitForm = forwardRef<
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
 >(({ expectHostDetail = false, hostDetail, toggleSubmitDisabled }, ref) => {
-  const {
-    dns: previousDns,
-    gateway: previousGateway,
-    gatewayInterface: previousGatewayInterface,
-    hostType,
-    hostUUID = 'local',
-    networks: previousNetworks,
-  }: APIHostDetail = hostDetail ?? ({} as APIHostDetail);
+  const { hostType, hostUUID = 'local' }: APIHostDetail =
+    hostDetail ?? ({} as APIHostDetail);
 
   const uninitRequiredNetworks: NetworkInput[] = useMemo(
     () =>
@@ -1180,15 +1174,29 @@ const NetworkInitForm = forwardRef<
 
   useEffect(() => {
     if (
-      Object.keys(networkInterfaceInputMap).length > 0 &&
-      expectHostDetail &&
-      hostDetail &&
-      readHostDetailRef.current
+      [
+        Object.keys(networkInterfaceInputMap).length > 0,
+        expectHostDetail,
+        hostDetail,
+        readHostDetailRef.current,
+        dnsCSVInputRef.current,
+        gatewayInputRef.current,
+      ].every((condition) => Boolean(condition))
     ) {
       readHostDetailRef.current = false;
 
+      const {
+        dns: pDns,
+        gateway: pGateway,
+        gatewayInterface: pGatewayInterface,
+        networks: pNetworks,
+      } = hostDetail as APIHostDetail;
+
+      dnsCSVInputRef.current.setValue?.call(null, pDns);
+      gatewayInputRef.current.setValue?.call(null, pGateway);
+
       const applied: string[] = [];
-      const inputs = Object.values(previousNetworks).reduce<NetworkInput[]>(
+      const inputs = Object.values(pNetworks).reduce<NetworkInput[]>(
         (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
           const typeCount = getNetworkTypeCount(type, { inputs: previous }) + 1;
           const isRequired = requiredNetworks[type] === typeCount;
@@ -1216,7 +1224,7 @@ const NetworkInitForm = forwardRef<
         [],
       );
 
-      setGatewayInterface(previousGatewayInterface);
+      setGatewayInterface(pGatewayInterface);
 
       setNetworkInterfaceInputMap((previous) => {
         const result = { ...previous };
@@ -1231,6 +1239,8 @@ const NetworkInitForm = forwardRef<
       });
 
       setNetworkInputs(inputs);
+
+      testInputToToggleSubmitDisabled();
     }
   }, [
     createNetwork,
@@ -1239,9 +1249,8 @@ const NetworkInitForm = forwardRef<
     hostDetail,
     networkInputs,
     networkInterfaceInputMap,
-    previousGatewayInterface,
-    previousNetworks,
     requiredNetworks,
+    testInputToToggleSubmitDisabled,
   ]);
 
   useEffect(() => {
@@ -1492,7 +1501,6 @@ const NetworkInitForm = forwardRef<
                   setGatewayInputMessage();
                 }}
                 label="Gateway"
-                value={previousGateway}
               />
             }
             ref={gatewayInputRef}
@@ -1514,7 +1522,6 @@ const NetworkInitForm = forwardRef<
                   setDnsInputMessage();
                 }}
                 label="Domain name server(s)"
-                value={previousDns}
               />
             }
             ref={dnsCSVInputRef}
