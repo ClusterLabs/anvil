@@ -1,6 +1,7 @@
 import { Assignment as AssignmentIcon } from '@mui/icons-material';
 import { Grid } from '@mui/material';
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { BLACK } from '../lib/consts/DEFAULT_THEME';
@@ -28,8 +29,14 @@ import NetworkInitForm, {
 import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from './Text';
+import useProtectedState from '../hooks/useProtectedState';
 
 const StrikerInitForm: FC = () => {
+  const {
+    isReady,
+    query: { re },
+  } = useRouter();
+
   const [submitMessage, setSubmitMessage] = useState<Message | undefined>();
   const [requestBody, setRequestBody] = useState<
     (GeneralInitFormValues & NetworkInitFormValues) | undefined
@@ -42,11 +49,19 @@ const StrikerInitForm: FC = () => {
     useState<boolean>(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
 
+  const [hostDetail, setHostDetail] = useProtectedState<
+    APIHostDetail | undefined
+  >(undefined);
+
+  const allowGetHostDetail = useRef<boolean>(true);
+
   const generalInitFormRef = useRef<GeneralInitFormForwardedRefContent>({});
   const networkInitFormRef = useRef<NetworkInitFormForwardedRefContent>({});
 
   const jobIconRef = useRef<IconWithIndicatorForwardedRefContent>({});
   const jobSummaryRef = useRef<JobSummaryForwardedRefContent>({});
+
+  const reconfig = useMemo<boolean>(() => Boolean(re), [re]);
 
   const buildSubmitSection = useMemo(
     () =>
@@ -74,15 +89,50 @@ const StrikerInitForm: FC = () => {
     [isDisableSubmit, isSubmittingForm],
   );
 
+  const panelTitle = useMemo(() => {
+    let title = 'Loading...';
+
+    if (isReady) {
+      title = reconfig
+        ? `Reconfigure ${hostDetail?.shortHostName ?? 'striker'}`
+        : 'Initialize striker';
+    }
+
+    return title;
+  }, [hostDetail?.shortHostName, isReady, reconfig]);
+
   const toggleSubmitDisabled = useCallback((...testResults: boolean[]) => {
     setIsDisableSubmit(!testResults.every((testResult) => testResult));
   }, []);
+
+  useEffect(() => {
+    if (isReady) {
+      if (reconfig && allowGetHostDetail.current) {
+        allowGetHostDetail.current = false;
+
+        api
+          .get<APIHostDetail>('/host/local')
+          .then(({ data }) => {
+            setHostDetail(data);
+          })
+          .catch((error) => {
+            const emsg = handleAPIError(error);
+
+            emsg.children = (
+              <>Failed to get host detail data. {emsg.children}</>
+            );
+
+            setSubmitMessage(emsg);
+          });
+      }
+    }
+  }, [isReady, reconfig, setHostDetail]);
 
   return (
     <>
       <Panel>
         <PanelHeader>
-          <HeaderText text="Initialize striker" />
+          <HeaderText>{panelTitle}</HeaderText>
           <IconButton
             onClick={({ currentTarget }) => {
               jobSummaryRef.current.setAnchor?.call(null, currentTarget);
@@ -95,6 +145,8 @@ const StrikerInitForm: FC = () => {
         </PanelHeader>
         <FlexBox>
           <GeneralInitForm
+            expectHostDetail={reconfig}
+            hostDetail={hostDetail}
             ref={generalInitFormRef}
             toggleSubmitDisabled={(testResult) => {
               if (testResult !== isGeneralInitFormValid) {
@@ -104,6 +156,8 @@ const StrikerInitForm: FC = () => {
             }}
           />
           <NetworkInitForm
+            expectHostDetail={reconfig}
+            hostDetail={hostDetail}
             ref={networkInitFormRef}
             toggleSubmitDisabled={(testResult) => {
               if (testResult !== isNetworkInitFormValid) {

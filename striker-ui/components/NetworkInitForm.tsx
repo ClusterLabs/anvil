@@ -621,7 +621,7 @@ const NetworkInitForm = forwardRef<
   const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
   /** Avoid state here to prevent triggering multiple renders when reading
    * host detail. */
-  const isReadHostDetailRef = useRef<boolean>(false);
+  const readHostDetailRef = useRef<boolean>(true);
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
   const {
@@ -1183,9 +1183,9 @@ const NetworkInitForm = forwardRef<
       Object.keys(networkInterfaceInputMap).length > 0 &&
       expectHostDetail &&
       hostDetail &&
-      !isReadHostDetailRef.current
+      readHostDetailRef.current
     ) {
-      isReadHostDetailRef.current = true;
+      readHostDetailRef.current = false;
 
       const applied: string[] = [];
       const inputs = Object.values(previousNetworks).reduce<NetworkInput[]>(
