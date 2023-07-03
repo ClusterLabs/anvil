@@ -9,7 +9,7 @@ import {
   SERVER_PATHS,
 } from '../../consts';
 
-import { job, variable } from '../../accessModule';
+import { job, query, variable } from '../../accessModule';
 import { buildJobData } from '../../buildJobData';
 import { buildNetworkConfig } from '../../fconfig';
 import { sanitize } from '../../sanitize';
@@ -67,6 +67,35 @@ export const prepareNetwork: RequestHandler<
 
     return response.status(400).send();
   }
+
+  let hostType: string;
+
+  try {
+    const rows = await query<[[string]]>(
+      `SELECT host_type FROM hosts WHERE host_uuid = '${hostUUID}';`,
+    );
+
+    assert.ok(rows.length, `No record found`);
+
+    [[hostType]] = rows;
+  } catch (error) {
+    stderr(`Failed to get host type with ${hostUUID}; CAUSE: ${error}`);
+
+    return response.status(500).send();
+  }
+
+  networks.forEach((network) => {
+    const { interfaces: ifaces, type } = network;
+
+    if (
+      hostType === 'node' &&
+      ['bcn', 'ifn'].includes(type) &&
+      ifaces.length === 2 &&
+      !ifaces.some((iface) => !iface)
+    ) {
+      network.createBridge = '1';
+    }
+  });
 
   const configData: FormConfigData = {
     [cvar(2, 'dns')]: { step: 2, value: dns },
