@@ -84,7 +84,7 @@ type NetworkInitFormValues = {
   networks: Omit<NetworkInput, 'ipAddressInputRef' | 'subnetMaskInputRef'>[];
 };
 
-type NetworkInitFormForwardedRefContent = {
+type NetworkInitFormForwardedRefContent = MessageGroupForwardedRefContent & {
   get?: () => NetworkInitFormValues;
 };
 
@@ -1271,6 +1271,7 @@ const NetworkInitForm = forwardRef<
   useImperativeHandle(
     ref,
     () => ({
+      ...messageGroupRef.current,
       get: () => ({
         dns: dnsCSVInputRef.current.getValue?.call(null),
         gateway: gatewayInputRef.current.getValue?.call(null),

@@ -123,6 +123,7 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     isFormInvalid,
     setMessage,
     setValidity,
+    submitForm,
   } = useFormUtils(
     [INPUT_ID_PREP_NET_HOST_NAME, INPUT_GROUP_ID_PREP_NET_NETCONF],
     generalInputMessageGroupRef,
@@ -204,6 +205,18 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
                     }
                   />
                 ),
+                onProceedAppend: () => {
+                  submitForm({
+                    body,
+                    getErrorMsg: (parentMsg) => (
+                      <>Failed to prepare network. {parentMsg}</>
+                    ),
+                    method: 'put',
+                    setMsg: netconfFormRef?.current?.setMessage,
+                    successMsg: `Initiated prepare network on ${hostDetail?.shortHostName}`,
+                    url: `/host/${hostUUID}?handler=subnode-network`,
+                  });
+                },
                 titleText: `Prepare ${hostDetail?.shortHostName} network?`,
               });
 
@@ -265,6 +278,8 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     netconfForm,
     isFormInvalid,
     setConfirmDialogProps,
+    submitForm,
+    hostUUID,
     setMessage,
   ]);
 
